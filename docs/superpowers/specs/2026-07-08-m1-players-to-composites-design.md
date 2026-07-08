@@ -15,18 +15,35 @@ M1 is planned **assuming M0 exists**: a typed, tested engine package that expose
 seeded RNG, tuned constants, and `simMatch(rng, homeComposites, awayComposites)`.
 The assumed M0 interface is restated in §2.
 
-## 2. Assumed M0 interface (the boundary)
+## 2. M0 interface (the boundary — reconciled against the real code)
 
-M1 consumes M0 as a black box:
+M0 exists in `src/engine/` (the PoC has been ported to typed, tested modules).
+M1 consumes it as a black box. The **actual** signatures:
 
-- `engine/rng.ts` — seeded `mulberry32(seed) → () => number`.
-- `engine/constants.ts` — the validated match-engine tunables (from the PoC).
-- `engine/matchSim.ts` — `simMatch(rng, homeComposites, awayComposites) → MatchResult`.
-- `engine/composites.ts` — the `Composites` type: `{attack, finishing, defense, keeping, control}`, each `0..1`, `0.5` = league average.
+- `engine/rng.ts` — `mulberry32(seed: number): () => number`. Floats in `[0, 1)`.
+- `engine/constants.ts` — the validated tunables (`MATCH_SECONDS`, `BASE_CHANCE`,
+  `STRENGTH_K`, `HOME_ATTACK_BONUS`, …), all `export const`.
+- `engine/composites.ts` — `interface Composites { name: string; attack; finishing;
+  defense; keeping; control }` (each `0..1`, `0.5` = league average) **plus a
+  `name` field**; a factory `makeTeam(name, overrides?: CompositeOverrides)` that
+  defaults any unset composite to `0.5`; and `clamp` lives in `matchSim.ts`.
+- `engine/matchSim.ts` — `simMatch(rng, home: Composites, away: Composites):
+  MatchResult`, where `MatchResult = { home: number; away: number;
+  possessionHome: number; stat: { home: TeamMatchStat; away: TeamMatchStat } }`
+  and `TeamMatchStat = { goals; shots; sot; ticks }`. Possession % is already
+  computed by the engine.
+- `engine/montecarlo.ts` — `runScenario(home, away, n, seed): ScenarioResult`
+  (goals/shots/SOT/win-draw-loss %, top scores) and `PRESETS` (`equal`/`strong`/
+  `weak`). This is the harness M1's benchmark validation reuses (§11).
+- `engine/index.ts` — barrel re-exporting all of the above.
 
-M1 **produces** the real composite rollup (filling in `composites.ts`) and
-everything upstream of it. It does not modify the tick loop, the shot cascade, or
-any engine constant.
+**Conventions M1 must follow:** the codebase is ESM/NodeNext — relative imports
+carry explicit `.js` extensions (e.g. `import { Composites } from "./composites.js"`).
+Strict TypeScript, seeded RNG only, no `Math.random()`.
+
+M1 **produces** the composite rollup (extending `engine/composites.ts` with a
+`rollupComposites` function that returns a `Composites`) and everything upstream.
+It does not modify the tick loop, the shot cascade, or any engine constant.
 
 ## 3. Scope
 
@@ -117,7 +134,8 @@ so the extra ratings add no engine tuning surface — only generation/OVR surfac
 
 ```
 src/engine/
-  composites.ts     # rollupComposites(startingXI) → raw Composites   (M1 fills in)
+  composites.ts     # EXISTS (Composites type + makeTeam). M1 adds:
+                    #   rollupComposites(startingXI, teamName) → raw Composites
 src/core/
   players/
     generate.ts     # generatePlayer(rng, pos, base) → Player
@@ -220,8 +238,9 @@ makes OVR *mean* the right thing per position.
 
 ## 9. Composite rollup
 
-`rollupComposites(startingXI)` produces the five **raw** (unnormalized) composites
-from the on-pitch 11, per SOCCER_GM_SPEC.md §4, mapped onto the 15-stat set:
+`rollupComposites(startingXI, teamName)` produces a `Composites` (the engine's
+existing type, `name` + five **raw**, unnormalized values) from the on-pitch 11,
+per SOCCER_GM_SPEC.md §4, mapped onto the 15-stat set:
 
 - **attack** ← attackers'+mids' `finishing`, `longShot`, `dribbling`, `speed`, `positioning`, `crosses`.
 - **finishing** ← shot-share-weighted (ST > W > AM > others) `finishing`, `longShot`, `positioning`.
@@ -250,11 +269,14 @@ only ever sees XIs, so that is the population that must average 0.5.
 
 Two Vitest suites under `test/validation/`, fixed seeds, CI-gated like M0:
 
-1. **`m1-benchmarks.test.ts`** — build a generated + normalized league, run the §8
-   equal-team and mismatch Monte-Carlo scenarios using *generated* composites,
-   assert all M0 targets still hold (goals/game 2.6–2.9, shots 23–27, SOT 8–9.5,
-   draw 23–28%, 0-0 5–9%, home win 38–46%, strong-home 70–80%, weak avoids
-   defeat ≥ 20%).
+1. **`m1-benchmarks.test.ts`** — build a generated + normalized league, then run
+   the existing `engine/montecarlo.ts` `runScenario(home, away, n, seed)` harness
+   on *generated* composites (an average generated XI, and a strong-vs-weak
+   generated pair) instead of the hardcoded `PRESETS`. Assert all M0 targets still
+   hold (goals/game 2.6–2.9, shots 23–27, SOT 8–9.5, draw 23–28%, 0-0 5–9%, home
+   win 38–46%, strong-home 70–80%, weak avoids defeat ≥ 20%). This sits alongside
+   the existing `test/validation/benchmarks.test.ts` (the M0 gate), not replacing
+   it.
 2. **`m1-table-spread.test.ts`** — sim one (or an averaged handful of seeded) full
    38-match seasons via `schedule.ts` + `standings.ts`, assert **champion 78–94
    pts** and **bottom 15–32 pts**. `TEAM_STRENGTH_SPREAD` is tuned against this.
@@ -283,4 +305,5 @@ season loop.
   concern.
 - `TEAM_STRENGTH_SPREAD` and the Table A/B magnitudes are provisional pending the
   first tuning pass against the table-spread gate.
-- Whether to expose possession% (free to compute) is an M3 concern.
+- Possession% is already returned by the engine (`MatchResult.possessionHome`);
+  surfacing it in the UI is an M2/M3 concern, not M1 work.
