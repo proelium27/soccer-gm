@@ -15,6 +15,21 @@ function pct(x: number): string {
   return x.toFixed(1) + "%";
 }
 
+function numArg(
+  raw: string | undefined,
+  name: string,
+  opts: { positive?: boolean } = {},
+): number {
+  const v = Number(raw);
+  if (!Number.isFinite(v)) {
+    throw new Error(`--${name} must be a number (got "${raw}")`);
+  }
+  if (opts.positive && v <= 0) {
+    throw new Error(`--${name} must be a positive number (got "${raw}")`);
+  }
+  return v;
+}
+
 function runMatch(argv: string[]): void {
   const { values } = parseArgs({
     args: argv,
@@ -26,19 +41,27 @@ function runMatch(argv: string[]): void {
   });
   const home = resolvePreset(values.home!);
   const away = resolvePreset(values.away!);
-  const rng = mulberry32(Number(values.seed));
+  const rng = mulberry32(numArg(values.seed, "seed"));
   const r = simMatch(rng, home, away);
 
+  const w = Math.max(6, home.name.length, away.name.length);
+  const row = (label: string, h: string, a: string): string =>
+    `${label.padEnd(13)}${h.padStart(w)}  ${a.padStart(w)}`;
+
   console.log(`${home.name} ${r.home} - ${r.away} ${away.name}`);
-  console.log(`             ${home.name.padStart(6)}  ${away.name.padStart(6)}`);
+  console.log(row("", home.name, away.name));
   console.log(
-    `  Shots      ${String(r.stat.home.shots).padStart(6)}  ${String(r.stat.away.shots).padStart(6)}`,
+    row("  Shots", String(r.stat.home.shots), String(r.stat.away.shots)),
   );
   console.log(
-    `  On target  ${String(r.stat.home.sot).padStart(6)}  ${String(r.stat.away.sot).padStart(6)}`,
+    row("  On target", String(r.stat.home.sot), String(r.stat.away.sot)),
   );
   console.log(
-    `  Possession ${pct(100 * r.possessionHome).padStart(6)}  ${pct(100 * (1 - r.possessionHome)).padStart(6)}`,
+    row(
+      "  Possession",
+      pct(100 * r.possessionHome),
+      pct(100 * (1 - r.possessionHome)),
+    ),
   );
 }
 
@@ -52,8 +75,8 @@ function runBench(argv: string[]): void {
     },
   });
   const scenario = values.scenario!;
-  const n = Number(values.n);
-  const seed = Number(values.seed);
+  const n = numArg(values.n, "n", { positive: true });
+  const seed = numArg(values.seed, "seed");
 
   const pairs: Record<string, [Composites, Composites]> = {
     equal: [PRESETS.equal, PRESETS.equal],
@@ -79,11 +102,16 @@ function runBench(argv: string[]): void {
 }
 
 const [command, ...rest] = process.argv.slice(2);
-if (command === "match") runMatch(rest);
-else if (command === "bench") runBench(rest);
-else {
-  console.log("usage: npm run cli <match|bench> [options]");
-  console.log("  match --home <preset> --away <preset> --seed <n>");
-  console.log("  bench --scenario <equal|mismatch|upset> --n <n> --seed <n>");
-  process.exit(command ? 1 : 0);
+try {
+  if (command === "match") runMatch(rest);
+  else if (command === "bench") runBench(rest);
+  else {
+    console.log("usage: npm run cli <match|bench> [options]");
+    console.log("  match --home <preset> --away <preset> --seed <n>");
+    console.log("  bench --scenario <equal|mismatch|upset> --n <n> --seed <n>");
+    process.exit(command ? 1 : 0);
+  }
+} catch (err) {
+  console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
+  process.exit(1);
 }
