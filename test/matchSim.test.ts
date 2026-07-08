@@ -19,9 +19,9 @@ describe("resolveShot", () => {
     const outcomes = new Set(
       Array.from({ length: 200 }, () => resolveShot(rng, off, def)),
     );
-    for (const o of outcomes) {
-      expect(["blocked", "off_target", "saved", "goal"]).toContain(o);
-    }
+    expect(outcomes).toEqual(
+      new Set(["blocked", "off_target", "saved", "goal"]),
+    );
   });
 });
 
