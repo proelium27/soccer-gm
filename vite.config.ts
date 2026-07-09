@@ -5,4 +5,7 @@ export default defineConfig({
   plugins: [react()],
   root: ".",
   build: { outDir: "dist" },
+  test: {
+    exclude: [".claude/**", "node_modules/**"],
+  },
 });
