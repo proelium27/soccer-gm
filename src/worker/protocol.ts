@@ -1,4 +1,5 @@
 import type { LeagueStore } from "../core/leagueState.js";
+import type { PlayedMatch } from "../core/standings.js";
 
 export type SimThrough = "game" | "month" | "deadline" | "season";
 
@@ -10,4 +11,11 @@ export type WorkerCommand =
 // Worker -> UI
 export type WorkerResponse =
   | { type: "simResult"; league: LeagueStore }
-  | { type: "offseasonResult"; league: LeagueStore };
+  | { type: "offseasonResult"; league: LeagueStore }
+  | {
+      type: "simProgress";
+      matchday: number;
+      matchdayIndex: number;
+      totalMatchdays: number;
+      results: PlayedMatch[];
+    };

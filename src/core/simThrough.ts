@@ -45,10 +45,18 @@ function accumulateStats(
   }
 }
 
+export type MatchdayProgress = (
+  matchday: number,
+  matchdayIndex: number,
+  totalMatchdays: number,
+  results: PlayedMatch[],
+) => void;
+
 export function simThrough(
   league: LeagueStore,
   through: "game" | "month" | "deadline" | "season",
   rng: () => number,
+  onMatchday?: MatchdayProgress,
 ): LeagueStore {
   if (league.phase !== "regular" || league.schedule.length === 0) {
     return league;
@@ -99,7 +107,11 @@ export function simThrough(
     stats: [...p.stats.map((s) => ({ ...s }))],
   }));
 
-  const newResults: PlayedMatch[] = toSim.map((game) => {
+  const matchdays = [...new Set(toSim.map((g) => g.matchday))].sort(
+    (a, b) => a - b,
+  );
+
+  const simOne = (game: ScheduleGame): PlayedMatch => {
     const hd = matchData[game.home];
     const ad = matchData[game.away];
     const result = simMatchDetailed(
@@ -129,6 +141,14 @@ export function simThrough(
       matchday: game.matchday,
       boxScore: result.boxScore,
     };
+  };
+
+  const newResults: PlayedMatch[] = [];
+  matchdays.forEach((matchday, index) => {
+    const gamesThisMatchday = toSim.filter((g) => g.matchday === matchday);
+    const mdResults = gamesThisMatchday.map(simOne);
+    newResults.push(...mdResults);
+    onMatchday?.(matchday, index, matchdays.length, mdResults);
   });
 
   return {
