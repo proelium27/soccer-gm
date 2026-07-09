@@ -3,6 +3,7 @@ import { mulberry32 } from "../src/engine/rng.js";
 import { simMatch } from "../src/engine/matchSim.js";
 import { runScenario, PRESETS } from "../src/engine/montecarlo.js";
 import type { Composites } from "../src/engine/composites.js";
+import { simSeason } from "../src/core/season.js";
 
 function resolvePreset(name: string): Composites {
   if (name === "equal" || name === "strong" || name === "weak") {
@@ -101,14 +102,39 @@ function runBench(argv: string[]): void {
   );
 }
 
+function runSeason(argv: string[]): void {
+  const { values } = parseArgs({
+    args: argv,
+    options: { seed: { type: "string", default: "1" } },
+  });
+  const seed = numArg(values.seed, "seed");
+  const { league, table } = simSeason(mulberry32(seed));
+  const nameOf = new Map(league.teams.map((t) => [t.tid, t.name]));
+  const ovrOf = new Map(league.teams.map((t) => [t.tid, t.avgOvr]));
+  const nameW = Math.max(4, ...league.teams.map((t) => t.name.length));
+
+  console.log(`=== Season table (seed ${seed}) ===`);
+  console.log(
+    `${"#".padStart(2)}  ${"Team".padEnd(nameW)}  ${"P".padStart(2)} ${"W".padStart(2)} ${"D".padStart(2)} ${"L".padStart(2)}  ${"GF".padStart(3)} ${"GA".padStart(3)} ${"GD".padStart(4)}  ${"Pts".padStart(3)}  Ovr`,
+  );
+  table.forEach((r, i) => {
+    const gd = (r.gd >= 0 ? "+" : "") + r.gd;
+    console.log(
+      `${String(i + 1).padStart(2)}  ${nameOf.get(r.tid)!.padEnd(nameW)}  ${String(r.played).padStart(2)} ${String(r.won).padStart(2)} ${String(r.drawn).padStart(2)} ${String(r.lost).padStart(2)}  ${String(r.gf).padStart(3)} ${String(r.ga).padStart(3)} ${gd.padStart(4)}  ${String(r.points).padStart(3)}  ${ovrOf.get(r.tid)!.toFixed(1)}`,
+    );
+  });
+}
+
 const [command, ...rest] = process.argv.slice(2);
 try {
   if (command === "match") runMatch(rest);
   else if (command === "bench") runBench(rest);
+  else if (command === "season") runSeason(rest);
   else {
-    console.log("usage: npm run cli <match|bench> [options]");
+    console.log("usage: npm run cli <match|bench|season> [options]");
     console.log("  match --home <preset> --away <preset> --seed <n>");
     console.log("  bench --scenario <equal|mismatch|upset> --n <n> --seed <n>");
+    console.log("  season --seed <n>");
     process.exit(command ? 1 : 0);
   }
 } catch (err) {

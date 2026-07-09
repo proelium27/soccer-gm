@@ -9,3 +9,4 @@ export * from "./league/normalize.js";
 export * from "./league/composites.js";
 export * from "./schedule.js";
 export * from "./standings.js";
+export * from "./season.js";
