@@ -5,7 +5,7 @@ import { computeOvr } from "./ovr.js";
 import { generateName } from "./names.js";
 import {
   TIER_OFFSET, RATING_NOISE_SD, ABS_LOW_MIN, ABS_LOW_MAX,
-  RATING_MIN, RATING_MAX,
+  RATING_MIN, RATING_MAX, SALARY_PER_OVR,
 } from "../constants.js";
 
 const clampRating = (x: number): number =>
@@ -31,6 +31,7 @@ export function generatePlayer(
   pos: Position,
   base: number,
   pid: number,
+  born: number,
 ): Player {
   const tiers = GEN_OFFSETS[pos];
   const ratings = {} as PlayerRatings;
@@ -48,13 +49,16 @@ export function generatePlayer(
     pid,
     name: generateName(rng, "Genero"),
     nationality: "Genero",
-    born: 0,
+    born,
     pos,
     heightCm,
     ratings,
     ovr,
     potential,
-    contract: { salary: 0, expiresSeason: 1 },
+    // Placeholder contract — length/expiry are a caller concern (initial gen,
+    // youth intake, and free agency all set these differently). Finances
+    // beyond this salary formula are still TBD.
+    contract: { salary: SALARY_PER_OVR * ovr, expiresSeason: 1 },
     injury: null,
     stats: [],
     hist: [],

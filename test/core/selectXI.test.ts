@@ -13,7 +13,7 @@ function roster(seed: number): Player[] {
   let pid = 0;
   for (const pos of POSITIONS)
     for (let i = 0; i < ROSTER_COMPOSITION[pos]; i++)
-      players.push(generatePlayer(rng, pos, 52, pid++));
+      players.push(generatePlayer(rng, pos, 52, pid++, -10));
   return players;
 }
 

@@ -8,7 +8,7 @@ function ordinal(n: number): string {
 }
 
 export function Dashboard() {
-  const { league, simAction, simming } = useLeague();
+  const { league, simAction, offseasonAction, simming } = useLeague();
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -136,6 +136,27 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Offseason */}
+      {league.phase === "offseason" && (
+        <div className="card mt-3">
+          <div className="card-body">
+            <h5 className="card-title">Offseason</h5>
+            <p className="card-text">
+              Season {league.season} is complete. Advancing will run player
+              progression, retirements, AI free agency, and youth intake, then
+              start Season {league.season + 1}.
+            </p>
+            <button
+              className="btn btn-success"
+              disabled={simming}
+              onClick={() => offseasonAction()}
+            >
+              Advance to Season {league.season + 1}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

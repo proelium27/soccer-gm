@@ -3,7 +3,10 @@ import { POSITIONS } from "../players/types.js";
 import { generatePlayer } from "../players/generate.js";
 import {
   NUM_TEAMS, LEAGUE_BASE, TEAM_STRENGTH_SPREAD, ROSTER_COMPOSITION,
+  INITIAL_AGE_MIN, INITIAL_AGE_MAX, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
 } from "../constants.js";
+
+const STARTING_SEASON = 1;
 
 export interface LeagueTeam {
   tid: number;
@@ -37,7 +40,13 @@ export function generateLeague(rng: () => number): League {
     let ovrSum = 0;
     for (const pos of POSITIONS as readonly Position[]) {
       for (let i = 0; i < ROSTER_COMPOSITION[pos]; i++) {
-        const p = generatePlayer(rng, pos, base, pid++);
+        const age = INITIAL_AGE_MIN
+          + Math.floor(rng() * (INITIAL_AGE_MAX - INITIAL_AGE_MIN + 1));
+        const born = STARTING_SEASON - age;
+        const p = generatePlayer(rng, pos, base, pid++, born);
+        const length = CONTRACT_LENGTH_MIN
+          + Math.floor(rng() * (CONTRACT_LENGTH_MAX - CONTRACT_LENGTH_MIN + 1));
+        p.contract.expiresSeason = STARTING_SEASON + length;
         players.push(p);
         roster.push(p.pid);
         ovrSum += p.ovr;

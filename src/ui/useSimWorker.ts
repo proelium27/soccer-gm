@@ -14,7 +14,7 @@ export function useSimWorker() {
       { type: "module" },
     );
     worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
-      if (e.data.type === "simResult") {
+      if (e.data.type === "simResult" || e.data.type === "offseasonResult") {
         setSimming(false);
         resolveRef.current?.(e.data.league);
         resolveRef.current = null;
@@ -35,5 +35,16 @@ export function useSimWorker() {
     [],
   );
 
-  return { sim, simming };
+  const runOffseason = useCallback(
+    (league: LeagueStore): Promise<LeagueStore> => {
+      return new Promise((resolve) => {
+        setSimming(true);
+        resolveRef.current = resolve;
+        workerRef.current?.postMessage({ type: "offseason", league });
+      });
+    },
+    [],
+  );
+
+  return { sim, runOffseason, simming };
 }

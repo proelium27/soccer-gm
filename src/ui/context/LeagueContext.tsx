@@ -4,11 +4,16 @@ import type { SimThrough } from "../../worker/protocol.js";
 import { useSimWorker } from "../useSimWorker.js";
 import { saveLeague, loadLeague, listLeagues } from "../../db/leagueDb.js";
 import { exportLeagueJSON, importLeagueJSON } from "../../db/exportImport.js";
+import { signFreeAgent, releasePlayer } from "../../core/freeAgency.js";
+import { mulberry32 } from "../../engine/rng.js";
 
 interface LeagueContextValue {
   league: LeagueStore | null;
   setLeague: (l: LeagueStore) => void;
   simAction: (through: SimThrough) => Promise<void>;
+  offseasonAction: () => Promise<void>;
+  signFreeAgentAction: (pid: number) => Promise<void>;
+  releasePlayerAction: (pid: number) => Promise<void>;
   simming: boolean;
   saveToDb: () => Promise<void>;
   exportJSON: () => void;
@@ -25,7 +30,7 @@ export function useLeague(): LeagueContextValue {
 
 export function LeagueProvider({ children }: { children: ReactNode }) {
   const [league, setLeagueState] = useState<LeagueStore | null>(null);
-  const { sim, simming } = useSimWorker();
+  const { sim, runOffseason, simming } = useSimWorker();
 
   useEffect(() => {
     listLeagues().then(async (list) => {
@@ -49,6 +54,37 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     setLeagueState({ ...result, lid });
   }, [league, sim]);
 
+  const offseasonAction = useCallback(async () => {
+    if (!league) return;
+    const result = await runOffseason(league);
+    const lid = await saveLeague(result);
+    setLeagueState({ ...result, lid });
+  }, [league, runOffseason]);
+
+  const signFreeAgentAction = useCallback(async (pid: number) => {
+    if (!league) return;
+    const rng = mulberry32((league.lid * 1000 + league.season * 31 + pid) >>> 0);
+    const { teams, players } = signFreeAgent(
+      league.teams,
+      league.players,
+      league.meta.userTid,
+      pid,
+      league.season,
+      rng,
+    );
+    const updated = { ...league, teams, players };
+    const lid = await saveLeague(updated);
+    setLeagueState({ ...updated, lid });
+  }, [league]);
+
+  const releasePlayerAction = useCallback(async (pid: number) => {
+    if (!league) return;
+    const teams = releasePlayer(league.teams, league.meta.userTid, pid);
+    const updated = { ...league, teams };
+    const lid = await saveLeague(updated);
+    setLeagueState({ ...updated, lid });
+  }, [league]);
+
   const saveToDb = useCallback(async () => {
     if (league) await saveLeague(league);
   }, [league]);
@@ -68,6 +104,9 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       league,
       setLeague,
       simAction,
+      offseasonAction,
+      signFreeAgentAction,
+      releasePlayerAction,
       simming,
       saveToDb,
       exportJSON: doExport,

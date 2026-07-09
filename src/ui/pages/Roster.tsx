@@ -3,7 +3,7 @@ import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
 
 export function Roster() {
-  const { league } = useLeague();
+  const { league, releasePlayerAction } = useLeague();
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -52,6 +52,7 @@ export function Roster() {
                   <th className="text-end">Tkl</th>
                 </>
               )}
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -73,6 +74,14 @@ export function Roster() {
                       <td className="text-end">{ss?.tackles ?? 0}</td>
                     </>
                   )}
+                  <td className="text-end">
+                    <button
+                      className="btn btn-sm btn-outline-danger"
+                      onClick={() => releasePlayerAction(p.pid)}
+                    >
+                      Release
+                    </button>
+                  </td>
                 </tr>
               );
             })}

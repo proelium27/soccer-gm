@@ -14,7 +14,7 @@ function xiFor(seed: number, base: number): Player[] {
   let pid = 0;
   for (const pos of POSITIONS)
     for (let i = 0; i < ROSTER_COMPOSITION[pos]; i++)
-      players.push(generatePlayer(rng, pos, base, pid++));
+      players.push(generatePlayer(rng, pos, base, pid++, -10));
   return selectXI(players, FORMATIONS["4-3-3"]);
 }
 

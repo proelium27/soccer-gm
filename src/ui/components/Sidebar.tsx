@@ -11,6 +11,7 @@ export function Sidebar() {
 
       <div className="nav-section">Team</div>
       <NavLink to="/roster" className="nav-link">Roster</NavLink>
+      <NavLink to="/free-agency" className="nav-link">Free Agency</NavLink>
     </nav>
   );
 }
