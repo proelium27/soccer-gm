@@ -1,5 +1,6 @@
 import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings } from "../../core/standings.js";
+import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -7,8 +8,12 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
+const currency = new Intl.NumberFormat("en-US", {
+  style: "currency", currency: "USD", maximumFractionDigits: 0,
+});
+
 export function Dashboard() {
-  const { league, simAction, offseasonAction, simming } = useLeague();
+  const { league, simAction, offseasonAction, setScoutingSpendAction, simming } = useLeague();
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -89,6 +94,30 @@ export function Dashboard() {
           ) : (
             <p className="card-text mb-0">No matches played yet</p>
           )}
+        </div>
+      </div>
+
+      {/* Finances */}
+      <div className="card mb-3">
+        <div className="card-body">
+          <h5 className="card-title">Finances</h5>
+          <p className="card-text mb-2">
+            Budget: {currency.format(userTeam.budget)} &middot; Hype: {Math.round(userTeam.hype)}/100
+          </p>
+          <label className="form-label mb-1" htmlFor="scouting-spend">
+            Scouting spend this season: {currency.format(userTeam.scoutingSpend)}
+          </label>
+          <input
+            id="scouting-spend"
+            type="range"
+            className="form-range"
+            min={0}
+            max={SCOUTING_SPEND_MAX}
+            step={100_000}
+            value={userTeam.scoutingSpend}
+            disabled={simming}
+            onChange={(e) => setScoutingSpendAction(Number(e.target.value))}
+          />
         </div>
       </div>
 

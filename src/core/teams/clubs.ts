@@ -1,4 +1,5 @@
 import type { League } from "../league/generate.js";
+import { BASE_SEASON_BUDGET, HYPE_INITIAL, SCOUTING_SPEND_MIN } from "../constants.js";
 
 export interface ClubIdentity {
   name: string;
@@ -35,6 +36,12 @@ export interface StoredTeam {
   abbrev: string;
   colors: [string, string];
   roster: number[];
+  /** Funds available to spend on wages, transfers, and scouting. */
+  budget: number;
+  /** Fame/popularity, 0-100; drives a damped revenue channel and free-agent appeal. */
+  hype: number;
+  /** This season's scouting spend, deducted from budget; lowers transfer valuation noise. */
+  scoutingSpend: number;
 }
 
 /**
@@ -50,6 +57,9 @@ export function assignIdentities(league: League): StoredTeam[] {
       abbrev: club.abbrev,
       colors: club.colors,
       roster: t.roster,
+      budget: BASE_SEASON_BUDGET,
+      hype: HYPE_INITIAL,
+      scoutingSpend: SCOUTING_SPEND_MIN,
     };
   });
 }

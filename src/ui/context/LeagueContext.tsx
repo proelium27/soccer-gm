@@ -5,6 +5,7 @@ import { useSimWorker, type SimProgress } from "../useSimWorker.js";
 import { saveLeague, loadLeague, listLeagues } from "../../db/leagueDb.js";
 import { exportLeagueJSON, importLeagueJSON } from "../../db/exportImport.js";
 import { signFreeAgent, releasePlayer } from "../../core/freeAgency.js";
+import { clampScoutingSpend } from "../../core/finance/scouting.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { SimOverlay } from "../components/SimOverlay.js";
 
@@ -15,6 +16,7 @@ interface LeagueContextValue {
   offseasonAction: () => Promise<void>;
   signFreeAgentAction: (pid: number) => Promise<void>;
   releasePlayerAction: (pid: number) => Promise<void>;
+  setScoutingSpendAction: (spend: number) => Promise<void>;
   simming: boolean;
   saveToDb: () => Promise<void>;
   exportJSON: () => void;
@@ -118,6 +120,17 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     setLeagueState({ ...updated, lid });
   }, [league]);
 
+  const setScoutingSpendAction = useCallback(async (spend: number) => {
+    if (!league) return;
+    const teams = league.teams.map((t) => {
+      if (t.tid !== league.meta.userTid) return t;
+      return { ...t, scoutingSpend: clampScoutingSpend(spend, t.budget) };
+    });
+    const updated = { ...league, teams };
+    const lid = await saveLeague(updated);
+    setLeagueState({ ...updated, lid });
+  }, [league]);
+
   const saveToDb = useCallback(async () => {
     if (league) await saveLeague(league);
   }, [league]);
@@ -140,6 +153,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       offseasonAction,
       signFreeAgentAction,
       releasePlayerAction,
+      setScoutingSpendAction,
       simming: simming || simOverlayOpen,
       saveToDb,
       exportJSON: doExport,

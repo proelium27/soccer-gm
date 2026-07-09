@@ -123,3 +123,60 @@ export const SALARY_PER_OVR = 1000;
 export const CONTRACT_LENGTH_MIN = 1;
 export const CONTRACT_LENGTH_MAX = 3;
 export const YOUTH_CONTRACT_LENGTH = 2;
+
+/**
+ * M6 finance (see memory "m6-finance-design" / Google Doc "Details"):
+ * every club gets an equal base allocation each season; the only spread
+ * comes from domestic success payouts plus a heavily damped hype→revenue
+ * channel, so famous/successful clubs don't snowball.
+ */
+export const BASE_SEASON_BUDGET = 50_000_000;
+
+/** Success payout by final domestic league rank (index 0 = 1st place), descending. */
+export const SUCCESS_PAYOUT_BY_RANK: readonly number[] = [
+  20_000_000, 17_000_000, 14_500_000, 12_500_000, 10_500_000, 9_000_000, 7_500_000, 6_500_000,
+  5_500_000, 4_500_000, 3_500_000, 2_500_000, 2_000_000, 1_500_000, 1_200_000, 900_000,
+  700_000, 500_000, 300_000, 0,
+];
+
+/** Hype is tracked on a 0-100 scale. */
+export const HYPE_MIN = 0;
+export const HYPE_MAX = 100;
+
+/**
+ * Hype moves toward a season-performance target (derived from points-per-
+ * game and final rank) rather than snapping to it, so a single great/poor
+ * season doesn't swing a club's fame instantly.
+ */
+export const HYPE_SMOOTHING = 0.35;
+export const HYPE_INITIAL = 50;
+
+/**
+ * Damped hype→revenue channel: revenue per hype point, scaled down hard so
+ * this stays a secondary channel behind success payouts (per design: "don't
+ * make profit from jersey sales contribute TOO much to budget").
+ */
+export const HYPE_REVENUE_PER_POINT = 40_000;
+export const HYPE_REVENUE_DAMPING = 0.4;
+
+/** Scouting: a single per-season spend slider (0 = no scouts) that lowers valuation noise. */
+export const SCOUTING_SPEND_MIN = 0;
+export const SCOUTING_SPEND_MAX = 5_000_000;
+/** Perceived-valuation noise (std dev, as a fraction of true value) at zero spend and at max spend. */
+export const SCOUTING_NOISE_SD_MIN_SPEND = 0.35;
+export const SCOUTING_NOISE_SD_MAX_SPEND = 0.05;
+
+/**
+ * Transfer valuation formula: value climbs steeply with ovr above a floor
+ * (replacement-level players are worth little), is scaled by an age curve
+ * peaking around the same prime as on-field performance, and by remaining
+ * contract length (longer deals are harder/pricier to pry a player out of).
+ */
+export const VALUATION_OVR_FLOOR = 40;
+export const VALUATION_OVR_COEFF = 4_000;
+export const VALUATION_OVR_EXPONENT = 2.1;
+export const VALUATION_AGE_PEAK = 26;
+export const VALUATION_AGE_FALLOFF_YOUNG = 0.02;
+export const VALUATION_AGE_FALLOFF_OLD = 0.08;
+export const VALUATION_CONTRACT_YEAR_BONUS = 0.08;
+export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;

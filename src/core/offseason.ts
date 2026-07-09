@@ -6,6 +6,9 @@ import { generateYouthIntake } from "./players/youth.js";
 import { releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus } from "./freeAgency.js";
 import { computeStandings } from "./standings.js";
 import { generateSchedule } from "./schedule.js";
+import { updateHype } from "./finance/hype.js";
+import { settleSeasonBudget, wageBill } from "./finance/budget.js";
+import { BASE_SEASON_BUDGET, HYPE_INITIAL, NUM_TEAMS, SCOUTING_SPEND_MIN } from "./constants.js";
 
 function teamAvgOvr(roster: number[], playerMap: Map<number, Player>): number {
   const ovrs = roster.map((pid) => playerMap.get(pid)?.ovr ?? 0);
@@ -47,9 +50,28 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     roster: t.roster.filter((pid) => !retiredPids.has(pid)),
   }));
 
+  // 3.5. Settle season finances: revenue (equal base + success payout by
+  //      final rank + damped hype revenue) minus wages paid and scouting
+  //      spend, then move hype toward this season's performance. Standings
+  //      are computed here (before AI free agency changes rosters) so rank
+  //      reflects the season that actually just played out.
+  const standings = computeStandings(teams.map((t) => t.tid), league.played);
+  const rankByTid = new Map(standings.map((row, i) => [row.tid, i + 1]));
+  const rowByTid = new Map(standings.map((row) => [row.tid, row]));
+  const salaryMap = new Map(players.map((p) => [p.pid, p.contract.salary]));
+  teams = teams.map((t) => {
+    const rank = rankByTid.get(t.tid) ?? NUM_TEAMS;
+    const row = rowByTid.get(t.tid);
+    const currentBudget = t.budget ?? BASE_SEASON_BUDGET;
+    const currentHype = t.hype ?? HYPE_INITIAL;
+    const wages = wageBill(t.roster, salaryMap);
+    const budget = settleSeasonBudget(currentBudget, rank, currentHype, wages, t.scoutingSpend ?? 0);
+    const hype = row ? updateHype(currentHype, row, rank) : currentHype;
+    return { ...t, budget, hype, scoutingSpend: SCOUTING_SPEND_MIN };
+  });
+
   // 4. AI free agency fills roster holes (worst team picks first), skipping
   //    the user's club so they can sign manually.
-  const standings = computeStandings(teams.map((t) => t.tid), league.played);
   const signingOrder = [...standings].sort((a, b) => a.points - b.points).map((s) => s.tid);
   ({ teams, players } = runAIFreeAgency(
     teams,
