@@ -33,9 +33,10 @@ export function SimOverlay({ open, teams, queue, done, onComplete }: SimOverlayP
 
     const currentMd = queue[mdIndex];
     const totalMatchdays = queue[0]?.totalMatchdays ?? 1;
+    const gamesPerMatchday = Math.max(1, queue[0]?.results.length ?? 1);
     const perGameMs = Math.max(
       15,
-      Math.min(180, Math.round(3500 / (totalMatchdays * 10))),
+      Math.min(180, Math.round(3500 / (totalMatchdays * gamesPerMatchday))),
     );
     const matchdayPauseMs = Math.min(450, perGameMs * 4);
 
@@ -100,8 +101,8 @@ export function SimOverlay({ open, teams, queue, done, onComplete }: SimOverlayP
             {revealedResults.length === 0 && (
               <div className="text-muted small">Kicking off...</div>
             )}
-            {revealedResults.map((r, i) => (
-              <div key={`${r.home}-${r.away}-${i}`} className="sim-overlay-row">
+            {revealedResults.map((r) => (
+              <div key={`${r.home}-${r.away}`} className="sim-overlay-row">
                 <span className="sim-overlay-team">{teamLabel(teams, r.home)}</span>
                 <span className="sim-overlay-score">
                   {r.homeGoals} &ndash; {r.awayGoals}

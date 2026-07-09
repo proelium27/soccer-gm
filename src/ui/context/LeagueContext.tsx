@@ -73,7 +73,9 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     const result = await sim(through, league, (progress) => {
       setAnimQueue((q) => [...q, progress]);
     });
-    if (result === league) {
+    // Reference equality can't survive the worker's structured clone, so
+    // detect a no-op sim by comparing played-game counts.
+    if (result.played.length === league.played.length) {
       // Nothing was simmed (e.g. no schedule left) — skip the overlay.
       pendingResultRef.current = null;
       setSimOverlayOpen(false);

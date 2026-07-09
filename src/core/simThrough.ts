@@ -107,6 +107,8 @@ export function simThrough(
     stats: [...p.stats.map((s) => ({ ...s }))],
   }));
 
+  // All games share one RNG stream, so sim order defines the results:
+  // ascending matchday, then schedule order within each matchday.
   const matchdays = [...new Set(toSim.map((g) => g.matchday))].sort(
     (a, b) => a - b,
   );
