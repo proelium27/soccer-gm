@@ -11,8 +11,21 @@ export type SkillKey = (typeof SKILL_KEYS)[number];
 
 export type PlayerRatings = Record<SkillKey, number>;
 
-/** Placeholder shapes — populated in later milestones (M3/M4). */
-export interface SeasonStats { season: number; }
+export interface SeasonStats {
+  season: number;
+  appearances: number;
+  goals: number;
+  assists: number;
+  shots: number;
+  shotsOnTarget: number;
+  saves: number;
+  tackles: number;
+}
+
+export function emptySeasonStats(season: number): SeasonStats {
+  return { season, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, saves: 0, tackles: 0 };
+}
+
 export interface RatingsSnapshot { season: number; ratings: PlayerRatings; ovr: number; }
 
 export interface Player {

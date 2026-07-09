@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { computeStandings, type PlayedMatch } from "../../src/core/standings.js";
+import { computeStandings, type MatchScore } from "../../src/core/standings.js";
 
 describe("computeStandings", () => {
   it("awards 3/1/0 and ranks by points", () => {
-    const matches: PlayedMatch[] = [
+    const matches: MatchScore[] = [
       { home: 0, away: 1, homeGoals: 2, awayGoals: 0 }, // 0 wins
       { home: 1, away: 2, homeGoals: 1, awayGoals: 1 }, // draw
     ];
@@ -14,7 +14,7 @@ describe("computeStandings", () => {
     expect(table.find((r) => r.tid === 2)!.points).toBe(1);
   });
   it("breaks ties by goal difference then goals for", () => {
-    const matches: PlayedMatch[] = [
+    const matches: MatchScore[] = [
       { home: 0, away: 2, homeGoals: 5, awayGoals: 0 }, // team0 +5
       { home: 1, away: 2, homeGoals: 2, awayGoals: 0 }, // team1 +2
     ];

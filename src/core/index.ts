@@ -7,6 +7,7 @@ export * from "./composites.js";
 export * from "./league/generate.js";
 export * from "./league/normalize.js";
 export * from "./league/composites.js";
+export * from "./league/matchPlayers.js";
 export * from "./schedule.js";
 export * from "./standings.js";
 export * from "./season.js";

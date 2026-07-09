@@ -1,7 +1,7 @@
-import { simMatch } from "../engine/matchSim.js";
+import { simMatchDetailed } from "../engine/matchSim.js";
 import type { Composites } from "../engine/composites.js";
 import { generateLeague, type League } from "./league/generate.js";
-import { leagueComposites } from "./league/composites.js";
+import { leagueMatchData } from "./league/composites.js";
 import { doubleRoundRobin } from "./schedule.js";
 import { computeStandings, type StandingsRow, type PlayedMatch } from "./standings.js";
 
@@ -12,18 +12,26 @@ export interface SeasonResult {
   table: StandingsRow[];
 }
 
-/**
- * Generate a league and sim one full double round-robin season, returning the
- * final table. Threads a single RNG stream through generation and every match,
- * so the whole season is deterministic for a given seed.
- */
 export function simSeason(rng: () => number): SeasonResult {
   const league = generateLeague(rng);
-  const comps = leagueComposites(league);
+  const matchData = leagueMatchData(league);
+  const comps = matchData.map((d) => d.composites);
   const ids = league.teams.map((t) => t.tid);
+  let matchdayCounter = 0;
   const matches: PlayedMatch[] = doubleRoundRobin(ids).map((f) => {
-    const r = simMatch(rng, comps[f.home], comps[f.away]);
-    return { home: f.home, away: f.away, homeGoals: r.home, awayGoals: r.away };
+    matchdayCounter++;
+    const hd = matchData[f.home];
+    const ad = matchData[f.away];
+    const r = simMatchDetailed(rng, hd.composites, ad.composites, hd.xi, ad.xi);
+    return {
+      home: f.home,
+      away: f.away,
+      homeGoals: r.home,
+      awayGoals: r.away,
+      possessionHome: r.possessionHome,
+      matchday: matchdayCounter,
+      boxScore: r.boxScore,
+    };
   });
   return { league, comps, matches, table: computeStandings(ids, matches) };
 }

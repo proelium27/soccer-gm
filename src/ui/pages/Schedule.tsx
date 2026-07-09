@@ -1,11 +1,13 @@
+import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { ScheduleGame } from "../../core/schedule.js";
 
 interface FixtureRow {
-  matchday: number | null;
+  matchday: number;
   home: number;
   away: number;
-  result: { homeGoals: number; awayGoals: number } | null;
+  result: { homeGoals: number; awayGoals: number; possessionHome: number } | null;
+  playedIndex: number | null;
   sortKey: number;
 }
 
@@ -18,23 +20,21 @@ export function Schedule() {
 
   const userTid = league.meta.userTid;
 
-  // Build rows from played matches (no matchday stored, so number sequentially)
   const playedRows: FixtureRow[] = [];
-  let playedIndex = 0;
-  for (const m of league.played) {
+  for (let mi = 0; mi < league.played.length; mi++) {
+    const m = league.played[mi];
     if (m.home === userTid || m.away === userTid) {
-      playedIndex++;
       playedRows.push({
-        matchday: null,
+        matchday: m.matchday,
         home: m.home,
         away: m.away,
-        result: { homeGoals: m.homeGoals, awayGoals: m.awayGoals },
-        sortKey: playedIndex,
+        result: { homeGoals: m.homeGoals, awayGoals: m.awayGoals, possessionHome: m.possessionHome },
+        playedIndex: mi,
+        sortKey: m.matchday,
       });
     }
   }
 
-  // Build rows from upcoming schedule (has matchday)
   const scheduledRows: FixtureRow[] = league.schedule
     .filter((g: ScheduleGame) => g.home === userTid || g.away === userTid)
     .map((g: ScheduleGame) => ({
@@ -42,15 +42,14 @@ export function Schedule() {
       home: g.home,
       away: g.away,
       result: null,
-      sortKey: g.matchday + 1000, // ensure upcoming sort after played
+      playedIndex: null,
+      sortKey: g.matchday,
     }));
 
-  // Combine: played first in order, then upcoming by matchday
   const allRows = [...playedRows, ...scheduledRows].sort(
     (a, b) => a.sortKey - b.sortKey,
   );
 
-  // Find the most recently played match row index (last played row)
   let lastPlayedIdx = -1;
   for (let i = 0; i < allRows.length; i++) {
     if (allRows[i].result !== null) {
@@ -72,10 +71,11 @@ export function Schedule() {
         <table className="table table-striped table-sm">
           <thead>
             <tr>
-              <th className="text-end">Matchday</th>
+              <th className="text-end">MD</th>
               <th>Home</th>
               <th className="text-center">Score</th>
               <th>Away</th>
+              <th className="text-center">Poss</th>
             </tr>
           </thead>
           <tbody>
@@ -86,16 +86,23 @@ export function Schedule() {
                   key={`${row.home}-${row.away}-${row.sortKey}`}
                   className={isLastPlayed ? "table-info" : undefined}
                 >
-                  <td className="text-end">
-                    {row.matchday != null ? row.matchday : i + 1}
-                  </td>
+                  <td className="text-end">{row.matchday}</td>
                   <td>{teamName(row.home)}</td>
                   <td className="text-center">
-                    {row.result
-                      ? `${row.result.homeGoals} - ${row.result.awayGoals}`
-                      : "—"}
+                    {row.result ? (
+                      <Link to={`/box-score/${row.playedIndex}`}>
+                        {row.result.homeGoals} - {row.result.awayGoals}
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td>{teamName(row.away)}</td>
+                  <td className="text-center text-muted">
+                    {row.result
+                      ? `${Math.round(row.result.possessionHome * 100)}–${Math.round((1 - row.result.possessionHome) * 100)}`
+                      : ""}
+                  </td>
                 </tr>
               );
             })}

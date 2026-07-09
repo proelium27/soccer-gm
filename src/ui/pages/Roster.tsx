@@ -14,13 +14,11 @@ export function Roster() {
     return <p className="p-3">Team not found.</p>;
   }
 
-  // Gather user's players
   const rosterPids = new Set(userTeam.roster);
   const players: Player[] = league.players.filter((p) =>
     rosterPids.has(p.pid),
   );
 
-  // Sort by position order (GK first, then CB, ..., ST), then by OVR desc within position
   const posOrder = new Map(POSITIONS.map((pos, i) => [pos, i]));
   players.sort((a, b) => {
     const posA = posOrder.get(a.pos) ?? 99;
@@ -28,6 +26,8 @@ export function Roster() {
     if (posA !== posB) return posA - posB;
     return b.ovr - a.ovr;
   });
+
+  const hasStats = league.played.length > 0;
 
   return (
     <div className="container-fluid p-3">
@@ -42,17 +42,40 @@ export function Roster() {
               <th>Pos</th>
               <th className="text-end">OVR</th>
               <th className="text-end">Age</th>
+              {hasStats && (
+                <>
+                  <th className="text-end">Apps</th>
+                  <th className="text-end">G</th>
+                  <th className="text-end">A</th>
+                  <th className="text-end">Sh</th>
+                  <th className="text-end">Sv</th>
+                  <th className="text-end">Tkl</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
-            {players.map((p) => (
-              <tr key={p.pid}>
-                <td>{p.name}</td>
-                <td>{p.pos}</td>
-                <td className="text-end">{p.ovr}</td>
-                <td className="text-end">{league.season - p.born}</td>
-              </tr>
-            ))}
+            {players.map((p) => {
+              const ss = p.stats.find((s) => s.season === league.season);
+              return (
+                <tr key={p.pid}>
+                  <td>{p.name}</td>
+                  <td>{p.pos}</td>
+                  <td className="text-end">{p.ovr}</td>
+                  <td className="text-end">{league.season - p.born}</td>
+                  {hasStats && (
+                    <>
+                      <td className="text-end">{ss?.appearances ?? 0}</td>
+                      <td className="text-end">{ss?.goals ?? 0}</td>
+                      <td className="text-end">{ss?.assists ?? 0}</td>
+                      <td className="text-end">{ss?.shots ?? 0}</td>
+                      <td className="text-end">{ss?.saves ?? 0}</td>
+                      <td className="text-end">{ss?.tackles ?? 0}</td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

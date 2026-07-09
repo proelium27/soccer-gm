@@ -1,8 +1,16 @@
-export interface PlayedMatch {
+import type { BoxScore } from "../engine/attribution.js";
+
+export interface MatchScore {
   home: number;
   away: number;
   homeGoals: number;
   awayGoals: number;
+}
+
+export interface PlayedMatch extends MatchScore {
+  possessionHome: number;
+  matchday: number;
+  boxScore: BoxScore;
 }
 
 export interface StandingsRow {
@@ -18,7 +26,7 @@ export interface StandingsRow {
 }
 
 /** Build a league table (3/1/0), sorted by points, then GD, then GF, then tid. */
-export function computeStandings(teamIds: number[], matches: PlayedMatch[]): StandingsRow[] {
+export function computeStandings(teamIds: number[], matches: MatchScore[]): StandingsRow[] {
   const rows = new Map<number, StandingsRow>();
   for (const tid of teamIds)
     rows.set(tid, { tid, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, gd: 0, points: 0 });
