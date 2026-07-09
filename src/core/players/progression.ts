@@ -127,7 +127,7 @@ export function progressPlayer(
     ratings,
     ovr,
     potential,
-    hist: [...player.hist, { season, ratings, ovr }],
+    hist: [...player.hist, { season, ratings, ovr, potential }],
   };
 }
 

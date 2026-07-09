@@ -1,6 +1,7 @@
 import { useLeague } from "../context/LeagueContext.js";
 import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
+import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
 
 export function Roster() {
   const { league, releasePlayerAction } = useLeague();
@@ -40,8 +41,9 @@ export function Roster() {
             <tr>
               <th>Name</th>
               <th>Pos</th>
-              <th className="text-end">OVR</th>
               <th className="text-end">Age</th>
+              <th className="text-end">Ovr</th>
+              <th className="text-end">Pot</th>
               {hasStats && (
                 <>
                   <th className="text-end">Apps</th>
@@ -58,12 +60,18 @@ export function Roster() {
           <tbody>
             {players.map((p) => {
               const ss = p.stats.find((s) => s.season === league.season);
+              const prev = previousRatings(p);
               return (
                 <tr key={p.pid}>
                   <td>{p.name}</td>
                   <td>{p.pos}</td>
-                  <td className="text-end">{p.ovr}</td>
                   <td className="text-end">{league.season - p.born}</td>
+                  <td className="text-end">
+                    <RatingDelta value={p.ovr} previous={prev?.ovr ?? null} />
+                  </td>
+                  <td className="text-end">
+                    <RatingDelta value={p.potential} previous={prev?.potential ?? null} />
+                  </td>
                   {hasStats && (
                     <>
                       <td className="text-end">{ss?.appearances ?? 0}</td>

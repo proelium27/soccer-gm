@@ -26,7 +26,7 @@ export function emptySeasonStats(season: number): SeasonStats {
   return { season, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, saves: 0, tackles: 0 };
 }
 
-export interface RatingsSnapshot { season: number; ratings: PlayerRatings; ovr: number; }
+export interface RatingsSnapshot { season: number; ratings: PlayerRatings; ovr: number; potential: number; }
 
 export interface Player {
   pid: number;
