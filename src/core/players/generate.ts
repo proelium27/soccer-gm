@@ -4,6 +4,7 @@ import { GEN_OFFSETS, HEIGHT_RANGES, type Tier } from "./templates.js";
 import { computeOvr } from "./ovr.js";
 import { generateName } from "./names.js";
 import { rollPotential } from "./progression.js";
+import { gaussian } from "../../engine/rng.js";
 import {
   TIER_OFFSET, RATING_NOISE_SD, ABS_LOW_MIN, ABS_LOW_MAX,
   RATING_MIN, RATING_MAX, SALARY_PER_OVR,
@@ -11,13 +12,6 @@ import {
 
 const clampRating = (x: number): number =>
   Math.round(Math.max(RATING_MIN, Math.min(RATING_MAX, x)));
-
-/** Standard-normal sample via Box-Muller from the seeded stream. */
-function gaussian(rng: () => number): number {
-  const u = 1 - rng();
-  const v = rng();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-}
 
 function rollRating(rng: () => number, tier: Tier, base: number): number {
   if (tier === "ABS") {

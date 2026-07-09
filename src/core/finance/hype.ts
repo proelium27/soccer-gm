@@ -1,7 +1,6 @@
 import type { StandingsRow } from "../standings.js";
 import { HYPE_MAX, HYPE_MIN, HYPE_SMOOTHING, NUM_TEAMS } from "../constants.js";
-
-const clamp = (x: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, x));
+import { clamp } from "../util.js";
 
 /**
  * Season-end hype target: blends points-per-game (form) with final rank

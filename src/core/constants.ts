@@ -125,18 +125,23 @@ export const CONTRACT_LENGTH_MAX = 3;
 export const YOUTH_CONTRACT_LENGTH = 2;
 
 /**
- * M6 finance (see memory "m6-finance-design" / Google Doc "Details"):
- * every club gets an equal base allocation each season; the only spread
- * comes from domestic success payouts plus a heavily damped hype→revenue
- * channel, so famous/successful clubs don't snowball.
+ * M6 finance (see docs/finance-design.md): every club gets an equal base
+ * allocation each season; the only spread comes from domestic success
+ * payouts plus a heavily damped hype→revenue channel, so famous/successful
+ * clubs don't snowball.
+ *
+ * Scale invariant (tested in budget.test.ts): the base allocation alone must
+ * exceed the maximum possible season expenses (a full roster of 99-ovr
+ * salaries plus max scouting spend), so no club can ever lose money — per
+ * design, deficits/debt do not exist in this game.
  */
-export const BASE_SEASON_BUDGET = 50_000_000;
+export const BASE_SEASON_BUDGET = 10_000_000;
 
 /** Success payout by final domestic league rank (index 0 = 1st place), descending. */
 export const SUCCESS_PAYOUT_BY_RANK: readonly number[] = [
-  20_000_000, 17_000_000, 14_500_000, 12_500_000, 10_500_000, 9_000_000, 7_500_000, 6_500_000,
-  5_500_000, 4_500_000, 3_500_000, 2_500_000, 2_000_000, 1_500_000, 1_200_000, 900_000,
-  700_000, 500_000, 300_000, 0,
+  8_000_000, 6_800_000, 5_800_000, 5_000_000, 4_200_000, 3_600_000, 3_000_000, 2_600_000,
+  2_200_000, 1_800_000, 1_400_000, 1_000_000, 800_000, 600_000, 480_000, 360_000,
+  280_000, 200_000, 120_000, 0,
 ];
 
 /** Hype is tracked on a 0-100 scale. */

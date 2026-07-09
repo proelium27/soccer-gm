@@ -9,3 +9,10 @@ export function mulberry32(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+/** Standard-normal sample via Box-Muller from the seeded stream. */
+export function gaussian(rng: () => number): number {
+  const u = 1 - rng();
+  const v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}

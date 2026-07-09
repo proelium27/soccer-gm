@@ -8,7 +8,7 @@ import { computeStandings } from "./standings.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
 import { settleSeasonBudget, wageBill } from "./finance/budget.js";
-import { BASE_SEASON_BUDGET, HYPE_INITIAL, NUM_TEAMS, SCOUTING_SPEND_MIN } from "./constants.js";
+import { NUM_TEAMS, SCOUTING_SPEND_MIN } from "./constants.js";
 
 function teamAvgOvr(roster: number[], playerMap: Map<number, Player>): number {
   const ovrs = roster.map((pid) => playerMap.get(pid)?.ovr ?? 0);
@@ -62,11 +62,9 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   teams = teams.map((t) => {
     const rank = rankByTid.get(t.tid) ?? NUM_TEAMS;
     const row = rowByTid.get(t.tid);
-    const currentBudget = t.budget ?? BASE_SEASON_BUDGET;
-    const currentHype = t.hype ?? HYPE_INITIAL;
     const wages = wageBill(t.roster, salaryMap);
-    const budget = settleSeasonBudget(currentBudget, rank, currentHype, wages, t.scoutingSpend ?? 0);
-    const hype = row ? updateHype(currentHype, row, rank) : currentHype;
+    const budget = settleSeasonBudget(t.budget, rank, t.hype, wages, t.scoutingSpend);
+    const hype = row ? updateHype(t.hype, row, rank) : t.hype;
     return { ...t, budget, hype, scoutingSpend: SCOUTING_SPEND_MIN };
   });
 

@@ -1,8 +1,7 @@
 import {
   SCOUTING_SPEND_MAX, SCOUTING_SPEND_MIN, SCOUTING_NOISE_SD_MAX_SPEND, SCOUTING_NOISE_SD_MIN_SPEND,
 } from "../constants.js";
-
-const clamp = (x: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, x));
+import { clamp } from "../util.js";
 
 /**
  * Higher scouting spend linearly lowers the noise (std dev, as a fraction of

@@ -1,5 +1,6 @@
 import type { Player, SkillKey } from "./types.js";
 import { computeOvr } from "./ovr.js";
+import { gaussian } from "../../engine/rng.js";
 import {
   BASE_AGE_CURVE, BASE_AGE_CURVE_PEAK, PHYSICAL_AGE_SHIFT, SKILL_AGE_SHIFT,
   GK_AGE_SHIFT, POTENTIAL_FACTOR_PER_POINT, POTENTIAL_FACTOR_MIN, POTENTIAL_FACTOR_MAX,
@@ -21,13 +22,6 @@ const SKILL_KEYS_GROUP: readonly SkillKey[] = [
 
 const clampRating = (x: number): number =>
   Math.round(Math.max(RATING_MIN, Math.min(RATING_MAX, x)));
-
-/** Standard-normal sample via Box-Muller from the seeded stream. */
-function gaussian(rng: () => number): number {
-  const u = 1 - rng();
-  const v = rng();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-}
 
 /** Piecewise-linear interpolation over sorted [x, y] control points, clamped at the ends. */
 function interpolate(table: readonly (readonly [number, number])[], x: number): number {

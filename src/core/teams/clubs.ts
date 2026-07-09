@@ -38,7 +38,7 @@ export interface StoredTeam {
   roster: number[];
   /** Funds available to spend on wages, transfers, and scouting. */
   budget: number;
-  /** Fame/popularity, 0-100; drives a damped revenue channel and free-agent appeal. */
+  /** Fame/popularity, 0-100; drives a damped ticket/jersey revenue channel. */
   hype: number;
   /** This season's scouting spend, deducted from budget; lowers transfer valuation noise. */
   scoutingSpend: number;

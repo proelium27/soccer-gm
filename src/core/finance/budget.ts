@@ -26,16 +26,22 @@ export function seasonRevenue(rank: number, hype: number): SeasonRevenue {
   };
 }
 
-/** Sum of weekly-equivalent salaries for a club's roster (as tracked on `player.contract.salary`). */
+/**
+ * A club's per-season wage bill: the sum of `player.contract.salary` across
+ * the roster. Salaries are flat per-season placeholder amounts
+ * (SALARY_PER_OVR × ovr), charged once per season here; the contract UI may
+ * present them as weekly figures, but the stored number is the season total.
+ */
 export function wageBill(roster: number[], playerSalary: Map<number, number>): number {
   return roster.reduce((sum, pid) => sum + (playerSalary.get(pid) ?? 0), 0);
 }
 
 /**
  * Roll a club's budget forward one season: add this season's revenue,
- * subtract the wage bill and whatever was spent on scouting. Can go
- * negative — spending discipline is left to the user/AI logic, not enforced
- * here.
+ * subtract the wage bill and whatever was spent on scouting. Per design,
+ * clubs never lose money: the base allocation alone exceeds the maximum
+ * possible expenses (invariant tested in budget.test.ts), so a settled
+ * budget only grows.
  */
 export function settleSeasonBudget(
   currentBudget: number,

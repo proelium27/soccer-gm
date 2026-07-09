@@ -1,17 +1,11 @@
 import type { Player } from "../players/types.js";
 import { scoutingNoiseSd } from "./scouting.js";
+import { gaussian } from "../../engine/rng.js";
 import {
   VALUATION_OVR_FLOOR, VALUATION_OVR_COEFF, VALUATION_OVR_EXPONENT, VALUATION_AGE_PEAK,
   VALUATION_AGE_FALLOFF_YOUNG, VALUATION_AGE_FALLOFF_OLD,
   VALUATION_CONTRACT_YEAR_BONUS, VALUATION_CONTRACT_YEAR_BONUS_CAP,
 } from "../constants.js";
-
-/** Standard-normal sample via Box-Muller from the seeded stream. */
-function gaussian(rng: () => number): number {
-  const u = 1 - rng();
-  const v = rng();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-}
 
 /**
  * True transfer value: replacement-level players (at/below the ovr floor)

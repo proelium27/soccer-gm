@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { seasonRevenue, settleSeasonBudget, wageBill } from "../../../src/core/finance/budget.js";
-import { BASE_SEASON_BUDGET } from "../../../src/core/constants.js";
+import {
+  BASE_SEASON_BUDGET, SUCCESS_PAYOUT_BY_RANK, NUM_TEAMS, ROSTER_COMPOSITION,
+  SALARY_PER_OVR, RATING_MAX, SCOUTING_SPEND_MAX,
+} from "../../../src/core/constants.js";
 
 describe("seasonRevenue", () => {
   it("gives every club the same base allocation regardless of rank", () => {
@@ -39,6 +42,18 @@ describe("wageBill", () => {
   });
 });
 
+describe("SUCCESS_PAYOUT_BY_RANK", () => {
+  it("has exactly one entry per league position", () => {
+    expect(SUCCESS_PAYOUT_BY_RANK).toHaveLength(NUM_TEAMS);
+  });
+
+  it("is non-increasing from first to last place", () => {
+    for (let i = 1; i < SUCCESS_PAYOUT_BY_RANK.length; i++) {
+      expect(SUCCESS_PAYOUT_BY_RANK[i]).toBeLessThanOrEqual(SUCCESS_PAYOUT_BY_RANK[i - 1]);
+    }
+  });
+});
+
 describe("settleSeasonBudget", () => {
   it("adds revenue and subtracts wages and scouting spend", () => {
     const revenue = seasonRevenue(5, 50).total;
@@ -46,8 +61,14 @@ describe("settleSeasonBudget", () => {
     expect(result).toBe(1_000_000 + revenue - 200_000 - 100_000);
   });
 
-  it("can go negative under heavy overspend", () => {
-    const result = settleSeasonBudget(0, 20, 0, 999_999_999, 0);
-    expect(result).toBeLessThan(0);
+  it("never loses money, even in the worst case (design: deficits do not exist)", () => {
+    // Last place, zero hype, a full roster of ceiling-ovr salaries, max
+    // scouting spend: the base allocation alone must still cover it. This
+    // pins the scale invariant so constant tweaks can't reintroduce debt.
+    const rosterSize = Object.values(ROSTER_COMPOSITION).reduce((s, n) => s + n, 0);
+    const maxWages = rosterSize * SALARY_PER_OVR * RATING_MAX;
+    const settled = settleSeasonBudget(0, NUM_TEAMS, 0, maxWages, SCOUTING_SPEND_MAX);
+    expect(settled).toBeGreaterThan(0);
+    expect(BASE_SEASON_BUDGET).toBeGreaterThan(maxWages + SCOUTING_SPEND_MAX);
   });
 });

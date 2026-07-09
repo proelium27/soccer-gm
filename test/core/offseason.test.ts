@@ -94,4 +94,18 @@ describe("simOffseason", () => {
     const budgets = next.teams.map((t) => t.budget);
     expect(Math.max(...budgets)).toBeGreaterThan(Math.min(...budgets));
   });
+
+  it("grows every club's budget every season (design: no club ever loses money)", () => {
+    const rng = mulberry32(11);
+    let league = playFullSeason(rng);
+
+    for (let s = 0; s < 2; s++) {
+      const budgetsBefore = new Map(league.teams.map((t) => [t.tid, t.budget]));
+      league = simOffseason(league, rng);
+      for (const team of league.teams) {
+        expect(team.budget).toBeGreaterThan(budgetsBefore.get(team.tid)!);
+      }
+      league = simThrough(league, "season", rng);
+    }
+  });
 });
