@@ -3,6 +3,7 @@ import { SKILL_KEYS } from "./types.js";
 import { GEN_OFFSETS, HEIGHT_RANGES, type Tier } from "./templates.js";
 import { computeOvr } from "./ovr.js";
 import { generateName } from "./names.js";
+import { rollPotential } from "./progression.js";
 import {
   TIER_OFFSET, RATING_NOISE_SD, ABS_LOW_MIN, ABS_LOW_MAX,
   RATING_MIN, RATING_MAX, SALARY_PER_OVR,
@@ -31,7 +32,8 @@ export function generatePlayer(
   pos: Position,
   base: number,
   pid: number,
-  born: number,
+  age: number,
+  season: number,
 ): Player {
   const tiers = GEN_OFFSETS[pos];
   const ratings = {} as PlayerRatings;
@@ -43,7 +45,8 @@ export function generatePlayer(
   const heightCm = Math.round(loH + rng() * (hiH - loH));
 
   const ovr = computeOvr(pos, ratings, heightCm);
-  const potential = Math.min(RATING_MAX, ovr + Math.round(rng() * 15));
+  const potential = rollPotential(rng, ovr, age, pos);
+  const born = season - age;
 
   return {
     pid,

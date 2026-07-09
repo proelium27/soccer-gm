@@ -42,8 +42,7 @@ export function generateLeague(rng: () => number): League {
       for (let i = 0; i < ROSTER_COMPOSITION[pos]; i++) {
         const age = INITIAL_AGE_MIN
           + Math.floor(rng() * (INITIAL_AGE_MAX - INITIAL_AGE_MIN + 1));
-        const born = STARTING_SEASON - age;
-        const p = generatePlayer(rng, pos, base, pid++, born);
+        const p = generatePlayer(rng, pos, base, pid++, age, STARTING_SEASON);
         const length = CONTRACT_LENGTH_MIN
           + Math.floor(rng() * (CONTRACT_LENGTH_MAX - CONTRACT_LENGTH_MIN + 1));
         p.contract.expiresSeason = STARTING_SEASON + length;

@@ -22,13 +22,12 @@ export function generateYouthIntake(
   const count = YOUTH_INTAKE_MIN
     + Math.floor(rng() * (YOUTH_INTAKE_MAX - YOUTH_INTAKE_MIN + 1));
   const base = teamAvgOvr - YOUTH_BASE_OFFSET;
-  const born = season - YOUTH_AGE;
 
   const players: Player[] = [];
   let pid = nextPid;
   for (let i = 0; i < count; i++) {
     const pos = POSITIONS[Math.floor(rng() * POSITIONS.length)] as Position;
-    const p = generatePlayer(rng, pos, base, pid++, born);
+    const p = generatePlayer(rng, pos, base, pid++, YOUTH_AGE, season);
     p.contract.expiresSeason = season + YOUTH_CONTRACT_LENGTH;
     players.push(p);
   }

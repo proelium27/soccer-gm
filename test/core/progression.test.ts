@@ -2,33 +2,55 @@ import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { generatePlayer } from "../../src/core/players/generate.js";
 import {
-  ageOf, progressPlayer, retirementProbability, rollRetirement,
+  ageOf, progressPlayer, retirementProbability, rollRetirement, rollPotential,
 } from "../../src/core/players/progression.js";
-import { RETIREMENT_START_AGE } from "../../src/core/constants.js";
+import { RETIREMENT_START_AGE, RATING_MAX } from "../../src/core/constants.js";
 
 describe("ageOf", () => {
   it("computes age from season - born", () => {
-    const p = generatePlayer(mulberry32(1), "ST", 55, 1, -10);
+    const p = generatePlayer(mulberry32(1), "ST", 55, 1, 11, 1); // born season -10
     expect(ageOf(p, 1)).toBe(11);
     expect(ageOf(p, 5)).toBe(15);
   });
 });
 
-describe("progressPlayer", () => {
-  it("young player with growth room and full minutes moves toward potential", () => {
-    const rng = mulberry32(42);
-    let p = generatePlayer(rng, "ST", 55, 1, -18); // age 19 at season 1
-    p = { ...p, potential: Math.min(99, p.ovr + 15) };
-    p.stats.push({ season: 1, appearances: 30, goals: 5, assists: 2, shots: 20, shotsOnTarget: 10, saves: 0, tackles: 0 });
-
-    const before = p.ovr;
-    const after = progressPlayer(rng, p, 1);
-    expect(after.ovr).toBeGreaterThanOrEqual(before);
+describe("rollPotential", () => {
+  it("is always >= ovr", () => {
+    for (let i = 0; i < 100; i++) {
+      const rng = mulberry32(i);
+      const ovr = 40 + Math.floor(rng() * 40);
+      const age = 16 + Math.floor(rng() * 25);
+      const pot = rollPotential(mulberry32(i + 500), ovr, age, "ST");
+      expect(pot).toBeGreaterThanOrEqual(ovr);
+      expect(pot).toBeLessThanOrEqual(RATING_MAX);
+    }
   });
 
+  it("gives a teenager more headroom on average than a 32-year-old at the same ovr", () => {
+    let youngSum = 0, oldSum = 0;
+    const N = 200;
+    for (let i = 0; i < N; i++) {
+      youngSum += rollPotential(mulberry32(i), 60, 17, "ST") - 60;
+      oldSum += rollPotential(mulberry32(i + 1000), 60, 32, "ST") - 60;
+    }
+    expect(youngSum / N).toBeGreaterThan(oldSum / N);
+  });
+
+  it("GKs get extra effective headroom at the same age as outfielders", () => {
+    let gkSum = 0, stSum = 0;
+    const N = 200;
+    for (let i = 0; i < N; i++) {
+      gkSum += rollPotential(mulberry32(i), 60, 28, "GK") - 60;
+      stSum += rollPotential(mulberry32(i + 1000), 60, 28, "ST") - 60;
+    }
+    expect(gkSum / N).toBeGreaterThan(stSum / N);
+  });
+});
+
+describe("progressPlayer", () => {
   it("appends a hist snapshot for the season", () => {
     const rng = mulberry32(7);
-    const p = generatePlayer(rng, "CB", 55, 1, -20);
+    const p = generatePlayer(rng, "CB", 55, 1, 19, 1);
     const after = progressPlayer(rng, p, 1);
     expect(after.hist).toHaveLength(1);
     expect(after.hist[0].season).toBe(1);
@@ -36,21 +58,54 @@ describe("progressPlayer", () => {
 
   it("does not mutate the input player", () => {
     const rng = mulberry32(3);
-    const p = generatePlayer(rng, "CM", 55, 1, -22);
+    const p = generatePlayer(rng, "CM", 55, 1, 17, 1);
     const ratingsBefore = { ...p.ratings };
     progressPlayer(rng, p, 1);
     expect(p.ratings).toEqual(ratingsBefore);
   });
 
-  it("aged-past-peak player without GK bonus declines on average", () => {
+  it("re-rolls potential from the new ovr rather than keeping the old value fixed", () => {
+    const rng = mulberry32(11);
+    const p = generatePlayer(rng, "ST", 55, 1, 18, 1);
+    const after = progressPlayer(rng, p, 1);
+    expect(after.potential).toBeGreaterThanOrEqual(after.ovr);
+  });
+
+  it("teenagers improve on average across many rolls", () => {
     let total = 0;
-    for (let i = 0; i < 50; i++) {
-      const rng = mulberry32(100 + i);
-      const p = generatePlayer(rng, "CB", 55, i, -36); // age 37
+    const N = 100;
+    for (let i = 0; i < N; i++) {
+      const rng = mulberry32(2000 + i);
+      const p = generatePlayer(rng, "CM", 55, i, 18, 1);
       const after = progressPlayer(rng, p, 1);
       total += after.ovr - p.ovr;
     }
-    expect(total / 50).toBeLessThan(0);
+    expect(total / N).toBeGreaterThan(0);
+  });
+
+  it("players well past peak decline on average", () => {
+    let total = 0;
+    const N = 100;
+    for (let i = 0; i < N; i++) {
+      const rng = mulberry32(3000 + i);
+      const p = generatePlayer(rng, "CB", 55, i, 37, 1);
+      const after = progressPlayer(rng, p, 1);
+      total += after.ovr - p.ovr;
+    }
+    expect(total / N).toBeLessThan(0);
+  });
+
+  it("outcomes vary across identical starting players (busts and breakouts both happen)", () => {
+    const outcomes: number[] = [];
+    for (let i = 0; i < 100; i++) {
+      const rng = mulberry32(4000 + i);
+      const p = generatePlayer(rng, "ST", 55, i, 18, 1);
+      const after = progressPlayer(rng, p, 1);
+      outcomes.push(after.ovr - p.ovr);
+    }
+    // Real spread: not every teenager gets the same delta.
+    expect(new Set(outcomes).size).toBeGreaterThan(10);
+    expect(Math.min(...outcomes)).toBeLessThan(Math.max(...outcomes) - 5);
   });
 });
 
@@ -68,7 +123,7 @@ describe("retirementProbability", () => {
 describe("rollRetirement", () => {
   it("never retires a young player", () => {
     const rng = mulberry32(1);
-    const p = generatePlayer(rng, "ST", 55, 1, -20); // age 21
+    const p = generatePlayer(rng, "ST", 55, 1, 21, 1);
     expect(rollRetirement(rng, p, 1)).toBe(false);
   });
 });

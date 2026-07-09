@@ -49,23 +49,58 @@ export const YOUTH_INTAKE_MAX = 5;
 /** Youth are raw: generated `base` this many points below the club's current average OVR. */
 export const YOUTH_BASE_OFFSET = 20;
 
-/** Age at which ratings peak; GKs peak later and decline slower. */
-export const PEAK_AGE = 27;
-export const GK_PEAK_AGE = 30;
+/**
+ * BBGM-style progression (see src/core/players/progression.ts for the full
+ * model). Base age curve is defined around a canonical peak of ~26
+ * ("25-27: around peak" per design brief); PHYSICAL and SKILL rating groups
+ * each shift the age they read from that curve so physical ratings peak
+ * earlier and decline first, while skill ratings peak later and decline
+ * slower. GKs get an additional shift on top (peak later still, career-long
+ * keepers).
+ */
+export const BASE_AGE_CURVE_PEAK = 26;
+/** [age - peak, expected mean rating delta] control points; linearly interpolated between. */
+export const BASE_AGE_CURVE: readonly [number, number][] = [
+  [-8, 9], [-7, 8], [-6, 6.5], [-5, 5], [-4, 4], [-3, 3], [-2, 2], [-1, 1],
+  [0, 0.3], [1, 0], [2, -1], [3, -2], [4, -3.5], [5, -4.5], [6, -5.5], [7, -6.5],
+  [8, -7.5], [9, -8.5], [10, -9.5],
+];
 
-/** Growth-phase tuning: fraction of remaining (potential - ovr) gap closed per season. */
-export const GROWTH_RATE = 0.22;
-/** Minimum fraction of a normal season's minutes needed to realize full growth. */
-export const GROWTH_MIN_MINUTES_FACTOR = 0.3;
-/** Appearances considered a "full" season of minutes for progression purposes. */
+/** Physical ratings (speed, strength, stamina, jumping) read the curve this many years "older". */
+export const PHYSICAL_AGE_SHIFT = 3;
+/** Skill ratings (technical/mental + goalkeeping) read the curve this many years "younger". */
+export const SKILL_AGE_SHIFT = -3;
+/** Extra "younger" shift applied to every rating group for goalkeepers (career-long keepers). */
+export const GK_AGE_SHIFT = -3;
+
+/** Growth-phase (positive base delta) amplification from potential headroom, per rating point of (potential - ovr). */
+export const POTENTIAL_FACTOR_PER_POINT = 0.045;
+export const POTENTIAL_FACTOR_MIN = 0.4;
+export const POTENTIAL_FACTOR_MAX = 2.2;
+
+/** Minutes played is a minor nudge on growth-phase deltas only, not the previous 0.3-1.0x multiplier. */
+export const MINUTES_FACTOR_MIN = 0.85;
+export const MINUTES_FACTOR_MAX = 1.15;
+/** Appearances considered a "full" season of minutes for the minutes nudge. */
 export const FULL_SEASON_APPEARANCES = 30;
 
-/** Decline-phase tuning: per-year-past-peak rating loss, outfield vs. GK. */
-export const DECLINE_RATE = 1.1;
-export const GK_DECLINE_RATE = 0.6;
+/** Per-rating noise std dev at age 18 and at age 33+, linearly interpolated by age (variance narrows with age). */
+export const PROGRESSION_NOISE_SD_YOUNG = 5;
+export const PROGRESSION_NOISE_SD_OLD = 2;
 
-/** Std dev of season-to-season rating noise (growth or decline). */
-export const PROGRESSION_NOISE_SD = 2.5;
+/**
+ * Potential headroom-by-age: expected additional room above current ovr,
+ * before random spread is applied. Recalculated every offseason from the
+ * player's *new* ovr, so potential moves with performance rather than being
+ * fixed at birth. Also used to roll a player's initial potential at
+ * generation, keyed by age (GKs get GK_AGE_SHIFT applied first).
+ */
+export const POTENTIAL_HEADROOM_BY_AGE: readonly [number, number][] = [
+  [16, 35], [18, 30], [20, 24], [22, 18], [24, 12], [26, 7], [28, 4], [30, 2], [33, 1],
+];
+/** Potential headroom roll is headroom * uniform(POTENTIAL_ROLL_MIN, POTENTIAL_ROLL_MAX). */
+export const POTENTIAL_ROLL_MIN = 0.3;
+export const POTENTIAL_ROLL_MAX = 1.7;
 
 /** Retirement: no chance before this age; probability climbs per year after. */
 export const RETIREMENT_START_AGE = 33;
