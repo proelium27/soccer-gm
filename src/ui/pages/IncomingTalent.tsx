@@ -3,7 +3,12 @@ import { freeAgentPids } from "../../core/freeAgency.js";
 import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
 
-export function FreeAgency() {
+/**
+ * Stub for now: lists unsigned players available to sign. The full vision
+ * (youth academy, scouted global prospects, transfer windows) is designed
+ * but deferred to a later milestone — see memory "M6 finance design".
+ */
+export function IncomingTalent() {
   const { league, signFreeAgentAction, simming } = useLeague();
 
   if (!league) {
@@ -11,10 +16,10 @@ export function FreeAgency() {
   }
 
   const faPids = freeAgentPids(league.teams, league.players);
-  const freeAgents: Player[] = league.players.filter((p) => faPids.has(p.pid));
+  const availablePlayers: Player[] = league.players.filter((p) => faPids.has(p.pid));
 
   const posOrder = new Map(POSITIONS.map((pos, i) => [pos, i]));
-  freeAgents.sort((a, b) => {
+  availablePlayers.sort((a, b) => {
     const posA = posOrder.get(a.pos) ?? 99;
     const posB = posOrder.get(b.pos) ?? 99;
     if (posA !== posB) return posA - posB;
@@ -23,9 +28,9 @@ export function FreeAgency() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>Free Agents</h4>
-      {freeAgents.length === 0 ? (
-        <p>No free agents available.</p>
+      <h4>Incoming Talent</h4>
+      {availablePlayers.length === 0 ? (
+        <p>No available players.</p>
       ) : (
         <table className="table table-striped table-sm">
           <thead>
@@ -38,7 +43,7 @@ export function FreeAgency() {
             </tr>
           </thead>
           <tbody>
-            {freeAgents.map((p) => (
+            {availablePlayers.map((p) => (
               <tr key={p.pid}>
                 <td>{p.name}</td>
                 <td>{p.pos}</td>

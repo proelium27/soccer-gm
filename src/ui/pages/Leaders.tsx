@@ -16,6 +16,7 @@ const STAT_OPTIONS: { key: StatKey; label: string }[] = [
 interface LeaderRow {
   player: Player;
   teamName: string;
+  isUserTeam: boolean;
   stats: SeasonStats;
 }
 
@@ -37,10 +38,11 @@ export function Leaders() {
   }
 
   const teamByPid = new Map<number, string>();
+  const tidByPid = new Map<number, number>();
   for (const team of league.teams) {
-    const name = team.name;
     for (const pid of team.roster) {
-      teamByPid.set(pid, name);
+      teamByPid.set(pid, team.name);
+      tidByPid.set(pid, team.tid);
     }
   }
 
@@ -51,6 +53,7 @@ export function Leaders() {
       rows.push({
         player: p,
         teamName: teamByPid.get(p.pid) ?? "Unknown",
+        isUserTeam: tidByPid.get(p.pid) === league.meta.userTid,
         stats: ss,
       });
     }
@@ -91,7 +94,10 @@ export function Leaders() {
         </thead>
         <tbody>
           {top.map((row, i) => (
-            <tr key={row.player.pid}>
+            <tr
+              key={row.player.pid}
+              className={row.isUserTeam ? "text-primary fw-semibold" : undefined}
+            >
               <td className="text-end">{i + 1}</td>
               <td>{row.player.name}</td>
               <td>{row.teamName}</td>

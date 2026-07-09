@@ -81,10 +81,25 @@ export function Schedule() {
           <tbody>
             {allRows.map((row, i) => {
               const isLastPlayed = i === lastPlayedIdx;
+              let outcome: "win" | "loss" | null = null;
+              if (row.result) {
+                const userIsHome = row.home === userTid;
+                const userGoals = userIsHome ? row.result.homeGoals : row.result.awayGoals;
+                const oppGoals = userIsHome ? row.result.awayGoals : row.result.homeGoals;
+                if (userGoals > oppGoals) outcome = "win";
+                else if (userGoals < oppGoals) outcome = "loss";
+              }
+              const rowStyle =
+                outcome === "win"
+                  ? { backgroundColor: "rgba(25, 135, 84, 0.08)" }
+                  : outcome === "loss"
+                    ? { backgroundColor: "rgba(220, 53, 69, 0.08)" }
+                    : undefined;
               return (
                 <tr
                   key={`${row.home}-${row.away}-${row.sortKey}`}
-                  className={isLastPlayed ? "table-info" : undefined}
+                  className={isLastPlayed ? "border-start border-3 border-info" : undefined}
+                  style={rowStyle}
                 >
                   <td className="text-end">{row.matchday}</td>
                   <td>{teamName(row.home)}</td>
