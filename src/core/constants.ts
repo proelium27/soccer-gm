@@ -74,7 +74,7 @@ export const SKILL_AGE_SHIFT = -3;
 export const GK_AGE_SHIFT = -3;
 
 /** Growth-phase (positive base delta) amplification from potential headroom, per rating point of (potential - ovr). */
-export const POTENTIAL_FACTOR_PER_POINT = 0.045;
+export const POTENTIAL_FACTOR_PER_POINT = 0.09;
 export const POTENTIAL_FACTOR_MIN = 0.4;
 export const POTENTIAL_FACTOR_MAX = 2.2;
 
@@ -96,11 +96,11 @@ export const PROGRESSION_NOISE_SD_OLD = 2;
  * generation, keyed by age (GKs get GK_AGE_SHIFT applied first).
  */
 export const POTENTIAL_HEADROOM_BY_AGE: readonly [number, number][] = [
-  [16, 35], [18, 30], [20, 24], [22, 18], [24, 12], [26, 7], [28, 4], [30, 2], [33, 1],
+  [16, 11], [18, 9], [20, 7], [22, 5], [24, 3.5], [26, 2], [28, 1.3], [30, 0.7], [33, 0.3],
 ];
 /** Potential headroom roll is headroom * uniform(POTENTIAL_ROLL_MIN, POTENTIAL_ROLL_MAX). */
-export const POTENTIAL_ROLL_MIN = 0.3;
-export const POTENTIAL_ROLL_MAX = 1.7;
+export const POTENTIAL_ROLL_MIN = 0.4;
+export const POTENTIAL_ROLL_MAX = 1.4;
 
 /** Retirement: no chance before this age; probability climbs per year after. */
 export const RETIREMENT_START_AGE = 33;
