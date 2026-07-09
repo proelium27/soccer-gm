@@ -6,6 +6,7 @@ import {
   MINUTES_FACTOR_MIN, MINUTES_FACTOR_MAX, FULL_SEASON_APPEARANCES,
   PROGRESSION_NOISE_SD_YOUNG, PROGRESSION_NOISE_SD_OLD,
   POTENTIAL_HEADROOM_BY_AGE, POTENTIAL_ROLL_MIN, POTENTIAL_ROLL_MAX,
+  POTENTIAL_SOFT_CAP_KNEE, POTENTIAL_SOFT_CAP_SCALE,
   RATING_MIN, RATING_MAX,
   RETIREMENT_START_AGE, RETIREMENT_BASE_PROB, RETIREMENT_PROB_PER_YEAR,
 } from "../constants.js";
@@ -70,7 +71,18 @@ export function rollPotential(
   const effectiveAge = pos === "GK" ? age + GK_AGE_SHIFT : age;
   const headroom = interpolate(POTENTIAL_HEADROOM_BY_AGE, effectiveAge);
   const roll = POTENTIAL_ROLL_MIN + rng() * (POTENTIAL_ROLL_MAX - POTENTIAL_ROLL_MIN);
-  return Math.min(RATING_MAX, Math.round(ovr + headroom * roll));
+  const raw = ovr + headroom * roll;
+  // Soft ceiling: below the knee the projection is used as-is; above it the
+  // excess is compressed asymptotically toward RATING_MAX so elite players
+  // spread across the high 90s rather than all pinning to exactly 99 at a hard
+  // clamp. Floored at the player's current ovr — potential is a projection, not
+  // a demotion — which also lets a genuine 99-ovr player still read 99.
+  const capped = raw <= POTENTIAL_SOFT_CAP_KNEE
+    ? raw
+    : POTENTIAL_SOFT_CAP_KNEE
+      + (RATING_MAX - POTENTIAL_SOFT_CAP_KNEE)
+        * (1 - Math.exp(-(raw - POTENTIAL_SOFT_CAP_KNEE) / POTENTIAL_SOFT_CAP_SCALE));
+  return Math.max(Math.round(ovr), Math.round(Math.min(RATING_MAX, capped)));
 }
 
 /**

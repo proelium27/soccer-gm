@@ -102,6 +102,17 @@ export const POTENTIAL_HEADROOM_BY_AGE: readonly [number, number][] = [
 export const POTENTIAL_ROLL_MIN = 0.4;
 export const POTENTIAL_ROLL_MAX = 1.4;
 
+/**
+ * Soft ceiling for rolled potential. At or below the knee the roll is used as-is;
+ * above it the excess is compressed asymptotically toward RATING_MAX so elite
+ * players spread across the high 90s instead of all pinning to exactly 99 at the
+ * hard clamp. With these values a rolled potential of 99 needs a raw projection
+ * of ~107 (i.e. an ovr already near the ceiling), making 99 practically
+ * unreachable rather than a routine clamp result.
+ */
+export const POTENTIAL_SOFT_CAP_KNEE = 90;
+export const POTENTIAL_SOFT_CAP_SCALE = 6;
+
 /** Retirement: no chance before this age; probability climbs per year after. */
 export const RETIREMENT_START_AGE = 33;
 export const RETIREMENT_PROB_PER_YEAR = 0.12;
