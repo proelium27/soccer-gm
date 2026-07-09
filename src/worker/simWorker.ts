@@ -12,7 +12,21 @@ self.onmessage = (e: MessageEvent<WorkerCommand>) => {
     // Derive seed from league state so each sim batch is deterministic but different
     const seed = (cmd.league.lid * 1000 + cmd.league.played.length) >>> 0;
     const rng = mulberry32(seed);
-    const result = simThrough(cmd.league, cmd.through, rng);
+    const result = simThrough(
+      cmd.league,
+      cmd.through,
+      rng,
+      (matchday, matchdayIndex, totalMatchdays, results) => {
+        const progress: WorkerResponse = {
+          type: "simProgress",
+          matchday,
+          matchdayIndex,
+          totalMatchdays,
+          results,
+        };
+        self.postMessage(progress);
+      },
+    );
     const response: WorkerResponse = { type: "simResult", league: result };
     self.postMessage(response);
   } else if (cmd.type === "offseason") {

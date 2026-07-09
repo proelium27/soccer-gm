@@ -1,11 +1,12 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from "react";
 import type { LeagueStore } from "../../core/leagueState.js";
 import type { SimThrough } from "../../worker/protocol.js";
-import { useSimWorker } from "../useSimWorker.js";
+import { useSimWorker, type SimProgress } from "../useSimWorker.js";
 import { saveLeague, loadLeague, listLeagues } from "../../db/leagueDb.js";
 import { exportLeagueJSON, importLeagueJSON } from "../../db/exportImport.js";
 import { signFreeAgent, releasePlayer } from "../../core/freeAgency.js";
 import { mulberry32 } from "../../engine/rng.js";
+import { SimOverlay } from "../components/SimOverlay.js";
 
 interface LeagueContextValue {
   league: LeagueStore | null;
@@ -32,6 +33,11 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const [league, setLeagueState] = useState<LeagueStore | null>(null);
   const { sim, runOffseason, simming } = useSimWorker();
 
+  const [simOverlayOpen, setSimOverlayOpen] = useState(false);
+  const [animQueue, setAnimQueue] = useState<SimProgress[]>([]);
+  const [animDone, setAnimDone] = useState(false);
+  const pendingResultRef = useRef<LeagueStore | null>(null);
+
   useEffect(() => {
     listLeagues().then(async (list) => {
       if (list.length > 0) {
@@ -47,12 +53,39 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     setLeagueState(saved);
   }, []);
 
+  const finishSimAnimation = useCallback(async () => {
+    const result = pendingResultRef.current;
+    pendingResultRef.current = null;
+    setSimOverlayOpen(false);
+    setAnimQueue([]);
+    setAnimDone(false);
+    if (result) {
+      const lid = await saveLeague(result);
+      setLeagueState({ ...result, lid });
+    }
+  }, []);
+
   const simAction = useCallback(async (through: SimThrough) => {
-    if (!league) return;
-    const result = await sim(through, league);
-    const lid = await saveLeague(result);
-    setLeagueState({ ...result, lid });
-  }, [league, sim]);
+    if (!league || simOverlayOpen) return;
+    setAnimQueue([]);
+    setAnimDone(false);
+    setSimOverlayOpen(true);
+    const result = await sim(through, league, (progress) => {
+      setAnimQueue((q) => [...q, progress]);
+    });
+    // Reference equality can't survive the worker's structured clone, so
+    // detect a no-op sim by comparing played-game counts.
+    if (result.played.length === league.played.length) {
+      // Nothing was simmed (e.g. no schedule left) — skip the overlay.
+      pendingResultRef.current = null;
+      setSimOverlayOpen(false);
+      setAnimQueue([]);
+      setAnimDone(false);
+      return;
+    }
+    pendingResultRef.current = result;
+    setAnimDone(true);
+  }, [league, sim, simOverlayOpen]);
 
   const offseasonAction = useCallback(async () => {
     if (!league) return;
@@ -107,12 +140,19 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       offseasonAction,
       signFreeAgentAction,
       releasePlayerAction,
-      simming,
+      simming: simming || simOverlayOpen,
       saveToDb,
       exportJSON: doExport,
       importJSON: doImport,
     }}>
       {children}
+      <SimOverlay
+        open={simOverlayOpen}
+        teams={league?.teams ?? []}
+        queue={animQueue}
+        done={animDone}
+        onComplete={finishSimAnimation}
+      />
     </Ctx.Provider>
   );
 }
