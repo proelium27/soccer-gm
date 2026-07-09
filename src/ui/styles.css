@@ -1,0 +1,50 @@
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  min-height: 100vh;
+  background: #f8f9fa;
+  border-right: 1px solid #dee2e6;
+  padding-top: 0.5rem;
+}
+.sidebar .nav-link {
+  color: #333;
+  padding: 0.3rem 1rem;
+  font-size: 0.9rem;
+}
+.sidebar .nav-link.active {
+  font-weight: bold;
+  color: #0d6efd;
+}
+.sidebar .nav-section {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #6c757d;
+  padding: 0.5rem 1rem 0.2rem;
+  margin-top: 0.5rem;
+}
+
+/* Layout */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+.main-content {
+  flex: 1;
+  padding: 1rem 1.5rem;
+}
+
+/* Team highlight in tables */
+.team-highlight {
+  background-color: #fff3cd !important;
+}
+
+/* Color swatch */
+.color-swatch {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border: 1px solid #ccc;
+}
