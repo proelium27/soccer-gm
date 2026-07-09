@@ -45,6 +45,30 @@ describe("rollPotential", () => {
     }
     expect(gkSum / N).toBeGreaterThan(stSum / N);
   });
+
+  it("does not pile elite players onto exactly 99 — the soft ceiling spreads them out", () => {
+    // Every high-ovr young star used to clamp to exactly 99. With the soft
+    // ceiling their potentials should fan out across the high 90s and 99 itself
+    // should be practically unreachable from a realistic ovr.
+    const pots: number[] = [];
+    for (let i = 0; i < 400; i++) {
+      // Genuine stars: high ovr, young enough to still carry headroom.
+      pots.push(rollPotential(mulberry32(i), 90, 20, "ST"));
+    }
+    const at99 = pots.filter((p) => p === 99).length;
+    const distinct = new Set(pots).size;
+    expect(at99).toBe(0);
+    expect(distinct).toBeGreaterThan(3);
+    expect(Math.max(...pots)).toBeLessThanOrEqual(RATING_MAX);
+  });
+
+  it("still lets a ceiling-ovr player read 99 (potential is never below ovr)", () => {
+    // A 99-ovr player is the only realistic way to see 99, and the floor keeps
+    // potential from dropping below current ability.
+    for (let i = 0; i < 50; i++) {
+      expect(rollPotential(mulberry32(i), 99, 20, "ST")).toBe(99);
+    }
+  });
 });
 
 describe("progressPlayer", () => {
