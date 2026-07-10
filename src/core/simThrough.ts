@@ -8,6 +8,7 @@ import { leagueMatchData } from "./league/composites.js";
 import { lastMatchdayOfMonth } from "./calendar.js";
 import { simMatchDetailed } from "../engine/matchSim.js";
 import { emptySeasonStats } from "./players/types.js";
+import { applyInjuries } from "./injuries.js";
 
 function accumulateStats(
   players: Player[],
@@ -89,8 +90,6 @@ export function simThrough(
     roster: t.roster,
     avgOvr: 0,
   }));
-  const leagueObj: League = { teams: leagueTeams, players: league.players };
-  const matchData = leagueMatchData(leagueObj);
 
   const toSim: ScheduleGame[] = [];
   const remaining: ScheduleGame[] = [];
@@ -102,7 +101,7 @@ export function simThrough(
     }
   }
 
-  const updatedPlayers = league.players.map((p) => ({
+  let currentPlayers = league.players.map((p) => ({
     ...p,
     stats: [...p.stats.map((s) => ({ ...s }))],
   }));
@@ -113,42 +112,52 @@ export function simThrough(
     (a, b) => a - b,
   );
 
-  const simOne = (game: ScheduleGame): PlayedMatch => {
-    const hd = matchData[game.home];
-    const ad = matchData[game.away];
-    const result = simMatchDetailed(
-      rng,
-      hd.composites,
-      ad.composites,
-      hd.xi,
-      ad.xi,
-    );
-
-    accumulateStats(
-      updatedPlayers,
-      league.season,
-      game.home,
-      game.away,
-      result.boxScore.home,
-      result.boxScore.away,
-      league.teams,
-    );
-
-    return {
-      home: game.home,
-      away: game.away,
-      homeGoals: result.home,
-      awayGoals: result.away,
-      possessionHome: result.possessionHome,
-      matchday: game.matchday,
-      boxScore: result.boxScore,
-    };
-  };
-
   const newResults: PlayedMatch[] = [];
   matchdays.forEach((matchday, index) => {
+    // Recomputed every matchday (not once for the whole batch) so that
+    // injuries picked up on one matchday correctly sideline a player, and
+    // recoveries bring them back, for the next.
+    const leagueObj: League = { teams: leagueTeams, players: currentPlayers };
+    const matchData = leagueMatchData(leagueObj);
+
     const gamesThisMatchday = toSim.filter((g) => g.matchday === matchday);
-    const mdResults = gamesThisMatchday.map(simOne);
+    const mdResults = gamesThisMatchday.map((game): PlayedMatch => {
+      const hd = matchData[game.home];
+      const ad = matchData[game.away];
+      const result = simMatchDetailed(
+        rng,
+        hd.composites,
+        ad.composites,
+        hd.xi,
+        ad.xi,
+        hd.bench,
+        ad.bench,
+        { recompute: { home: hd.recompute, away: ad.recompute } },
+      );
+
+      accumulateStats(
+        currentPlayers,
+        league.season,
+        game.home,
+        game.away,
+        result.boxScore.home,
+        result.boxScore.away,
+        league.teams,
+      );
+
+      return {
+        home: game.home,
+        away: game.away,
+        homeGoals: result.home,
+        awayGoals: result.away,
+        possessionHome: result.possessionHome,
+        matchday: game.matchday,
+        boxScore: result.boxScore,
+      };
+    });
+
+    currentPlayers = applyInjuries(rng, currentPlayers, mdResults);
+
     newResults.push(...mdResults);
     onMatchday?.(matchday, index, matchdays.length, mdResults);
   });
@@ -157,7 +166,7 @@ export function simThrough(
     lid: league.lid,
     meta: league.meta,
     teams: league.teams,
-    players: updatedPlayers,
+    players: currentPlayers,
     season: league.season,
     phase: remaining.length === 0 ? "offseason" : "regular",
     schedule: remaining,

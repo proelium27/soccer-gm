@@ -1,4 +1,5 @@
 import type { LeagueStore } from "../core/leagueState.js";
+import { migrateLeague } from "./migrate.js";
 
 /**
  * Serialize a league to JSON and trigger a browser file download.
@@ -90,5 +91,5 @@ export async function importLeagueJSON(file: File): Promise<LeagueStore> {
     );
   }
 
-  return parsed as LeagueStore;
+  return migrateLeague(parsed as LeagueStore);
 }

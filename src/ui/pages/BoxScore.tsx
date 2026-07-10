@@ -37,6 +37,42 @@ function EventRow({ event, playerName }: { event: MatchEvent; playerName: (pid: 
           <span className="text-muted">{time}</span> Shot off target — {names[0]}
         </div>
       );
+    case "yellow_card":
+      return (
+        <div className={`pbp-event ${event.side === "home" ? "text-start" : "text-end"}`}>
+          <span className="text-warning">{time}</span> Yellow card — {names[0]}
+        </div>
+      );
+    case "red_card":
+      return (
+        <div className={`pbp-event ${event.side === "home" ? "text-start" : "text-end"}`}>
+          <span className="text-danger">{time}</span> Red card — {names[0]}
+        </div>
+      );
+    case "substitution":
+      return (
+        <div className={`pbp-event ${event.side === "home" ? "text-start" : "text-end"}`}>
+          <span className="text-muted">{time}</span> Substitution — {names[1]} on for {names[0]}
+        </div>
+      );
+    case "corner":
+      return (
+        <div className={`pbp-event ${event.side === "home" ? "text-start" : "text-end"}`}>
+          <span className="text-muted">{time}</span> Corner
+        </div>
+      );
+    case "penalty":
+      return (
+        <div className={`pbp-event ${event.side === "home" ? "text-start" : "text-end"}`}>
+          <span className="text-warning">{time}</span> Penalty — {names[0]} to take it
+        </div>
+      );
+    case "injury":
+      return (
+        <div className={`pbp-event ${event.side === "home" ? "text-start" : "text-end"}`}>
+          <span className="text-danger">{time}</span> Injury — {names[0]} goes down
+        </div>
+      );
     default:
       return null;
   }
@@ -106,6 +142,8 @@ export function BoxScore() {
                 <th className="text-end">SoT</th>
                 <th className="text-end">Sv</th>
                 <th className="text-end">Tkl</th>
+                <th className="text-end">YC</th>
+                <th className="text-end">RC</th>
               </tr>
             </thead>
             <tbody>
@@ -119,6 +157,8 @@ export function BoxScore() {
                   <td className="text-end">{line.shotsOnTarget || ""}</td>
                   <td className="text-end">{line.saves || ""}</td>
                   <td className="text-end">{line.tackles || ""}</td>
+                  <td className="text-end">{line.yellowCards || ""}</td>
+                  <td className="text-end">{line.redCards || ""}</td>
                 </tr>
               ))}
             </tbody>
@@ -137,6 +177,8 @@ export function BoxScore() {
                 <th className="text-end">SoT</th>
                 <th className="text-end">Sv</th>
                 <th className="text-end">Tkl</th>
+                <th className="text-end">YC</th>
+                <th className="text-end">RC</th>
               </tr>
             </thead>
             <tbody>
@@ -150,6 +192,8 @@ export function BoxScore() {
                   <td className="text-end">{line.shotsOnTarget || ""}</td>
                   <td className="text-end">{line.saves || ""}</td>
                   <td className="text-end">{line.tackles || ""}</td>
+                  <td className="text-end">{line.yellowCards || ""}</td>
+                  <td className="text-end">{line.redCards || ""}</td>
                 </tr>
               ))}
             </tbody>

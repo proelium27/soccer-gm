@@ -1,5 +1,6 @@
 import type { LeagueStore } from "../core/leagueState.js";
 import { getDb } from "./database.js";
+import { migrateLeague } from "./migrate.js";
 
 /**
  * Save (put) a league into IndexedDB. Returns the lid (key).
@@ -40,7 +41,8 @@ export async function loadLeague(
   lid: number,
 ): Promise<LeagueStore | undefined> {
   const db = await getDb();
-  return db.get("leagues", lid);
+  const league = await db.get("leagues", lid);
+  return league && migrateLeague(league);
 }
 
 /** List all leagues with minimal metadata (lid, name, created). */

@@ -30,6 +30,13 @@ export const ROSTER_COMPOSITION: Record<Position, number> = {
   GK: 3, CB: 4, FB: 4, DM: 2, CM: 4, AM: 2, W: 3, ST: 3,
 };
 
+/** Matchday bench size: the best remaining roster players (by ovr) after the starting XI. */
+export const BENCH_SIZE = 7;
+
+/** In-match injuries (M5): games missed once hurt, uniform between these inclusive bounds. */
+export const INJURY_GAMES_MIN = 1;
+export const INJURY_GAMES_MAX = 6;
+
 /** Generation-offset tier → additive offset (Table A). */
 export const TIER_OFFSET = { star: 18, H: 10, M: 2, L: -12, VL: -25 } as const;
 
@@ -118,8 +125,93 @@ export const RETIREMENT_START_AGE = 33;
 export const RETIREMENT_PROB_PER_YEAR = 0.12;
 export const RETIREMENT_BASE_PROB = 0.05;
 
-/** Free agency / youth contracts: placeholder salary formula until finances are designed. */
-export const SALARY_PER_OVR = 1000;
+/**
+ * Free agency / youth contracts: placeholder linear salary until the real
+ * contract system lands. Stored as a per-season total; at 20k per ovr point
+ * a 75-ovr starter earns ~1.5M/season (~29k/week), in line with real
+ * mid-tier wages. Deliberately flat at the top end — superstar wage
+ * escalation can come with the contract redesign.
+ */
+export const SALARY_PER_OVR = 20_000;
 export const CONTRACT_LENGTH_MIN = 1;
 export const CONTRACT_LENGTH_MAX = 3;
 export const YOUTH_CONTRACT_LENGTH = 2;
+
+/**
+ * M6 finance (see docs/finance-design.md): every club gets an equal base
+ * allocation each season; the only spread comes from domestic success
+ * payouts plus a heavily damped hype→revenue channel, so famous/successful
+ * clubs don't snowball.
+ *
+ * Scale invariant (tested in budget.test.ts): the base allocation alone must
+ * exceed the maximum possible season expenses (a full roster of 99-ovr
+ * salaries plus max scouting spend), so no club can ever lose money — per
+ * design, deficits/debt do not exist in this game.
+ *
+ * Calibrated to the real-world market (2025-ish Premier League), leaving an
+ * average club ~55-60M/season to spend — matching real transfer outlays
+ * against valuations where a superstar costs 150M+ and a solid starter
+ * 30-50M. Note the invariant margin is thin: max expenses are ~69.5M
+ * (49.5M ceiling wage bill + 20M max scouting) against this base.
+ */
+export const BASE_SEASON_BUDGET = 75_000_000;
+
+/**
+ * Prize money by final domestic league position, paid on top of the equal
+ * base allocation. Three exclusive tiers: winning the league, finishing in
+ * the top 5 (2nd-5th), and finishing in the top 10 (6th-10th). Everyone
+ * else gets the base allocation only.
+ */
+export const PRIZE_CHAMPION = 40_000_000;
+export const PRIZE_TOP_5 = 20_000_000;
+export const PRIZE_TOP_10 = 10_000_000;
+/** Last league position included in each prize tier. */
+export const PRIZE_TOP_5_CUTOFF = 5;
+export const PRIZE_TOP_10_CUTOFF = 10;
+
+/** Hype is tracked on a 0-100 scale. */
+export const HYPE_MIN = 0;
+export const HYPE_MAX = 100;
+
+/**
+ * Hype moves toward a season-performance target (derived from points-per-
+ * game and final rank) rather than snapping to it, so a single great/poor
+ * season doesn't swing a club's fame instantly.
+ */
+export const HYPE_SMOOTHING = 0.35;
+export const HYPE_INITIAL = 50;
+
+/**
+ * Damped hype→revenue channel: revenue per hype point, scaled down hard so
+ * this stays a secondary channel behind success payouts (per design: "don't
+ * make profit from jersey sales contribute TOO much to budget").
+ */
+export const HYPE_REVENUE_PER_POINT = 500_000;
+export const HYPE_REVENUE_DAMPING = 0.4;
+
+/** Scouting: a single per-season spend slider (0 = no scouts) that lowers valuation noise. */
+export const SCOUTING_SPEND_MIN = 0;
+export const SCOUTING_SPEND_MAX = 20_000_000;
+/** Perceived-valuation noise (std dev, as a fraction of true value) at zero spend and at max spend. */
+export const SCOUTING_NOISE_SD_MIN_SPEND = 0.35;
+export const SCOUTING_NOISE_SD_MAX_SPEND = 0.05;
+
+/**
+ * Transfer valuation formula: value climbs steeply with ovr above a floor
+ * (replacement-level players are worth little), is scaled by an age curve
+ * peaking around the same prime as on-field performance, and by remaining
+ * contract length (longer deals are harder/pricier to pry a player out of).
+ *
+ * Calibrated to real 2025-market fees (base value at prime age, before the
+ * contract multiplier of up to 1.4×): 99 ovr ≈ 120M (a generational player
+ * pushes past 150M on a long deal), 90 ≈ 78M, 80 ≈ 44M, 75 ≈ 31M,
+ * 70 ≈ 21M, 60 ≈ 7M.
+ */
+export const VALUATION_OVR_FLOOR = 40;
+export const VALUATION_OVR_COEFF = 3_000;
+export const VALUATION_OVR_EXPONENT = 2.6;
+export const VALUATION_AGE_PEAK = 26;
+export const VALUATION_AGE_FALLOFF_YOUNG = 0.02;
+export const VALUATION_AGE_FALLOFF_OLD = 0.08;
+export const VALUATION_CONTRACT_YEAR_BONUS = 0.08;
+export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;

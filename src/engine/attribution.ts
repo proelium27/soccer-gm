@@ -12,6 +12,7 @@ export interface MatchPlayer {
   keeping: number;
   positioning: number;
   heading: number;
+  stamina: number;
 }
 
 export type MatchEventType =
@@ -19,7 +20,13 @@ export type MatchEventType =
   | "shot_blocked"
   | "shot_off_target"
   | "shot_saved"
-  | "goal";
+  | "goal"
+  | "yellow_card"
+  | "red_card"
+  | "substitution"
+  | "corner"
+  | "penalty"
+  | "injury";
 
 export interface MatchEvent {
   clock: number;
@@ -36,6 +43,8 @@ export interface PlayerMatchLine {
   shotsOnTarget: number;
   saves: number;
   tackles: number;
+  yellowCards: number;
+  redCards: number;
 }
 
 export interface BoxScore {
@@ -54,6 +63,18 @@ const ASSIST_WEIGHTS: Record<MatchPosition, number> = {
 
 const TACKLE_WEIGHTS: Record<MatchPosition, number> = {
   CB: 3, DM: 2.5, FB: 2, CM: 1.5, AM: 0.5, W: 0.5, ST: 0.2, GK: 0.1,
+};
+
+const FOUL_WEIGHTS: Record<MatchPosition, number> = {
+  CB: 2.5, DM: 2.5, FB: 2, CM: 1.5, AM: 0.7, W: 0.5, ST: 0.5, GK: 0.1,
+};
+
+const HEADER_WEIGHTS: Record<MatchPosition, number> = {
+  ST: 2.5, CB: 2, W: 1, AM: 1, CM: 0.8, DM: 0.7, FB: 0.5, GK: 0,
+};
+
+const CARRIER_WEIGHTS: Record<MatchPosition, number> = {
+  AM: 2, W: 2, CM: 1.5, ST: 1.5, DM: 1, FB: 1, CB: 0.7, GK: 0.2,
 };
 
 function weightedPick(
@@ -100,6 +121,27 @@ export function pickTackler(rng: () => number, players: MatchPlayer[]): MatchPla
   return weightedPick(rng, outfield, TACKLE_WEIGHTS, "tackling");
 }
 
+/** Picks who commits a foul. Weighted toward tackling, like a tackler, but any outfielder can foul. */
+export function pickFouler(rng: () => number, players: MatchPlayer[]): MatchPlayer {
+  const outfield = players.filter((p) => p.pos !== "GK");
+  if (outfield.length === 0) return players[0];
+  return weightedPick(rng, outfield, FOUL_WEIGHTS, "tackling");
+}
+
+/** Picks who gets on the end of a corner. Weighted toward heading, favoring CBs/STs at set pieces. */
+export function pickHeader(rng: () => number, players: MatchPlayer[]): MatchPlayer {
+  const outfield = players.filter((p) => p.pos !== "GK");
+  if (outfield.length === 0) return players[0];
+  return weightedPick(rng, outfield, HEADER_WEIGHTS, "heading");
+}
+
+/** Picks who was carrying the ball when tackled, weighted toward ball-playing positions. */
+export function pickCarrier(rng: () => number, players: MatchPlayer[]): MatchPlayer {
+  const outfield = players.filter((p) => p.pos !== "GK");
+  if (outfield.length === 0) return players[0];
+  return weightedPick(rng, outfield, CARRIER_WEIGHTS, "dribbling");
+}
+
 export function eventTypeFromShot(outcome: ShotOutcome): MatchEventType {
   switch (outcome) {
     case "blocked": return "shot_blocked";
@@ -110,5 +152,8 @@ export function eventTypeFromShot(outcome: ShotOutcome): MatchEventType {
 }
 
 export function emptyLine(pid: number): PlayerMatchLine {
-  return { pid, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, saves: 0, tackles: 0 };
+  return {
+    pid, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, saves: 0, tackles: 0,
+    yellowCards: 0, redCards: 0,
+  };
 }

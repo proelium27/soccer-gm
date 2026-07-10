@@ -3,7 +3,7 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
-import { NUM_TEAMS } from "../../src/core/constants.js";
+import { BASE_SEASON_BUDGET, HYPE_MAX, HYPE_MIN, NUM_TEAMS, SCOUTING_SPEND_MIN } from "../../src/core/constants.js";
 
 function playFullSeason(rng: () => number) {
   let league = createLeagueState(0, rng);
@@ -69,5 +69,43 @@ describe("simOffseason", () => {
     const next = simOffseason(league, rng);
     const pids = next.players.map((p) => p.pid);
     expect(new Set(pids).size).toBe(pids.length);
+  });
+
+  it("settles every team's budget and hype, and resets scouting spend for the new season", () => {
+    const rng = mulberry32(7);
+    const league = playFullSeason(rng);
+    const next = simOffseason(league, rng);
+
+    expect(next.teams).toHaveLength(NUM_TEAMS);
+    for (const team of next.teams) {
+      // Budget moved away from the flat starting value (revenue in, wages out).
+      expect(team.budget).not.toBe(BASE_SEASON_BUDGET);
+      expect(team.hype).toBeGreaterThanOrEqual(HYPE_MIN);
+      expect(team.hype).toBeLessThanOrEqual(HYPE_MAX);
+      expect(team.scoutingSpend).toBe(SCOUTING_SPEND_MIN);
+    }
+  });
+
+  it("produces a spread of budgets across clubs (success payouts aren't flat)", () => {
+    const rng = mulberry32(8);
+    const league = playFullSeason(rng);
+    const next = simOffseason(league, rng);
+
+    const budgets = next.teams.map((t) => t.budget);
+    expect(Math.max(...budgets)).toBeGreaterThan(Math.min(...budgets));
+  });
+
+  it("grows every club's budget every season (design: no club ever loses money)", () => {
+    const rng = mulberry32(11);
+    let league = playFullSeason(rng);
+
+    for (let s = 0; s < 2; s++) {
+      const budgetsBefore = new Map(league.teams.map((t) => [t.tid, t.budget]));
+      league = simOffseason(league, rng);
+      for (const team of league.teams) {
+        expect(team.budget).toBeGreaterThan(budgetsBefore.get(team.tid)!);
+      }
+      league = simThrough(league, "season", rng);
+    }
   });
 });
