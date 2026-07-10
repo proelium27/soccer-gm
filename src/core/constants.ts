@@ -33,6 +33,10 @@ export const ROSTER_COMPOSITION: Record<Position, number> = {
 /** Matchday bench size: the best remaining roster players (by ovr) after the starting XI. */
 export const BENCH_SIZE = 7;
 
+/** In-match injuries (M5): games missed once hurt, uniform between these inclusive bounds. */
+export const INJURY_GAMES_MIN = 1;
+export const INJURY_GAMES_MAX = 6;
+
 /** Generation-offset tier → additive offset (Table A). */
 export const TIER_OFFSET = { star: 18, H: 10, M: 2, L: -12, VL: -25 } as const;
 

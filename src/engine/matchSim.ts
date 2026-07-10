@@ -29,6 +29,7 @@ import {
   CORNER_FROM_MISS_PROB,
   PENALTY_GIVEN_FOUL,
   PENALTY_CONVERSION,
+  INJURY_PROB_ON_TACKLE,
 } from "./constants.js";
 import type { Composites } from "./composites.js";
 import type { MatchPlayer, MatchEvent, BoxScore, PlayerMatchLine } from "./attribution.js";
@@ -38,6 +39,7 @@ import {
   pickTackler,
   pickFouler,
   pickHeader,
+  pickCarrier,
   eventTypeFromShot,
   emptyLine,
 } from "./attribution.js";
@@ -347,6 +349,27 @@ export function simMatchDetailed(
     events.push({ clock, type: "substitution", side, pids: [off.pid, on.pid] });
   }
 
+  /** An injured player must come off immediately, regardless of energy — unlike attemptSub, the outgoing player is fixed. */
+  function forceInjurySub(side: Side, offPid: number): void {
+    const off = onPitch[side].find((p) => p.pid === offPid);
+    if (!off) return;
+    onPitch[side] = onPitch[side].filter((p) => p.pid !== offPid);
+
+    if (subsUsed[side] < MAX_SUBS && bench[side].length > 0) {
+      const samePos = bench[side].find((p) => p.pos === off.pos);
+      const on = samePos ?? bench[side][0];
+      onPitch[side] = onPitch[side].concat(on);
+      bench[side] = bench[side].filter((p) => p.pid !== on.pid);
+      subsUsed[side]++;
+      appeared[side].add(on.pid);
+      energy.set(on.pid, ENERGY_START);
+      events.push({ clock, type: "substitution", side, pids: [off.pid, on.pid] });
+    } else {
+      // No sub available: play the rest of the match a man down.
+      teams[side] = applyManDown(teams[side]);
+    }
+  }
+
   const stat = {
     home: { goals: 0, shots: 0, sot: 0, ticks: 0 } as TeamMatchStat,
     away: { goals: 0, shots: 0, sot: 0, ticks: 0 } as TeamMatchStat,
@@ -396,6 +419,13 @@ export function simMatchDetailed(
       const tackler = pickTackler(rng, onPitch[defSide]);
       lines.get(tackler.pid)!.tackles++;
       events.push({ clock, type: "turnover", side: defSide, pids: [tackler.pid] });
+
+      if (rng() < INJURY_PROB_ON_TACKLE) {
+        const carrier = pickCarrier(rng, onPitch[poss]);
+        events.push({ clock, type: "injury", side: poss, pids: [carrier.pid] });
+        forceInjurySub(poss, carrier.pid);
+      }
+
       poss = defSide;
       continue;
     }

@@ -19,13 +19,14 @@ export interface TeamMatchData {
  * Full pipeline: for each team, pick a default 4-3-3 XI, roll up raw composites,
  * then z-normalize across the league. Returns composites, the XI, and a bench
  * (best remaining players by ovr, capped at BENCH_SIZE) for in-match substitutions.
+ * Injured players (gamesRemaining > 0) are excluded from both XI and bench selection.
  */
 export function leagueMatchData(league: League): TeamMatchData[] {
   const byPid = new Map<number, Player>(league.players.map((p) => [p.pid, p]));
   const xis: Player[][] = [];
   const benches: Player[][] = [];
   const raw = league.teams.map((t) => {
-    const roster = t.roster.map((pid) => byPid.get(pid)!);
+    const roster = t.roster.map((pid) => byPid.get(pid)!).filter((p) => !p.injury);
     const xi = selectXI(roster, FORMATIONS["4-3-3"]);
     xis.push(xi);
     const xiPids = new Set(xi.map((p) => p.pid));

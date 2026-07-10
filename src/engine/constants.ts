@@ -62,3 +62,9 @@ export const CORNER_FROM_MISS_PROB = 0.008;
 // for the same reason as above.
 export const PENALTY_GIVEN_FOUL = 0.005;
 export const PENALTY_CONVERSION = 0.76; // baseline penalty goal probability, per spec
+
+// --- Injuries (M5), simMatchDetailed only (needs player identity + a bench to sub into) ---
+// Small probability the tackled ball carrier gets hurt on a given turnover, per spec
+// ("small per-tick probability, weighted to tackled players" — modeled as conditional on
+// the tackle itself, since that's the sim's only notion of player-on-player contact).
+export const INJURY_PROB_ON_TACKLE = 0.003;

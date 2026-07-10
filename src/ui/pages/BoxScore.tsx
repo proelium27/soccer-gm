@@ -67,6 +67,12 @@ function EventRow({ event, playerName }: { event: MatchEvent; playerName: (pid: 
           <span className="text-warning">{time}</span> Penalty — {names[0]} to take it
         </div>
       );
+    case "injury":
+      return (
+        <div className={`pbp-event ${event.side === "home" ? "text-start" : "text-end"}`}>
+          <span className="text-danger">{time}</span> Injury — {names[0]} goes down
+        </div>
+      );
     default:
       return null;
   }

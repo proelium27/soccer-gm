@@ -25,7 +25,8 @@ export type MatchEventType =
   | "red_card"
   | "substitution"
   | "corner"
-  | "penalty";
+  | "penalty"
+  | "injury";
 
 export interface MatchEvent {
   clock: number;
@@ -70,6 +71,10 @@ const FOUL_WEIGHTS: Record<MatchPosition, number> = {
 
 const HEADER_WEIGHTS: Record<MatchPosition, number> = {
   ST: 2.5, CB: 2, W: 1, AM: 1, CM: 0.8, DM: 0.7, FB: 0.5, GK: 0,
+};
+
+const CARRIER_WEIGHTS: Record<MatchPosition, number> = {
+  AM: 2, W: 2, CM: 1.5, ST: 1.5, DM: 1, FB: 1, CB: 0.7, GK: 0.2,
 };
 
 function weightedPick(
@@ -128,6 +133,13 @@ export function pickHeader(rng: () => number, players: MatchPlayer[]): MatchPlay
   const outfield = players.filter((p) => p.pos !== "GK");
   if (outfield.length === 0) return players[0];
   return weightedPick(rng, outfield, HEADER_WEIGHTS, "heading");
+}
+
+/** Picks who was carrying the ball when tackled, weighted toward ball-playing positions. */
+export function pickCarrier(rng: () => number, players: MatchPlayer[]): MatchPlayer {
+  const outfield = players.filter((p) => p.pos !== "GK");
+  if (outfield.length === 0) return players[0];
+  return weightedPick(rng, outfield, CARRIER_WEIGHTS, "dribbling");
 }
 
 export function eventTypeFromShot(outcome: ShotOutcome): MatchEventType {
