@@ -158,19 +158,21 @@ export function simMatch(
   let half1Events = 0;
   let half2Events = 0;
   let stoppageApplied = false;
+  let stoppageBudget = 0;
   const bumpEvent = () => {
     if (clock > HALF_SECONDS) half1Events++;
     else half2Events++;
   };
 
-  while (clock > 0) {
+  for (;;) {
     const dt = MIN_DT + rng() * (MAX_DT - MIN_DT);
     clock -= dt;
 
     if (!stoppageApplied && clock <= 0) {
-      clock += computeStoppageSeconds(half1Events) + computeStoppageSeconds(half2Events);
+      stoppageBudget = computeStoppageSeconds(half1Events) + computeStoppageSeconds(half2Events);
       stoppageApplied = true;
     }
+    if (stoppageApplied && clock <= -stoppageBudget) break;
 
     const off = teams[poss];
     const defSide: Side = poss === "home" ? "away" : "home";
@@ -344,6 +346,7 @@ export function simMatchDetailed(
   let half1Events = 0;
   let half2Events = 0;
   let stoppageApplied = false;
+  let stoppageBudget = 0;
   const bumpEvent = () => {
     if (clock > HALF_SECONDS) half1Events++;
     else half2Events++;
@@ -357,6 +360,14 @@ export function simMatchDetailed(
     return sum / xi.length;
   };
 
+  /** Pick a bench replacement for a departing player, never fielding a GK out of goal (or vice versa). */
+  function pickReplacement(side: Side, offPos: MatchPlayer["pos"]): MatchPlayer | undefined {
+    const samePos = bench[side].find((p) => p.pos === offPos);
+    if (samePos) return samePos;
+    const pool = offPos === "GK" ? bench[side] : bench[side].filter((p) => p.pos !== "GK");
+    return pool[0];
+  }
+
   function attemptSub(side: Side, checkpoint: number): void {
     if (subsUsed[side] >= MAX_SUBS || bench[side].length === 0) return;
     const outfield = onPitch[side].filter((p) => p.pos !== "GK");
@@ -367,20 +378,23 @@ export function simMatchDetailed(
 
     const trailing = stat[side].goals < stat[other(side)].goals;
     let off: MatchPlayer;
-    let on: MatchPlayer;
+    let on: MatchPlayer | undefined;
     if (checkpoint === SUB_CHECKPOINTS_ELAPSED[SUB_CHECKPOINTS_ELAPSED.length - 1] && trailing) {
-      // Attacking sub: bring on the bench's best finisher for a defensive-minded player.
+      // Attacking sub: bring on the bench's best (outfield) finisher for a defensive-minded player.
       const defensive = outfield.filter((p) => p.pos === "CB" || p.pos === "FB" || p.pos === "DM");
       off = lowestEnergy(defensive.length > 0 ? defensive : outfield);
-      on = bench[side].reduce((best, p) => (p.shooting > best.shooting ? p : best));
+      const outfieldBench = bench[side].filter((p) => p.pos !== "GK");
+      on = outfieldBench.length > 0
+        ? outfieldBench.reduce((best, p) => (p.shooting > best.shooting ? p : best))
+        : undefined;
     } else {
       off = lowestEnergy(outfield);
-      const samePos = bench[side].find((p) => p.pos === off.pos);
-      on = samePos ?? bench[side][0];
+      on = pickReplacement(side, off.pos);
     }
+    if (!on) return; // no valid (non-GK) bench replacement available
 
     onPitch[side] = onPitch[side].filter((p) => p.pid !== off.pid).concat(on);
-    bench[side] = bench[side].filter((p) => p.pid !== on.pid);
+    bench[side] = bench[side].filter((p) => p.pid !== on!.pid);
     subsUsed[side]++;
     appeared[side].add(on.pid);
     energy.set(on.pid, ENERGY_START);
@@ -394,9 +408,8 @@ export function simMatchDetailed(
     if (!off) return;
     onPitch[side] = onPitch[side].filter((p) => p.pid !== offPid);
 
-    if (subsUsed[side] < MAX_SUBS && bench[side].length > 0) {
-      const samePos = bench[side].find((p) => p.pos === off.pos);
-      const on = samePos ?? bench[side][0];
+    const on = subsUsed[side] < MAX_SUBS ? pickReplacement(side, off.pos) : undefined;
+    if (on) {
       onPitch[side] = onPitch[side].concat(on);
       bench[side] = bench[side].filter((p) => p.pid !== on.pid);
       subsUsed[side]++;
@@ -405,7 +418,7 @@ export function simMatchDetailed(
       bumpEvent();
       events.push({ clock, type: "substitution", side, pids: [off.pid, on.pid] });
     } else {
-      // No sub available: play the rest of the match a man down.
+      // No valid sub available: play the rest of the match a man down.
       teams[side] = applyManDown(teams[side]);
     }
   }
@@ -425,15 +438,16 @@ export function simMatchDetailed(
   let clock = MATCH_SECONDS;
   let poss: Side = rng() < 0.5 ? "home" : "away";
 
-  while (clock > 0) {
+  for (;;) {
     const dt = MIN_DT + rng() * (MAX_DT - MIN_DT);
     clock -= dt;
     const elapsed = MATCH_SECONDS - clock;
 
     if (!stoppageApplied && clock <= 0) {
-      clock += computeStoppageSeconds(half1Events) + computeStoppageSeconds(half2Events);
+      stoppageBudget = computeStoppageSeconds(half1Events) + computeStoppageSeconds(half2Events);
       stoppageApplied = true;
     }
+    if (stoppageApplied && clock <= -stoppageBudget) break;
 
     for (const side of ["home", "away"] as const) {
       for (const p of onPitch[side]) {
@@ -452,7 +466,7 @@ export function simMatchDetailed(
 
     const defSide: Side = poss === "home" ? "away" : "home";
     const off = applyFatigue(teams[poss], avgEnergy(poss));
-    const def = applyFatigue(teams[defSide], avgEnergy(defSide));
+    let def = applyFatigue(teams[defSide], avgEnergy(defSide));
     stat[poss].ticks++;
 
     const turnoverP = clamp(
@@ -482,8 +496,10 @@ export function simMatchDetailed(
       if (cardRoll < RED_STRAIGHT_GIVEN_FOUL) {
         lines.get(fouler.pid)!.redCards++;
         onPitch[defSide] = onPitch[defSide].filter((p) => p.pid !== fouler.pid);
-        redCards[defSide] = true;
-        teams[defSide] = applyManDown(teams[defSide]);
+        if (!redCards[defSide]) {
+          redCards[defSide] = true;
+          teams[defSide] = applyManDown(teams[defSide]);
+        }
         bumpEvent();
         events.push({ clock, type: "red_card", side: defSide, pids: [fouler.pid] });
       } else if (cardRoll < RED_STRAIGHT_GIVEN_FOUL + YELLOW_GIVEN_FOUL) {
@@ -495,12 +511,19 @@ export function simMatchDetailed(
         if (priorYellows + 1 >= 2) {
           lines.get(fouler.pid)!.redCards++;
           onPitch[defSide] = onPitch[defSide].filter((p) => p.pid !== fouler.pid);
-          redCards[defSide] = true;
-          teams[defSide] = applyManDown(teams[defSide]);
+          if (!redCards[defSide]) {
+            redCards[defSide] = true;
+            teams[defSide] = applyManDown(teams[defSide]);
+          }
           bumpEvent();
           events.push({ clock, type: "red_card", side: defSide, pids: [fouler.pid] });
         }
       }
+
+      // A red card just issued this tick may have mutated teams[defSide] above —
+      // re-derive the fatigue-adjusted defensive composite so the free-kick/penalty
+      // odds for this same foul reflect the man-down side, not the stale pre-card one.
+      def = applyFatigue(teams[defSide], avgEnergy(defSide));
 
       // Edge-scaled so a fraction of fouls happen "in the box" (penalty) vs the
       // open-play free kick below — same reasoning as the composite-only version.
