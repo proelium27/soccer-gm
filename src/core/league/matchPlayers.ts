@@ -11,6 +11,7 @@ export function toMatchPlayer(p: Player): MatchPlayer {
     keeping: p.ratings.goalkeeping,
     positioning: p.ratings.positioning,
     heading: p.ratings.jumping,
+    stamina: p.ratings.stamina,
   };
 }
 

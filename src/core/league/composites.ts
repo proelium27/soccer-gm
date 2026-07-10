@@ -5,31 +5,57 @@ import type { League } from "./generate.js";
 import { selectXI } from "../lineup/selectXI.js";
 import { FORMATIONS } from "../lineup/formations.js";
 import { rollupComposites } from "../composites.js";
-import { normalizeLeague } from "./normalize.js";
+import { normalizeLeague, computeNormStats, normalizeWith } from "./normalize.js";
 import { toMatchPlayers } from "./matchPlayers.js";
+import { BENCH_SIZE } from "../constants.js";
 
 export interface TeamMatchData {
   composites: Composites;
   xi: MatchPlayer[];
+  bench: MatchPlayer[];
+  /**
+   * Re-roll this team's normalized composites from an arbitrary on-pitch group
+   * (spec §4: "before each match, and after subs/red cards"). Normalization is
+   * anchored to the same league stats as `composites`, so recomputing the
+   * original XI reproduces `composites` exactly.
+   */
+  recompute: (onPitch: MatchPlayer[]) => Composites;
 }
 
 /**
  * Full pipeline: for each team, pick a default 4-3-3 XI, roll up raw composites,
- * then z-normalize across the league. Returns both composites and XIs for attribution.
+ * then z-normalize across the league. Returns composites, the XI, and a bench
+ * (best remaining players by ovr, capped at BENCH_SIZE) for in-match substitutions.
+ * Injured players (gamesRemaining > 0) are excluded from both XI and bench selection.
  */
 export function leagueMatchData(league: League): TeamMatchData[] {
   const byPid = new Map<number, Player>(league.players.map((p) => [p.pid, p]));
   const xis: Player[][] = [];
+  const benches: Player[][] = [];
   const raw = league.teams.map((t) => {
-    const roster = t.roster.map((pid) => byPid.get(pid)!);
+    const roster = t.roster.map((pid) => byPid.get(pid)!).filter((p) => !p.injury);
     const xi = selectXI(roster, FORMATIONS["4-3-3"]);
     xis.push(xi);
+    const xiPids = new Set(xi.map((p) => p.pid));
+    const bench = roster
+      .filter((p) => !xiPids.has(p.pid))
+      .sort((a, b) => b.ovr - a.ovr)
+      .slice(0, BENCH_SIZE);
+    benches.push(bench);
     return rollupComposites(xi, t.name);
   });
+  const stats = computeNormStats(raw);
   const normalized = normalizeLeague(raw);
   return normalized.map((c, i) => ({
     composites: c,
     xi: toMatchPlayers(xis[i]),
+    bench: toMatchPlayers(benches[i]),
+    recompute: (onPitch: MatchPlayer[]) => {
+      const players = onPitch
+        .map((mp) => byPid.get(mp.pid))
+        .filter((p): p is Player => p !== undefined);
+      return normalizeWith(stats, rollupComposites(players, league.teams[i].name));
+    },
   }));
 }
 
