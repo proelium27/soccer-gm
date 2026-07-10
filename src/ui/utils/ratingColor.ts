@@ -1,6 +1,8 @@
-const LOW_COLOR = [220, 53, 69]; // #dc3545, matches RatingDelta's negative-delta red
-const MID_COLOR = [108, 117, 125]; // #6c757d, neutral gray
-const HIGH_COLOR = [25, 135, 84]; // #198754, matches RatingDelta's positive-delta green
+type Rgb = readonly [number, number, number];
+
+const LOW_COLOR: Rgb = [220, 53, 69]; // #dc3545, matches RatingDelta's negative-delta red
+const MID_COLOR: Rgb = [108, 117, 125]; // #6c757d, neutral gray
+const HIGH_COLOR: Rgb = [25, 135, 84]; // #198754, matches RatingDelta's positive-delta green
 
 const LOW_VALUE = 40;
 const MID_VALUE = 65;
@@ -10,7 +12,7 @@ function lerp(a: number, b: number, t: number): number {
   return Math.round(a + (b - a) * t);
 }
 
-function mixColor(from: number[], to: number[], t: number): string {
+function mixColor(from: Rgb, to: Rgb, t: number): string {
   const [r, g, b] = [lerp(from[0], to[0], t), lerp(from[1], to[1], t), lerp(from[2], to[2], t)];
   return `rgb(${r}, ${g}, ${b})`;
 }

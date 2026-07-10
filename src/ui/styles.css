@@ -64,6 +64,9 @@
   border-bottom: 1px dotted #999;
 }
 .player-ratings-tooltip-panel {
+  /* The tooltip renders as spans (it lives inside inline table-cell content,
+     where divs would be invalid HTML), so block display is set explicitly. */
+  display: block;
   position: absolute;
   top: 100%;
   left: 0;
@@ -78,6 +81,7 @@
   font-size: 0.85rem;
 }
 .player-ratings-tooltip-title {
+  display: block;
   font-weight: 600;
   margin-bottom: 0.35rem;
 }
@@ -86,6 +90,11 @@
   grid-template-columns: 1fr auto;
   row-gap: 2px;
   column-gap: 0.75rem;
+}
+.player-ratings-tooltip-row {
+  /* Promote each row's label/value to grid items so every skill gets its own
+     line with the value right-aligned in the auto column. */
+  display: contents;
 }
 .player-ratings-tooltip-label {
   color: #495057;

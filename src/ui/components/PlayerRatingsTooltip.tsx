@@ -1,10 +1,10 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { SKILL_KEYS } from "../../core/players/types.js";
-import type { Player } from "../../core/players/types.js";
+import type { Player, SkillKey } from "../../core/players/types.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 
-const SKILL_LABELS: Record<string, string> = {
+const SKILL_LABELS: Record<SkillKey, string> = {
   speed: "Speed",
   strength: "Strength",
   stamina: "Stamina",
@@ -21,23 +21,35 @@ const SKILL_LABELS: Record<string, string> = {
   goalkeeping: "Goalkeeping",
 };
 
-/** Wraps player name text; on hover, shows a color-coded breakdown of all attribute ratings. */
+/**
+ * Wraps player name text; on hover or keyboard focus, shows a color-coded
+ * breakdown of all attribute ratings. Rendered entirely with spans (the anchor
+ * sits inside a table cell as inline content, where a div would be invalid).
+ */
 export function PlayerRatingsTooltip({ player, children }: { player: Player; children: ReactNode }) {
   const [visible, setVisible] = useState(false);
+  const panelId = `player-ratings-tooltip-${player.pid}`;
 
   return (
     <span
       className="player-ratings-tooltip-anchor"
+      tabIndex={0}
+      aria-describedby={visible ? panelId : undefined}
       onMouseEnter={() => setVisible(true)}
       onMouseLeave={() => setVisible(false)}
+      onFocus={() => setVisible(true)}
+      onBlur={() => setVisible(false)}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") setVisible(false);
+      }}
     >
       {children}
       {visible && (
-        <div className="player-ratings-tooltip-panel">
-          <div className="player-ratings-tooltip-title">{player.name}</div>
-          <div className="player-ratings-tooltip-grid">
+        <span id={panelId} role="tooltip" className="player-ratings-tooltip-panel">
+          <span className="player-ratings-tooltip-title">{player.name}</span>
+          <span className="player-ratings-tooltip-grid">
             {SKILL_KEYS.map((key) => (
-              <div key={key} className="player-ratings-tooltip-row">
+              <span key={key} className="player-ratings-tooltip-row">
                 <span className="player-ratings-tooltip-label">{SKILL_LABELS[key]}</span>
                 <span
                   className="player-ratings-tooltip-value"
@@ -45,10 +57,10 @@ export function PlayerRatingsTooltip({ player, children }: { player: Player; chi
                 >
                   {player.ratings[key]}
                 </span>
-              </div>
+              </span>
             ))}
-          </div>
-        </div>
+          </span>
+        </span>
       )}
     </span>
   );
