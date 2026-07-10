@@ -12,6 +12,7 @@ export interface MatchPlayer {
   keeping: number;
   positioning: number;
   heading: number;
+  stamina: number;
 }
 
 export type MatchEventType =
@@ -21,7 +22,8 @@ export type MatchEventType =
   | "shot_saved"
   | "goal"
   | "yellow_card"
-  | "red_card";
+  | "red_card"
+  | "substitution";
 
 export interface MatchEvent {
   clock: number;

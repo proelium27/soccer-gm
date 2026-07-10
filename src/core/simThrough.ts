@@ -122,6 +122,8 @@ export function simThrough(
       ad.composites,
       hd.xi,
       ad.xi,
+      hd.bench,
+      ad.bench,
     );
 
     accumulateStats(

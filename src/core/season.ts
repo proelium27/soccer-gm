@@ -22,7 +22,7 @@ export function simSeason(rng: () => number): SeasonResult {
     matchdayCounter++;
     const hd = matchData[f.home];
     const ad = matchData[f.away];
-    const r = simMatchDetailed(rng, hd.composites, ad.composites, hd.xi, ad.xi);
+    const r = simMatchDetailed(rng, hd.composites, ad.composites, hd.xi, ad.xi, hd.bench, ad.bench);
     return {
       home: f.home,
       away: f.away,

@@ -18,6 +18,14 @@ import {
   RED_CARD_ATTACK_DELTA,
   RED_CARD_DEFENSE_DELTA,
   RED_CARD_CONTROL_DELTA,
+  ENERGY_START,
+  ENERGY_FLOOR,
+  ENERGY_DECAY_PER_SECOND,
+  STAMINA_DECAY_SPREAD,
+  FATIGUE_PHYSICAL_WEIGHT,
+  FATIGUE_TECHNICAL_WEIGHT,
+  MAX_SUBS,
+  SUB_CHECKPOINTS_ELAPSED,
 } from "./constants.js";
 import type { Composites } from "./composites.js";
 import type { MatchPlayer, MatchEvent, BoxScore, PlayerMatchLine } from "./attribution.js";
@@ -39,6 +47,26 @@ function applyManDown(c: Composites): Composites {
     attack: clamp(c.attack + RED_CARD_ATTACK_DELTA),
     defense: clamp(c.defense + RED_CARD_DEFENSE_DELTA),
     control: clamp(c.control + RED_CARD_CONTROL_DELTA),
+  };
+}
+
+/** Per-second energy decay for a player, faster for low-stamina players, slower for high. */
+function decayPerSecond(stamina: number): number {
+  return ENERGY_DECAY_PER_SECOND * (1 + STAMINA_DECAY_SPREAD * ((50 - stamina) / 50));
+}
+
+/** Scale a side's composites down by its on-pitch XI's average energy deficit. */
+function applyFatigue(c: Composites, avgEnergy: number): Composites {
+  const deficit = ENERGY_START - avgEnergy; // 0 fresh .. ~0.4 exhausted
+  const physical = 1 - FATIGUE_PHYSICAL_WEIGHT * deficit;
+  const technical = 1 - FATIGUE_TECHNICAL_WEIGHT * deficit;
+  return {
+    ...c,
+    attack: clamp(c.attack * physical),
+    defense: clamp(c.defense * physical),
+    control: clamp(c.control * physical),
+    finishing: clamp(c.finishing * technical),
+    keeping: clamp(c.keeping * technical),
   };
 }
 
@@ -195,7 +223,10 @@ export interface DetailedMatchResult extends MatchResult {
 }
 
 /**
- * Same gate cascade as simMatch, but with player-level attribution.
+ * Same gate cascade as simMatch, but with player-level attribution, plus fatigue
+ * and substitutions (M5) which need player identity and so live only here —
+ * simMatch (composite-only) is unaffected.
+ *
  * Every shot picks a shooter; goals pick an optional assister; saves credit
  * the GK; turnovers credit a defender. No scoreline math changes.
  */
@@ -205,19 +236,72 @@ export function simMatchDetailed(
   away: Composites,
   homePlayers: MatchPlayer[],
   awayPlayers: MatchPlayer[],
+  homeBench: MatchPlayer[] = [],
+  awayBench: MatchPlayer[] = [],
 ): DetailedMatchResult {
   const homeEff: Composites = {
     ...home,
     attack: clamp(home.attack + HOME_ATTACK_BONUS),
   };
   const teams: Record<Side, Composites> = { home: homeEff, away };
-  const squads = { home: homePlayers, away: awayPlayers } as const;
   const redCards = { home: false, away: false };
-  const sentOff: Record<Side, Set<number>> = { home: new Set(), away: new Set() };
   const yellowCounts = new Map<number, number>();
 
-  const active = (side: Side): MatchPlayer[] =>
-    squads[side].filter((p) => !sentOff[side].has(p.pid));
+  // Currently on-pitch XI per side (mutated by red cards and substitutions).
+  const onPitch: Record<Side, MatchPlayer[]> = { home: [...homePlayers], away: [...awayPlayers] };
+  const bench: Record<Side, MatchPlayer[]> = { home: [...homeBench], away: [...awayBench] };
+  const subsUsed = { home: 0, away: 0 };
+  const firedCheckpoints = new Set<number>();
+
+  const energy = new Map<number, number>();
+  for (const p of [...homePlayers, ...awayPlayers, ...homeBench, ...awayBench]) {
+    energy.set(p.pid, ENERGY_START);
+  }
+
+  const appeared: Record<Side, Set<number>> = {
+    home: new Set(homePlayers.map((p) => p.pid)),
+    away: new Set(awayPlayers.map((p) => p.pid)),
+  };
+
+  const other = (side: Side): Side => (side === "home" ? "away" : "home");
+
+  const avgEnergy = (side: Side): number => {
+    const xi = onPitch[side];
+    if (xi.length === 0) return ENERGY_START;
+    let sum = 0;
+    for (const p of xi) sum += energy.get(p.pid)!;
+    return sum / xi.length;
+  };
+
+  function attemptSub(side: Side, checkpoint: number): void {
+    if (subsUsed[side] >= MAX_SUBS || bench[side].length === 0) return;
+    const outfield = onPitch[side].filter((p) => p.pos !== "GK");
+    if (outfield.length === 0) return;
+
+    const lowestEnergy = (candidates: MatchPlayer[]): MatchPlayer =>
+      candidates.reduce((worst, p) => (energy.get(p.pid)! < energy.get(worst.pid)! ? p : worst));
+
+    const trailing = stat[side].goals < stat[other(side)].goals;
+    let off: MatchPlayer;
+    let on: MatchPlayer;
+    if (checkpoint === SUB_CHECKPOINTS_ELAPSED[SUB_CHECKPOINTS_ELAPSED.length - 1] && trailing) {
+      // Attacking sub: bring on the bench's best finisher for a defensive-minded player.
+      const defensive = outfield.filter((p) => p.pos === "CB" || p.pos === "FB" || p.pos === "DM");
+      off = lowestEnergy(defensive.length > 0 ? defensive : outfield);
+      on = bench[side].reduce((best, p) => (p.shooting > best.shooting ? p : best));
+    } else {
+      off = lowestEnergy(outfield);
+      const samePos = bench[side].find((p) => p.pos === off.pos);
+      on = samePos ?? bench[side][0];
+    }
+
+    onPitch[side] = onPitch[side].filter((p) => p.pid !== off.pid).concat(on);
+    bench[side] = bench[side].filter((p) => p.pid !== on.pid);
+    subsUsed[side]++;
+    appeared[side].add(on.pid);
+    energy.set(on.pid, ENERGY_START);
+    events.push({ clock, type: "substitution", side, pids: [off.pid, on.pid] });
+  }
 
   const stat = {
     home: { goals: 0, shots: 0, sot: 0, ticks: 0 } as TeamMatchStat,
@@ -225,8 +309,9 @@ export function simMatchDetailed(
   };
 
   const lines = new Map<number, PlayerMatchLine>();
-  for (const p of homePlayers) lines.set(p.pid, emptyLine(p.pid));
-  for (const p of awayPlayers) lines.set(p.pid, emptyLine(p.pid));
+  for (const p of [...homePlayers, ...awayPlayers, ...homeBench, ...awayBench]) {
+    lines.set(p.pid, emptyLine(p.pid));
+  }
 
   const events: MatchEvent[] = [];
 
@@ -236,10 +321,26 @@ export function simMatchDetailed(
   while (clock > 0) {
     const dt = MIN_DT + rng() * (MAX_DT - MIN_DT);
     clock -= dt;
+    const elapsed = MATCH_SECONDS - clock;
 
-    const off = teams[poss];
+    for (const side of ["home", "away"] as const) {
+      for (const p of onPitch[side]) {
+        const next = energy.get(p.pid)! - decayPerSecond(p.stamina) * dt;
+        energy.set(p.pid, clamp(next, ENERGY_FLOOR, ENERGY_START));
+      }
+    }
+
+    for (const cp of SUB_CHECKPOINTS_ELAPSED) {
+      if (!firedCheckpoints.has(cp) && elapsed >= cp) {
+        firedCheckpoints.add(cp);
+        attemptSub("home", cp);
+        attemptSub("away", cp);
+      }
+    }
+
     const defSide: Side = poss === "home" ? "away" : "home";
-    const def = teams[defSide];
+    const off = applyFatigue(teams[poss], avgEnergy(poss));
+    const def = applyFatigue(teams[defSide], avgEnergy(defSide));
     stat[poss].ticks++;
 
     const turnoverP = clamp(
@@ -248,7 +349,7 @@ export function simMatchDetailed(
       0.5,
     );
     if (rng() < turnoverP) {
-      const tackler = pickTackler(rng, active(defSide));
+      const tackler = pickTackler(rng, onPitch[defSide]);
       lines.get(tackler.pid)!.tackles++;
       events.push({ clock, type: "turnover", side: defSide, pids: [tackler.pid] });
       poss = defSide;
@@ -256,11 +357,11 @@ export function simMatchDetailed(
     }
 
     if (rng() < FOUL_BASE) {
-      const fouler = pickFouler(rng, active(defSide));
+      const fouler = pickFouler(rng, onPitch[defSide]);
       const cardRoll = rng();
       if (cardRoll < RED_STRAIGHT_GIVEN_FOUL) {
         lines.get(fouler.pid)!.redCards++;
-        sentOff[defSide].add(fouler.pid);
+        onPitch[defSide] = onPitch[defSide].filter((p) => p.pid !== fouler.pid);
         redCards[defSide] = true;
         teams[defSide] = applyManDown(teams[defSide]);
         events.push({ clock, type: "red_card", side: defSide, pids: [fouler.pid] });
@@ -271,7 +372,7 @@ export function simMatchDetailed(
         events.push({ clock, type: "yellow_card", side: defSide, pids: [fouler.pid] });
         if (priorYellows + 1 >= 2) {
           lines.get(fouler.pid)!.redCards++;
-          sentOff[defSide].add(fouler.pid);
+          onPitch[defSide] = onPitch[defSide].filter((p) => p.pid !== fouler.pid);
           redCards[defSide] = true;
           teams[defSide] = applyManDown(teams[defSide]);
           events.push({ clock, type: "red_card", side: defSide, pids: [fouler.pid] });
@@ -281,25 +382,25 @@ export function simMatchDetailed(
       // free kick: bonus shot chance for the fouled (attacking) side, same tick.
       // Scaled by the same attack-vs-defense edge as the main chance gate, so it
       // doesn't dilute skill-driven spread by handing weak sides "free" chances.
-      const freeKickEdge = teams[poss].attack - teams[defSide].defense;
+      const freeKickEdge = off.attack - def.defense;
       const freeKickP = clamp(
         FREE_KICK_CHANCE_BASE * (1 + STRENGTH_K * freeKickEdge),
         0.01,
         0.3,
       );
       if (rng() < freeKickP) {
-        const shooter = pickShooter(rng, active(poss));
+        const shooter = pickShooter(rng, onPitch[poss]);
         const shooterLine = lines.get(shooter.pid)!;
         stat[poss].shots++;
         shooterLine.shots++;
 
-        const outcome = resolveShot(rng, teams[poss], teams[defSide]);
+        const outcome = resolveShot(rng, off, def);
         if (outcome === "saved" || outcome === "goal") {
           stat[poss].sot++;
           shooterLine.shotsOnTarget++;
         }
         if (outcome === "saved") {
-          const gk = squads[defSide].find((p) => p.pos === "GK");
+          const gk = onPitch[defSide].find((p) => p.pos === "GK");
           if (gk) lines.get(gk.pid)!.saves++;
         }
         events.push({ clock, type: eventTypeFromShot(outcome), side: poss, pids: [shooter.pid] });
@@ -318,7 +419,7 @@ export function simMatchDetailed(
       continue;
     }
 
-    const shooter = pickShooter(rng, active(poss));
+    const shooter = pickShooter(rng, onPitch[poss]);
     const shooterLine = lines.get(shooter.pid)!;
     stat[poss].shots++;
     shooterLine.shots++;
@@ -331,7 +432,7 @@ export function simMatchDetailed(
     }
 
     if (outcome === "saved") {
-      const gk = squads[defSide].find((p) => p.pos === "GK");
+      const gk = onPitch[defSide].find((p) => p.pos === "GK");
       if (gk) lines.get(gk.pid)!.saves++;
     }
 
@@ -342,7 +443,7 @@ export function simMatchDetailed(
       stat[poss].goals++;
       shooterLine.goals++;
 
-      const assister = pickAssister(rng, active(poss), shooter.pid);
+      const assister = pickAssister(rng, onPitch[poss], shooter.pid);
       if (assister) {
         lines.get(assister.pid)!.assists++;
         pids.push(assister.pid);
@@ -364,8 +465,12 @@ export function simMatchDetailed(
 
   const totalTicks = stat.home.ticks + stat.away.ticks;
 
-  const homeLines = homePlayers.map((p) => lines.get(p.pid)!);
-  const awayLines = awayPlayers.map((p) => lines.get(p.pid)!);
+  const homeLines = [...homePlayers, ...homeBench]
+    .filter((p) => appeared.home.has(p.pid))
+    .map((p) => lines.get(p.pid)!);
+  const awayLines = [...awayPlayers, ...awayBench]
+    .filter((p) => appeared.away.has(p.pid))
+    .map((p) => lines.get(p.pid)!);
 
   return {
     home: stat.home.goals,

@@ -30,6 +30,9 @@ export const ROSTER_COMPOSITION: Record<Position, number> = {
   GK: 3, CB: 4, FB: 4, DM: 2, CM: 4, AM: 2, W: 3, ST: 3,
 };
 
+/** Matchday bench size: the best remaining roster players (by ovr) after the starting XI. */
+export const BENCH_SIZE = 7;
+
 /** Generation-offset tier → additive offset (Table A). */
 export const TIER_OFFSET = { star: 18, H: 10, M: 2, L: -12, VL: -25 } as const;
 

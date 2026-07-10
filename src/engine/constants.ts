@@ -32,3 +32,20 @@ export const RED_STRAIGHT_GIVEN_FOUL = 0.003;
 export const RED_CARD_ATTACK_DELTA = -0.06;
 export const RED_CARD_DEFENSE_DELTA = -0.06;
 export const RED_CARD_CONTROL_DELTA = -0.04;
+
+// --- Fatigue + substitutions (M5), simMatchDetailed only (needs player identity) ---
+// Energy 1 -> ~0.6 over a full match for an average-stamina (50) player, per spec §5/§6.
+export const ENERGY_START = 1;
+export const ENERGY_FLOOR = 0.6;
+export const ENERGY_DECAY_PER_SECOND = (ENERGY_START - ENERGY_FLOOR) / MATCH_SECONDS;
+// How much a player's stamina rating (0..99, 50 = average) speeds/slows their own decay.
+export const STAMINA_DECAY_SPREAD = 0.5;
+
+// How much a side's average on-pitch energy deficit drags down its composites.
+// Physical composites (attack/defense/control) feel fatigue more than technique.
+export const FATIGUE_PHYSICAL_WEIGHT = 0.25;
+export const FATIGUE_TECHNICAL_WEIGHT = 0.1;
+
+// AI subs: 5 per side, at the 60' and 75' game-clock checkpoints (elapsed seconds).
+export const MAX_SUBS = 5;
+export const SUB_CHECKPOINTS_ELAPSED = [3600, 4500] as const;
