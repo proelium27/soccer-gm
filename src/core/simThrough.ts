@@ -5,7 +5,7 @@ import type { ScheduleGame } from "./schedule.js";
 import type { League, LeagueTeam } from "./league/generate.js";
 import type { Player } from "./players/types.js";
 import { leagueMatchData } from "./league/composites.js";
-import { lastMatchdayOfMonth } from "./calendar.js";
+import { lastMatchdayOfMonth, TRANSFER_DEADLINE_MATCHDAY } from "./calendar.js";
 import { simMatchDetailed } from "../engine/matchSim.js";
 import { emptySeasonStats } from "./players/types.js";
 import { applyInjuries } from "./injuries.js";
@@ -74,7 +74,8 @@ export function simThrough(
       targetMatchday = lastMatchdayOfMonth(currentMatchday);
       break;
     case "deadline":
-      targetMatchday = 22;
+      // Stop just before deadline day so the winter window is still open.
+      targetMatchday = TRANSFER_DEADLINE_MATCHDAY - 1;
       break;
     case "season":
       targetMatchday = 38;
@@ -171,5 +172,7 @@ export function simThrough(
     phase: remaining.length === 0 ? "offseason" : "regular",
     schedule: remaining,
     played: [...league.played, ...newResults],
+    negotiations: league.negotiations,
+    transfers: league.transfers,
   };
 }

@@ -1,17 +1,16 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings } from "../../core/standings.js";
+import { transferWindowState } from "../../core/transfers/window.js";
 import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
+import { currency } from "../format.js";
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
-
-const currency = new Intl.NumberFormat("en-US", {
-  style: "currency", currency: "USD", maximumFractionDigits: 0,
-});
 
 export function Dashboard() {
   const { league, simAction, offseasonAction, setScoutingSpendAction, simming } = useLeague();
@@ -115,6 +114,19 @@ export function Dashboard() {
           <h5 className="card-title">Finances</h5>
           <p className="card-text mb-2">
             Budget: {currency.format(userTeam.budget)} &middot; Hype: {Math.round(userTeam.hype)}/100
+          </p>
+          <p className="card-text mb-2">
+            {(() => {
+              const ws = transferWindowState(league);
+              return ws.open ? (
+                <>
+                  {ws.window === "summer" ? "Summer" : "Winter"} transfer window{" "}
+                  <strong>open</strong> &middot; <Link to="/transfers">Go to Transfers</Link>
+                </>
+              ) : (
+                <>Transfer window closed</>
+              );
+            })()}
           </p>
           <label className="form-label mb-1" htmlFor="scouting-spend">
             Scouting spend this season: {currency.format(scoutingDraft ?? userTeam.scoutingSpend)}

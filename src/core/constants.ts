@@ -215,3 +215,60 @@ export const VALUATION_AGE_FALLOFF_YOUNG = 0.02;
 export const VALUATION_AGE_FALLOFF_OLD = 0.08;
 export const VALUATION_CONTRACT_YEAR_BONUS = 0.08;
 export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
+
+/**
+ * M6 transfer market (phases 3-7, see docs/finance-design.md). A club's
+ * hidden reservation price — the fee it will actually accept — is its
+ * player's true transfer value times a factor rolled once per transfer
+ * window, so probing offers within one window can't reroll the price.
+ */
+export const RESERVATION_FACTOR_MIN = 0.95;
+export const RESERVATION_FACTOR_MAX = 1.2;
+
+/** An offer below this fraction of the reservation price ends talks outright ("way off"). */
+export const NEGOTIATION_LOWBALL_FACTOR = 0.6;
+
+/**
+ * Counter-offers open this far above the reservation price and the padding
+ * decays geometrically each round, so haggling converges on the reservation
+ * price but never reveals it exactly.
+ */
+export const COUNTER_PADDING_START = 0.15;
+export const COUNTER_PADDING_DECAY = 0.5;
+
+/** Clubs walk away after this many user offers without an agreement. */
+export const NEGOTIATION_MAX_ROUNDS = 5;
+
+/**
+ * Recommended Transfers page: 5-10 players of similar overall level to the
+ * user's team (relative to the starting XI average ovr) and within budget.
+ * The band skews upward — recommendations should mostly be improvements.
+ */
+export const RECOMMENDED_TRANSFERS_MIN = 5;
+export const RECOMMENDED_TRANSFERS_MAX = 10;
+export const RECOMMENDED_OVR_BELOW = 2;
+export const RECOMMENDED_OVR_ABOVE = 8;
+/** If the band holds fewer than the minimum, widen it by this many ovr points and retry. */
+export const RECOMMENDED_BAND_WIDEN = 6;
+/** Weight of potential headroom (potential - ovr) in the recommendation score. */
+export const RECOMMENDED_UPSIDE_WEIGHT = 0.3;
+/**
+ * Scouting noise (a fraction of value, 0.35 → 0.05 by spend) rescaled into
+ * ovr-points of ranking noise: bad scouts shuffle the list by ~3.5 points,
+ * great scouts by ~0.5, so spend buys genuinely better targets.
+ */
+export const RECOMMENDED_NOISE_OVR_SCALE = 10;
+/** Keep the list varied: no more than this many recommendations at one position. */
+export const RECOMMENDED_MAX_PER_POSITION = 2;
+
+/**
+ * One-button contract terms (design: contracts are never negotiated — one
+ * "extend"/"sign" button shows the weekly wage and length). Length is
+ * deterministic by age so the button can state exactly what it does.
+ */
+export const EXTENSION_LENGTH_YOUNG = 3;
+export const EXTENSION_LENGTH_MID = 2;
+export const EXTENSION_LENGTH_OLD = 1;
+/** Age cutoffs: below MID → young terms, below OLD → mid terms, else old terms. */
+export const EXTENSION_AGE_MID = 30;
+export const EXTENSION_AGE_OLD = 33;

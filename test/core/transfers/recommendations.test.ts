@@ -1,0 +1,96 @@
+import { describe, it, expect } from "vitest";
+import { recommendedTransfers } from "../../../src/core/transfers/recommendations.js";
+import { createLeagueState, type LeagueStore } from "../../../src/core/leagueState.js";
+import { mulberry32 } from "../../../src/engine/rng.js";
+import {
+  RECOMMENDED_TRANSFERS_MIN, RECOMMENDED_TRANSFERS_MAX,
+  RECOMMENDED_MAX_PER_POSITION, SCOUTING_SPEND_MAX,
+} from "../../../src/core/constants.js";
+import { trueTransferValue } from "../../../src/core/finance/valuation.js";
+
+/** A league sitting inside the winter window. */
+function windowLeague(seed: number, scoutingSpend = 0): LeagueStore {
+  const league = createLeagueState(0, mulberry32(seed));
+  return {
+    ...league,
+    schedule: league.schedule.filter((g) => g.matchday >= 20),
+    teams: league.teams.map((t) =>
+      t.tid === 0 ? { ...t, scoutingSpend } : t,
+    ),
+  };
+}
+
+describe("recommendedTransfers", () => {
+  it("returns an empty list when no window is open", () => {
+    const league = createLeagueState(0, mulberry32(1));
+    const midAutumn = { ...league, schedule: league.schedule.filter((g) => g.matchday >= 10) };
+    expect(recommendedTransfers(midAutumn)).toEqual([]);
+  });
+
+  it("lists 5-10 affordable players from other clubs", () => {
+    const league = windowLeague(2);
+    const targets = recommendedTransfers(league);
+    expect(targets.length).toBeGreaterThanOrEqual(RECOMMENDED_TRANSFERS_MIN);
+    expect(targets.length).toBeLessThanOrEqual(RECOMMENDED_TRANSFERS_MAX);
+
+    const budget = league.teams[0].budget;
+    const userRoster = new Set(league.teams[0].roster);
+    for (const t of targets) {
+      expect(t.sellerTid).not.toBe(0);
+      expect(userRoster.has(t.player.pid)).toBe(false);
+      expect(t.scoutedValue).toBeLessThanOrEqual(budget);
+    }
+  });
+
+  it("keeps the list varied: at most a couple of targets per position", () => {
+    for (const seed of [2, 3, 4, 5]) {
+      const counts = new Map<string, number>();
+      for (const t of recommendedTransfers(windowLeague(seed))) {
+        counts.set(t.player.pos, (counts.get(t.player.pos) ?? 0) + 1);
+      }
+      for (const n of counts.values()) {
+        expect(n).toBeLessThanOrEqual(RECOMMENDED_MAX_PER_POSITION);
+      }
+    }
+  });
+
+  it("is deterministic within a window", () => {
+    const a = recommendedTransfers(windowLeague(3)).map((t) => t.player.pid);
+    const b = recommendedTransfers(windowLeague(3)).map((t) => t.player.pid);
+    expect(a).toEqual(b);
+  });
+
+  it("recommends players near the user's team level", () => {
+    const league = windowLeague(4);
+    const playerMap = new Map(league.players.map((p) => [p.pid, p]));
+    const userOvrs = league.teams[0].roster
+      .map((pid) => playerMap.get(pid)!.ovr)
+      .sort((x, y) => y - x)
+      .slice(0, 11);
+    const xiAvg = userOvrs.reduce((s, v) => s + v, 0) / userOvrs.length;
+
+    for (const t of recommendedTransfers(league)) {
+      // Wider than the selection band to allow for the XI-average difference
+      // between this rough estimate and the formation-based one.
+      expect(Math.abs(t.player.ovr - xiAvg)).toBeLessThanOrEqual(14);
+    }
+  });
+
+  it("surfaces better targets with max scouting than with none (across seeds)", () => {
+    let spentBetter = 0;
+    const seeds = [10, 11, 12, 13, 14, 15, 16, 17];
+    for (const seed of seeds) {
+      const avgTrueValue = (spend: number): number => {
+        const league = windowLeague(seed, spend);
+        const targets = recommendedTransfers(league);
+        return (
+          targets.reduce((s, t) => s + trueTransferValue(t.player, league.season), 0)
+          / Math.max(1, targets.length)
+        );
+      };
+      if (avgTrueValue(SCOUTING_SPEND_MAX) >= avgTrueValue(0)) spentBetter++;
+    }
+    // Good scouting should usually (not always — it's noise) find better players.
+    expect(spentBetter).toBeGreaterThanOrEqual(5);
+  });
+});

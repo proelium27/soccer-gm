@@ -123,3 +123,8 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* Transfers page: keep offer inputs compact inside table rows. */
+.offer-input {
+  width: 8.5rem;
+}

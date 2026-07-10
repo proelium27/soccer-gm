@@ -6,14 +6,20 @@ import { BASE_SEASON_BUDGET, HYPE_INITIAL, SCOUTING_SPEND_MIN } from "../core/co
 type StoredTeamAnyVersion = Omit<StoredTeam, "budget" | "hype" | "scoutingSpend"> &
   Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend">>;
 
+/** A league as it may exist in a save written before M6 added the transfer market. */
+type LeagueStoreAnyVersion = Omit<LeagueStore, "negotiations" | "transfers"> &
+  Partial<Pick<LeagueStore, "negotiations" | "transfers">>;
+
 /**
  * Backfill fields added to the schema since a league was saved. Every league
  * coming out of IndexedDB or a JSON import passes through here, so the rest
  * of the app can rely on the LeagueStore type telling the truth.
  *
- * Pre-M6 saves lack the finance fields on teams; they get launch defaults.
+ * Pre-M6 saves lack the finance fields on teams and the transfer-market
+ * lists on the league; they get launch defaults.
  */
 export function migrateLeague(league: LeagueStore): LeagueStore {
+  const anyVersion = league as LeagueStoreAnyVersion;
   return {
     ...league,
     teams: (league.teams as StoredTeamAnyVersion[]).map((t) => ({
@@ -22,5 +28,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
       hype: t.hype ?? HYPE_INITIAL,
       scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_MIN,
     })),
+    negotiations: anyVersion.negotiations ?? [],
+    transfers: anyVersion.transfers ?? [],
   };
 }

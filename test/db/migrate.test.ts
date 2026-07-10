@@ -21,6 +21,25 @@ describe("migrateLeague", () => {
     }
   });
 
+  it("backfills the transfer-market lists from pre-phase-3 saves", () => {
+    const league = createLeagueState(0, mulberry32(3));
+    const { negotiations: _n, transfers: _t, ...rest } = league;
+    const preTransfers = rest as unknown as LeagueStore;
+
+    const migrated = migrateLeague(preTransfers);
+    expect(migrated.negotiations).toEqual([]);
+    expect(migrated.transfers).toEqual([]);
+  });
+
+  it("leaves existing transfer-market lists untouched", () => {
+    const league = createLeagueState(0, mulberry32(4));
+    const withDeals: LeagueStore = {
+      ...league,
+      transfers: [{ pid: 1, fromTid: 2, toTid: 0, fee: 5_000_000, season: 1, window: "winter" }],
+    };
+    expect(migrateLeague(withDeals).transfers).toEqual(withDeals.transfers);
+  });
+
   it("leaves current saves' finance values untouched", () => {
     const league = createLeagueState(0, mulberry32(2));
     const custom = {

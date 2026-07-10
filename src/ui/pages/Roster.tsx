@@ -3,7 +3,9 @@ import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
 import { selectXI } from "../../core/lineup/selectXI.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
+import { canExtend, contractTerms } from "../../core/contracts.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
+import { formatWeeklyWage } from "../format.js";
 
 function sortByPosThenOvr(players: Player[]): Player[] {
   const posOrder = new Map(POSITIONS.map((pos, i) => [pos, i]));
@@ -20,9 +22,10 @@ interface RosterTableProps {
   season: number;
   hasStats: boolean;
   onRelease: (pid: number) => void;
+  onExtend: (pid: number) => void;
 }
 
-function RosterTable({ players, season, hasStats, onRelease }: RosterTableProps) {
+function RosterTable({ players, season, hasStats, onRelease, onExtend }: RosterTableProps) {
   return (
     <table className="table table-striped table-sm">
       <thead>
@@ -32,6 +35,8 @@ function RosterTable({ players, season, hasStats, onRelease }: RosterTableProps)
           <th className="text-end">Age</th>
           <th className="text-end">Ovr</th>
           <th className="text-end">Pot</th>
+          <th className="text-end">Wage</th>
+          <th className="text-end">Contract</th>
           {hasStats && (
             <>
               <th className="text-end">Apps</th>
@@ -60,6 +65,12 @@ function RosterTable({ players, season, hasStats, onRelease }: RosterTableProps)
               <td className="text-end">
                 <RatingDelta value={p.potential} previous={prev?.potential ?? null} />
               </td>
+              <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
+              <td className="text-end">
+                {p.contract.expiresSeason <= season
+                  ? "Final year"
+                  : `Through S${p.contract.expiresSeason}`}
+              </td>
               {hasStats && (
                 <>
                   <td className="text-end">{ss?.appearances ?? 0}</td>
@@ -71,12 +82,25 @@ function RosterTable({ players, season, hasStats, onRelease }: RosterTableProps)
                 </>
               )}
               <td className="text-end">
-                <button
-                  className="btn btn-sm btn-outline-danger"
-                  onClick={() => onRelease(p.pid)}
-                >
-                  Release
-                </button>
+                <div className="d-inline-flex gap-1">
+                  {canExtend(p, season) && (() => {
+                    const terms = contractTerms(p, season);
+                    return (
+                      <button
+                        className="btn btn-sm btn-outline-success text-nowrap"
+                        onClick={() => onExtend(p.pid)}
+                      >
+                        Extend {terms.lengthSeasons}y &middot; {formatWeeklyWage(terms.salary)}
+                      </button>
+                    );
+                  })()}
+                  <button
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => onRelease(p.pid)}
+                  >
+                    Release
+                  </button>
+                </div>
               </td>
             </tr>
           );
@@ -87,7 +111,7 @@ function RosterTable({ players, season, hasStats, onRelease }: RosterTableProps)
 }
 
 export function Roster() {
-  const { league, releasePlayerAction } = useLeague();
+  const { league, releasePlayerAction, extendContractAction } = useLeague();
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -123,6 +147,7 @@ export function Roster() {
             season={league.season}
             hasStats={hasStats}
             onRelease={releasePlayerAction}
+            onExtend={extendContractAction}
           />
           <h6 className="mt-4">Bench</h6>
           {bench.length === 0 ? (
@@ -133,6 +158,7 @@ export function Roster() {
               season={league.season}
               hasStats={hasStats}
               onRelease={releasePlayerAction}
+              onExtend={extendContractAction}
             />
           )}
         </>

@@ -30,6 +30,9 @@ function makeLeagueStore(seed: number): LeagueStore {
     abbrev: `T${String(t.tid).padStart(2, "0")}`,
     colors: ["#000000", "#FFFFFF"] as [string, string],
     roster: t.roster,
+    budget: 50_000_000,
+    hype: 50,
+    scoutingSpend: 0,
   }));
 
   return {
@@ -41,6 +44,8 @@ function makeLeagueStore(seed: number): LeagueStore {
     phase: "regular",
     schedule,
     played: [],
+    negotiations: [],
+    transfers: [],
   };
 }
 

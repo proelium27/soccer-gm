@@ -6,7 +6,8 @@ import { saveLeague, loadLeague, listLeagues } from "../../db/leagueDb.js";
 import { exportLeagueJSON, importLeagueJSON } from "../../db/exportImport.js";
 import { signFreeAgent, releasePlayer } from "../../core/freeAgency.js";
 import { clampScoutingSpend } from "../../core/finance/scouting.js";
-import { mulberry32 } from "../../engine/rng.js";
+import { makeTransferOffer, acceptCounterOffer } from "../../core/transfers/negotiation.js";
+import { extendContract } from "../../core/contracts.js";
 import { SimOverlay } from "../components/SimOverlay.js";
 
 interface LeagueContextValue {
@@ -17,6 +18,9 @@ interface LeagueContextValue {
   signFreeAgentAction: (pid: number) => Promise<void>;
   releasePlayerAction: (pid: number) => Promise<void>;
   setScoutingSpendAction: (spend: number) => Promise<void>;
+  makeOfferAction: (pid: number, amount: number) => Promise<void>;
+  acceptCounterAction: (pid: number) => Promise<void>;
+  extendContractAction: (pid: number) => Promise<void>;
   simming: boolean;
   saveToDb: () => Promise<void>;
   exportJSON: () => void;
@@ -98,16 +102,35 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
 
   const signFreeAgentAction = useCallback(async (pid: number) => {
     if (!league) return;
-    const rng = mulberry32((league.lid * 1000 + league.season * 31 + pid) >>> 0);
     const { teams, players } = signFreeAgent(
       league.teams,
       league.players,
       league.meta.userTid,
       pid,
       league.season,
-      rng,
     );
     const updated = { ...league, teams, players };
+    const lid = await saveLeague(updated);
+    setLeagueState({ ...updated, lid });
+  }, [league]);
+
+  const makeOfferAction = useCallback(async (pid: number, amount: number) => {
+    if (!league) return;
+    const updated = makeTransferOffer(league, pid, amount);
+    const lid = await saveLeague(updated);
+    setLeagueState({ ...updated, lid });
+  }, [league]);
+
+  const acceptCounterAction = useCallback(async (pid: number) => {
+    if (!league) return;
+    const updated = acceptCounterOffer(league, pid);
+    const lid = await saveLeague(updated);
+    setLeagueState({ ...updated, lid });
+  }, [league]);
+
+  const extendContractAction = useCallback(async (pid: number) => {
+    if (!league) return;
+    const updated = { ...league, players: extendContract(league.players, pid, league.season) };
     const lid = await saveLeague(updated);
     setLeagueState({ ...updated, lid });
   }, [league]);
@@ -154,6 +177,9 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       signFreeAgentAction,
       releasePlayerAction,
       setScoutingSpendAction,
+      makeOfferAction,
+      acceptCounterAction,
+      extendContractAction,
       simming: simming || simOverlayOpen,
       saveToDb,
       exportJSON: doExport,
