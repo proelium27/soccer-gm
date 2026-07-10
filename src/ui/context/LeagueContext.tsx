@@ -151,6 +151,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         teams={league?.teams ?? []}
         queue={animQueue}
         done={animDone}
+        userTid={league?.meta.userTid ?? -1}
         onComplete={finishSimAnimation}
       />
     </Ctx.Provider>

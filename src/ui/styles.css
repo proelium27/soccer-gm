@@ -68,44 +68,58 @@
   z-index: 1050;
 }
 .sim-overlay-panel {
-  width: 360px;
-  max-width: 90vw;
+  width: 720px;
+  max-width: 92vw;
   box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35);
 }
-.sim-overlay-results {
-  max-height: 260px;
-  overflow-y: auto;
+.sim-overlay-ticker {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.25rem 0.1rem 0.5rem;
+  scroll-behavior: smooth;
 }
-.sim-overlay-row {
+.sim-ticker-card {
+  flex: 0 0 auto;
+  min-width: 84px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #dee2e6;
+  animation: sim-card-in 200ms ease-out;
+  font-size: 0.85rem;
+}
+.sim-ticker-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.25rem 0;
-  font-size: 0.9rem;
-  border-bottom: 1px solid #eee;
-  animation: sim-row-in 180ms ease-out;
+  gap: 0.6rem;
+  padding: 0.25rem 0.5rem;
 }
-.sim-overlay-team {
-  flex: 1;
+.sim-ticker-row:first-child {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+.sim-ticker-team {
   font-weight: 600;
 }
-.sim-overlay-team:last-child {
-  text-align: right;
-}
-.sim-overlay-score {
-  min-width: 3.5rem;
-  text-align: center;
-  color: #0d6efd;
+.sim-ticker-score {
   font-weight: 700;
 }
-@keyframes sim-row-in {
+.sim-ticker-win {
+  background: rgba(25, 135, 84, 0.14);
+}
+.sim-ticker-loss {
+  background: rgba(220, 53, 69, 0.12);
+}
+.sim-ticker-draw {
+  background: #f1f3f5;
+}
+@keyframes sim-card-in {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(-4px) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
