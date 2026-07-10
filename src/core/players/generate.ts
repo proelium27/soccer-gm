@@ -3,8 +3,9 @@ import { SKILL_KEYS } from "./types.js";
 import { GEN_OFFSETS, HEIGHT_RANGES, type Tier } from "./templates.js";
 import { computeOvr } from "./ovr.js";
 import { generateName } from "./names.js";
+import { pickNationality } from "./nationalities.js";
 import { rollPotential } from "./progression.js";
-import { gaussian } from "../../engine/rng.js";
+import { gaussian, mulberry32 } from "../../engine/rng.js";
 import {
   TIER_OFFSET, RATING_NOISE_SD, ABS_LOW_MIN, ABS_LOW_MAX,
   RATING_MIN, RATING_MAX, SALARY_PER_OVR,
@@ -42,10 +43,15 @@ export function generatePlayer(
   const potential = rollPotential(rng, ovr, age, pos);
   const born = season - age;
 
+  // Nationality/name draw from a pid-derived sub-stream so it doesn't shift
+  // the shared rng sequence consumed by ratings/potential for other players.
+  const identityRng = mulberry32(pid * 2654435761 + 0x9e3779b9);
+  const nationality = pickNationality(identityRng);
+
   return {
     pid,
-    name: generateName(rng, "Genero"),
-    nationality: "Genero",
+    name: generateName(identityRng, nationality),
+    nationality,
     born,
     pos,
     heightCm,
