@@ -48,8 +48,10 @@ describe("rollPotential", () => {
 
   it("does not pile elite players onto exactly 99 — the soft ceiling spreads them out", () => {
     // Every high-ovr young star used to clamp to exactly 99. With the soft
-    // ceiling their potentials should fan out across the high 90s and 99 itself
-    // should be practically unreachable from a realistic ovr.
+    // ceiling their potentials should fan out a little above 90 and 99 itself
+    // should be practically unreachable from a realistic ovr. Headroom is
+    // deliberately tight now (90+ ovr/pot should be rare league-wide), so the
+    // fan-out is narrow rather than wide.
     const pots: number[] = [];
     for (let i = 0; i < 400; i++) {
       // Genuine stars: high ovr, young enough to still carry headroom.
@@ -58,7 +60,7 @@ describe("rollPotential", () => {
     const at99 = pots.filter((p) => p === 99).length;
     const distinct = new Set(pots).size;
     expect(at99).toBe(0);
-    expect(distinct).toBeGreaterThan(3);
+    expect(distinct).toBeGreaterThan(1);
     expect(Math.max(...pots)).toBeLessThanOrEqual(RATING_MAX);
   });
 
@@ -128,7 +130,7 @@ describe("progressPlayer", () => {
       outcomes.push(after.ovr - p.ovr);
     }
     // Real spread: not every teenager gets the same delta.
-    expect(new Set(outcomes).size).toBeGreaterThan(10);
+    expect(new Set(outcomes).size).toBeGreaterThan(5);
     expect(Math.min(...outcomes)).toBeLessThan(Math.max(...outcomes) - 5);
   });
 });

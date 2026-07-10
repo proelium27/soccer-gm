@@ -1,10 +1,10 @@
 import type { Position } from "./players/types.js";
 
 /** League-average base rating; a team's base = LEAGUE_BASE + its strength target. */
-export const LEAGUE_BASE = 52;
+export const LEAGUE_BASE = 46;
 
 /** Half-range of per-team strength targets (pre-normalization magnitude). */
-export const TEAM_STRENGTH_SPREAD = 12;
+export const TEAM_STRENGTH_SPREAD = 7;
 
 /**
  * Composite normalization coefficient: normalized = 0.5 + NORMALIZE_K * z.
@@ -12,7 +12,7 @@ export const TEAM_STRENGTH_SPREAD = 12;
  * this (with the target distribution shape) governs both single-game favorite
  * odds and end-of-season table spread. Tuned against the M1 validation gates.
  */
-export const NORMALIZE_K = 0.07;
+export const NORMALIZE_K = 0.08;
 
 /** Std dev of per-player, per-rating gaussian noise. */
 export const RATING_NOISE_SD = 6;
@@ -68,9 +68,9 @@ export const YOUTH_BASE_OFFSET = 20;
 export const BASE_AGE_CURVE_PEAK = 26;
 /** [age - peak, expected mean rating delta] control points; linearly interpolated between. */
 export const BASE_AGE_CURVE: readonly [number, number][] = [
-  [-8, 9], [-7, 8], [-6, 6.5], [-5, 5], [-4, 4], [-3, 3], [-2, 2], [-1, 1],
-  [0, 0.3], [1, 0], [2, -1], [3, -2], [4, -3.5], [5, -4.5], [6, -5.5], [7, -6.5],
-  [8, -7.5], [9, -8.5], [10, -9.5],
+  [-8, 3], [-7, 2.7], [-6, 2.2], [-5, 1.7], [-4, 1.3], [-3, 1], [-2, 0.65], [-1, 0.3],
+  [0, 0.1], [1, 0], [2, -0.5], [3, -1], [4, -1.75], [5, -2.25], [6, -2.75], [7, -3.25],
+  [8, -3.75], [9, -4.25], [10, -4.75],
 ];
 
 /** Physical ratings (speed, strength, stamina, jumping) read the curve this many years "older". */
@@ -81,9 +81,9 @@ export const SKILL_AGE_SHIFT = -3;
 export const GK_AGE_SHIFT = -3;
 
 /** Growth-phase (positive base delta) amplification from potential headroom, per rating point of (potential - ovr). */
-export const POTENTIAL_FACTOR_PER_POINT = 0.09;
-export const POTENTIAL_FACTOR_MIN = 0.4;
-export const POTENTIAL_FACTOR_MAX = 2.2;
+export const POTENTIAL_FACTOR_PER_POINT = 0.05;
+export const POTENTIAL_FACTOR_MIN = 0.5;
+export const POTENTIAL_FACTOR_MAX = 1.4;
 
 /** Minutes played is a minor nudge on growth-phase deltas only, not the previous 0.3-1.0x multiplier. */
 export const MINUTES_FACTOR_MIN = 0.85;
@@ -92,8 +92,8 @@ export const MINUTES_FACTOR_MAX = 1.15;
 export const FULL_SEASON_APPEARANCES = 30;
 
 /** Per-rating noise std dev at age 18 and at age 33+, linearly interpolated by age (variance narrows with age). */
-export const PROGRESSION_NOISE_SD_YOUNG = 5;
-export const PROGRESSION_NOISE_SD_OLD = 2;
+export const PROGRESSION_NOISE_SD_YOUNG = 3.5;
+export const PROGRESSION_NOISE_SD_OLD = 1.5;
 
 /**
  * Potential headroom-by-age: expected additional room above current ovr,
@@ -103,22 +103,21 @@ export const PROGRESSION_NOISE_SD_OLD = 2;
  * generation, keyed by age (GKs get GK_AGE_SHIFT applied first).
  */
 export const POTENTIAL_HEADROOM_BY_AGE: readonly [number, number][] = [
-  [16, 11], [18, 9], [20, 7], [22, 5], [24, 3.5], [26, 2], [28, 1.3], [30, 0.7], [33, 0.3],
+  [16, 4], [18, 3.3], [20, 2.6], [22, 1.9], [24, 1.3], [26, 0.75], [28, 0.5], [30, 0.25], [33, 0.1],
 ];
 /** Potential headroom roll is headroom * uniform(POTENTIAL_ROLL_MIN, POTENTIAL_ROLL_MAX). */
-export const POTENTIAL_ROLL_MIN = 0.4;
-export const POTENTIAL_ROLL_MAX = 1.4;
+export const POTENTIAL_ROLL_MIN = 0.5;
+export const POTENTIAL_ROLL_MAX = 1.3;
 
 /**
  * Soft ceiling for rolled potential. At or below the knee the roll is used as-is;
  * above it the excess is compressed asymptotically toward RATING_MAX so elite
  * players spread across the high 90s instead of all pinning to exactly 99 at the
- * hard clamp. With these values a rolled potential of 99 needs a raw projection
- * of ~107 (i.e. an ovr already near the ceiling), making 99 practically
- * unreachable rather than a routine clamp result.
+ * hard clamp. 99 is only ever reached via the ovr floor (a player already at 99
+ * ovr), never via the projection itself, which asymptotes short of it.
  */
-export const POTENTIAL_SOFT_CAP_KNEE = 90;
-export const POTENTIAL_SOFT_CAP_SCALE = 6;
+export const POTENTIAL_SOFT_CAP_KNEE = 85;
+export const POTENTIAL_SOFT_CAP_SCALE = 5;
 
 /** Retirement: no chance before this age; probability climbs per year after. */
 export const RETIREMENT_START_AGE = 33;
