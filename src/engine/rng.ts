@@ -16,3 +16,17 @@ export function gaussian(rng: () => number): number {
   const v = rng();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
+
+/**
+ * Deterministically mixes an arbitrary list of integers into a single uint32
+ * seed — for deriving independent sub-streams (e.g. a per-player identity
+ * rng) from existing identifiers without consuming the caller's rng stream.
+ */
+export function hashInts(...parts: number[]): number {
+  let h = 0x9e3779b9;
+  for (const p of parts) {
+    h = Math.imul(h ^ (p + 1), 2654435761);
+    h = (h ^ (h >>> 15)) >>> 0;
+  }
+  return h;
+}

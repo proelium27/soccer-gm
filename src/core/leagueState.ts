@@ -29,8 +29,8 @@ export interface LeagueStore {
   transfers: CompletedTransfer[];
 }
 
-export function createLeagueState(userTid: number, rng: () => number): LeagueStore {
-  const league = generateLeague(rng);
+export function createLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
+  const league = generateLeague(rng, seed);
   const teams = assignIdentities(league);
   const teamIds = teams.map((t) => t.tid);
   const schedule = generateSchedule(teamIds);
