@@ -1,5 +1,6 @@
 import {
-  BASE_SEASON_BUDGET, SUCCESS_PAYOUT_BY_RANK, HYPE_REVENUE_PER_POINT, HYPE_REVENUE_DAMPING,
+  BASE_SEASON_BUDGET, HYPE_REVENUE_PER_POINT, HYPE_REVENUE_DAMPING,
+  PRIZE_CHAMPION, PRIZE_TOP_5, PRIZE_TOP_10, PRIZE_TOP_5_CUTOFF, PRIZE_TOP_10_CUTOFF,
 } from "../constants.js";
 
 export interface SeasonRevenue {
@@ -10,19 +11,31 @@ export interface SeasonRevenue {
 }
 
 /**
- * Season income: an equal base share for every club, a success payout keyed
- * to final domestic rank (1-indexed), and a heavily damped hype→revenue
- * channel (ticket/jersey sales) so fame is a secondary, not primary, source
- * of budget spread.
+ * Prize money for a final league position (1-indexed). Three exclusive
+ * tiers: the champion's prize, a top-5 prize (2nd-5th), and a top-10 prize
+ * (6th-10th); the bottom half of the table gets nothing beyond the base.
+ */
+export function successPayout(rank: number): number {
+  if (rank === 1) return PRIZE_CHAMPION;
+  if (rank <= PRIZE_TOP_5_CUTOFF) return PRIZE_TOP_5;
+  if (rank <= PRIZE_TOP_10_CUTOFF) return PRIZE_TOP_10;
+  return 0;
+}
+
+/**
+ * Season income: an equal base share for every club, tiered prize money on
+ * top for the league winner / top 5 / top 10, and a heavily damped
+ * hype→revenue channel (ticket/jersey sales) so fame is a secondary, not
+ * primary, source of budget spread.
  */
 export function seasonRevenue(rank: number, hype: number): SeasonRevenue {
-  const successPayout = SUCCESS_PAYOUT_BY_RANK[rank - 1] ?? 0;
+  const payout = successPayout(rank);
   const hypeRevenue = hype * HYPE_REVENUE_PER_POINT * HYPE_REVENUE_DAMPING;
   return {
     base: BASE_SEASON_BUDGET,
-    successPayout,
+    successPayout: payout,
     hypeRevenue,
-    total: BASE_SEASON_BUDGET + successPayout + hypeRevenue,
+    total: BASE_SEASON_BUDGET + payout + hypeRevenue,
   };
 }
 

@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { seasonRevenue, settleSeasonBudget, wageBill } from "../../../src/core/finance/budget.js";
+import { seasonRevenue, settleSeasonBudget, successPayout, wageBill } from "../../../src/core/finance/budget.js";
 import {
-  BASE_SEASON_BUDGET, SUCCESS_PAYOUT_BY_RANK, NUM_TEAMS, ROSTER_COMPOSITION,
+  BASE_SEASON_BUDGET, NUM_TEAMS, ROSTER_COMPOSITION,
+  PRIZE_CHAMPION, PRIZE_TOP_5, PRIZE_TOP_10,
   SALARY_PER_OVR, RATING_MAX, SCOUTING_SPEND_MAX,
 } from "../../../src/core/constants.js";
 
@@ -42,15 +43,25 @@ describe("wageBill", () => {
   });
 });
 
-describe("SUCCESS_PAYOUT_BY_RANK", () => {
-  it("has exactly one entry per league position", () => {
-    expect(SUCCESS_PAYOUT_BY_RANK).toHaveLength(NUM_TEAMS);
+describe("successPayout", () => {
+  it("pays the champion prize only to 1st place", () => {
+    expect(successPayout(1)).toBe(PRIZE_CHAMPION);
+    expect(successPayout(2)).not.toBe(PRIZE_CHAMPION);
   });
 
-  it("is non-increasing from first to last place", () => {
-    for (let i = 1; i < SUCCESS_PAYOUT_BY_RANK.length; i++) {
-      expect(SUCCESS_PAYOUT_BY_RANK[i]).toBeLessThanOrEqual(SUCCESS_PAYOUT_BY_RANK[i - 1]);
-    }
+  it("pays a flat second tier for 2nd-5th and a flat third tier for 6th-10th", () => {
+    for (let rank = 2; rank <= 5; rank++) expect(successPayout(rank)).toBe(PRIZE_TOP_5);
+    for (let rank = 6; rank <= 10; rank++) expect(successPayout(rank)).toBe(PRIZE_TOP_10);
+  });
+
+  it("pays nothing beyond the base to the bottom half of the table", () => {
+    for (let rank = 11; rank <= NUM_TEAMS; rank++) expect(successPayout(rank)).toBe(0);
+  });
+
+  it("keeps the tiers strictly ordered", () => {
+    expect(PRIZE_CHAMPION).toBeGreaterThan(PRIZE_TOP_5);
+    expect(PRIZE_TOP_5).toBeGreaterThan(PRIZE_TOP_10);
+    expect(PRIZE_TOP_10).toBeGreaterThan(0);
   });
 });
 

@@ -17,9 +17,12 @@ window closing around matchday 22, the existing "deadline" sim target).
    scouting (`StoredTeam.budget`).
 2. A **base amount** is allocated by the league to every club equally each
    season (`BASE_SEASON_BUDGET`).
-3. **Domestic success** earns clubs more (`SUCCESS_PAYOUT_BY_RANK`, keyed to
-   final league position). European competition payouts are a possible later
-   addition; the game currently has one domestic league.
+3. **Domestic success** earns clubs prize money on top of the base, in three
+   exclusive tiers: one prize for winning the league (`PRIZE_CHAMPION`), a
+   second tier for finishing top 5 (`PRIZE_TOP_5`, 2nd–5th), and a third for
+   finishing top 10 (`PRIZE_TOP_10`, 6th–10th). The bottom half of the table
+   gets the base allocation only. European competition payouts are a possible
+   later addition; the game currently has one domestic league.
 4. Unlike real life, where leagues have wildly different spending power, all
    clubs should be **fairly paid** — the equal base dominates, success payouts
    are the main spread.

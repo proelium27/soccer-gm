@@ -137,12 +137,18 @@ export const YOUTH_CONTRACT_LENGTH = 2;
  */
 export const BASE_SEASON_BUDGET = 10_000_000;
 
-/** Success payout by final domestic league rank (index 0 = 1st place), descending. */
-export const SUCCESS_PAYOUT_BY_RANK: readonly number[] = [
-  8_000_000, 6_800_000, 5_800_000, 5_000_000, 4_200_000, 3_600_000, 3_000_000, 2_600_000,
-  2_200_000, 1_800_000, 1_400_000, 1_000_000, 800_000, 600_000, 480_000, 360_000,
-  280_000, 200_000, 120_000, 0,
-];
+/**
+ * Prize money by final domestic league position, paid on top of the equal
+ * base allocation. Three exclusive tiers: winning the league, finishing in
+ * the top 5 (2nd-5th), and finishing in the top 10 (6th-10th). Everyone
+ * else gets the base allocation only.
+ */
+export const PRIZE_CHAMPION = 10_000_000;
+export const PRIZE_TOP_5 = 5_000_000;
+export const PRIZE_TOP_10 = 2_000_000;
+/** Last league position included in each prize tier. */
+export const PRIZE_TOP_5_CUTOFF = 5;
+export const PRIZE_TOP_10_CUTOFF = 10;
 
 /** Hype is tracked on a 0-100 scale. */
 export const HYPE_MIN = 0;
