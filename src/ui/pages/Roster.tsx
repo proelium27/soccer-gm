@@ -6,6 +6,7 @@ import { FORMATIONS } from "../../core/lineup/formations.js";
 import { canExtend, contractTerms } from "../../core/contracts.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
 import { formatWeeklyWage } from "../format.js";
+import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 
 function sortByPosThenOvr(players: Player[]): Player[] {
   const posOrder = new Map(POSITIONS.map((pos, i) => [pos, i]));
@@ -56,7 +57,9 @@ function RosterTable({ players, season, hasStats, onRelease, onExtend }: RosterT
           const prev = previousRatings(p);
           return (
             <tr key={p.pid}>
-              <td>{p.name}</td>
+              <td>
+                <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>
+              </td>
               <td>{p.pos}</td>
               <td className="text-end">{season - p.born}</td>
               <td className="text-end">

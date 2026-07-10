@@ -7,7 +7,13 @@ import { simThrough } from "../../src/core/simThrough.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { ScheduleGame } from "../../src/core/schedule.js";
 import type { StoredTeam } from "../../src/core/teams/clubs.js";
-import { INJURY_GAMES_MIN, INJURY_GAMES_MAX } from "../../src/core/constants.js";
+import {
+  INJURY_GAMES_MIN,
+  INJURY_GAMES_MAX,
+  BASE_SEASON_BUDGET,
+  HYPE_INITIAL,
+  SCOUTING_SPEND_MIN,
+} from "../../src/core/constants.js";
 import { applyInjuries } from "../../src/core/injuries.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
 import type { PlayedMatch } from "../../src/core/standings.js";
@@ -30,9 +36,9 @@ function makeLeagueStore(seed: number): LeagueStore {
     abbrev: `T${String(t.tid).padStart(2, "0")}`,
     colors: ["#000000", "#FFFFFF"] as [string, string],
     roster: t.roster,
-    budget: 50_000_000,
-    hype: 50,
-    scoutingSpend: 0,
+    budget: BASE_SEASON_BUDGET,
+    hype: HYPE_INITIAL,
+    scoutingSpend: SCOUTING_SPEND_MIN,
   }));
 
   return {

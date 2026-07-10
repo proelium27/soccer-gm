@@ -57,6 +57,53 @@
   border: 1px solid #ccc;
 }
 
+/* Player ratings tooltip */
+.player-ratings-tooltip-anchor {
+  position: relative;
+  cursor: default;
+  border-bottom: 1px dotted #999;
+}
+.player-ratings-tooltip-panel {
+  /* The tooltip renders as spans (it lives inside inline table-cell content,
+     where divs would be invalid HTML), so block display is set explicitly. */
+  display: block;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1060;
+  margin-top: 4px;
+  width: 220px;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.15);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+.player-ratings-tooltip-title {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+.player-ratings-tooltip-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  row-gap: 2px;
+  column-gap: 0.75rem;
+}
+.player-ratings-tooltip-row {
+  /* Promote each row's label/value to grid items so every skill gets its own
+     line with the value right-aligned in the auto column. */
+  display: contents;
+}
+.player-ratings-tooltip-label {
+  color: #495057;
+}
+.player-ratings-tooltip-value {
+  font-weight: 600;
+  text-align: right;
+}
+
 /* Sim overlay */
 .sim-overlay {
   position: fixed;
