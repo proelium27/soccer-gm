@@ -141,12 +141,13 @@ export const YOUTH_CONTRACT_LENGTH = 2;
  * salaries plus max scouting spend), so no club can ever lose money — per
  * design, deficits/debt do not exist in this game.
  *
- * Calibrated to the real-world market (2025-ish Premier League): the equal
- * base mirrors the ~90M equal TV share, leaving an average club ~65-75M/season
- * to spend — matching real transfer outlays against valuations where a
- * superstar costs 150M+ and a solid starter 30-50M.
+ * Calibrated to the real-world market (2025-ish Premier League), leaving an
+ * average club ~55-60M/season to spend — matching real transfer outlays
+ * against valuations where a superstar costs 150M+ and a solid starter
+ * 30-50M. Note the invariant margin is thin: max expenses are ~69.5M
+ * (49.5M ceiling wage bill + 20M max scouting) against this base.
  */
-export const BASE_SEASON_BUDGET = 90_000_000;
+export const BASE_SEASON_BUDGET = 75_000_000;
 
 /**
  * Prize money by final domestic league position, paid on top of the equal
