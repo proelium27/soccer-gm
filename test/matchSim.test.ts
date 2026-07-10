@@ -31,7 +31,7 @@ describe("simMatch", () => {
     const r = simMatch(rng, makeTeam("Home"), makeTeam("Away"));
     expect(r.home).toBe(4);
     expect(r.away).toBe(0);
-    expect(r.possessionHome).toBeCloseTo(0.5083612040133779, 5);
+    expect(r.possessionHome).toBeCloseTo(0.49838187702265374, 5);
     expect(r.stat.home.shots).toBe(13);
   });
 

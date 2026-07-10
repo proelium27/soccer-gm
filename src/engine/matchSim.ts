@@ -30,6 +30,10 @@ import {
   PENALTY_GIVEN_FOUL,
   PENALTY_CONVERSION,
   INJURY_PROB_ON_TACKLE,
+  HALF_SECONDS,
+  STOPPAGE_MIN_SECONDS_PER_HALF,
+  STOPPAGE_MAX_SECONDS_PER_HALF,
+  STOPPAGE_SECONDS_PER_EVENT,
 } from "./constants.js";
 import type { Composites } from "./composites.js";
 import type { MatchPlayer, MatchEvent, BoxScore, PlayerMatchLine } from "./attribution.js";
@@ -78,6 +82,15 @@ function applyFatigue(c: Composites, avgEnergy: number): Composites {
 
 export const clamp = (x: number, lo = 0, hi = 1): number =>
   Math.max(lo, Math.min(hi, x));
+
+/** 1-5 minutes per half, weighted by that half's notable-event count, per spec §5. */
+function computeStoppageSeconds(eventCount: number): number {
+  return clamp(
+    STOPPAGE_MIN_SECONDS_PER_HALF + eventCount * STOPPAGE_SECONDS_PER_EVENT,
+    STOPPAGE_MIN_SECONDS_PER_HALF,
+    STOPPAGE_MAX_SECONDS_PER_HALF,
+  );
+}
 
 export interface TeamMatchStat {
   goals: number;
@@ -142,10 +155,22 @@ export function simMatch(
 
   let clock = MATCH_SECONDS;
   let poss: Side = rng() < 0.5 ? "home" : "away";
+  let half1Events = 0;
+  let half2Events = 0;
+  let stoppageApplied = false;
+  const bumpEvent = () => {
+    if (clock > HALF_SECONDS) half1Events++;
+    else half2Events++;
+  };
 
   while (clock > 0) {
     const dt = MIN_DT + rng() * (MAX_DT - MIN_DT);
     clock -= dt;
+
+    if (!stoppageApplied && clock <= 0) {
+      clock += computeStoppageSeconds(half1Events) + computeStoppageSeconds(half2Events);
+      stoppageApplied = true;
+    }
 
     const off = teams[poss];
     const defSide: Side = poss === "home" ? "away" : "home";
@@ -168,6 +193,7 @@ export function simMatch(
       if (!redCards[defSide] && rng() < RED_GIVEN_FOUL_SIMPLE) {
         redCards[defSide] = true;
         teams[defSide] = applyManDown(teams[defSide]);
+        bumpEvent();
       }
       // Edge-scaled so a fraction of fouls happen "in the box" (penalty) vs the
       // open-play free kick below — same edge scaling as the free kick itself,
@@ -180,6 +206,7 @@ export function simMatch(
       );
       if (rng() < penaltyP) {
         // Penalty: unopposed shot, no block/off-target stage.
+        bumpEvent();
         stat[poss].shots++;
         stat[poss].sot++;
         const goalP = clamp(
@@ -208,6 +235,7 @@ export function simMatch(
         const outcome = resolveShot(rng, teams[poss], teams[defSide]);
         if (outcome === "saved" || outcome === "goal") stat[poss].sot++;
         if (outcome === "goal") {
+          bumpEvent();
           stat[poss].goals++;
           poss = defSide;
         }
@@ -227,6 +255,7 @@ export function simMatch(
     if (outcome === "saved" || outcome === "goal") stat[poss].sot++;
 
     if (outcome === "goal") {
+      bumpEvent();
       stat[poss].goals++;
       poss = defSide; // kickoff to conceding team
       continue;
@@ -237,6 +266,7 @@ export function simMatch(
       rng() < CORNER_FROM_MISS_PROB
     ) {
       // Corner: one bonus shot, still gated through the normal cascade.
+      bumpEvent();
       stat[poss].shots++;
       const cornerOutcome = resolveShot(rng, off, def);
       if (cornerOutcome === "saved" || cornerOutcome === "goal") stat[poss].sot++;
@@ -311,6 +341,14 @@ export function simMatchDetailed(
 
   const other = (side: Side): Side => (side === "home" ? "away" : "home");
 
+  let half1Events = 0;
+  let half2Events = 0;
+  let stoppageApplied = false;
+  const bumpEvent = () => {
+    if (clock > HALF_SECONDS) half1Events++;
+    else half2Events++;
+  };
+
   const avgEnergy = (side: Side): number => {
     const xi = onPitch[side];
     if (xi.length === 0) return ENERGY_START;
@@ -346,6 +384,7 @@ export function simMatchDetailed(
     subsUsed[side]++;
     appeared[side].add(on.pid);
     energy.set(on.pid, ENERGY_START);
+    bumpEvent();
     events.push({ clock, type: "substitution", side, pids: [off.pid, on.pid] });
   }
 
@@ -363,6 +402,7 @@ export function simMatchDetailed(
       subsUsed[side]++;
       appeared[side].add(on.pid);
       energy.set(on.pid, ENERGY_START);
+      bumpEvent();
       events.push({ clock, type: "substitution", side, pids: [off.pid, on.pid] });
     } else {
       // No sub available: play the rest of the match a man down.
@@ -389,6 +429,11 @@ export function simMatchDetailed(
     const dt = MIN_DT + rng() * (MAX_DT - MIN_DT);
     clock -= dt;
     const elapsed = MATCH_SECONDS - clock;
+
+    if (!stoppageApplied && clock <= 0) {
+      clock += computeStoppageSeconds(half1Events) + computeStoppageSeconds(half2Events);
+      stoppageApplied = true;
+    }
 
     for (const side of ["home", "away"] as const) {
       for (const p of onPitch[side]) {
@@ -422,6 +467,7 @@ export function simMatchDetailed(
 
       if (rng() < INJURY_PROB_ON_TACKLE) {
         const carrier = pickCarrier(rng, onPitch[poss]);
+        bumpEvent();
         events.push({ clock, type: "injury", side: poss, pids: [carrier.pid] });
         forceInjurySub(poss, carrier.pid);
       }
@@ -438,17 +484,20 @@ export function simMatchDetailed(
         onPitch[defSide] = onPitch[defSide].filter((p) => p.pid !== fouler.pid);
         redCards[defSide] = true;
         teams[defSide] = applyManDown(teams[defSide]);
+        bumpEvent();
         events.push({ clock, type: "red_card", side: defSide, pids: [fouler.pid] });
       } else if (cardRoll < RED_STRAIGHT_GIVEN_FOUL + YELLOW_GIVEN_FOUL) {
         const priorYellows = yellowCounts.get(fouler.pid) ?? 0;
         yellowCounts.set(fouler.pid, priorYellows + 1);
         lines.get(fouler.pid)!.yellowCards++;
+        bumpEvent();
         events.push({ clock, type: "yellow_card", side: defSide, pids: [fouler.pid] });
         if (priorYellows + 1 >= 2) {
           lines.get(fouler.pid)!.redCards++;
           onPitch[defSide] = onPitch[defSide].filter((p) => p.pid !== fouler.pid);
           redCards[defSide] = true;
           teams[defSide] = applyManDown(teams[defSide]);
+          bumpEvent();
           events.push({ clock, type: "red_card", side: defSide, pids: [fouler.pid] });
         }
       }
@@ -469,6 +518,7 @@ export function simMatchDetailed(
         stat[poss].sot++;
         shooterLine.shotsOnTarget++;
 
+        bumpEvent();
         events.push({ clock, type: "penalty", side: poss, pids: [shooter.pid] });
 
         const goalP = clamp(
@@ -514,6 +564,7 @@ export function simMatchDetailed(
         }
         events.push({ clock, type: eventTypeFromShot(outcome), side: poss, pids: [shooter.pid] });
         if (outcome === "goal") {
+          bumpEvent();
           stat[poss].goals++;
           shooterLine.goals++;
           poss = defSide;
@@ -549,6 +600,7 @@ export function simMatchDetailed(
     const pids = [shooter.pid];
 
     if (outcome === "goal") {
+      bumpEvent();
       stat[poss].goals++;
       shooterLine.goals++;
 
@@ -569,6 +621,7 @@ export function simMatchDetailed(
       (outcome === "blocked" || outcome === "off_target") &&
       rng() < CORNER_FROM_MISS_PROB
     ) {
+      bumpEvent();
       events.push({ clock, type: "corner", side: poss, pids: [] });
       const header = pickHeader(rng, onPitch[poss]);
       const headerLine = lines.get(header.pid)!;

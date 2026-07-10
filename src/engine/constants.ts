@@ -3,7 +3,7 @@ export const MATCH_SECONDS = 5400; // 90 minutes
 export const MIN_DT = 2; // seconds per tick (min)
 export const MAX_DT = 10; // seconds per tick (max)
 
-export const BASE_CHANCE = 0.032; // per-tick prob the team on the ball creates a shot
+export const BASE_CHANCE = 0.0304; // per-tick prob the team on the ball creates a shot
 export const STRENGTH_K = 0.8; // how much attack-vs-defense edge swings chance frequency
 
 export const BLOCK_BASE = 0.28; // shot gets blocked
@@ -68,3 +68,14 @@ export const PENALTY_CONVERSION = 0.76; // baseline penalty goal probability, pe
 // ("small per-tick probability, weighted to tackled players" — modeled as conditional on
 // the tackle itself, since that's the sim's only notion of player-on-player contact).
 export const INJURY_PROB_ON_TACKLE = 0.003;
+
+// --- Stoppage time (M5) ---
+// The engine's tick loop has no halftime break to insert extra time into, so
+// both halves' stoppage is computed from their own event counts (goals,
+// cards, subs, corners, penalties, injuries) and played out together at the
+// very end — statistically equivalent to inserting it mid-match, since every
+// per-tick roll is memoryless, and it avoids reworking clock semantics.
+export const HALF_SECONDS = MATCH_SECONDS / 2;
+export const STOPPAGE_MIN_SECONDS_PER_HALF = 60; // 1 minute floor, per spec
+export const STOPPAGE_MAX_SECONDS_PER_HALF = 300; // 5 minute ceiling, per spec
+export const STOPPAGE_SECONDS_PER_EVENT = 20;
