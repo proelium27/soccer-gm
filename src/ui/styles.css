@@ -33,8 +33,10 @@
   padding: 1rem 1.5rem;
 }
 
-/* Team highlight in tables */
-.team-highlight {
+/* Team highlight in tables. Targets the cells, not the row: table-striped
+   paints an opaque background on each <td> via Bootstrap's CSS variables,
+   which sits on top of and hides a background-color set on the <tr> itself. */
+.team-highlight > td {
   background-color: #fff3cd !important;
 }
 
