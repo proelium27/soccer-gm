@@ -13,6 +13,17 @@ export interface LeagueTeam {
   name: string;
   roster: number[]; // pids
   avgOvr: number;
+  /**
+   * Fixed generation-time strength base (LEAGUE_BASE + this team's strength
+   * target), carried forward as the permanent anchor for youth intake.
+   * Deliberately never derived from the team's *current* roster average —
+   * youth intake used to anchor off the live roster average, which let any
+   * random upward drift compound every season (new blood generated relative
+   * to an already-inflated average, forever), causing unbounded league-wide
+   * OVR inflation over a multi-decade dynasty (measured empirically: 90%+ of
+   * AI-rostered players at 80+ ovr within ~40 seasons).
+   */
+  academyBase: number;
 }
 
 export interface League {
@@ -56,6 +67,7 @@ export function generateLeague(rng: () => number): League {
       name: `Team ${tid + 1}`,
       roster,
       avgOvr: ovrSum / roster.length,
+      academyBase: base,
     });
   }
 

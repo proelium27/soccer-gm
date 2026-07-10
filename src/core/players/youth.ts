@@ -8,20 +8,23 @@ import {
 
 /**
  * Generate one club's youth intake for the season: 3-5 raw 16-year-olds,
- * quality anchored to the club's current roster strength (a stand-in for the
- * budget-weighted intake described in the spec, until finances are designed).
+ * quality anchored to the club's fixed generation-time academy strength (a
+ * stand-in for the budget-weighted intake described in the spec, until
+ * finances are designed) — NOT the club's current roster average, which
+ * would let any random upward drift in the roster compound into every future
+ * intake and inflate the league without bound over a long dynasty.
  * Assigns fresh pids starting at `nextPid` and returns them alongside the
  * next free pid for the caller to continue from.
  */
 export function generateYouthIntake(
   rng: () => number,
-  teamAvgOvr: number,
+  academyBase: number,
   season: number,
   nextPid: number,
 ): { players: Player[]; nextPid: number } {
   const count = YOUTH_INTAKE_MIN
     + Math.floor(rng() * (YOUTH_INTAKE_MAX - YOUTH_INTAKE_MIN + 1));
-  const base = teamAvgOvr - YOUTH_BASE_OFFSET;
+  const base = academyBase - YOUTH_BASE_OFFSET;
 
   const players: Player[] = [];
   let pid = nextPid;

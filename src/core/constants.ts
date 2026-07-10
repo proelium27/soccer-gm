@@ -73,17 +73,21 @@ export const BASE_AGE_CURVE: readonly [number, number][] = [
   [8, -3.75], [9, -4.25], [10, -4.75],
 ];
 
-/** Physical ratings (speed, strength, stamina, jumping) read the curve this many years "older". */
+/**
+ * Physical ratings (speed, strength, stamina, jumping) read the curve this
+ * many years "older". Skill ratings (technical/mental + goalkeeping) read it
+ * this many years "younger", and GKs get an extra shift on top of that.
+ * Calibrated so each rating group's survival-weighted (retirement-aware)
+ * expected lifetime delta is ~0 or slightly negative for every position —
+ * a career should average out flat-to-declining, not net growth, or a
+ * dynasty's rostered population inflates without bound over decades (a
+ * bought-and-verified-empirically failure mode with the previous ±3/-3
+ * values, worst for skill-heavy positions like GK/CM/AM/DM).
+ */
 export const PHYSICAL_AGE_SHIFT = 3;
-/** Skill ratings (technical/mental + goalkeeping) read the curve this many years "younger". */
-export const SKILL_AGE_SHIFT = -3;
-/** Extra "younger" shift applied to every rating group for goalkeepers (career-long keepers). */
-export const GK_AGE_SHIFT = -3;
-
-/** Growth-phase (positive base delta) amplification from potential headroom, per rating point of (potential - ovr). */
-export const POTENTIAL_FACTOR_PER_POINT = 0.05;
-export const POTENTIAL_FACTOR_MIN = 0.5;
-export const POTENTIAL_FACTOR_MAX = 1.4;
+export const SKILL_AGE_SHIFT = -1.5;
+/** Extra "younger" shift applied to every rating group for goalkeepers (mild career-long-keeper edge). */
+export const GK_AGE_SHIFT = -0.5;
 
 /** Minutes played is a minor nudge on growth-phase deltas only, not the previous 0.3-1.0x multiplier. */
 export const MINUTES_FACTOR_MIN = 0.85;
@@ -96,28 +100,21 @@ export const PROGRESSION_NOISE_SD_YOUNG = 3.5;
 export const PROGRESSION_NOISE_SD_OLD = 1.5;
 
 /**
- * Potential headroom-by-age: expected additional room above current ovr,
- * before random spread is applied. Recalculated every offseason from the
- * player's *new* ovr, so potential moves with performance rather than being
- * fixed at birth. Also used to roll a player's initial potential at
- * generation, keyed by age (GKs get GK_AGE_SHIFT applied first).
+ * Potential (BBGM-style): a scout's *estimate*, not a growth driver. It plays
+ * no part in progressPlayer's math — actual development is driven only by
+ * age/rating-group and noise (per the BBGM manual: progression depends on
+ * current ratings, age, and coaching, never potential). Potential is instead
+ * computed by simulating a player's future career arc forward
+ * POTENTIAL_SIM_TRIALS times (same age-curve model, independent noise per
+ * trial) and reading off the POTENTIAL_SIM_PERCENTILE of each trial's peak
+ * ovr — so on average a player exceeds their listed potential about
+ * (1 - POTENTIAL_SIM_PERCENTILE) of the time, matching "most players never
+ * reach their potential, but some do and some exceed it."
  */
-export const POTENTIAL_HEADROOM_BY_AGE: readonly [number, number][] = [
-  [16, 4], [18, 3.3], [20, 2.6], [22, 1.9], [24, 1.3], [26, 0.75], [28, 0.5], [30, 0.25], [33, 0.1],
-];
-/** Potential headroom roll is headroom * uniform(POTENTIAL_ROLL_MIN, POTENTIAL_ROLL_MAX). */
-export const POTENTIAL_ROLL_MIN = 0.5;
-export const POTENTIAL_ROLL_MAX = 1.3;
-
-/**
- * Soft ceiling for rolled potential. At or below the knee the roll is used as-is;
- * above it the excess is compressed asymptotically toward RATING_MAX so elite
- * players spread across the high 90s instead of all pinning to exactly 99 at the
- * hard clamp. 99 is only ever reached via the ovr floor (a player already at 99
- * ovr), never via the projection itself, which asymptotes short of it.
- */
-export const POTENTIAL_SOFT_CAP_KNEE = 85;
-export const POTENTIAL_SOFT_CAP_SCALE = 5;
+export const POTENTIAL_SIM_TRIALS = 16;
+/** Simulated trajectories run forward (in seasons) up to this age. */
+export const POTENTIAL_SIM_MAX_AGE = 40;
+export const POTENTIAL_SIM_PERCENTILE = 0.75;
 
 /** Retirement: no chance before this age; probability climbs per year after. */
 export const RETIREMENT_START_AGE = 33;
