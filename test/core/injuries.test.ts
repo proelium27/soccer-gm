@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { generateLeague } from "../../src/core/league/generate.js";
+import { leagueMatchData } from "../../src/core/league/composites.js";
 import { doubleRoundRobin } from "../../src/core/schedule.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
@@ -44,9 +45,27 @@ function makeLeagueStore(seed: number): LeagueStore {
 }
 
 describe("injuries persist across matchdays via simThrough", () => {
-  it("players who show up with an injury flag are excluded from XI selection", () => {
-    // Sim a full season, which recomputes matchData (and thus XI selection)
-    // fresh each matchday from currentPlayers' up-to-date injury state.
+  it("players with an injury flag are excluded from XI and bench selection", () => {
+    const rng = mulberry32(11);
+    const league = generateLeague(rng);
+
+    // Take a confirmed starter from team 0, injure him, and re-select.
+    const healthy = leagueMatchData(league);
+    const starterPid = healthy[0].xi[0].pid;
+    const starter = league.players.find((p) => p.pid === starterPid)!;
+    starter.injury = { gamesRemaining: 2, type: "knock" };
+
+    const injured = leagueMatchData(league);
+    const selectedPids = [...injured[0].xi, ...injured[0].bench].map((p) => p.pid);
+    expect(selectedPids).not.toContain(starterPid);
+
+    // Healed players are selectable again.
+    starter.injury = null;
+    const recovered = leagueMatchData(league);
+    expect(recovered[0].xi.map((p) => p.pid)).toContain(starterPid);
+  });
+
+  it("a full season sim leaves only in-bounds injury flags, and injuries do occur", () => {
     const store = makeLeagueStore(11);
     const rng = mulberry32(9001);
     const result = simThrough(store, "season", rng);

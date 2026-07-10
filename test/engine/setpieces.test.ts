@@ -33,7 +33,7 @@ describe("set pieces + penalties", () => {
     }
   });
 
-  it("penalty events resolve to either a goal or a save, attributed to the penalty taker", () => {
+  it("penalty events resolve to a goal, a save, or an off-target miss, attributed to the taker", () => {
     let penaltyCount = 0;
     let goals = 0;
     for (let seed = 1; seed <= 400; seed++) {
@@ -48,7 +48,7 @@ describe("set pieces + penalties", () => {
         penaltyCount++;
         const taker = e.pids[0];
         const next = events[i + 1];
-        expect(next.type === "goal" || next.type === "shot_saved").toBe(true);
+        expect(["goal", "shot_saved", "shot_off_target"]).toContain(next.type);
         expect(next.pids[0]).toBe(taker);
         const line = [...result.boxScore.home, ...result.boxScore.away].find((l) => l.pid === taker);
         expect(line).toBeDefined();

@@ -132,6 +132,7 @@ export function simThrough(
         ad.xi,
         hd.bench,
         ad.bench,
+        { recompute: { home: hd.recompute, away: ad.recompute } },
       );
 
       accumulateStats(

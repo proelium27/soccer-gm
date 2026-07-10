@@ -62,6 +62,9 @@ export const CORNER_FROM_MISS_PROB = 0.008;
 // for the same reason as above.
 export const PENALTY_GIVEN_FOUL = 0.005;
 export const PENALTY_CONVERSION = 0.76; // baseline penalty goal probability, per spec
+// Of missed penalties, the share the keeper saves (rest fly off target). Only a
+// saved penalty counts as a shot on target and credits the GK a save.
+export const PENALTY_MISS_SAVED_PROB = 0.65;
 
 // --- Injuries (M5), simMatchDetailed only (needs player identity + a bench to sub into) ---
 // Small probability the tackled ball carrier gets hurt on a given turnover, per spec

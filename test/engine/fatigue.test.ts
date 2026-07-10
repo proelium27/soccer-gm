@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { makeTeam } from "../../src/engine/composites.js";
 import { simMatchDetailed } from "../../src/engine/matchSim.js";
+import { MAX_SUBS } from "../../src/engine/constants.js";
 import type { MatchPlayer } from "../../src/engine/attribution.js";
 
 function makeSquad(pidOffset: number, stamina = 50): MatchPlayer[] {
@@ -142,5 +143,123 @@ describe("fatigue + substitutions", () => {
         expect(line?.redCards).toBeGreaterThanOrEqual(1);
       }
     }
+  });
+
+  it("never makes more than MAX_SUBS substitutions per side", () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const rng = mulberry32(seed);
+      const result = simMatchDetailed(
+        rng,
+        makeTeam("Home"),
+        makeTeam("Away"),
+        makeSquad(0),
+        makeSquad(100),
+        makeBench(1000),
+        makeBench(2000),
+      );
+      for (const side of ["home", "away"] as const) {
+        const subs = result.boxScore.events.filter(
+          (e) => e.type === "substitution" && e.side === side,
+        );
+        expect(subs.length).toBeLessThanOrEqual(MAX_SUBS);
+      }
+    }
+  });
+
+  it("a second yellow to the same player becomes a red card and removes him", () => {
+    let sawSecondYellow = false;
+    for (let seed = 1; seed <= 400; seed++) {
+      const rng = mulberry32(seed);
+      const result = simMatchDetailed(
+        rng,
+        makeTeam("Home"),
+        makeTeam("Away"),
+        makeSquad(0),
+        makeSquad(100),
+        makeBench(1000),
+        makeBench(2000),
+      );
+      const allLines = [...result.boxScore.home, ...result.boxScore.away];
+      for (const line of allLines) {
+        if (line.yellowCards < 2) continue;
+        sawSecondYellow = true;
+        // Two yellows cap out (the player is off, he can't be booked again)...
+        expect(line.yellowCards).toBe(2);
+        // ...and always come with the resulting red on his line...
+        expect(line.redCards).toBe(1);
+        // ...whose event immediately follows the second yellow in the log.
+        const yellows = result.boxScore.events.filter(
+          (e) => e.type === "yellow_card" && e.pids[0] === line.pid,
+        );
+        expect(yellows).toHaveLength(2);
+        const idx = result.boxScore.events.findIndex(
+          (e) => e === yellows[1],
+        );
+        expect(result.boxScore.events[idx + 1]).toMatchObject({
+          type: "red_card",
+          pids: [line.pid],
+        });
+      }
+    }
+    expect(sawSecondYellow).toBe(true);
+  });
+
+  it("substitutions re-roll composites through the recompute hook (spec §4)", () => {
+    // Wiring check: the hook fires on every home sub with the full on-pitch XI.
+    const xiSizes: number[] = [];
+    const rng = mulberry32(1);
+    const result = simMatchDetailed(
+      rng,
+      makeTeam("Home"),
+      makeTeam("Away"),
+      makeSquad(0),
+      makeSquad(100),
+      makeBench(1000),
+      makeBench(2000),
+      {
+        recompute: {
+          home: (onPitch) => {
+            xiSizes.push(onPitch.length);
+            return makeTeam("Home");
+          },
+        },
+      },
+    );
+    const homeSubs = result.boxScore.events.filter(
+      (e) => e.type === "substitution" && e.side === "home",
+    );
+    expect(homeSubs.length).toBeGreaterThanOrEqual(1);
+    expect(xiSizes.length).toBeGreaterThanOrEqual(homeSubs.length);
+    for (const n of xiSizes) expect(n).toBe(11);
+
+    // Behavior check: a hook that upgrades the on-pitch side after subs must
+    // shift outcomes — aggregate home shots rise vs. the identical no-hook run.
+    let baseShots = 0;
+    let boostedShots = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      const base = simMatchDetailed(
+        mulberry32(seed),
+        makeTeam("Home"),
+        makeTeam("Away"),
+        makeSquad(0),
+        makeSquad(100),
+        makeBench(1000),
+        makeBench(2000),
+      );
+      baseShots += base.stat.home.shots;
+
+      const boosted = simMatchDetailed(
+        mulberry32(seed),
+        makeTeam("Home"),
+        makeTeam("Away"),
+        makeSquad(0),
+        makeSquad(100),
+        makeBench(1000),
+        makeBench(2000),
+        { recompute: { home: () => makeTeam("Home", { attack: 0.95, finishing: 0.95 }) } },
+      );
+      boostedShots += boosted.stat.home.shots;
+    }
+    expect(boostedShots).toBeGreaterThan(baseShots);
   });
 });

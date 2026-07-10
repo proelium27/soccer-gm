@@ -29,6 +29,7 @@ import {
   CORNER_FROM_MISS_PROB,
   PENALTY_GIVEN_FOUL,
   PENALTY_CONVERSION,
+  PENALTY_MISS_SAVED_PROB,
   INJURY_PROB_ON_TACKLE,
   HALF_SECONDS,
   STOPPAGE_MIN_SECONDS_PER_HALF,
@@ -84,7 +85,7 @@ export const clamp = (x: number, lo = 0, hi = 1): number =>
   Math.max(lo, Math.min(hi, x));
 
 /** 1-5 minutes per half, weighted by that half's notable-event count, per spec §5. */
-function computeStoppageSeconds(eventCount: number): number {
+export function computeStoppageSeconds(eventCount: number): number {
   return clamp(
     STOPPAGE_MIN_SECONDS_PER_HALF + eventCount * STOPPAGE_SECONDS_PER_EVENT,
     STOPPAGE_MIN_SECONDS_PER_HALF,
@@ -104,7 +105,6 @@ export interface MatchResult {
   away: number; // away goals
   possessionHome: number; // 0..1, home ticks / total ticks
   stat: { home: TeamMatchStat; away: TeamMatchStat };
-  redCards: { home: boolean; away: boolean };
 }
 
 export type ShotOutcome = "blocked" | "off_target" | "saved" | "goal";
@@ -146,7 +146,7 @@ export function simMatch(
     attack: clamp(home.attack + HOME_ATTACK_BONUS),
   };
   const teams: Record<Side, Composites> = { home: homeEff, away };
-  const redCards = { home: false, away: false };
+  const manDown = { home: false, away: false };
 
   const stat = {
     home: { goals: 0, shots: 0, sot: 0, ticks: 0 } as TeamMatchStat,
@@ -192,8 +192,8 @@ export function simMatch(
     if (rng() < FOUL_BASE) {
       // defending side commits a foul; no player identity here, so a foul either goes
       // unpunished, or (rarely) sends the fouling side a man down for the rest of the match.
-      if (!redCards[defSide] && rng() < RED_GIVEN_FOUL_SIMPLE) {
-        redCards[defSide] = true;
+      if (!manDown[defSide] && rng() < RED_GIVEN_FOUL_SIMPLE) {
+        manDown[defSide] = true;
         teams[defSide] = applyManDown(teams[defSide]);
         bumpEvent();
       }
@@ -207,10 +207,10 @@ export function simMatch(
         0.08,
       );
       if (rng() < penaltyP) {
-        // Penalty: unopposed shot, no block/off-target stage.
+        // Penalty: unopposed shot, no block stage. A miss is either saved (on
+        // target) or off target, so SoT isn't unconditionally inflated.
         bumpEvent();
         stat[poss].shots++;
-        stat[poss].sot++;
         const goalP = clamp(
           PENALTY_CONVERSION *
             (1 + 0.15 * (teams[poss].finishing - 0.5) - 0.15 * (teams[defSide].keeping - 0.5)),
@@ -218,8 +218,11 @@ export function simMatch(
           0.9,
         );
         if (rng() < goalP) {
+          stat[poss].sot++;
           stat[poss].goals++;
           poss = defSide;
+        } else if (rng() < PENALTY_MISS_SAVED_PROB) {
+          stat[poss].sot++;
         }
         continue;
       }
@@ -292,12 +295,21 @@ export function simMatch(
     away: stat.away.goals,
     possessionHome: totalTicks === 0 ? 0.5 : stat.home.ticks / totalTicks,
     stat,
-    redCards,
   };
 }
 
 export interface DetailedMatchResult extends MatchResult {
   boxScore: BoxScore;
+}
+
+export interface SimMatchOptions {
+  /**
+   * Per-side hooks to re-roll normalized composites from the current on-pitch
+   * group (spec §4: "before each match, and after subs/red cards"). Without a
+   * hook, personnel changes fall back to the fixed man-down delta alone and
+   * substitutions affect only stat attribution and energy.
+   */
+  recompute?: Partial<Record<Side, (onPitch: MatchPlayer[]) => Composites>>;
 }
 
 /**
@@ -316,13 +328,14 @@ export function simMatchDetailed(
   awayPlayers: MatchPlayer[],
   homeBench: MatchPlayer[] = [],
   awayBench: MatchPlayer[] = [],
+  opts: SimMatchOptions = {},
 ): DetailedMatchResult {
   const homeEff: Composites = {
     ...home,
     attack: clamp(home.attack + HOME_ATTACK_BONUS),
   };
   const teams: Record<Side, Composites> = { home: homeEff, away };
-  const redCards = { home: false, away: false };
+  const manDown = { home: false, away: false };
   const yellowCounts = new Map<number, number>();
 
   // Currently on-pitch XI per side (mutated by red cards and substitutions).
@@ -343,6 +356,21 @@ export function simMatchDetailed(
 
   const other = (side: Side): Side => (side === "home" ? "away" : "home");
 
+  const stat = {
+    home: { goals: 0, shots: 0, sot: 0, ticks: 0 } as TeamMatchStat,
+    away: { goals: 0, shots: 0, sot: 0, ticks: 0 } as TeamMatchStat,
+  };
+
+  const lines = new Map<number, PlayerMatchLine>();
+  for (const p of [...homePlayers, ...awayPlayers, ...homeBench, ...awayBench]) {
+    lines.set(p.pid, emptyLine(p.pid));
+  }
+
+  const events: MatchEvent[] = [];
+
+  let clock = MATCH_SECONDS;
+  let poss: Side = rng() < 0.5 ? "home" : "away";
+
   let half1Events = 0;
   let half2Events = 0;
   let stoppageApplied = false;
@@ -351,6 +379,21 @@ export function simMatchDetailed(
     if (clock > HALF_SECONDS) half1Events++;
     else half2Events++;
   };
+
+  /**
+   * Re-roll a side's composites from its current on-pitch group after any
+   * personnel change (sub, red card, unreplaced injury), per spec §4. The
+   * man-down delta and home attack bonus are re-applied on top. No-op when the
+   * caller supplied no recompute hook (composites then only change via the
+   * fixed man-down delta, applied at the call sites).
+   */
+  function rebuildTeam(side: Side): void {
+    const rc = opts.recompute?.[side];
+    if (!rc) return;
+    let c = rc(onPitch[side]);
+    if (side === "home") c = { ...c, attack: clamp(c.attack + HOME_ATTACK_BONUS) };
+    teams[side] = manDown[side] ? applyManDown(c) : c;
+  }
 
   const avgEnergy = (side: Side): number => {
     const xi = onPitch[side];
@@ -398,6 +441,7 @@ export function simMatchDetailed(
     subsUsed[side]++;
     appeared[side].add(on.pid);
     energy.set(on.pid, ENERGY_START);
+    rebuildTeam(side);
     bumpEvent();
     events.push({ clock, type: "substitution", side, pids: [off.pid, on.pid] });
   }
@@ -417,26 +461,14 @@ export function simMatchDetailed(
       energy.set(on.pid, ENERGY_START);
       bumpEvent();
       events.push({ clock, type: "substitution", side, pids: [off.pid, on.pid] });
-    } else {
+    } else if (!manDown[side]) {
       // No valid sub available: play the rest of the match a man down.
+      // Applied once per side, matching the red-card semantics.
+      manDown[side] = true;
       teams[side] = applyManDown(teams[side]);
     }
+    rebuildTeam(side);
   }
-
-  const stat = {
-    home: { goals: 0, shots: 0, sot: 0, ticks: 0 } as TeamMatchStat,
-    away: { goals: 0, shots: 0, sot: 0, ticks: 0 } as TeamMatchStat,
-  };
-
-  const lines = new Map<number, PlayerMatchLine>();
-  for (const p of [...homePlayers, ...awayPlayers, ...homeBench, ...awayBench]) {
-    lines.set(p.pid, emptyLine(p.pid));
-  }
-
-  const events: MatchEvent[] = [];
-
-  let clock = MATCH_SECONDS;
-  let poss: Side = rng() < 0.5 ? "home" : "away";
 
   for (;;) {
     const dt = MIN_DT + rng() * (MAX_DT - MIN_DT);
@@ -496,10 +528,11 @@ export function simMatchDetailed(
       if (cardRoll < RED_STRAIGHT_GIVEN_FOUL) {
         lines.get(fouler.pid)!.redCards++;
         onPitch[defSide] = onPitch[defSide].filter((p) => p.pid !== fouler.pid);
-        if (!redCards[defSide]) {
-          redCards[defSide] = true;
+        if (!manDown[defSide]) {
+          manDown[defSide] = true;
           teams[defSide] = applyManDown(teams[defSide]);
         }
+        rebuildTeam(defSide);
         bumpEvent();
         events.push({ clock, type: "red_card", side: defSide, pids: [fouler.pid] });
       } else if (cardRoll < RED_STRAIGHT_GIVEN_FOUL + YELLOW_GIVEN_FOUL) {
@@ -511,10 +544,11 @@ export function simMatchDetailed(
         if (priorYellows + 1 >= 2) {
           lines.get(fouler.pid)!.redCards++;
           onPitch[defSide] = onPitch[defSide].filter((p) => p.pid !== fouler.pid);
-          if (!redCards[defSide]) {
-            redCards[defSide] = true;
+          if (!manDown[defSide]) {
+            manDown[defSide] = true;
             teams[defSide] = applyManDown(teams[defSide]);
           }
+          rebuildTeam(defSide);
           bumpEvent();
           events.push({ clock, type: "red_card", side: defSide, pids: [fouler.pid] });
         }
@@ -538,26 +572,35 @@ export function simMatchDetailed(
         const shooterLine = lines.get(shooter.pid)!;
         stat[poss].shots++;
         shooterLine.shots++;
-        stat[poss].sot++;
-        shooterLine.shotsOnTarget++;
 
         bumpEvent();
         events.push({ clock, type: "penalty", side: poss, pids: [shooter.pid] });
 
+        // Conversion hinges on the actual taker vs. the actual keeper (both
+        // 0..100 ratings), not the fatigue-adjusted team composites — the
+        // taker picked by pickShooter is the one who shoots.
+        const gk = onPitch[defSide].find((p) => p.pos === "GK");
+        const gkKeeping = gk ? gk.keeping : 50;
         const goalP = clamp(
-          PENALTY_CONVERSION * (1 + 0.15 * (off.finishing - 0.5) - 0.15 * (def.keeping - 0.5)),
+          PENALTY_CONVERSION *
+            (1 + 0.15 * (shooter.shooting / 100 - 0.5) - 0.15 * (gkKeeping / 100 - 0.5)),
           0.55,
           0.9,
         );
         if (rng() < goalP) {
+          stat[poss].sot++;
+          shooterLine.shotsOnTarget++;
           stat[poss].goals++;
           shooterLine.goals++;
           events.push({ clock, type: "goal", side: poss, pids: [shooter.pid] });
           poss = defSide;
-        } else {
-          const gk = onPitch[defSide].find((p) => p.pos === "GK");
+        } else if (rng() < PENALTY_MISS_SAVED_PROB) {
+          stat[poss].sot++;
+          shooterLine.shotsOnTarget++;
           if (gk) lines.get(gk.pid)!.saves++;
           events.push({ clock, type: "shot_saved", side: poss, pids: [shooter.pid] });
+        } else {
+          events.push({ clock, type: "shot_off_target", side: poss, pids: [shooter.pid] });
         }
         continue;
       }
@@ -698,7 +741,6 @@ export function simMatchDetailed(
     away: stat.away.goals,
     possessionHome: totalTicks === 0 ? 0.5 : stat.home.ticks / totalTicks,
     stat,
-    redCards,
     boxScore: {
       home: homeLines,
       away: awayLines,

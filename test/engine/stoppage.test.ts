@@ -1,8 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { makeTeam } from "../../src/engine/composites.js";
-import { simMatch, simMatchDetailed } from "../../src/engine/matchSim.js";
-import { MATCH_SECONDS, STOPPAGE_MIN_SECONDS_PER_HALF, STOPPAGE_MAX_SECONDS_PER_HALF } from "../../src/engine/constants.js";
+import { simMatch, simMatchDetailed, computeStoppageSeconds } from "../../src/engine/matchSim.js";
+import {
+  STOPPAGE_MIN_SECONDS_PER_HALF,
+  STOPPAGE_MAX_SECONDS_PER_HALF,
+  STOPPAGE_SECONDS_PER_EVENT,
+} from "../../src/engine/constants.js";
 import type { MatchPlayer } from "../../src/engine/attribution.js";
 
 function makeSquad(pidOffset: number): MatchPlayer[] {
@@ -28,11 +32,11 @@ describe("stoppage time", () => {
       const rng = mulberry32(seed);
       const r = simMatch(rng, makeTeam("Home"), makeTeam("Away"));
       const totalTicks = r.stat.home.ticks + r.stat.away.ticks;
-      // With MIN_DT=2..MAX_DT=10, a match with zero stoppage plays somewhere around
-      // 5400/6 ~= 900 ticks; the 2-minute minimum stoppage floor alone should push
-      // this up noticeably. Rather than pin an exact figure, just sanity-check that
-      // matches never come in shorter than what pure regulation time would allow.
-      expect(totalTicks).toBeGreaterThan(0);
+      // Regulation is 5400s and every tick is at most MAX_DT=10s, so a match that
+      // stopped dead at 90:00 could not have fewer than 540 ticks; the guaranteed
+      // 2-minute combined stoppage floor adds at least a dozen more.
+      const regulationFloorTicks = 540;
+      expect(totalTicks).toBeGreaterThan(regulationFloorTicks);
     }
   });
 
@@ -55,17 +59,19 @@ describe("stoppage time", () => {
     expect(sawStoppageEvent).toBe(true);
   });
 
-  it("a busier match (more cards/goals) tends to run longer than a quiet one, all else equal", () => {
-    // Can't force event counts directly without reaching into internals, so
-    // approximate: across many seeds, total match ticks should never be less
-    // than what a zero-stoppage match would produce, confirming stoppage is
-    // strictly additive rather than occasionally shrinking the match.
-    for (let seed = 1; seed <= 20; seed++) {
-      const rng = mulberry32(seed + 1000);
-      const r = simMatch(rng, makeTeam("Home"), makeTeam("Away"));
-      const totalTicks = r.stat.home.ticks + r.stat.away.ticks;
-      const minPossibleTicks = MATCH_SECONDS / 10; // MAX_DT-sized ticks only, zero stoppage
-      expect(totalTicks).toBeGreaterThanOrEqual(minPossibleTicks * 0.9);
+  it("a busier half earns more stoppage, bounded by the 1-5 minute spec range", () => {
+    // Monotone in event count...
+    expect(computeStoppageSeconds(0)).toBe(STOPPAGE_MIN_SECONDS_PER_HALF);
+    expect(computeStoppageSeconds(3)).toBe(
+      STOPPAGE_MIN_SECONDS_PER_HALF + 3 * STOPPAGE_SECONDS_PER_EVENT,
+    );
+    expect(computeStoppageSeconds(6)).toBeGreaterThan(computeStoppageSeconds(3));
+    // ...and clamped to the per-half maximum no matter how eventful the half.
+    expect(computeStoppageSeconds(1000)).toBe(STOPPAGE_MAX_SECONDS_PER_HALF);
+    for (const n of [0, 1, 5, 10, 100]) {
+      const s = computeStoppageSeconds(n);
+      expect(s).toBeGreaterThanOrEqual(STOPPAGE_MIN_SECONDS_PER_HALF);
+      expect(s).toBeLessThanOrEqual(STOPPAGE_MAX_SECONDS_PER_HALF);
     }
   });
 
