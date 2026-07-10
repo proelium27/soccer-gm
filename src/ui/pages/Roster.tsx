@@ -4,6 +4,7 @@ import type { Player } from "../../core/players/types.js";
 import { selectXI } from "../../core/lineup/selectXI.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
+import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 
 function sortByPosThenOvr(players: Player[]): Player[] {
   const posOrder = new Map(POSITIONS.map((pos, i) => [pos, i]));
@@ -51,7 +52,9 @@ function RosterTable({ players, season, hasStats, onRelease }: RosterTableProps)
           const prev = previousRatings(p);
           return (
             <tr key={p.pid}>
-              <td>{p.name}</td>
+              <td>
+                <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>
+              </td>
               <td>{p.pos}</td>
               <td className="text-end">{season - p.born}</td>
               <td className="text-end">
