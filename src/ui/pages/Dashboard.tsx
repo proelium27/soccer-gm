@@ -1,17 +1,17 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings } from "../../core/standings.js";
+import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
+import { TRANSFER_DEADLINE_MATCHDAY } from "../../core/calendar.js";
 import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
+import { currency } from "../format.js";
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
-
-const currency = new Intl.NumberFormat("en-US", {
-  style: "currency", currency: "USD", maximumFractionDigits: 0,
-});
 
 export function Dashboard() {
   const { league, simAction, offseasonAction, setScoutingSpendAction, simming } = useLeague();
@@ -74,6 +74,10 @@ export function Dashboard() {
   }
 
   const disableSim = simming || league.phase === "offseason";
+  // Once the user is standing on deadline day (or past it), "sim to the
+  // deadline" has nowhere left to go — simThrough treats it as a no-op.
+  const nextMd = nextMatchday(league);
+  const atOrPastDeadline = nextMd === null || nextMd >= TRANSFER_DEADLINE_MATCHDAY;
 
   return (
     <div className="container-fluid p-3">
@@ -115,6 +119,19 @@ export function Dashboard() {
           <h5 className="card-title">Finances</h5>
           <p className="card-text mb-2">
             Budget: {currency.format(userTeam.budget)} &middot; Hype: {Math.round(userTeam.hype)}/100
+          </p>
+          <p className="card-text mb-2">
+            {(() => {
+              const ws = transferWindowState(league);
+              return ws.open ? (
+                <>
+                  {ws.window === "summer" ? "Summer" : "Winter"} transfer window{" "}
+                  <strong>open</strong> &middot; <Link to="/transfers">Go to Transfers</Link>
+                </>
+              ) : (
+                <>Transfer window closed</>
+              );
+            })()}
           </p>
           <label className="form-label mb-1" htmlFor="scouting-spend">
             Scouting spend this season: {currency.format(scoutingDraft ?? userTeam.scoutingSpend)}
@@ -164,7 +181,12 @@ export function Dashboard() {
             </button>
             <button
               className="btn btn-primary"
-              disabled={disableSim}
+              disabled={disableSim || atOrPastDeadline}
+              title={
+                !disableSim && atOrPastDeadline
+                  ? "The transfer deadline has been reached this season"
+                  : undefined
+              }
               onClick={() => simAction("deadline")}
             >
               Sim to Transfer Deadline

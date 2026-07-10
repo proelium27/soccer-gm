@@ -3,8 +3,22 @@
  * season (August → May).
  */
 
-/** The first matchday after the January transfer window opens. */
+/**
+ * Deadline day: the last matchday of the mid-season (winter) transfer
+ * window. The window closes once this matchday is played; "Sim to Transfer
+ * Deadline" stops just before it, so the user lands on deadline day with the
+ * window still open.
+ */
 export const TRANSFER_DEADLINE_MATCHDAY = 22;
+
+/** The winter window opens once matchday 17 is played (mid-December). */
+export const WINTER_WINDOW_OPEN_MATCHDAY = 18;
+
+/**
+ * The summer window spans the whole offseason phase and stays open through
+ * this matchday (August), mirroring the real early-September close.
+ */
+export const SUMMER_WINDOW_CLOSE_MATCHDAY = 4;
 
 /**
  * Each entry defines [firstMatchday, lastMatchday, monthName].

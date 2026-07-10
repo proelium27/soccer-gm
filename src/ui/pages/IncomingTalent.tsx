@@ -2,6 +2,8 @@ import { useLeague } from "../context/LeagueContext.js";
 import { freeAgentPids } from "../../core/freeAgency.js";
 import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
+import { contractTerms } from "../../core/contracts.js";
+import { formatWeeklyWage } from "../format.js";
 
 /**
  * Stub for now: lists unsigned players available to sign. The full vision
@@ -43,23 +45,26 @@ export function IncomingTalent() {
             </tr>
           </thead>
           <tbody>
-            {availablePlayers.map((p) => (
-              <tr key={p.pid}>
-                <td>{p.name}</td>
-                <td>{p.pos}</td>
-                <td className="text-end">{p.ovr}</td>
-                <td className="text-end">{league.season - p.born}</td>
-                <td className="text-end">
-                  <button
-                    className="btn btn-sm btn-primary"
-                    disabled={simming}
-                    onClick={() => signFreeAgentAction(p.pid)}
-                  >
-                    Sign
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {availablePlayers.map((p) => {
+              const terms = contractTerms(p, league.season);
+              return (
+                <tr key={p.pid}>
+                  <td>{p.name}</td>
+                  <td>{p.pos}</td>
+                  <td className="text-end">{p.ovr}</td>
+                  <td className="text-end">{league.season - p.born}</td>
+                  <td className="text-end">
+                    <button
+                      className="btn btn-sm btn-primary text-nowrap"
+                      disabled={simming}
+                      onClick={() => signFreeAgentAction(p.pid)}
+                    >
+                      Sign {terms.lengthSeasons}y &middot; {formatWeeklyWage(terms.salary)}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

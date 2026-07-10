@@ -9,6 +9,7 @@ import { Roster } from "./pages/Roster.js";
 import { Leaders } from "./pages/Leaders.js";
 import { BoxScore } from "./pages/BoxScore.js";
 import { IncomingTalent } from "./pages/IncomingTalent.js";
+import { Transfers } from "./pages/Transfers.js";
 import "./styles.css";
 
 function RootRedirect() {
@@ -30,6 +31,7 @@ export function App() {
             <Route path="/roster" element={<Roster />} />
             <Route path="/leaders" element={<Leaders />} />
             <Route path="/incoming-talent" element={<IncomingTalent />} />
+            <Route path="/transfers" element={<Transfers />} />
           </Route>
           <Route path="*" element={<RootRedirect />} />
         </Routes>

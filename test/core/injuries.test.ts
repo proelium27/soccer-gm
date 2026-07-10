@@ -50,6 +50,8 @@ function makeLeagueStore(seed: number): LeagueStore {
     phase: "regular",
     schedule,
     played: [],
+    negotiations: [],
+    transfers: [],
   };
 }
 

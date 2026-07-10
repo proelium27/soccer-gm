@@ -4,6 +4,7 @@ import { generateLeague } from "../../src/core/league/generate.js";
 import { doubleRoundRobin } from "../../src/core/schedule.js";
 import { computeStandings } from "../../src/core/standings.js";
 import { simThrough } from "../../src/core/simThrough.js";
+import { transferWindowState } from "../../src/core/transfers/window.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { ScheduleGame } from "../../src/core/schedule.js";
 import type { StoredTeam } from "../../src/core/teams/clubs.js";
@@ -43,6 +44,8 @@ function makeLeagueStore(seed: number): LeagueStore {
     phase: "regular",
     schedule,
     played: [],
+    negotiations: [],
+    transfers: [],
   };
 }
 
@@ -78,18 +81,34 @@ describe("simThrough", () => {
     }
   });
 
-  it("sim to deadline: advances to matchday 22", () => {
+  it("sim to deadline: lands on deadline day (matchday 22) with the winter window open", () => {
     const store = makeLeagueStore(42);
     const rng = mulberry32(300);
     const result = simThrough(store, "deadline", rng);
 
-    // Matchdays 1-22 = 220 games
-    expect(result.played).toHaveLength(220);
-    expect(result.schedule).toHaveLength(store.schedule.length - 220);
-    // No remaining game should have matchday <= 22
+    // Matchdays 1-21 = 210 games; deadline day itself is left unplayed so
+    // the user can still do transfer business.
+    expect(result.played).toHaveLength(210);
+    expect(result.schedule).toHaveLength(store.schedule.length - 210);
     for (const g of result.schedule) {
-      expect(g.matchday).toBeGreaterThan(22);
+      expect(g.matchday).toBeGreaterThan(21);
     }
+    expect(Math.min(...result.schedule.map((g) => g.matchday))).toBe(22);
+    expect(transferWindowState(result)).toMatchObject({ open: true, window: "winter" });
+  });
+
+  it("sim to deadline is a no-op once the user is on (or past) deadline day", () => {
+    const store = makeLeagueStore(42);
+    const atDeadline = simThrough(store, "deadline", mulberry32(300));
+
+    // Re-clicking must NOT play deadline day and shut the window unasked.
+    expect(simThrough(atDeadline, "deadline", mulberry32(301))).toBe(atDeadline);
+
+    const pastDeadline: LeagueStore = {
+      ...store,
+      schedule: store.schedule.filter((g) => g.matchday >= 25),
+    };
+    expect(simThrough(pastDeadline, "deadline", mulberry32(302))).toBe(pastDeadline);
   });
 
   it("sim full season: plays all remaining games, phase becomes offseason", () => {

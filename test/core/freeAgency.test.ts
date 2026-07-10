@@ -94,7 +94,7 @@ describe("signFreeAgent", () => {
     const teams = releaseExpiredContracts(league.teams, league.players, 1);
 
     const { teams: signedTeams, players: signedPlayers } = signFreeAgent(
-      teams, league.players, 0, pid, 1, mulberry32(9),
+      teams, league.players, 0, pid, 1,
     );
     expect(signedTeams.find((t) => t.tid === 0)!.roster).toContain(pid);
     const signed = signedPlayers.find((p) => p.pid === pid)!;
@@ -104,7 +104,7 @@ describe("signFreeAgent", () => {
   it("is a no-op if the pid is not actually a free agent", () => {
     const league = createLeagueState(0, mulberry32(10));
     const pid = league.teams[2].roster[0]; // still rostered on team 2
-    const result = signFreeAgent(league.teams, league.players, 0, pid, 1, mulberry32(11));
+    const result = signFreeAgent(league.teams, league.players, 0, pid, 1);
     expect(result.teams).toBe(league.teams);
     expect(result.players).toBe(league.players);
   });

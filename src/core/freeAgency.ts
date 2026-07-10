@@ -4,6 +4,7 @@ import type { StoredTeam } from "./teams/clubs.js";
 import {
   ROSTER_COMPOSITION, SALARY_PER_OVR, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
 } from "./constants.js";
+import { extendContract } from "./contracts.js";
 
 /** Pids not currently on any team's roster. */
 export function freeAgentPids(teams: StoredTeam[], players: Player[]): Set<number> {
@@ -147,8 +148,9 @@ export function releasePlayer(
 
 /**
  * Sign a specific free agent to a specific team (used by the user-facing free
- * agency page). No-op if the pid isn't actually a free agent. Contract terms
- * are the same ovr-based placeholder as AI signings.
+ * agency page). No-op if the pid isn't actually a free agent. Terms are the
+ * deterministic one-button contract (age-based length, ovr-based salary) so
+ * the sign button can display them up front.
  */
 export function signFreeAgent(
   teams: StoredTeam[],
@@ -156,23 +158,15 @@ export function signFreeAgent(
   tid: number,
   pid: number,
   season: number,
-  rng: () => number,
 ): { teams: StoredTeam[]; players: Player[] } {
   if (!freeAgentPids(teams, players).has(pid)) {
     return { teams, players };
   }
 
-  const length = CONTRACT_LENGTH_MIN
-    + Math.floor(rng() * (CONTRACT_LENGTH_MAX - CONTRACT_LENGTH_MIN + 1));
-
   return {
     teams: teams.map((t) =>
       t.tid === tid ? { ...t, roster: [...t.roster, pid] } : t,
     ),
-    players: players.map((p) =>
-      p.pid === pid
-        ? { ...p, contract: { salary: SALARY_PER_OVR * p.ovr, expiresSeason: season + length } }
-        : p,
-    ),
+    players: extendContract(players, pid, season),
   };
 }

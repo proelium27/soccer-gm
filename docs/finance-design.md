@@ -64,6 +64,9 @@ tested invariant (`test/core/finance/budget.test.ts`), not a clamp.
 | Budget, hype, scouting spend on teams; season settlement | ✅ M6 phase 1–2 |
 | Transfer valuation (`trueTransferValue` / `perceivedTransferValue`) | ✅ M6 phase 1–2 |
 | Dashboard Finances card + scouting slider | ✅ M6 phase 1–2 |
-| Transfer windows, Recommended Transfers page, offer/counter negotiation | ⏳ phases 3–7 |
-| One-button contract extend/sign (weekly wage display) | ⏳ phases 3–7 |
+| Transfer windows (summer: offseason + matchdays 1–4; winter: 18–22) | ✅ M6 phases 3–7 |
+| Recommended Transfers page (5–10 targets, scouting-scaled quality) | ✅ M6 phases 3–7 |
+| Offer/counter negotiation (hidden reservation price, walk-aways) | ✅ M6 phases 3–7 |
+| One-button contract extend/sign (weekly wage display, age-based length) | ✅ M6 phases 3–7 |
+| AI↔AI transfers, inbound offers for user players | possible later addition |
 | Hype affecting free-agent appeal | possible later addition |
