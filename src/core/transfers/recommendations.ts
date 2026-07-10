@@ -1,7 +1,7 @@
 import type { Player } from "../players/types.js";
 import type { LeagueStore } from "../leagueState.js";
 import { transferWindowState } from "./window.js";
-import { isForSale, scoutedValue, windowSeed } from "./negotiation.js";
+import { departsAtRollover, isForSale, scoutedValue, windowSeed } from "./negotiation.js";
 import { scoutingNoiseSd } from "../finance/scouting.js";
 import { selectXI } from "../lineup/selectXI.js";
 import { FORMATIONS } from "../lineup/formations.js";
@@ -54,7 +54,8 @@ export function recommendedTransfers(league: LeagueStore): TransferTarget[] {
       const player = playerMap.get(pid);
       if (!player) continue;
       if (!isForSale(team, playerMap, pid)) continue;
-      const value = scoutedValue(league.lid, league.season, ws.window, player, user.scoutingSpend);
+      if (departsAtRollover(league, player)) continue;
+      const value = scoutedValue(league.lid, ws.season, ws.window, player, user.scoutingSpend);
       if (value > user.budget) continue;
       candidates.push({ player, sellerTid: team.tid, scoutedValue: value });
     }
@@ -75,7 +76,7 @@ export function recommendedTransfers(league: LeagueStore): TransferTarget[] {
 
   const noiseSd = scoutingNoiseSd(user.scoutingSpend);
   const score = (c: TransferTarget): number => {
-    const rng = mulberry32(windowSeed(league.lid, league.season, ws.window, c.player.pid, 3));
+    const rng = mulberry32(windowSeed(league.lid, ws.season, ws.window, c.player.pid, 3));
     return (
       c.player.ovr - teamAvg
       + RECOMMENDED_UPSIDE_WEIGHT * (c.player.potential - c.player.ovr)
@@ -97,6 +98,17 @@ export function recommendedTransfers(league: LeagueStore): TransferTarget[] {
     if (count >= RECOMMENDED_MAX_PER_POSITION) continue;
     perPosition.set(pos, count + 1);
     picked.push(target);
+  }
+
+  // Variety is a preference, the 5-target minimum is the contract: if the
+  // pool was so position-concentrated that the cap cut below it, backfill
+  // with the best remaining candidates regardless of position.
+  if (picked.length < RECOMMENDED_TRANSFERS_MIN) {
+    const pickedPids = new Set(picked.map((t) => t.player.pid));
+    for (const { target } of ranked) {
+      if (picked.length >= RECOMMENDED_TRANSFERS_MIN) break;
+      if (!pickedPids.has(target.player.pid)) picked.push(target);
+    }
   }
   return picked;
 }

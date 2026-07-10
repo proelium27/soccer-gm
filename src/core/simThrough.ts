@@ -75,7 +75,10 @@ export function simThrough(
       break;
     case "deadline":
       // Stop just before deadline day so the winter window is still open.
+      // Already there (or past it): nothing to sim "to" — in particular,
+      // don't play deadline day itself and shut the window unasked.
       targetMatchday = TRANSFER_DEADLINE_MATCHDAY - 1;
+      if (targetMatchday < currentMatchday) return league;
       break;
     case "season":
       targetMatchday = 38;
@@ -164,15 +167,10 @@ export function simThrough(
   });
 
   return {
-    lid: league.lid,
-    meta: league.meta,
-    teams: league.teams,
+    ...league,
     players: currentPlayers,
-    season: league.season,
     phase: remaining.length === 0 ? "offseason" : "regular",
     schedule: remaining,
     played: [...league.played, ...newResults],
-    negotiations: league.negotiations,
-    transfers: league.transfers,
   };
 }

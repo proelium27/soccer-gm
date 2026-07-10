@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings } from "../../core/standings.js";
-import { transferWindowState } from "../../core/transfers/window.js";
+import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
+import { TRANSFER_DEADLINE_MATCHDAY } from "../../core/calendar.js";
 import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
 import { currency } from "../format.js";
 
@@ -73,6 +74,10 @@ export function Dashboard() {
   }
 
   const disableSim = simming || league.phase === "offseason";
+  // Once the user is standing on deadline day (or past it), "sim to the
+  // deadline" has nowhere left to go — simThrough treats it as a no-op.
+  const nextMd = nextMatchday(league);
+  const atOrPastDeadline = nextMd === null || nextMd >= TRANSFER_DEADLINE_MATCHDAY;
 
   return (
     <div className="container-fluid p-3">
@@ -176,7 +181,12 @@ export function Dashboard() {
             </button>
             <button
               className="btn btn-primary"
-              disabled={disableSim}
+              disabled={disableSim || atOrPastDeadline}
+              title={
+                !disableSim && atOrPastDeadline
+                  ? "The transfer deadline has been reached this season"
+                  : undefined
+              }
               onClick={() => simAction("deadline")}
             >
               Sim to Transfer Deadline

@@ -97,6 +97,20 @@ describe("simThrough", () => {
     expect(transferWindowState(result)).toMatchObject({ open: true, window: "winter" });
   });
 
+  it("sim to deadline is a no-op once the user is on (or past) deadline day", () => {
+    const store = makeLeagueStore(42);
+    const atDeadline = simThrough(store, "deadline", mulberry32(300));
+
+    // Re-clicking must NOT play deadline day and shut the window unasked.
+    expect(simThrough(atDeadline, "deadline", mulberry32(301))).toBe(atDeadline);
+
+    const pastDeadline: LeagueStore = {
+      ...store,
+      schedule: store.schedule.filter((g) => g.matchday >= 25),
+    };
+    expect(simThrough(pastDeadline, "deadline", mulberry32(302))).toBe(pastDeadline);
+  });
+
   it("sim full season: plays all remaining games, phase becomes offseason", () => {
     const store = makeLeagueStore(42);
     const rng = mulberry32(400);

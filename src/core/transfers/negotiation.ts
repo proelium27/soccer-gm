@@ -16,6 +16,7 @@ import {
 export interface TransferNegotiation {
   pid: number;
   sellerTid: number;
+  /** The window's season identity (TransferWindowState.season), not necessarily league.season. */
   season: number;
   window: TransferWindowKind;
   /** User offer history, most recent last. */
@@ -69,6 +70,19 @@ export function isForSale(
   const depthAfterSale =
     seller.roster.filter((q) => players.get(q)?.pos === p.pos).length - 1;
   return depthAfterSale >= Math.ceil(ROSTER_COMPOSITION[p.pos] / 2);
+}
+
+/**
+ * During the offseason half of the summer window, a player in the final year
+ * of his contract is about to walk for free (`releaseExpiredContracts` runs
+ * at Advance) — paying a fee for him would hand the money over and lose the
+ * player days later, so he's off the market until he re-signs somewhere.
+ */
+export function departsAtRollover(
+  league: Pick<LeagueStore, "phase" | "season">,
+  player: Player,
+): boolean {
+  return league.phase === "offseason" && player.contract.expiresSeason <= league.season;
 }
 
 /** The hidden fee a club will accept for a player, fixed for the whole window. */
@@ -135,6 +149,7 @@ function executeTransfer(
   fromTid: number,
   toTid: number,
   fee: number,
+  season: number,
   window: TransferWindowKind,
 ): LeagueStore {
   return {
@@ -150,7 +165,7 @@ function executeTransfer(
     }),
     transfers: [
       ...league.transfers,
-      { pid, fromTid, toTid, fee, season: league.season, window },
+      { pid, fromTid, toTid, fee, season, window },
     ],
   };
 }
@@ -160,7 +175,7 @@ export function currentNegotiations(league: LeagueStore): TransferNegotiation[] 
   const ws = transferWindowState(league);
   if (!ws.open) return [];
   return league.negotiations.filter(
-    (n) => n.season === league.season && n.window === ws.window,
+    (n) => n.season === ws.season && n.window === ws.window,
   );
 }
 
@@ -204,20 +219,21 @@ export function makeTransferOffer(
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   if (!isForSale(seller, playerMap, pid)) return league;
+  if (departsAtRollover(league, player)) return league;
 
   const existing = league.negotiations.find(
-    (n) => n.pid === pid && n.season === league.season && n.window === ws.window,
+    (n) => n.pid === pid && n.season === ws.season && n.window === ws.window,
   );
   if (existing && existing.status !== "open") return league;
 
   const priorOffers = existing?.offers ?? [];
-  const reservation = reservationPrice(league.lid, league.season, ws.window, player);
+  const reservation = reservationPrice(league.lid, ws.season, ws.window, player);
   const outcome = respondToOffer(reservation, offer, priorOffers);
 
   const negotiation: TransferNegotiation = {
     pid,
     sellerTid: seller.tid,
-    season: league.season,
+    season: ws.season,
     window: ws.window,
     offers: [...priorOffers, offer],
     counter: outcome.kind === "countered" ? outcome.counter : null,
@@ -229,7 +245,7 @@ export function makeTransferOffer(
 
   let updated: LeagueStore = { ...league, negotiations: upsertNegotiation(league, negotiation) };
   if (outcome.kind === "accepted") {
-    updated = executeTransfer(updated, pid, seller.tid, userTid, outcome.fee, ws.window);
+    updated = executeTransfer(updated, pid, seller.tid, userTid, outcome.fee, ws.season, ws.window);
   }
   return updated;
 }
@@ -237,14 +253,16 @@ export function makeTransferOffer(
 /**
  * Accept the seller's current counter-offer: the transfer executes at exactly
  * the countered fee. No-op without an open negotiation holding a counter the
- * user can afford.
+ * user can afford — and the sale conditions (depth floor, contract expiry)
+ * are re-checked here, since the roster may have changed since the counter
+ * was made (e.g. a parallel negotiation already sold a teammate).
  */
 export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStore {
   const ws = transferWindowState(league);
   if (!ws.open) return league;
 
   const negotiation = league.negotiations.find(
-    (n) => n.pid === pid && n.season === league.season && n.window === ws.window,
+    (n) => n.pid === pid && n.season === ws.season && n.window === ws.window,
   );
   if (!negotiation || negotiation.status !== "open" || negotiation.counter === null) {
     return league;
@@ -252,10 +270,15 @@ export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStor
 
   const user = league.teams.find((t) => t.tid === league.meta.userTid);
   const seller = league.teams.find((t) => t.tid === negotiation.sellerTid);
-  if (!user || !seller || !seller.roster.includes(pid)) return league;
+  const player = league.players.find((p) => p.pid === pid);
+  if (!user || !seller || !player) return league;
   if (negotiation.counter > user.budget) return league;
+
+  const playerMap = new Map(league.players.map((p) => [p.pid, p]));
+  if (!isForSale(seller, playerMap, pid)) return league;
+  if (departsAtRollover(league, player)) return league;
 
   const accepted: TransferNegotiation = { ...negotiation, status: "accepted" };
   const updated: LeagueStore = { ...league, negotiations: upsertNegotiation(league, accepted) };
-  return executeTransfer(updated, pid, seller.tid, user.tid, negotiation.counter, ws.window);
+  return executeTransfer(updated, pid, seller.tid, user.tid, negotiation.counter, ws.season, ws.window);
 }

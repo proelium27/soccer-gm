@@ -50,6 +50,26 @@ describe("transferWindowState", () => {
       expect(transferWindowState(leagueAtMatchday(md)).open).toBe(false);
     }
   });
+
+  it("gives the summer window one identity across the season rollover", () => {
+    const league = createLeagueState(0, mulberry32(3));
+    const offseason = { ...league, phase: "offseason" as const };
+    // What Advance does to the calendar: bump the season, back to regular
+    // play with matchday 1 up next — still the same summer window.
+    const advanced = { ...league, season: league.season + 1 };
+
+    expect(transferWindowState(offseason)).toMatchObject({
+      open: true, window: "summer", season: league.season + 1,
+    });
+    expect(transferWindowState(advanced)).toMatchObject({
+      open: true, window: "summer", season: league.season + 1,
+    });
+    // The winter window simply belongs to the season in progress.
+    const winter = { ...league, schedule: league.schedule.filter((g) => g.matchday >= 20) };
+    expect(transferWindowState(winter)).toMatchObject({
+      open: true, window: "winter", season: league.season,
+    });
+  });
 });
 
 describe("nextMatchday", () => {

@@ -76,6 +76,27 @@ describe("recommendedTransfers", () => {
     }
   });
 
+  it("drops a would-be target whose contract expires at the coming rollover", () => {
+    const league: LeagueStore = {
+      ...createLeagueState(0, mulberry32(8)),
+      phase: "offseason",
+    };
+    const targets = recommendedTransfers(league);
+    expect(targets.length).toBeGreaterThan(0);
+
+    // He'd walk for free at Advance, so buying him would burn the fee.
+    const pid = targets[0].player.pid;
+    const expiring: LeagueStore = {
+      ...league,
+      players: league.players.map((p) =>
+        p.pid === pid
+          ? { ...p, contract: { ...p.contract, expiresSeason: league.season } }
+          : p,
+      ),
+    };
+    expect(recommendedTransfers(expiring).some((t) => t.player.pid === pid)).toBe(false);
+  });
+
   it("surfaces better targets with max scouting than with none (across seeds)", () => {
     let spentBetter = 0;
     const seeds = [10, 11, 12, 13, 14, 15, 16, 17];

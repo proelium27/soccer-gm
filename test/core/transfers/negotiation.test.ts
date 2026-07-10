@@ -217,6 +217,31 @@ describe("makeTransferOffer / acceptCounterOffer", () => {
     expect(makeTransferOffer(league, ownPid, 1_000_000)).toBe(league);
   });
 
+  it("re-checks the depth floor when accepting a counter", () => {
+    const league = windowLeague();
+    const seller = league.teams[1];
+    const playerMap = new Map(league.players.map((p) => [p.pid, p]));
+    const gks = seller.roster.filter((q) => playerMap.get(q)?.pos === "GK");
+    const pid = gks[0];
+    expect(isForSale(seller, playerMap, pid)).toBe(true);
+
+    const player = league.players.find((p) => p.pid === pid)!;
+    const reservation = reservationPrice(league.lid, league.season, "winter", player);
+    const countered = makeTransferOffer(league, pid, Math.round(reservation * 0.8));
+    expect(currentNegotiations(countered)[0]).toMatchObject({ pid, status: "open" });
+
+    // Another GK leaves the seller while the counter sits on the table; the
+    // sale would now strip the club below the depth floor, so accepting it
+    // must be refused rather than executed.
+    const thinned = {
+      ...countered,
+      teams: countered.teams.map((t) =>
+        t.tid === seller.tid ? { ...t, roster: t.roster.filter((q) => q !== gks[1]) } : t,
+      ),
+    };
+    expect(acceptCounterOffer(thinned, pid)).toBe(thinned);
+  });
+
   it("cannot accept a counter the budget no longer covers", () => {
     const league = windowLeague();
     const { pid } = firstTarget(league);
@@ -232,5 +257,62 @@ describe("makeTransferOffer / acceptCounterOffer", () => {
       ),
     };
     expect(acceptCounterOffer(broke, pid)).toBe(broke);
+  });
+});
+
+describe("the summer window across the season rollover", () => {
+  /** A league in the offseason phase (next season's schedule already drawn). */
+  function offseasonLeague(seed = 6): LeagueStore {
+    const league = createLeagueState(0, mulberry32(seed));
+    return {
+      ...league,
+      phase: "offseason",
+      teams: league.teams.map((t) =>
+        t.tid === 0 ? { ...t, budget: 500_000_000 } : t,
+      ),
+    };
+  }
+
+  it("keeps negotiations, prices, and the transfer log intact through Advance", () => {
+    const league = offseasonLeague();
+    const { pid } = firstTarget(league);
+    const player = league.players.find((p) => p.pid === pid)!;
+    const ws = transferWindowState(league);
+    if (!ws.open) throw new Error("expected an open summer window");
+    const reservation = reservationPrice(league.lid, ws.season, "summer", player);
+
+    const countered = makeTransferOffer(league, pid, Math.round(reservation * 0.8));
+    const negotiation = currentNegotiations(countered)[0];
+    expect(negotiation).toMatchObject({ pid, status: "open", season: league.season + 1 });
+
+    // What Advance does to the calendar: new season, back to regular play
+    // with matchday 1 up next — the same summer window, so nothing rerolls.
+    const advanced: LeagueStore = {
+      ...countered,
+      season: countered.season + 1,
+      phase: "regular",
+    };
+    expect(currentNegotiations(advanced)).toEqual([negotiation]);
+
+    const done = acceptCounterOffer(advanced, pid);
+    expect(done.teams.find((t) => t.tid === 0)!.roster).toContain(pid);
+    expect(done.transfers[0].fee).toBe(negotiation.counter);
+    // The completed deal is attributed to the same window identity.
+    expect(done.transfers[0].season).toBe(negotiation.season);
+  });
+
+  it("won't sell a player whose contract expires at the coming rollover", () => {
+    const league = offseasonLeague();
+    const { pid } = firstTarget(league);
+    const expiring: LeagueStore = {
+      ...league,
+      players: league.players.map((p) =>
+        p.pid === pid
+          ? { ...p, contract: { ...p.contract, expiresSeason: league.season } }
+          : p,
+      ),
+    };
+    // He walks for free days from now; a full-budget offer is still refused.
+    expect(makeTransferOffer(expiring, pid, 500_000_000)).toBe(expiring);
   });
 });

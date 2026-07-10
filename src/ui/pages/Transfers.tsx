@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import { transferWindowState } from "../../core/transfers/window.js";
@@ -46,7 +46,7 @@ interface NegotiationControlsProps {
 function NegotiationControls({
   pid, negotiation, suggested, budget, disabled, onOffer, onAcceptCounter,
 }: NegotiationControlsProps) {
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(() => String(suggested));
 
   if (negotiation?.status === "accepted") {
     return <span className="text-success">Transfer agreed</span>;
@@ -56,9 +56,15 @@ function NegotiationControls({
   }
 
   const lastOffer = negotiation?.offers.at(-1);
-  const draftValue = draft === "" ? suggested : Number(draft);
+  // A repeat offer at or below the best one so far ends talks for the window,
+  // so refuse to send one instead of letting a stray re-click collapse them.
+  const bestOffer =
+    negotiation && negotiation.offers.length > 0 ? Math.max(...negotiation.offers) : null;
+  const draftValue = Number(draft);
+  const notImproving = bestOffer !== null && draftValue <= bestOffer;
   const offerValid =
-    Number.isFinite(draftValue) && draftValue > 0 && draftValue <= budget;
+    draft !== "" && Number.isFinite(draftValue) && draftValue > 0
+    && draftValue <= budget && !notImproving;
 
   return (
     <div className="d-flex flex-column gap-1">
@@ -68,6 +74,7 @@ function NegotiationControls({
           {negotiation.counter !== null && (
             <> &middot; Counter: <strong>{currency.format(negotiation.counter)}</strong></>
           )}
+          {notImproving && <> &middot; bid more than your last offer</>}
         </small>
       )}
       <div className="d-flex gap-1 align-items-center">
@@ -76,13 +83,14 @@ function NegotiationControls({
           className="form-control form-control-sm offer-input"
           min={0}
           step={100_000}
-          value={draft === "" ? suggested : draft}
+          value={draft}
           disabled={disabled}
           onChange={(e) => setDraft(e.target.value)}
         />
         <button
           className="btn btn-sm btn-primary"
           disabled={disabled || !offerValid}
+          title={notImproving ? "Must improve on your previous offer" : undefined}
           onClick={() => onOffer(pid, draftValue)}
         >
           Offer
@@ -104,6 +112,12 @@ function NegotiationControls({
 export function Transfers() {
   const { league, makeOfferAction, acceptCounterAction, simming } = useLeague();
 
+  // The full-league candidate scan is too heavy to redo on unrelated renders.
+  const targets = useMemo(
+    () => (league ? recommendedTransfers(league) : []),
+    [league],
+  );
+
   if (!league) {
     return <p className="p-3">Loading...</p>;
   }
@@ -118,7 +132,6 @@ export function Transfers() {
   const teamName = (tid: number) =>
     league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
 
-  const targets = recommendedTransfers(league);
   const negotiations = currentNegotiations(league);
   const negotiationByPid = new Map(negotiations.map((n) => [n.pid, n]));
 
@@ -130,7 +143,7 @@ export function Transfers() {
   );
 
   const windowTransfers = league.transfers.filter(
-    (t) => ws.open && t.season === league.season && t.window === ws.window,
+    (t) => ws.open && t.season === ws.season && t.window === ws.window,
   );
 
   return (

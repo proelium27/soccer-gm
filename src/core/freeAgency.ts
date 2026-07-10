@@ -4,7 +4,7 @@ import type { StoredTeam } from "./teams/clubs.js";
 import {
   ROSTER_COMPOSITION, SALARY_PER_OVR, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
 } from "./constants.js";
-import { contractTerms } from "./contracts.js";
+import { extendContract } from "./contracts.js";
 
 /** Pids not currently on any team's roster. */
 export function freeAgentPids(teams: StoredTeam[], players: Player[]): Set<number> {
@@ -167,10 +167,6 @@ export function signFreeAgent(
     teams: teams.map((t) =>
       t.tid === tid ? { ...t, roster: [...t.roster, pid] } : t,
     ),
-    players: players.map((p) => {
-      if (p.pid !== pid) return p;
-      const terms = contractTerms(p, season);
-      return { ...p, contract: { salary: terms.salary, expiresSeason: terms.expiresSeason } };
-    }),
+    players: extendContract(players, pid, season),
   };
 }
