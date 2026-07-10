@@ -179,7 +179,7 @@ export const HYPE_INITIAL = 50;
  * this stays a secondary channel behind success payouts (per design: "don't
  * make profit from jersey sales contribute TOO much to budget").
  */
-export const HYPE_REVENUE_PER_POINT = 400_000;
+export const HYPE_REVENUE_PER_POINT = 500_000;
 export const HYPE_REVENUE_DAMPING = 0.4;
 
 /** Scouting: a single per-season spend slider (0 = no scouts) that lowers valuation noise. */
