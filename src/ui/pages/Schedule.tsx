@@ -89,17 +89,18 @@ export function Schedule() {
                 if (userGoals > oppGoals) outcome = "win";
                 else if (userGoals < oppGoals) outcome = "loss";
               }
-              const rowStyle =
-                outcome === "win"
-                  ? { backgroundColor: "rgba(25, 135, 84, 0.08)" }
-                  : outcome === "loss"
-                    ? { backgroundColor: "rgba(220, 53, 69, 0.08)" }
-                    : undefined;
+              const outcomeClass =
+                outcome === "win" ? "row-win" : outcome === "loss" ? "row-loss" : undefined;
+              const rowClassName = [
+                outcomeClass,
+                isLastPlayed ? "border-start border-3 border-info" : undefined,
+              ]
+                .filter(Boolean)
+                .join(" ") || undefined;
               return (
                 <tr
                   key={`${row.home}-${row.away}-${row.sortKey}`}
-                  className={isLastPlayed ? "border-start border-3 border-info" : undefined}
-                  style={rowStyle}
+                  className={rowClassName}
                 >
                   <td className="text-end">{row.matchday}</td>
                   <td>{teamName(row.home)}</td>
