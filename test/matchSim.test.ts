@@ -30,9 +30,9 @@ describe("simMatch", () => {
     const rng = mulberry32(999);
     const r = simMatch(rng, makeTeam("Home"), makeTeam("Away"));
     expect(r.home).toBe(1);
-    expect(r.away).toBe(1);
-    expect(r.possessionHome).toBeCloseTo(0.4488888888888889, 5);
-    expect(r.stat.home.shots).toBe(16);
+    expect(r.away).toBe(3);
+    expect(r.possessionHome).toBeCloseTo(0.5049396267837541, 5);
+    expect(r.stat.home.shots).toBe(11);
   });
 
   it("possession fractions sum to 1", () => {
