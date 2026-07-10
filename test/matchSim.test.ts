@@ -29,10 +29,10 @@ describe("simMatch", () => {
   it("produces a stable result for a fixed seed (golden snapshot)", () => {
     const rng = mulberry32(999);
     const r = simMatch(rng, makeTeam("Home"), makeTeam("Away"));
-    expect(r.home).toBe(1);
-    expect(r.away).toBe(3);
-    expect(r.possessionHome).toBeCloseTo(0.5049396267837541, 5);
-    expect(r.stat.home.shots).toBe(11);
+    expect(r.home).toBe(4);
+    expect(r.away).toBe(0);
+    expect(r.possessionHome).toBeCloseTo(0.5083612040133779, 5);
+    expect(r.stat.home.shots).toBe(13);
   });
 
   it("possession fractions sum to 1", () => {

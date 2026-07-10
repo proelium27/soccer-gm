@@ -23,7 +23,9 @@ export type MatchEventType =
   | "goal"
   | "yellow_card"
   | "red_card"
-  | "substitution";
+  | "substitution"
+  | "corner"
+  | "penalty";
 
 export interface MatchEvent {
   clock: number;
@@ -64,6 +66,10 @@ const TACKLE_WEIGHTS: Record<MatchPosition, number> = {
 
 const FOUL_WEIGHTS: Record<MatchPosition, number> = {
   CB: 2.5, DM: 2.5, FB: 2, CM: 1.5, AM: 0.7, W: 0.5, ST: 0.5, GK: 0.1,
+};
+
+const HEADER_WEIGHTS: Record<MatchPosition, number> = {
+  ST: 2.5, CB: 2, W: 1, AM: 1, CM: 0.8, DM: 0.7, FB: 0.5, GK: 0,
 };
 
 function weightedPick(
@@ -115,6 +121,13 @@ export function pickFouler(rng: () => number, players: MatchPlayer[]): MatchPlay
   const outfield = players.filter((p) => p.pos !== "GK");
   if (outfield.length === 0) return players[0];
   return weightedPick(rng, outfield, FOUL_WEIGHTS, "tackling");
+}
+
+/** Picks who gets on the end of a corner. Weighted toward heading, favoring CBs/STs at set pieces. */
+export function pickHeader(rng: () => number, players: MatchPlayer[]): MatchPlayer {
+  const outfield = players.filter((p) => p.pos !== "GK");
+  if (outfield.length === 0) return players[0];
+  return weightedPick(rng, outfield, HEADER_WEIGHTS, "heading");
 }
 
 export function eventTypeFromShot(outcome: ShotOutcome): MatchEventType {

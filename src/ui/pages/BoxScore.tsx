@@ -55,6 +55,18 @@ function EventRow({ event, playerName }: { event: MatchEvent; playerName: (pid: 
           <span className="text-muted">{time}</span> Substitution — {names[1]} on for {names[0]}
         </div>
       );
+    case "corner":
+      return (
+        <div className={`pbp-event ${event.side === "home" ? "text-start" : "text-end"}`}>
+          <span className="text-muted">{time}</span> Corner
+        </div>
+      );
+    case "penalty":
+      return (
+        <div className={`pbp-event ${event.side === "home" ? "text-start" : "text-end"}`}>
+          <span className="text-warning">{time}</span> Penalty — {names[0]} to take it
+        </div>
+      );
     default:
       return null;
   }

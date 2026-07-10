@@ -26,6 +26,9 @@ import {
   FATIGUE_TECHNICAL_WEIGHT,
   MAX_SUBS,
   SUB_CHECKPOINTS_ELAPSED,
+  CORNER_FROM_MISS_PROB,
+  PENALTY_GIVEN_FOUL,
+  PENALTY_CONVERSION,
 } from "./constants.js";
 import type { Composites } from "./composites.js";
 import type { MatchPlayer, MatchEvent, BoxScore, PlayerMatchLine } from "./attribution.js";
@@ -34,6 +37,7 @@ import {
   pickAssister,
   pickTackler,
   pickFouler,
+  pickHeader,
   eventTypeFromShot,
   emptyLine,
 } from "./attribution.js";
@@ -163,10 +167,35 @@ export function simMatch(
         redCards[defSide] = true;
         teams[defSide] = applyManDown(teams[defSide]);
       }
+      // Edge-scaled so a fraction of fouls happen "in the box" (penalty) vs the
+      // open-play free kick below — same edge scaling as the free kick itself,
+      // to avoid the flat-rate gate-compression bug from step 1.
+      const freeKickEdge = teams[poss].attack - teams[defSide].defense;
+      const penaltyP = clamp(
+        PENALTY_GIVEN_FOUL * (1 + STRENGTH_K * freeKickEdge),
+        0.001,
+        0.08,
+      );
+      if (rng() < penaltyP) {
+        // Penalty: unopposed shot, no block/off-target stage.
+        stat[poss].shots++;
+        stat[poss].sot++;
+        const goalP = clamp(
+          PENALTY_CONVERSION *
+            (1 + 0.15 * (teams[poss].finishing - 0.5) - 0.15 * (teams[defSide].keeping - 0.5)),
+          0.55,
+          0.9,
+        );
+        if (rng() < goalP) {
+          stat[poss].goals++;
+          poss = defSide;
+        }
+        continue;
+      }
+
       // free kick: bonus shot chance for the fouled (attacking) side, same tick.
       // Scaled by the same attack-vs-defense edge as the main chance gate, so it
       // doesn't dilute skill-driven spread by handing weak sides "free" chances.
-      const freeKickEdge = teams[poss].attack - teams[defSide].defense;
       const freeKickP = clamp(
         FREE_KICK_CHANCE_BASE * (1 + STRENGTH_K * freeKickEdge),
         0.01,
@@ -199,6 +228,21 @@ export function simMatch(
       stat[poss].goals++;
       poss = defSide; // kickoff to conceding team
       continue;
+    }
+
+    if (
+      (outcome === "blocked" || outcome === "off_target") &&
+      rng() < CORNER_FROM_MISS_PROB
+    ) {
+      // Corner: one bonus shot, still gated through the normal cascade.
+      stat[poss].shots++;
+      const cornerOutcome = resolveShot(rng, off, def);
+      if (cornerOutcome === "saved" || cornerOutcome === "goal") stat[poss].sot++;
+      if (cornerOutcome === "goal") {
+        stat[poss].goals++;
+        poss = defSide;
+        continue;
+      }
     }
 
     if (rng() < REBOUND_PROB) {
@@ -379,10 +423,45 @@ export function simMatchDetailed(
         }
       }
 
+      // Edge-scaled so a fraction of fouls happen "in the box" (penalty) vs the
+      // open-play free kick below — same reasoning as the composite-only version.
+      const freeKickEdge = off.attack - def.defense;
+      const penaltyP = clamp(
+        PENALTY_GIVEN_FOUL * (1 + STRENGTH_K * freeKickEdge),
+        0.001,
+        0.08,
+      );
+      if (rng() < penaltyP) {
+        const shooter = pickShooter(rng, onPitch[poss]);
+        const shooterLine = lines.get(shooter.pid)!;
+        stat[poss].shots++;
+        shooterLine.shots++;
+        stat[poss].sot++;
+        shooterLine.shotsOnTarget++;
+
+        events.push({ clock, type: "penalty", side: poss, pids: [shooter.pid] });
+
+        const goalP = clamp(
+          PENALTY_CONVERSION * (1 + 0.15 * (off.finishing - 0.5) - 0.15 * (def.keeping - 0.5)),
+          0.55,
+          0.9,
+        );
+        if (rng() < goalP) {
+          stat[poss].goals++;
+          shooterLine.goals++;
+          events.push({ clock, type: "goal", side: poss, pids: [shooter.pid] });
+          poss = defSide;
+        } else {
+          const gk = onPitch[defSide].find((p) => p.pos === "GK");
+          if (gk) lines.get(gk.pid)!.saves++;
+          events.push({ clock, type: "shot_saved", side: poss, pids: [shooter.pid] });
+        }
+        continue;
+      }
+
       // free kick: bonus shot chance for the fouled (attacking) side, same tick.
       // Scaled by the same attack-vs-defense edge as the main chance gate, so it
       // doesn't dilute skill-driven spread by handing weak sides "free" chances.
-      const freeKickEdge = off.attack - def.defense;
       const freeKickP = clamp(
         FREE_KICK_CHANCE_BASE * (1 + STRENGTH_K * freeKickEdge),
         0.01,
@@ -455,6 +534,42 @@ export function simMatchDetailed(
     }
 
     events.push({ clock, type: evtType, side: poss, pids });
+
+    if (
+      (outcome === "blocked" || outcome === "off_target") &&
+      rng() < CORNER_FROM_MISS_PROB
+    ) {
+      events.push({ clock, type: "corner", side: poss, pids: [] });
+      const header = pickHeader(rng, onPitch[poss]);
+      const headerLine = lines.get(header.pid)!;
+      stat[poss].shots++;
+      headerLine.shots++;
+
+      const cornerOutcome = resolveShot(rng, off, def);
+      if (cornerOutcome === "saved" || cornerOutcome === "goal") {
+        stat[poss].sot++;
+        headerLine.shotsOnTarget++;
+      }
+      if (cornerOutcome === "saved") {
+        const gk = onPitch[defSide].find((p) => p.pos === "GK");
+        if (gk) lines.get(gk.pid)!.saves++;
+      }
+
+      const cornerPids = [header.pid];
+      if (cornerOutcome === "goal") {
+        stat[poss].goals++;
+        headerLine.goals++;
+        const assister = pickAssister(rng, onPitch[poss], header.pid);
+        if (assister) {
+          lines.get(assister.pid)!.assists++;
+          cornerPids.push(assister.pid);
+        }
+        events.push({ clock, type: "goal", side: poss, pids: cornerPids });
+        poss = defSide;
+        continue;
+      }
+      events.push({ clock, type: eventTypeFromShot(cornerOutcome), side: poss, pids: cornerPids });
+    }
 
     if (rng() < REBOUND_PROB) {
       // attacker keeps possession

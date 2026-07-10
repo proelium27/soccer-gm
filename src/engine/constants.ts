@@ -49,3 +49,16 @@ export const FATIGUE_TECHNICAL_WEIGHT = 0.1;
 // AI subs: 5 per side, at the 60' and 75' game-clock checkpoints (elapsed seconds).
 export const MAX_SUBS = 5;
 export const SUB_CHECKPOINTS_ELAPSED = [3600, 4500] as const;
+
+// --- Set pieces + penalties (M5) ---
+// Fraction of blocked/off-target run-of-play shots that earn a corner (one bonus
+// shot, heading-weighted attribution). Resolved via the normal off/def composites
+// so it stays correlated with team quality (unlike the flat-rate free-kick bug
+// from step 1 that compressed the table-spread gate).
+export const CORNER_FROM_MISS_PROB = 0.008;
+
+// Fraction of fouls that are "in the box" -> penalty instead of an ordinary free
+// kick. Edge-scaled by the same attack-vs-defense edge as the main chance gate,
+// for the same reason as above.
+export const PENALTY_GIVEN_FOUL = 0.005;
+export const PENALTY_CONVERSION = 0.76; // baseline penalty goal probability, per spec
