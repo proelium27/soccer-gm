@@ -25,6 +25,12 @@ export interface LeagueTeam {
    * AI-rostered players at 80+ ovr within ~40 seasons).
    */
   academyBase: number;
+  /**
+   * User-chosen starting XI (11 pids), or null/undefined to auto-select via
+   * selectXI. Not set during generation; simThrough carries it over from
+   * StoredTeam.starters so leagueMatchData can respect it.
+   */
+  starters?: number[] | null;
 }
 
 export interface League {

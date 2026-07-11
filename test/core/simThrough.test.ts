@@ -34,6 +34,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     hype: 50,
     scoutingSpend: 0,
     academyBase: t.academyBase,
+    starters: null,
   }));
 
   return {

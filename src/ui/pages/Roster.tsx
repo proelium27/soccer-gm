@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
-import { selectXI } from "../../core/lineup/selectXI.js";
+import { resolveXI } from "../../core/lineup/resolveXI.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
 import { canExtend, contractTerms } from "../../core/contracts.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
@@ -9,6 +10,8 @@ import { formatWeeklyWage } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { Flag } from "../components/Flag.js";
 import { ROSTER_CAP } from "../../core/constants.js";
+
+const DRAG_MIME = "application/x-soccer-gm-pid";
 
 function sortByPosThenOvr(players: Player[]): Player[] {
   const posOrder = new Map(POSITIONS.map((pos, i) => [pos, i]));
@@ -26,13 +29,26 @@ interface RosterTableProps {
   hasStats: boolean;
   onRelease: (pid: number) => void;
   onExtend: (pid: number) => void;
+  dragOverPid: number | null;
+  setDragOverPid: (pid: number | null) => void;
+  onSwap: (draggedPid: number, targetPid: number) => void;
 }
 
-function RosterTable({ players, season, hasStats, onRelease, onExtend }: RosterTableProps) {
+function RosterTable({
+  players,
+  season,
+  hasStats,
+  onRelease,
+  onExtend,
+  dragOverPid,
+  setDragOverPid,
+  onSwap,
+}: RosterTableProps) {
   return (
     <table className="table table-striped table-sm">
       <thead>
         <tr>
+          <th></th>
           <th>Name</th>
           <th>Pos</th>
           <th className="text-end">Age</th>
@@ -58,7 +74,32 @@ function RosterTable({ players, season, hasStats, onRelease, onExtend }: RosterT
           const ss = p.stats.find((s) => s.season === season);
           const prev = previousRatings(p);
           return (
-            <tr key={p.pid}>
+            <tr
+              key={p.pid}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData(DRAG_MIME, String(p.pid));
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragOverPid(p.pid);
+              }}
+              onDragLeave={() => setDragOverPid(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOverPid(null);
+                const raw = e.dataTransfer.getData(DRAG_MIME);
+                if (!raw) return;
+                onSwap(Number(raw), p.pid);
+              }}
+              onDragEnd={() => setDragOverPid(null)}
+              className={dragOverPid === p.pid ? "table-active" : undefined}
+              style={{ cursor: "grab" }}
+              title="Drag to swap with a starter or bench player"
+            >
+              <td className="text-muted">&#8942;&#8942;</td>
               <td>
                 <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
                 <Flag nationality={p.nationality} />
@@ -117,7 +158,8 @@ function RosterTable({ players, season, hasStats, onRelease, onExtend }: RosterT
 }
 
 export function Roster() {
-  const { league, releasePlayerAction, extendContractAction } = useLeague();
+  const { league, releasePlayerAction, extendContractAction, setLineupAction } = useLeague();
+  const [dragOverPid, setDragOverPid] = useState<number | null>(null);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -133,12 +175,26 @@ export function Roster() {
     rosterPids.has(p.pid),
   );
 
-  const xi = selectXI(players, FORMATIONS["4-3-3"]);
-  const starterPids = new Set(xi.map((p) => p.pid));
+  const xi = resolveXI(players, FORMATIONS["4-3-3"], userTeam.starters);
+  const starterPids = xi.map((p) => p.pid);
+  const starterPidSet = new Set(starterPids);
   const starters = sortByPosThenOvr(xi);
-  const bench = sortByPosThenOvr(players.filter((p) => !starterPids.has(p.pid)));
+  const bench = sortByPosThenOvr(players.filter((p) => !starterPidSet.has(p.pid)));
 
   const hasStats = league.played.length > 0;
+
+  function handleSwap(draggedPid: number, targetPid: number) {
+    if (draggedPid === targetPid) return;
+    const draggedIsStarter = starterPidSet.has(draggedPid);
+    const targetIsStarter = starterPidSet.has(targetPid);
+    if (draggedIsStarter === targetIsStarter) return; // dropped within the same list; nothing to swap
+    const newStarters = starterPids.map((pid) => {
+      if (pid === targetPid) return draggedPid;
+      if (pid === draggedPid) return targetPid;
+      return pid;
+    });
+    void setLineupAction(newStarters);
+  }
 
   return (
     <div className="container-fluid p-3">
@@ -152,6 +208,9 @@ export function Roster() {
         <p>No players on roster.</p>
       ) : (
         <>
+          <p className="text-muted small mb-1">
+            Drag a player onto another to swap them between the Starting XI and the bench.
+          </p>
           <h6 className="mt-3">Starting XI</h6>
           <RosterTable
             players={starters}
@@ -159,6 +218,9 @@ export function Roster() {
             hasStats={hasStats}
             onRelease={releasePlayerAction}
             onExtend={extendContractAction}
+            dragOverPid={dragOverPid}
+            setDragOverPid={setDragOverPid}
+            onSwap={handleSwap}
           />
           <h6 className="mt-4">Bench</h6>
           {bench.length === 0 ? (
@@ -170,6 +232,9 @@ export function Roster() {
               hasStats={hasStats}
               onRelease={releasePlayerAction}
               onExtend={extendContractAction}
+              dragOverPid={dragOverPid}
+              setDragOverPid={setDragOverPid}
+              onSwap={handleSwap}
             />
           )}
         </>
