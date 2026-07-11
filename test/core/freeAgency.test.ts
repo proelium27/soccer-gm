@@ -4,7 +4,7 @@ import { createLeagueState } from "../../src/core/leagueState.js";
 import {
   freeAgentPids, releaseExpiredContracts, runAIFreeAgency, signFreeAgent,
 } from "../../src/core/freeAgency.js";
-import { ROSTER_COMPOSITION } from "../../src/core/constants.js";
+import { ROSTER_COMPOSITION, ROSTER_CAP } from "../../src/core/constants.js";
 
 describe("freeAgentPids", () => {
   it("is empty when every player is rostered", () => {
@@ -106,6 +106,28 @@ describe("signFreeAgent", () => {
     const pid = league.teams[2].roster[0]; // still rostered on team 2
     const result = signFreeAgent(league.teams, league.players, 0, pid, 1);
     expect(result.teams).toBe(league.teams);
+    expect(result.players).toBe(league.players);
+  });
+
+  it("is a no-op if the signing team is already at ROSTER_CAP", () => {
+    const league = createLeagueState(0, mulberry32(11));
+    const pid = league.teams[1].roster[0];
+    const player = league.players.find((p) => p.pid === pid)!;
+    player.contract.expiresSeason = 1;
+    let teams = releaseExpiredContracts(league.teams, league.players, 1);
+
+    // Pad team 0's roster up to the cap with fabricated pids.
+    teams = teams.map((t) =>
+      t.tid === 0
+        ? { ...t, roster: [...t.roster, ...Array.from(
+            { length: ROSTER_CAP - t.roster.length }, (_, i) => 100_000 + i,
+          )] }
+        : t,
+    );
+    expect(teams.find((t) => t.tid === 0)!.roster.length).toBe(ROSTER_CAP);
+
+    const result = signFreeAgent(teams, league.players, 0, pid, 1);
+    expect(result.teams).toBe(teams);
     expect(result.players).toBe(league.players);
   });
 });

@@ -33,6 +33,16 @@ export const ROSTER_COMPOSITION: Record<Position, number> = {
 /** Matchday bench size: the best remaining roster players (by ovr) after the starting XI. */
 export const BENCH_SIZE = 7;
 
+/**
+ * Hard squad-size limit enforced on player-adding actions (free-agent
+ * signings, transfer buys). Set comfortably above ROSTER_COMPOSITION's 25 so
+ * clubs have real squad depth, matching typical real-world first-team limits.
+ * Youth intake and AI free agency aren't gated by this (AI is trimmed back
+ * to ROSTER_COMPOSITION every offseason anyway); it only blocks actions that
+ * could otherwise let a roster grow without bound.
+ */
+export const ROSTER_CAP = 30;
+
 /** In-match injuries (M5): games missed once hurt, uniform between these inclusive bounds. */
 export const INJURY_GAMES_MIN = 1;
 export const INJURY_GAMES_MAX = 6;

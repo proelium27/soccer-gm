@@ -6,7 +6,7 @@ import { transferWindowState } from "./window.js";
 import { trueTransferValue, perceivedTransferValue } from "../finance/valuation.js";
 import { mulberry32 } from "../../engine/rng.js";
 import {
-  ROSTER_COMPOSITION,
+  ROSTER_COMPOSITION, ROSTER_CAP,
   RESERVATION_FACTOR_MIN, RESERVATION_FACTOR_MAX,
   NEGOTIATION_LOWBALL_FACTOR, NEGOTIATION_MAX_ROUNDS,
   COUNTER_PADDING_START, COUNTER_PADDING_DECAY,
@@ -34,6 +34,13 @@ export interface CompletedTransfer {
   fee: number;
   season: number;
   window: TransferWindowKind;
+}
+
+/**
+ * True if the team has room under ROSTER_CAP to add another player.
+ */
+export function hasRosterRoom(team: StoredTeam): boolean {
+  return team.roster.length < ROSTER_CAP;
 }
 
 /**
@@ -216,6 +223,7 @@ export function makeTransferOffer(
 
   const offer = Math.round(amount);
   if (!Number.isFinite(offer) || offer <= 0 || offer > user.budget) return league;
+  if (!hasRosterRoom(user)) return league;
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   if (!isForSale(seller, playerMap, pid)) return league;
@@ -273,6 +281,7 @@ export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStor
   const player = league.players.find((p) => p.pid === pid);
   if (!user || !seller || !player) return league;
   if (negotiation.counter > user.budget) return league;
+  if (!hasRosterRoom(user)) return league;
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   if (!isForSale(seller, playerMap, pid)) return league;

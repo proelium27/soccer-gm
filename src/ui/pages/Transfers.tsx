@@ -10,6 +10,7 @@ import {
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
 import { currency, formatWeeklyWage } from "../format.js";
 import { Flag } from "../components/Flag.js";
+import { ROSTER_CAP } from "../../core/constants.js";
 
 function windowBanner(league: LeagueStore): React.ReactNode {
   const ws = transferWindowState(league);
@@ -129,6 +130,7 @@ export function Transfers() {
   }
 
   const ws = transferWindowState(league);
+  const atCap = userTeam.roster.length >= ROSTER_CAP;
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   const teamName = (tid: number) =>
     league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
@@ -155,7 +157,13 @@ export function Transfers() {
       <p>
         Budget: <strong>{currency.format(userTeam.budget)}</strong>
         {" "}&middot; Scout valuations tighten with scouting spend (set on the Dashboard).
+        {" "}&middot; Roster: <strong>{userTeam.roster.length}/{ROSTER_CAP}</strong>
       </p>
+      {atCap && (
+        <div className="alert alert-warning">
+          Your roster is full ({ROSTER_CAP}/{ROSTER_CAP}). Release a player before buying another.
+        </div>
+      )}
 
       {ws.open && (
         <div className="card mb-3">
@@ -202,7 +210,7 @@ export function Transfers() {
                           negotiation={negotiationByPid.get(p.pid)}
                           suggested={scoutedValue}
                           budget={userTeam.budget}
-                          disabled={simming}
+                          disabled={simming || atCap}
                           onOffer={makeOfferAction}
                           onAcceptCounter={acceptCounterAction}
                         />
@@ -236,7 +244,7 @@ export function Transfers() {
                           negotiation={n}
                           suggested={n.counter ?? n.offers.at(-1) ?? 0}
                           budget={userTeam.budget}
-                          disabled={simming}
+                          disabled={simming || atCap}
                           onOffer={makeOfferAction}
                           onAcceptCounter={acceptCounterAction}
                         />
