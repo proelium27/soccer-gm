@@ -33,6 +33,19 @@ window closing around matchday 22, the existing "deadline" sim target).
    (`HYPE_REVENUE_PER_POINT × HYPE_REVENUE_DAMPING`, capped well below the
    success-payout spread).
 
+**Wages are paid up front at each season's start** (league creation
+included): the base allocation arrives and the squad's season wages come
+straight out of it (`chargeSeasonStart`), so a club's in-season cash is
+genuinely spendable — the game can never let you spend money your wages
+needed. Season-end settlement (`settleSeasonEnd`) handles only performance
+money: success payout + hype revenue − scouting spend. A brand-new club
+therefore starts with `BASE_SEASON_BUDGET − its initial wage bill`
+(~50-65M; expensive squads start with less spare cash), and players
+acquired mid-season (transfer buys or free-agent signings during the
+regular phase) charge their full season salary at acquisition on top of any
+fee — clubs eat the year's wages on mid-season signings. Offseason
+additions are covered by the upcoming season-start charge.
+
 **No AI deficits, ever.** AI clubs in this game never lose money. The base
 allocation alone exceeds the wage bill of a benchmark squad stronger than
 anything AI free agency + progression assembles (`WAGE_SAFE_SQUAD`, shaped

@@ -3,7 +3,7 @@ import { migrateLeague } from "../../src/db/migrate.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState, type LeagueStore } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
-import { BASE_SEASON_BUDGET, HYPE_INITIAL, SCOUTING_SPEND_MIN } from "../../src/core/constants.js";
+import { HYPE_INITIAL, SCOUTING_SPEND_MIN } from "../../src/core/constants.js";
 
 describe("migrateLeague", () => {
   it("backfills finance fields on teams from pre-M6 saves", () => {
@@ -15,8 +15,10 @@ describe("migrateLeague", () => {
     } as unknown as LeagueStore;
 
     const migrated = migrateLeague(preM6);
-    for (const team of migrated.teams) {
-      expect(team.budget).toBe(BASE_SEASON_BUDGET);
+    for (const [i, team] of migrated.teams.entries()) {
+      // Backfill seeds the budget like a season start (base in, wages out),
+      // which for an untouched fresh league equals its creation-time budget.
+      expect(team.budget).toBe(league.teams[i].budget);
       expect(team.hype).toBe(HYPE_INITIAL);
       expect(team.scoutingSpend).toBe(SCOUTING_SPEND_MIN);
     }

@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { seasonRevenue, settleSeasonBudget, successPayout, wageBill } from "../../../src/core/finance/budget.js";
+import {
+  seasonRevenue, settleSeasonEnd, chargeSeasonStart, successPayout, wageBill,
+} from "../../../src/core/finance/budget.js";
 import {
   BASE_SEASON_BUDGET, NUM_TEAMS,
   PRIZE_CHAMPION, PRIZE_TOP_5, PRIZE_TOP_10,
@@ -67,22 +69,34 @@ describe("successPayout", () => {
   });
 });
 
-describe("settleSeasonBudget", () => {
-  it("adds revenue and subtracts wages and scouting spend", () => {
-    const revenue = seasonRevenue(5, 50).total;
-    const result = settleSeasonBudget(1_000_000, 5, 50, 200_000, 100_000);
-    expect(result).toBe(1_000_000 + revenue - 200_000 - 100_000);
+describe("settleSeasonEnd", () => {
+  it("adds performance money (prize + hype revenue) and subtracts scouting spend, never wages", () => {
+    const { successPayout: payout, hypeRevenue } = seasonRevenue(5, 50);
+    const result = settleSeasonEnd(1_000_000, 5, 50, 100_000);
+    expect(result).toBe(1_000_000 + payout + hypeRevenue - 100_000);
   });
 
-  it("never loses money on any AI-reachable squad (design: AI deficits do not exist)", () => {
-    // Last place, zero hype, zero scouting (AI clubs never spend on
-    // scouting), and the WAGE_SAFE_SQUAD benchmark roster — shaped like the
-    // strongest AI club seen in 25-season dynasty audits — on worst-case
-    // (+WAGE_VARIATION) wage deals. The base allocation alone must still
-    // cover it, pinning the scale invariant so constant tweaks can't
-    // reintroduce AI debt. Only a user hoarding a ROSTER_CAP squad of elite
-    // players can outspend the base (documented, user-controlled gap; the
-    // Finance page projects the shortfall).
+  it("never shrinks a budget for a club that spent nothing on scouting", () => {
+    for (let rank = 1; rank <= NUM_TEAMS; rank++) {
+      expect(settleSeasonEnd(1_000_000, rank, 0, 0)).toBeGreaterThanOrEqual(1_000_000);
+    }
+  });
+});
+
+describe("chargeSeasonStart", () => {
+  it("pays the base allocation in and the season's wages out", () => {
+    expect(chargeSeasonStart(1_000_000, 200_000))
+      .toBe(1_000_000 + BASE_SEASON_BUDGET - 200_000);
+  });
+
+  it("never sinks an AI-reachable squad (design: AI deficits do not exist)", () => {
+    // Zero carryover and the WAGE_SAFE_SQUAD benchmark roster — shaped like
+    // the strongest AI club seen in 25-season dynasty audits — on worst-case
+    // (+WAGE_VARIATION) wage deals. The base allocation alone must cover the
+    // season-start wage charge, pinning the scale invariant so constant
+    // tweaks can't reintroduce AI debt. Only a user hoarding a ROSTER_CAP
+    // squad of elite players can outspend the base (documented,
+    // user-controlled gap; the Finance page projects the shortfall).
     const worstWeekly = (ovr: number) =>
       WAGE_WEEKLY_MIN
       + WAGE_WEEKLY_COEFF * Math.max(0, ovr - WAGE_OVR_FLOOR) ** 3 * (1 + WAGE_VARIATION);
@@ -90,8 +104,7 @@ describe("settleSeasonBudget", () => {
       (sum, [count, ovr]) => sum + count * worstWeekly(ovr) * WEEKS_PER_SEASON,
       0,
     );
-    const settled = settleSeasonBudget(0, NUM_TEAMS, 0, maxWages, 0);
-    expect(settled).toBeGreaterThan(0);
+    expect(chargeSeasonStart(0, maxWages)).toBeGreaterThan(0);
     expect(BASE_SEASON_BUDGET).toBeGreaterThan(maxWages);
   });
 });

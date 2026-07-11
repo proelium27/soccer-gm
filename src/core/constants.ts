@@ -155,7 +155,13 @@ export const YOUTH_CONTRACT_LENGTH = 2;
  * M6 finance (see docs/finance-design.md): every club gets an equal base
  * allocation each season; the only spread comes from domestic success
  * payouts plus a heavily damped hype→revenue channel, so famous/successful
- * clubs don't snowball.
+ * clubs don't snowball. Wages are paid UP FRONT at each season's start
+ * (league creation included): the base allocation arrives and the squad's
+ * season wages come straight out of it, so in-season cash is genuinely
+ * spendable. Players acquired mid-season (transfer buys, free-agent
+ * signings during the regular phase) charge their full season salary at
+ * acquisition; offseason additions are covered by the next season-start
+ * charge.
  *
  * Scale invariant (tested in budget.test.ts): the base allocation alone must
  * exceed the wage bill of WAGE_SAFE_SQUAD on worst-case (+WAGE_VARIATION)

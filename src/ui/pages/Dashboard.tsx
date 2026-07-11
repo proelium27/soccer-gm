@@ -117,7 +117,7 @@ export function Dashboard() {
             {" "}&middot; <Link to="/finance">Full breakdown</Link>
           </p>
           <p className="card-text mb-2">
-            Wages due at season end:{" "}
+            Season wage bill:{" "}
             <strong>
               {currency.format(
                 wageBill(
@@ -125,7 +125,8 @@ export function Dashboard() {
                   new Map(league.players.map((p) => [p.pid, p.contract.salary])),
                 ),
               )}
-            </strong>
+            </strong>{" "}
+            &middot; paid up front each season
           </p>
           <p className="card-text mb-2">
             {(() => {

@@ -8,14 +8,19 @@ import {
 } from "../../../src/core/constants.js";
 import { trueTransferValue } from "../../../src/core/finance/valuation.js";
 
-/** A league sitting inside the winter window. */
+/**
+ * A league sitting inside the winter window. The user club gets a generous
+ * budget so tests measure recommendation/scouting behavior, not the
+ * affordability cutoff (the real season-start budget is base − wages, and
+ * tid 0 is the strongest, most expensive squad).
+ */
 function windowLeague(seed: number, scoutingSpend = 0): LeagueStore {
   const league = createLeagueState(0, mulberry32(seed));
   return {
     ...league,
     schedule: league.schedule.filter((g) => g.matchday >= 20),
     teams: league.teams.map((t) =>
-      t.tid === 0 ? { ...t, scoutingSpend } : t,
+      t.tid === 0 ? { ...t, scoutingSpend, budget: 200_000_000 } : t,
     ),
   };
 }

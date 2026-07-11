@@ -3,7 +3,7 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
-import { BASE_SEASON_BUDGET, HYPE_MAX, HYPE_MIN, NUM_TEAMS, SCOUTING_SPEND_MIN } from "../../src/core/constants.js";
+import { HYPE_MAX, HYPE_MIN, NUM_TEAMS, SCOUTING_SPEND_MIN } from "../../src/core/constants.js";
 
 function playFullSeason(rng: () => number) {
   let league = createLeagueState(0, rng);
@@ -74,12 +74,14 @@ describe("simOffseason", () => {
   it("settles every team's budget and hype, and resets scouting spend for the new season", () => {
     const rng = mulberry32(7);
     const league = playFullSeason(rng);
+    const budgetsBefore = new Map(league.teams.map((t) => [t.tid, t.budget]));
     const next = simOffseason(league, rng);
 
     expect(next.teams).toHaveLength(NUM_TEAMS);
     for (const team of next.teams) {
-      // Budget moved away from the flat starting value (revenue in, wages out).
-      expect(team.budget).not.toBe(BASE_SEASON_BUDGET);
+      // Budget moved (performance money in at season end, base in and wages
+      // out at the new season's start).
+      expect(team.budget).not.toBe(budgetsBefore.get(team.tid));
       expect(team.hype).toBeGreaterThanOrEqual(HYPE_MIN);
       expect(team.hype).toBeLessThanOrEqual(HYPE_MAX);
       expect(team.scoutingSpend).toBe(SCOUTING_SPEND_MIN);

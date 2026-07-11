@@ -146,9 +146,22 @@ export function respondToOffer(
 }
 
 /**
+ * The wage charge a buying/signing club pays on top of any fee when adding a
+ * player mid-season: wages are paid up front at each season's start, so a
+ * player acquired during the regular phase charges his full season salary at
+ * acquisition (clubs eat the year's wages on mid-season signings). Offseason
+ * additions cost nothing here — the upcoming season-start charge covers them.
+ */
+export function acquisitionWageCharge(league: LeagueStore, player: Player): number {
+  return league.phase === "regular" ? player.contract.salary : 0;
+}
+
+/**
  * Move a player between clubs for a fee: rosters swap membership, the fee
- * moves buyer→seller (money is conserved), the deal is logged. The player's
- * contract travels with them untouched (contracts are never negotiated).
+ * moves buyer→seller (money is conserved), the deal is logged, and the buyer
+ * additionally pays any mid-season wage charge (acquisitionWageCharge). The
+ * player's contract travels with them untouched (contracts are never
+ * negotiated).
  */
 function executeTransfer(
   league: LeagueStore,
@@ -156,6 +169,7 @@ function executeTransfer(
   fromTid: number,
   toTid: number,
   fee: number,
+  wageCharge: number,
   season: number,
   window: TransferWindowKind,
 ): LeagueStore {
@@ -166,7 +180,7 @@ function executeTransfer(
         return { ...t, roster: t.roster.filter((p) => p !== pid), budget: t.budget + fee };
       }
       if (t.tid === toTid) {
-        return { ...t, roster: [...t.roster, pid], budget: t.budget - fee };
+        return { ...t, roster: [...t.roster, pid], budget: t.budget - fee - wageCharge };
       }
       return t;
     }),
@@ -222,7 +236,10 @@ export function makeTransferOffer(
   if (!user || !seller || !player) return league;
 
   const offer = Math.round(amount);
-  if (!Number.isFinite(offer) || offer <= 0 || offer > user.budget) return league;
+  // The offer must be affordable together with any mid-season wage charge,
+  // since an accepted offer executes immediately.
+  const wageCharge = acquisitionWageCharge(league, player);
+  if (!Number.isFinite(offer) || offer <= 0 || offer + wageCharge > user.budget) return league;
   if (!hasRosterRoom(user)) return league;
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
@@ -253,7 +270,9 @@ export function makeTransferOffer(
 
   let updated: LeagueStore = { ...league, negotiations: upsertNegotiation(league, negotiation) };
   if (outcome.kind === "accepted") {
-    updated = executeTransfer(updated, pid, seller.tid, userTid, outcome.fee, ws.season, ws.window);
+    updated = executeTransfer(
+      updated, pid, seller.tid, userTid, outcome.fee, wageCharge, ws.season, ws.window,
+    );
   }
   return updated;
 }
@@ -280,7 +299,8 @@ export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStor
   const seller = league.teams.find((t) => t.tid === negotiation.sellerTid);
   const player = league.players.find((p) => p.pid === pid);
   if (!user || !seller || !player) return league;
-  if (negotiation.counter > user.budget) return league;
+  const wageCharge = acquisitionWageCharge(league, player);
+  if (negotiation.counter + wageCharge > user.budget) return league;
   if (!hasRosterRoom(user)) return league;
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
@@ -289,5 +309,7 @@ export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStor
 
   const accepted: TransferNegotiation = { ...negotiation, status: "accepted" };
   const updated: LeagueStore = { ...league, negotiations: upsertNegotiation(league, accepted) };
-  return executeTransfer(updated, pid, seller.tid, user.tid, negotiation.counter, ws.season, ws.window);
+  return executeTransfer(
+    updated, pid, seller.tid, user.tid, negotiation.counter, wageCharge, ws.season, ws.window,
+  );
 }

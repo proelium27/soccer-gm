@@ -24,6 +24,10 @@ export function IncomingTalent() {
 
   const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
   const atCap = (userTeam?.roster.length ?? 0) >= ROSTER_CAP;
+  // Wages are paid up front each season, so a mid-season signing charges the
+  // contract's full season salary at signing; offseason signings are covered
+  // by the next season-start charge.
+  const midSeason = league.phase === "regular";
 
   const posOrder = new Map(POSITIONS.map((pos, i) => [pos, i]));
   availablePlayers.sort((a, b) => {
@@ -57,6 +61,7 @@ export function IncomingTalent() {
           <tbody>
             {availablePlayers.map((p) => {
               const terms = contractTerms(p, league.season);
+              const unaffordable = midSeason && terms.salary > (userTeam?.budget ?? 0);
               return (
                 <tr key={p.pid}>
                   <td>
@@ -68,7 +73,12 @@ export function IncomingTalent() {
                   <td className="text-end">
                     <button
                       className="btn btn-sm btn-primary text-nowrap"
-                      disabled={simming || atCap}
+                      disabled={simming || atCap || unaffordable}
+                      title={
+                        unaffordable
+                          ? "Mid-season signings charge the season's wages up front"
+                          : undefined
+                      }
                       onClick={() => signFreeAgentAction(p.pid)}
                     >
                       Sign {terms.lengthSeasons}y &middot; {formatWeeklyWage(terms.salary)}

@@ -38,9 +38,12 @@ export function Finance() {
   );
   const rank = standings.findIndex((r) => r.tid === league.meta.userTid) + 1;
 
-  // Mirror of the settlement in runOffseason: revenue by rank and current
-  // hype, minus wages and scouting spend. During the regular season the rank
-  // (and thus prize tier) is provisional; in the offseason it's final.
+  // Mirror of the offseason cash flow in runOffseason: season-end settlement
+  // (prize by rank + hype revenue − scouting) followed by the new season's
+  // start charge (base allocation in, wages out). During the regular season
+  // the rank (and thus prize tier) is provisional; in the offseason it's
+  // final. The wage line is an estimate either way — the actual charge uses
+  // the new season's finalized roster (after retirements, expiries, youth).
   const revenue = seasonRevenue(rank, userTeam.hype);
   const wages = wageBill(userTeam.roster, salaryMap);
   const net = revenue.total - wages - userTeam.scoutingSpend;
@@ -79,8 +82,9 @@ export function Finance() {
           <h5 className="card-title">{userTeam.name}</h5>
           <p className="card-text mb-2">
             Budget: <strong>{currency.format(userTeam.budget)}</strong> &middot;{" "}
-            Wages due at season end: <strong>{currency.format(wages)}</strong>{" "}
-            ({formatWeeklyWage(wages)}) &middot; Hype: {Math.round(userTeam.hype)}/100
+            Season wage bill: <strong>{currency.format(wages)}</strong>{" "}
+            ({formatWeeklyWage(wages)}, paid up front each season) &middot;{" "}
+            Hype: {Math.round(userTeam.hype)}/100
           </p>
           <label className="form-label mb-1" htmlFor="finance-scouting-spend">
             Scouting spend this season:{" "}
@@ -110,28 +114,26 @@ export function Finance() {
       <div className="card mb-3">
         <div className="card-body">
           <h5 className="card-title">
-            {seasonOver ? "Season Settlement" : "Projected Season Settlement"}
+            {seasonOver ? "Offseason Cash Flow" : "Projected Offseason Cash Flow"}
           </h5>
           <p className="card-text text-muted">
             {seasonOver ? (
               <>
                 Final position: {ordinal(rank)}. Applied to your budget when
-                you advance to season {league.season + 1}.
+                you advance to season {league.season + 1}; the wage charge is
+                estimated from your current squad.
               </>
             ) : (
               <>
                 Based on your current league position ({ordinal(rank)}) and
-                hype; prize money is decided by final position, and revenue is
-                settled at season end.
+                hype; prize money is decided by final position. Next
+                season&apos;s wages are estimated from your current squad and
+                charged up front when the season starts.
               </>
             )}
           </p>
           <table className="table table-sm w-auto align-middle mb-0">
             <tbody>
-              <tr>
-                <td>Base allocation</td>
-                <td className="text-end">{currency.format(revenue.base)}</td>
-              </tr>
               <tr>
                 <td>Prize money ({ordinal(rank)})</td>
                 <td className="text-end">
@@ -145,15 +147,19 @@ export function Finance() {
                 </td>
               </tr>
               <tr>
-                <td>Wage bill</td>
-                <td className="text-end text-danger">
-                  &minus;{currency.format(wages)}
-                </td>
-              </tr>
-              <tr>
                 <td>Scouting spend</td>
                 <td className="text-end text-danger">
                   &minus;{currency.format(userTeam.scoutingSpend)}
+                </td>
+              </tr>
+              <tr>
+                <td>Next season&apos;s base allocation</td>
+                <td className="text-end">{currency.format(revenue.base)}</td>
+              </tr>
+              <tr>
+                <td>Next season&apos;s wage bill (est.)</td>
+                <td className="text-end text-danger">
+                  &minus;{currency.format(wages)}
                 </td>
               </tr>
               <tr className="fw-bold">
@@ -163,7 +169,7 @@ export function Finance() {
                 </td>
               </tr>
               <tr className="fw-bold">
-                <td>Budget after settlement</td>
+                <td>Budget at season start (est.)</td>
                 <td className="text-end">
                   {currency.format(userTeam.budget + net)}
                 </td>

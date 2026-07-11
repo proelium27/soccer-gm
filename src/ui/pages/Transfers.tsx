@@ -4,6 +4,7 @@ import type { LeagueStore } from "../../core/leagueState.js";
 import { transferWindowState } from "../../core/transfers/window.js";
 import { recommendedTransfers } from "../../core/transfers/recommendations.js";
 import {
+  acquisitionWageCharge,
   currentNegotiations,
   type TransferNegotiation,
 } from "../../core/transfers/negotiation.js";
@@ -40,13 +41,15 @@ interface NegotiationControlsProps {
   negotiation: TransferNegotiation | undefined;
   suggested: number;
   budget: number;
+  /** Season wages charged on top of the fee for a mid-season buy. */
+  wageCharge: number;
   disabled: boolean;
   onOffer: (pid: number, amount: number) => void;
   onAcceptCounter: (pid: number) => void;
 }
 
 function NegotiationControls({
-  pid, negotiation, suggested, budget, disabled, onOffer, onAcceptCounter,
+  pid, negotiation, suggested, budget, wageCharge, disabled, onOffer, onAcceptCounter,
 }: NegotiationControlsProps) {
   const [draft, setDraft] = useState(() => String(suggested));
 
@@ -66,7 +69,7 @@ function NegotiationControls({
   const notImproving = bestOffer !== null && draftValue <= bestOffer;
   const offerValid =
     draft !== "" && Number.isFinite(draftValue) && draftValue > 0
-    && draftValue <= budget && !notImproving;
+    && draftValue + wageCharge <= budget && !notImproving;
 
   return (
     <div className="d-flex flex-column gap-1">
@@ -100,7 +103,7 @@ function NegotiationControls({
         {negotiation?.counter != null && (
           <button
             className="btn btn-sm btn-success text-nowrap"
-            disabled={disabled || negotiation.counter > budget}
+            disabled={disabled || negotiation.counter + wageCharge > budget}
             onClick={() => onAcceptCounter(pid)}
           >
             Accept {currency.format(negotiation.counter)}
@@ -173,6 +176,10 @@ export function Transfers() {
               Players near your team&apos;s level, within budget. The scout
               valuation is your baseline for offers — the selling club&apos;s
               real price may differ.
+              {league.phase === "regular" && (
+                <> Mid-season buys also charge the player&apos;s season wages
+                on top of the fee.</>
+              )}
             </p>
             {targets.length === 0 ? (
               <p className="mb-0">No suitable targets found.</p>
@@ -210,6 +217,7 @@ export function Transfers() {
                           negotiation={negotiationByPid.get(p.pid)}
                           suggested={scoutedValue}
                           budget={userTeam.budget}
+                          wageCharge={acquisitionWageCharge(league, p)}
                           disabled={simming || atCap}
                           onOffer={makeOfferAction}
                           onAcceptCounter={acceptCounterAction}
@@ -244,6 +252,7 @@ export function Transfers() {
                           negotiation={n}
                           suggested={n.counter ?? n.offers.at(-1) ?? 0}
                           budget={userTeam.budget}
+                          wageCharge={acquisitionWageCharge(league, p)}
                           disabled={simming || atCap}
                           onOffer={makeOfferAction}
                           onAcceptCounter={acceptCounterAction}

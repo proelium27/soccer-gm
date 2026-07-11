@@ -131,6 +131,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       league.meta.userTid,
       pid,
       league.season,
+      league.phase,
     );
     const updated = { ...league, teams, players };
     const lid = await saveLeague(updated);
