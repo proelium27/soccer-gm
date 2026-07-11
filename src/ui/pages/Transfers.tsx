@@ -9,6 +9,7 @@ import {
 } from "../../core/transfers/negotiation.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
 import { currency, formatWeeklyWage } from "../format.js";
+import { Flag } from "../components/Flag.js";
 
 function windowBanner(league: LeagueStore): React.ReactNode {
   const ws = transferWindowState(league);
@@ -185,7 +186,9 @@ export function Transfers() {
                 <tbody>
                   {targets.map(({ player: p, sellerTid, scoutedValue }) => (
                     <tr key={p.pid}>
-                      <td>{p.name}</td>
+                      <td>
+                        {p.name} <Flag nationality={p.nationality} />
+                      </td>
                       <td>{p.pos}</td>
                       <td className="text-end">{league.season - p.born}</td>
                       <td className="text-end">{p.ovr}</td>
@@ -224,7 +227,9 @@ export function Transfers() {
                   if (!p) return null;
                   return (
                     <tr key={n.pid}>
-                      <td>{p.name} ({p.pos}, {teamName(n.sellerTid)})</td>
+                      <td>
+                        {p.name} <Flag nationality={p.nationality} /> ({p.pos}, {teamName(n.sellerTid)})
+                      </td>
                       <td>
                         <NegotiationControls
                           pid={n.pid}
@@ -254,7 +259,8 @@ export function Transfers() {
                 const p = playerMap.get(t.pid);
                 return (
                   <li key={i}>
-                    {p?.name ?? `Player ${t.pid}`} — {teamName(t.fromTid)} →{" "}
+                    {p?.name ?? `Player ${t.pid}`}{" "}
+                    {p && <Flag nationality={p.nationality} />} — {teamName(t.fromTid)} →{" "}
                     {teamName(t.toTid)} for {currency.format(t.fee)}
                   </li>
                 );

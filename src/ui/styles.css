@@ -57,6 +57,11 @@
   border: 1px solid #ccc;
 }
 
+/* Nationality flag */
+.player-flag {
+  font-size: 0.95em;
+}
+
 /* Player ratings tooltip */
 .player-ratings-tooltip-anchor {
   position: relative;

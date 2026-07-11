@@ -7,6 +7,7 @@ import { canExtend, contractTerms } from "../../core/contracts.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
 import { formatWeeklyWage } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { Flag } from "../components/Flag.js";
 
 function sortByPosThenOvr(players: Player[]): Player[] {
   const posOrder = new Map(POSITIONS.map((pos, i) => [pos, i]));
@@ -58,7 +59,8 @@ function RosterTable({ players, season, hasStats, onRelease, onExtend }: RosterT
           return (
             <tr key={p.pid}>
               <td>
-                <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>
+                <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                <Flag nationality={p.nationality} />
               </td>
               <td>{p.pos}</td>
               <td className="text-end">{season - p.born}</td>

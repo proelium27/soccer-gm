@@ -4,6 +4,7 @@ import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
 import { contractTerms } from "../../core/contracts.js";
 import { formatWeeklyWage } from "../format.js";
+import { Flag } from "../components/Flag.js";
 
 /**
  * Stub for now: lists unsigned players available to sign. The full vision
@@ -49,7 +50,9 @@ export function IncomingTalent() {
               const terms = contractTerms(p, league.season);
               return (
                 <tr key={p.pid}>
-                  <td>{p.name}</td>
+                  <td>
+                    {p.name} <Flag nationality={p.nationality} />
+                  </td>
                   <td>{p.pos}</td>
                   <td className="text-end">{p.ovr}</td>
                   <td className="text-end">{league.season - p.born}</td>
