@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef, ty
 import type { LeagueStore } from "../../core/leagueState.js";
 import type { SimThrough } from "../../worker/protocol.js";
 import { useSimWorker, type SimProgress } from "../useSimWorker.js";
-import { saveLeague, loadLeague, listLeagues } from "../../db/leagueDb.js";
+import { saveLeague, loadLeague } from "../../db/leagueDb.js";
+import { getActiveLid, setActiveLid, clearActiveLid } from "../../db/activeLeague.js";
 import { exportLeagueJSON, importLeagueJSON } from "../../db/exportImport.js";
 import { signFreeAgent, releasePlayer } from "../../core/freeAgency.js";
 import { clampScoutingSpend } from "../../core/finance/scouting.js";
@@ -12,7 +13,10 @@ import { SimOverlay } from "../components/SimOverlay.js";
 
 interface LeagueContextValue {
   league: LeagueStore | null;
+  loadingActiveLeague: boolean;
   setLeague: (l: LeagueStore) => void;
+  loadLeagueAction: (lid: number) => Promise<void>;
+  switchLeagueAction: () => void;
   simAction: (through: SimThrough) => Promise<void>;
   offseasonAction: () => Promise<void>;
   signFreeAgentAction: (pid: number) => Promise<void>;
@@ -38,6 +42,9 @@ export function useLeague(): LeagueContextValue {
 
 export function LeagueProvider({ children }: { children: ReactNode }) {
   const [league, setLeagueState] = useState<LeagueStore | null>(null);
+  const [loadingActiveLeague, setLoadingActiveLeague] = useState(
+    () => getActiveLid() !== null,
+  );
   const { sim, runOffseason, simming } = useSimWorker();
 
   const [simOverlayOpen, setSimOverlayOpen] = useState(false);
@@ -46,18 +53,33 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const pendingResultRef = useRef<LeagueStore | null>(null);
 
   useEffect(() => {
-    listLeagues().then(async (list) => {
-      if (list.length > 0) {
-        const l = await loadLeague(list[0].lid);
-        if (l) setLeagueState(l);
-      }
+    const activeLid = getActiveLid();
+    if (activeLid === null) return;
+    loadLeague(activeLid).then((l) => {
+      if (l) setLeagueState(l);
+      else clearActiveLid();
+      setLoadingActiveLeague(false);
     });
   }, []);
 
   const setLeague = useCallback(async (l: LeagueStore) => {
     const lid = await saveLeague(l);
     const saved = { ...l, lid };
+    setActiveLid(lid);
     setLeagueState(saved);
+  }, []);
+
+  const loadLeagueAction = useCallback(async (lid: number) => {
+    const l = await loadLeague(lid);
+    if (l) {
+      setActiveLid(lid);
+      setLeagueState(l);
+    }
+  }, []);
+
+  const switchLeagueAction = useCallback(() => {
+    clearActiveLid();
+    setLeagueState(null);
   }, []);
 
   const finishSimAnimation = useCallback(async () => {
@@ -177,13 +199,17 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const doImport = useCallback(async (file: File) => {
     const imported = await importLeagueJSON(file);
     const lid = await saveLeague(imported);
+    setActiveLid(lid);
     setLeagueState({ ...imported, lid });
   }, []);
 
   return (
     <Ctx.Provider value={{
       league,
+      loadingActiveLeague,
       setLeague,
+      loadLeagueAction,
+      switchLeagueAction,
       simAction,
       offseasonAction,
       signFreeAgentAction,

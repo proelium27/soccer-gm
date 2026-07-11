@@ -16,7 +16,11 @@ export function NewLeague() {
     const seed = Date.now();
     const rng = mulberry32(seed);
     const league = createLeagueState(selectedTid, rng, seed);
-    await setLeague(league);
+    const named = {
+      ...league,
+      meta: { ...league.meta, name: CLUBS[selectedTid].name },
+    };
+    await setLeague(named);
     navigate("/dashboard");
   }
 
