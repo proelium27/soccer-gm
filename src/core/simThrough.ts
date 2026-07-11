@@ -94,6 +94,7 @@ export function simThrough(
     roster: t.roster,
     avgOvr: 0,
     academyBase: t.academyBase,
+    starters: t.starters,
   }));
 
   const toSim: ScheduleGame[] = [];

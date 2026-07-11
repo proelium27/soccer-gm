@@ -6,8 +6,8 @@ import {
 } from "../core/constants.js";
 
 /** A team as it may exist in a save written before M6 added the finance fields. */
-type StoredTeamAnyVersion = Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase"> &
-  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase">>;
+type StoredTeamAnyVersion = Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters"> &
+  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters">>;
 
 /**
  * Reconstruct the generation-time strength target for a save written before
@@ -42,6 +42,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
       hype: t.hype ?? HYPE_INITIAL,
       scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_MIN,
       academyBase: t.academyBase ?? fallbackAcademyBase(t.tid),
+      starters: t.starters ?? null,
     })),
     negotiations: anyVersion.negotiations ?? [],
     transfers: anyVersion.transfers ?? [],

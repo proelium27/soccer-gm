@@ -3,6 +3,7 @@ export * from "./players/generate.js";
 export * from "./players/ovr.js";
 export * from "./lineup/formations.js";
 export * from "./lineup/selectXI.js";
+export * from "./lineup/resolveXI.js";
 export * from "./composites.js";
 export * from "./league/generate.js";
 export * from "./league/normalize.js";

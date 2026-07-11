@@ -21,6 +21,7 @@ interface LeagueContextValue {
   makeOfferAction: (pid: number, amount: number) => Promise<void>;
   acceptCounterAction: (pid: number) => Promise<void>;
   extendContractAction: (pid: number) => Promise<void>;
+  setLineupAction: (starters: number[]) => Promise<void>;
   simming: boolean;
   saveToDb: () => Promise<void>;
   exportJSON: () => void;
@@ -143,6 +144,17 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     setLeagueState({ ...updated, lid });
   }, [league]);
 
+  const setLineupAction = useCallback(async (starters: number[]) => {
+    if (!league) return;
+    const teams = league.teams.map((t) => {
+      if (t.tid !== league.meta.userTid) return t;
+      return { ...t, starters };
+    });
+    const updated = { ...league, teams };
+    const lid = await saveLeague(updated);
+    setLeagueState({ ...updated, lid });
+  }, [league]);
+
   const setScoutingSpendAction = useCallback(async (spend: number) => {
     if (!league) return;
     const teams = league.teams.map((t) => {
@@ -180,6 +192,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       makeOfferAction,
       acceptCounterAction,
       extendContractAction,
+      setLineupAction,
       simming: simming || simOverlayOpen,
       saveToDb,
       exportJSON: doExport,

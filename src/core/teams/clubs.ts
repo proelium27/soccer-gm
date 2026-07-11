@@ -44,6 +44,11 @@ export interface StoredTeam {
   scoutingSpend: number;
   /** Fixed generation-time strength anchor for this club's youth intake (see LeagueTeam.academyBase). */
   academyBase: number;
+  /**
+   * User-chosen starting XI (11 pids), or null to auto-select via selectXI.
+   * Only ever set for the user's own team; AI teams always auto-select.
+   */
+  starters: number[] | null;
 }
 
 /**
@@ -63,6 +68,7 @@ export function assignIdentities(league: League): StoredTeam[] {
       hype: HYPE_INITIAL,
       scoutingSpend: SCOUTING_SPEND_MIN,
       academyBase: t.academyBase,
+      starters: null,
     };
   });
 }

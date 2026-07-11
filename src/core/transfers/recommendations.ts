@@ -3,7 +3,7 @@ import type { LeagueStore } from "../leagueState.js";
 import { transferWindowState } from "./window.js";
 import { departsAtRollover, isForSale, scoutedValue, windowSeed } from "./negotiation.js";
 import { scoutingNoiseSd } from "../finance/scouting.js";
-import { selectXI } from "../lineup/selectXI.js";
+import { resolveXI } from "../lineup/resolveXI.js";
 import { FORMATIONS } from "../lineup/formations.js";
 import { mulberry32, gaussian } from "../../engine/rng.js";
 import {
@@ -40,7 +40,7 @@ export function recommendedTransfers(league: LeagueStore): TransferTarget[] {
   const rosterPlayers = user.roster
     .map((pid) => playerMap.get(pid))
     .filter((p): p is Player => p !== undefined);
-  const xi = selectXI(rosterPlayers, FORMATIONS["4-3-3"]);
+  const xi = resolveXI(rosterPlayers, FORMATIONS["4-3-3"], user.starters);
   const reference = xi.length === 11 ? xi : rosterPlayers;
   const teamAvg =
     reference.length > 0
