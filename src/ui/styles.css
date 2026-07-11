@@ -1,60 +1,351 @@
-/* Sidebar */
+/* =========================================================================
+   Soccer GM — design foundation
+   "Front office terminal": a committed pitch-green palette on green-tinted
+   dark neutrals, one technical geometric sans (IBM Plex), tabular figures on
+   every stat. Colors are authored in OKLCH; Bootstrap's own --bs-* variables
+   are routed through these tokens so stock components inherit the system.
+   ========================================================================= */
+
+:root {
+  /* ---- Type -------------------------------------------------------------- */
+  --sg-font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sg-font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Fixed rem scale, ~1.2 ratio. App UI wants spatial predictability, not
+     fluid headings. */
+  --sg-text-xs: 0.72rem;   /* labels, column headers, captions */
+  --sg-text-sm: 0.82rem;   /* dense secondary text */
+  --sg-text-base: 0.9375rem; /* body / table cells (15px) */
+  --sg-text-md: 1.05rem;   /* section titles */
+  --sg-text-lg: 1.35rem;   /* page titles */
+  --sg-text-xl: 1.8rem;    /* display: scores, standings position */
+
+  --sg-weight-regular: 400;
+  --sg-weight-medium: 500;
+  --sg-weight-semibold: 600;
+  --sg-weight-bold: 700;
+
+  /* ---- Neutrals (green-tinted, hue 155, never #000/#fff) ----------------- */
+  --sg-bg: oklch(0.165 0.012 155);
+  --sg-surface: oklch(0.205 0.014 155);
+  --sg-surface-2: oklch(0.245 0.016 155);
+  --sg-border: oklch(0.305 0.013 155);
+  --sg-border-strong: oklch(0.38 0.015 155);
+  --sg-text: oklch(0.94 0.007 155);
+  --sg-text-muted: oklch(0.70 0.011 155);
+  --sg-text-faint: oklch(0.58 0.010 155);
+
+  /* ---- Pitch green (the committed color) --------------------------------- */
+  --sg-green: oklch(0.68 0.14 152);          /* primary action / active */
+  --sg-green-hover: oklch(0.74 0.15 152);
+  --sg-green-active: oklch(0.61 0.13 152);
+  --sg-green-bright: oklch(0.80 0.15 150);   /* links, active nav text */
+  --sg-green-deep: oklch(0.335 0.055 155);   /* top bar band */
+  --sg-green-deep-2: oklch(0.275 0.05 155);  /* sidebar surface */
+  --sg-green-wash: oklch(0.68 0.14 152 / 0.14);
+  /* Ink laid over bright green fills (buttons) for AA contrast. */
+  --sg-on-green: oklch(0.18 0.03 155);
+
+  /* ---- Semantic (always paired with a sign/label per the Signal Rule) ---- */
+  --sg-win: oklch(0.74 0.15 150);
+  --sg-win-wash: oklch(0.70 0.15 150 / 0.15);
+  --sg-loss: oklch(0.68 0.18 25);
+  --sg-loss-wash: oklch(0.64 0.19 25 / 0.16);
+  --sg-draw: oklch(0.66 0.012 155);
+  --sg-warn: oklch(0.80 0.13 80);
+  /* Your-team highlight uses gold so it never reads as win/loss green/red. */
+  --sg-user: oklch(0.82 0.12 88);
+  --sg-user-wash: oklch(0.82 0.12 88 / 0.13);
+
+  --sg-radius: 6px;
+  --sg-shadow: 0 0.5rem 1.5rem oklch(0.12 0.02 155 / 0.45);
+}
+
+/* ---- Route Bootstrap's dark theme through the tokens --------------------- */
+[data-bs-theme="dark"] {
+  --bs-body-bg: var(--sg-bg);
+  --bs-body-color: var(--sg-text);
+  --bs-body-font-family: var(--sg-font-sans);
+  --bs-body-font-size: var(--sg-text-base);
+  --bs-emphasis-color: var(--sg-text);
+  --bs-secondary-color: var(--sg-text-muted);
+  --bs-tertiary-color: var(--sg-text-faint);
+  --bs-border-color: var(--sg-border);
+
+  --bs-primary: var(--sg-green);
+  --bs-primary-rgb: 74, 176, 120; /* fallback for rgba() consumers */
+  --bs-link-color: var(--sg-green-bright);
+  --bs-link-hover-color: var(--sg-green-hover);
+  --bs-link-color-rgb: 120, 206, 150;
+
+  --bs-success: var(--sg-win);
+  --bs-danger: var(--sg-loss);
+  --bs-warning: var(--sg-warn);
+
+  --bs-emphasis-color-rgb: 240, 245, 242;
+  --bs-heading-color: var(--sg-text);
+}
+
+body {
+  font-family: var(--sg-font-sans);
+  background-color: var(--sg-bg);
+  color: var(--sg-text);
+  font-size: var(--sg-text-base);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---- Typographic hierarchy --------------------------------------------- */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--sg-text);
+  font-weight: var(--sg-weight-semibold);
+  letter-spacing: -0.01em;
+}
+h4 { /* page titles */
+  font-size: var(--sg-text-lg);
+  font-weight: var(--sg-weight-bold);
+  margin-bottom: 0.85rem;
+}
+h5 { font-size: var(--sg-text-md); }
+h6 { /* section labels within a page: quiet, uppercase */
+  font-size: var(--sg-text-xs);
+  font-weight: var(--sg-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sg-text-muted);
+}
+
+/* Numerals should never wobble in a data tool. */
+.table,
+.stat-num,
+.sim-ticker-score {
+  font-variant-numeric: tabular-nums;
+}
+/* Score / headline numerals in the technical mono face. */
+.stat-num,
+.sim-ticker-score {
+  font-family: var(--sg-font-mono);
+  font-weight: var(--sg-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+a {
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* =========================================================================
+   Top bar — deep pitch-green band. This is where green earns real surface.
+   ========================================================================= */
+.app-topbar {
+  background-color: var(--sg-green-deep);
+  border-bottom: 1px solid var(--sg-green-deep-2);
+}
+.app-topbar .navbar-brand {
+  font-weight: var(--sg-weight-bold);
+  letter-spacing: -0.01em;
+  color: var(--sg-text);
+}
+.app-topbar .btn-outline-light {
+  --bs-btn-color: var(--sg-text);
+  --bs-btn-border-color: oklch(0.94 0.007 155 / 0.35);
+  --bs-btn-hover-bg: oklch(0.94 0.007 155 / 0.12);
+  --bs-btn-hover-border-color: var(--sg-text);
+  --bs-btn-hover-color: var(--sg-text);
+}
+
+/* =========================================================================
+   Sidebar — green-tinted surface, green active state (replaces Bootstrap blue)
+   ========================================================================= */
 .sidebar {
   width: 220px;
   min-height: 100vh;
-  background: #f8f9fa;
-  border-right: 1px solid #dee2e6;
+  background: var(--sg-green-deep-2);
+  border-right: 1px solid var(--sg-border);
   padding-top: 0.5rem;
 }
 .sidebar .nav-link {
-  color: #333;
-  padding: 0.3rem 1rem;
-  font-size: 0.9rem;
+  color: var(--sg-text-muted);
+  padding: 0.35rem 1rem;
+  font-size: var(--sg-text-sm);
+  font-weight: var(--sg-weight-medium);
+  border-left: 2px solid transparent; /* reserve space; hairline, not a stripe accent */
+  transition: color 120ms ease, background-color 120ms ease;
+}
+.sidebar .nav-link:hover {
+  color: var(--sg-text);
+  background-color: oklch(0.94 0.007 155 / 0.05);
+  text-decoration: none;
 }
 .sidebar .nav-link.active {
-  font-weight: bold;
-  color: #0d6efd;
+  color: var(--sg-green-bright);
+  font-weight: var(--sg-weight-semibold);
+  background-color: var(--sg-green-wash);
+  border-left-color: var(--sg-green);
 }
 .sidebar .nav-section {
-  font-size: 0.75rem;
+  font-size: var(--sg-text-xs);
   text-transform: uppercase;
-  color: #6c757d;
-  padding: 0.5rem 1rem 0.2rem;
-  margin-top: 0.5rem;
+  letter-spacing: 0.07em;
+  color: var(--sg-text-faint);
+  padding: 0.75rem 1rem 0.25rem;
+  margin-top: 0.35rem;
 }
 
-/* Layout */
+/* =========================================================================
+   Layout
+   ========================================================================= */
 .app-layout {
   display: flex;
   min-height: 100vh;
 }
 .main-content {
   flex: 1;
-  padding: 1rem 1.5rem;
+  padding: 1.25rem 1.75rem;
+  background-color: var(--sg-bg);
 }
 
-/* Team highlight in tables. Targets the cells, not the row: table-striped
-   paints an opaque background on each <td> via Bootstrap's CSS variables,
-   which sits on top of and hides a background-color set on the <tr> itself. */
+/* =========================================================================
+   Tables — the primary content. Quiet chrome, legible density.
+   ========================================================================= */
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--sg-text);
+  --bs-table-border-color: var(--sg-border);
+  --bs-table-striped-bg: oklch(0.94 0.007 155 / 0.035);
+  --bs-table-striped-color: var(--sg-text);
+  --bs-table-active-bg: var(--sg-green-wash);
+  --bs-table-hover-bg: oklch(0.94 0.007 155 / 0.05);
+}
+.table > thead th {
+  color: var(--sg-text-muted);
+  font-size: var(--sg-text-xs);
+  font-weight: var(--sg-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--sg-border-strong);
+  white-space: nowrap;
+}
+.table > tbody td {
+  border-bottom-color: var(--sg-border);
+  vertical-align: middle;
+}
+
+/* Team highlight and result rows. table-striped paints an opaque bg on each
+   <td> via CSS variables, so these must target the cells and win with
+   !important, matching the original approach. Each keeps a non-color signal
+   in the markup (position number, W/D/L letters). */
 .team-highlight > td {
-  background-color: #fff3cd !important;
+  background-color: var(--sg-user-wash) !important;
+  box-shadow: inset 2px 0 0 var(--sg-user); /* leading edge marker, your club */
 }
 .row-win > td {
-  background-color: rgba(25, 135, 84, 0.08) !important;
+  background-color: var(--sg-win-wash) !important;
 }
 .row-loss > td {
-  background-color: rgba(220, 53, 69, 0.08) !important;
+  background-color: var(--sg-loss-wash) !important;
 }
 
-/* Color swatch */
+/* =========================================================================
+   Cards & surfaces — flat, tonal, no drop shadow by default.
+   ========================================================================= */
+.card {
+  --bs-card-bg: var(--sg-surface);
+  --bs-card-color: var(--sg-text);
+  --bs-card-border-color: var(--sg-border);
+  --bs-card-cap-bg: var(--sg-surface-2);
+  --bs-card-border-radius: var(--sg-radius);
+}
+.card-title {
+  color: var(--sg-text);
+  font-weight: var(--sg-weight-semibold);
+}
+
+/* =========================================================================
+   Buttons — primary is pitch green with dark ink for AA contrast.
+   ========================================================================= */
+.btn-primary {
+  --bs-btn-bg: var(--sg-green);
+  --bs-btn-border-color: var(--sg-green);
+  --bs-btn-color: var(--sg-on-green);
+  --bs-btn-hover-bg: var(--sg-green-hover);
+  --bs-btn-hover-border-color: var(--sg-green-hover);
+  --bs-btn-hover-color: var(--sg-on-green);
+  --bs-btn-active-bg: var(--sg-green-active);
+  --bs-btn-active-border-color: var(--sg-green-active);
+  --bs-btn-active-color: var(--sg-on-green);
+  --bs-btn-disabled-bg: var(--sg-green);
+  --bs-btn-disabled-border-color: var(--sg-green);
+  --bs-btn-disabled-color: var(--sg-on-green);
+  font-weight: var(--sg-weight-semibold);
+}
+.btn-success {
+  --bs-btn-bg: var(--sg-win);
+  --bs-btn-border-color: var(--sg-win);
+  --bs-btn-color: var(--sg-on-green);
+  --bs-btn-hover-bg: var(--sg-green-hover);
+  --bs-btn-hover-border-color: var(--sg-green-hover);
+  --bs-btn-hover-color: var(--sg-on-green);
+  --bs-btn-active-bg: var(--sg-green-active);
+  --bs-btn-active-border-color: var(--sg-green-active);
+  font-weight: var(--sg-weight-semibold);
+}
+.btn-outline-success {
+  --bs-btn-color: var(--sg-win);
+  --bs-btn-border-color: oklch(0.74 0.15 150 / 0.55);
+  --bs-btn-hover-bg: var(--sg-win);
+  --bs-btn-hover-border-color: var(--sg-win);
+  --bs-btn-hover-color: var(--sg-on-green);
+}
+.btn-outline-danger {
+  --bs-btn-color: var(--sg-loss);
+  --bs-btn-border-color: oklch(0.68 0.18 25 / 0.5);
+  --bs-btn-hover-bg: var(--sg-loss);
+  --bs-btn-hover-border-color: var(--sg-loss);
+  --bs-btn-hover-color: var(--sg-on-green);
+}
+.btn-link {
+  --bs-btn-color: var(--sg-green-bright);
+  --bs-btn-hover-color: var(--sg-green-hover);
+}
+
+/* Scouting-spend slider tracks the brand. */
+.form-range::-webkit-slider-thumb { background-color: var(--sg-green); }
+.form-range::-moz-range-thumb { background-color: var(--sg-green); border: none; }
+.form-range::-webkit-slider-thumb:active { background-color: var(--sg-green-hover); }
+.form-label { color: var(--sg-text-muted); }
+.form-control,
+.form-select {
+  --bs-body-bg: var(--sg-surface);
+  background-color: var(--sg-surface);
+  border-color: var(--sg-border-strong);
+  color: var(--sg-text);
+}
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--sg-green);
+  box-shadow: 0 0 0 0.2rem var(--sg-green-wash);
+}
+
+/* Bootstrap text-utility remaps so muted/secondary read on the dark surface. */
+.text-muted { color: var(--sg-text-muted) !important; }
+.text-danger { color: var(--sg-loss) !important; }
+.text-success { color: var(--sg-win) !important; }
+
+/* =========================================================================
+   Color swatch (team colors)
+   ========================================================================= */
 .color-swatch {
   display: inline-block;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 3px;
   margin-right: 6px;
   vertical-align: middle;
-  border: 1px solid #ccc;
+  border: 1px solid oklch(0.94 0.007 155 / 0.25);
 }
 
 /* Nationality flag */
@@ -62,15 +353,17 @@
   font-size: 0.95em;
 }
 
-/* Player ratings tooltip */
+/* =========================================================================
+   Player ratings tooltip
+   ========================================================================= */
 .player-ratings-tooltip-anchor {
   position: relative;
   cursor: default;
-  border-bottom: 1px dotted #999;
+  border-bottom: 1px dotted var(--sg-text-faint);
 }
 .player-ratings-tooltip-panel {
-  /* The tooltip renders as spans (it lives inside inline table-cell content,
-     where divs would be invalid HTML), so block display is set explicitly. */
+  /* Renders as spans (lives inside inline table-cell content where divs would
+     be invalid HTML), so block display is set explicitly. */
   display: block;
   position: absolute;
   top: 100%;
@@ -78,17 +371,18 @@
   z-index: 1060;
   margin-top: 4px;
   width: 220px;
-  background: #fff;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.15);
+  background: var(--sg-surface-2);
+  border: 1px solid var(--sg-border-strong);
+  border-radius: var(--sg-radius);
+  box-shadow: var(--sg-shadow);
   padding: 0.5rem 0.75rem;
-  font-size: 0.85rem;
+  font-size: var(--sg-text-sm);
 }
 .player-ratings-tooltip-title {
   display: block;
-  font-weight: 600;
+  font-weight: var(--sg-weight-semibold);
   margin-bottom: 0.35rem;
+  color: var(--sg-text);
 }
 .player-ratings-tooltip-grid {
   display: grid;
@@ -97,23 +391,26 @@
   column-gap: 0.75rem;
 }
 .player-ratings-tooltip-row {
-  /* Promote each row's label/value to grid items so every skill gets its own
-     line with the value right-aligned in the auto column. */
   display: contents;
 }
 .player-ratings-tooltip-label {
-  color: #495057;
+  color: var(--sg-text-muted);
 }
 .player-ratings-tooltip-value {
-  font-weight: 600;
+  font-weight: var(--sg-weight-semibold);
   text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--sg-text);
 }
 
-/* Sim overlay */
+/* =========================================================================
+   Sim overlay + ticker (already the app's best-crafted component; retinted
+   to the system so it stops being an exception and becomes the template).
+   ========================================================================= */
 .sim-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: oklch(0.12 0.02 155 / 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -122,7 +419,7 @@
 .sim-overlay-panel {
   width: 720px;
   max-width: 92vw;
-  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35);
+  box-shadow: var(--sg-shadow);
 }
 .sim-overlay-ticker {
   display: flex;
@@ -134,11 +431,12 @@
 .sim-ticker-card {
   flex: 0 0 auto;
   min-width: 84px;
-  border-radius: 6px;
+  border-radius: var(--sg-radius);
   overflow: hidden;
-  border: 1px solid #dee2e6;
-  animation: sim-card-in 200ms ease-out;
-  font-size: 0.85rem;
+  border: 1px solid var(--sg-border);
+  animation: sim-card-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  font-size: var(--sg-text-sm);
+  background: var(--sg-surface);
 }
 .sim-ticker-row {
   display: flex;
@@ -148,22 +446,23 @@
   padding: 0.25rem 0.5rem;
 }
 .sim-ticker-row:first-child {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid var(--sg-border);
 }
 .sim-ticker-team {
-  font-weight: 600;
+  font-weight: var(--sg-weight-semibold);
+  color: var(--sg-text);
 }
 .sim-ticker-score {
-  font-weight: 700;
+  color: var(--sg-text);
 }
 .sim-ticker-win {
-  background: rgba(25, 135, 84, 0.14);
+  background: var(--sg-win-wash);
 }
 .sim-ticker-loss {
-  background: rgba(220, 53, 69, 0.12);
+  background: var(--sg-loss-wash);
 }
 .sim-ticker-draw {
-  background: #f1f3f5;
+  background: oklch(0.94 0.007 155 / 0.05);
 }
 @keyframes sim-card-in {
   from {
@@ -174,6 +473,10 @@
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sim-ticker-card { animation: none; }
+  * { scroll-behavior: auto; }
 }
 
 /* Transfers page: keep offer inputs compact inside table rows. */

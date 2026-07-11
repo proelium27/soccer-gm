@@ -24,7 +24,10 @@
     "vitest": "^2.1.8"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/ibm-plex-sans": "^5.2.8",
     "bootstrap": "^5.3.8",
+    "csstype": "^3.2.3",
     "idb": "^8.0.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

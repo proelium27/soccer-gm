@@ -12,7 +12,6 @@ import { BoxScore } from "./pages/BoxScore.js";
 import { IncomingTalent } from "./pages/IncomingTalent.js";
 import { Transfers } from "./pages/Transfers.js";
 import { Finance } from "./pages/Finance.js";
-import "./styles.css";
 
 function RootRedirect() {
   const { league, loadingActiveLeague } = useLeague();
