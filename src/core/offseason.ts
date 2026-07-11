@@ -9,6 +9,7 @@ import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
 import { settleSeasonBudget, wageBill } from "./finance/budget.js";
 import { NUM_TEAMS, SCOUTING_SPEND_MIN } from "./constants.js";
+import { hashInts } from "../engine/rng.js";
 
 /**
  * Run one full offseason: contract expiry, progression, retirement, AI free
@@ -79,11 +80,16 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //    LeagueTeam.academyBase for why that ratchets OVR upward without bound).
   let nextPid = Math.max(0, ...players.map((p) => p.pid)) + 1;
   teams = teams.map((t) => {
+    // Caller-supplied seed (not drawn from `rng`) so youth nationality/name
+    // generation varies across leagues/seasons/teams without perturbing the
+    // ratings/potential stream consumed per player.
+    const genSeed = hashInts(league.lid, nextSeason, t.tid, 2);
     const { players: youth, nextPid: updatedNextPid } = generateYouthIntake(
       rng,
       t.academyBase,
       nextSeason,
       nextPid,
+      genSeed,
     );
     nextPid = updatedNextPid;
     players.push(...youth);

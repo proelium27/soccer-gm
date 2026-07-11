@@ -1,6 +1,7 @@
 import type { Player, Position } from "../players/types.js";
 import { POSITIONS } from "../players/types.js";
 import { generatePlayer } from "../players/generate.js";
+import { hashInts } from "../../engine/rng.js";
 import {
   NUM_TEAMS, LEAGUE_BASE, TEAM_STRENGTH_SPREAD, ROSTER_COMPOSITION,
   INITIAL_AGE_MIN, INITIAL_AGE_MAX, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
@@ -36,10 +37,15 @@ export interface League {
  * [-SPREAD, +SPREAD]; every player is generated around base = LEAGUE_BASE +
  * target, biased by position archetype. Deterministic given the RNG.
  */
-export function generateLeague(rng: () => number): League {
+export function generateLeague(rng: () => number, seed = 0): League {
   const teams: LeagueTeam[] = [];
   const players: Player[] = [];
   let pid = 0;
+  // Caller-supplied seed (not drawn from `rng`) so nationality/name
+  // generation varies across different games without perturbing the
+  // ratings/potential stream consumed per player (see generatePlayer's
+  // `genSeed` param).
+  const genSeed = hashInts(seed, 1);
 
   for (let tid = 0; tid < NUM_TEAMS; tid++) {
     // Evenly spaced target: strongest at tid 0, weakest at the end.
@@ -53,7 +59,7 @@ export function generateLeague(rng: () => number): League {
       for (let i = 0; i < ROSTER_COMPOSITION[pos]; i++) {
         const age = INITIAL_AGE_MIN
           + Math.floor(rng() * (INITIAL_AGE_MAX - INITIAL_AGE_MIN + 1));
-        const p = generatePlayer(rng, pos, base, pid++, age, STARTING_SEASON);
+        const p = generatePlayer(rng, pos, base, pid++, age, STARTING_SEASON, genSeed);
         const length = CONTRACT_LENGTH_MIN
           + Math.floor(rng() * (CONTRACT_LENGTH_MAX - CONTRACT_LENGTH_MIN + 1));
         p.contract.expiresSeason = STARTING_SEASON + length;

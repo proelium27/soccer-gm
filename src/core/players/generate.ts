@@ -3,8 +3,9 @@ import { SKILL_KEYS } from "./types.js";
 import { GEN_OFFSETS, HEIGHT_RANGES, type Tier } from "./templates.js";
 import { computeOvr } from "./ovr.js";
 import { generateName } from "./names.js";
+import { pickNationality } from "./nationalities.js";
 import { estimatePotential } from "./progression.js";
-import { gaussian } from "../../engine/rng.js";
+import { gaussian, hashInts, mulberry32 } from "../../engine/rng.js";
 import {
   TIER_OFFSET, RATING_NOISE_SD, ABS_LOW_MIN, ABS_LOW_MAX,
   RATING_MIN, RATING_MAX, SALARY_PER_OVR,
@@ -28,6 +29,7 @@ export function generatePlayer(
   pid: number,
   age: number,
   season: number,
+  genSeed = 0,
 ): Player {
   const tiers = GEN_OFFSETS[pos];
   const ratings = {} as PlayerRatings;
@@ -42,10 +44,17 @@ export function generatePlayer(
   const potential = estimatePotential(rng, ratings, ovr, age, pos, heightCm);
   const born = season - age;
 
+  // Nationality/name draw from a (genSeed, pid)-derived sub-stream: `genSeed`
+  // is caller-supplied (not drawn from `rng`) so this never shifts the shared
+  // rng sequence consumed by ratings/potential for other players, while still
+  // varying across different games/seeds via genSeed.
+  const identityRng = mulberry32(hashInts(genSeed, pid));
+  const nationality = pickNationality(identityRng);
+
   return {
     pid,
-    name: generateName(rng, "Genero"),
-    nationality: "Genero",
+    name: generateName(identityRng, nationality),
+    nationality,
     born,
     pos,
     heightCm,
