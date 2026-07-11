@@ -59,6 +59,7 @@ function RosterTable({
           {hasStats && (
             <>
               <th className="text-end">Apps</th>
+              <th className="text-end">Min</th>
               <th className="text-end">G</th>
               <th className="text-end">A</th>
               <th className="text-end">Sh</th>
@@ -122,6 +123,7 @@ function RosterTable({
               {hasStats && (
                 <>
                   <td className="text-end">{ss?.appearances ?? 0}</td>
+                  <td className="text-end">{ss?.minutesPlayed ?? 0}</td>
                   <td className="text-end">{ss?.goals ?? 0}</td>
                   <td className="text-end">{ss?.assists ?? 0}</td>
                   <td className="text-end">{ss?.shots ?? 0}</td>

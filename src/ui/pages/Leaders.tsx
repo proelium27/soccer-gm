@@ -3,7 +3,15 @@ import { useLeague } from "../context/LeagueContext.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
 import { Flag } from "../components/Flag.js";
 
-type StatKey = "goals" | "assists" | "shots" | "shotsOnTarget" | "saves" | "tackles" | "avgRating";
+type StatKey =
+  | "goals"
+  | "assists"
+  | "shots"
+  | "shotsOnTarget"
+  | "saves"
+  | "tackles"
+  | "avgRating"
+  | "minutesPlayed";
 
 const STAT_OPTIONS: { key: StatKey; label: string }[] = [
   { key: "goals", label: "Goals" },
@@ -13,6 +21,7 @@ const STAT_OPTIONS: { key: StatKey; label: string }[] = [
   { key: "saves", label: "Saves" },
   { key: "tackles", label: "Tackles" },
   { key: "avgRating", label: "Match Rating" },
+  { key: "minutesPlayed", label: "Minutes" },
 ];
 
 interface LeaderRow {
@@ -86,6 +95,7 @@ export function Leaders() {
             <th>Team</th>
             <th>Pos</th>
             <th className="text-end">Apps</th>
+            <th className="text-end">Min</th>
             <th className="text-end">G</th>
             <th className="text-end">A</th>
             <th className="text-end">Sh</th>
@@ -108,6 +118,7 @@ export function Leaders() {
               <td>{row.teamName}</td>
               <td>{row.player.pos}</td>
               <td className="text-end">{row.stats.appearances}</td>
+              <td className="text-end">{row.stats.minutesPlayed}</td>
               <td className="text-end">{row.stats.goals}</td>
               <td className="text-end">{row.stats.assists}</td>
               <td className="text-end">{row.stats.shots}</td>
