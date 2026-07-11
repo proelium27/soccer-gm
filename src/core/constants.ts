@@ -203,24 +203,61 @@ export const SCOUTING_NOISE_SD_MIN_SPEND = 0.35;
 export const SCOUTING_NOISE_SD_MAX_SPEND = 0.05;
 
 /**
- * Transfer valuation formula: value climbs steeply with ovr above a floor
- * (replacement-level players are worth little), is scaled by an age curve
- * peaking around the same prime as on-field performance, and by remaining
- * contract length (longer deals are harder/pricier to pry a player out of).
+ * Transfer valuation formula: a "current ability" base value that climbs
+ * steeply with ovr above a floor (replacement-level players are worth
+ * little), multiplied by a potential premium (VALUATION_POTENTIAL_*, priced
+ * on top rather than blended into ovr — soccer transfer fees pay for
+ * resale/ceiling on top of today's ability, not instead of it), an age
+ * curve (VALUATION_AGE_CURVE — youth is a premium in soccer's transfer
+ * market, not a discount: clubs are buying years of control and resale
+ * value), and a bonus for remaining contract length (longer deals are
+ * harder/pricier to pry a player out of).
  *
- * Calibrated to real 2025-market fees (base value at prime age, before the
- * contract multiplier of up to 1.4×): 99 ovr ≈ 120M (a generational player
- * pushes past 150M on a long deal), 90 ≈ 78M, 80 ≈ 44M, 75 ≈ 31M,
- * 70 ≈ 21M, 60 ≈ 7M.
+ * Recalibrated 2026-07-11 to the post-rebalance ovr scale (65 = average
+ * starter, 70 = good starter, 75 = a team's best player, 80-85 = league-wide
+ * elite, 90+ = rare outlier — see the M1 milestone note in CLAUDE.md; the
+ * original constants below were tuned against the older, more inflated
+ * scale where 65-70 was merely a decent squad player) and pinned to real
+ * transfer-market data (2025-ish Premier League, matching the
+ * BASE_SEASON_BUDGET calibration note above): an average starter runs
+ * 35-45M, a title-contender's best player 65-80M+, and a generational
+ * outlier like Haaland tops 200M. Base ("current ability") value with no
+ * potential gap, before age/potential/contract multipliers:
+ * 65 ~= 35M, 70 ~= 57M, 75 ~= 84M, 80 ~= 117M, 85 ~= 156M, 90 ~= 201M.
  */
-export const VALUATION_OVR_FLOOR = 40;
-export const VALUATION_OVR_COEFF = 3_000;
-export const VALUATION_OVR_EXPONENT = 2.6;
-export const VALUATION_AGE_PEAK = 26;
-export const VALUATION_AGE_FALLOFF_YOUNG = 0.02;
-export const VALUATION_AGE_FALLOFF_OLD = 0.08;
+export const VALUATION_OVR_FLOOR = 45;
+export const VALUATION_OVR_COEFF = 56_000;
+export const VALUATION_OVR_EXPONENT = 2.15;
 export const VALUATION_CONTRACT_YEAR_BONUS = 0.08;
 export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
+
+/**
+ * Age's effect on transfer value, as a straight multiplier — [age,
+ * multiplier] control points, linearly interpolated, clamped at the ends.
+ * Unlike a player's on-field ability curve, transfer value peaks in the
+ * late teens and falls off through the late 20s/30s: a young player is an
+ * asset (years of control, resale value, room to grow) independent of
+ * their potential gap, which is priced separately (VALUATION_POTENTIAL_*).
+ */
+export const VALUATION_AGE_CURVE: readonly [number, number][] = [
+  [16, 1.25], [17, 1.35], [18, 1.40], [19, 1.35], [20, 1.30], [21, 1.20],
+  [22, 1.10], [23, 1.00], [27, 1.00], [28, 0.90], [30, 0.75], [32, 0.55],
+];
+
+/**
+ * Potential premium: soccer transfer fees pay aggressively for ceiling, not
+ * just proven ability (a 17-year-old Bellingham went for ~25M on potential
+ * alone). Priced as a percentage bump on the base value, per point of
+ * (potential - ovr), scaled by an age weight — full weight through
+ * VALUATION_POTENTIAL_WEIGHT_PEAK_AGE, linearly decaying to zero by
+ * VALUATION_POTENTIAL_WEIGHT_ZERO_AGE (an older player's remaining
+ * "potential" isn't worth paying extra for — they won't live in it long).
+ * At full weight, VALUATION_POTENTIAL_PCT_PER_POINT * 20 = +70%, i.e. a
+ * 20-point gap at peak age roughly matches the Bellingham-style premium.
+ */
+export const VALUATION_POTENTIAL_PCT_PER_POINT = 0.035;
+export const VALUATION_POTENTIAL_WEIGHT_PEAK_AGE = 21;
+export const VALUATION_POTENTIAL_WEIGHT_ZERO_AGE = 30;
 
 /**
  * M6 transfer market (phases 3-7, see docs/finance-design.md). A club's
