@@ -215,13 +215,17 @@ export const SCOUTING_NOISE_SD_MAX_SPEND = 0.05;
  * starter, 70 = good starter, 75 = a team's best player, 80-85 = league-wide
  * elite, 90+ = rare outlier — see the M1 milestone note in CLAUDE.md; the
  * original constants below were tuned against the older, more inflated
- * scale where 65-70 was merely a decent squad player). Base value at prime
- * age with no potential gap, before the contract multiplier of up to 1.4x:
- * 65 ~= 1.6M, 70 ~= 5.7M, 75 ~= 15.6M, 80 ~= 35.5M, 85 ~= 71M, 90 ~= 130M.
+ * scale where 65-70 was merely a decent squad player) and pinned to real
+ * transfer-market data (2025-ish Premier League, matching the
+ * BASE_SEASON_BUDGET calibration note above): an average starter runs
+ * 35-45M, a title-contender's best player 65-80M+, and a generational
+ * outlier like Haaland tops 200M. Base value at prime age with no
+ * potential gap, before the contract multiplier of up to 1.4x:
+ * 65 ~= 35M, 70 ~= 57M, 75 ~= 84M, 80 ~= 117M, 85 ~= 156M, 90 ~= 201M.
  */
-export const VALUATION_OVR_FLOOR = 50;
-export const VALUATION_OVR_COEFF = 8;
-export const VALUATION_OVR_EXPONENT = 4.5;
+export const VALUATION_OVR_FLOOR = 45;
+export const VALUATION_OVR_COEFF = 56_000;
+export const VALUATION_OVR_EXPONENT = 2.15;
 export const VALUATION_AGE_PEAK = 26;
 export const VALUATION_AGE_FALLOFF_YOUNG = 0.02;
 export const VALUATION_AGE_FALLOFF_OLD = 0.08;
@@ -236,7 +240,7 @@ export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
  * VALUATION_POTENTIAL_WEIGHT_ZERO_AGE (a 30-year-old's remaining "potential"
  * is not worth paying extra for — they're not going to live in it long).
  */
-export const VALUATION_POTENTIAL_WEIGHT_MAX = 0.85;
+export const VALUATION_POTENTIAL_WEIGHT_MAX = 0.5;
 export const VALUATION_POTENTIAL_WEIGHT_PEAK_AGE = 21;
 export const VALUATION_POTENTIAL_WEIGHT_ZERO_AGE = 30;
 
