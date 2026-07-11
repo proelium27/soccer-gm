@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { PlayedMatch } from "../../core/standings.js";
 import type { MatchEvent } from "../../engine/attribution.js";
+import { Flag } from "../components/Flag.js";
 
 function formatClock(seconds: number): string {
   const mins = Math.max(1, Math.ceil((5400 - seconds) / 60));
@@ -106,6 +107,7 @@ export function BoxScore() {
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   const playerName = (pid: number) => playerMap.get(pid)?.name ?? `#${pid}`;
   const playerPos = (pid: number) => playerMap.get(pid)?.pos ?? "?";
+  const playerNationality = (pid: number) => playerMap.get(pid)?.nationality;
 
   const possPct = Math.round(match.possessionHome * 100);
 
@@ -149,7 +151,12 @@ export function BoxScore() {
             <tbody>
               {match.boxScore.home.map((line) => (
                 <tr key={line.pid}>
-                  <td>{playerName(line.pid)}</td>
+                  <td>
+                    {playerName(line.pid)}{" "}
+                    {playerNationality(line.pid) && (
+                      <Flag nationality={playerNationality(line.pid)!} />
+                    )}
+                  </td>
                   <td>{playerPos(line.pid)}</td>
                   <td className="text-end">{line.goals || ""}</td>
                   <td className="text-end">{line.assists || ""}</td>
@@ -184,7 +191,12 @@ export function BoxScore() {
             <tbody>
               {match.boxScore.away.map((line) => (
                 <tr key={line.pid}>
-                  <td>{playerName(line.pid)}</td>
+                  <td>
+                    {playerName(line.pid)}{" "}
+                    {playerNationality(line.pid) && (
+                      <Flag nationality={playerNationality(line.pid)!} />
+                    )}
+                  </td>
                   <td>{playerPos(line.pid)}</td>
                   <td className="text-end">{line.goals || ""}</td>
                   <td className="text-end">{line.assists || ""}</td>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
+import { Flag } from "../components/Flag.js";
 
 type StatKey = "goals" | "assists" | "shots" | "shotsOnTarget" | "saves" | "tackles";
 
@@ -99,7 +100,9 @@ export function Leaders() {
               className={row.isUserTeam ? "text-primary fw-semibold" : undefined}
             >
               <td className="text-end">{i + 1}</td>
-              <td>{row.player.name}</td>
+              <td>
+                {row.player.name} <Flag nationality={row.player.nationality} />
+              </td>
               <td>{row.teamName}</td>
               <td>{row.player.pos}</td>
               <td className="text-end">{row.stats.appearances}</td>
