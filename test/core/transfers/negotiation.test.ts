@@ -10,8 +10,22 @@ import { mulberry32 } from "../../../src/engine/rng.js";
 import {
   RESERVATION_FACTOR_MIN, RESERVATION_FACTOR_MAX,
   NEGOTIATION_LOWBALL_FACTOR, NEGOTIATION_MAX_ROUNDS,
-  SCOUTING_SPEND_MAX,
+  SCOUTING_SPEND_MAX, ROSTER_CAP,
 } from "../../../src/core/constants.js";
+
+/** Pads the user's roster (tid 0) up to ROSTER_CAP with fabricated pids. */
+function fillUserRosterToCap(league: LeagueStore): LeagueStore {
+  return {
+    ...league,
+    teams: league.teams.map((t) =>
+      t.tid === 0
+        ? { ...t, roster: [...t.roster, ...Array.from(
+            { length: ROSTER_CAP - t.roster.length }, (_, i) => 900_000 + i,
+          )] }
+        : t,
+    ),
+  };
+}
 
 /** A league sitting in the winter window with a rich user club. */
 function windowLeague(seed = 1): LeagueStore {
@@ -240,6 +254,26 @@ describe("makeTransferOffer / acceptCounterOffer", () => {
       ),
     };
     expect(acceptCounterOffer(thinned, pid)).toBe(thinned);
+  });
+
+  it("refuses a new offer once the user's roster is at ROSTER_CAP", () => {
+    const league = fillUserRosterToCap(windowLeague());
+    const { pid } = firstTarget(league);
+    expect(league.teams.find((t) => t.tid === 0)!.roster.length).toBe(ROSTER_CAP);
+    expect(makeTransferOffer(league, pid, 500_000_000)).toBe(league);
+  });
+
+  it("refuses to accept a counter once the user's roster is at ROSTER_CAP", () => {
+    const league = windowLeague();
+    const { pid } = firstTarget(league);
+    const player = league.players.find((p) => p.pid === pid)!;
+    const reservation = reservationPrice(league.lid, league.season, "winter", player);
+
+    const countered = makeTransferOffer(league, pid, Math.round(reservation * 0.8));
+    expect(currentNegotiations(countered)[0]).toMatchObject({ pid, status: "open" });
+
+    const capped = fillUserRosterToCap(countered);
+    expect(acceptCounterOffer(capped, pid)).toBe(capped);
   });
 
   it("cannot accept a counter the budget no longer covers", () => {

@@ -8,6 +8,7 @@ import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
 import { formatWeeklyWage } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { Flag } from "../components/Flag.js";
+import { ROSTER_CAP } from "../../core/constants.js";
 
 function sortByPosThenOvr(players: Player[]): Player[] {
   const posOrder = new Map(POSITIONS.map((pos, i) => [pos, i]));
@@ -141,7 +142,12 @@ export function Roster() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>{userTeam.name} Roster</h4>
+      <h4>
+        {userTeam.name} Roster{" "}
+        <small className={players.length >= ROSTER_CAP ? "text-danger" : "text-muted"}>
+          ({players.length}/{ROSTER_CAP})
+        </small>
+      </h4>
       {players.length === 0 ? (
         <p>No players on roster.</p>
       ) : (
