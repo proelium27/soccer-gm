@@ -1,13 +1,12 @@
-import type { Player, SkillKey } from "./types.js";
+import type { Player, PlayerRatings, SkillKey } from "./types.js";
 import { computeOvr } from "./ovr.js";
 import { gaussian } from "../../engine/rng.js";
 import {
   BASE_AGE_CURVE, BASE_AGE_CURVE_PEAK, PHYSICAL_AGE_SHIFT, SKILL_AGE_SHIFT,
-  GK_AGE_SHIFT, POTENTIAL_FACTOR_PER_POINT, POTENTIAL_FACTOR_MIN, POTENTIAL_FACTOR_MAX,
+  GK_AGE_SHIFT,
   MINUTES_FACTOR_MIN, MINUTES_FACTOR_MAX, FULL_SEASON_APPEARANCES,
   PROGRESSION_NOISE_SD_YOUNG, PROGRESSION_NOISE_SD_OLD,
-  POTENTIAL_HEADROOM_BY_AGE, POTENTIAL_ROLL_MIN, POTENTIAL_ROLL_MAX,
-  POTENTIAL_SOFT_CAP_KNEE, POTENTIAL_SOFT_CAP_SCALE,
+  POTENTIAL_SIM_TRIALS, POTENTIAL_SIM_MAX_AGE, POTENTIAL_SIM_PERCENTILE,
   RATING_MIN, RATING_MAX,
   RETIREMENT_START_AGE, RETIREMENT_BASE_PROB, RETIREMENT_PROB_PER_YEAR,
 } from "../constants.js";
@@ -49,45 +48,80 @@ function baseAgeDelta(effectiveAge: number): number {
   return interpolate(BASE_AGE_CURVE, effectiveAge - BASE_AGE_CURVE_PEAK);
 }
 
-/**
- * Roll (or re-roll) a player's potential from their current ovr and age.
- * Not a fixed ceiling — recalculated every offseason from the *new* ovr, so
- * a breakout season raises it and a stagnant one lowers it. Headroom shrinks
- * toward zero as age advances; GKs get extra effective years (their career
- * arcs run later) via GK_AGE_SHIFT.
- */
-export function rollPotential(
-  rng: () => number,
-  ovr: number,
-  age: number,
-  pos: Player["pos"],
-): number {
-  const effectiveAge = pos === "GK" ? age + GK_AGE_SHIFT : age;
-  const headroom = interpolate(POTENTIAL_HEADROOM_BY_AGE, effectiveAge);
-  const roll = POTENTIAL_ROLL_MIN + rng() * (POTENTIAL_ROLL_MAX - POTENTIAL_ROLL_MIN);
-  const raw = ovr + headroom * roll;
-  // Soft ceiling: below the knee the projection is used as-is; above it the
-  // excess is compressed asymptotically toward RATING_MAX so elite players
-  // spread across the high 90s rather than all pinning to exactly 99 at a hard
-  // clamp. Floored at the player's current ovr — potential is a projection, not
-  // a demotion — which also lets a genuine 99-ovr player still read 99.
-  const capped = raw <= POTENTIAL_SOFT_CAP_KNEE
-    ? raw
-    : POTENTIAL_SOFT_CAP_KNEE
-      + (RATING_MAX - POTENTIAL_SOFT_CAP_KNEE)
-        * (1 - Math.exp(-(raw - POTENTIAL_SOFT_CAP_KNEE) / POTENTIAL_SOFT_CAP_SCALE));
-  return Math.max(Math.round(ovr), Math.round(Math.min(RATING_MAX, capped)));
+/** Per-rating noise std dev at a given age (narrows as players age). */
+function noiseSdAt(age: number): number {
+  return PROGRESSION_NOISE_SD_YOUNG
+    + (PROGRESSION_NOISE_SD_OLD - PROGRESSION_NOISE_SD_YOUNG)
+      * Math.max(0, Math.min(1, (age - 18) / (RETIREMENT_START_AGE - 18)));
 }
 
 /**
- * Season-end rating movement, BBGM-style: each rating group (physical vs.
- * skill, further shifted for GKs) reads its own expected delta off the base
- * age curve. During growth years (positive base delta) the delta is scaled
- * by how much headroom potential implies and nudged slightly by minutes
- * played; decline years are age/group-driven only. Independent gaussian
- * noise per rating narrows as players age, producing real busts and late
- * bloomers rather than smooth convergence to potential. Potential is then
- * re-rolled from the new ovr. Does not mutate the input.
+ * One season of rating movement: each rating group (physical vs. skill,
+ * further shifted for GKs) reads its own expected delta off the base age
+ * curve, nudged by `minutesFactor` during growth years only; decline years
+ * are age/group-driven alone. Independent gaussian noise per rating narrows
+ * with age. Shared by real progression and potential's forward simulation so
+ * both use the exact same development model. Does not mutate the input.
+ */
+function stepRatings(
+  rng: () => number,
+  ratings: PlayerRatings,
+  age: number,
+  pos: Player["pos"],
+  minutesFactor: number,
+): PlayerRatings {
+  const gkShift = pos === "GK" ? GK_AGE_SHIFT : 0;
+  const noiseSd = noiseSdAt(age);
+  const next = { ...ratings };
+  for (const [group, shift] of [
+    [PHYSICAL_KEYS, gkShift + PHYSICAL_AGE_SHIFT],
+    [SKILL_KEYS_GROUP, gkShift + SKILL_AGE_SHIFT],
+  ] as const) {
+    const base = baseAgeDelta(age + shift);
+    const mean = base > 0 ? base * minutesFactor : base;
+    for (const key of group) {
+      next[key] = clampRating(next[key] + mean + gaussian(rng) * noiseSd);
+    }
+  }
+  return next;
+}
+
+/**
+ * Potential (BBGM-style): a scout's *estimate*, not a growth ceiling — it has
+ * no influence on progressPlayer. Computed by simulating a player's future
+ * career forward POTENTIAL_SIM_TRIALS times using the same age-curve model
+ * (assuming average future playing time), tracking the peak ovr reached in
+ * each trial, and reading off the POTENTIAL_SIM_PERCENTILE. So on average a
+ * player exceeds this number about 25% of the time, matching real careers
+ * where most players fall short of their potential but some meet or beat it.
+ */
+export function estimatePotential(
+  rng: () => number,
+  ratings: PlayerRatings,
+  ovr: number,
+  age: number,
+  pos: Player["pos"],
+  heightCm: number,
+): number {
+  const peaks: number[] = [];
+  for (let trial = 0; trial < POTENTIAL_SIM_TRIALS; trial++) {
+    let simRatings = ratings;
+    let peak = ovr;
+    for (let simAge = age + 1; simAge <= POTENTIAL_SIM_MAX_AGE; simAge++) {
+      simRatings = stepRatings(rng, simRatings, simAge, pos, 1);
+      const simOvr = computeOvr(pos, simRatings, heightCm);
+      if (simOvr > peak) peak = simOvr;
+    }
+    peaks.push(peak);
+  }
+  peaks.sort((a, b) => a - b);
+  const idx = Math.min(peaks.length - 1, Math.floor(POTENTIAL_SIM_PERCENTILE * peaks.length));
+  return peaks[idx];
+}
+
+/**
+ * Season-end rating movement (see stepRatings) followed by a fresh potential
+ * estimate off the new ratings. Does not mutate the input.
  */
 export function progressPlayer(
   rng: () => number,
@@ -95,13 +129,6 @@ export function progressPlayer(
   season: number,
 ): Player {
   const age = ageOf(player, season);
-  const gkShift = player.pos === "GK" ? GK_AGE_SHIFT : 0;
-
-  const potentialGap = player.potential - player.ovr;
-  const potentialFactor = Math.max(
-    POTENTIAL_FACTOR_MIN,
-    Math.min(POTENTIAL_FACTOR_MAX, 1 + potentialGap * POTENTIAL_FACTOR_PER_POINT),
-  );
 
   const lastSeasonStats = player.stats.find((s) => s.season === season);
   const appearances = lastSeasonStats?.appearances ?? 0;
@@ -109,24 +136,9 @@ export function progressPlayer(
     + (MINUTES_FACTOR_MAX - MINUTES_FACTOR_MIN)
       * Math.max(0, Math.min(1, appearances / FULL_SEASON_APPEARANCES));
 
-  const noiseSd = PROGRESSION_NOISE_SD_YOUNG
-    + (PROGRESSION_NOISE_SD_OLD - PROGRESSION_NOISE_SD_YOUNG)
-      * Math.max(0, Math.min(1, (age - 18) / (RETIREMENT_START_AGE - 18)));
-
-  const ratings = { ...player.ratings };
-  for (const [group, shift] of [
-    [PHYSICAL_KEYS, gkShift + PHYSICAL_AGE_SHIFT],
-    [SKILL_KEYS_GROUP, gkShift + SKILL_AGE_SHIFT],
-  ] as const) {
-    const base = baseAgeDelta(age + shift);
-    const mean = base > 0 ? base * potentialFactor * minutesFactor : base;
-    for (const key of group) {
-      ratings[key] = clampRating(ratings[key] + mean + gaussian(rng) * noiseSd);
-    }
-  }
-
+  const ratings = stepRatings(rng, player.ratings, age, player.pos, minutesFactor);
   const ovr = computeOvr(player.pos, ratings, player.heightCm);
-  const potential = rollPotential(rng, ovr, age, player.pos);
+  const potential = estimatePotential(rng, ratings, ovr, age, player.pos, player.heightCm);
 
   return {
     ...player,

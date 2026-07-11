@@ -13,9 +13,14 @@ export function NewLeague() {
 
   async function handleStart() {
     if (selectedTid === null) return;
-    const rng = mulberry32(Date.now());
-    const league = createLeagueState(selectedTid, rng);
-    await setLeague(league);
+    const seed = Date.now();
+    const rng = mulberry32(seed);
+    const league = createLeagueState(selectedTid, rng, seed);
+    const named = {
+      ...league,
+      meta: { ...league.meta, name: CLUBS[selectedTid].name },
+    };
+    await setLeague(named);
     navigate("/dashboard");
   }
 

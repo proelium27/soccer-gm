@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { migrateLeague } from "../../src/db/migrate.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState, type LeagueStore } from "../../src/core/leagueState.js";
+import { simThrough } from "../../src/core/simThrough.js";
 import { BASE_SEASON_BUDGET, HYPE_INITIAL, SCOUTING_SPEND_MIN } from "../../src/core/constants.js";
 
 describe("migrateLeague", () => {
@@ -38,6 +39,47 @@ describe("migrateLeague", () => {
       transfers: [{ pid: 1, fromTid: 2, toTid: 0, fee: 5_000_000, season: 1, window: "winter" }],
     };
     expect(migrateLeague(withDeals).transfers).toEqual(withDeals.transfers);
+  });
+
+  it("backfills minutesPlayed/rating fields from pre-Match-Rating saves", () => {
+    const league = simThrough(createLeagueState(0, mulberry32(5)), "game", mulberry32(6));
+    const preRating = {
+      ...league,
+      players: league.players.map((p) => ({
+        ...p,
+        stats: p.stats.map(({ minutesPlayed: _m, ratingSum: _r, avgRating: _a, ...rest }) => rest),
+      })),
+      played: league.played.map((m) => ({
+        ...m,
+        boxScore: {
+          ...m.boxScore,
+          home: m.boxScore.home.map(({ minutesPlayed: _m, rating: _r, ...rest }) => rest),
+          away: m.boxScore.away.map(({ minutesPlayed: _m, rating: _r, ...rest }) => rest),
+        },
+      })),
+    } as unknown as LeagueStore;
+
+    const migrated = migrateLeague(preRating);
+    for (const p of migrated.players) {
+      for (const ss of p.stats) {
+        expect(ss.minutesPlayed).toBe(0);
+        expect(ss.ratingSum).toBe(0);
+        expect(ss.avgRating).toBe(0);
+      }
+    }
+    for (const m of migrated.played) {
+      for (const line of [...m.boxScore.home, ...m.boxScore.away]) {
+        expect(line.minutesPlayed).toBe(0);
+        expect(line.rating).toBe(6.0);
+      }
+    }
+  });
+
+  it("leaves current match-rating fields untouched", () => {
+    const league = simThrough(createLeagueState(0, mulberry32(7)), "game", mulberry32(8));
+    const migrated = migrateLeague(league);
+    expect(migrated.players).toEqual(league.players);
+    expect(migrated.played).toEqual(league.played);
   });
 
   it("leaves current saves' finance values untouched", () => {

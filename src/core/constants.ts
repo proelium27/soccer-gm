@@ -1,10 +1,10 @@
 import type { Position } from "./players/types.js";
 
 /** League-average base rating; a team's base = LEAGUE_BASE + its strength target. */
-export const LEAGUE_BASE = 52;
+export const LEAGUE_BASE = 46;
 
 /** Half-range of per-team strength targets (pre-normalization magnitude). */
-export const TEAM_STRENGTH_SPREAD = 12;
+export const TEAM_STRENGTH_SPREAD = 7;
 
 /**
  * Composite normalization coefficient: normalized = 0.5 + NORMALIZE_K * z.
@@ -12,7 +12,7 @@ export const TEAM_STRENGTH_SPREAD = 12;
  * this (with the target distribution shape) governs both single-game favorite
  * odds and end-of-season table spread. Tuned against the M1 validation gates.
  */
-export const NORMALIZE_K = 0.07;
+export const NORMALIZE_K = 0.08;
 
 /** Std dev of per-player, per-rating gaussian noise. */
 export const RATING_NOISE_SD = 6;
@@ -32,6 +32,16 @@ export const ROSTER_COMPOSITION: Record<Position, number> = {
 
 /** Matchday bench size: the best remaining roster players (by ovr) after the starting XI. */
 export const BENCH_SIZE = 7;
+
+/**
+ * Hard squad-size limit enforced on player-adding actions (free-agent
+ * signings, transfer buys). Set comfortably above ROSTER_COMPOSITION's 25 so
+ * clubs have real squad depth, matching typical real-world first-team limits.
+ * Youth intake and AI free agency aren't gated by this (AI is trimmed back
+ * to ROSTER_COMPOSITION every offseason anyway); it only blocks actions that
+ * could otherwise let a roster grow without bound.
+ */
+export const ROSTER_CAP = 30;
 
 /** In-match injuries (M5): games missed once hurt, uniform between these inclusive bounds. */
 export const INJURY_GAMES_MIN = 1;
@@ -68,22 +78,26 @@ export const YOUTH_BASE_OFFSET = 20;
 export const BASE_AGE_CURVE_PEAK = 26;
 /** [age - peak, expected mean rating delta] control points; linearly interpolated between. */
 export const BASE_AGE_CURVE: readonly [number, number][] = [
-  [-8, 9], [-7, 8], [-6, 6.5], [-5, 5], [-4, 4], [-3, 3], [-2, 2], [-1, 1],
-  [0, 0.3], [1, 0], [2, -1], [3, -2], [4, -3.5], [5, -4.5], [6, -5.5], [7, -6.5],
-  [8, -7.5], [9, -8.5], [10, -9.5],
+  [-8, 3], [-7, 2.7], [-6, 2.2], [-5, 1.7], [-4, 1.3], [-3, 1], [-2, 0.65], [-1, 0.3],
+  [0, 0.1], [1, 0], [2, -0.5], [3, -1], [4, -1.75], [5, -2.25], [6, -2.75], [7, -3.25],
+  [8, -3.75], [9, -4.25], [10, -4.75],
 ];
 
-/** Physical ratings (speed, strength, stamina, jumping) read the curve this many years "older". */
+/**
+ * Physical ratings (speed, strength, stamina, jumping) read the curve this
+ * many years "older". Skill ratings (technical/mental + goalkeeping) read it
+ * this many years "younger", and GKs get an extra shift on top of that.
+ * Calibrated so each rating group's survival-weighted (retirement-aware)
+ * expected lifetime delta is ~0 or slightly negative for every position —
+ * a career should average out flat-to-declining, not net growth, or a
+ * dynasty's rostered population inflates without bound over decades (a
+ * bought-and-verified-empirically failure mode with the previous ±3/-3
+ * values, worst for skill-heavy positions like GK/CM/AM/DM).
+ */
 export const PHYSICAL_AGE_SHIFT = 3;
-/** Skill ratings (technical/mental + goalkeeping) read the curve this many years "younger". */
-export const SKILL_AGE_SHIFT = -3;
-/** Extra "younger" shift applied to every rating group for goalkeepers (career-long keepers). */
-export const GK_AGE_SHIFT = -3;
-
-/** Growth-phase (positive base delta) amplification from potential headroom, per rating point of (potential - ovr). */
-export const POTENTIAL_FACTOR_PER_POINT = 0.09;
-export const POTENTIAL_FACTOR_MIN = 0.4;
-export const POTENTIAL_FACTOR_MAX = 2.2;
+export const SKILL_AGE_SHIFT = -1.5;
+/** Extra "younger" shift applied to every rating group for goalkeepers (mild career-long-keeper edge). */
+export const GK_AGE_SHIFT = -0.5;
 
 /** Minutes played is a minor nudge on growth-phase deltas only, not the previous 0.3-1.0x multiplier. */
 export const MINUTES_FACTOR_MIN = 0.85;
@@ -92,33 +106,25 @@ export const MINUTES_FACTOR_MAX = 1.15;
 export const FULL_SEASON_APPEARANCES = 30;
 
 /** Per-rating noise std dev at age 18 and at age 33+, linearly interpolated by age (variance narrows with age). */
-export const PROGRESSION_NOISE_SD_YOUNG = 5;
-export const PROGRESSION_NOISE_SD_OLD = 2;
+export const PROGRESSION_NOISE_SD_YOUNG = 3.5;
+export const PROGRESSION_NOISE_SD_OLD = 1.5;
 
 /**
- * Potential headroom-by-age: expected additional room above current ovr,
- * before random spread is applied. Recalculated every offseason from the
- * player's *new* ovr, so potential moves with performance rather than being
- * fixed at birth. Also used to roll a player's initial potential at
- * generation, keyed by age (GKs get GK_AGE_SHIFT applied first).
+ * Potential (BBGM-style): a scout's *estimate*, not a growth driver. It plays
+ * no part in progressPlayer's math — actual development is driven only by
+ * age/rating-group and noise (per the BBGM manual: progression depends on
+ * current ratings, age, and coaching, never potential). Potential is instead
+ * computed by simulating a player's future career arc forward
+ * POTENTIAL_SIM_TRIALS times (same age-curve model, independent noise per
+ * trial) and reading off the POTENTIAL_SIM_PERCENTILE of each trial's peak
+ * ovr — so on average a player exceeds their listed potential about
+ * (1 - POTENTIAL_SIM_PERCENTILE) of the time, matching "most players never
+ * reach their potential, but some do and some exceed it."
  */
-export const POTENTIAL_HEADROOM_BY_AGE: readonly [number, number][] = [
-  [16, 11], [18, 9], [20, 7], [22, 5], [24, 3.5], [26, 2], [28, 1.3], [30, 0.7], [33, 0.3],
-];
-/** Potential headroom roll is headroom * uniform(POTENTIAL_ROLL_MIN, POTENTIAL_ROLL_MAX). */
-export const POTENTIAL_ROLL_MIN = 0.4;
-export const POTENTIAL_ROLL_MAX = 1.4;
-
-/**
- * Soft ceiling for rolled potential. At or below the knee the roll is used as-is;
- * above it the excess is compressed asymptotically toward RATING_MAX so elite
- * players spread across the high 90s instead of all pinning to exactly 99 at the
- * hard clamp. With these values a rolled potential of 99 needs a raw projection
- * of ~107 (i.e. an ovr already near the ceiling), making 99 practically
- * unreachable rather than a routine clamp result.
- */
-export const POTENTIAL_SOFT_CAP_KNEE = 90;
-export const POTENTIAL_SOFT_CAP_SCALE = 6;
+export const POTENTIAL_SIM_TRIALS = 16;
+/** Simulated trajectories run forward (in seasons) up to this age. */
+export const POTENTIAL_SIM_MAX_AGE = 40;
+export const POTENTIAL_SIM_PERCENTILE = 0.75;
 
 /** Retirement: no chance before this age; probability climbs per year after. */
 export const RETIREMENT_START_AGE = 33;
@@ -197,24 +203,61 @@ export const SCOUTING_NOISE_SD_MIN_SPEND = 0.35;
 export const SCOUTING_NOISE_SD_MAX_SPEND = 0.05;
 
 /**
- * Transfer valuation formula: value climbs steeply with ovr above a floor
- * (replacement-level players are worth little), is scaled by an age curve
- * peaking around the same prime as on-field performance, and by remaining
- * contract length (longer deals are harder/pricier to pry a player out of).
+ * Transfer valuation formula: a "current ability" base value that climbs
+ * steeply with ovr above a floor (replacement-level players are worth
+ * little), multiplied by a potential premium (VALUATION_POTENTIAL_*, priced
+ * on top rather than blended into ovr — soccer transfer fees pay for
+ * resale/ceiling on top of today's ability, not instead of it), an age
+ * curve (VALUATION_AGE_CURVE — youth is a premium in soccer's transfer
+ * market, not a discount: clubs are buying years of control and resale
+ * value), and a bonus for remaining contract length (longer deals are
+ * harder/pricier to pry a player out of).
  *
- * Calibrated to real 2025-market fees (base value at prime age, before the
- * contract multiplier of up to 1.4×): 99 ovr ≈ 120M (a generational player
- * pushes past 150M on a long deal), 90 ≈ 78M, 80 ≈ 44M, 75 ≈ 31M,
- * 70 ≈ 21M, 60 ≈ 7M.
+ * Recalibrated 2026-07-11 to the post-rebalance ovr scale (65 = average
+ * starter, 70 = good starter, 75 = a team's best player, 80-85 = league-wide
+ * elite, 90+ = rare outlier — see the M1 milestone note in CLAUDE.md; the
+ * original constants below were tuned against the older, more inflated
+ * scale where 65-70 was merely a decent squad player) and pinned to real
+ * transfer-market data (2025-ish Premier League, matching the
+ * BASE_SEASON_BUDGET calibration note above): an average starter runs
+ * 35-45M, a title-contender's best player 65-80M+, and a generational
+ * outlier like Haaland tops 200M. Base ("current ability") value with no
+ * potential gap, before age/potential/contract multipliers:
+ * 65 ~= 35M, 70 ~= 57M, 75 ~= 84M, 80 ~= 117M, 85 ~= 156M, 90 ~= 201M.
  */
-export const VALUATION_OVR_FLOOR = 40;
-export const VALUATION_OVR_COEFF = 3_000;
-export const VALUATION_OVR_EXPONENT = 2.6;
-export const VALUATION_AGE_PEAK = 26;
-export const VALUATION_AGE_FALLOFF_YOUNG = 0.02;
-export const VALUATION_AGE_FALLOFF_OLD = 0.08;
+export const VALUATION_OVR_FLOOR = 45;
+export const VALUATION_OVR_COEFF = 56_000;
+export const VALUATION_OVR_EXPONENT = 2.15;
 export const VALUATION_CONTRACT_YEAR_BONUS = 0.08;
 export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
+
+/**
+ * Age's effect on transfer value, as a straight multiplier — [age,
+ * multiplier] control points, linearly interpolated, clamped at the ends.
+ * Unlike a player's on-field ability curve, transfer value peaks in the
+ * late teens and falls off through the late 20s/30s: a young player is an
+ * asset (years of control, resale value, room to grow) independent of
+ * their potential gap, which is priced separately (VALUATION_POTENTIAL_*).
+ */
+export const VALUATION_AGE_CURVE: readonly [number, number][] = [
+  [16, 1.25], [17, 1.35], [18, 1.40], [19, 1.35], [20, 1.30], [21, 1.20],
+  [22, 1.10], [23, 1.00], [27, 1.00], [28, 0.90], [30, 0.75], [32, 0.55],
+];
+
+/**
+ * Potential premium: soccer transfer fees pay aggressively for ceiling, not
+ * just proven ability (a 17-year-old Bellingham went for ~25M on potential
+ * alone). Priced as a percentage bump on the base value, per point of
+ * (potential - ovr), scaled by an age weight — full weight through
+ * VALUATION_POTENTIAL_WEIGHT_PEAK_AGE, linearly decaying to zero by
+ * VALUATION_POTENTIAL_WEIGHT_ZERO_AGE (an older player's remaining
+ * "potential" isn't worth paying extra for — they won't live in it long).
+ * At full weight, VALUATION_POTENTIAL_PCT_PER_POINT * 20 = +70%, i.e. a
+ * 20-point gap at peak age roughly matches the Bellingham-style premium.
+ */
+export const VALUATION_POTENTIAL_PCT_PER_POINT = 0.035;
+export const VALUATION_POTENTIAL_WEIGHT_PEAK_AGE = 21;
+export const VALUATION_POTENTIAL_WEIGHT_ZERO_AGE = 30;
 
 /**
  * M6 transfer market (phases 3-7, see docs/finance-design.md). A club's

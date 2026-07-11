@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LeagueProvider, useLeague } from "./context/LeagueContext.js";
 import { Layout } from "./components/Layout.js";
+import { Leagues } from "./pages/Leagues.js";
 import { NewLeague } from "./pages/NewLeague.js";
 import { Dashboard } from "./pages/Dashboard.js";
 import { Standings } from "./pages/Standings.js";
@@ -13,8 +14,9 @@ import { Transfers } from "./pages/Transfers.js";
 import "./styles.css";
 
 function RootRedirect() {
-  const { league } = useLeague();
-  return <Navigate to={league ? "/dashboard" : "/new-league"} replace />;
+  const { league, loadingActiveLeague } = useLeague();
+  if (loadingActiveLeague) return <p className="p-3">Loading...</p>;
+  return <Navigate to={league ? "/dashboard" : "/leagues"} replace />;
 }
 
 export function App() {
@@ -22,6 +24,7 @@ export function App() {
     <BrowserRouter>
       <LeagueProvider>
         <Routes>
+          <Route path="/leagues" element={<Leagues />} />
           <Route path="/new-league" element={<NewLeague />} />
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<Dashboard />} />

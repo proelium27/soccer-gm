@@ -2,7 +2,7 @@ import type { Composites } from "../../engine/composites.js";
 import type { Player } from "../players/types.js";
 import type { MatchPlayer } from "../../engine/attribution.js";
 import type { League } from "./generate.js";
-import { selectXI } from "../lineup/selectXI.js";
+import { resolveXI } from "../lineup/resolveXI.js";
 import { FORMATIONS } from "../lineup/formations.js";
 import { rollupComposites } from "../composites.js";
 import { normalizeLeague, computeNormStats, normalizeWith } from "./normalize.js";
@@ -34,7 +34,7 @@ export function leagueMatchData(league: League): TeamMatchData[] {
   const benches: Player[][] = [];
   const raw = league.teams.map((t) => {
     const roster = t.roster.map((pid) => byPid.get(pid)!).filter((p) => !p.injury);
-    const xi = selectXI(roster, FORMATIONS["4-3-3"]);
+    const xi = resolveXI(roster, FORMATIONS["4-3-3"], t.starters);
     xis.push(xi);
     const xiPids = new Set(xi.map((p) => p.pid));
     const bench = roster

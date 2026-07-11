@@ -2,7 +2,7 @@ import type { Player, Position } from "./players/types.js";
 import { POSITIONS } from "./players/types.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import {
-  ROSTER_COMPOSITION, SALARY_PER_OVR, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
+  ROSTER_COMPOSITION, ROSTER_CAP, SALARY_PER_OVR, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
 } from "./constants.js";
 import { extendContract } from "./contracts.js";
 
@@ -148,9 +148,10 @@ export function releasePlayer(
 
 /**
  * Sign a specific free agent to a specific team (used by the user-facing free
- * agency page). No-op if the pid isn't actually a free agent. Terms are the
- * deterministic one-button contract (age-based length, ovr-based salary) so
- * the sign button can display them up front.
+ * agency page). No-op if the pid isn't actually a free agent or the team is
+ * already at ROSTER_CAP. Terms are the deterministic one-button contract
+ * (age-based length, ovr-based salary) so the sign button can display them
+ * up front.
  */
 export function signFreeAgent(
   teams: StoredTeam[],
@@ -160,6 +161,10 @@ export function signFreeAgent(
   season: number,
 ): { teams: StoredTeam[]; players: Player[] } {
   if (!freeAgentPids(teams, players).has(pid)) {
+    return { teams, players };
+  }
+  const team = teams.find((t) => t.tid === tid);
+  if (!team || team.roster.length >= ROSTER_CAP) {
     return { teams, players };
   }
 

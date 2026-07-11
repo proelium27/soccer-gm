@@ -42,6 +42,9 @@ function accumulateStats(
       ss.shotsOnTarget += line.shotsOnTarget;
       ss.saves += line.saves;
       ss.tackles += line.tackles;
+      ss.minutesPlayed += line.minutesPlayed;
+      ss.ratingSum += line.rating;
+      ss.avgRating = ss.ratingSum / ss.appearances;
     }
   }
 }
@@ -93,6 +96,8 @@ export function simThrough(
     name: t.name,
     roster: t.roster,
     avgOvr: 0,
+    academyBase: t.academyBase,
+    starters: t.starters,
   }));
 
   const toSim: ScheduleGame[] = [];

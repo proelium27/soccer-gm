@@ -9,6 +9,8 @@ import {
 } from "../../core/transfers/negotiation.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
 import { currency, formatWeeklyWage } from "../format.js";
+import { Flag } from "../components/Flag.js";
+import { ROSTER_CAP } from "../../core/constants.js";
 
 function windowBanner(league: LeagueStore): React.ReactNode {
   const ws = transferWindowState(league);
@@ -128,6 +130,7 @@ export function Transfers() {
   }
 
   const ws = transferWindowState(league);
+  const atCap = userTeam.roster.length >= ROSTER_CAP;
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   const teamName = (tid: number) =>
     league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
@@ -154,7 +157,13 @@ export function Transfers() {
       <p>
         Budget: <strong>{currency.format(userTeam.budget)}</strong>
         {" "}&middot; Scout valuations tighten with scouting spend (set on the Dashboard).
+        {" "}&middot; Roster: <strong>{userTeam.roster.length}/{ROSTER_CAP}</strong>
       </p>
+      {atCap && (
+        <div className="alert alert-warning">
+          Your roster is full ({ROSTER_CAP}/{ROSTER_CAP}). Release a player before buying another.
+        </div>
+      )}
 
       {ws.open && (
         <div className="card mb-3">
@@ -185,7 +194,9 @@ export function Transfers() {
                 <tbody>
                   {targets.map(({ player: p, sellerTid, scoutedValue }) => (
                     <tr key={p.pid}>
-                      <td>{p.name}</td>
+                      <td>
+                        {p.name} <Flag nationality={p.nationality} />
+                      </td>
                       <td>{p.pos}</td>
                       <td className="text-end">{league.season - p.born}</td>
                       <td className="text-end">{p.ovr}</td>
@@ -199,7 +210,7 @@ export function Transfers() {
                           negotiation={negotiationByPid.get(p.pid)}
                           suggested={scoutedValue}
                           budget={userTeam.budget}
-                          disabled={simming}
+                          disabled={simming || atCap}
                           onOffer={makeOfferAction}
                           onAcceptCounter={acceptCounterAction}
                         />
@@ -224,14 +235,16 @@ export function Transfers() {
                   if (!p) return null;
                   return (
                     <tr key={n.pid}>
-                      <td>{p.name} ({p.pos}, {teamName(n.sellerTid)})</td>
+                      <td>
+                        {p.name} <Flag nationality={p.nationality} /> ({p.pos}, {teamName(n.sellerTid)})
+                      </td>
                       <td>
                         <NegotiationControls
                           pid={n.pid}
                           negotiation={n}
                           suggested={n.counter ?? n.offers.at(-1) ?? 0}
                           budget={userTeam.budget}
-                          disabled={simming}
+                          disabled={simming || atCap}
                           onOffer={makeOfferAction}
                           onAcceptCounter={acceptCounterAction}
                         />
@@ -254,7 +267,8 @@ export function Transfers() {
                 const p = playerMap.get(t.pid);
                 return (
                   <li key={i}>
-                    {p?.name ?? `Player ${t.pid}`} — {teamName(t.fromTid)} →{" "}
+                    {p?.name ?? `Player ${t.pid}`}{" "}
+                    {p && <Flag nationality={p.nationality} />} — {teamName(t.fromTid)} →{" "}
                     {teamName(t.toTid)} for {currency.format(t.fee)}
                   </li>
                 );
