@@ -97,3 +97,20 @@ describe("migrateLeague", () => {
     }
   });
 });
+
+describe("migrateLeague pre-M3 box scores", () => {
+  it("tolerates played matches with no boxScore at all", () => {
+    const league = simThrough(createLeagueState(0, mulberry32(7)), "game", mulberry32(8));
+    expect(league.played.length).toBeGreaterThan(0);
+    const preM3 = {
+      ...league,
+      played: league.played.map(({ boxScore: _b, ...rest }) => rest),
+    } as unknown as LeagueStore;
+
+    const migrated = migrateLeague(preM3);
+    expect(migrated.played).toHaveLength(league.played.length);
+    for (const m of migrated.played) {
+      expect(m.boxScore).toEqual({ home: [], away: [], events: [] });
+    }
+  });
+});

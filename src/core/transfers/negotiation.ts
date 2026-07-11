@@ -5,8 +5,9 @@ import type { TransferWindowKind } from "./window.js";
 import { transferWindowState } from "./window.js";
 import { trueTransferValue, perceivedTransferValue } from "../finance/valuation.js";
 import { mulberry32 } from "../../engine/rng.js";
+import { keepsDepthFloor } from "../freeAgency.js";
 import {
-  ROSTER_COMPOSITION, ROSTER_CAP,
+  ROSTER_CAP,
   RESERVATION_FACTOR_MIN, RESERVATION_FACTOR_MAX,
   NEGOTIATION_LOWBALL_FACTOR, NEGOTIATION_MAX_ROUNDS,
   COUNTER_PADDING_START, COUNTER_PADDING_DECAY,
@@ -72,11 +73,7 @@ export function isForSale(
   players: Map<number, Player>,
   pid: number,
 ): boolean {
-  const p = players.get(pid);
-  if (!p || !seller.roster.includes(pid)) return false;
-  const depthAfterSale =
-    seller.roster.filter((q) => players.get(q)?.pos === p.pos).length - 1;
-  return depthAfterSale >= Math.ceil(ROSTER_COMPOSITION[p.pos] / 2);
+  return keepsDepthFloor(seller, players, pid);
 }
 
 /**
