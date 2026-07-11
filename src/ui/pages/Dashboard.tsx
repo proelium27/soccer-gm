@@ -5,13 +5,7 @@ import { computeStandings } from "../../core/standings.js";
 import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
 import { TRANSFER_DEADLINE_MATCHDAY } from "../../core/calendar.js";
 import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
-import { currency } from "../format.js";
-
-function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
+import { currency, ordinal } from "../format.js";
 
 export function Dashboard() {
   const { league, simAction, offseasonAction, setScoutingSpendAction, simming } = useLeague();
@@ -119,6 +113,7 @@ export function Dashboard() {
           <h5 className="card-title">Finances</h5>
           <p className="card-text mb-2">
             Budget: {currency.format(userTeam.budget)} &middot; Hype: {Math.round(userTeam.hype)}/100
+            {" "}&middot; <Link to="/finance">Full breakdown</Link>
           </p>
           <p className="card-text mb-2">
             {(() => {
