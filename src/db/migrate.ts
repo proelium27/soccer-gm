@@ -1,5 +1,5 @@
 import type { LeagueStore } from "../core/leagueState.js";
-import type { StoredTeam } from "../core/teams/clubs.js";
+import { CLUBS, type StoredTeam } from "../core/teams/clubs.js";
 import type { Player, SeasonStats } from "../core/players/types.js";
 import type { PlayerMatchLine } from "../engine/attribution.js";
 import {
@@ -60,6 +60,10 @@ function migratePlayer(p: Player): Player {
  * minutes/rating on season stats and historical box scores — those can't be
  * reconstructed after the fact (no clock data survives), so they default to
  * 0 minutes / a neutral 6.0 rating rather than being left undefined.
+ *
+ * Club identities (name/abbrev/colors) are static and keyed by tid, so they
+ * are re-stamped from CLUBS on every load — saves written before the switch
+ * to real Premier League clubs pick up the new identities automatically.
  */
 export function migrateLeague(league: LeagueStore): LeagueStore {
   const anyVersion = league as LeagueStoreAnyVersion;
@@ -67,6 +71,9 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     ...league,
     teams: (league.teams as StoredTeamAnyVersion[]).map((t) => ({
       ...t,
+      name: CLUBS[t.tid]?.name ?? t.name,
+      abbrev: CLUBS[t.tid]?.abbrev ?? t.abbrev,
+      colors: CLUBS[t.tid]?.colors ?? t.colors,
       budget: t.budget ?? BASE_SEASON_BUDGET,
       hype: t.hype ?? HYPE_INITIAL,
       scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_MIN,
