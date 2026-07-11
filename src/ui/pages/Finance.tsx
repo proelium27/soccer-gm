@@ -79,7 +79,8 @@ export function Finance() {
           <h5 className="card-title">{userTeam.name}</h5>
           <p className="card-text mb-2">
             Budget: <strong>{currency.format(userTeam.budget)}</strong> &middot;{" "}
-            Hype: {Math.round(userTeam.hype)}/100
+            Wages due at season end: <strong>{currency.format(wages)}</strong>{" "}
+            ({formatWeeklyWage(wages)}) &middot; Hype: {Math.round(userTeam.hype)}/100
           </p>
           <label className="form-label mb-1" htmlFor="finance-scouting-spend">
             Scouting spend this season:{" "}

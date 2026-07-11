@@ -132,13 +132,21 @@ export const RETIREMENT_PROB_PER_YEAR = 0.12;
 export const RETIREMENT_BASE_PROB = 0.05;
 
 /**
- * Free agency / youth contracts: placeholder linear salary until the real
- * contract system lands. Stored as a per-season total; at 20k per ovr point
- * a 75-ovr starter earns ~1.5M/season (~29k/week), in line with real
- * mid-tier wages. Deliberately flat at the top end — superstar wage
- * escalation can come with the contract redesign.
+ * Wages (2026-07-11 rework, replacing the flat 20k-per-ovr placeholder):
+ * weekly wage = WAGE_WEEKLY_MIN + WAGE_WEEKLY_COEFF * (ovr - WAGE_OVR_FLOOR)^3,
+ * times a deterministic per-signing variation of ±WAGE_VARIATION, rounded to
+ * the nearest 100 and stored as a per-season total (weekly × 52). The cubic
+ * matches the real Premier League's superstar wage escalation on the
+ * post-rebalance ovr scale (65 = average starter … 90+ = rare outlier):
+ * ovr 50 ≈ 4.5k/wk, 60 ≈ 22k, 65 ≈ 41k, 70 ≈ 70k, 75 ≈ 109k, 80 ≈ 162k,
+ * 85 ≈ 230k, 90 ≈ 314k, 99 ≈ 515k — versus the old formula's near-flat
+ * 23k → 34k/wk over that whole range.
  */
-export const SALARY_PER_OVR = 20_000;
+export const WAGE_WEEKLY_MIN = 2_000;
+export const WAGE_OVR_FLOOR = 40;
+export const WAGE_WEEKLY_COEFF = 2.5;
+/** Per-signing wage spread: two same-ovr players can differ by up to ±15%. */
+export const WAGE_VARIATION = 0.15;
 export const CONTRACT_LENGTH_MIN = 1;
 export const CONTRACT_LENGTH_MAX = 3;
 export const YOUTH_CONTRACT_LENGTH = 2;
@@ -150,17 +158,32 @@ export const YOUTH_CONTRACT_LENGTH = 2;
  * clubs don't snowball.
  *
  * Scale invariant (tested in budget.test.ts): the base allocation alone must
- * exceed the maximum possible season expenses (a full roster of 99-ovr
- * salaries plus max scouting spend), so no club can ever lose money — per
- * design, deficits/debt do not exist in this game.
+ * exceed the wage bill of WAGE_SAFE_SQUAD on worst-case (+WAGE_VARIATION)
+ * deals — a benchmark squad shaped like the strongest AI club observed in
+ * 25-season dynasty audits of the cubic wage rework (max AI wage bill ~86M
+ * across 3 seeds × 25 seasons × 19 clubs; actual settlement margins never
+ * dropped below +32M because big-wage squads reliably earn prize/hype
+ * revenue on top). AI clubs never spend on scouting, so the AI invariant
+ * excludes it. The pre-rework theoretical ceiling (25 players at 99 ovr) is
+ * no longer coverable: only a user deliberately hoarding a ROSTER_CAP squad
+ * of elite players can outspend the base (a documented, user-controlled
+ * gap — the Finance page projects the shortfall).
  *
- * Calibrated to the real-world market (2025-ish Premier League), leaving an
- * average club ~55-60M/season to spend — matching real transfer outlays
- * against valuations where a superstar costs 150M+ and a solid starter
- * 30-50M. Note the invariant margin is thin: max expenses are ~69.5M
- * (49.5M ceiling wage bill + 20M max scouting) against this base.
+ * Calibrated to the real-world market (2025-ish Premier League): the
+ * equilibrium average wage bill is ~30M/season, leaving an average club
+ * ~65-80M/season for transfers and scouting against valuations where a
+ * superstar costs 150M+ and a solid starter 30-50M.
  */
-export const BASE_SEASON_BUDGET = 75_000_000;
+export const BASE_SEASON_BUDGET = 95_000_000;
+/**
+ * Benchmark "dominant AI squad" the base allocation must out-fund on
+ * worst-case wage deals (see the invariant note above): [count, ovr] rows,
+ * matching the strongest squad shape AI free agency + progression produced
+ * in dynasty audits (a 73-ovr starting XI is beyond equilibrium AI strength).
+ */
+export const WAGE_SAFE_SQUAD: readonly [count: number, ovr: number][] = [
+  [11, 73], [7, 66], [7, 56],
+];
 
 /**
  * Prize money by final domestic league position, paid on top of the equal

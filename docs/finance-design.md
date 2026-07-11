@@ -33,10 +33,24 @@ window closing around matchday 22, the existing "deadline" sim target).
    (`HYPE_REVENUE_PER_POINT × HYPE_REVENUE_DAMPING`, capped well below the
    success-payout spread).
 
-**No deficits, ever.** Clubs in this game never lose money. The base
-allocation alone exceeds the maximum possible season expenses (full roster of
-ceiling-ovr wages plus max scouting spend), so budgets only grow. This is a
-tested invariant (`test/core/finance/budget.test.ts`), not a clamp.
+**No AI deficits, ever.** AI clubs in this game never lose money. The base
+allocation alone exceeds the wage bill of a benchmark squad stronger than
+anything AI free agency + progression assembles (`WAGE_SAFE_SQUAD`, shaped
+from 25-season dynasty audits; AI clubs never spend on scouting), so AI
+budgets only grow. This is a tested invariant
+(`test/core/finance/budget.test.ts`), not a clamp. Since the 2026-07-11 cubic
+wage rework, a *user* deliberately hoarding a ROSTER_CAP squad of elite
+players can outspend the base — the Finance page's settlement projection
+shows the shortfall before it lands.
+
+**Wages** (2026-07-11 rework): weekly wage = `WAGE_WEEKLY_MIN +
+WAGE_WEEKLY_COEFF × (ovr − WAGE_OVR_FLOOR)³`, times a deterministic
+per-signing ±`WAGE_VARIATION` roll, rounded to £100 and stored as the
+per-season total (×52). Calibrated to the Premier League on the
+post-rebalance ovr scale: ~£22k/wk at 60 ovr, ~£41k at 65, ~£70k at 70,
+~£109k at 75, ~£162k at 80, ~£314k at 90. The cubic replaces the original
+flat 20k-per-ovr placeholder, whose 23k→34k/wk range never separated
+superstars from squad players.
 
 ## How transfers work
 

@@ -2,9 +2,9 @@ import type { Player, Position } from "./players/types.js";
 import { POSITIONS } from "./players/types.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import {
-  ROSTER_COMPOSITION, ROSTER_CAP, SALARY_PER_OVR, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
+  ROSTER_COMPOSITION, ROSTER_CAP, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
 } from "./constants.js";
-import { extendContract } from "./contracts.js";
+import { extendContract, seasonSalaryForOvr } from "./contracts.js";
 
 /** Pids not currently on any team's roster. */
 export function freeAgentPids(teams: StoredTeam[], players: Player[]): Set<number> {
@@ -83,7 +83,7 @@ export function runAIFreeAgency(
         const length = CONTRACT_LENGTH_MIN
           + Math.floor(rng() * (CONTRACT_LENGTH_MAX - CONTRACT_LENGTH_MIN + 1));
         signing.contract = {
-          salary: SALARY_PER_OVR * signing.ovr,
+          salary: seasonSalaryForOvr(signing.ovr, signing.pid, season),
           expiresSeason: season + length,
         };
         team.roster.push(signing.pid);

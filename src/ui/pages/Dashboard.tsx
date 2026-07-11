@@ -5,6 +5,7 @@ import { computeStandings } from "../../core/standings.js";
 import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
 import { TRANSFER_DEADLINE_MATCHDAY } from "../../core/calendar.js";
 import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
+import { wageBill } from "../../core/finance/budget.js";
 import { currency, ordinal } from "../format.js";
 
 export function Dashboard() {
@@ -114,6 +115,17 @@ export function Dashboard() {
           <p className="card-text mb-2">
             Budget: {currency.format(userTeam.budget)} &middot; Hype: {Math.round(userTeam.hype)}/100
             {" "}&middot; <Link to="/finance">Full breakdown</Link>
+          </p>
+          <p className="card-text mb-2">
+            Wages due at season end:{" "}
+            <strong>
+              {currency.format(
+                wageBill(
+                  userTeam.roster,
+                  new Map(league.players.map((p) => [p.pid, p.contract.salary])),
+                ),
+              )}
+            </strong>
           </p>
           <p className="card-text mb-2">
             {(() => {
