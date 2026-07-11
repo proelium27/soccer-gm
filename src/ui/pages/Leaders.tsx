@@ -3,7 +3,7 @@ import { useLeague } from "../context/LeagueContext.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
 import { Flag } from "../components/Flag.js";
 
-type StatKey = "goals" | "assists" | "shots" | "shotsOnTarget" | "saves" | "tackles";
+type StatKey = "goals" | "assists" | "shots" | "shotsOnTarget" | "saves" | "tackles" | "avgRating";
 
 const STAT_OPTIONS: { key: StatKey; label: string }[] = [
   { key: "goals", label: "Goals" },
@@ -12,6 +12,7 @@ const STAT_OPTIONS: { key: StatKey; label: string }[] = [
   { key: "shotsOnTarget", label: "Shots on Target" },
   { key: "saves", label: "Saves" },
   { key: "tackles", label: "Tackles" },
+  { key: "avgRating", label: "Match Rating" },
 ];
 
 interface LeaderRow {
@@ -91,6 +92,7 @@ export function Leaders() {
             <th className="text-end">SoT</th>
             <th className="text-end">Sv</th>
             <th className="text-end">Tkl</th>
+            <th className="text-end">Rtg</th>
           </tr>
         </thead>
         <tbody>
@@ -112,6 +114,7 @@ export function Leaders() {
               <td className="text-end">{row.stats.shotsOnTarget}</td>
               <td className="text-end">{row.stats.saves}</td>
               <td className="text-end">{row.stats.tackles}</td>
+              <td className="text-end">{row.stats.avgRating.toFixed(2)}</td>
             </tr>
           ))}
         </tbody>

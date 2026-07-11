@@ -45,6 +45,9 @@ export interface PlayerMatchLine {
   tackles: number;
   yellowCards: number;
   redCards: number;
+  minutesPlayed: number;
+  /** FotMob-style 1-10 match performance rating; see engine/matchRating.ts. */
+  rating: number;
 }
 
 export interface BoxScore {
@@ -154,6 +157,6 @@ export function eventTypeFromShot(outcome: ShotOutcome): MatchEventType {
 export function emptyLine(pid: number): PlayerMatchLine {
   return {
     pid, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, saves: 0, tackles: 0,
-    yellowCards: 0, redCards: 0,
+    yellowCards: 0, redCards: 0, minutesPlayed: 0, rating: 6.0,
   };
 }

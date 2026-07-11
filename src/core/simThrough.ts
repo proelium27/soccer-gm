@@ -42,6 +42,9 @@ function accumulateStats(
       ss.shotsOnTarget += line.shotsOnTarget;
       ss.saves += line.saves;
       ss.tackles += line.tackles;
+      ss.minutesPlayed += line.minutesPlayed;
+      ss.ratingSum += line.rating;
+      ss.avgRating = ss.ratingSum / ss.appearances;
     }
   }
 }

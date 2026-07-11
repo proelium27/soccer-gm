@@ -20,10 +20,18 @@ export interface SeasonStats {
   shotsOnTarget: number;
   saves: number;
   tackles: number;
+  minutesPlayed: number;
+  /** Sum of per-match ratings across appearances; divide by `appearances` for the average. */
+  ratingSum: number;
+  /** Kept alongside ratingSum (rather than derived on read) so Leaders.tsx can sort/index it like any other stat. */
+  avgRating: number;
 }
 
 export function emptySeasonStats(season: number): SeasonStats {
-  return { season, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, saves: 0, tackles: 0 };
+  return {
+    season, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, saves: 0, tackles: 0,
+    minutesPlayed: 0, ratingSum: 0, avgRating: 0,
+  };
 }
 
 export interface RatingsSnapshot { season: number; ratings: PlayerRatings; ovr: number; potential: number; }
