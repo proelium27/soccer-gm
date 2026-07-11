@@ -9,6 +9,8 @@ import { signFreeAgent, releasePlayer } from "../../core/freeAgency.js";
 import { clampScoutingSpend } from "../../core/finance/scouting.js";
 import { makeTransferOffer, acceptCounterOffer } from "../../core/transfers/negotiation.js";
 import { extendContract } from "../../core/contracts.js";
+import { isValidStarters } from "../../core/lineup/resolveXI.js";
+import { FORMATIONS } from "../../core/lineup/formations.js";
 import { SimOverlay } from "../components/SimOverlay.js";
 
 interface LeagueContextValue {
@@ -51,146 +53,196 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const [animQueue, setAnimQueue] = useState<SimProgress[]>([]);
   const [animDone, setAnimDone] = useState(false);
   const pendingResultRef = useRef<LeagueStore | null>(null);
+  const overlayOpenRef = useRef(false);
+
+  // Every league mutation runs through runExclusive and reads the league from
+  // leagueRef at execution time. React state alone isn't enough: a callback
+  // captures the league from the render it was created in, so two actions
+  // fired inside one save's IndexedDB round-trip would both compute from the
+  // same stale snapshot and the second save would silently revert the first
+  // (lost update). The ref gives queued actions the freshest committed value;
+  // the promise chain guarantees only one read-modify-save runs at a time.
+  const leagueRef = useRef<LeagueStore | null>(null);
+  const chainRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingOpsRef = useRef(0);
+  const [busy, setBusy] = useState(false);
+
+  const commitLeague = useCallback((l: LeagueStore | null) => {
+    leagueRef.current = l;
+    setLeagueState(l);
+  }, []);
+
+  const runExclusive = useCallback((fn: () => Promise<void>): Promise<void> => {
+    pendingOpsRef.current++;
+    setBusy(true);
+    const run = chainRef.current.then(fn).finally(() => {
+      pendingOpsRef.current--;
+      if (pendingOpsRef.current === 0) setBusy(false);
+    });
+    chainRef.current = run.catch(() => {});
+    return run;
+  }, []);
+
+  /** Serialized read-modify-save; `fn` returning null (or the input) is a no-op. */
+  const mutate = useCallback(
+    (fn: (league: LeagueStore) => LeagueStore | null) =>
+      runExclusive(async () => {
+        const current = leagueRef.current;
+        if (!current) return;
+        const updated = fn(current);
+        if (!updated || updated === current) return;
+        const lid = await saveLeague(updated);
+        commitLeague({ ...updated, lid });
+      }),
+    [runExclusive, commitLeague],
+  );
 
   useEffect(() => {
     const activeLid = getActiveLid();
     if (activeLid === null) return;
     loadLeague(activeLid).then((l) => {
-      if (l) setLeagueState(l);
+      if (l) commitLeague(l);
       else clearActiveLid();
       setLoadingActiveLeague(false);
     });
-  }, []);
+  }, [commitLeague]);
 
   const setLeague = useCallback(async (l: LeagueStore) => {
     const lid = await saveLeague(l);
     const saved = { ...l, lid };
     setActiveLid(lid);
-    setLeagueState(saved);
-  }, []);
+    commitLeague(saved);
+  }, [commitLeague]);
 
   const loadLeagueAction = useCallback(async (lid: number) => {
     const l = await loadLeague(lid);
     if (l) {
       setActiveLid(lid);
-      setLeagueState(l);
+      commitLeague(l);
     }
-  }, []);
+  }, [commitLeague]);
 
   const switchLeagueAction = useCallback(() => {
     clearActiveLid();
-    setLeagueState(null);
-  }, []);
+    commitLeague(null);
+  }, [commitLeague]);
 
-  const finishSimAnimation = useCallback(async () => {
-    const result = pendingResultRef.current;
-    pendingResultRef.current = null;
+  const closeOverlay = useCallback(() => {
+    overlayOpenRef.current = false;
     setSimOverlayOpen(false);
     setAnimQueue([]);
     setAnimDone(false);
-    if (result) {
-      const lid = await saveLeague(result);
-      setLeagueState({ ...result, lid });
-    }
   }, []);
 
-  const simAction = useCallback(async (through: SimThrough) => {
-    if (!league || simOverlayOpen) return;
+  const finishSimAnimation = useCallback(() => runExclusive(async () => {
+    const result = pendingResultRef.current;
+    pendingResultRef.current = null;
+    // Persist before dropping the overlay: the overlay is what blocks other
+    // actions, so closing it first would open a window where a click reads
+    // pre-sim state and gets clobbered by this save.
+    if (result) {
+      const lid = await saveLeague(result);
+      commitLeague({ ...result, lid });
+    }
+    closeOverlay();
+  }), [runExclusive, commitLeague, closeOverlay]);
+
+  const simAction = useCallback((through: SimThrough) => runExclusive(async () => {
+    const current = leagueRef.current;
+    if (!current || overlayOpenRef.current) return;
     setAnimQueue([]);
     setAnimDone(false);
+    overlayOpenRef.current = true;
     setSimOverlayOpen(true);
-    const result = await sim(through, league, (progress) => {
-      setAnimQueue((q) => [...q, progress]);
-    });
-    // Reference equality can't survive the worker's structured clone, so
-    // detect a no-op sim by comparing played-game counts.
-    if (result.played.length === league.played.length) {
-      // Nothing was simmed (e.g. no schedule left) — skip the overlay.
+    try {
+      const result = await sim(through, current, (progress) => {
+        setAnimQueue((q) => [...q, progress]);
+      });
+      // Reference equality can't survive the worker's structured clone, so
+      // detect a no-op sim by comparing played-game counts.
+      if (result.played.length === current.played.length) {
+        // Nothing was simmed (e.g. no schedule left) — skip the overlay.
+        pendingResultRef.current = null;
+        closeOverlay();
+        return;
+      }
+      pendingResultRef.current = result;
+      setAnimDone(true);
+    } catch (err) {
       pendingResultRef.current = null;
-      setSimOverlayOpen(false);
-      setAnimQueue([]);
-      setAnimDone(false);
-      return;
+      closeOverlay();
+      console.error("Simulation failed:", err);
     }
-    pendingResultRef.current = result;
-    setAnimDone(true);
-  }, [league, sim, simOverlayOpen]);
+  }), [runExclusive, sim, closeOverlay]);
 
-  const offseasonAction = useCallback(async () => {
-    if (!league) return;
-    const result = await runOffseason(league);
-    const lid = await saveLeague(result);
-    setLeagueState({ ...result, lid });
-  }, [league, runOffseason]);
+  const offseasonAction = useCallback(() => runExclusive(async () => {
+    const current = leagueRef.current;
+    if (!current) return;
+    try {
+      const result = await runOffseason(current);
+      const lid = await saveLeague(result);
+      commitLeague({ ...result, lid });
+    } catch (err) {
+      console.error("Offseason failed:", err);
+    }
+  }), [runExclusive, runOffseason, commitLeague]);
 
-  const signFreeAgentAction = useCallback(async (pid: number) => {
-    if (!league) return;
+  const signFreeAgentAction = useCallback((pid: number) => mutate((l) => {
     const { teams, players } = signFreeAgent(
-      league.teams,
-      league.players,
-      league.meta.userTid,
+      l.teams,
+      l.players,
+      l.meta.userTid,
       pid,
-      league.season,
+      l.season,
     );
-    const updated = { ...league, teams, players };
-    const lid = await saveLeague(updated);
-    setLeagueState({ ...updated, lid });
-  }, [league]);
+    if (teams === l.teams && players === l.players) return null;
+    return { ...l, teams, players };
+  }), [mutate]);
 
-  const makeOfferAction = useCallback(async (pid: number, amount: number) => {
-    if (!league) return;
-    const updated = makeTransferOffer(league, pid, amount);
-    const lid = await saveLeague(updated);
-    setLeagueState({ ...updated, lid });
-  }, [league]);
+  const makeOfferAction = useCallback((pid: number, amount: number) => mutate(
+    (l) => makeTransferOffer(l, pid, amount),
+  ), [mutate]);
 
-  const acceptCounterAction = useCallback(async (pid: number) => {
-    if (!league) return;
-    const updated = acceptCounterOffer(league, pid);
-    const lid = await saveLeague(updated);
-    setLeagueState({ ...updated, lid });
-  }, [league]);
+  const acceptCounterAction = useCallback((pid: number) => mutate(
+    (l) => acceptCounterOffer(l, pid),
+  ), [mutate]);
 
-  const extendContractAction = useCallback(async (pid: number) => {
-    if (!league) return;
-    const updated = { ...league, players: extendContract(league.players, pid, league.season) };
-    const lid = await saveLeague(updated);
-    setLeagueState({ ...updated, lid });
-  }, [league]);
+  const extendContractAction = useCallback((pid: number) => mutate(
+    (l) => ({ ...l, players: extendContract(l.players, pid, l.season) }),
+  ), [mutate]);
 
-  const releasePlayerAction = useCallback(async (pid: number) => {
-    if (!league) return;
-    const teams = releasePlayer(league.teams, league.meta.userTid, pid);
-    const updated = { ...league, teams };
-    const lid = await saveLeague(updated);
-    setLeagueState({ ...updated, lid });
-  }, [league]);
+  const releasePlayerAction = useCallback((pid: number) => mutate((l) => {
+    const teams = releasePlayer(l.teams, l.players, l.meta.userTid, pid);
+    if (teams === l.teams) return null;
+    return { ...l, teams };
+  }), [mutate]);
 
-  const setLineupAction = useCallback(async (starters: number[]) => {
-    if (!league) return;
-    const teams = league.teams.map((t) => {
-      if (t.tid !== league.meta.userTid) return t;
-      return { ...t, starters };
-    });
-    const updated = { ...league, teams };
-    const lid = await saveLeague(updated);
-    setLeagueState({ ...updated, lid });
-  }, [league]);
+  const setLineupAction = useCallback((starters: number[]) => mutate((l) => {
+    const user = l.teams.find((t) => t.tid === l.meta.userTid);
+    if (!user) return null;
+    const rosterSet = new Set(user.roster);
+    const rosterPlayers = l.players.filter((p) => rosterSet.has(p.pid));
+    // Refuse invalid lineups (duplicate pids, off-roster pids, non-GK in the
+    // GK slot) at the action layer so bad state can never be persisted, no
+    // matter what the drag-and-drop UI lets through.
+    if (!isValidStarters(rosterPlayers, FORMATIONS["4-3-3"], starters)) return null;
+    return {
+      ...l,
+      teams: l.teams.map((t) => (t.tid === l.meta.userTid ? { ...t, starters } : t)),
+    };
+  }), [mutate]);
 
-  const setScoutingSpendAction = useCallback(async (spend: number) => {
-    if (!league) return;
-    const teams = league.teams.map((t) => {
-      if (t.tid !== league.meta.userTid) return t;
+  const setScoutingSpendAction = useCallback((spend: number) => mutate((l) => ({
+    ...l,
+    teams: l.teams.map((t) => {
+      if (t.tid !== l.meta.userTid) return t;
       return { ...t, scoutingSpend: clampScoutingSpend(spend, t.budget) };
-    });
-    const updated = { ...league, teams };
-    const lid = await saveLeague(updated);
-    setLeagueState({ ...updated, lid });
-  }, [league]);
+    }),
+  })), [mutate]);
 
   const saveToDb = useCallback(async () => {
-    if (league) await saveLeague(league);
-  }, [league]);
+    if (leagueRef.current) await saveLeague(leagueRef.current);
+  }, []);
 
   const doExport = useCallback(() => {
     if (league) exportLeagueJSON(league);
@@ -200,8 +252,8 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     const imported = await importLeagueJSON(file);
     const lid = await saveLeague(imported);
     setActiveLid(lid);
-    setLeagueState({ ...imported, lid });
-  }, []);
+    commitLeague({ ...imported, lid });
+  }, [commitLeague]);
 
   return (
     <Ctx.Provider value={{
@@ -219,7 +271,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       acceptCounterAction,
       extendContractAction,
       setLineupAction,
-      simming: simming || simOverlayOpen,
+      simming: simming || simOverlayOpen || busy,
       saveToDb,
       exportJSON: doExport,
       importJSON: doImport,

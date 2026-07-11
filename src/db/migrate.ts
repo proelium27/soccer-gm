@@ -34,6 +34,17 @@ type SeasonStatsAnyVersion = Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "
 type PlayerMatchLineAnyVersion = Omit<PlayerMatchLine, "minutesPlayed" | "rating"> &
   Partial<Pick<PlayerMatchLine, "minutesPlayed" | "rating">>;
 
+/** A played match as it may exist in a save written before M3 added box scores. */
+type PlayedMatchAnyVersion = {
+  boxScore?: {
+    home: PlayerMatchLineAnyVersion[];
+    away: PlayerMatchLineAnyVersion[];
+    events?: PlayedMatch["boxScore"]["events"];
+  };
+};
+
+type PlayedMatch = LeagueStore["played"][number];
+
 function migrateLine(line: PlayerMatchLineAnyVersion): PlayerMatchLine {
   return { ...line, minutesPlayed: line.minutesPlayed ?? 0, rating: line.rating ?? 6.0 };
 }
@@ -81,14 +92,21 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
       starters: t.starters ?? null,
     })),
     players: league.players.map(migratePlayer),
-    played: league.played.map((m) => ({
-      ...m,
-      boxScore: {
-        ...m.boxScore,
-        home: (m.boxScore.home as PlayerMatchLineAnyVersion[]).map(migrateLine),
-        away: (m.boxScore.away as PlayerMatchLineAnyVersion[]).map(migrateLine),
-      },
-    })),
+    played: league.played.map((m) => {
+      const boxScore = (m as PlayedMatchAnyVersion).boxScore;
+      return {
+        ...m,
+        // Pre-M3 saves have played matches with no boxScore at all; an empty
+        // one degrades to "No events recorded" instead of failing to load.
+        boxScore: boxScore
+          ? {
+              events: boxScore.events ?? [],
+              home: boxScore.home.map(migrateLine),
+              away: boxScore.away.map(migrateLine),
+            }
+          : { home: [], away: [], events: [] },
+      };
+    }),
     negotiations: anyVersion.negotiations ?? [],
     transfers: anyVersion.transfers ?? [],
   };
