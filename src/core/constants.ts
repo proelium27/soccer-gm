@@ -1,10 +1,10 @@
 import type { Position } from "./players/types.js";
 
 /** League-average base rating; a team's base = LEAGUE_BASE + its strength target. */
-export const LEAGUE_BASE = 52;
+export const LEAGUE_BASE = 46;
 
 /** Half-range of per-team strength targets (pre-normalization magnitude). */
-export const TEAM_STRENGTH_SPREAD = 12;
+export const TEAM_STRENGTH_SPREAD = 7;
 
 /**
  * Composite normalization coefficient: normalized = 0.5 + NORMALIZE_K * z.
@@ -12,7 +12,7 @@ export const TEAM_STRENGTH_SPREAD = 12;
  * this (with the target distribution shape) governs both single-game favorite
  * odds and end-of-season table spread. Tuned against the M1 validation gates.
  */
-export const NORMALIZE_K = 0.07;
+export const NORMALIZE_K = 0.08;
 
 /** Std dev of per-player, per-rating gaussian noise. */
 export const RATING_NOISE_SD = 6;
@@ -68,22 +68,26 @@ export const YOUTH_BASE_OFFSET = 20;
 export const BASE_AGE_CURVE_PEAK = 26;
 /** [age - peak, expected mean rating delta] control points; linearly interpolated between. */
 export const BASE_AGE_CURVE: readonly [number, number][] = [
-  [-8, 9], [-7, 8], [-6, 6.5], [-5, 5], [-4, 4], [-3, 3], [-2, 2], [-1, 1],
-  [0, 0.3], [1, 0], [2, -1], [3, -2], [4, -3.5], [5, -4.5], [6, -5.5], [7, -6.5],
-  [8, -7.5], [9, -8.5], [10, -9.5],
+  [-8, 3], [-7, 2.7], [-6, 2.2], [-5, 1.7], [-4, 1.3], [-3, 1], [-2, 0.65], [-1, 0.3],
+  [0, 0.1], [1, 0], [2, -0.5], [3, -1], [4, -1.75], [5, -2.25], [6, -2.75], [7, -3.25],
+  [8, -3.75], [9, -4.25], [10, -4.75],
 ];
 
-/** Physical ratings (speed, strength, stamina, jumping) read the curve this many years "older". */
+/**
+ * Physical ratings (speed, strength, stamina, jumping) read the curve this
+ * many years "older". Skill ratings (technical/mental + goalkeeping) read it
+ * this many years "younger", and GKs get an extra shift on top of that.
+ * Calibrated so each rating group's survival-weighted (retirement-aware)
+ * expected lifetime delta is ~0 or slightly negative for every position —
+ * a career should average out flat-to-declining, not net growth, or a
+ * dynasty's rostered population inflates without bound over decades (a
+ * bought-and-verified-empirically failure mode with the previous ±3/-3
+ * values, worst for skill-heavy positions like GK/CM/AM/DM).
+ */
 export const PHYSICAL_AGE_SHIFT = 3;
-/** Skill ratings (technical/mental + goalkeeping) read the curve this many years "younger". */
-export const SKILL_AGE_SHIFT = -3;
-/** Extra "younger" shift applied to every rating group for goalkeepers (career-long keepers). */
-export const GK_AGE_SHIFT = -3;
-
-/** Growth-phase (positive base delta) amplification from potential headroom, per rating point of (potential - ovr). */
-export const POTENTIAL_FACTOR_PER_POINT = 0.09;
-export const POTENTIAL_FACTOR_MIN = 0.4;
-export const POTENTIAL_FACTOR_MAX = 2.2;
+export const SKILL_AGE_SHIFT = -1.5;
+/** Extra "younger" shift applied to every rating group for goalkeepers (mild career-long-keeper edge). */
+export const GK_AGE_SHIFT = -0.5;
 
 /** Minutes played is a minor nudge on growth-phase deltas only, not the previous 0.3-1.0x multiplier. */
 export const MINUTES_FACTOR_MIN = 0.85;
@@ -92,33 +96,25 @@ export const MINUTES_FACTOR_MAX = 1.15;
 export const FULL_SEASON_APPEARANCES = 30;
 
 /** Per-rating noise std dev at age 18 and at age 33+, linearly interpolated by age (variance narrows with age). */
-export const PROGRESSION_NOISE_SD_YOUNG = 5;
-export const PROGRESSION_NOISE_SD_OLD = 2;
+export const PROGRESSION_NOISE_SD_YOUNG = 3.5;
+export const PROGRESSION_NOISE_SD_OLD = 1.5;
 
 /**
- * Potential headroom-by-age: expected additional room above current ovr,
- * before random spread is applied. Recalculated every offseason from the
- * player's *new* ovr, so potential moves with performance rather than being
- * fixed at birth. Also used to roll a player's initial potential at
- * generation, keyed by age (GKs get GK_AGE_SHIFT applied first).
+ * Potential (BBGM-style): a scout's *estimate*, not a growth driver. It plays
+ * no part in progressPlayer's math — actual development is driven only by
+ * age/rating-group and noise (per the BBGM manual: progression depends on
+ * current ratings, age, and coaching, never potential). Potential is instead
+ * computed by simulating a player's future career arc forward
+ * POTENTIAL_SIM_TRIALS times (same age-curve model, independent noise per
+ * trial) and reading off the POTENTIAL_SIM_PERCENTILE of each trial's peak
+ * ovr — so on average a player exceeds their listed potential about
+ * (1 - POTENTIAL_SIM_PERCENTILE) of the time, matching "most players never
+ * reach their potential, but some do and some exceed it."
  */
-export const POTENTIAL_HEADROOM_BY_AGE: readonly [number, number][] = [
-  [16, 11], [18, 9], [20, 7], [22, 5], [24, 3.5], [26, 2], [28, 1.3], [30, 0.7], [33, 0.3],
-];
-/** Potential headroom roll is headroom * uniform(POTENTIAL_ROLL_MIN, POTENTIAL_ROLL_MAX). */
-export const POTENTIAL_ROLL_MIN = 0.4;
-export const POTENTIAL_ROLL_MAX = 1.4;
-
-/**
- * Soft ceiling for rolled potential. At or below the knee the roll is used as-is;
- * above it the excess is compressed asymptotically toward RATING_MAX so elite
- * players spread across the high 90s instead of all pinning to exactly 99 at the
- * hard clamp. With these values a rolled potential of 99 needs a raw projection
- * of ~107 (i.e. an ovr already near the ceiling), making 99 practically
- * unreachable rather than a routine clamp result.
- */
-export const POTENTIAL_SOFT_CAP_KNEE = 90;
-export const POTENTIAL_SOFT_CAP_SCALE = 6;
+export const POTENTIAL_SIM_TRIALS = 16;
+/** Simulated trajectories run forward (in seasons) up to this age. */
+export const POTENTIAL_SIM_MAX_AGE = 40;
+export const POTENTIAL_SIM_PERCENTILE = 0.75;
 
 /** Retirement: no chance before this age; probability climbs per year after. */
 export const RETIREMENT_START_AGE = 33;

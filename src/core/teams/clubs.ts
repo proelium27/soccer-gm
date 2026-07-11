@@ -42,6 +42,8 @@ export interface StoredTeam {
   hype: number;
   /** This season's scouting spend, deducted from budget; lowers transfer valuation noise. */
   scoutingSpend: number;
+  /** Fixed generation-time strength anchor for this club's youth intake (see LeagueTeam.academyBase). */
+  academyBase: number;
 }
 
 /**
@@ -60,6 +62,7 @@ export function assignIdentities(league: League): StoredTeam[] {
       budget: BASE_SEASON_BUDGET,
       hype: HYPE_INITIAL,
       scoutingSpend: SCOUTING_SPEND_MIN,
+      academyBase: t.academyBase,
     };
   });
 }
