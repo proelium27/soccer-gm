@@ -64,6 +64,7 @@ function RosterTable({
               <th className="text-end">Sh</th>
               <th className="text-end">Sv</th>
               <th className="text-end">Tkl</th>
+              <th className="text-end">Rtg</th>
             </>
           )}
           <th></th>
@@ -126,6 +127,7 @@ function RosterTable({
                   <td className="text-end">{ss?.shots ?? 0}</td>
                   <td className="text-end">{ss?.saves ?? 0}</td>
                   <td className="text-end">{ss?.tackles ?? 0}</td>
+                  <td className="text-end">{ss ? ss.avgRating.toFixed(2) : ""}</td>
                 </>
               )}
               <td className="text-end">
