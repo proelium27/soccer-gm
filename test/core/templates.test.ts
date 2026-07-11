@@ -15,7 +15,7 @@ describe("archetype templates", () => {
     }
   });
   it("GK is goalkeeper-dominant, ST is finishing-dominant", () => {
-    expect(OVR_WEIGHTS.GK.goalkeeping).toBe(78);
+    expect(OVR_WEIGHTS.GK.goalkeeping).toBe(48);
     expect(OVR_WEIGHTS.ST.finishing).toBe(26);
     expect(GEN_OFFSETS.GK.goalkeeping).toBe("star");
     expect(GEN_OFFSETS.ST.goalkeeping).toBe("ABS");

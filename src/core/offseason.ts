@@ -11,12 +11,6 @@ import { settleSeasonBudget, wageBill } from "./finance/budget.js";
 import { NUM_TEAMS, SCOUTING_SPEND_MIN } from "./constants.js";
 import { hashInts } from "../engine/rng.js";
 
-function teamAvgOvr(roster: number[], playerMap: Map<number, Player>): number {
-  const ovrs = roster.map((pid) => playerMap.get(pid)?.ovr ?? 0);
-  if (ovrs.length === 0) return 50;
-  return ovrs.reduce((s, v) => s + v, 0) / ovrs.length;
-}
-
 /**
  * Run one full offseason: contract expiry, progression, retirement, AI free
  * agency, youth intake, then a fresh schedule for the new season. Only
@@ -81,9 +75,10 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     signingOrder,
   ));
 
-  // 5. Youth intake for every club.
+  // 5. Youth intake for every club, anchored to each club's fixed
+  //    generation-time strength (never the current roster average — see
+  //    LeagueTeam.academyBase for why that ratchets OVR upward without bound).
   let nextPid = Math.max(0, ...players.map((p) => p.pid)) + 1;
-  const playerMap = new Map(players.map((p) => [p.pid, p]));
   teams = teams.map((t) => {
     // Caller-supplied seed (not drawn from `rng`) so youth nationality/name
     // generation varies across leagues/seasons/teams without perturbing the
@@ -91,7 +86,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     const genSeed = hashInts(league.lid, nextSeason, t.tid, 2);
     const { players: youth, nextPid: updatedNextPid } = generateYouthIntake(
       rng,
-      teamAvgOvr(t.roster, playerMap),
+      t.academyBase,
       nextSeason,
       nextPid,
       genSeed,

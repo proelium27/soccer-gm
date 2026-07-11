@@ -4,7 +4,7 @@ import { GEN_OFFSETS, HEIGHT_RANGES, type Tier } from "./templates.js";
 import { computeOvr } from "./ovr.js";
 import { generateName } from "./names.js";
 import { pickNationality } from "./nationalities.js";
-import { rollPotential } from "./progression.js";
+import { estimatePotential } from "./progression.js";
 import { gaussian, hashInts, mulberry32 } from "../../engine/rng.js";
 import {
   TIER_OFFSET, RATING_NOISE_SD, ABS_LOW_MIN, ABS_LOW_MAX,
@@ -41,7 +41,7 @@ export function generatePlayer(
   const heightCm = Math.round(loH + rng() * (hiH - loH));
 
   const ovr = computeOvr(pos, ratings, heightCm);
-  const potential = rollPotential(rng, ovr, age, pos);
+  const potential = estimatePotential(rng, ratings, ovr, age, pos, heightCm);
   const born = season - age;
 
   // Nationality/name draw from a (genSeed, pid)-derived sub-stream: `genSeed`

@@ -18,7 +18,7 @@ export const GEN_OFFSETS: Record<Position, Record<SkillKey, Tier>> = {
 /** Table B — OVR weights (%). Keys may include "height". Each row sums to 100. */
 export type OvrKey = SkillKey | "height";
 export const OVR_WEIGHTS: Record<Position, Partial<Record<OvrKey, number>>> = {
-  GK: { goalkeeping: 78, positioning: 8, jumping: 5, height: 4, longPass: 3, shortPass: 2 },
+  GK: { goalkeeping: 48, positioning: 18, jumping: 10, height: 8, longPass: 10, shortPass: 6 },
   CB: { tackling: 20, interceptions: 18, positioning: 16, strength: 14, jumping: 10, height: 6, speed: 6, longPass: 5, shortPass: 5 },
   FB: { speed: 15, tackling: 14, interceptions: 13, stamina: 12, crosses: 12, positioning: 10, shortPass: 8, dribbling: 8, strength: 8 },
   DM: { interceptions: 18, positioning: 16, tackling: 15, shortPass: 15, longPass: 12, stamina: 10, strength: 8, dribbling: 6 },
