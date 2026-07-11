@@ -1,12 +1,79 @@
 import { useParams, Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { PlayedMatch } from "../../core/standings.js";
-import type { MatchEvent } from "../../engine/attribution.js";
+import type { MatchEvent, PlayerMatchLine } from "../../engine/attribution.js";
 import { Flag } from "../components/Flag.js";
 
 function formatClock(seconds: number): string {
   const mins = Math.max(1, Math.ceil((5400 - seconds) / 60));
   return `${mins}'`;
+}
+
+function ratingClass(rating: number): string {
+  if (rating >= 8) return "text-success fw-semibold";
+  if (rating < 6) return "text-danger";
+  return "";
+}
+
+function TeamBoxTable({
+  teamName,
+  lines,
+  playerName,
+  playerPos,
+  playerNationality,
+}: {
+  teamName: string;
+  lines: PlayerMatchLine[];
+  playerName: (pid: number) => string;
+  playerPos: (pid: number) => string;
+  playerNationality: (pid: number) => string | undefined;
+}) {
+  return (
+    <div className="col-md-6">
+      <h6>{teamName}</h6>
+      <table className="table table-sm table-striped">
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Pos</th>
+            <th className="text-end">Min</th>
+            <th className="text-end">G</th>
+            <th className="text-end">A</th>
+            <th className="text-end">Sh</th>
+            <th className="text-end">SoT</th>
+            <th className="text-end">Sv</th>
+            <th className="text-end">Tkl</th>
+            <th className="text-end">YC</th>
+            <th className="text-end">RC</th>
+            <th className="text-end">Rtg</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((line) => (
+            <tr key={line.pid}>
+              <td>
+                {playerName(line.pid)}{" "}
+                {playerNationality(line.pid) && (
+                  <Flag nationality={playerNationality(line.pid)!} />
+                )}
+              </td>
+              <td>{playerPos(line.pid)}</td>
+              <td className="text-end">{line.minutesPlayed}</td>
+              <td className="text-end">{line.goals || ""}</td>
+              <td className="text-end">{line.assists || ""}</td>
+              <td className="text-end">{line.shots || ""}</td>
+              <td className="text-end">{line.shotsOnTarget || ""}</td>
+              <td className="text-end">{line.saves || ""}</td>
+              <td className="text-end">{line.tackles || ""}</td>
+              <td className="text-end">{line.yellowCards || ""}</td>
+              <td className="text-end">{line.redCards || ""}</td>
+              <td className={`text-end ${ratingClass(line.rating)}`}>{line.rating.toFixed(1)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function EventRow({ event, playerName }: { event: MatchEvent; playerName: (pid: number) => string }) {
@@ -131,86 +198,20 @@ export function BoxScore() {
       </div>
 
       <div className="row">
-        <div className="col-md-6">
-          <h6>{homeName}</h6>
-          <table className="table table-sm table-striped">
-            <thead>
-              <tr>
-                <th>Player</th>
-                <th>Pos</th>
-                <th className="text-end">G</th>
-                <th className="text-end">A</th>
-                <th className="text-end">Sh</th>
-                <th className="text-end">SoT</th>
-                <th className="text-end">Sv</th>
-                <th className="text-end">Tkl</th>
-                <th className="text-end">YC</th>
-                <th className="text-end">RC</th>
-              </tr>
-            </thead>
-            <tbody>
-              {match.boxScore.home.map((line) => (
-                <tr key={line.pid}>
-                  <td>
-                    {playerName(line.pid)}{" "}
-                    {playerNationality(line.pid) && (
-                      <Flag nationality={playerNationality(line.pid)!} />
-                    )}
-                  </td>
-                  <td>{playerPos(line.pid)}</td>
-                  <td className="text-end">{line.goals || ""}</td>
-                  <td className="text-end">{line.assists || ""}</td>
-                  <td className="text-end">{line.shots || ""}</td>
-                  <td className="text-end">{line.shotsOnTarget || ""}</td>
-                  <td className="text-end">{line.saves || ""}</td>
-                  <td className="text-end">{line.tackles || ""}</td>
-                  <td className="text-end">{line.yellowCards || ""}</td>
-                  <td className="text-end">{line.redCards || ""}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="col-md-6">
-          <h6>{awayName}</h6>
-          <table className="table table-sm table-striped">
-            <thead>
-              <tr>
-                <th>Player</th>
-                <th>Pos</th>
-                <th className="text-end">G</th>
-                <th className="text-end">A</th>
-                <th className="text-end">Sh</th>
-                <th className="text-end">SoT</th>
-                <th className="text-end">Sv</th>
-                <th className="text-end">Tkl</th>
-                <th className="text-end">YC</th>
-                <th className="text-end">RC</th>
-              </tr>
-            </thead>
-            <tbody>
-              {match.boxScore.away.map((line) => (
-                <tr key={line.pid}>
-                  <td>
-                    {playerName(line.pid)}{" "}
-                    {playerNationality(line.pid) && (
-                      <Flag nationality={playerNationality(line.pid)!} />
-                    )}
-                  </td>
-                  <td>{playerPos(line.pid)}</td>
-                  <td className="text-end">{line.goals || ""}</td>
-                  <td className="text-end">{line.assists || ""}</td>
-                  <td className="text-end">{line.shots || ""}</td>
-                  <td className="text-end">{line.shotsOnTarget || ""}</td>
-                  <td className="text-end">{line.saves || ""}</td>
-                  <td className="text-end">{line.tackles || ""}</td>
-                  <td className="text-end">{line.yellowCards || ""}</td>
-                  <td className="text-end">{line.redCards || ""}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <TeamBoxTable
+          teamName={homeName}
+          lines={match.boxScore.home}
+          playerName={playerName}
+          playerPos={playerPos}
+          playerNationality={playerNationality}
+        />
+        <TeamBoxTable
+          teamName={awayName}
+          lines={match.boxScore.away}
+          playerName={playerName}
+          playerPos={playerPos}
+          playerNationality={playerNationality}
+        />
       </div>
 
       <h6 className="mt-3">Play-by-Play</h6>

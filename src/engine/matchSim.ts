@@ -48,6 +48,7 @@ import {
   eventTypeFromShot,
   emptyLine,
 } from "./attribution.js";
+import { computeMatchRating } from "./matchRating.js";
 
 type Side = "home" | "away";
 
@@ -354,6 +355,13 @@ export function simMatchDetailed(
     away: new Set(awayPlayers.map((p) => p.pid)),
   };
 
+  // Clock value (counts down from MATCH_SECONDS) at which each player entered
+  // and left the match, for minutes-played math. Starters enter at kickoff;
+  // a player with no exit entry was still on the pitch at the final whistle.
+  const enterClock = new Map<number, number>();
+  const exitClock = new Map<number, number>();
+  for (const p of [...homePlayers, ...awayPlayers]) enterClock.set(p.pid, MATCH_SECONDS);
+
   const other = (side: Side): Side => (side === "home" ? "away" : "home");
 
   const stat = {
@@ -441,6 +449,8 @@ export function simMatchDetailed(
     subsUsed[side]++;
     appeared[side].add(on.pid);
     energy.set(on.pid, ENERGY_START);
+    exitClock.set(off.pid, clock);
+    enterClock.set(on.pid, clock);
     rebuildTeam(side);
     bumpEvent();
     events.push({ clock, type: "substitution", side, pids: [off.pid, on.pid] });
@@ -451,6 +461,7 @@ export function simMatchDetailed(
     const off = onPitch[side].find((p) => p.pid === offPid);
     if (!off) return;
     onPitch[side] = onPitch[side].filter((p) => p.pid !== offPid);
+    exitClock.set(off.pid, clock);
 
     const on = subsUsed[side] < MAX_SUBS ? pickReplacement(side, off.pos) : undefined;
     if (on) {
@@ -459,6 +470,7 @@ export function simMatchDetailed(
       subsUsed[side]++;
       appeared[side].add(on.pid);
       energy.set(on.pid, ENERGY_START);
+      enterClock.set(on.pid, clock);
       bumpEvent();
       events.push({ clock, type: "substitution", side, pids: [off.pid, on.pid] });
     } else if (!manDown[side]) {
@@ -528,6 +540,7 @@ export function simMatchDetailed(
       if (cardRoll < RED_STRAIGHT_GIVEN_FOUL) {
         lines.get(fouler.pid)!.redCards++;
         onPitch[defSide] = onPitch[defSide].filter((p) => p.pid !== fouler.pid);
+        exitClock.set(fouler.pid, clock);
         if (!manDown[defSide]) {
           manDown[defSide] = true;
           teams[defSide] = applyManDown(teams[defSide]);
@@ -544,6 +557,7 @@ export function simMatchDetailed(
         if (priorYellows + 1 >= 2) {
           lines.get(fouler.pid)!.redCards++;
           onPitch[defSide] = onPitch[defSide].filter((p) => p.pid !== fouler.pid);
+          exitClock.set(fouler.pid, clock);
           if (!manDown[defSide]) {
             manDown[defSide] = true;
             teams[defSide] = applyManDown(teams[defSide]);
@@ -729,12 +743,29 @@ export function simMatchDetailed(
 
   const totalTicks = stat.home.ticks + stat.away.ticks;
 
-  const homeLines = [...homePlayers, ...homeBench]
-    .filter((p) => appeared.home.has(p.pid))
-    .map((p) => lines.get(p.pid)!);
-  const awayLines = [...awayPlayers, ...awayBench]
-    .filter((p) => appeared.away.has(p.pid))
-    .map((p) => lines.get(p.pid)!);
+  const finalClock = clock;
+  const minutesFor = (pid: number): number => {
+    const enter = enterClock.get(pid) ?? MATCH_SECONDS;
+    const exit = exitClock.get(pid) ?? finalClock;
+    return Math.max(0, Math.round((enter - exit) / 60));
+  };
+
+  const finishLines = (
+    roster: MatchPlayer[],
+    appearedSet: Set<number>,
+    teamGoalsAgainst: number,
+  ): PlayerMatchLine[] =>
+    roster
+      .filter((p) => appearedSet.has(p.pid))
+      .map((p) => {
+        const line = lines.get(p.pid)!;
+        line.minutesPlayed = minutesFor(p.pid);
+        line.rating = computeMatchRating(line, p.pos, line.minutesPlayed, teamGoalsAgainst);
+        return line;
+      });
+
+  const homeLines = finishLines([...homePlayers, ...homeBench], appeared.home, stat.away.goals);
+  const awayLines = finishLines([...awayPlayers, ...awayBench], appeared.away, stat.home.goals);
 
   return {
     home: stat.home.goals,
