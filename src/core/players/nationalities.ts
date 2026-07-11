@@ -1,6 +1,11 @@
 // Premier League nationality distribution + per-country name pools.
 // Weights are relative (not percentages): a country with weight 300 appears
 // ~2x as often as weight 150.
+//
+// Name pools are common civilian names for each country — deliberately NOT
+// the names of real footballers, so generated players never read as (or
+// combine into) recognizable pros. Pool sizes scale with the nationality's
+// weight: more common nationalities get bigger pools so names repeat less.
 export interface NationalityDef {
   weight: number;
   first: string[];
@@ -14,335 +19,546 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
       "Harry", "Jack", "James", "George", "Jordan", "Callum", "Mason", "Tyler",
       "Charlie", "Oliver", "Ben", "Sam", "Ryan", "Josh", "Luke", "Connor",
       "Aaron", "Marcus", "Dominic", "Reece", "Curtis", "Ellis", "Kyle", "Declan",
+      "Thomas", "Daniel", "Matthew", "Adam", "Nathan", "Liam", "Joe", "Alfie",
+      "Archie", "Freddie", "Louie", "Theo", "Ethan", "Noah", "Leo", "Max",
+      "Finley", "Toby", "Elliot", "Cameron", "Bradley", "Lewis", "Owen", "Jake",
+      "Dylan", "Harvey", "Billy", "Frankie", "Alex", "Will", "Scott", "Andy",
+      "Danny", "Michael", "Robbie", "Joel",
     ],
     last: [
       "Smith", "Jones", "Taylor", "Wilson", "Johnson", "White", "Walker", "Robinson",
       "Wright", "Green", "Hall", "Wood", "Baker", "Clarke", "Cooper", "Ward",
-      "Hunt", "Foster", "Bennett", "Grant", "Sterling", "Mount", "Rice", "Kane",
+      "Hunt", "Foster", "Bennett", "Grant", "Thompson", "Evans", "Roberts", "Turner",
+      "Hill", "Moore", "Clark", "Harris", "Lewis", "Allen", "Young", "King",
+      "Scott", "Adams", "Mitchell", "Carter", "Phillips", "Parker", "Collins", "Edwards",
+      "Morris", "Murphy", "Cook", "Bailey", "Bell", "Kelly", "Howard", "Marsh",
+      "Dawson", "Fletcher", "Simpson", "Hudson", "Barnes", "Chapman", "Gibson", "Harrison",
+      "Holmes", "Lawson", "Pearson", "Webster",
     ],
   },
   France: {
     weight: 63,
     first: [
-      "Antoine", "Kylian", "Paul", "Hugo", "Theo", "Ousmane", "Presnel", "Lucas",
-      "Corentin", "Adrien", "Aurelien", "Benjamin", "Mathis", "Thomas", "Wesley", "Jules",
-      "Moussa", "Ibrahima", "Randal", "Kingsley", "Christopher", "Eduardo", "Marcus", "Bradley",
+      "Antoine", "Paul", "Hugo", "Theo", "Lucas", "Adrien", "Benjamin", "Thomas",
+      "Jules", "Louis", "Leo", "Gabriel", "Raphael", "Arthur", "Nathan", "Ethan",
+      "Enzo", "Maxime", "Quentin", "Clement", "Romain", "Julien", "Nicolas", "Alexandre",
+      "Baptiste", "Florian", "Guillaume", "Mathis", "Noah", "Sacha", "Yanis", "Mehdi",
+      "Karim", "Samir", "Amine", "Ibrahim", "Moussa", "Mamadou", "Idrissa", "Sekou",
     ],
     last: [
-      "Griezmann", "Mbappe", "Pogba", "Lloris", "Hernandez", "Dembele", "Kimpembe", "Digne",
-      "Tolisso", "Rabiot", "Tchouameni", "Pavard", "Coman", "Lemar", "Fofana", "Kounde",
-      "Sissoko", "Konate", "Kolo Muani", "Guendouzi", "Nkunku", "Camavinga", "Thuram", "Barcola",
+      "Martin", "Bernard", "Dubois", "Durand", "Moreau", "Laurent", "Simon", "Michel",
+      "Lefebvre", "Leroy", "Roux", "Fournier", "Girard", "Bonnet", "Dupont", "Lambert",
+      "Fontaine", "Rousseau", "Vincent", "Faure", "Andre", "Mercier", "Blanc", "Guerin",
+      "Boyer", "Garnier", "Chevalier", "Francois", "Legrand", "Gauthier", "Perrin", "Robin",
+      "Clement", "Morel", "Henry", "Renard", "Picard", "Marchand", "Traore", "Diallo",
     ],
   },
   Brazil: {
     weight: 63,
     first: [
-      "Gabriel", "Lucas", "Rodrigo", "Bruno", "Thiago", "Fabinho", "Casemiro", "Richarlison",
-      "Vinicius", "Antony", "Raphinha", "Alisson", "Ederson", "Marquinhos", "Danilo", "Fred",
-      "Everton", "Matheus", "Douglas", "Weverton", "Renan", "Arthur", "Fabio", "Rafael",
+      "Gabriel", "Lucas", "Rodrigo", "Thiago", "Danilo", "Everton", "Matheus", "Douglas",
+      "Renan", "Arthur", "Fabio", "Rafael", "Pedro", "Joao", "Felipe", "Gustavo",
+      "Leonardo", "Marcelo", "Vitor", "Caio", "Diego", "Igor", "Andre", "Henrique",
+      "Julio", "Leandro", "Murilo", "Otavio", "Paulo", "Ramon", "Samuel", "Sergio",
+      "Wesley", "Wallace", "Yago", "Alex", "Emerson", "Kaique", "Davi", "Luan",
     ],
     last: [
       "Silva", "Santos", "Souza", "Oliveira", "Costa", "Pereira", "Ferreira", "Alves",
       "Barbosa", "Ribeiro", "Carvalho", "Gomes", "Martins", "Araujo", "Nascimento", "Rocha",
       "Dias", "Moreira", "Cardoso", "Teixeira", "Correia", "Lima", "Fernandes", "Neves",
+      "Almeida", "Azevedo", "Batista", "Borges", "Campos", "Castro", "Cavalcanti", "Duarte",
+      "Farias", "Freitas", "Mendes", "Monteiro", "Nogueira", "Pinto", "Ramos", "Vieira",
     ],
   },
   Spain: {
     weight: 33,
     first: [
-      "Alvaro", "Sergio", "Pablo", "Pedro", "Alejandro", "Marco", "Ferran", "Dani",
-      "Rodrigo", "Gavi", "Ansu", "Nacho", "Jesus", "Cesar", "Ivan", "Ruben",
-      "Diego", "Carlos", "Mikel", "Unai",
+      "Alvaro", "Sergio", "Pablo", "Pedro", "Alejandro", "Marco", "Dani", "Rodrigo",
+      "Jesus", "Cesar", "Ivan", "Ruben", "Diego", "Carlos", "Mikel", "Unai",
+      "Adrian", "Alberto", "Antonio", "David", "Fernando", "Francisco", "Gonzalo", "Hector",
+      "Hugo", "Javier", "Jorge", "Manuel", "Miguel", "Raul",
     ],
     last: [
       "Garcia", "Rodriguez", "Fernandez", "Lopez", "Martinez", "Gonzalez", "Perez", "Sanchez",
-      "Ramos", "Torres", "Dominguez", "Vazquez", "Morata", "Alonso", "Navas", "Silva",
-      "Herrera", "Pedri", "Merino", "Olmo",
+      "Gomez", "Martin", "Jimenez", "Ruiz", "Hernandez", "Diaz", "Moreno", "Munoz",
+      "Alvarez", "Romero", "Gutierrez", "Alonso", "Navarro", "Dominguez", "Vazquez", "Gil",
+      "Serrano", "Blanco", "Molina", "Castro", "Ortega", "Delgado",
     ],
   },
   Portugal: {
     weight: 31,
     first: [
-      "Cristiano", "Bruno", "Bernardo", "Joao", "Diogo", "Ruben", "Pedro", "Rafael",
-      "Nuno", "Goncalo", "Vitor", "Danilo", "Rui", "Nelson", "William", "Andre",
-      "Renato", "Jose", "Fabio", "Tiago",
+      "Joao", "Diogo", "Ruben", "Pedro", "Rafael", "Nuno", "Goncalo", "Vitor",
+      "Rui", "Nelson", "Andre", "Jose", "Fabio", "Tiago", "Bruno", "Miguel",
+      "Ricardo", "Hugo", "Paulo", "Sergio", "Carlos", "Antonio", "Manuel", "Francisco",
+      "Duarte", "Afonso", "Martim", "Tomas", "Vasco", "Simao",
     ],
     last: [
-      "Silva", "Fernandes", "Ronaldo", "Neves", "Jota", "Dias", "Cancelo", "Guerreiro",
-      "Semedo", "Palhinha", "Leao", "Felix", "Ramos", "Pereira", "Carvalho", "Costa",
-      "Sanches", "Mendes", "Vieira", "Antunes",
+      "Silva", "Pereira", "Costa", "Santos", "Ferreira", "Oliveira", "Rodrigues", "Martins",
+      "Sousa", "Fonseca", "Goncalves", "Lopes", "Marques", "Alves", "Almeida", "Ribeiro",
+      "Pinto", "Carvalho", "Teixeira", "Moreira", "Correia", "Mendes", "Nunes", "Soares",
+      "Vieira", "Monteiro", "Cardoso", "Rocha", "Antunes", "Machado",
     ],
   },
   Netherlands: {
     weight: 28,
     first: [
-      "Virgil", "Frenkie", "Memphis", "Matthijs", "Georginio", "Denzel", "Cody", "Donyell",
-      "Steven", "Nathan", "Jurrien", "Xavi", "Teun", "Wout", "Ryan", "Justin",
-      "Daley", "Quincy", "Tyrell", "Owen",
+      "Daan", "Sem", "Lars", "Thijs", "Bram", "Luuk", "Jesse", "Tim",
+      "Niels", "Sven", "Koen", "Ruben", "Stijn", "Joris", "Rick", "Tom",
+      "Max", "Thomas", "Jasper", "Wouter", "Bas", "Gijs", "Floris", "Pim",
+      "Jelle", "Sander", "Maarten", "Niek", "Teun", "Mees",
     ],
     last: [
-      "van Dijk", "de Jong", "Depay", "de Ligt", "Wijnaldum", "Dumfries", "Gakpo", "Malen",
-      "Bergwijn", "Ake", "Timber", "Simons", "Koopmeiners", "Weghorst", "Gravenberch", "Blind",
-      "Klaassen", "Promes", "Malacia", "Wijndal",
+      "de Vries", "Jansen", "van den Berg", "Bakker", "Visser", "Smit", "Meijer", "Mulder",
+      "Bos", "Vos", "Peters", "Hendriks", "Dekker", "Brouwer", "van Leeuwen", "de Boer",
+      "Kuipers", "Veenstra", "Prins", "Huisman", "van der Meer", "Postma", "Scholten", "Willems",
+      "Timmermans", "Verhoeven", "Kok", "Jacobs", "Schouten", "Maas",
     ],
   },
   Belgium: {
     weight: 22,
     first: [
-      "Kevin", "Eden", "Romelu", "Thibaut", "Yannick", "Youri", "Dries", "Axel",
-      "Toby", "Jan", "Thomas", "Leandro", "Timothy", "Charles", "Jeremy",
+      "Lucas", "Arthur", "Noah", "Louis", "Victor", "Jules", "Adam", "Nathan",
+      "Thomas", "Maxime", "Simon", "Antoine", "Romain", "Gilles", "Wout", "Senne",
+      "Lars", "Milan", "Robbe", "Seppe", "Kobe", "Jarne", "Brent", "Cedric",
     ],
     last: [
-      "De Bruyne", "Hazard", "Lukaku", "Courtois", "Carrasco", "Tielemans", "Mertens", "Witsel",
-      "Alderweireld", "Vertonghen", "Meunier", "Trossard", "Castagne", "De Ketelaere", "Doku",
+      "Peeters", "Janssens", "Maes", "Jacobs", "Mertens", "Willems", "Claes", "Goossens",
+      "Wouters", "De Smet", "Vermeulen", "Hermans", "Pauwels", "Michiels", "Aerts", "De Clercq",
+      "Dubois", "Lambert", "Dupont", "Leclercq", "Renard", "Denis", "Lemaire", "Segers",
     ],
   },
   Argentina: {
     weight: 20,
     first: [
-      "Lionel", "Angel", "Paulo", "Emiliano", "Rodrigo", "Nicolas", "Lautaro", "Julian",
-      "Enzo", "Alexis", "Cristian", "Marcos", "German", "Nahuel",
+      "Nicolas", "Rodrigo", "Cristian", "Marcos", "German", "Nahuel", "Santiago", "Mateo",
+      "Joaquin", "Facundo", "Agustin", "Franco", "Ignacio", "Lucas", "Matias", "Tomas",
+      "Bruno", "Gonzalo", "Ezequiel", "Federico", "Leandro", "Maximiliano", "Ramiro", "Valentin",
     ],
     last: [
-      "Messi", "Di Maria", "Dybala", "Martinez", "De Paul", "Otamendi", "Tagliafico", "Alvarez",
-      "Fernandez", "Mac Allister", "Romero", "Acuna", "Montiel", "Molina",
+      "Gonzalez", "Rodriguez", "Gomez", "Fernandez", "Lopez", "Diaz", "Martinez", "Perez",
+      "Garcia", "Sanchez", "Romero", "Sosa", "Alvarez", "Ruiz", "Ramirez", "Flores",
+      "Benitez", "Acosta", "Medina", "Herrera", "Aguirre", "Pereyra", "Dominguez", "Molina",
     ],
   },
   Scotland: {
     weight: 18,
-    first: ["Andy", "John", "Scott", "Callum", "Ryan", "Kieran", "Stuart", "Grant", "Kenny", "Liam", "Billy", "Robbie", "Nathan", "Aaron"],
-    last: ["Robertson", "McTominay", "McGregor", "Tierney", "Hendry", "Christie", "Adams", "Fraser", "Anderson", "Dykes", "Gilmour", "Hickey", "Souttar", "Ralston"],
+    first: [
+      "Andy", "John", "Scott", "Callum", "Ryan", "Kieran", "Stuart", "Grant",
+      "Kenny", "Liam", "Billy", "Robbie", "Nathan", "Aaron", "Lewis", "Fraser",
+      "Euan", "Cameron", "Finlay", "Ross",
+    ],
+    last: [
+      "Campbell", "Stewart", "MacDonald", "Murray", "Ross", "Reid", "Gray", "Duncan",
+      "Hamilton", "Wallace", "Kerr", "Ferguson", "Grant", "Boyd", "Craig", "Sinclair",
+      "Muir", "Bruce", "Douglas", "Burns",
+    ],
   },
   Wales: {
     weight: 16,
-    first: ["Gareth", "Aaron", "Ben", "Joe", "Daniel", "Ethan", "Harry", "Rhys", "Connor", "Dylan", "Neco", "Kieffer", "Brennan", "Chris"],
-    last: ["Bale", "Ramsey", "Davies", "Allen", "James", "Ampadu", "Wilson", "Moore", "Roberts", "Williams", "Rodon", "Johnson", "Colwill", "Mepham"],
+    first: [
+      "Gareth", "Aaron", "Ben", "Joe", "Daniel", "Ethan", "Harry", "Rhys",
+      "Connor", "Dylan", "Owen", "Morgan", "Ieuan", "Osian", "Tomos", "Gethin",
+      "Iwan", "Cai", "Steffan", "Elis",
+    ],
+    last: [
+      "Davies", "Williams", "Evans", "Thomas", "Roberts", "Hughes", "Morgan", "Griffiths",
+      "Owen", "Rees", "Jenkins", "Powell", "Price", "Morris", "Lloyd", "Edwards",
+      "Parry", "Pritchard", "Bowen", "Vaughan",
+    ],
   },
   "Republic of Ireland": {
     weight: 15,
-    first: ["Sean", "Shane", "Seamus", "Robbie", "James", "Conor", "Josh", "Chiedozie", "Nathan", "Callum", "Adam", "Jason", "Troy", "Evan"],
-    last: ["Coleman", "Duffy", "Long", "Brady", "McClean", "Hendrick", "Ogbene", "Collins", "Doherty", "Egan", "Parrott", "Idah", "Cullen", "Ferguson"],
+    first: [
+      "Sean", "Shane", "Conor", "Josh", "Nathan", "Callum", "Adam", "Jason",
+      "Evan", "Cian", "Darragh", "Eoin", "Fionn", "Oisin", "Padraig", "Ronan",
+      "Tadhg", "Cathal", "Niall", "Dara",
+    ],
+    last: [
+      "Murphy", "Kelly", "O'Sullivan", "Walsh", "O'Brien", "Byrne", "Ryan", "O'Connor",
+      "O'Neill", "Reilly", "Doyle", "McCarthy", "Gallagher", "Doherty", "Kennedy", "Lynch",
+      "Murray", "Quinn", "Moore", "Nolan",
+    ],
   },
   Denmark: {
     weight: 14,
-    first: ["Christian", "Kasper", "Andreas", "Pierre-Emile", "Jannik", "Joakim", "Mikkel", "Rasmus", "Jonas", "Simon", "Victor", "Mathias"],
-    last: ["Eriksen", "Schmeichel", "Christensen", "Hojbjerg", "Vestergaard", "Maehle", "Damsgaard", "Kristensen", "Wind", "Kjaer", "Nelsson", "Jensen"],
+    first: [
+      "Mikkel", "Rasmus", "Jonas", "Simon", "Mathias", "Frederik", "Emil", "Oliver",
+      "Magnus", "Oscar", "Malthe", "Anders", "Jacob", "Tobias", "Nikolaj", "Soren",
+      "Mads", "Kasper", "Lasse", "Gustav",
+    ],
+    last: [
+      "Nielsen", "Jensen", "Hansen", "Pedersen", "Andersen", "Christensen", "Larsen", "Sorensen",
+      "Rasmussen", "Jorgensen", "Petersen", "Madsen", "Kristensen", "Olsen", "Thomsen", "Christiansen",
+      "Poulsen", "Johansen", "Mortensen", "Knudsen",
+    ],
   },
   Germany: {
     weight: 13,
-    first: ["Thomas", "Manuel", "Joshua", "Leon", "Kai", "Ilkay", "Antonio", "Niklas", "Jamal", "Serge", "Timo", "Robin"],
-    last: ["Muller", "Neuer", "Kimmich", "Goretzka", "Havertz", "Gundogan", "Rudiger", "Sule", "Musiala", "Gnabry", "Werner", "Gosens"],
+    first: [
+      "Lukas", "Finn", "Jonas", "Leon", "Paul", "Felix", "Maximilian", "Jan",
+      "Tim", "Niklas", "Fabian", "Florian", "Tobias", "Moritz", "Philipp", "Sebastian",
+      "Simon", "David", "Erik", "Hannes",
+    ],
+    last: [
+      "Muller", "Schmidt", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker",
+      "Schulz", "Hoffmann", "Koch", "Bauer", "Richter", "Klein", "Wolf", "Schroder",
+      "Neumann", "Braun", "Zimmermann", "Kruger",
+    ],
   },
   Nigeria: {
     weight: 12,
-    first: ["Victor", "Wilfred", "Alex", "Kelechi", "Ola", "Samuel", "Moses", "Ahmed", "Joe", "Calvin", "Frank", "Taiwo"],
-    last: ["Osimhen", "Ndidi", "Iwobi", "Iheanacho", "Aina", "Chukwueze", "Simon", "Musa", "Aribo", "Bassey", "Onyeka", "Awoniyi"],
+    first: [
+      "Chinedu", "Emeka", "Ifeanyi", "Chukwudi", "Obinna", "Uche", "Nnamdi", "Kelechi",
+      "Adewale", "Ayodele", "Babatunde", "Olamide", "Segun", "Tunde", "Femi", "Musa",
+      "Ibrahim", "Suleiman", "Daniel", "Samuel",
+    ],
+    last: [
+      "Okafor", "Okoye", "Eze", "Nwachukwu", "Obi", "Okonkwo", "Ogunleye", "Adeyemi",
+      "Adebayo", "Balogun", "Lawal", "Yusuf", "Abubakar", "Mohammed", "Aliyu", "Chukwu",
+      "Nnadi", "Olawale", "Oyelami", "Ekwueme",
+    ],
   },
   Croatia: {
     weight: 10,
-    first: ["Luka", "Ivan", "Mario", "Marcelo", "Josko", "Dominik", "Andrej", "Borna", "Nikola", "Ante"],
-    last: ["Modric", "Perisic", "Mandzukic", "Brozovic", "Gvardiol", "Livakovic", "Kramaric", "Sosa", "Vlasic", "Rebic"],
+    first: [
+      "Luka", "Ivan", "Marko", "Ante", "Josip", "Matej", "Petar", "Tomislav",
+      "Stjepan", "Karlo", "Filip", "Lovro", "Roko", "Niko", "Fran", "Duje",
+    ],
+    last: [
+      "Horvat", "Kovacevic", "Babic", "Maric", "Jukic", "Vukovic", "Knezevic", "Tomic",
+      "Novak", "Bozic", "Blazevic", "Grgic", "Saric", "Lovric", "Radic", "Filipovic",
+    ],
   },
   Norway: {
     weight: 10,
-    first: ["Erling", "Martin", "Sander", "Kristian", "Morten", "Alexander", "Leo", "Stefan", "Fredrik", "Birger"],
-    last: ["Haaland", "Odegaard", "Berge", "Thorstvedt", "Thorsby", "Sorloth", "Skjelbred", "Strandberg", "Midtsjo", "Meling"],
+    first: [
+      "Magnus", "Henrik", "Jonas", "Sander", "Kristian", "Morten", "Fredrik", "Sondre",
+      "Eirik", "Ola", "Lars", "Anders", "Even", "Sindre", "Vegard", "Petter",
+    ],
+    last: [
+      "Hansen", "Johansen", "Olsen", "Larsen", "Andersen", "Pedersen", "Nilsen", "Kristiansen",
+      "Jensen", "Karlsen", "Johnsen", "Pettersen", "Berg", "Haugen", "Hagen", "Dahl",
+    ],
   },
   Sweden: {
     weight: 9,
-    first: ["Emil", "Alexander", "Dejan", "Viktor", "Robin", "Anthony", "Ludwig", "Mattias", "Jesper", "Isak"],
-    last: ["Forsberg", "Isak", "Kulusevski", "Gyokeres", "Olsen", "Elanga", "Augustinsson", "Svanberg", "Karlstrom", "Danielson"],
+    first: [
+      "Oscar", "William", "Lucas", "Elias", "Hugo", "Filip", "Anton", "Gustav",
+      "Axel", "Erik", "Viktor", "Nils", "Adam", "Albin", "Melvin", "Casper",
+    ],
+    last: [
+      "Andersson", "Johansson", "Karlsson", "Nilsson", "Eriksson", "Larsson", "Olsson", "Persson",
+      "Svensson", "Gustafsson", "Pettersson", "Jonsson", "Jansson", "Hansson", "Bengtsson", "Lindberg",
+    ],
   },
   Poland: {
     weight: 8,
-    first: ["Robert", "Piotr", "Jakub", "Arkadiusz", "Kamil", "Przemyslaw", "Wojciech", "Karol", "Jan", "Sebastian"],
-    last: ["Lewandowski", "Zielinski", "Milik", "Kiwior", "Glik", "Frankowski", "Szczesny", "Swiderski", "Bednarek", "Kaminski"],
+    first: [
+      "Jakub", "Kamil", "Wojciech", "Karol", "Jan", "Sebastian", "Piotr", "Mateusz",
+      "Szymon", "Bartosz", "Michal", "Krzysztof", "Marcin", "Dawid",
+    ],
+    last: [
+      "Nowak", "Kowalski", "Wisniewski", "Wojcik", "Kowalczyk", "Kaminski", "Szymanski", "Wozniak",
+      "Dabrowski", "Kozlowski", "Jankowski", "Mazur", "Krawczyk", "Piotrowski",
+    ],
   },
   Ukraine: {
     weight: 8,
-    first: ["Andriy", "Oleksandr", "Ruslan", "Mykola", "Viktor", "Artem", "Taras", "Yevhen", "Denys", "Illia"],
-    last: ["Yarmolenko", "Zinchenko", "Malinovskyi", "Mudryk", "Konoplyanka", "Dovbyk", "Sydorchuk", "Trubin", "Bondar", "Sudakov"],
+    first: [
+      "Andriy", "Oleksandr", "Ruslan", "Mykola", "Viktor", "Artem", "Taras", "Yevhen",
+      "Denys", "Illia", "Bohdan", "Dmytro", "Maksym", "Vladyslav",
+    ],
+    last: [
+      "Kovalenko", "Boyko", "Tkachenko", "Kravchenko", "Bondarenko", "Oliynyk", "Shevchuk", "Polishchuk",
+      "Lysenko", "Rudenko", "Savchenko", "Melnyk", "Marchenko", "Kovalchuk",
+    ],
   },
   Ghana: {
     weight: 8,
-    first: ["Thomas", "Andre", "Jordan", "Mohammed", "Kudus", "Jerome", "Baba", "Daniel", "Iddrisu", "Christopher"],
-    last: ["Partey", "Ayew", "Kudus", "Salisu", "Opoku", "Rahman", "Amartey", "Boateng", "Wollacott", "Antwi"],
+    first: [
+      "Kwame", "Kofi", "Kwesi", "Yaw", "Kojo", "Kwabena", "Akwasi", "Nana",
+      "Ebenezer", "Prince", "Emmanuel", "Isaac", "Richmond", "Gideon",
+    ],
+    last: [
+      "Mensah", "Owusu", "Osei", "Boateng", "Asante", "Appiah", "Adjei", "Agyemang",
+      "Ofori", "Amoah", "Darko", "Ankrah", "Tetteh", "Quaye",
+    ],
   },
   Serbia: {
     weight: 7,
-    first: ["Dusan", "Nemanja", "Sergej", "Aleksandar", "Filip", "Luka", "Fillip", "Ivan", "Uros", "Strahinja"],
-    last: ["Vlahovic", "Matic", "Milinkovic-Savic", "Mitrovic", "Kostic", "Jovic", "Djuricic", "Ilic", "Racic", "Pavlovic"],
+    first: [
+      "Nemanja", "Aleksandar", "Filip", "Luka", "Ivan", "Uros", "Marko", "Nikola",
+      "Stefan", "Dusan", "Milos", "Vuk", "Petar", "Lazar",
+    ],
+    last: [
+      "Jovanovic", "Petrovic", "Nikolic", "Markovic", "Djordjevic", "Stojanovic", "Stankovic", "Todorovic",
+      "Ristic", "Zivkovic", "Lazic", "Vasic", "Simic", "Lukic",
+    ],
   },
   Cameroon: {
     weight: 7,
-    first: ["Andre", "Vincent", "Eric", "Karl", "Christian", "Jean", "Bryan", "Nicolas", "Olivier", "Frank"],
-    last: ["Onana", "Aboubakar", "Choupo-Moting", "Toko Ekambi", "Bassogog", "Zambo Anguissa", "Mbeumo", "Ngamaleu", "Ngoumou", "Nkoulou"],
+    first: [
+      "Jean", "Paul", "Pierre", "Serge", "Alain", "Patrick", "Cyrille", "Rodrigue",
+      "Landry", "Thierry", "Arnaud", "Blaise", "Herve", "Francis",
+    ],
+    last: [
+      "Mbarga", "Fotso", "Kamga", "Ngono", "Essomba", "Owona", "Atangana", "Etoundi",
+      "Mballa", "Ndongo", "Tsafack", "Djoum", "Bekono", "Manga",
+    ],
   },
   "Ivory Coast": {
     weight: 6,
-    first: ["Nicolas", "Wilfried", "Franck", "Serge", "Max", "Seko", "Eric", "Jean", "Ibrahim", "Christian"],
-    last: ["Pepe", "Zaha", "Kessie", "Aurier", "Gradel", "Fofana", "Bailly", "Kone", "Sangare", "Kouassi"],
+    first: [
+      "Jean", "Ibrahim", "Christian", "Didier", "Souleymane", "Mamadou", "Ousmane", "Abdoulaye",
+      "Bakary", "Moussa", "Seydou", "Lacina",
+    ],
+    last: [
+      "Toure", "Kone", "Ouattara", "Coulibaly", "Diabate", "Kouassi", "Kouame", "Yao",
+      "Konan", "Bamba", "Fofana", "Doumbia",
+    ],
   },
   "United States": {
     weight: 6,
-    first: ["Christian", "Weston", "Tyler", "Gio", "Yunus", "Sergino", "Tim", "Brenden", "Ricardo", "Matt"],
-    last: ["Pulisic", "McKennie", "Adams", "Reyna", "Musah", "Dest", "Weah", "Aaronson", "Pepi", "Turner"],
+    first: [
+      "Tyler", "Brandon", "Austin", "Jake", "Caleb", "Logan", "Mason", "Hunter",
+      "Dillon", "Chase", "Cody", "Trevor",
+    ],
+    last: [
+      "Miller", "Davis", "Anderson", "Thompson", "Martin", "Garcia", "Martinez", "Hernandez",
+      "Jackson", "Brooks", "Sullivan", "Bennett",
+    ],
   },
   Switzerland: {
     weight: 5,
-    first: ["Granit", "Xherdan", "Manuel", "Ricardo", "Breel", "Yann", "Nico", "Denis", "Steven", "Fabian"],
-    last: ["Xhaka", "Shaqiri", "Akanji", "Rodriguez", "Embolo", "Sommer", "Elvedi", "Zakaria", "Zuber", "Schar"],
+    first: [
+      "Luca", "Noah", "Leon", "Nico", "Jan", "Fabio", "Silvan", "Joel",
+      "Dario", "Marco", "Sandro", "Livio",
+    ],
+    last: [
+      "Meier", "Muller", "Keller", "Huber", "Schneider", "Weber", "Baumann", "Frei",
+      "Brunner", "Steiner", "Widmer", "Bianchi",
+    ],
   },
   Japan: {
     weight: 5,
-    first: ["Takefusa", "Kaoru", "Wataru", "Daichi", "Ritsu", "Junya", "Takumi", "Ko", "Ao", "Hidemasa"],
-    last: ["Kubo", "Mitoma", "Endo", "Kamada", "Doan", "Ito", "Minamino", "Itakura", "Tanaka", "Morita"],
+    first: [
+      "Haruto", "Yuto", "Sota", "Ren", "Kaito", "Daiki", "Riku", "Kenta",
+      "Shota", "Yuki", "Hiroto", "Kazuki",
+    ],
+    last: [
+      "Sato", "Suzuki", "Takahashi", "Tanaka", "Watanabe", "Yamamoto", "Nakamura", "Kobayashi",
+      "Kato", "Yoshida", "Yamada", "Sasaki",
+    ],
   },
   "South Korea": {
     weight: 5,
-    first: ["Heung-min", "Min-jae", "Hee-chan", "Kang-in", "Gue-sung", "Woo-young", "In-sung", "Chul", "Seung-ho", "Jong-woo"],
-    last: ["Son", "Kim", "Hwang", "Lee", "Cho", "Jung", "Kang", "Hong", "Baek", "Yoon"],
+    first: [
+      "Min-jun", "Ji-hoon", "Dong-hyun", "Hyun-woo", "Ji-ho", "Jun-seo", "Seung-min", "Woo-jin",
+      "Tae-yang", "Ye-jun", "Do-yun", "Si-woo",
+    ],
+    last: ["Kim", "Lee", "Park", "Choi", "Jung", "Kang", "Cho", "Yoon", "Jang", "Lim", "Han", "Oh"],
   },
   Austria: {
     weight: 4,
-    first: ["David", "Marcel", "Marko", "Konrad", "Xaver", "Christoph", "Stefan", "Alexander"],
-    last: ["Alaba", "Sabitzer", "Arnautovic", "Laimer", "Schlager", "Baumgartner", "Posch", "Lainer"],
+    first: ["Lukas", "Tobias", "Florian", "Simon", "Elias", "Julian", "Matthias", "Paul", "Jonas", "Felix"],
+    last: ["Gruber", "Huber", "Bauer", "Wagner", "Pichler", "Steiner", "Moser", "Mayer", "Hofer", "Leitner"],
   },
   "Czech Republic": {
     weight: 4,
-    first: ["Patrik", "Tomas", "Vladimir", "Antonin", "Ondrej", "Adam", "Lukas", "Jakub"],
-    last: ["Schick", "Soucek", "Coufal", "Barak", "Kudela", "Hlozek", "Provod", "Jankto"],
+    first: ["Jan", "Jakub", "Tomas", "Adam", "Matej", "Ondrej", "Filip", "Vojtech", "Dominik", "Lukas"],
+    last: ["Novak", "Svoboda", "Novotny", "Dvorak", "Cerny", "Prochazka", "Kucera", "Vesely", "Horak", "Nemec"],
   },
   Turkey: {
     weight: 4,
-    first: ["Hakan", "Burak", "Cengiz", "Merih", "Kerem", "Ozan", "Yusuf", "Orkun"],
-    last: ["Calhanoglu", "Yilmaz", "Under", "Demiral", "Akturkoglu", "Kabak", "Yazici", "Kokcu"],
+    first: ["Emre", "Mert", "Can", "Efe", "Yusuf", "Ahmet", "Mehmet", "Mustafa", "Umut", "Berkay"],
+    last: ["Yilmaz", "Kaya", "Demir", "Celik", "Sahin", "Yildirim", "Ozturk", "Aydin", "Arslan", "Dogan"],
   },
   Algeria: {
     weight: 3,
-    first: ["Riyad", "Islam", "Baghdad", "Youcef", "Ismael", "Sofiane"],
-    last: ["Mahrez", "Slimani", "Bounedjah", "Belaili", "Bennacer", "Feghouli"],
+    first: ["Mohamed", "Amine", "Yacine", "Sofiane", "Bilal", "Walid", "Karim", "Rayan", "Adel", "Farid"],
+    last: ["Benali", "Bouazza", "Cherif", "Hamdi", "Meziane", "Belkacem", "Saadi", "Mansouri", "Kaci", "Djebbar"],
   },
   Morocco: {
     weight: 3,
-    first: ["Achraf", "Hakim", "Sofyan", "Yassine", "Youssef", "Noussair"],
-    last: ["Hakimi", "Ziyech", "Amrabat", "Bounou", "En-Nesyri", "Mazraoui"],
+    first: ["Mohamed", "Youssef", "Omar", "Anas", "Hamza", "Ayoub", "Zakaria", "Ilias", "Reda", "Badr"],
+    last: ["Alaoui", "Benjelloun", "El Amrani", "Tazi", "Berrada", "Chraibi", "El Idrissi", "Bennani", "Lahlou", "Sebti"],
   },
   Senegal: {
     weight: 3,
-    first: ["Sadio", "Kalidou", "Edouard", "Ismaila", "Idrissa", "Nampalys"],
-    last: ["Mane", "Koulibaly", "Mendy", "Sarr", "Gueye", "Diatta"],
+    first: ["Mamadou", "Ousmane", "Abdoulaye", "Cheikh", "Ibrahima", "Modou", "Pape", "Serigne", "Aliou", "Babacar"],
+    last: ["Ndiaye", "Diop", "Fall", "Gueye", "Sy", "Ba", "Faye", "Sarr", "Niang", "Diouf"],
   },
   Mexico: {
     weight: 3,
-    first: ["Hirving", "Raul", "Guillermo", "Edson", "Hector", "Cesar"],
-    last: ["Lozano", "Jimenez", "Ochoa", "Alvarez", "Moreno", "Montes"],
+    first: ["Jose", "Luis", "Juan", "Carlos", "Jorge", "Miguel", "Fernando", "Ricardo", "Eduardo", "Alejandro"],
+    last: ["Hernandez", "Garcia", "Martinez", "Lopez", "Gonzalez", "Rodriguez", "Sanchez", "Ramirez", "Cruz", "Vargas"],
   },
   Canada: {
     weight: 2,
-    first: ["Alphonso", "Jonathan", "Cyle", "Tajon", "Stephen", "Alistair"],
-    last: ["Davies", "David", "Larin", "Buchanan", "Eustaquio", "Johnston"],
+    first: ["Liam", "Ethan", "Noah", "Owen", "Lucas", "Nathan", "Cole", "Carter", "Evan", "Tristan"],
+    last: ["Tremblay", "Roy", "Gagnon", "MacLeod", "Fraser", "Bouchard", "Cote", "Morin", "Leblanc", "Ross"],
   },
   Australia: {
     weight: 2,
-    first: ["Mathew", "Aaron", "Ajdin", "Craig", "Jackson", "Riley"],
-    last: ["Ryan", "Mooy", "Hrustic", "Goodwin", "Irvine", "McGree"],
+    first: ["Lachlan", "Cooper", "Riley", "Mitchell", "Brayden", "Zac", "Jayden", "Flynn", "Bailey", "Angus"],
+    last: ["Kennedy", "O'Neill", "Marsh", "Hughes", "Fitzgerald", "Watson", "Nash", "Payne", "Draper", "Sutton"],
   },
   Finland: {
     weight: 2,
-    first: ["Teemu", "Glen", "Robin", "Jere", "Fredrik", "Rasmus"],
-    last: ["Pukki", "Kamara", "Lod", "Uronen", "Jensen", "Schuller"],
+    first: ["Onni", "Eetu", "Aleksi", "Ville", "Juho", "Niko", "Samu", "Arttu", "Joona", "Elias"],
+    last: ["Korhonen", "Virtanen", "Makinen", "Nieminen", "Hamalainen", "Laine", "Heikkinen", "Koskinen", "Jarvinen", "Lehtonen"],
   },
   Romania: {
     weight: 2,
-    first: ["Nicolae", "Ianis", "Denis", "Razvan", "George", "Florin"],
-    last: ["Stanciu", "Hagi", "Alibec", "Marin", "Puscas", "Tanase"],
+    first: ["Andrei", "Alexandru", "Stefan", "Mihai", "Ionut", "Gabriel", "Vlad", "Darius", "Razvan", "Cristian"],
+    last: ["Popescu", "Ionescu", "Popa", "Radu", "Dumitrescu", "Stan", "Stoica", "Munteanu", "Gheorghe", "Matei"],
   },
   Slovakia: {
     weight: 2,
-    first: ["Milan", "Marek", "Stanislav", "Robert", "Juraj", "Ondrej"],
-    last: ["Skriniar", "Hamsik", "Lobotka", "Mak", "Kucka", "Duda"],
+    first: ["Martin", "Tomas", "Peter", "Michal", "Jakub", "Lukas", "Matus", "Samuel", "Adam", "Filip"],
+    last: ["Kovac", "Horvath", "Varga", "Toth", "Nagy", "Balaz", "Molnar", "Szabo", "Lukac", "Polak"],
   },
   Slovenia: {
     weight: 2,
-    first: ["Jan", "Benjamin", "Sandi", "Josip", "Timi", "Andraz"],
-    last: ["Oblak", "Sesko", "Verbic", "Ilicic", "Kurtic", "Sporar"],
+    first: ["Luka", "Jan", "Nejc", "Ziga", "Anze", "Tilen", "Gasper", "Rok", "Blaz", "Matic"],
+    last: ["Novak", "Horvat", "Krajnc", "Zupancic", "Potocnik", "Kovac", "Mlakar", "Vidmar", "Golob", "Turk"],
   },
   Iceland: {
     weight: 2,
-    first: ["Gylfi", "Kolbeinn", "Birkir", "Aron", "Rurik", "Alfred"],
-    last: ["Sigurdsson", "Sigthorsson", "Bjarnason", "Gunnarsson", "Gislason", "Finnbogason"],
+    first: ["Jon", "Gunnar", "Bjarni", "Kristjan", "Olafur", "Einar", "Magnus", "Arnar", "Dagur", "Haukur"],
+    last: ["Jonsson", "Gunnarsson", "Einarsson", "Magnusson", "Olafsson", "Kristjansson", "Arnarsson", "Thorsteinsson", "Halldorsson", "Palsson"],
   },
   Mali: {
     weight: 2,
-    first: ["Yves", "Moussa", "Amadou", "Kalifa", "Boubacar", "Cheick"],
-    last: ["Bissouma", "Doumbia", "Haidara", "Coulibaly", "Traore", "Diabate"],
+    first: ["Moussa", "Amadou", "Boubacar", "Cheick", "Seydou", "Modibo", "Souleymane", "Adama", "Drissa", "Mamadou"],
+    last: ["Traore", "Coulibaly", "Keita", "Diarra", "Sidibe", "Kone", "Doumbia", "Diallo", "Camara", "Sanogo"],
   },
   "Burkina Faso": {
     weight: 1,
-    first: ["Bertrand", "Issa", "Cyrille", "Blati", "Edmond", "Steeve"],
-    last: ["Traore", "Kabore", "Bayala", "Toure", "Tapsoba", "Yago"],
+    first: ["Issa", "Adama", "Boureima", "Salif", "Idrissa", "Harouna", "Karim", "Zakaria"],
+    last: ["Ouedraogo", "Kabore", "Sawadogo", "Zongo", "Compaore", "Nikiema", "Sanou", "Ilboudo"],
   },
   "DR Congo": {
     weight: 1,
-    first: ["Cedric", "Yannick", "Chancel", "Britt", "Dieumerci", "Gael"],
-    last: ["Bakambu", "Bolasie", "Mbemba", "Assombalonga", "Mbokani", "Kakuta"],
+    first: ["Cedric", "Yannick", "Gael", "Jonathan", "Patrick", "Christian", "Glody", "Dieudonne"],
+    last: ["Kabongo", "Ilunga", "Mukendi", "Tshibanda", "Kalonji", "Mbuyi", "Ngoy", "Kasongo"],
   },
   Guinea: {
     weight: 1,
-    first: ["Naby", "Ilaix", "Jose", "Mohamed", "Issiaga", "Alseny"],
-    last: ["Keita", "Moriba", "Kante", "Bangoura", "Sylla", "Camara"],
+    first: ["Mohamed", "Ibrahima", "Ousmane", "Sekou", "Alseny", "Mamadi", "Fode", "Lansana"],
+    last: ["Camara", "Sylla", "Bah", "Barry", "Conde", "Soumah", "Cisse", "Toure"],
   },
   Uruguay: {
     weight: 1,
-    first: ["Luis", "Edinson", "Federico", "Rodrigo", "Ronald", "Nahitan"],
-    last: ["Suarez", "Cavani", "Valverde", "Bentancur", "Araujo", "Nandez"],
+    first: ["Santiago", "Matias", "Agustin", "Facundo", "Diego", "Bruno", "Emiliano", "Maximiliano"],
+    last: ["Perez", "Rodriguez", "Fernandez", "Gonzalez", "Silva", "Pereira", "Sosa", "Techera"],
   },
   Colombia: {
     weight: 1,
-    first: ["James", "Luis", "Radamel", "Juan", "Davinson", "Yerry"],
-    last: ["Rodriguez", "Diaz", "Falcao", "Cuadrado", "Sanchez", "Mina"],
+    first: ["Juan", "Camilo", "Andres", "Santiago", "Sebastian", "Mateo", "Daniel", "Felipe"],
+    last: ["Gomez", "Restrepo", "Cardona", "Arango", "Betancur", "Salazar", "Castano", "Giraldo"],
   },
   Ecuador: {
     weight: 1,
-    first: ["Moises", "Enner", "Pervis", "Piero", "Michael", "Gonzalo"],
-    last: ["Caicedo", "Valencia", "Estupinan", "Hincapie", "Estrada", "Plata"],
+    first: ["Carlos", "Luis", "Angel", "Jefferson", "Bryan", "Kevin", "Jhon", "Darwin"],
+    last: ["Zambrano", "Cedeno", "Mendez", "Quinonez", "Vera", "Espinoza", "Palacios", "Chila"],
   },
   Paraguay: {
     weight: 1,
-    first: ["Miguel", "Gustavo", "Angel", "Julio", "Omar", "Gaston"],
-    last: ["Almiron", "Gomez", "Romero", "Villalba", "Alderete", "Gimenez"],
+    first: ["Oscar", "Victor", "Hugo", "Cesar", "Ruben", "Osvaldo", "Blas", "Adalberto"],
+    last: ["Benitez", "Caceres", "Villalba", "Ayala", "Franco", "Ortiz", "Riveros", "Ruiz Diaz"],
   },
   Venezuela: {
     weight: 1,
-    first: ["Salomon", "Yangel", "Josef", "Tomas", "Jhon", "Darwin"],
-    last: ["Rondon", "Herrera", "Martinez", "Rincon", "Chancellor", "Machis"],
+    first: ["Jose", "Miguel", "Rafael", "Alejandro", "Jesus", "Eduardo", "Anthony", "Jhonny"],
+    last: ["Blanco", "Castillo", "Rivas", "Guerra", "Paez", "Mendoza", "Colmenares", "Aponte"],
   },
 };
 
 // "Other Nations (combined)" bucket — a country is picked uniformly among
 // these when the weighted roll lands in that combined slot.
 export const OTHER_NATIONS: Record<string, { first: string[]; last: string[] }> = {
-  Egypt: { first: ["Mohamed", "Omar", "Mostafa", "Amr", "Ahmed", "Karim"], last: ["Salah", "Hamdi", "Mohamed", "Fathy", "Elneny", "Abdelmonem"] },
-  Tunisia: { first: ["Wahbi", "Youssef", "Hannibal", "Ellyes", "Ali", "Naim"], last: ["Khazri", "Msakni", "Mejbri", "Skhiri", "Abdi", "Sliti"] },
-  Chile: { first: ["Alexis", "Arturo", "Gary", "Claudio", "Charles", "Ben"], last: ["Sanchez", "Vidal", "Medel", "Bravo", "Aranguiz", "Brereton Diaz"] },
-  Peru: { first: ["Paolo", "Christian", "Andre", "Yoshimar", "Renato", "Edison"], last: ["Guerrero", "Cueva", "Carrillo", "Yotun", "Tapia", "Flores"] },
-  Bolivia: { first: ["Marcelo", "Erwin", "Juan", "Rodrigo", "Ramiro", "Jose"], last: ["Moreno", "Saavedra", "Arce", "Ramallo", "Vaca", "Sagredo"] },
-  Iran: { first: ["Mehdi", "Sardar", "Alireza", "Saman", "Ramin", "Karim"], last: ["Taremi", "Azmoun", "Jahanbakhsh", "Ghoddos", "Rezaeian", "Ansarifard"] },
-  China: { first: ["Wu", "Yu", "Wei", "Zhang", "Xiao", "Feng"], last: ["Lei", "Hanchao", "Shihao", "Linpeng", "Zhi", "Jinghao"] },
-  India: { first: ["Sunil", "Sandesh", "Gurpreet", "Anirudh", "Manvir", "Udanta"], last: ["Chhetri", "Jhingan", "Sandhu", "Thapa", "Singh", "Turi"] },
-  Israel: { first: ["Eran", "Manor", "Dor", "Nir", "Eli", "Tal"], last: ["Zahavi", "Solomon", "Peretz", "Bitton", "Dasa", "Kaplan"] },
-  "New Zealand": { first: ["Chris", "Winston", "Sarpreet", "Liberato", "Marko", "Tim"], last: ["Wood", "Reid", "Singh", "Cacace", "Stamenic", "Payne"] },
-  Jamaica: { first: ["Leon", "Michail", "Bobby", "Damion", "Kasey", "Shamar"], last: ["Bailey", "Antonio", "Reid", "Lowe", "Palmer", "Nicholson"] },
-  "Costa Rica": { first: ["Keylor", "Joel", "Bryan", "Celso", "Francisco", "Yeltsin"], last: ["Navas", "Campbell", "Oviedo", "Borges", "Calvo", "Tejeda"] },
-  Honduras: { first: ["Alberth", "Romell", "Andy", "Bryan", "Denil", "Luis"], last: ["Elis", "Quioto", "Najar", "Acosta", "Maldonado", "Palma"] },
-  Panama: { first: ["Adalberto", "Cecilio", "Fidel", "Anibal", "Michael", "Eric"], last: ["Carrasquilla", "Waterman", "Escobar", "Godoy", "Murillo", "Davis"] },
-  Zambia: { first: ["Patson", "Fashion", "Enock", "Rainford", "Justin", "Emmanuel"], last: ["Daka", "Sakala", "Mwepu", "Kalaba", "Shonga", "Banda"] },
-  Kenya: { first: ["Michael", "Victor", "Johanna", "Eric", "Wanyama", "Ayub"], last: ["Olunga", "Wanyama", "Omollo", "Ochieng", "Masika", "Timbe"] },
-  Gabon: { first: ["Pierre-Emerick", "Denis", "Mario", "Guelor", "Bruno", "Mario"], last: ["Aubameyang", "Bouanga", "Lemina", "Kanga", "Ecuele Manga", "Ambourouet"] },
-  Angola: { first: ["Manucho", "Gelson", "Fabrice", "Show", "Bastos", "Zini"], last: ["Goncalves", "Dala", "Baio", "Fernando", "Miguel", "Buatu"] },
-  Tanzania: { first: ["Mbwana", "Simon", "Novatus", "Himid", "Feisal", "Aishi"], last: ["Samatta", "Msuva", "Dickson", "Aboud", "Salum", "Manula"] },
-  "South Africa": { first: ["Percy", "Bongani", "Themba", "Lyle", "Ronwen", "Thembinkosi"], last: ["Tau", "Zungu", "Zwane", "Foster", "Williams", "Lorch"] },
+  Egypt: {
+    first: ["Ahmed", "Mohamed", "Mahmoud", "Mostafa", "Omar", "Youssef", "Khaled", "Tarek"],
+    last: ["Hassan", "Ibrahim", "Mahmoud", "Abdelrahman", "Fathy", "Ramadan", "Shawky", "Kamal"],
+  },
+  Tunisia: {
+    first: ["Mohamed", "Ahmed", "Youssef", "Anis", "Bilel", "Hamza", "Seifeddine", "Oussama"],
+    last: ["Trabelsi", "Jebali", "Gharbi", "Mansouri", "Hammami", "Chebbi", "Dridi", "Ayari"],
+  },
+  Chile: {
+    first: ["Matias", "Benjamin", "Vicente", "Joaquin", "Cristobal", "Diego", "Felipe", "Ignacio"],
+    last: ["Munoz", "Rojas", "Soto", "Contreras", "Silva", "Fuentes", "Espinoza", "Araya"],
+  },
+  Peru: {
+    first: ["Luis", "Jose", "Carlos", "Jorge", "Miguel", "Renzo", "Alonso", "Piero"],
+    last: ["Quispe", "Flores", "Huaman", "Chavez", "Rojas", "Torres", "Castillo", "Salazar"],
+  },
+  Bolivia: {
+    first: ["Juan", "Carlos", "Luis", "Marco", "Ronald", "Diego", "Jhasmani", "Rodrigo"],
+    last: ["Mamani", "Quispe", "Flores", "Condori", "Choque", "Vargas", "Rojas", "Gutierrez"],
+  },
+  Iran: {
+    first: ["Ali", "Reza", "Amir", "Hossein", "Mehdi", "Saeid", "Arman", "Pouya"],
+    last: ["Hosseini", "Ahmadi", "Rezaei", "Moradi", "Jafari", "Kazemi", "Sadeghi", "Ebrahimi"],
+  },
+  China: {
+    first: ["Wei", "Jun", "Hao", "Lei", "Ming", "Bo", "Tao", "Chen"],
+    last: ["Wang", "Li", "Zhang", "Liu", "Chen", "Yang", "Huang", "Zhao"],
+  },
+  India: {
+    first: ["Arjun", "Rohan", "Rahul", "Vikram", "Aditya", "Karan", "Nikhil", "Sanjay"],
+    last: ["Sharma", "Singh", "Kumar", "Patel", "Nair", "Das", "Reddy", "Verma"],
+  },
+  Israel: {
+    first: ["Noam", "Itai", "Yonatan", "Amit", "Omer", "Daniel", "Gal", "Idan"],
+    last: ["Cohen", "Levi", "Mizrahi", "Peretz", "Biton", "Avraham", "Dahan", "Azoulay"],
+  },
+  "New Zealand": {
+    first: ["Liam", "Jack", "Oliver", "Hunter", "Mason", "Blake", "Finn", "Toby"],
+    last: ["Wilson", "Thompson", "Anderson", "Walker", "Harris", "Ngata", "Parata", "Clarke"],
+  },
+  Jamaica: {
+    first: ["Andre", "Damion", "Shane", "Ricardo", "Omar", "Devon", "Kemar", "Jerome"],
+    last: ["Brown", "Williams", "Campbell", "Grant", "Reid", "Thompson", "Blake", "Morrison"],
+  },
+  "Costa Rica": {
+    first: ["Jose", "Carlos", "Luis", "Andres", "Esteban", "Randall", "Marco", "Kenneth"],
+    last: ["Vargas", "Rodriguez", "Jimenez", "Mora", "Solano", "Chaves", "Rojas", "Salas"],
+  },
+  Honduras: {
+    first: ["Carlos", "Jorge", "Marvin", "Wilmer", "Selvin", "Edwin", "Jerry", "Oscar"],
+    last: ["Martinez", "Lopez", "Flores", "Mejia", "Castro", "Zelaya", "Padilla", "Espinal"],
+  },
+  Panama: {
+    first: ["Jose", "Luis", "Alberto", "Ricardo", "Armando", "Rolando", "Ismael", "Gabriel"],
+    last: ["Gonzalez", "Rodriguez", "Perez", "Castillo", "Sanchez", "Aguilar", "Beitia", "Camargo"],
+  },
+  Zambia: {
+    first: ["Emmanuel", "Chanda", "Mwape", "Kelvin", "Lubinda", "Gift", "Brian", "Moses"],
+    last: ["Banda", "Phiri", "Mwansa", "Tembo", "Zulu", "Mulenga", "Chirwa", "Musonda"],
+  },
+  Kenya: {
+    first: ["Brian", "Kevin", "Dennis", "Collins", "Victor", "Eric", "Samuel", "Joseph"],
+    last: ["Otieno", "Mwangi", "Kamau", "Ochieng", "Njoroge", "Kiprop", "Wafula", "Mutua"],
+  },
+  Gabon: {
+    first: ["Denis", "Bruno", "Guy", "Serge", "Herve", "Franck", "Ulrich", "Yannis"],
+    last: ["Ondo", "Nzue", "Moussavou", "Obiang", "Mba", "Ekomy", "Ivanga", "Ndong"],
+  },
+  Angola: {
+    first: ["Joao", "Pedro", "Manuel", "Antonio", "Domingos", "Helder", "Wilson", "Edmilson"],
+    last: ["dos Santos", "Fernandes", "Cabral", "Sebastiao", "Neto", "Gomes", "Lourenco", "Panzo"],
+  },
+  Tanzania: {
+    first: ["Juma", "Hamisi", "Rashidi", "Selemani", "Abdallah", "Issa", "Hassan", "Baraka"],
+    last: ["Said", "Mushi", "Massawe", "Shayo", "Kimaro", "Swai", "Temba", "Lyimo"],
+  },
+  "South Africa": {
+    first: ["Sipho", "Thabo", "Bongani", "Themba", "Lucky", "Katlego", "Sibusiso", "Andile"],
+    last: ["Dlamini", "Nkosi", "Khumalo", "Mokoena", "Ndlovu", "Mahlangu", "Sithole", "Mabaso"],
+  },
 };
 
 const OTHER_BUCKET_WEIGHT = 8;
