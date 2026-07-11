@@ -135,12 +135,39 @@ export function trimRosterSurplus(
   });
 }
 
-/** Release a player from a team's roster back to the free agent pool. */
+/**
+ * Depth floor shared by the transfer market (isForSale) and manual releases:
+ * losing `pid` must leave the club with at least half its target complement
+ * (ROSTER_COMPOSITION, rounded up) at that position. Without this floor a
+ * user could release their way down to an unfieldable squad — an empty side
+ * crashes the match engine and the state persists, bricking the save.
+ */
+export function keepsDepthFloor(
+  team: StoredTeam,
+  players: Map<number, Player>,
+  pid: number,
+): boolean {
+  const p = players.get(pid);
+  if (!p || !team.roster.includes(pid)) return false;
+  const depthAfter =
+    team.roster.filter((q) => players.get(q)?.pos === p.pos).length - 1;
+  return depthAfter >= Math.ceil(ROSTER_COMPOSITION[p.pos] / 2);
+}
+
+/**
+ * Release a player from a team's roster back to the free agent pool. No-op
+ * if the release would take the squad below the positional depth floor.
+ */
 export function releasePlayer(
   teams: StoredTeam[],
+  players: Player[],
   tid: number,
   pid: number,
 ): StoredTeam[] {
+  const team = teams.find((t) => t.tid === tid);
+  if (!team) return teams;
+  const playerMap = new Map(players.map((p) => [p.pid, p]));
+  if (!keepsDepthFloor(team, playerMap, pid)) return teams;
   return teams.map((t) =>
     t.tid === tid ? { ...t, roster: t.roster.filter((p) => p !== pid) } : t,
   );

@@ -30,8 +30,13 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   // 1. Release expired contracts to the free agent pool.
   let teams: StoredTeam[] = releaseExpiredContracts(league.teams, league.players, endingSeason);
 
-  // 2. Progress every remaining player's ratings.
-  let players: Player[] = league.players.map((p) => progressPlayer(rng, p, endingSeason));
+  // 2. Progress every remaining player's ratings. The months-long break also
+  //    heals any injury still mid-recovery when the season ended (max recovery
+  //    is INJURY_GAMES_MAX matchdays, far shorter than an offseason).
+  let players: Player[] = league.players.map((p) => {
+    const progressed = progressPlayer(rng, p, endingSeason);
+    return progressed.injury ? { ...progressed, injury: null } : progressed;
+  });
 
   // 3. Roll retirement; drop retirees from rosters and the player pool.
   const retiredPids = new Set(

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import {
-  freeAgentPids, releaseExpiredContracts, runAIFreeAgency, signFreeAgent,
+  freeAgentPids, releaseExpiredContracts, runAIFreeAgency, signFreeAgent, releasePlayer,
 } from "../../src/core/freeAgency.js";
 import { ROSTER_COMPOSITION, ROSTER_CAP } from "../../src/core/constants.js";
 
@@ -129,5 +129,42 @@ describe("signFreeAgent", () => {
     const result = signFreeAgent(teams, league.players, 0, pid, 1, "offseason");
     expect(result.teams).toBe(teams);
     expect(result.players).toBe(league.players);
+  });
+});
+
+describe("releasePlayer depth floor", () => {
+  it("releases a player while depth stays at or above half the target complement", () => {
+    const league = createLeagueState(0, mulberry32(7));
+    const team = league.teams[0];
+    const gks = league.players.filter(
+      (p) => p.pos === "GK" && team.roster.includes(p.pid),
+    );
+    expect(gks.length).toBe(ROSTER_COMPOSITION.GK);
+
+    // GK target is 3, floor after a release is ceil(3/2) = 2: first release ok.
+    const teams = releasePlayer(league.teams, league.players, team.tid, gks[0].pid);
+    expect(teams.find((t) => t.tid === team.tid)!.roster).not.toContain(gks[0].pid);
+  });
+
+  it("refuses a release that would drop a position below the floor", () => {
+    const league = createLeagueState(0, mulberry32(8));
+    const team = league.teams[0];
+    const gks = league.players.filter(
+      (p) => p.pos === "GK" && team.roster.includes(p.pid),
+    );
+
+    const afterFirst = releasePlayer(league.teams, league.players, team.tid, gks[0].pid);
+    // Down to 2 GKs — releasing another would leave 1 < ceil(3/2), so no-op.
+    const afterSecond = releasePlayer(afterFirst, league.players, team.tid, gks[1].pid);
+    expect(afterSecond).toBe(afterFirst);
+    expect(afterSecond.find((t) => t.tid === team.tid)!.roster).toContain(gks[1].pid);
+  });
+
+  it("no-ops for a pid that isn't on the team", () => {
+    const league = createLeagueState(0, mulberry32(9));
+    const team = league.teams[0];
+    const otherPid = league.teams[1].roster[0];
+    const teams = releasePlayer(league.teams, league.players, team.tid, otherPid);
+    expect(teams).toBe(league.teams);
   });
 });

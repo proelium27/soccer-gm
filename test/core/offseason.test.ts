@@ -111,3 +111,24 @@ describe("simOffseason", () => {
     }
   });
 });
+
+describe("simOffseason injuries", () => {
+  it("clears any lingering injury at the season rollover", () => {
+    const rng = mulberry32(21);
+    const league = playFullSeason(rng);
+    // Wound a handful of players as if hurt on the final matchday, with the
+    // longest possible recovery still outstanding.
+    const wounded = new Set(league.players.slice(0, 5).map((p) => p.pid));
+    const withInjuries = {
+      ...league,
+      players: league.players.map((p) =>
+        wounded.has(p.pid) ? { ...p, injury: { gamesRemaining: 6, type: "knock" } } : p,
+      ),
+    };
+
+    const next = simOffseason(withInjuries, rng);
+    for (const p of next.players) {
+      expect(p.injury).toBeNull();
+    }
+  });
+});

@@ -5,6 +5,7 @@ import type { Player } from "../../core/players/types.js";
 import { resolveXI } from "../../core/lineup/resolveXI.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
 import { canExtend, contractTerms } from "../../core/contracts.js";
+import { keepsDepthFloor } from "../../core/freeAgency.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
 import { formatWeeklyWage } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
@@ -29,6 +30,7 @@ interface RosterTableProps {
   hasStats: boolean;
   onRelease: (pid: number) => void;
   onExtend: (pid: number) => void;
+  releasablePids: Set<number>;
   dragOverPid: number | null;
   setDragOverPid: (pid: number | null) => void;
   onSwap: (draggedPid: number, targetPid: number) => void;
@@ -40,6 +42,7 @@ function RosterTable({
   hasStats,
   onRelease,
   onExtend,
+  releasablePids,
   dragOverPid,
   setDragOverPid,
   onSwap,
@@ -148,6 +151,10 @@ function RosterTable({
                   <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => onRelease(p.pid)}
+                    disabled={!releasablePids.has(p.pid)}
+                    title={releasablePids.has(p.pid)
+                      ? undefined
+                      : `Can't release: squad would be too thin at ${p.pos}`}
                   >
                     Release
                   </button>
@@ -187,11 +194,22 @@ export function Roster() {
 
   const hasStats = league.played.length > 0;
 
+  const playerMap = new Map(players.map((p) => [p.pid, p]));
+  const releasablePids = new Set(
+    players.filter((p) => keepsDepthFloor(userTeam, playerMap, p.pid)).map((p) => p.pid),
+  );
+
   function handleSwap(draggedPid: number, targetPid: number) {
     if (draggedPid === targetPid) return;
     const draggedIsStarter = starterPidSet.has(draggedPid);
     const targetIsStarter = starterPidSet.has(targetPid);
     if (draggedIsStarter === targetIsStarter) return; // dropped within the same list; nothing to swap
+    const dragged = playerMap.get(draggedPid);
+    const target = playerMap.get(targetPid);
+    if (!dragged || !target) return;
+    // Keepers only swap with keepers: an outfielder in the GK slot (or a GK
+    // outfield) would corrupt the composite rollup, which buckets by position.
+    if ((dragged.pos === "GK") !== (target.pos === "GK")) return;
     const newStarters = starterPids.map((pid) => {
       if (pid === targetPid) return draggedPid;
       if (pid === draggedPid) return targetPid;
@@ -222,6 +240,7 @@ export function Roster() {
             hasStats={hasStats}
             onRelease={releasePlayerAction}
             onExtend={extendContractAction}
+            releasablePids={releasablePids}
             dragOverPid={dragOverPid}
             setDragOverPid={setDragOverPid}
             onSwap={handleSwap}
@@ -236,6 +255,7 @@ export function Roster() {
               hasStats={hasStats}
               onRelease={releasePlayerAction}
               onExtend={extendContractAction}
+              releasablePids={releasablePids}
               dragOverPid={dragOverPid}
               setDragOverPid={setDragOverPid}
               onSwap={handleSwap}
