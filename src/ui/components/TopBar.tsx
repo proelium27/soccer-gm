@@ -36,7 +36,7 @@ export function TopBar() {
   }
 
   return (
-    <nav className="navbar navbar-dark bg-dark px-3">
+    <nav className="navbar navbar-dark app-topbar px-3">
       <span className="navbar-brand mb-0 h1 d-flex align-items-center gap-2">
         <img src="/favicon.png" alt="" width="32" height="32" className="rounded" />
         Soccer GM
