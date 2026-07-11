@@ -3,9 +3,10 @@ import { CLUBS, type StoredTeam } from "../core/teams/clubs.js";
 import type { Player, SeasonStats } from "../core/players/types.js";
 import type { PlayerMatchLine } from "../engine/attribution.js";
 import {
-  BASE_SEASON_BUDGET, HYPE_INITIAL, SCOUTING_SPEND_MIN,
+  HYPE_INITIAL, SCOUTING_SPEND_MIN,
   LEAGUE_BASE, TEAM_STRENGTH_SPREAD, NUM_TEAMS,
 } from "../core/constants.js";
+import { chargeSeasonStart, wageBill } from "../core/finance/budget.js";
 
 /** A team as it may exist in a save written before M6 added the finance fields. */
 type StoredTeamAnyVersion = Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters"> &
@@ -78,6 +79,9 @@ function migratePlayer(p: Player): Player {
  */
 export function migrateLeague(league: LeagueStore): LeagueStore {
   const anyVersion = league as LeagueStoreAnyVersion;
+  // Pre-M6 backfill only: seed the budget the way a season start would —
+  // base allocation in, the save's current wage bill out.
+  const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   return {
     ...league,
     teams: (league.teams as StoredTeamAnyVersion[]).map((t) => ({
@@ -85,7 +89,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
       name: CLUBS[t.tid]?.name ?? t.name,
       abbrev: CLUBS[t.tid]?.abbrev ?? t.abbrev,
       colors: CLUBS[t.tid]?.colors ?? t.colors,
-      budget: t.budget ?? BASE_SEASON_BUDGET,
+      budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap)),
       hype: t.hype ?? HYPE_INITIAL,
       scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_MIN,
       academyBase: t.academyBase ?? fallbackAcademyBase(t.tid),

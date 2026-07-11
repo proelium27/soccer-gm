@@ -8,8 +8,9 @@ import { estimatePotential } from "./progression.js";
 import { gaussian, hashInts, mulberry32 } from "../../engine/rng.js";
 import {
   TIER_OFFSET, RATING_NOISE_SD, ABS_LOW_MIN, ABS_LOW_MAX,
-  RATING_MIN, RATING_MAX, SALARY_PER_OVR,
+  RATING_MIN, RATING_MAX,
 } from "../constants.js";
+import { seasonSalaryForOvr } from "../contracts.js";
 
 const clampRating = (x: number): number =>
   Math.round(Math.max(RATING_MIN, Math.min(RATING_MAX, x)));
@@ -62,9 +63,8 @@ export function generatePlayer(
     ovr,
     potential,
     // Placeholder contract — length/expiry are a caller concern (initial gen,
-    // youth intake, and free agency all set these differently). Finances
-    // beyond this salary formula are still TBD.
-    contract: { salary: SALARY_PER_OVR * ovr, expiresSeason: 1 },
+    // youth intake, and free agency all set these differently).
+    contract: { salary: seasonSalaryForOvr(ovr, pid, season), expiresSeason: 1 },
     injury: null,
     stats: [],
     hist: [],

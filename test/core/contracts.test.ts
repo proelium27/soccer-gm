@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { contractTerms, canExtend, extendContract, weeklyWage } from "../../src/core/contracts.js";
+import {
+  contractTerms, canExtend, extendContract, weeklyWage, seasonSalaryForOvr, WEEKS_PER_SEASON,
+} from "../../src/core/contracts.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import {
-  SALARY_PER_OVR,
+  WAGE_WEEKLY_MIN, WAGE_VARIATION,
   EXTENSION_LENGTH_YOUNG, EXTENSION_LENGTH_MID, EXTENSION_LENGTH_OLD,
   EXTENSION_AGE_MID, EXTENSION_AGE_OLD,
 } from "../../src/core/constants.js";
@@ -27,12 +29,43 @@ describe("contractTerms", () => {
       .toBe(EXTENSION_LENGTH_OLD);
   });
 
-  it("prices salary at the standard per-ovr rate and dates expiry from the current season", () => {
+  it("prices salary at the standard rate for the player's ovr and dates expiry from the current season", () => {
     const season = 3;
     const p = playerAged(24, season);
     const terms = contractTerms(p, season);
-    expect(terms.salary).toBe(SALARY_PER_OVR * p.ovr);
+    expect(terms.salary).toBe(seasonSalaryForOvr(p.ovr, p.pid, season));
     expect(terms.expiresSeason).toBe(season + terms.lengthSeasons);
+  });
+});
+
+describe("seasonSalaryForOvr", () => {
+  it("escalates superstar wages far beyond squad-player wages (cubic, not linear)", () => {
+    const wk = (ovr: number) => seasonSalaryForOvr(ovr, 1, 1) / WEEKS_PER_SEASON;
+    // A 90-ovr star should out-earn a 60-ovr squad player by an order of
+    // magnitude — the spread the old flat 20k-per-ovr formula never had.
+    expect(wk(90)).toBeGreaterThan(10 * wk(60));
+    expect(wk(65)).toBeGreaterThan(2 * wk(55));
+  });
+
+  it("pays at least the weekly minimum and stays within the ±variation band", () => {
+    for (let ovr = 30; ovr <= 99; ovr += 3) {
+      for (let pid = 0; pid < 20; pid++) {
+        const weekly = seasonSalaryForOvr(ovr, pid, 2) / WEEKS_PER_SEASON;
+        expect(weekly).toBeGreaterThanOrEqual(WAGE_WEEKLY_MIN);
+        expect(Number.isInteger(weekly)).toBe(true);
+      }
+    }
+  });
+
+  it("varies deterministically per (pid, season): same inputs, same deal; new season, new roll", () => {
+    expect(seasonSalaryForOvr(80, 7, 3)).toBe(seasonSalaryForOvr(80, 7, 3));
+    const deals = new Set(
+      Array.from({ length: 30 }, (_, pid) => seasonSalaryForOvr(80, pid, 3)),
+    );
+    expect(deals.size).toBeGreaterThan(1); // same ovr, different players → different wages
+    const lo = Math.min(...deals), hi = Math.max(...deals);
+    // Spread stays inside the ±WAGE_VARIATION band around the deterministic part.
+    expect(hi / lo).toBeLessThanOrEqual((1 + WAGE_VARIATION) / (1 - WAGE_VARIATION) + 0.01);
   });
 });
 

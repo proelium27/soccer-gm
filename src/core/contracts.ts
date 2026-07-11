@@ -1,6 +1,7 @@
 import type { Player } from "./players/types.js";
+import { mulberry32, hashInts } from "../engine/rng.js";
 import {
-  SALARY_PER_OVR,
+  WAGE_WEEKLY_MIN, WAGE_OVR_FLOOR, WAGE_WEEKLY_COEFF, WAGE_VARIATION,
   EXTENSION_LENGTH_YOUNG, EXTENSION_LENGTH_MID, EXTENSION_LENGTH_OLD,
   EXTENSION_AGE_MID, EXTENSION_AGE_OLD,
 } from "./constants.js";
@@ -10,6 +11,21 @@ export const WEEKS_PER_SEASON = 52;
 
 export function weeklyWage(seasonSalary: number): number {
   return Math.round(seasonSalary / WEEKS_PER_SEASON);
+}
+
+/**
+ * The per-season salary a contract signed in `seasonSigned` pays a player of
+ * this ovr: a cubic weekly wage above WAGE_OVR_FLOOR (see the WAGE_* constants
+ * for the Premier League calibration) times a ±WAGE_VARIATION factor that is
+ * deterministic per (pid, seasonSigned) — the one-button contract UI shows
+ * terms before signing, so the roll can't differ between preview and deal,
+ * but the same player re-signing in a different season lands a new deal.
+ */
+export function seasonSalaryForOvr(ovr: number, pid: number, seasonSigned: number): number {
+  const merit = WAGE_WEEKLY_COEFF * Math.max(0, ovr - WAGE_OVR_FLOOR) ** 3;
+  const factor = 1 - WAGE_VARIATION + 2 * WAGE_VARIATION * mulberry32(hashInts(pid, seasonSigned))();
+  const weekly = Math.round((WAGE_WEEKLY_MIN + merit * factor) / 100) * 100;
+  return weekly * WEEKS_PER_SEASON;
 }
 
 export interface ContractTerms {
@@ -32,7 +48,7 @@ export function contractTerms(player: Player, season: number): ContractTerms {
     : age < EXTENSION_AGE_OLD ? EXTENSION_LENGTH_MID
     : EXTENSION_LENGTH_OLD;
   return {
-    salary: SALARY_PER_OVR * player.ovr,
+    salary: seasonSalaryForOvr(player.ovr, player.pid, season),
     lengthSeasons,
     expiresSeason: season + lengthSeasons,
   };

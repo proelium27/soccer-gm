@@ -1,5 +1,6 @@
 import type { League } from "../league/generate.js";
-import { BASE_SEASON_BUDGET, HYPE_INITIAL, SCOUTING_SPEND_MIN } from "../constants.js";
+import { HYPE_INITIAL, SCOUTING_SPEND_MIN } from "../constants.js";
+import { chargeSeasonStart, wageBill } from "../finance/budget.js";
 
 export interface ClubIdentity {
   name: string;
@@ -53,9 +54,13 @@ export interface StoredTeam {
 
 /**
  * Zip club identities onto league teams: CLUBS[tid] provides the name,
- * abbreviation, and colors for each team.
+ * abbreviation, and colors for each team. Season 1 starts like every other
+ * season: the base allocation arrives and the initial squad's wages come
+ * straight out of it, so a club's opening budget is its genuinely spendable
+ * cash (expensive squads start with less of it).
  */
 export function assignIdentities(league: League): StoredTeam[] {
+  const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   return league.teams.map((t) => {
     const club = CLUBS[t.tid];
     return {
@@ -64,7 +69,7 @@ export function assignIdentities(league: League): StoredTeam[] {
       abbrev: club.abbrev,
       colors: club.colors,
       roster: t.roster,
-      budget: BASE_SEASON_BUDGET,
+      budget: chargeSeasonStart(0, wageBill(t.roster, salaryMap)),
       hype: HYPE_INITIAL,
       scoutingSpend: SCOUTING_SPEND_MIN,
       academyBase: t.academyBase,

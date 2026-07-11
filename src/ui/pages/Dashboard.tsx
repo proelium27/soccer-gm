@@ -5,13 +5,8 @@ import { computeStandings } from "../../core/standings.js";
 import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
 import { TRANSFER_DEADLINE_MATCHDAY } from "../../core/calendar.js";
 import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
-import { currency } from "../format.js";
-
-function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
+import { wageBill } from "../../core/finance/budget.js";
+import { currency, ordinal } from "../format.js";
 
 export function Dashboard() {
   const { league, simAction, offseasonAction, setScoutingSpendAction, simming } = useLeague();
@@ -119,6 +114,19 @@ export function Dashboard() {
           <h5 className="card-title">Finances</h5>
           <p className="card-text mb-2">
             Budget: {currency.format(userTeam.budget)} &middot; Hype: {Math.round(userTeam.hype)}/100
+            {" "}&middot; <Link to="/finance">Full breakdown</Link>
+          </p>
+          <p className="card-text mb-2">
+            Season wage bill:{" "}
+            <strong>
+              {currency.format(
+                wageBill(
+                  userTeam.roster,
+                  new Map(league.players.map((p) => [p.pid, p.contract.salary])),
+                ),
+              )}
+            </strong>{" "}
+            &middot; paid up front each season
           </p>
           <p className="card-text mb-2">
             {(() => {

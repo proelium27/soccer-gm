@@ -194,6 +194,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       l.meta.userTid,
       pid,
       l.season,
+      l.phase,
     );
     if (teams === l.teams && players === l.players) return null;
     return { ...l, teams, players };

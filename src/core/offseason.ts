@@ -7,7 +7,7 @@ import { releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus } from "./f
 import { computeStandings } from "./standings.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
-import { settleSeasonBudget, wageBill } from "./finance/budget.js";
+import { settleSeasonEnd, chargeSeasonStart, wageBill } from "./finance/budget.js";
 import { NUM_TEAMS, SCOUTING_SPEND_MIN } from "./constants.js";
 import { hashInts } from "../engine/rng.js";
 
@@ -50,20 +50,19 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     roster: t.roster.filter((pid) => !retiredPids.has(pid)),
   }));
 
-  // 3.5. Settle season finances: revenue (equal base + success payout by
-  //      final rank + damped hype revenue) minus wages paid and scouting
-  //      spend, then move hype toward this season's performance. Standings
+  // 3.5. Settle season-end finances: success payout by final rank plus hype
+  //      revenue in, scouting spend out, then move hype toward this season's
+  //      performance. Wages are NOT charged here — they're paid up front at
+  //      the new season's start (step 6.5) on the finalized roster. Standings
   //      are computed here (before AI free agency changes rosters) so rank
   //      reflects the season that actually just played out.
   const standings = computeStandings(teams.map((t) => t.tid), league.played);
   const rankByTid = new Map(standings.map((row, i) => [row.tid, i + 1]));
   const rowByTid = new Map(standings.map((row) => [row.tid, row]));
-  const salaryMap = new Map(players.map((p) => [p.pid, p.contract.salary]));
   teams = teams.map((t) => {
     const rank = rankByTid.get(t.tid) ?? NUM_TEAMS;
     const row = rowByTid.get(t.tid);
-    const wages = wageBill(t.roster, salaryMap);
-    const budget = settleSeasonBudget(t.budget, rank, t.hype, wages, t.scoutingSpend);
+    const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend);
     const hype = row ? updateHype(t.hype, row, rank) : t.hype;
     return { ...t, budget, hype, scoutingSpend: SCOUTING_SPEND_MIN };
   });
@@ -104,6 +103,15 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   // 6. Trim AI squads back down to target composition so youth intake
   //    doesn't accumulate indefinitely across seasons.
   teams = trimRosterSurplus(teams, players, league.meta.userTid);
+
+  // 6.5. Season-start finances on the finalized new-season rosters: the base
+  //      allocation arrives and each squad's wages for the season are paid
+  //      out of it immediately (mirrors league creation in assignIdentities).
+  const salaryMap = new Map(players.map((p) => [p.pid, p.contract.salary]));
+  teams = teams.map((t) => ({
+    ...t,
+    budget: chargeSeasonStart(t.budget, wageBill(t.roster, salaryMap)),
+  }));
 
   // 7. New schedule, new season, back to regular play.
   const schedule = generateSchedule(teams.map((t) => t.tid));

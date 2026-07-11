@@ -161,12 +161,12 @@ describe("isForSale", () => {
 });
 
 describe("makeTransferOffer / acceptCounterOffer", () => {
-  it("executes an accepted offer: rosters swap, money is conserved, contract survives", () => {
+  it("executes an accepted offer: rosters swap, fee moves to the seller, contract survives", () => {
     const league = windowLeague();
     const { pid, sellerTid } = firstTarget(league);
     const player = league.players.find((p) => p.pid === pid)!;
     const reservation = reservationPrice(league.lid, league.season, "winter", player);
-    const before = league.teams.reduce((s, t) => s + t.budget, 0);
+    const sellerBefore = league.teams.find((t) => t.tid === sellerTid)!.budget;
     const contractBefore = { ...player.contract };
 
     const after = makeTransferOffer(league, pid, reservation);
@@ -175,8 +175,10 @@ describe("makeTransferOffer / acceptCounterOffer", () => {
     const seller = after.teams.find((t) => t.tid === sellerTid)!;
     expect(user.roster).toContain(pid);
     expect(seller.roster).not.toContain(pid);
-    expect(user.budget).toBe(500_000_000 - reservation);
-    expect(after.teams.reduce((s, t) => s + t.budget, 0)).toBe(before);
+    // A mid-season (winter window = regular phase) buy charges the fee plus
+    // the player's season wages up front; the seller receives the fee only.
+    expect(user.budget).toBe(500_000_000 - reservation - player.contract.salary);
+    expect(seller.budget).toBe(sellerBefore + reservation);
     expect(after.players.find((p) => p.pid === pid)!.contract).toEqual(contractBefore);
     expect(after.transfers).toHaveLength(1);
     expect(after.transfers[0]).toMatchObject({ pid, fromTid: sellerTid, toTid: 0, fee: reservation });

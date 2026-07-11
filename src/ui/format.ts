@@ -8,3 +8,9 @@ export const currency = new Intl.NumberFormat("en-US", {
 export function formatWeeklyWage(seasonSalary: number): string {
   return `${currency.format(weeklyWage(seasonSalary))}/wk`;
 }
+
+export function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}

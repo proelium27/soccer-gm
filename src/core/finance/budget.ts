@@ -41,28 +41,39 @@ export function seasonRevenue(rank: number, hype: number): SeasonRevenue {
 
 /**
  * A club's per-season wage bill: the sum of `player.contract.salary` across
- * the roster. Salaries are flat per-season placeholder amounts
- * (SALARY_PER_OVR × ovr), charged once per season here; the contract UI may
- * present them as weekly figures, but the stored number is the season total.
+ * the roster (per-season totals set at signing by `seasonSalaryForOvr`),
+ * charged once per season here; the contract UI presents them as weekly
+ * figures, but the stored number is the season total.
  */
 export function wageBill(roster: number[], playerSalary: Map<number, number>): number {
   return roster.reduce((sum, pid) => sum + (playerSalary.get(pid) ?? 0), 0);
 }
 
 /**
- * Roll a club's budget forward one season: add this season's revenue,
- * subtract the wage bill and whatever was spent on scouting. Per design,
- * clubs never lose money: the base allocation alone exceeds the maximum
- * possible expenses (invariant tested in budget.test.ts), so a settled
- * budget only grows.
+ * Season-end settlement: performance money in (success payout by final rank
+ * plus hype revenue), scouting spend out. Wages are NOT charged here — they
+ * are paid up front at each season's start (chargeSeasonStart), so a club's
+ * in-season cash is what's genuinely spendable after its squad is paid.
  */
-export function settleSeasonBudget(
+export function settleSeasonEnd(
   currentBudget: number,
   rank: number,
   hype: number,
-  wages: number,
   scoutingSpend: number,
 ): number {
-  const { total } = seasonRevenue(rank, hype);
-  return currentBudget + total - wages - scoutingSpend;
+  const { successPayout: payout, hypeRevenue } = seasonRevenue(rank, hype);
+  return currentBudget + payout + hypeRevenue - scoutingSpend;
+}
+
+/**
+ * Season-start charge, applied when a season begins (league creation and
+ * every offseason rollover, on the finalized new-season roster): the base
+ * allocation arrives and the squad's wages for the season are paid out of
+ * it immediately. Per design, AI clubs never lose money here: the base
+ * allocation alone exceeds the wage bill of any squad they can assemble
+ * (invariant tested in budget.test.ts). A user hoarding an elite ROSTER_CAP
+ * squad can outspend it — the Finance page projects the shortfall.
+ */
+export function chargeSeasonStart(currentBudget: number, wages: number): number {
+  return currentBudget + BASE_SEASON_BUDGET - wages;
 }

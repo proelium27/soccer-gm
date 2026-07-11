@@ -2,9 +2,9 @@ import type { Player, Position } from "./players/types.js";
 import { POSITIONS } from "./players/types.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import {
-  ROSTER_COMPOSITION, ROSTER_CAP, SALARY_PER_OVR, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
+  ROSTER_COMPOSITION, ROSTER_CAP, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
 } from "./constants.js";
-import { extendContract } from "./contracts.js";
+import { contractTerms, extendContract, seasonSalaryForOvr } from "./contracts.js";
 
 /** Pids not currently on any team's roster. */
 export function freeAgentPids(teams: StoredTeam[], players: Player[]): Set<number> {
@@ -83,7 +83,7 @@ export function runAIFreeAgency(
         const length = CONTRACT_LENGTH_MIN
           + Math.floor(rng() * (CONTRACT_LENGTH_MAX - CONTRACT_LENGTH_MIN + 1));
         signing.contract = {
-          salary: SALARY_PER_OVR * signing.ovr,
+          salary: seasonSalaryForOvr(signing.ovr, signing.pid, season),
           expiresSeason: season + length,
         };
         team.roster.push(signing.pid);
@@ -178,7 +178,10 @@ export function releasePlayer(
  * agency page). No-op if the pid isn't actually a free agent or the team is
  * already at ROSTER_CAP. Terms are the deterministic one-button contract
  * (age-based length, ovr-based salary) so the sign button can display them
- * up front.
+ * up front. Wages are paid up front at each season's start, so a signing
+ * during the regular phase charges the new contract's full season salary at
+ * signing (no-op if the team can't afford it); offseason signings cost
+ * nothing here — the upcoming season-start charge covers them.
  */
 export function signFreeAgent(
   teams: StoredTeam[],
@@ -186,6 +189,7 @@ export function signFreeAgent(
   tid: number,
   pid: number,
   season: number,
+  phase: "regular" | "offseason",
 ): { teams: StoredTeam[]; players: Player[] } {
   if (!freeAgentPids(teams, players).has(pid)) {
     return { teams, players };
@@ -194,10 +198,16 @@ export function signFreeAgent(
   if (!team || team.roster.length >= ROSTER_CAP) {
     return { teams, players };
   }
+  const player = players.find((p) => p.pid === pid);
+  if (!player) return { teams, players };
+  const wageCharge = phase === "regular" ? contractTerms(player, season).salary : 0;
+  if (wageCharge > team.budget) return { teams, players };
 
   return {
     teams: teams.map((t) =>
-      t.tid === tid ? { ...t, roster: [...t.roster, pid] } : t,
+      t.tid === tid
+        ? { ...t, roster: [...t.roster, pid], budget: t.budget - wageCharge }
+        : t,
     ),
     players: extendContract(players, pid, season),
   };
