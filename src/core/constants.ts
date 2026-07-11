@@ -203,24 +203,42 @@ export const SCOUTING_NOISE_SD_MIN_SPEND = 0.35;
 export const SCOUTING_NOISE_SD_MAX_SPEND = 0.05;
 
 /**
- * Transfer valuation formula: value climbs steeply with ovr above a floor
- * (replacement-level players are worth little), is scaled by an age curve
- * peaking around the same prime as on-field performance, and by remaining
- * contract length (longer deals are harder/pricier to pry a player out of).
+ * Transfer valuation formula: value climbs steeply with a rating above a
+ * floor (replacement-level players are worth little), where the "rating"
+ * blends current ovr with potential (young players are priced partly on
+ * ceiling, not just current ability — see VALUATION_POTENTIAL_WEIGHT_*
+ * below). Scaled by an age curve peaking around the same prime as on-field
+ * performance, and by remaining contract length (longer deals are
+ * harder/pricier to pry a player out of).
  *
- * Calibrated to real 2025-market fees (base value at prime age, before the
- * contract multiplier of up to 1.4×): 99 ovr ≈ 120M (a generational player
- * pushes past 150M on a long deal), 90 ≈ 78M, 80 ≈ 44M, 75 ≈ 31M,
- * 70 ≈ 21M, 60 ≈ 7M.
+ * Recalibrated 2026-07-11 to the post-rebalance ovr scale (65 = average
+ * starter, 70 = good starter, 75 = a team's best player, 80-85 = league-wide
+ * elite, 90+ = rare outlier — see the M1 milestone note in CLAUDE.md; the
+ * original constants below were tuned against the older, more inflated
+ * scale where 65-70 was merely a decent squad player). Base value at prime
+ * age with no potential gap, before the contract multiplier of up to 1.4x:
+ * 65 ~= 1.6M, 70 ~= 5.7M, 75 ~= 15.6M, 80 ~= 35.5M, 85 ~= 71M, 90 ~= 130M.
  */
-export const VALUATION_OVR_FLOOR = 40;
-export const VALUATION_OVR_COEFF = 3_000;
-export const VALUATION_OVR_EXPONENT = 2.6;
+export const VALUATION_OVR_FLOOR = 50;
+export const VALUATION_OVR_COEFF = 8;
+export const VALUATION_OVR_EXPONENT = 4.5;
 export const VALUATION_AGE_PEAK = 26;
 export const VALUATION_AGE_FALLOFF_YOUNG = 0.02;
 export const VALUATION_AGE_FALLOFF_OLD = 0.08;
 export const VALUATION_CONTRACT_YEAR_BONUS = 0.08;
 export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
+
+/**
+ * How much of the (potential - ovr) gap gets priced in, i.e. how much clubs
+ * pay for ceiling rather than current ability. Full weight through age
+ * VALUATION_POTENTIAL_WEIGHT_PEAK_AGE (a 19-year-old's potential is most of
+ * what you're buying), linearly decaying to zero by
+ * VALUATION_POTENTIAL_WEIGHT_ZERO_AGE (a 30-year-old's remaining "potential"
+ * is not worth paying extra for — they're not going to live in it long).
+ */
+export const VALUATION_POTENTIAL_WEIGHT_MAX = 0.85;
+export const VALUATION_POTENTIAL_WEIGHT_PEAK_AGE = 21;
+export const VALUATION_POTENTIAL_WEIGHT_ZERO_AGE = 30;
 
 /**
  * M6 transfer market (phases 3-7, see docs/finance-design.md). A club's
