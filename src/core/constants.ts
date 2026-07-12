@@ -480,6 +480,21 @@ export const AI_MARKET_RESERVE_FRACTION_MIN = 0.15;
 export const AI_MARKET_RESERVE_FRACTION_MAX = 0.5;
 
 /* ────────────────────────────────────────────────────────────────────────
+ * AI GM phase 4: proactive contract renewals. Reuses valueToClub as-is — the
+ * only new tuning knob is the margin below, a "is he still worth the money"
+ * bar applied the season before a player's contract would otherwise expire.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * An AI club renews a player entering his contract's final season only if
+ * valueToClub(player, ctx) clears his new-terms wage by at least this
+ * multiple. >1 requires a real margin, not just break-even — valueToClub
+ * already discounts for a club's affordability, so this is a second,
+ * smaller safety margin on top, not a duplicate budget check.
+ */
+export const AI_RENEWAL_MARGIN = 1.1;
+
+/* ────────────────────────────────────────────────────────────────────────
  * AI GM phase 3: inbound offers for the user's players. Reuses the same
  * valueToClub primitive and the AI_MARKET_MIN_SURPLUS / AI_MARKET_FEE_SHARE
  * constants above (a buyer's interest threshold and fee split work
