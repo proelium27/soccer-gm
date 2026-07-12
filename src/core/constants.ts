@@ -417,3 +417,53 @@ export const AI_AFFORD_FREE_FRACTION = 0.35;
 export const AI_AFFORD_SLOPE = 1.5;
 /** Budget floor for the ratio so a near-broke club doesn't divide by ~0. */
 export const AI_AFFORD_BUDGET_FLOOR = 5_000_000;
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * AI↔AI transfer market (phase 2 of the AI GM effort — see CLAUDE.md)
+ *
+ * Evaluation-driven trading between AI clubs (the user is excluded — inbound
+ * offers for the user's players are phase 3). Runs once per window: the
+ * summer window during the offseason, the winter window when the sim first
+ * crosses matchday WINTER_WINDOW_OPEN_MATCHDAY.
+ *
+ * The whole thing keys off the phase-1 valueToClub: a player's "keep value"
+ * to his current club is the club's reservation price; a player moves when
+ * another club values him MORE than his own club does (and can afford him).
+ * Surplus, sell-at-peak, and needs-based buying all emerge from that single
+ * comparison rather than from scripted rules.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** A player isn't worth an AI club's time to trade below this market value. */
+export const AI_MARKET_MIN_VALUE = 1_000_000;
+
+/**
+ * A club only shops a player it values at no more than this multiple of his
+ * open-market value — i.e. players it doesn't rate above the cash they'd
+ * fetch (surplus, aging, replaceable). This keeps clubs from auctioning off
+ * a genuinely irreplaceable core player just because a rich rival bids.
+ */
+export const AI_MARKET_AVAILABILITY = 1.05;
+
+/**
+ * A buyer bothers only when its valueToClub for the player clears the
+ * seller's reservation (the seller's own keep-value) by at least this margin
+ * — the player must be meaningfully more useful to the buyer than the seller.
+ */
+export const AI_MARKET_MIN_SURPLUS = 0.15;
+
+/**
+ * The fee lands this fraction of the way from the seller's reservation up to
+ * the buyer's valuation — both sides share the surplus. 0.5 = split it evenly.
+ */
+export const AI_MARKET_FEE_SHARE = 0.5;
+
+/**
+ * Deterministic ± jitter on a buyer's valuation (fraction of value), a first
+ * taste of imperfect/scouted decisions: two clubs don't price a player
+ * identically, and the "best" deal isn't always the one that executes.
+ */
+export const AI_MARKET_VALUE_JITTER = 0.04;
+
+/** Most buys / sells any one AI club will make in a single window. */
+export const AI_MARKET_MAX_BUYS = 3;
+export const AI_MARKET_MAX_SELLS = 3;

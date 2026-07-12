@@ -27,6 +27,13 @@ export interface LeagueStore {
   negotiations: TransferNegotiation[];
   /** Completed transfers, all seasons (newest last). */
   transfers: CompletedTransfer[];
+  /**
+   * The season whose winter AI transfer market has already run, so it fires
+   * exactly once per season no matter how the user batches matchdays. null =
+   * hasn't run this season (reset every offseason rollover). The summer
+   * market runs inside simOffseason and needs no such flag.
+   */
+  winterMarketRunSeason: number | null;
 }
 
 export function createLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
@@ -50,5 +57,6 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
     played: [],
     negotiations: [],
     transfers: [],
+    winterMarketRunSeason: null,
   };
 }
