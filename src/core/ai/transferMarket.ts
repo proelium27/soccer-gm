@@ -13,6 +13,7 @@ import {
   AI_MARKET_MIN_VALUE, AI_MARKET_AVAILABILITY, AI_MARKET_MIN_SURPLUS,
   AI_MARKET_FEE_SHARE, AI_MARKET_VALUE_JITTER,
   AI_MARKET_MAX_BUYS, AI_MARKET_MAX_SELLS,
+  AI_MARKET_RESERVE_FRACTION_MIN, AI_MARKET_RESERVE_FRACTION_MAX,
 } from "../constants.js";
 
 export interface AITransferResult {
@@ -146,9 +147,19 @@ export function runAITransferMarket(
     const wageCharge = phase === "regular" ? player.contract.salary : 0;
     let fee = Math.round(c.reservation + AI_MARKET_FEE_SHARE * (c.buyerValue - c.reservation));
 
-    // The buyer can't spend more than it has; a fee squeezed down to the
-    // seller's reservation is still an acceptable deal, but below it isn't.
-    const affordableFee = (budget.get(c.buyerTid) ?? 0) - wageCharge;
+    // A club spends only the surplus above its cash reserve (never its whole
+    // budget), and covers any mid-season wage charge on top. The reserve
+    // fraction rises with frugality — cautious/poorer clubs hold more back.
+    // Measured against the live budget, so selling first frees up spend.
+    const frugality = contexts.get(c.buyerTid)?.frugality ?? 0.5;
+    const reserveFraction =
+      AI_MARKET_RESERVE_FRACTION_MIN +
+      frugality * (AI_MARKET_RESERVE_FRACTION_MAX - AI_MARKET_RESERVE_FRACTION_MIN);
+    const spendable = (budget.get(c.buyerTid) ?? 0) * (1 - reserveFraction);
+
+    // A fee squeezed down to the seller's reservation is still an acceptable
+    // deal, but below it isn't (and neither is one the reserve won't cover).
+    const affordableFee = spendable - wageCharge;
     if (affordableFee < fee) fee = affordableFee;
     if (fee < c.reservation) continue;
 

@@ -86,6 +86,17 @@ describe("runAITransferMarket", () => {
     }
   });
 
+  it("leaves every AI club with a cash reserve — never spends a budget down to zero", () => {
+    // Regression guard: buyers spend only the surplus above a frugality-scaled
+    // reserve, so no club is ever left at exactly £0 (the pre-reserve behavior).
+    const { result } = runOnFresh(7);
+    const aiBudgets = result.teams.filter((t) => t.tid !== USER_TID).map((t) => t.budget);
+    expect(Math.min(...aiBudgets)).toBeGreaterThan(0);
+    // And it genuinely holds cash back: with fees flying around, a floor at a
+    // literal £0 would be the tell that the reserve isn't doing anything.
+    expect(aiBudgets.every((b) => b > 0)).toBe(true);
+  });
+
   it("routes a clearly-surplus striker to a club that badly needs one", () => {
     const league = createLeagueState(USER_TID, mulberry32(3));
     const players = league.players;

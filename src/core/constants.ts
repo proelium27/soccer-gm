@@ -467,3 +467,14 @@ export const AI_MARKET_VALUE_JITTER = 0.04;
 /** Most buys / sells any one AI club will make in a single window. */
 export const AI_MARKET_MAX_BUYS = 3;
 export const AI_MARKET_MAX_SELLS = 3;
+
+/**
+ * Cash reserve a club holds back from transfers — it spends only the surplus
+ * above `reserveFraction × budget`, so it never blows its whole budget on
+ * fees. The fraction scales with frugality: the wealthiest, least cautious
+ * clubs keep MIN back and spend freely, the poorest keep MAX (a bigger
+ * relative war chest for wages/contingencies). A club can still fund a deal
+ * by selling first, since the reserve is measured against its live budget.
+ */
+export const AI_MARKET_RESERVE_FRACTION_MIN = 0.15;
+export const AI_MARKET_RESERVE_FRACTION_MAX = 0.5;
