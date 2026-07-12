@@ -12,6 +12,7 @@ import {
   acceptInboundOffer, rejectInboundOffer, counterInboundOffer,
 } from "../../core/transfers/inboundOffers.js";
 import { extendContract } from "../../core/contracts.js";
+import { applyTeamIdentities, type TeamIdentityEdit } from "../../core/teams/customize.js";
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
 import { SimOverlay } from "../components/SimOverlay.js";
@@ -22,6 +23,7 @@ interface LeagueContextValue {
   setLeague: (l: LeagueStore) => void;
   loadLeagueAction: (lid: number) => Promise<void>;
   switchLeagueAction: () => void;
+  customizeTeamsAction: (lid: number, edits: TeamIdentityEdit[]) => Promise<void>;
   simAction: (through: SimThrough) => Promise<void>;
   offseasonAction: () => Promise<void>;
   signFreeAgentAction: (pid: number) => Promise<void>;
@@ -132,6 +134,23 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     clearActiveLid();
     commitLeague(null);
   }, [commitLeague]);
+
+  // Unlike the mutate-based actions this can target any save, not just the
+  // active one — but it still runs through the exclusive chain, and if the
+  // edited save IS the active league the fresh copy is committed so the
+  // in-memory state can't later overwrite the customization with stale data.
+  const customizeTeamsAction = useCallback(
+    (lid: number, edits: TeamIdentityEdit[]) =>
+      runExclusive(async () => {
+        const active = leagueRef.current;
+        const target = active?.lid === lid ? active : await loadLeague(lid);
+        if (!target) return;
+        const updated = applyTeamIdentities(target, edits);
+        await saveLeague(updated);
+        if (active?.lid === lid) commitLeague(updated);
+      }),
+    [runExclusive, commitLeague],
+  );
 
   const closeOverlay = useCallback(() => {
     overlayOpenRef.current = false;
@@ -281,6 +300,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       setLeague,
       loadLeagueAction,
       switchLeagueAction,
+      customizeTeamsAction,
       simAction,
       offseasonAction,
       signFreeAgentAction,

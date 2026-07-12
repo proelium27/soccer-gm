@@ -74,9 +74,10 @@ function migratePlayer(p: Player): Player {
  * reconstructed after the fact (no clock data survives), so they default to
  * 0 minutes / a neutral 6.0 rating rather than being left undefined.
  *
- * Club identities (name/abbrev/colors) are static and keyed by tid, so they
- * are re-stamped from CLUBS on every load — saves written before the switch
- * to real Premier League clubs pick up the new identities automatically.
+ * Club identities (name/abbrev/colors) are user-customizable per save, so
+ * they are only backfilled from CLUBS when a stored team lacks them — never
+ * re-stamped, or a rename made in the Customize Teams editor (or a save from
+ * the real-club-names era) would be silently reverted on the next load.
  */
 export function migrateLeague(league: LeagueStore): LeagueStore {
   const anyVersion = league as LeagueStoreAnyVersion;
@@ -87,9 +88,9 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     ...league,
     teams: (league.teams as StoredTeamAnyVersion[]).map((t) => ({
       ...t,
-      name: CLUBS[t.tid]?.name ?? t.name,
-      abbrev: CLUBS[t.tid]?.abbrev ?? t.abbrev,
-      colors: CLUBS[t.tid]?.colors ?? t.colors,
+      name: t.name ?? CLUBS[t.tid]?.name,
+      abbrev: t.abbrev ?? CLUBS[t.tid]?.abbrev,
+      colors: t.colors ?? CLUBS[t.tid]?.colors,
       budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap)),
       hype: t.hype ?? HYPE_INITIAL,
       scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_MIN,

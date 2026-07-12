@@ -8,27 +8,32 @@ export interface ClubIdentity {
   colors: [string, string];
 }
 
+/**
+ * Default club identities are fictional (invented place names, no real-club
+ * stand-ins) to avoid shipping real trademarks. Users can rename clubs
+ * per-save via the Customize Teams editor on the Leagues page.
+ */
 export const CLUBS: ClubIdentity[] = [
-  { name: "Arsenal",                 abbrev: "ARS", colors: ["#ef0107", "#ffffff"] },
-  { name: "Tottenham Hotspur",       abbrev: "TOT", colors: ["#ffffff", "#132257"] },
-  { name: "Chelsea",                 abbrev: "CHE", colors: ["#034694", "#ffffff"] },
-  { name: "Fulham",                  abbrev: "FUL", colors: ["#ffffff", "#1a1a1a"] },
-  { name: "Brentford",               abbrev: "BRE", colors: ["#e30613", "#ffffff"] },
-  { name: "Crystal Palace",          abbrev: "CRY", colors: ["#1b458f", "#c4122e"] },
-  { name: "West Ham United",         abbrev: "WHU", colors: ["#7a263a", "#1bb1e7"] },
-  { name: "Aston Villa",             abbrev: "AVL", colors: ["#670e36", "#95bfe5"] },
-  { name: "Bournemouth",             abbrev: "BOU", colors: ["#da291c", "#1a1a1a"] },
-  { name: "Brighton & Hove Albion",  abbrev: "BHA", colors: ["#0057b8", "#ffffff"] },
-  { name: "Burnley",                 abbrev: "BUR", colors: ["#6c1d45", "#99d6ea"] },
-  { name: "Everton",                 abbrev: "EVE", colors: ["#003399", "#ffffff"] },
-  { name: "Liverpool",               abbrev: "LIV", colors: ["#c8102e", "#ffffff"] },
-  { name: "Leeds United",            abbrev: "LEE", colors: ["#ffffff", "#1d428a"] },
-  { name: "Manchester City",         abbrev: "MCI", colors: ["#6cabdd", "#ffffff"] },
-  { name: "Manchester United",       abbrev: "MUN", colors: ["#da291c", "#fbe122"] },
-  { name: "Newcastle United",        abbrev: "NEW", colors: ["#241f20", "#ffffff"] },
-  { name: "Nottingham Forest",       abbrev: "NFO", colors: ["#dd0000", "#ffffff"] },
-  { name: "Sunderland",              abbrev: "SUN", colors: ["#eb172b", "#ffffff"] },
-  { name: "Wolverhampton Wanderers", abbrev: "WOL", colors: ["#fdb913", "#231f20"] },
+  { name: "Ashcombe United",       abbrev: "ASH", colors: ["#c0392b", "#ffffff"] },
+  { name: "Blackmoor Rovers",      abbrev: "BLK", colors: ["#1b4f72", "#f4d03f"] },
+  { name: "Caldermere City",       abbrev: "CAL", colors: ["#76d7c4", "#1a1a1a"] },
+  { name: "Dunsworth Athletic",    abbrev: "DUN", colors: ["#f39c12", "#2c3e50"] },
+  { name: "Eastcliffe FC",         abbrev: "EAS", colors: ["#2980b9", "#ffffff"] },
+  { name: "Farrowgate Town",       abbrev: "FAR", colors: ["#27ae60", "#ffffff"] },
+  { name: "Grimsdale County",      abbrev: "GRI", colors: ["#8e44ad", "#f1c40f"] },
+  { name: "Harrowfield United",    abbrev: "HAR", colors: ["#e74c3c", "#3498db"] },
+  { name: "Ironbridge Wanderers",  abbrev: "IRO", colors: ["#7f8c8d", "#e67e22"] },
+  { name: "Kestrel Park FC",       abbrev: "KES", colors: ["#16a085", "#ecf0f1"] },
+  { name: "Lowton Albion",         abbrev: "LOW", colors: ["#ffffff", "#2c3e50"] },
+  { name: "Marshbrook FC",         abbrev: "MAR", colors: ["#d35400", "#1a1a1a"] },
+  { name: "Netherby Town",         abbrev: "NET", colors: ["#f7dc6f", "#145a32"] },
+  { name: "Oakhaven Athletic",     abbrev: "OAK", colors: ["#145a32", "#f4d03f"] },
+  { name: "Pendlewick Rangers",    abbrev: "PEN", colors: ["#2e4053", "#e74c3c"] },
+  { name: "Quarrington FC",        abbrev: "QUA", colors: ["#6c3483", "#ffffff"] },
+  { name: "Redmarsh Rovers",       abbrev: "RED", colors: ["#922b21", "#f0f3f4"] },
+  { name: "Silverdale City",       abbrev: "SIL", colors: ["#aab7b8", "#17202a"] },
+  { name: "Thornbury Wanderers",   abbrev: "THO", colors: ["#0e6251", "#f5b041"] },
+  { name: "Wyverngate United",     abbrev: "WYV", colors: ["#1f618d", "#f8f9f9"] },
 ];
 
 export interface StoredTeam {
