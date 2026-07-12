@@ -14,6 +14,12 @@ Two different Claude accounts (proelium27 and joeltmeyer/joeltm82) work on this 
 - If you notice this file is out of date with what's actually on `main` (e.g. a milestone marked "next" is already implemented, or vice versa), fix it as part of your work rather than leaving the drift for later.
 - If you're ever unsure whether a change is "milestone-significant" enough to warrant an update here, ask the user rather than guessing.
 
+## In-game Manual (keep it in sync with shipped features)
+The game has a player-facing Manual page (`src/ui/pages/Manual.tsx`, sidebar under Help, `/manual`) written in the Basketball GM manual's style: single scrollable page, second-person, plain-spoken, with concrete numbers quoted from `src/core/constants.ts`. Per the user's intent it doubles as the project's **feature ledger** — the shared record (alongside this file) of what's actually shipped.
+- **When a player-visible feature ships, changes behavior, or is removed, update the relevant Manual section in the same PR.** Same bar as the milestone rule above: routine internal refactors/bug fixes don't need it; anything a player would notice does.
+- **When a constant quoted in the Manual is retuned** (wages, prize money, roster cap, window matchdays, budget, etc.), fix its mention there too — grep `Manual.tsx` for the old value.
+- The Manual deliberately explains hidden mechanics' *behavior* without spoiling hidden *values* (e.g. it says asking prices are hidden and window-stable, not what they are). Keep new sections to that standard, and keep the "FAQ & Known Quirks" section honest about known gaps — it documents them for players instead of hiding them.
+
 ## Milestone status
 (per `SOCCER_GM_SPEC.md` §7; keep this current — see above)
 

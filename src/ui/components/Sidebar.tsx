@@ -26,6 +26,9 @@ export function Sidebar() {
       <NavLink to="/finance" className="nav-link">Finance</NavLink>
       <NavLink to="/incoming-talent" className="nav-link">Incoming Talent</NavLink>
 
+      <div className="nav-section">Help</div>
+      <NavLink to="/manual" className="nav-link">Manual</NavLink>
+
       <button type="button" className="nav-link btn btn-link text-start mt-auto" onClick={handleSwitchLeague}>
         Switch League
       </button>

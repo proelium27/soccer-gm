@@ -14,6 +14,7 @@ import { Transfers } from "./pages/Transfers.js";
 import { IncomingOffers } from "./pages/IncomingOffers.js";
 import { Finance } from "./pages/Finance.js";
 import { NewsFeed } from "./pages/NewsFeed.js";
+import { Manual } from "./pages/Manual.js";
 
 function RootRedirect() {
   const { league, loadingActiveLeague } = useLeague();
@@ -40,6 +41,7 @@ export function App() {
             <Route path="/transfers" element={<Transfers />} />
             <Route path="/incoming-offers" element={<IncomingOffers />} />
             <Route path="/finance" element={<Finance />} />
+            <Route path="/manual" element={<Manual />} />
           </Route>
           <Route path="*" element={<RootRedirect />} />
         </Routes>
