@@ -5,6 +5,7 @@ import { progressPlayer, rollRetirement } from "./players/progression.js";
 import { generateYouthIntake } from "./players/youth.js";
 import { releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus } from "./freeAgency.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
+import { runAIContractRenewals } from "./ai/renewals.js";
 import { computeStandings } from "./standings.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
@@ -28,13 +29,23 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const endingSeason = league.season;
   const nextSeason = endingSeason + 1;
 
+  // 0. Proactive AI contract renewals: any AI player entering his final
+  //    contract season is renewed now if his club still values him above
+  //    the new wage (by AI_RENEWAL_MARGIN) — before step 1 below would
+  //    otherwise walk him to free agency next offseason with zero priority
+  //    for his own club to keep him. Uses this season's now-final standings/
+  //    league.played for form, same as the transfer-market steps do later.
+  const renewals = runAIContractRenewals(
+    league.teams, league.players, nextSeason, league.meta.userTid, league.played,
+  );
+
   // 1. Release expired contracts to the free agent pool.
-  let teams: StoredTeam[] = releaseExpiredContracts(league.teams, league.players, endingSeason);
+  let teams: StoredTeam[] = releaseExpiredContracts(renewals.teams, renewals.players, endingSeason);
 
   // 2. Progress every remaining player's ratings. The months-long break also
   //    heals any injury still mid-recovery when the season ended (max recovery
   //    is INJURY_GAMES_MAX matchdays, far shorter than an offseason).
-  let players: Player[] = league.players.map((p) => {
+  let players: Player[] = renewals.players.map((p) => {
     const progressed = progressPlayer(rng, p, endingSeason);
     return progressed.injury ? { ...progressed, injury: null } : progressed;
   });

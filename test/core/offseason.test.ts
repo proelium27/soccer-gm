@@ -118,6 +118,44 @@ describe("simOffseason", () => {
       league = simThrough(league, "season", rng);
     }
   });
+
+  it("proactively renews an AI player's contract before it would otherwise expire", () => {
+    const rng = mulberry32(31);
+    const league = playFullSeason(rng);
+    const userTid = league.meta.userTid;
+    const aiTid = league.teams.find((t) => t.tid !== userTid)!.tid;
+    const aiTeam = league.teams.find((t) => t.tid === aiTid)!;
+
+    // Force the AI team's best outfield player into his final contract
+    // season (would expire at league.season + 1, i.e. the very next
+    // offseason, if nothing renews him first) and make him an obvious keep:
+    // in his prime, at a position where he's the club's only option.
+    const best = league.players
+      .filter((p) => aiTeam.roster.includes(p.pid) && p.pos !== "GK")
+      .sort((a, b) => b.ovr - a.ovr)[0];
+    const withExpiring = {
+      ...league,
+      teams: league.teams.map((t) =>
+        t.tid === aiTid
+          ? { ...t, roster: t.roster.filter((pid) =>
+              !(league.players.find((p) => p.pid === pid)?.pos === best.pos && pid !== best.pid)
+            ), budget: 300_000_000 }
+          : t,
+      ),
+      players: league.players.map((p) =>
+        p.pid === best.pid
+          ? { ...p, born: (league.season + 1) - 26, ovr: 90, contract: { ...p.contract, expiresSeason: league.season + 1 } }
+          : p,
+      ),
+    };
+
+    const next = simOffseason(withExpiring, rng);
+    const renewed = next.players.find((p) => p.pid === best.pid);
+    // He must still be on the roster (not released to free agency) and his
+    // contract must run past the season simOffseason just rolled into.
+    expect(next.teams.find((t) => t.tid === aiTid)!.roster).toContain(best.pid);
+    expect(renewed!.contract.expiresSeason).toBeGreaterThan(next.season);
+  });
 });
 
 describe("simOffseason injuries", () => {
