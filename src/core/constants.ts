@@ -344,3 +344,76 @@ export const EXTENSION_LENGTH_OLD = 1;
 /** Age cutoffs: below MID → young terms, below OLD → mid terms, else old terms. */
 export const EXTENSION_AGE_MID = 30;
 export const EXTENSION_AGE_OLD = 33;
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * AI evaluation core (see docs — "AI General Manager Philosophy")
+ *
+ * The brain behind evaluation-driven (not rule-scripted) club decisions. A
+ * club's strategic direction and how it values any given player both EMERGE
+ * from its current state — wealth, fame, squad strength, form, age profile,
+ * positional depth — rather than from hand-authored per-club scripts. Two
+ * clubs presented with the same player therefore value him differently.
+ *
+ * Phase 1 (this batch) ships only the scoring functions + tests; nothing in
+ * the sim consumes them yet, so these constants change no observable
+ * behavior. They're expected to be retuned once AI buying/selling actually
+ * runs on top of them.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * How many of a club's best players (by ovr) define its "squad strength" —
+ * roughly a matchday squad (XI + 5-deep bench), so a couple of weak fringe
+ * players don't drag a strong club's strength down.
+ */
+export const AI_SQUAD_STRENGTH_COUNT = 16;
+
+/**
+ * Ambition = win-now pressure, a [0,1] blend of four league-normalized
+ * signals. Weights sum to 1. Wealth and squad strength dominate (a rich,
+ * strong club feels pressure to win now); fame and recent form nudge it.
+ */
+export const AI_AMBITION_W_STRENGTH = 0.35;
+export const AI_AMBITION_W_WEALTH = 0.3;
+export const AI_AMBITION_W_FAME = 0.2;
+export const AI_AMBITION_W_FORM = 0.15;
+
+/** Direction-label thresholds on the ambition axis (labels are for UI/tests, not math). */
+export const AI_AMBITION_HIGH = 0.62;
+export const AI_AMBITION_LOW = 0.34;
+/** A squad this young (mean age) reads as "rebuilding" rather than "relegation battle" when ambition is low. */
+export const AI_YOUNG_SQUAD_AGE = 24.5;
+
+/**
+ * Positional-need multiplier. Below target depth (ROSTER_COMPOSITION) scales
+ * value up (scarcity); above it scales value down (surplus). Separately, a
+ * player who clearly upgrades the club's best at that position is worth more,
+ * a clear downgrade less. Product is clamped to [MIN, MAX].
+ */
+export const AI_NEED_SCARCITY = 0.7;
+export const AI_NEED_SURPLUS = 0.6;
+export const AI_NEED_UPGRADE_SLOPE = 0.03;
+export const AI_NEED_UPGRADE_MIN = 0.5;
+export const AI_NEED_UPGRADE_MAX = 1.5;
+export const AI_NEED_MIN = 0.35;
+export const AI_NEED_MAX = 1.8;
+
+/**
+ * Timeline multiplier: how age fits the club's ambition. Win-now clubs (high
+ * ambition) pay a premium for prime-age readiness and discount teenage
+ * projects; developer clubs (low ambition) do the reverse. The two "neutral"
+ * references keep a typical mid-20s player near a 1.0 multiplier.
+ */
+export const AI_TIMELINE_STRENGTH = 0.35;
+export const AI_PRIME_NEUTRAL = 0.5;
+export const AI_YOUTH_NEUTRAL = 0.35;
+
+/**
+ * Affordability multiplier. A deal (fee proxy + first-year wage) costing more
+ * than AI_AFFORD_FREE_FRACTION of the club's budget starts to be penalized,
+ * steeper the more frugal (poorer) the club — encoding "big clubs absorb
+ * mistakes, small clubs can't." Rich clubs (frugality ~0) barely feel it.
+ */
+export const AI_AFFORD_FREE_FRACTION = 0.35;
+export const AI_AFFORD_SLOPE = 1.5;
+/** Budget floor for the ratio so a near-broke club doesn't divide by ~0. */
+export const AI_AFFORD_BUDGET_FLOOR = 5_000_000;
