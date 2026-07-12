@@ -1,7 +1,7 @@
-import type { LeagueStore } from "../leagueState.js";
 import type { Player, Position } from "../players/types.js";
 import { POSITIONS } from "../players/types.js";
 import type { StoredTeam } from "../teams/clubs.js";
+import type { PlayedMatch } from "../standings.js";
 import { computeStandings } from "../standings.js";
 import { NUM_TEAMS } from "../constants.js";
 import {
@@ -100,6 +100,19 @@ function label(ambition: number, formNorm: number, squadAvgAge: number): Strateg
 }
 
 /**
+ * Just the league fields the evaluation core reads. A full LeagueStore
+ * satisfies this, but the AI transfer market also passes it a forward-looking
+ * `season` (e.g. next season, for offseason valuations) that needn't match
+ * any stored season.
+ */
+export interface LeagueSnapshot {
+  teams: StoredTeam[];
+  players: Player[];
+  season: number;
+  played: PlayedMatch[];
+}
+
+/**
  * Derive a ClubContext for every team, computing the league-wide
  * normalizations (strength/wealth/fame/form ranges) once so ambition and
  * frugality are genuinely relative to the rest of the league.
@@ -107,7 +120,7 @@ function label(ambition: number, formNorm: number, squadAvgAge: number): Strateg
  * Form uses the current standings if any matches have been played this
  * season, otherwise a neutral 0.5 for every club (pre-season, no signal).
  */
-export function deriveLeagueContexts(league: LeagueStore): Map<number, ClubContext> {
+export function deriveLeagueContexts(league: LeagueSnapshot): Map<number, ClubContext> {
   const playerById = new Map(league.players.map((p) => [p.pid, p]));
   const rosterOf = (t: StoredTeam): Player[] =>
     t.roster.map((pid) => playerById.get(pid)).filter((p): p is Player => p != null);

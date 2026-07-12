@@ -4,6 +4,7 @@ import { createLeagueState } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { computeStandings } from "../../src/core/standings.js";
+import { ROSTER_CAP } from "../../src/core/constants.js";
 
 /**
  * §8 gates were validated at M1/M3 for a single generated season. M4 adds
@@ -46,9 +47,11 @@ describe("M4 — multi-season stability", () => {
     expect(avg(bottomPoints)).toBeLessThanOrEqual(38);
 
     // AI rosters stay sane (no team collapses or balloons over 5 offseasons).
+    // AI clubs now buy in the transfer market, so a squad can carry up to the
+    // roster cap between offseason trims (not just the 25-man composition).
     for (const size of rosterSizes) {
       expect(size).toBeGreaterThanOrEqual(18);
-      expect(size).toBeLessThanOrEqual(27);
+      expect(size).toBeLessThanOrEqual(ROSTER_CAP);
     }
   });
 

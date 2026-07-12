@@ -4,6 +4,7 @@ import type { StoredTeam } from "./teams/clubs.js";
 import { progressPlayer, rollRetirement } from "./players/progression.js";
 import { generateYouthIntake } from "./players/youth.js";
 import { releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus } from "./freeAgency.js";
+import { runAITransferMarket } from "./ai/transferMarket.js";
 import { computeStandings } from "./standings.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
@@ -104,6 +105,21 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //    doesn't accumulate indefinitely across seasons.
   teams = trimRosterSurplus(teams, players, league.meta.userTid);
 
+  // 6.4. AI↔AI transfer market (summer window): now that squads are settled,
+  //      clubs trade with each other to improve, money conserved, user
+  //      excluded. Valued for the season they're about to play (nextSeason),
+  //      with form from the season that just finished (league.played, not yet
+  //      cleared). Seeded independently of `rng` so it can't perturb the
+  //      progression/retirement stream the validation gates are tuned against.
+  //      Runs before season-start wages so any fee is reflected in the cash a
+  //      club has when its squad is paid.
+  const marketSeed = hashInts(league.lid, nextSeason, 7);
+  const summerMarket = runAITransferMarket(
+    teams, players, league.transfers, nextSeason, league.played,
+    "summer", "offseason", league.meta.userTid, marketSeed,
+  );
+  teams = summerMarket.teams;
+
   // 6.5. Season-start finances on the finalized new-season rosters: the base
   //      allocation arrives and each squad's wages for the season are paid
   //      out of it immediately (mirrors league creation in assignIdentities).
@@ -124,5 +140,8 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     phase: "regular",
     schedule,
     played: [],
+    transfers: summerMarket.transfers,
+    // The winter market hasn't run for the new season yet.
+    winterMarketRunSeason: null,
   };
 }

@@ -97,16 +97,24 @@ describe("simOffseason", () => {
     expect(Math.max(...budgets)).toBeGreaterThan(Math.min(...budgets));
   });
 
-  it("grows every club's budget every season (design: no club ever loses money)", () => {
+  it("keeps every AI club solvent and grows the league's total budget each season", () => {
+    // Since AI clubs now trade with each other, an individual club's budget no
+    // longer only ever grows — a net buyer spends cash on fees. The design
+    // invariants that must still hold: no AI club is ever driven into deficit,
+    // and the league-wide total budget still climbs every season (transfer
+    // fees just move money between clubs; season settlement injects it).
     const rng = mulberry32(11);
     let league = playFullSeason(rng);
+    const userTid = league.meta.userTid;
+    const total = (l: typeof league) => l.teams.reduce((s, t) => s + t.budget, 0);
 
     for (let s = 0; s < 2; s++) {
-      const budgetsBefore = new Map(league.teams.map((t) => [t.tid, t.budget]));
+      const totalBefore = total(league);
       league = simOffseason(league, rng);
       for (const team of league.teams) {
-        expect(team.budget).toBeGreaterThan(budgetsBefore.get(team.tid)!);
+        if (team.tid !== userTid) expect(team.budget).toBeGreaterThanOrEqual(0);
       }
+      expect(total(league)).toBeGreaterThan(totalBefore);
       league = simThrough(league, "season", rng);
     }
   });

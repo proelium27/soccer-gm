@@ -12,6 +12,7 @@ import { BoxScore } from "./pages/BoxScore.js";
 import { IncomingTalent } from "./pages/IncomingTalent.js";
 import { Transfers } from "./pages/Transfers.js";
 import { Finance } from "./pages/Finance.js";
+import { NewsFeed } from "./pages/NewsFeed.js";
 
 function RootRedirect() {
   const { league, loadingActiveLeague } = useLeague();
@@ -30,6 +31,7 @@ export function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/standings" element={<Standings />} />
             <Route path="/schedule" element={<Schedule />} />
+            <Route path="/news" element={<NewsFeed />} />
             <Route path="/box-score/:matchIndex" element={<BoxScore />} />
             <Route path="/roster" element={<Roster />} />
             <Route path="/leaders" element={<Leaders />} />
