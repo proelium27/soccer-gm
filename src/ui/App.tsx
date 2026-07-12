@@ -11,6 +11,7 @@ import { Leaders } from "./pages/Leaders.js";
 import { BoxScore } from "./pages/BoxScore.js";
 import { IncomingTalent } from "./pages/IncomingTalent.js";
 import { Transfers } from "./pages/Transfers.js";
+import { IncomingOffers } from "./pages/IncomingOffers.js";
 import { Finance } from "./pages/Finance.js";
 import { NewsFeed } from "./pages/NewsFeed.js";
 
@@ -37,6 +38,7 @@ export function App() {
             <Route path="/leaders" element={<Leaders />} />
             <Route path="/incoming-talent" element={<IncomingTalent />} />
             <Route path="/transfers" element={<Transfers />} />
+            <Route path="/incoming-offers" element={<IncomingOffers />} />
             <Route path="/finance" element={<Finance />} />
           </Route>
           <Route path="*" element={<RootRedirect />} />

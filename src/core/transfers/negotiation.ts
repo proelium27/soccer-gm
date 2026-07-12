@@ -160,7 +160,7 @@ export function acquisitionWageCharge(league: LeagueStore, player: Player): numb
  * player's contract travels with them untouched (contracts are never
  * negotiated).
  */
-function executeTransfer(
+export function executeTransfer(
   league: LeagueStore,
   pid: number,
   fromTid: number,

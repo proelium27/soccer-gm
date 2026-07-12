@@ -8,6 +8,9 @@ import { exportLeagueJSON, importLeagueJSON } from "../../db/exportImport.js";
 import { signFreeAgent, releasePlayer } from "../../core/freeAgency.js";
 import { clampScoutingSpend } from "../../core/finance/scouting.js";
 import { makeTransferOffer, acceptCounterOffer } from "../../core/transfers/negotiation.js";
+import {
+  acceptInboundOffer, rejectInboundOffer, counterInboundOffer,
+} from "../../core/transfers/inboundOffers.js";
 import { extendContract } from "../../core/contracts.js";
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
@@ -26,6 +29,9 @@ interface LeagueContextValue {
   setScoutingSpendAction: (spend: number) => Promise<void>;
   makeOfferAction: (pid: number, amount: number) => Promise<void>;
   acceptCounterAction: (pid: number) => Promise<void>;
+  acceptInboundOfferAction: (pid: number) => Promise<void>;
+  rejectInboundOfferAction: (pid: number) => Promise<void>;
+  counterInboundOfferAction: (pid: number, amount: number) => Promise<void>;
   extendContractAction: (pid: number) => Promise<void>;
   setLineupAction: (starters: number[]) => Promise<void>;
   simming: boolean;
@@ -208,6 +214,18 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     (l) => acceptCounterOffer(l, pid),
   ), [mutate]);
 
+  const acceptInboundOfferAction = useCallback((pid: number) => mutate(
+    (l) => acceptInboundOffer(l, pid),
+  ), [mutate]);
+
+  const rejectInboundOfferAction = useCallback((pid: number) => mutate(
+    (l) => rejectInboundOffer(l, pid),
+  ), [mutate]);
+
+  const counterInboundOfferAction = useCallback((pid: number, amount: number) => mutate(
+    (l) => counterInboundOffer(l, pid, amount),
+  ), [mutate]);
+
   const extendContractAction = useCallback((pid: number) => mutate(
     (l) => ({ ...l, players: extendContract(l.players, pid, l.season) }),
   ), [mutate]);
@@ -270,6 +288,9 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       setScoutingSpendAction,
       makeOfferAction,
       acceptCounterAction,
+      acceptInboundOfferAction,
+      rejectInboundOfferAction,
+      counterInboundOfferAction,
       extendContractAction,
       setLineupAction,
       simming: simming || simOverlayOpen || busy,

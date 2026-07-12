@@ -3,6 +3,7 @@ import type { PlayedMatch } from "./standings.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import type { ScheduleGame } from "./schedule.js";
 import type { CompletedTransfer, TransferNegotiation } from "./transfers/negotiation.js";
+import type { InboundOffer } from "./transfers/inboundOffers.js";
 import { generateLeague } from "./league/generate.js";
 import { assignIdentities } from "./teams/clubs.js";
 import { generateSchedule } from "./schedule.js";
@@ -25,6 +26,8 @@ export interface LeagueStore {
   played: PlayedMatch[];
   /** User↔club transfer talks for the current window (pruned when a new window's talks start). */
   negotiations: TransferNegotiation[];
+  /** AI clubs' offers for the user's own players, current window (see transfers/inboundOffers.ts). */
+  inboundOffers: InboundOffer[];
   /** Completed transfers, all seasons (newest last). */
   transfers: CompletedTransfer[];
   /**
@@ -56,6 +59,7 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
     schedule,
     played: [],
     negotiations: [],
+    inboundOffers: [],
     transfers: [],
     winterMarketRunSeason: null,
   };

@@ -478,3 +478,20 @@ export const AI_MARKET_MAX_SELLS = 3;
  */
 export const AI_MARKET_RESERVE_FRACTION_MIN = 0.15;
 export const AI_MARKET_RESERVE_FRACTION_MAX = 0.5;
+
+/* ────────────────────────────────────────────────────────────────────────
+ * AI GM phase 3: inbound offers for the user's players. Reuses the same
+ * valueToClub primitive and the AI_MARKET_MIN_SURPLUS / AI_MARKET_FEE_SHARE
+ * constants above (a buyer's interest threshold and fee split work
+ * identically whether the seller is an AI club or the user) — only the
+ * offer-count cap and negotiation-response tuning below are new.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** Most inbound offers shown for the user's roster in a single window. */
+export const INBOUND_OFFERS_MAX = 4;
+
+/**
+ * Deterministic ± jitter on a buyer's valuation when it opens an inbound
+ * offer, matching AI_MARKET_VALUE_JITTER's role in the AI↔AI market.
+ */
+export const INBOUND_OFFER_VALUE_JITTER = 0.04;

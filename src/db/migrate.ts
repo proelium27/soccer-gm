@@ -24,8 +24,9 @@ function fallbackAcademyBase(tid: number): number {
 }
 
 /** A league as it may exist in a save written before M6 added the transfer market. */
-type LeagueStoreAnyVersion = Omit<LeagueStore, "negotiations" | "transfers" | "winterMarketRunSeason"> &
-  Partial<Pick<LeagueStore, "negotiations" | "transfers" | "winterMarketRunSeason">>;
+type LeagueStoreAnyVersion =
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating. */
 type SeasonStatsAnyVersion = Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating"> &
@@ -112,6 +113,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
       };
     }),
     negotiations: anyVersion.negotiations ?? [],
+    inboundOffers: anyVersion.inboundOffers ?? [],
     transfers: anyVersion.transfers ?? [],
     winterMarketRunSeason: anyVersion.winterMarketRunSeason ?? null,
   };
