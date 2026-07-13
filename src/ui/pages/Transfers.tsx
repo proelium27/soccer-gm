@@ -11,6 +11,8 @@ import {
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
 import { currency, formatWeeklyWage } from "../format.js";
 import { Flag } from "../components/Flag.js";
+import { OfferAmountInput } from "../components/OfferAmountInput.js";
+import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { ROSTER_CAP } from "../../core/constants.js";
 
 function windowBanner(league: LeagueStore): React.ReactNode {
@@ -71,6 +73,11 @@ function NegotiationControls({
     draft !== "" && Number.isFinite(draftValue) && draftValue > 0
     && draftValue + wageCharge <= budget && !notImproving;
 
+  // Quick-pick amounts anchored to whatever the next valid bid must clear.
+  const floor = negotiation?.counter ?? bestOffer ?? suggested;
+  const quickAmounts = [floor, Math.round(floor * 1.1), Math.round(floor * 1.25)]
+    .filter((amt) => amt + wageCharge <= budget);
+
   return (
     <div className="d-flex flex-column gap-1">
       {negotiation && (
@@ -83,14 +90,11 @@ function NegotiationControls({
         </small>
       )}
       <div className="d-flex gap-1 align-items-center">
-        <input
-          type="number"
-          className="form-control form-control-sm offer-input"
-          min={0}
-          step={100_000}
+        <OfferAmountInput
           value={draft}
+          onChange={setDraft}
+          quickAmounts={quickAmounts}
           disabled={disabled}
-          onChange={(e) => setDraft(e.target.value)}
         />
         <button
           className="btn btn-sm btn-primary"
@@ -202,7 +206,8 @@ export function Transfers() {
                   {targets.map(({ player: p, sellerTid, scoutedValue }) => (
                     <tr key={p.pid}>
                       <td>
-                        {p.name} <Flag nationality={p.nationality} />
+                        <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                        <Flag nationality={p.nationality} />
                       </td>
                       <td>{p.pos}</td>
                       <td className="text-end">{league.season - p.born}</td>
@@ -244,7 +249,8 @@ export function Transfers() {
                   return (
                     <tr key={n.pid}>
                       <td>
-                        {p.name} <Flag nationality={p.nationality} /> ({p.pos}, {teamName(n.sellerTid)})
+                        <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                        <Flag nationality={p.nationality} /> ({p.pos}, {teamName(n.sellerTid)})
                       </td>
                       <td>
                         <NegotiationControls

@@ -32,6 +32,10 @@ type LeagueStoreAnyVersion =
 type SeasonStatsAnyVersion = Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating"> &
   Partial<Pick<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating">>;
 
+/** A season-history entry as it may exist in a save written before Team Stat Leaders history. */
+type SeasonHistoryEntryAnyVersion = Omit<LeagueStore["seasonHistory"][number], "teamStats"> &
+  Partial<Pick<LeagueStore["seasonHistory"][number], "teamStats">>;
+
 /** A box-score line as it may exist in a save written before Match Rating. */
 type PlayerMatchLineAnyVersion = Omit<PlayerMatchLine, "minutesPlayed" | "rating"> &
   Partial<Pick<PlayerMatchLine, "minutesPlayed" | "rating">>;
@@ -118,7 +122,14 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     transfers: anyVersion.transfers ?? [],
     winterMarketRunSeason: anyVersion.winterMarketRunSeason ?? null,
     // Older saves have no record of past seasons' final tables; they simply
-    // start accumulating history from this point forward.
-    seasonHistory: anyVersion.seasonHistory ?? [],
+    // start accumulating history from this point forward. Saves from before
+    // Team Stat Leaders history has team totals per completed season either:
+    // their per-match box scores were already cleared at that rollover, so
+    // there's nothing to backfill from — those seasons just show no team
+    // stats rather than reconstructing false zeros.
+    seasonHistory: ((anyVersion.seasonHistory ?? []) as SeasonHistoryEntryAnyVersion[]).map((h) => ({
+      ...h,
+      teamStats: h.teamStats ?? [],
+    })),
   };
 }

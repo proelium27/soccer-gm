@@ -2,7 +2,10 @@ import { useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
 import { emptySeasonStats } from "../../core/players/types.js";
+import { computeTeamSeasonStats, type TeamSeasonStats } from "../../core/standings.js";
 import { Flag } from "../components/Flag.js";
+import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { seasonYear } from "../format.js";
 
 type StatKey =
   | "goals"
@@ -26,6 +29,7 @@ const STAT_OPTIONS: { key: StatKey; label: string }[] = [
 ];
 
 type Scope = "career" | "single";
+type LeadersTab = "players" | "teams";
 
 interface LeaderRow {
   player: Player;
@@ -55,6 +59,33 @@ function careerTotals(seasons: SeasonStats[]): SeasonStats {
 }
 
 export function Leaders() {
+  const [tab, setTab] = useState<LeadersTab>("players");
+
+  return (
+    <div className="container-fluid p-3">
+      <h4>Stat Leaders</h4>
+      <div className="mb-3 btn-group" role="group">
+        <button
+          type="button"
+          className={`btn btn-sm ${tab === "players" ? "btn-primary" : "btn-outline-primary"}`}
+          onClick={() => setTab("players")}
+        >
+          Players
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${tab === "teams" ? "btn-primary" : "btn-outline-primary"}`}
+          onClick={() => setTab("teams")}
+        >
+          Teams
+        </button>
+      </div>
+      {tab === "players" ? <PlayerLeaders /> : <TeamLeaders />}
+    </div>
+  );
+}
+
+function PlayerLeaders() {
   const { league } = useLeague();
   const [stat, setStat] = useState<StatKey>("goals");
   const [season, setSeason] = useState<number | "all">("all");
@@ -69,12 +100,7 @@ export function Leaders() {
   ].sort((a, b) => b - a);
 
   if (seasonOptions.length === 0) {
-    return (
-      <div className="container-fluid p-3">
-        <h4>Stat Leaders</h4>
-        <p>No matches played yet.</p>
-      </div>
-    );
+    return <p>No matches played yet.</p>;
   }
 
   const teamByPid = new Map<number, string>();
@@ -136,8 +162,7 @@ export function Leaders() {
   const showSeasonColumn = season === "all" && scope === "single";
 
   return (
-    <div className="container-fluid p-3">
-      <h4>Stat Leaders</h4>
+    <>
       <div className="mb-3 d-flex gap-2">
         <select
           className="form-select form-select-sm"
@@ -147,7 +172,7 @@ export function Leaders() {
         >
           <option value="all">All Seasons</option>
           {seasonOptions.map((s) => (
-            <option key={s} value={s}>{s}</option>
+            <option key={s} value={s}>{seasonYear(s)}</option>
           ))}
         </select>
         {season === "all" && (
@@ -199,11 +224,14 @@ export function Leaders() {
             >
               <td className="text-end">{i + 1}</td>
               <td>
-                {row.player.name} <Flag nationality={row.player.nationality} />
+                <PlayerRatingsTooltip player={row.player}>{row.player.name}</PlayerRatingsTooltip>{" "}
+                <Flag nationality={row.player.nationality} />
               </td>
               <td>{row.teamName}</td>
               <td>{row.player.pos}</td>
-              {showSeasonColumn && <td className="text-end">{row.season}</td>}
+              {showSeasonColumn && row.season !== null && (
+                <td className="text-end">{seasonYear(row.season)}</td>
+              )}
               <td className="text-end">{row.stats.appearances}</td>
               <td className="text-end">{row.stats.minutesPlayed}</td>
               <td className="text-end">{row.stats.goals}</td>
@@ -217,6 +245,125 @@ export function Leaders() {
           ))}
         </tbody>
       </table>
-    </div>
+    </>
+  );
+}
+
+type TeamStatKey = "goals" | "assists" | "shots" | "shotsOnTarget" | "saves" | "tackles" | "possessionPct" | "avgRating";
+
+const TEAM_STAT_OPTIONS: { key: TeamStatKey; label: string }[] = [
+  { key: "goals", label: "Goals" },
+  { key: "assists", label: "Assists" },
+  { key: "shots", label: "Shots" },
+  { key: "shotsOnTarget", label: "Shots on Target" },
+  { key: "saves", label: "Saves" },
+  { key: "tackles", label: "Tackles" },
+  { key: "possessionPct", label: "Possession" },
+  { key: "avgRating", label: "Match Rating" },
+];
+
+interface TeamLeaderRow extends TeamSeasonStats {
+  teamName: string;
+  isUserTeam: boolean;
+}
+
+function TeamLeaders() {
+  const { league } = useLeague();
+  const [stat, setStat] = useState<TeamStatKey>("goals");
+  const [season, setSeason] = useState<number | "current">("current");
+
+  if (!league) {
+    return <p className="p-3">Loading...</p>;
+  }
+
+  const seasonOptions = [...league.seasonHistory.map((h) => h.season)].sort((a, b) => b - a);
+
+  if (league.played.length === 0 && seasonOptions.length === 0) {
+    return <p>No matches played yet.</p>;
+  }
+
+  const teamIds = league.teams.map((t) => t.tid);
+  const teamStats: TeamSeasonStats[] = season === "current"
+    ? computeTeamSeasonStats(teamIds, league.played)
+    : (league.seasonHistory.find((h) => h.season === season)?.teamStats ?? []);
+
+  const teamByTid = new Map(league.teams.map((t) => [t.tid, t.name]));
+  const rows: TeamLeaderRow[] = teamStats.map((s) => ({
+    ...s,
+    teamName: teamByTid.get(s.tid) ?? "Unknown",
+    isUserTeam: s.tid === league.meta.userTid,
+  }));
+  rows.sort((a, b) => b[stat] - a[stat]);
+
+  return (
+    <>
+      <div className="mb-3 d-flex gap-2">
+        <select
+          className="form-select form-select-sm"
+          style={{ width: "auto" }}
+          value={season}
+          onChange={(e) => setSeason(e.target.value === "current" ? "current" : Number(e.target.value))}
+        >
+          <option value="current">Current Season ({seasonYear(league.season)})</option>
+          {seasonOptions.map((s) => (
+            <option key={s} value={s}>{seasonYear(s)}</option>
+          ))}
+        </select>
+        <select
+          className="form-select form-select-sm"
+          style={{ width: "auto" }}
+          value={stat}
+          onChange={(e) => setStat(e.target.value as TeamStatKey)}
+        >
+          {TEAM_STAT_OPTIONS.map((o) => (
+            <option key={o.key} value={o.key}>{o.label}</option>
+          ))}
+        </select>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-muted">
+          No team stats recorded for this season (saves from before Team Stat Leaders history
+          don't have box-score data for seasons that already ended).
+        </p>
+      ) : (
+        <table className="table table-striped table-sm">
+          <thead>
+            <tr>
+              <th className="text-end">#</th>
+              <th>Team</th>
+              <th className="text-end">Pld</th>
+              <th className="text-end">G</th>
+              <th className="text-end">A</th>
+              <th className="text-end">Sh</th>
+              <th className="text-end">SoT</th>
+              <th className="text-end">Sv</th>
+              <th className="text-end">Tkl</th>
+              <th className="text-end">Poss%</th>
+              <th className="text-end">Rtg</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr
+                key={row.tid}
+                className={row.isUserTeam ? "text-primary fw-semibold" : undefined}
+              >
+                <td className="text-end">{i + 1}</td>
+                <td>{row.teamName}</td>
+                <td className="text-end">{row.played}</td>
+                <td className="text-end">{row.goals}</td>
+                <td className="text-end">{row.assists}</td>
+                <td className="text-end">{row.shots}</td>
+                <td className="text-end">{row.shotsOnTarget}</td>
+                <td className="text-end">{row.saves}</td>
+                <td className="text-end">{row.tackles}</td>
+                <td className="text-end">{row.possessionPct.toFixed(1)}</td>
+                <td className="text-end">{row.avgRating.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
   );
 }

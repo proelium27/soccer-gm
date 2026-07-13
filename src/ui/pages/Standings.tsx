@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
+import { seasonYear } from "../format.js";
 
 export function Standings() {
   const { league } = useLeague();
@@ -47,9 +48,9 @@ export function Standings() {
           value={season}
           onChange={(e) => setSeason(e.target.value === "current" ? "current" : Number(e.target.value))}
         >
-          <option value="current">Current Season ({league.season})</option>
+          <option value="current">Current Season ({seasonYear(league.season)})</option>
           {seasonOptions.map((s) => (
-            <option key={s} value={s}>{s}</option>
+            <option key={s} value={s}>{seasonYear(s)}</option>
           ))}
         </select>
       </div>

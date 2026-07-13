@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import type { StoredTeam } from "../../core/leagueState.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
-import { currency } from "../format.js";
+import { currency, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
 
 type ClubFilter = "all" | "user";
@@ -81,7 +81,7 @@ export function NewsFeed() {
         >
           <option value="all">All seasons</option>
           {seasons.map((s) => (
-            <option key={s} value={s}>Season {s}</option>
+            <option key={s} value={s}>{seasonYear(s)}</option>
           ))}
         </select>
       </div>
@@ -97,7 +97,7 @@ export function NewsFeed() {
           <div className="card mb-3" key={season}>
             <div className="card-body">
               <h5 className="card-title">
-                Season {season}{" "}
+                {seasonYear(season)}{" "}
                 <span className="text-muted small">
                   ({transfers.length} {transfers.length === 1 ? "deal" : "deals"})
                 </span>

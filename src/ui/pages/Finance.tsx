@@ -3,8 +3,9 @@ import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings } from "../../core/standings.js";
 import { seasonRevenue, wageBill } from "../../core/finance/budget.js";
 import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
-import { currency, formatWeeklyWage, ordinal } from "../format.js";
+import { currency, formatWeeklyWage, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
+import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 
 export function Finance() {
   const { league, setScoutingSpendAction, simming } = useLeague();
@@ -120,7 +121,7 @@ export function Finance() {
             {seasonOver ? (
               <>
                 Final position: {ordinal(rank)}. Applied to your budget when
-                you advance to season {league.season + 1}; the wage charge is
+                you advance to {seasonYear(league.season + 1)}; the wage charge is
                 estimated from your current squad.
               </>
             ) : (
@@ -199,12 +200,13 @@ export function Finance() {
               {rosterPlayers.map((p) => (
                 <tr key={p.pid}>
                   <td>
-                    {p.name} <Flag nationality={p.nationality} />
+                    <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                    <Flag nationality={p.nationality} />
                   </td>
                   <td>{p.pos}</td>
                   <td className="text-end">{league.season - p.born}</td>
                   <td className="text-end">{p.ovr}</td>
-                  <td className="text-end">{p.contract.expiresSeason}</td>
+                  <td className="text-end">{seasonYear(p.contract.expiresSeason)}</td>
                   <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
                   <td className="text-end">{currency.format(p.contract.salary)}</td>
                 </tr>
@@ -252,7 +254,7 @@ export function Finance() {
                     const bought = t.toTid === league.meta.userTid;
                     return (
                       <tr key={i}>
-                        <td className="text-end">{t.season}</td>
+                        <td className="text-end">{seasonYear(t.season)}</td>
                         <td>{t.window === "summer" ? "Summer" : "Winter"}</td>
                         <td>
                           {p?.name ?? `Player ${t.pid}`}{" "}

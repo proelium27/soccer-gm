@@ -86,14 +86,14 @@ export function Manual() {
             <li><strong>Dashboard</strong> — your record, next fixtures, a finances snapshot with the scouting-spend slider, and the sim buttons.</li>
             <li><strong>Standings</strong> — the league table. A season dropdown lets you look up any past season's final table alongside the current one; the champion's row is highlighted.</li>
             <li><strong>Schedule</strong> — every matchday's fixtures and results; click a played match for its box score.</li>
-            <li><strong>Stat Leaders</strong> — league-wide leaderboards: goals, assists, shots, tackles, saves, clean sheets, minutes, and average match rating. A season dropdown lets you view a single past season, or "All Seasons" — which unlocks a second dropdown to rank either career totals or each player's single best season for the chosen stat.</li>
+            <li><strong>Stat Leaders</strong> — a Players tab (league-wide leaderboards: goals, assists, shots, tackles, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, totaled per club, with its own season dropdown for the current season and every completed one since).</li>
             <li><strong>News Feed</strong> — every completed transfer in the league (AI-to-AI deals included), newest first, grouped by season, with club and season filters. Your club's deals are highlighted.</li>
             <li><strong>Roster</strong> — your squad: ratings, ages, contracts, season stats. Drag and drop to swap players between the starting XI and the bench, extend contracts, or release players.</li>
             <li><strong>Transfers</strong> — recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
             <li><strong>Incoming Offers</strong> — AI clubs bidding for <em>your</em> players. Accept, reject, or counter to squeeze the fee upward.</li>
             <li><strong>Finance</strong> — budget, the full wage-bill table, a projected (or final) season settlement, your transfer history, and a league-wide money table.</li>
             <li><strong>Incoming Talent</strong> — this season's youth-academy intake.</li>
-            <li><strong>Box Score</strong> — per-match detail: goals, cards, substitutions, injuries, and a stat line plus 0–10 match rating for every player who appeared.</li>
+            <li><strong>Box Score</strong> — per-match detail: goals, cards, substitutions, injuries, and a stat line plus 0–10 match rating for every player who appeared. The highest-rated player among those who actually played is starred as Man of the Match.</li>
             <li><strong>Leagues</strong> — your saved leagues. Create, enter, or delete saves; each is fully independent.</li>
           </ul>
         </Section>
@@ -102,7 +102,8 @@ export function Manual() {
           <p>
             A season is a double round-robin: 38 matchdays from August to May, every club playing
             every other home and away. Win = 3 points, draw = 1. There are no cups or continental
-            competitions (yet) — the league is the whole calendar.
+            competitions (yet) — the league is the whole calendar. Every save's first season is
+            displayed as 2026, advancing one year each time you go to the offseason.
           </p>
           <p>
             You sim from the Dashboard in chunks: one matchday, one month, or straight to the next

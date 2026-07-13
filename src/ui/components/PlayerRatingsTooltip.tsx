@@ -49,6 +49,7 @@ export function PlayerRatingsTooltip({ player, children }: { player: Player; chi
         <span id={panelId} role="tooltip" className="player-ratings-tooltip-panel">
           <span className="player-ratings-tooltip-title">
             {player.name} <Flag nationality={player.nationality} />
+            {" "}&middot; OVR {player.ovr} / POT {player.potential}
           </span>
           <span className="player-ratings-tooltip-grid">
             {SKILL_KEYS.map((key) => (

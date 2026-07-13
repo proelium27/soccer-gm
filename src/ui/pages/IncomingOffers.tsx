@@ -7,6 +7,8 @@ import {
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
 import { currency, formatWeeklyWage } from "../format.js";
 import { Flag } from "../components/Flag.js";
+import { OfferAmountInput } from "../components/OfferAmountInput.js";
+import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 
 interface OfferRowProps {
   pid: number;
@@ -41,6 +43,14 @@ function OfferRow({
   const notImproving = bestAsk !== null && draftValue >= bestAsk;
   const askValid = draft !== "" && Number.isFinite(draftValue) && draftValue > 0 && !notImproving;
 
+  // Quick-pick asks between the buyer's offer and the ceiling your last ask allows.
+  const ceiling = bestAsk ?? Math.round(offerFee * 1.3);
+  const quickAmounts = [
+    Math.round(offerFee * 1.05),
+    Math.round((offerFee + ceiling) / 2),
+    Math.round(ceiling * 0.95),
+  ].filter((amt) => amt > offerFee && amt < ceiling);
+
   return (
     <div className="d-flex flex-column gap-1">
       <div>
@@ -60,14 +70,11 @@ function OfferRow({
         >
           Accept {currency.format(offerFee)}
         </button>
-        <input
-          type="number"
-          className="form-control form-control-sm offer-input"
-          min={0}
-          step={100_000}
+        <OfferAmountInput
           value={draft}
+          onChange={setDraft}
+          quickAmounts={quickAmounts}
           disabled={disabled}
-          onChange={(e) => setDraft(e.target.value)}
         />
         <button
           className="btn btn-sm btn-primary"
@@ -163,6 +170,7 @@ export function IncomingOffers() {
               <th>Pos</th>
               <th className="text-end">Age</th>
               <th className="text-end">Ovr</th>
+              <th className="text-end">Pot</th>
               <th className="text-end">Wage</th>
               <th>Offer</th>
             </tr>
@@ -176,11 +184,13 @@ export function IncomingOffers() {
               return (
                 <tr key={p.pid}>
                   <td>
-                    {p.name} <Flag nationality={p.nationality} />
+                    <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                    <Flag nationality={p.nationality} />
                   </td>
                   <td>{p.pos}</td>
                   <td className="text-end">{league.season - p.born}</td>
                   <td className="text-end">{p.ovr}</td>
+                  <td className="text-end">{p.potential}</td>
                   <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
                   <td>
                     <OfferRow
@@ -214,7 +224,8 @@ export function IncomingOffers() {
                   return (
                     <tr key={n.pid}>
                       <td>
-                        {p.name} <Flag nationality={p.nationality} /> ({p.pos})
+                        <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                        <Flag nationality={p.nationality} /> ({p.pos})
                       </td>
                       <td>
                         <OfferRow

@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { useLeague } from "../context/LeagueContext.js";
+import { seasonYear } from "../format.js";
 
 export function TopBar() {
   const { league, simAction, simming, exportJSON, importJSON } = useLeague();
@@ -11,7 +12,7 @@ export function TopBar() {
   // Derive current matchday from remaining schedule
   let statusText = "";
   if (league) {
-    statusText = `Season ${league.season}`;
+    statusText = `${seasonYear(league.season)}`;
     if (league.phase === "offseason") {
       statusText += " — Offseason";
     } else if (league.schedule.length > 0) {
