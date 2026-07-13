@@ -14,6 +14,7 @@ type StatKey =
   | "shotsOnTarget"
   | "saves"
   | "tackles"
+  | "interceptions"
   | "avgRating"
   | "minutesPlayed";
 
@@ -24,6 +25,7 @@ const STAT_OPTIONS: { key: StatKey; label: string }[] = [
   { key: "shotsOnTarget", label: "Shots on Target" },
   { key: "saves", label: "Saves" },
   { key: "tackles", label: "Tackles" },
+  { key: "interceptions", label: "Interceptions" },
   { key: "avgRating", label: "Match Rating" },
   { key: "minutesPlayed", label: "Minutes" },
 ];
@@ -51,6 +53,7 @@ function careerTotals(seasons: SeasonStats[]): SeasonStats {
     total.shotsOnTarget += s.shotsOnTarget;
     total.saves += s.saves;
     total.tackles += s.tackles;
+    total.interceptions += s.interceptions;
     total.minutesPlayed += s.minutesPlayed;
     total.ratingSum += s.ratingSum;
   }
@@ -213,6 +216,7 @@ function PlayerLeaders() {
             <th className="text-end">SoT</th>
             <th className="text-end">Sv</th>
             <th className="text-end">Tkl</th>
+            <th className="text-end">Int</th>
             <th className="text-end">Rtg</th>
           </tr>
         </thead>
@@ -240,6 +244,7 @@ function PlayerLeaders() {
               <td className="text-end">{row.stats.shotsOnTarget}</td>
               <td className="text-end">{row.stats.saves}</td>
               <td className="text-end">{row.stats.tackles}</td>
+              <td className="text-end">{row.stats.interceptions}</td>
               <td className="text-end">{row.stats.avgRating.toFixed(2)}</td>
             </tr>
           ))}

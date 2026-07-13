@@ -29,16 +29,16 @@ type LeagueStoreAnyVersion =
   Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating. */
-type SeasonStatsAnyVersion = Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating"> &
-  Partial<Pick<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating">>;
+type SeasonStatsAnyVersion = Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions"> &
+  Partial<Pick<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions">>;
 
 /** A season-history entry as it may exist in a save written before Team Stat Leaders history. */
 type SeasonHistoryEntryAnyVersion = Omit<LeagueStore["seasonHistory"][number], "teamStats"> &
   Partial<Pick<LeagueStore["seasonHistory"][number], "teamStats">>;
 
 /** A box-score line as it may exist in a save written before Match Rating. */
-type PlayerMatchLineAnyVersion = Omit<PlayerMatchLine, "minutesPlayed" | "rating"> &
-  Partial<Pick<PlayerMatchLine, "minutesPlayed" | "rating">>;
+type PlayerMatchLineAnyVersion = Omit<PlayerMatchLine, "minutesPlayed" | "rating" | "interceptions"> &
+  Partial<Pick<PlayerMatchLine, "minutesPlayed" | "rating" | "interceptions">>;
 
 /** A played match as it may exist in a save written before M3 added box scores. */
 type PlayedMatchAnyVersion = {
@@ -52,7 +52,12 @@ type PlayedMatchAnyVersion = {
 type PlayedMatch = LeagueStore["played"][number];
 
 function migrateLine(line: PlayerMatchLineAnyVersion): PlayerMatchLine {
-  return { ...line, minutesPlayed: line.minutesPlayed ?? 0, rating: line.rating ?? 6.0 };
+  return {
+    ...line,
+    minutesPlayed: line.minutesPlayed ?? 0,
+    rating: line.rating ?? 6.0,
+    interceptions: line.interceptions ?? 0,
+  };
 }
 
 function migratePlayer(p: Player): Player {
@@ -63,6 +68,7 @@ function migratePlayer(p: Player): Player {
       minutesPlayed: s.minutesPlayed ?? 0,
       ratingSum: s.ratingSum ?? 0,
       avgRating: s.avgRating ?? 0,
+      interceptions: s.interceptions ?? 0,
     })),
   };
 }

@@ -11,6 +11,20 @@ export const ONTARGET_BASE = 0.47; // unblocked shot is on target
 export const SAVE_BASE = 0.68; // on-target shot is saved (else goal)
 
 export const TURNOVER_BASE = 0.14; // per-tick prob possession changes hands
+// Of every turnover (see TURNOVER_BASE above), the share credited as a
+// stat-worthy defensive action at all vs. no credit (a real match has plenty
+// of misplaced passes/loose balls no box score attributes to anyone), and of
+// that credited share, the split between a tackle and a clean interception.
+// These are the two independent tunables; TACKLE_CREDIT_PROB/
+// INTERCEPTION_CREDIT_PROB below are derived so matchSim.ts's per-turnover
+// roll doesn't need to know about the split. Starting values chosen so a busy
+// center-back lands in the real-world plausible ~2-6 tackles and ~2-5
+// interceptions per match instead of the pre-fix high-teens blowout —
+// pending audit-tuning per the design doc.
+export const CREDITED_TURNOVER_PROB = 0.4;
+export const INTERCEPTION_SHARE_OF_CREDIT = 0.5;
+export const TACKLE_CREDIT_PROB = CREDITED_TURNOVER_PROB * (1 - INTERCEPTION_SHARE_OF_CREDIT);
+export const INTERCEPTION_CREDIT_PROB = CREDITED_TURNOVER_PROB * INTERCEPTION_SHARE_OF_CREDIT;
 export const REBOUND_PROB = 0.12; // after a saved/blocked shot, attacker keeps it
 
 export const HOME_ATTACK_BONUS = 0.1; // home advantage, applied to home attack composite

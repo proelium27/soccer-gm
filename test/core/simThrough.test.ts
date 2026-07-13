@@ -55,6 +55,20 @@ function makeLeagueStore(seed: number): LeagueStore {
 }
 
 describe("simThrough", () => {
+  it("rolls up interceptions into season stats alongside tackles", () => {
+    const store = makeLeagueStore(42);
+    const rng = mulberry32(700);
+    const result = simThrough(store, "month", rng);
+
+    const withInterceptions = result.players.find((p) =>
+      p.stats.some((s) => s.season === store.season && s.interceptions > 0),
+    );
+    expect(withInterceptions).toBeDefined();
+    const ss = withInterceptions!.stats.find((s) => s.season === store.season)!;
+    expect(ss.interceptions).toBeGreaterThan(0);
+    expect(ss.appearances).toBeGreaterThan(0);
+  });
+
   it("sim one game: moves exactly 10 games (1 matchday) from schedule to played", () => {
     const store = makeLeagueStore(42);
     const rng = mulberry32(100);

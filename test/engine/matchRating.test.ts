@@ -20,6 +20,7 @@ function makeSquad(pidOffset: number): MatchPlayer[] {
     positioning: 55,
     heading: pos === "CB" || pos === "ST" ? 70 : 40,
     stamina: 50,
+    interceptions: pos === "CB" || pos === "DM" ? 70 : 40,
   }));
 }
 
@@ -35,6 +36,7 @@ function makeBench(pidOffset: number): MatchPlayer[] {
     positioning: 55,
     heading: 40,
     stamina: 60,
+    interceptions: 40,
   }));
 }
 
@@ -57,6 +59,22 @@ describe("computeMatchRating", () => {
     const defRating = computeMatchRating(line, "CB", 90, 0);
     const fwdRating = computeMatchRating(line, "ST", 90, 0);
     expect(defRating).toBeGreaterThan(fwdRating);
+  });
+
+  it("rewards interceptions like tackles, more for a defender than a forward", () => {
+    const line = { ...emptyLine(1), interceptions: 5 };
+    const defRating = computeMatchRating(line, "CB", 90, 0);
+    const fwdRating = computeMatchRating(line, "ST", 90, 0);
+    expect(defRating).toBeGreaterThan(6.8); // above the CB clean-sheet-bonus baseline
+    expect(defRating).toBeGreaterThan(fwdRating);
+  });
+
+  it("does not let a realistic interception count alone push a scoreless CB above 8", () => {
+    // Regression guard for the original bug report: a busy-but-scoreless CB
+    // (5 interceptions, the top end of the new realistic per-match range)
+    // should not rating-farm into the 9s the way high-teens tackles used to.
+    const line = { ...emptyLine(1), interceptions: 5 };
+    expect(computeMatchRating(line, "CB", 90, 0)).toBeLessThan(8);
   });
 
   it("gives goalkeepers a clean-sheet bonus for a shutout, more than defenders get", () => {

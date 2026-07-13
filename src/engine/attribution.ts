@@ -13,6 +13,7 @@ export interface MatchPlayer {
   positioning: number;
   heading: number;
   stamina: number;
+  interceptions: number;
 }
 
 export type MatchEventType =
@@ -43,6 +44,7 @@ export interface PlayerMatchLine {
   shotsOnTarget: number;
   saves: number;
   tackles: number;
+  interceptions: number;
   yellowCards: number;
   redCards: number;
   minutesPlayed: number;
@@ -118,10 +120,28 @@ export function pickAssister(
   return weightedPick(rng, candidates, ASSIST_WEIGHTS, "dribbling");
 }
 
-export function pickTackler(rng: () => number, players: MatchPlayer[]): MatchPlayer {
+/**
+ * Shared by pickTackler/pickInterceptor: both use TACKLE_WEIGHTS' CB/DM/FB-leaning
+ * position shape (the same positions that read the game well also tend to win
+ * clean interceptions), differing only in which rating drives the pick.
+ */
+function pickDefensiveAction(
+  rng: () => number,
+  players: MatchPlayer[],
+  ratingKey: "tackling" | "interceptions",
+): MatchPlayer {
   const outfield = players.filter((p) => p.pos !== "GK");
   if (outfield.length === 0) return players[0];
-  return weightedPick(rng, outfield, TACKLE_WEIGHTS, "tackling");
+  return weightedPick(rng, outfield, TACKLE_WEIGHTS, ratingKey);
+}
+
+export function pickTackler(rng: () => number, players: MatchPlayer[]): MatchPlayer {
+  return pickDefensiveAction(rng, players, "tackling");
+}
+
+/** Picks who wins a clean interception, keyed to the player's own `interceptions` rating. */
+export function pickInterceptor(rng: () => number, players: MatchPlayer[]): MatchPlayer {
+  return pickDefensiveAction(rng, players, "interceptions");
 }
 
 /** Picks who commits a foul. Weighted toward tackling, like a tackler, but any outfielder can foul. */
@@ -157,6 +177,6 @@ export function eventTypeFromShot(outcome: ShotOutcome): MatchEventType {
 export function emptyLine(pid: number): PlayerMatchLine {
   return {
     pid, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, saves: 0, tackles: 0,
-    yellowCards: 0, redCards: 0, minutesPlayed: 0, rating: 6.0,
+    interceptions: 0, yellowCards: 0, redCards: 0, minutesPlayed: 0, rating: 6.0,
   };
 }
