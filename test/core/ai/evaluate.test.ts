@@ -4,9 +4,12 @@ import { createLeagueState } from "../../../src/core/leagueState.js";
 import type { Player, Position } from "../../../src/core/players/types.js";
 import { POSITIONS } from "../../../src/core/players/types.js";
 import type { ClubContext, StrategicDirection } from "../../../src/core/ai/clubContext.js";
-import { evaluatePlayerForClub, valueToClub } from "../../../src/core/ai/evaluate.js";
+import {
+  evaluatePlayerForClub, valueToClub, scoutNoiseFraction, perceivedValueToClub,
+} from "../../../src/core/ai/evaluate.js";
 import {
   ROSTER_COMPOSITION, AI_NEED_MIN, AI_NEED_MAX,
+  AI_SCOUT_NOISE_MIN, AI_SCOUT_NOISE_MAX,
 } from "../../../src/core/constants.js";
 
 const SEASON = 10;
@@ -101,6 +104,34 @@ describe("timeline fit (age × ambition)", () => {
     const developer = ctx({ ambition: 0.1 });
     const contender = ctx({ ambition: 0.9 });
     expect(valueToClub(prime, contender)).toBeGreaterThan(valueToClub(prime, developer));
+  });
+});
+
+describe("scoutNoiseFraction / perceivedValueToClub", () => {
+  it("gives the wealthiest club (frugality 0) the minimum noise and the poorest (frugality 1) the max", () => {
+    expect(scoutNoiseFraction(ctx({ frugality: 0 }))).toBeCloseTo(AI_SCOUT_NOISE_MIN, 6);
+    expect(scoutNoiseFraction(ctx({ frugality: 1 }))).toBeCloseTo(AI_SCOUT_NOISE_MAX, 6);
+  });
+
+  it("stays within scoutNoiseFraction of the true valueToClub for any jitter draw", () => {
+    const player = samplePlayer();
+    const c = ctx({ frugality: 0.7 });
+    const trueValue = valueToClub(player, c);
+    const noise = scoutNoiseFraction(c);
+    for (const draw of [0, 0.25, 0.5, 0.75, 1]) {
+      const perceived = perceivedValueToClub(player, c, () => draw);
+      expect(perceived).toBeGreaterThanOrEqual(trueValue * (1 - noise) - 1e-6);
+      expect(perceived).toBeLessThanOrEqual(trueValue * (1 + noise) + 1e-6);
+    }
+  });
+
+  it("a poorer (more frugal) club's perceived value swings further from true value than a wealthy club's", () => {
+    const player = samplePlayer();
+    const rich = ctx({ frugality: 0 });
+    const poor = ctx({ frugality: 1 });
+    const richSwing = Math.abs(perceivedValueToClub(player, rich, () => 1) - valueToClub(player, rich));
+    const poorSwing = Math.abs(perceivedValueToClub(player, poor, () => 1) - valueToClub(player, poor));
+    expect(poorSwing).toBeGreaterThan(richSwing);
   });
 });
 

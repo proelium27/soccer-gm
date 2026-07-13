@@ -8,12 +8,12 @@ import {
   windowSeed, departsAtRollover, acquisitionWageCharge, hasRosterRoom, executeTransfer,
 } from "./negotiation.js";
 import { deriveLeagueContexts } from "../ai/clubContext.js";
-import { valueToClub } from "../ai/evaluate.js";
+import { valueToClub, perceivedValueToClub } from "../ai/evaluate.js";
 import { mulberry32 } from "../../engine/rng.js";
 import {
   AI_MARKET_MIN_SURPLUS, AI_MARKET_FEE_SHARE,
   AI_MARKET_RESERVE_FRACTION_MIN, AI_MARKET_RESERVE_FRACTION_MAX,
-  INBOUND_OFFERS_MAX, INBOUND_OFFER_VALUE_JITTER,
+  INBOUND_OFFERS_MAX,
   NEGOTIATION_LOWBALL_FACTOR, NEGOTIATION_MAX_ROUNDS,
   COUNTER_PADDING_START, COUNTER_PADDING_DECAY,
 } from "../constants.js";
@@ -67,9 +67,9 @@ export interface InboundOfferCandidate {
  * capped to the INBOUND_OFFERS_MAX most compelling. Reuses the exact same
  * valueToClub primitive and fee-split math as the AI↔AI market (phase 2) —
  * the user's club is just one more context in that comparison. Deterministic
- * within a window (a per-player seeded jitter on the buyer's valuation, the
- * same role AI_MARKET_VALUE_JITTER plays there); empty when no window is
- * open or nobody clears the bar.
+ * within a window (a per-player seeded scouting-noise jitter on the buyer's
+ * valuation via perceivedValueToClub, the same role it plays in the AI↔AI
+ * market); empty when no window is open or nobody clears the bar.
  */
 export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandidate[] {
   const ws = transferWindowState(league);
@@ -103,8 +103,7 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
       const buyerCtx = contexts.get(buyer.tid);
       if (!buyerCtx) continue;
 
-      const rawCeiling =
-        valueToClub(player, buyerCtx) * (1 + (jitter() * 2 - 1) * INBOUND_OFFER_VALUE_JITTER);
+      const rawCeiling = perceivedValueToClub(player, buyerCtx, jitter);
       // A buyer only shows up as a candidate if it can actually pay a fair
       // fee without dipping into its cash reserve — otherwise the offer
       // would just fail affordability at accept time (see buyerSpendable).

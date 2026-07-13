@@ -4,14 +4,14 @@ import type { PlayedMatch } from "../standings.js";
 import type { CompletedTransfer } from "../transfers/negotiation.js";
 import type { TransferWindowKind } from "../transfers/window.js";
 import { deriveLeagueContexts } from "./clubContext.js";
-import { valueToClub } from "./evaluate.js";
+import { valueToClub, perceivedValueToClub } from "./evaluate.js";
 import { trueTransferValue } from "../finance/valuation.js";
 import { keepsDepthFloor } from "../freeAgency.js";
 import { mulberry32 } from "../../engine/rng.js";
 import {
   ROSTER_CAP,
   AI_MARKET_MIN_VALUE, AI_MARKET_AVAILABILITY, AI_MARKET_MIN_SURPLUS,
-  AI_MARKET_FEE_SHARE, AI_MARKET_VALUE_JITTER,
+  AI_MARKET_FEE_SHARE,
   AI_MARKET_MAX_BUYS, AI_MARKET_MAX_SELLS,
   AI_MARKET_RESERVE_FRACTION_MIN, AI_MARKET_RESERVE_FRACTION_MAX,
 } from "../constants.js";
@@ -99,7 +99,7 @@ export function runAITransferMarket(
         const buyerCtx = contexts.get(buyer.tid);
         if (!buyerCtx) continue;
 
-        const jittered = valueToClub(player, buyerCtx) * (1 + (jitter() * 2 - 1) * AI_MARKET_VALUE_JITTER);
+        const jittered = perceivedValueToClub(player, buyerCtx, jitter);
         if (jittered < reservation * (1 + AI_MARKET_MIN_SURPLUS)) continue;
 
         candidates.push({

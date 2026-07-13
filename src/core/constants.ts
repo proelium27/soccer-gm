@@ -457,13 +457,6 @@ export const AI_MARKET_MIN_SURPLUS = 0.15;
  */
 export const AI_MARKET_FEE_SHARE = 0.5;
 
-/**
- * Deterministic ± jitter on a buyer's valuation (fraction of value), a first
- * taste of imperfect/scouted decisions: two clubs don't price a player
- * identically, and the "best" deal isn't always the one that executes.
- */
-export const AI_MARKET_VALUE_JITTER = 0.04;
-
 /** Most buys / sells any one AI club will make in a single window. */
 export const AI_MARKET_MAX_BUYS = 3;
 export const AI_MARKET_MAX_SELLS = 3;
@@ -505,8 +498,16 @@ export const AI_RENEWAL_MARGIN = 1.1;
 /** Most inbound offers shown for the user's roster in a single window. */
 export const INBOUND_OFFERS_MAX = 4;
 
-/**
- * Deterministic ± jitter on a buyer's valuation when it opens an inbound
- * offer, matching AI_MARKET_VALUE_JITTER's role in the AI↔AI market.
- */
-export const INBOUND_OFFER_VALUE_JITTER = 0.04;
+/* ────────────────────────────────────────────────────────────────────────
+ * AI GM phase 5: imperfect/scouting-noised decisions. Every AI valuation
+ * (buying, selling, renewing) now runs through perceivedValueToClub instead
+ * of the raw valueToClub — a deterministic ± jitter scaled by the club's own
+ * frugality (wealth stands in for scouting investment, same as the M6 user-
+ * facing valuation noise). Replaces the old flat AI_MARKET_VALUE_JITTER /
+ * INBOUND_OFFER_VALUE_JITTER (both 0.04 for every club regardless of wealth).
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** Scouting noise (± fraction of value) for the wealthiest club in the league (frugality 0). */
+export const AI_SCOUT_NOISE_MIN = 0.02;
+/** Scouting noise (± fraction of value) for the poorest club in the league (frugality 1). */
+export const AI_SCOUT_NOISE_MAX = 0.08;
