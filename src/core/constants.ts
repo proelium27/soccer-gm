@@ -132,19 +132,22 @@ export const RETIREMENT_PROB_PER_YEAR = 0.12;
 export const RETIREMENT_BASE_PROB = 0.05;
 
 /**
- * Wages (2026-07-11 rework, replacing the flat 20k-per-ovr placeholder):
+ * Wages (2026-07-11 rework, replacing the flat 20k-per-ovr placeholder;
+ * rescaled 2026-07-13 alongside the BASE_SEASON_BUDGET cut below — same
+ * cubic shape, coefficients scaled by ~BASE_SEASON_BUDGET's 50M/95M ratio so
+ * the AI-solvency invariant in budget.test.ts still holds with a comparable
+ * margin):
  * weekly wage = WAGE_WEEKLY_MIN + WAGE_WEEKLY_COEFF * (ovr - WAGE_OVR_FLOOR)^3,
  * times a deterministic per-signing variation of ±WAGE_VARIATION, rounded to
  * the nearest 100 and stored as a per-season total (weekly × 52). The cubic
  * matches the real Premier League's superstar wage escalation on the
  * post-rebalance ovr scale (65 = average starter … 90+ = rare outlier):
- * ovr 50 ≈ 4.5k/wk, 60 ≈ 22k, 65 ≈ 41k, 70 ≈ 70k, 75 ≈ 109k, 80 ≈ 162k,
- * 85 ≈ 230k, 90 ≈ 314k, 99 ≈ 515k — versus the old formula's near-flat
- * 23k → 34k/wk over that whole range.
+ * ovr 50 ≈ 2.3k/wk, 60 ≈ 11.4k, 65 ≈ 21.3k, 70 ≈ 36.1k, 75 ≈ 56.7k,
+ * 80 ≈ 84.2k, 85 ≈ 119.5k, 90 ≈ 163.5k, 99 ≈ 268k.
  */
-export const WAGE_WEEKLY_MIN = 2_000;
+export const WAGE_WEEKLY_MIN = 1_000;
 export const WAGE_OVR_FLOOR = 40;
-export const WAGE_WEEKLY_COEFF = 2.5;
+export const WAGE_WEEKLY_COEFF = 1.3;
 /** Per-signing wage spread: two same-ovr players can differ by up to ±15%. */
 export const WAGE_VARIATION = 0.15;
 export const CONTRACT_LENGTH_MIN = 1;
@@ -175,12 +178,13 @@ export const YOUTH_CONTRACT_LENGTH = 2;
  * of elite players can outspend the base (a documented, user-controlled
  * gap — the Finance page projects the shortfall).
  *
- * Calibrated to the real-world market (2025-ish Premier League): the
- * equilibrium average wage bill is ~30M/season, leaving an average club
- * ~65-80M/season for transfers and scouting against valuations where a
- * superstar costs 150M+ and a solid starter 30-50M.
+ * Cut 95M → 50M on 2026-07-13 per user direction (a bottom-table club was
+ * banking $163M+ over a few frugal seasons off the old, more generous
+ * allocation — the running-balance/compounding design itself was kept
+ * as-is, only the per-season inflow was reduced). Wages below were rescaled
+ * in tandem to preserve the AI-solvency invariant.
  */
-export const BASE_SEASON_BUDGET = 95_000_000;
+export const BASE_SEASON_BUDGET = 50_000_000;
 /**
  * Benchmark "dominant AI squad" the base allocation must out-fund on
  * worst-case wage deals (see the invariant note above): [count, ovr] rows,
@@ -219,9 +223,12 @@ export const HYPE_INITIAL = 50;
 /**
  * Damped hype→revenue channel: revenue per hype point, scaled down hard so
  * this stays a secondary channel behind success payouts (per design: "don't
- * make profit from jersey sales contribute TOO much to budget").
+ * make profit from jersey sales contribute TOO much to budget"). Bumped
+ * 500k → 750k on 2026-07-13 alongside the BASE_SEASON_BUDGET cut, per user
+ * request to make hype revenue a bit more impactful now that the base
+ * allocation is smaller (max hype revenue: 20M → 30M).
  */
-export const HYPE_REVENUE_PER_POINT = 500_000;
+export const HYPE_REVENUE_PER_POINT = 750_000;
 export const HYPE_REVENUE_DAMPING = 0.4;
 
 /** Scouting: a single per-season spend slider (0 = no scouts) that lowers valuation noise. */
