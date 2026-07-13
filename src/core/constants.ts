@@ -186,6 +186,16 @@ export const YOUTH_CONTRACT_LENGTH = 2;
  */
 export const BASE_SEASON_BUDGET = 50_000_000;
 /**
+ * Hard ceiling on a club's running budget balance, added 2026-07-13: since
+ * budget compounds season over season by design (never resets to the base
+ * allocation), a frugal club could otherwise bank an unbounded amount over a
+ * long dynasty (observed reaching $1B+ by season 20 in audits). Applied
+ * everywhere a club's budget can increase (season-start/end settlement,
+ * transfer-fee receipts) via `clampBudget` in `finance/budget.ts` — a club
+ * can still spend below this line freely, it just can't bank above it.
+ */
+export const MAX_BUDGET = 200_000_000;
+/**
  * Benchmark "dominant AI squad" the base allocation must out-fund on
  * worst-case wage deals (see the invariant note above): [count, ovr] rows,
  * matching the strongest squad shape AI free agency + progression produced

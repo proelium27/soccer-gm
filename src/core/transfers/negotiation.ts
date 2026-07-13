@@ -4,6 +4,7 @@ import type { LeagueStore } from "../leagueState.js";
 import type { TransferWindowKind } from "./window.js";
 import { transferWindowState } from "./window.js";
 import { trueTransferValue, perceivedTransferValue } from "../finance/valuation.js";
+import { clampBudget } from "../finance/budget.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { keepsDepthFloor } from "../freeAgency.js";
 import {
@@ -174,7 +175,7 @@ export function executeTransfer(
     ...league,
     teams: league.teams.map((t) => {
       if (t.tid === fromTid) {
-        return { ...t, roster: t.roster.filter((p) => p !== pid), budget: t.budget + fee };
+        return { ...t, roster: t.roster.filter((p) => p !== pid), budget: clampBudget(t.budget + fee) };
       }
       if (t.tid === toTid) {
         return { ...t, roster: [...t.roster, pid], budget: t.budget - fee - wageCharge };
