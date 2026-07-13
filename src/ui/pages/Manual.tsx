@@ -333,7 +333,7 @@ export function Manual() {
             history, and every club's budget for comparison. AI clubs are tuned to never go broke;
             <em> you</em> can overspend — hoard a full roster of elite wages and the projection
             will happily show you the shortfall coming. Budget is a running balance that carries
-            over between seasons rather than resetting, capped at <strong>$200M</strong> — spending
+            over between seasons rather than resetting, capped at <strong>$300M</strong> — spending
             below that line is unrestricted, but a club can't bank cash past it.
           </p>
         </Section>
