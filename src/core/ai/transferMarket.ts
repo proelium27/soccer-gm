@@ -6,6 +6,7 @@ import type { TransferWindowKind } from "../transfers/window.js";
 import { deriveLeagueContexts } from "./clubContext.js";
 import { valueToClub, perceivedValueToClub } from "./evaluate.js";
 import { trueTransferValue } from "../finance/valuation.js";
+import { clampBudget } from "../finance/budget.js";
 import { keepsDepthFloor } from "../freeAgency.js";
 import { mulberry32 } from "../../engine/rng.js";
 import {
@@ -167,7 +168,7 @@ export function runAITransferMarket(
     // mid-season wage charge. Money is conserved between the two clubs.
     roster.set(c.sellerTid, sellerRoster.filter((p) => p !== c.pid));
     buyerRoster.push(c.pid);
-    budget.set(c.sellerTid, (budget.get(c.sellerTid) ?? 0) + fee);
+    budget.set(c.sellerTid, clampBudget((budget.get(c.sellerTid) ?? 0) + fee));
     budget.set(c.buyerTid, (budget.get(c.buyerTid) ?? 0) - fee - wageCharge);
     moved.add(c.pid);
     buys.set(c.buyerTid, (buys.get(c.buyerTid) ?? 0) + 1);

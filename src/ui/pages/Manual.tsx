@@ -289,13 +289,13 @@ export function Manual() {
           <table className="table table-sm table-striped" style={{ maxWidth: "24rem" }}>
             <thead><tr><th>OVR</th><th>Weekly wage</th></tr></thead>
             <tbody>
-              <tr><td className="stat-num">60</td><td className="stat-num">~$22k</td></tr>
-              <tr><td className="stat-num">65</td><td className="stat-num">~$41k</td></tr>
-              <tr><td className="stat-num">70</td><td className="stat-num">~$70k</td></tr>
-              <tr><td className="stat-num">75</td><td className="stat-num">~$109k</td></tr>
-              <tr><td className="stat-num">80</td><td className="stat-num">~$162k</td></tr>
-              <tr><td className="stat-num">85</td><td className="stat-num">~$230k</td></tr>
-              <tr><td className="stat-num">90</td><td className="stat-num">~$314k</td></tr>
+              <tr><td className="stat-num">60</td><td className="stat-num">~$11k</td></tr>
+              <tr><td className="stat-num">65</td><td className="stat-num">~$21k</td></tr>
+              <tr><td className="stat-num">70</td><td className="stat-num">~$36k</td></tr>
+              <tr><td className="stat-num">75</td><td className="stat-num">~$57k</td></tr>
+              <tr><td className="stat-num">80</td><td className="stat-num">~$84k</td></tr>
+              <tr><td className="stat-num">85</td><td className="stat-num">~$120k</td></tr>
+              <tr><td className="stat-num">90</td><td className="stat-num">~$164k</td></tr>
             </tbody>
           </table>
           <p>
@@ -309,7 +309,7 @@ export function Manual() {
 
         <Section id="finance" title="Finance">
           <p>
-            Every club starts each season with the same base allocation (<strong>$95M</strong>),
+            Every club starts each season with the same base allocation (<strong>$50M</strong>),
             and the squad's <strong>entire season wage bill is paid up front</strong> at the season
             start. What's left is genuinely spendable — on transfer fees, mid-season signings, and
             scouting. A mid-season acquisition (transfer buy or free-agent signing) charges the
@@ -318,7 +318,7 @@ export function Manual() {
           <p>At season's end, the settlement adds and subtracts the rest:</p>
           <ul>
             <li><strong>Prize money</strong> — $40M for winning the league, $20M for finishing 2nd–5th, $10M for 6th–10th, nothing below that.</li>
-            <li><strong>Hype revenue</strong> — every club has a hype score (0–100) that drifts toward its recent results rather than snapping to them. Hype earns extra revenue (up to ~$20M at maximum hype), deliberately damped so fame stays a bonus, not an engine — success payouts matter more.</li>
+            <li><strong>Hype revenue</strong> — every club has a hype score (0–100) that drifts toward its recent results rather than snapping to them. Hype earns extra revenue (up to ~$30M at maximum hype), deliberately damped so fame stays a bonus, not an engine — success payouts matter more.</li>
             <li><strong>Scouting spend</strong> — whatever you set the slider to comes out here.</li>
           </ul>
           <p>
@@ -332,7 +332,9 @@ export function Manual() {
             settlement projection (final numbers once the season ends), your complete transfer
             history, and every club's budget for comparison. AI clubs are tuned to never go broke;
             <em> you</em> can overspend — hoard a full roster of elite wages and the projection
-            will happily show you the shortfall coming.
+            will happily show you the shortfall coming. Budget is a running balance that carries
+            over between seasons rather than resetting, capped at <strong>$300M</strong> — spending
+            below that line is unrestricted, but a club can't bank cash past it.
           </p>
         </Section>
 
