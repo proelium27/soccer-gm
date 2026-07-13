@@ -43,6 +43,7 @@ function TeamBoxTable({
             <th className="text-end">SoT</th>
             <th className="text-end">Sv</th>
             <th className="text-end">Tkl</th>
+            <th className="text-end">Int</th>
             <th className="text-end">YC</th>
             <th className="text-end">RC</th>
             <th className="text-end">Rtg</th>
@@ -65,6 +66,7 @@ function TeamBoxTable({
               <td className="text-end">{line.shotsOnTarget || ""}</td>
               <td className="text-end">{line.saves || ""}</td>
               <td className="text-end">{line.tackles || ""}</td>
+              <td className="text-end">{line.interceptions || ""}</td>
               <td className="text-end">{line.yellowCards || ""}</td>
               <td className="text-end">{line.redCards || ""}</td>
               <td className={`text-end ${ratingClass(line.rating)}`}>{line.rating.toFixed(1)}</td>
