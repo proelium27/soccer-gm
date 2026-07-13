@@ -89,11 +89,22 @@ export const INTERCEPTION_CREDIT_PROB = <tbd>; // share of turnovers logged as a
 ```
 
 (`1 - TACKLE_CREDIT_PROB - INTERCEPTION_CREDIT_PROB` is the "no credit"
-share.) Same defender who was already selected by `pickTackler` receives
-whichever credit is rolled — no second player-selection pass, since a real
-CB who reads the game well is the same player who'd rack up both stats, and
-`TACKLE_WEIGHTS`' existing CB-leaning shape is appropriate for interceptions
-too.
+share.)
+
+**Deviation from the original plan (approved during implementation):** rather
+than reusing whichever defender `pickTackler` already selected for both
+credit types, the shipped implementation adds a distinct `pickInterceptor`
+(`src/engine/attribution.ts`) run as its own selection pass on the
+interception branch, keyed to the player's own `interceptions` rating instead
+of `tackling` — a rating that was previously unused anywhere in match
+simulation. This was a deliberate scope increase, confirmed with the user via
+an explicit choice ("use the dedicated interceptions rating") during planning,
+on the reasoning that a player who reads the game well via a `positioning`/
+`interceptions`-driven skill isn't necessarily the same player who wins the
+ball via a physical `tackling` duel — treating them as fully independent stats
+better matches how a real box score distinguishes the two. `pickInterceptor`
+still shares `TACKLE_WEIGHTS`' CB/DM/FB-leaning position shape (both
+skills cluster in the same positions), only the rating key differs.
 
 Exact values for `TACKLE_CREDIT_PROB`/`INTERCEPTION_CREDIT_PROB` are **not**
 fixed in this spec — they get fit empirically during implementation via the

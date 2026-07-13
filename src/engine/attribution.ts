@@ -120,23 +120,28 @@ export function pickAssister(
   return weightedPick(rng, candidates, ASSIST_WEIGHTS, "dribbling");
 }
 
-export function pickTackler(rng: () => number, players: MatchPlayer[]): MatchPlayer {
+/**
+ * Shared by pickTackler/pickInterceptor: both use TACKLE_WEIGHTS' CB/DM/FB-leaning
+ * position shape (the same positions that read the game well also tend to win
+ * clean interceptions), differing only in which rating drives the pick.
+ */
+function pickDefensiveAction(
+  rng: () => number,
+  players: MatchPlayer[],
+  ratingKey: "tackling" | "interceptions",
+): MatchPlayer {
   const outfield = players.filter((p) => p.pos !== "GK");
   if (outfield.length === 0) return players[0];
-  return weightedPick(rng, outfield, TACKLE_WEIGHTS, "tackling");
+  return weightedPick(rng, outfield, TACKLE_WEIGHTS, ratingKey);
 }
 
-/**
- * Picks who wins a clean interception. Reuses TACKLE_WEIGHTS' CB/DM/FB-leaning
- * position shape (the same positions that read the game well also tend to
- * make clean interceptions), but keyed to the player's own `interceptions`
- * rating rather than `tackling` — a distinct skill previously unused in match
- * simulation.
- */
+export function pickTackler(rng: () => number, players: MatchPlayer[]): MatchPlayer {
+  return pickDefensiveAction(rng, players, "tackling");
+}
+
+/** Picks who wins a clean interception, keyed to the player's own `interceptions` rating. */
 export function pickInterceptor(rng: () => number, players: MatchPlayer[]): MatchPlayer {
-  const outfield = players.filter((p) => p.pos !== "GK");
-  if (outfield.length === 0) return players[0];
-  return weightedPick(rng, outfield, TACKLE_WEIGHTS, "interceptions");
+  return pickDefensiveAction(rng, players, "interceptions");
 }
 
 /** Picks who commits a foul. Weighted toward tackling, like a tackler, but any outfielder can foul. */

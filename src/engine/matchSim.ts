@@ -523,17 +523,20 @@ export function simMatchDetailed(
     );
     if (rng() < turnoverP) {
       const creditRoll = rng();
-      let tackler: MatchPlayer;
+      let tacklerPid: number | null = null;
       if (creditRoll < TACKLE_CREDIT_PROB) {
-        tackler = pickTackler(rng, onPitch[defSide]);
+        const tackler = pickTackler(rng, onPitch[defSide]);
         lines.get(tackler.pid)!.tackles++;
+        tacklerPid = tackler.pid;
       } else if (creditRoll < TACKLE_CREDIT_PROB + INTERCEPTION_CREDIT_PROB) {
-        tackler = pickInterceptor(rng, onPitch[defSide]);
+        const tackler = pickInterceptor(rng, onPitch[defSide]);
         lines.get(tackler.pid)!.interceptions++;
-      } else {
-        tackler = pickTackler(rng, onPitch[defSide]);
+        tacklerPid = tackler.pid;
       }
-      events.push({ clock, type: "turnover", side: defSide, pids: [tackler.pid] });
+      // No-credit turnovers skip player selection entirely — BoxScore.tsx
+      // filters all "turnover" events out of the displayed play-by-play, so
+      // there's no consumer of a pid here to justify the weighted-pick cost.
+      events.push({ clock, type: "turnover", side: defSide, pids: tacklerPid !== null ? [tacklerPid] : [] });
 
       if (rng() < INJURY_PROB_ON_TACKLE) {
         const carrier = pickCarrier(rng, onPitch[poss]);

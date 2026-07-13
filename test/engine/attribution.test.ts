@@ -169,6 +169,32 @@ describe("tackle/interception credit split", () => {
     expect(maxInterceptions).toBeLessThan(12);
   });
 
+  it("a busy center-back's per-match tackle/interception counts average within the documented ~2-6 / ~2-5 real-world-plausible range", () => {
+    // Not just a loose upper bound (the test above) — check the busiest
+    // defender's own average lands in the specific range CLAUDE.md/the design
+    // doc claim, across enough matches to smooth out per-match noise.
+    const trials = 40;
+    let totalTackles = 0;
+    let totalInterceptions = 0;
+    for (let seed = 1; seed <= trials; seed++) {
+      const rng = mulberry32(seed);
+      const result = simMatchDetailed(
+        rng, makeTeam("Home"), makeTeam("Away"), makeSquad(0), makeSquad(100),
+      );
+      // pid 2 is the higher-rated of the two CBs in makeSquad — the player
+      // most likely to top both stats most matches.
+      const line = result.boxScore.home.find((l) => l.pid === 2)!;
+      totalTackles += line.tackles;
+      totalInterceptions += line.interceptions;
+    }
+    const avgTackles = totalTackles / trials;
+    const avgInterceptions = totalInterceptions / trials;
+    expect(avgTackles).toBeGreaterThanOrEqual(0.5);
+    expect(avgTackles).toBeLessThanOrEqual(6);
+    expect(avgInterceptions).toBeGreaterThanOrEqual(0.5);
+    expect(avgInterceptions).toBeLessThanOrEqual(5);
+  });
+
   it("never credits a tackle and an interception from the same turnover", () => {
     const rng = mulberry32(99);
     const result = simMatchDetailed(

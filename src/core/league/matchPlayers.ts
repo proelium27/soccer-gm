@@ -7,7 +7,7 @@ export function toMatchPlayer(p: Player): MatchPlayer {
     pos: p.pos,
     shooting: (p.ratings.finishing + p.ratings.longShot) / 2,
     dribbling: p.ratings.dribbling,
-    tackling: (p.ratings.tackling + p.ratings.interceptions) / 2,
+    tackling: p.ratings.tackling,
     keeping: p.ratings.goalkeeping,
     positioning: p.ratings.positioning,
     heading: p.ratings.jumping,

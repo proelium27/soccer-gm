@@ -99,6 +99,10 @@ describe("fatigue + substitutions", () => {
   it("low-stamina squads generate fewer shots than an otherwise-identical high-stamina squad", () => {
     // Same composites, same seed, same everything except stamina — fatigue should be the
     // only thing driving a difference, and tired legs should mean fewer created chances.
+    // trials was 40 pre-interception-split; the three-way tackle/interception credit roll
+    // added an extra rng() draw per turnover, shifting the downstream tick sequence enough
+    // that 40 trials occasionally failed on a borderline seed. Bumped to 200 to smooth that
+    // noise back out rather than change the (intentional, approved) credit-roll logic.
     const trials = 200;
     let lowShots = 0;
     let highShots = 0;
