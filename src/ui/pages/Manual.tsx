@@ -102,7 +102,8 @@ export function Manual() {
           <p>
             A season is a double round-robin: 38 matchdays from August to May, every club playing
             every other home and away. Win = 3 points, draw = 1. There are no cups or continental
-            competitions (yet) — the league is the whole calendar.
+            competitions (yet) — the league is the whole calendar. Every save's first season is
+            displayed as 2026, advancing one year each time you go to the offseason.
           </p>
           <p>
             You sim from the Dashboard in chunks: one matchday, one month, or straight to the next
