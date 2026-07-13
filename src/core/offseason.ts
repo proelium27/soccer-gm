@@ -6,7 +6,7 @@ import { generateYouthIntake } from "./players/youth.js";
 import { releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus } from "./freeAgency.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { runAIContractRenewals } from "./ai/renewals.js";
-import { computeStandings } from "./standings.js";
+import { computeStandings, computeTeamSeasonStats } from "./standings.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
 import { settleSeasonEnd, chargeSeasonStart, wageBill } from "./finance/budget.js";
@@ -73,6 +73,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      are computed here (before AI free agency changes rosters) so rank
   //      reflects the season that actually just played out.
   const standings = computeStandings(teams.map((t) => t.tid), league.played);
+  const teamStats = computeTeamSeasonStats(teams.map((t) => t.tid), league.played);
   const rankByTid = new Map(standings.map((row, i) => [row.tid, i + 1]));
   const rowByTid = new Map(standings.map((row) => [row.tid, row]));
   teams = teams.map((t) => {
@@ -160,7 +161,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     winterMarketRunSeason: null,
     seasonHistory: [
       ...league.seasonHistory,
-      { season: endingSeason, table: standings, championTid: standings[0].tid },
+      { season: endingSeason, table: standings, championTid: standings[0].tid, teamStats },
     ],
   };
 }
