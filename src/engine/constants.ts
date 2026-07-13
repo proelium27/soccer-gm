@@ -11,6 +11,15 @@ export const ONTARGET_BASE = 0.47; // unblocked shot is on target
 export const SAVE_BASE = 0.68; // on-target shot is saved (else goal)
 
 export const TURNOVER_BASE = 0.14; // per-tick prob possession changes hands
+// Of every turnover (see TURNOVER_BASE above), the share credited as a
+// stat-worthy tackle vs. a clean interception vs. no credit at all (a real
+// match has plenty of misplaced passes/loose balls no box score attributes
+// to anyone). Split roughly in half between the two credited outcomes;
+// starting values chosen so a busy center-back lands in the real-world
+// plausible ~2-6 tackles and ~2-5 interceptions per match instead of the
+// pre-fix high-teens blowout — pending audit-tuning per the design doc.
+export const TACKLE_CREDIT_PROB = 0.2;
+export const INTERCEPTION_CREDIT_PROB = 0.2;
 export const REBOUND_PROB = 0.12; // after a saved/blocked shot, attacker keeps it
 
 export const HOME_ATTACK_BONUS = 0.1; // home advantage, applied to home attack composite

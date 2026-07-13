@@ -8,6 +8,8 @@ import {
   ONTARGET_BASE,
   SAVE_BASE,
   TURNOVER_BASE,
+  TACKLE_CREDIT_PROB,
+  INTERCEPTION_CREDIT_PROB,
   REBOUND_PROB,
   HOME_ATTACK_BONUS,
   FOUL_BASE,
@@ -42,6 +44,7 @@ import {
   pickShooter,
   pickAssister,
   pickTackler,
+  pickInterceptor,
   pickFouler,
   pickHeader,
   pickCarrier,
@@ -519,8 +522,17 @@ export function simMatchDetailed(
       0.5,
     );
     if (rng() < turnoverP) {
-      const tackler = pickTackler(rng, onPitch[defSide]);
-      lines.get(tackler.pid)!.tackles++;
+      const creditRoll = rng();
+      let tackler: MatchPlayer;
+      if (creditRoll < TACKLE_CREDIT_PROB) {
+        tackler = pickTackler(rng, onPitch[defSide]);
+        lines.get(tackler.pid)!.tackles++;
+      } else if (creditRoll < TACKLE_CREDIT_PROB + INTERCEPTION_CREDIT_PROB) {
+        tackler = pickInterceptor(rng, onPitch[defSide]);
+        lines.get(tackler.pid)!.interceptions++;
+      } else {
+        tackler = pickTackler(rng, onPitch[defSide]);
+      }
       events.push({ clock, type: "turnover", side: defSide, pids: [tackler.pid] });
 
       if (rng() < INJURY_PROB_ON_TACKLE) {

@@ -146,3 +146,37 @@ describe("simMatchDetailed", () => {
     expect(totalSaves).toBe(savedEvents.length);
   });
 });
+
+describe("tackle/interception credit split", () => {
+  it("produces both tackles and interceptions across many matches, each far below the old high-teens-per-match volume", () => {
+    let maxTackles = 0;
+    let maxInterceptions = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const rng = mulberry32(seed);
+      const result = simMatchDetailed(
+        rng, makeTeam("Home"), makeTeam("Away"), makeSquad(0), makeSquad(100),
+      );
+      for (const line of [...result.boxScore.home, ...result.boxScore.away]) {
+        maxTackles = Math.max(maxTackles, line.tackles);
+        maxInterceptions = Math.max(maxInterceptions, line.interceptions);
+      }
+    }
+    expect(maxTackles).toBeGreaterThan(0);
+    expect(maxInterceptions).toBeGreaterThan(0);
+    // The pre-fix behavior could produce mid-teens tackles for one CB in a
+    // single match; both credited stats must now stay well under that.
+    expect(maxTackles).toBeLessThan(12);
+    expect(maxInterceptions).toBeLessThan(12);
+  });
+
+  it("never credits a tackle and an interception from the same turnover", () => {
+    const rng = mulberry32(99);
+    const result = simMatchDetailed(
+      rng, makeTeam("Home"), makeTeam("Away"), makeSquad(0), makeSquad(100),
+    );
+    const turnoverEvents = result.boxScore.events.filter((e) => e.type === "turnover");
+    const totalCredited = [...result.boxScore.home, ...result.boxScore.away]
+      .reduce((s, l) => s + l.tackles + l.interceptions, 0);
+    expect(totalCredited).toBeLessThanOrEqual(turnoverEvents.length);
+  });
+});

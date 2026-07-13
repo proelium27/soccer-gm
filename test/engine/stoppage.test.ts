@@ -23,6 +23,7 @@ function makeSquad(pidOffset: number): MatchPlayer[] {
     positioning: 55,
     heading: 45,
     stamina: 50,
+    interceptions: pos === "CB" || pos === "DM" ? 70 : 40,
   }));
 }
 

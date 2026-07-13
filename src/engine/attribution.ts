@@ -44,6 +44,7 @@ export interface PlayerMatchLine {
   shotsOnTarget: number;
   saves: number;
   tackles: number;
+  interceptions: number;
   yellowCards: number;
   redCards: number;
   minutesPlayed: number;
@@ -171,6 +172,6 @@ export function eventTypeFromShot(outcome: ShotOutcome): MatchEventType {
 export function emptyLine(pid: number): PlayerMatchLine {
   return {
     pid, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, saves: 0, tackles: 0,
-    yellowCards: 0, redCards: 0, minutesPlayed: 0, rating: 6.0,
+    interceptions: 0, yellowCards: 0, redCards: 0, minutesPlayed: 0, rating: 6.0,
   };
 }

@@ -19,6 +19,7 @@ function makeSquad(pidOffset: number, stamina = 50): MatchPlayer[] {
     positioning: 55,
     heading: 45,
     stamina,
+    interceptions: pos === "CB" || pos === "DM" ? 70 : 40,
   }));
 }
 
@@ -34,6 +35,7 @@ function makeBench(pidOffset: number, stamina = 50): MatchPlayer[] {
     positioning: 55,
     heading: 45,
     stamina,
+    interceptions: 50,
   }));
 }
 
@@ -97,7 +99,7 @@ describe("fatigue + substitutions", () => {
   it("low-stamina squads generate fewer shots than an otherwise-identical high-stamina squad", () => {
     // Same composites, same seed, same everything except stamina — fatigue should be the
     // only thing driving a difference, and tired legs should mean fewer created chances.
-    const trials = 40;
+    const trials = 200;
     let lowShots = 0;
     let highShots = 0;
     for (let seed = 1; seed <= trials; seed++) {
