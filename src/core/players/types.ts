@@ -20,6 +20,7 @@ export interface SeasonStats {
   shotsOnTarget: number;
   saves: number;
   tackles: number;
+  interceptions: number;
   minutesPlayed: number;
   /** Sum of per-match ratings across appearances; divide by `appearances` for the average. */
   ratingSum: number;
@@ -30,7 +31,7 @@ export interface SeasonStats {
 export function emptySeasonStats(season: number): SeasonStats {
   return {
     season, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, saves: 0, tackles: 0,
-    minutesPlayed: 0, ratingSum: 0, avgRating: 0,
+    interceptions: 0, minutesPlayed: 0, ratingSum: 0, avgRating: 0,
   };
 }
 
