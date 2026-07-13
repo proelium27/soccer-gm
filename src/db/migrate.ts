@@ -25,8 +25,8 @@ function fallbackAcademyBase(tid: number): number {
 
 /** A league as it may exist in a save written before M6 added the transfer market. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating. */
 type SeasonStatsAnyVersion = Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating"> &
@@ -117,5 +117,8 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     inboundOffers: anyVersion.inboundOffers ?? [],
     transfers: anyVersion.transfers ?? [],
     winterMarketRunSeason: anyVersion.winterMarketRunSeason ?? null,
+    // Older saves have no record of past seasons' final tables; they simply
+    // start accumulating history from this point forward.
+    seasonHistory: anyVersion.seasonHistory ?? [],
   };
 }

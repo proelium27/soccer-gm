@@ -158,5 +158,9 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     transfers: summerMarket.transfers,
     // The winter market hasn't run for the new season yet.
     winterMarketRunSeason: null,
+    seasonHistory: [
+      ...league.seasonHistory,
+      { season: endingSeason, table: standings, championTid: standings[0].tid },
+    ],
   };
 }

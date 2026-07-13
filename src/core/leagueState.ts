@@ -1,5 +1,5 @@
 import type { Player } from "./players/types.js";
-import type { PlayedMatch } from "./standings.js";
+import type { PlayedMatch, SeasonHistoryEntry } from "./standings.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import type { ScheduleGame } from "./schedule.js";
 import type { CompletedTransfer, TransferNegotiation } from "./transfers/negotiation.js";
@@ -37,6 +37,8 @@ export interface LeagueStore {
    * market runs inside simOffseason and needs no such flag.
    */
   winterMarketRunSeason: number | null;
+  /** Final league table for every completed season, oldest first. */
+  seasonHistory: SeasonHistoryEntry[];
 }
 
 export function createLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
@@ -62,5 +64,6 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
     inboundOffers: [],
     transfers: [],
     winterMarketRunSeason: null,
+    seasonHistory: [],
   };
 }

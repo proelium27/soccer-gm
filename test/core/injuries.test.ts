@@ -56,6 +56,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     inboundOffers: [],
     transfers: [],
     winterMarketRunSeason: null,
+    seasonHistory: [],
   };
 }
 
