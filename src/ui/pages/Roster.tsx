@@ -7,7 +7,7 @@ import { FORMATIONS } from "../../core/lineup/formations.js";
 import { canExtend, contractTerms } from "../../core/contracts.js";
 import { keepsDepthFloor } from "../../core/freeAgency.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
-import { formatWeeklyWage } from "../format.js";
+import { formatWeeklyWage, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { Flag } from "../components/Flag.js";
 import { ROSTER_CAP } from "../../core/constants.js";
@@ -122,7 +122,7 @@ function RosterTable({
               <td className="text-end">
                 {p.contract.expiresSeason <= season
                   ? "Final year"
-                  : `Through S${p.contract.expiresSeason}`}
+                  : `Through ${seasonYear(p.contract.expiresSeason)}`}
               </td>
               {hasStats && (
                 <>

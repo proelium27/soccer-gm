@@ -1,7 +1,12 @@
 import {
-  BASE_SEASON_BUDGET, HYPE_REVENUE_PER_POINT, HYPE_REVENUE_DAMPING,
+  BASE_SEASON_BUDGET, MAX_BUDGET, HYPE_REVENUE_PER_POINT, HYPE_REVENUE_DAMPING,
   PRIZE_CHAMPION, PRIZE_TOP_5, PRIZE_TOP_10, PRIZE_TOP_5_CUTOFF, PRIZE_TOP_10_CUTOFF,
 } from "../constants.js";
+
+/** Caps a budget at MAX_BUDGET; applied everywhere a club's budget can increase. */
+export function clampBudget(budget: number): number {
+  return Math.min(budget, MAX_BUDGET);
+}
 
 export interface SeasonRevenue {
   base: number;
@@ -62,7 +67,7 @@ export function settleSeasonEnd(
   scoutingSpend: number,
 ): number {
   const { successPayout: payout, hypeRevenue } = seasonRevenue(rank, hype);
-  return currentBudget + payout + hypeRevenue - scoutingSpend;
+  return clampBudget(currentBudget + payout + hypeRevenue - scoutingSpend);
 }
 
 /**
@@ -75,5 +80,5 @@ export function settleSeasonEnd(
  * squad can outspend it — the Finance page projects the shortfall.
  */
 export function chargeSeasonStart(currentBudget: number, wages: number): number {
-  return currentBudget + BASE_SEASON_BUDGET - wages;
+  return clampBudget(currentBudget + BASE_SEASON_BUDGET - wages);
 }

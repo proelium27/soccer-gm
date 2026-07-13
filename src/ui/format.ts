@@ -14,3 +14,9 @@ export function ordinal(n: number): string {
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
+
+/** Internally seasons are a 1-based counter; display them as real years starting 2026. */
+export const SEASON_START_YEAR = 2026;
+export function seasonYear(season: number): number {
+  return SEASON_START_YEAR + season - 1;
+}

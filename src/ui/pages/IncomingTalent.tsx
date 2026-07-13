@@ -5,6 +5,7 @@ import type { Player } from "../../core/players/types.js";
 import { contractTerms } from "../../core/contracts.js";
 import { formatWeeklyWage } from "../format.js";
 import { Flag } from "../components/Flag.js";
+import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { ROSTER_CAP } from "../../core/constants.js";
 
 /**
@@ -54,6 +55,7 @@ export function IncomingTalent() {
               <th>Name</th>
               <th>Pos</th>
               <th className="text-end">OVR</th>
+              <th className="text-end">POT</th>
               <th className="text-end">Age</th>
               <th></th>
             </tr>
@@ -65,10 +67,12 @@ export function IncomingTalent() {
               return (
                 <tr key={p.pid}>
                   <td>
-                    {p.name} <Flag nationality={p.nationality} />
+                    <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                    <Flag nationality={p.nationality} />
                   </td>
                   <td>{p.pos}</td>
                   <td className="text-end">{p.ovr}</td>
+                  <td className="text-end">{p.potential}</td>
                   <td className="text-end">{league.season - p.born}</td>
                   <td className="text-end">
                     <button

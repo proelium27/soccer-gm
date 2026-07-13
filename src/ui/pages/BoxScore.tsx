@@ -21,12 +21,14 @@ function TeamBoxTable({
   playerName,
   playerPos,
   playerNationality,
+  motmPid,
 }: {
   teamName: string;
   lines: PlayerMatchLine[];
   playerName: (pid: number) => string;
   playerPos: (pid: number) => string;
   playerNationality: (pid: number) => string | undefined;
+  motmPid: number | null;
 }) {
   return (
     <div className="col-md-6">
@@ -51,8 +53,9 @@ function TeamBoxTable({
         </thead>
         <tbody>
           {lines.map((line) => (
-            <tr key={line.pid}>
+            <tr key={line.pid} className={line.pid === motmPid ? "table-warning" : undefined}>
               <td>
+                {line.pid === motmPid && <span title="Man of the Match">⭐ </span>}
                 {playerName(line.pid)}{" "}
                 {playerNationality(line.pid) && (
                   <Flag nationality={playerNationality(line.pid)!} />
@@ -76,6 +79,15 @@ function TeamBoxTable({
       </table>
     </div>
   );
+}
+
+/** Highest-rated player with actual minutes on the pitch, across both sides. */
+function manOfTheMatch(match: PlayedMatch): PlayerMatchLine | null {
+  const candidates = [...match.boxScore.home, ...match.boxScore.away].filter(
+    (l) => l.minutesPlayed > 0,
+  );
+  if (candidates.length === 0) return null;
+  return candidates.reduce((best, l) => (l.rating > best.rating ? l : best));
 }
 
 function EventRow({ event, playerName }: { event: MatchEvent; playerName: (pid: number) => string }) {
@@ -179,6 +191,7 @@ export function BoxScore() {
   const playerNationality = (pid: number) => playerMap.get(pid)?.nationality;
 
   const possPct = Math.round(match.possessionHome * 100);
+  const motm = manOfTheMatch(match);
 
   const shotEvents = match.boxScore.events.filter(
     (e) => e.type !== "turnover",
@@ -197,6 +210,14 @@ export function BoxScore() {
         <div className="mt-1">
           <small>Possession: {possPct}% — {100 - possPct}%</small>
         </div>
+        {motm && (
+          <div className="mt-1">
+            <small>
+              ⭐ Man of the Match: <strong>{playerName(motm.pid)}</strong>{" "}
+              ({playerPos(motm.pid)}, {motm.rating.toFixed(1)} rating)
+            </small>
+          </div>
+        )}
       </div>
 
       <div className="row">
@@ -206,6 +227,7 @@ export function BoxScore() {
           playerName={playerName}
           playerPos={playerPos}
           playerNationality={playerNationality}
+          motmPid={motm?.pid ?? null}
         />
         <TeamBoxTable
           teamName={awayName}
@@ -213,6 +235,7 @@ export function BoxScore() {
           playerName={playerName}
           playerPos={playerPos}
           playerNationality={playerNationality}
+          motmPid={motm?.pid ?? null}
         />
       </div>
 

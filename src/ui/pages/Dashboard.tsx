@@ -6,7 +6,7 @@ import { nextMatchday, transferWindowState } from "../../core/transfers/window.j
 import { TRANSFER_DEADLINE_MATCHDAY } from "../../core/calendar.js";
 import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
 import { wageBill } from "../../core/finance/budget.js";
-import { currency, ordinal } from "../format.js";
+import { currency, ordinal, seasonYear } from "../format.js";
 
 export function Dashboard() {
   const { league, simAction, offseasonAction, setScoutingSpendAction, simming } = useLeague();
@@ -216,16 +216,16 @@ export function Dashboard() {
           <div className="card-body">
             <h5 className="card-title">Offseason</h5>
             <p className="card-text">
-              Season {league.season} is complete. Advancing will run player
+              {seasonYear(league.season)} is complete. Advancing will run player
               progression, retirements, AI free agency, and youth intake, then
-              start Season {league.season + 1}.
+              start {seasonYear(league.season + 1)}.
             </p>
             <button
               className="btn btn-success"
               disabled={simming}
               onClick={() => offseasonAction()}
             >
-              Advance to Season {league.season + 1}
+              Advance to {seasonYear(league.season + 1)}
             </button>
           </div>
         </div>
