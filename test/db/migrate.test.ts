@@ -77,6 +77,37 @@ describe("migrateLeague", () => {
     }
   });
 
+  it("backfills interceptions to 0 on pre-existing box-score lines and season stats", () => {
+    const league = simThrough(createLeagueState(0, mulberry32(5)), "game", mulberry32(6));
+    const preInterceptions = {
+      ...league,
+      players: league.players.map((p) => ({
+        ...p,
+        stats: p.stats.map(({ interceptions: _i, ...rest }) => rest),
+      })),
+      played: league.played.map((m) => ({
+        ...m,
+        boxScore: {
+          ...m.boxScore,
+          home: m.boxScore.home.map(({ interceptions: _i, ...rest }) => rest),
+          away: m.boxScore.away.map(({ interceptions: _i, ...rest }) => rest),
+        },
+      })),
+    } as unknown as LeagueStore;
+
+    const migrated = migrateLeague(preInterceptions);
+    for (const p of migrated.players) {
+      for (const ss of p.stats) {
+        expect(ss.interceptions).toBe(0);
+      }
+    }
+    for (const m of migrated.played) {
+      for (const line of [...m.boxScore.home, ...m.boxScore.away]) {
+        expect(line.interceptions).toBe(0);
+      }
+    }
+  });
+
   it("leaves current match-rating fields untouched", () => {
     const league = simThrough(createLeagueState(0, mulberry32(7)), "game", mulberry32(8));
     const migrated = migrateLeague(league);
