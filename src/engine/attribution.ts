@@ -13,6 +13,7 @@ export interface MatchPlayer {
   positioning: number;
   heading: number;
   stamina: number;
+  interceptions: number;
 }
 
 export type MatchEventType =
@@ -122,6 +123,19 @@ export function pickTackler(rng: () => number, players: MatchPlayer[]): MatchPla
   const outfield = players.filter((p) => p.pos !== "GK");
   if (outfield.length === 0) return players[0];
   return weightedPick(rng, outfield, TACKLE_WEIGHTS, "tackling");
+}
+
+/**
+ * Picks who wins a clean interception. Reuses TACKLE_WEIGHTS' CB/DM/FB-leaning
+ * position shape (the same positions that read the game well also tend to
+ * make clean interceptions), but keyed to the player's own `interceptions`
+ * rating rather than `tackling` — a distinct skill previously unused in match
+ * simulation.
+ */
+export function pickInterceptor(rng: () => number, players: MatchPlayer[]): MatchPlayer {
+  const outfield = players.filter((p) => p.pos !== "GK");
+  if (outfield.length === 0) return players[0];
+  return weightedPick(rng, outfield, TACKLE_WEIGHTS, "interceptions");
 }
 
 /** Picks who commits a foul. Weighted toward tackling, like a tackler, but any outfielder can foul. */

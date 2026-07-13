@@ -3,21 +3,21 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { makeTeam } from "../../src/engine/composites.js";
 import { simMatchDetailed } from "../../src/engine/matchSim.js";
 import type { MatchPlayer } from "../../src/engine/attribution.js";
-import { pickShooter, pickAssister, pickTackler } from "../../src/engine/attribution.js";
+import { pickShooter, pickAssister, pickTackler, pickInterceptor } from "../../src/engine/attribution.js";
 
 function makeSquad(pidOffset = 0): MatchPlayer[] {
   return [
-    { pid: pidOffset + 1, pos: "GK", shooting: 10, dribbling: 10, tackling: 10, keeping: 80, positioning: 50, heading: 40, stamina: 60 },
-    { pid: pidOffset + 2, pos: "CB", shooting: 20, dribbling: 30, tackling: 75, keeping: 5, positioning: 70, heading: 65, stamina: 60 },
-    { pid: pidOffset + 3, pos: "CB", shooting: 15, dribbling: 25, tackling: 72, keeping: 5, positioning: 68, heading: 60, stamina: 60 },
-    { pid: pidOffset + 4, pos: "FB", shooting: 25, dribbling: 50, tackling: 60, keeping: 5, positioning: 55, heading: 40, stamina: 60 },
-    { pid: pidOffset + 5, pos: "FB", shooting: 30, dribbling: 55, tackling: 58, keeping: 5, positioning: 52, heading: 38, stamina: 60 },
-    { pid: pidOffset + 6, pos: "DM", shooting: 35, dribbling: 45, tackling: 70, keeping: 5, positioning: 65, heading: 50, stamina: 60 },
-    { pid: pidOffset + 7, pos: "CM", shooting: 50, dribbling: 60, tackling: 50, keeping: 5, positioning: 60, heading: 45, stamina: 60 },
-    { pid: pidOffset + 8, pos: "CM", shooting: 55, dribbling: 62, tackling: 48, keeping: 5, positioning: 58, heading: 42, stamina: 60 },
-    { pid: pidOffset + 9, pos: "W", shooting: 65, dribbling: 75, tackling: 25, keeping: 5, positioning: 55, heading: 35, stamina: 60 },
-    { pid: pidOffset + 10, pos: "W", shooting: 60, dribbling: 70, tackling: 28, keeping: 5, positioning: 53, heading: 33, stamina: 60 },
-    { pid: pidOffset + 11, pos: "ST", shooting: 82, dribbling: 65, tackling: 15, keeping: 5, positioning: 60, heading: 55, stamina: 60 },
+    { pid: pidOffset + 1, pos: "GK", shooting: 10, dribbling: 10, tackling: 10, keeping: 80, positioning: 50, heading: 40, stamina: 60, interceptions: 10 },
+    { pid: pidOffset + 2, pos: "CB", shooting: 20, dribbling: 30, tackling: 75, keeping: 5, positioning: 70, heading: 65, stamina: 60, interceptions: 75 },
+    { pid: pidOffset + 3, pos: "CB", shooting: 15, dribbling: 25, tackling: 72, keeping: 5, positioning: 68, heading: 60, stamina: 60, interceptions: 72 },
+    { pid: pidOffset + 4, pos: "FB", shooting: 25, dribbling: 50, tackling: 60, keeping: 5, positioning: 55, heading: 40, stamina: 60, interceptions: 60 },
+    { pid: pidOffset + 5, pos: "FB", shooting: 30, dribbling: 55, tackling: 58, keeping: 5, positioning: 52, heading: 38, stamina: 60, interceptions: 58 },
+    { pid: pidOffset + 6, pos: "DM", shooting: 35, dribbling: 45, tackling: 70, keeping: 5, positioning: 65, heading: 50, stamina: 60, interceptions: 70 },
+    { pid: pidOffset + 7, pos: "CM", shooting: 50, dribbling: 60, tackling: 50, keeping: 5, positioning: 60, heading: 45, stamina: 60, interceptions: 50 },
+    { pid: pidOffset + 8, pos: "CM", shooting: 55, dribbling: 62, tackling: 48, keeping: 5, positioning: 58, heading: 42, stamina: 60, interceptions: 48 },
+    { pid: pidOffset + 9, pos: "W", shooting: 65, dribbling: 75, tackling: 25, keeping: 5, positioning: 55, heading: 35, stamina: 60, interceptions: 25 },
+    { pid: pidOffset + 10, pos: "W", shooting: 60, dribbling: 70, tackling: 28, keeping: 5, positioning: 53, heading: 33, stamina: 60, interceptions: 28 },
+    { pid: pidOffset + 11, pos: "ST", shooting: 82, dribbling: 65, tackling: 15, keeping: 5, positioning: 60, heading: 55, stamina: 60, interceptions: 15 },
   ];
 }
 
@@ -47,6 +47,38 @@ describe("attribution helpers", () => {
     const cbPicks = (picks.get(2) ?? 0) + (picks.get(3) ?? 0);
     const stPicks = picks.get(11) ?? 0;
     expect(cbPicks).toBeGreaterThan(stPicks);
+  });
+
+  it("pickInterceptor favors center-backs and defensive midfielders, weighted by the interceptions rating", () => {
+    const rng = mulberry32(42);
+    const squad = makeSquad();
+    const picks = new Map<number, number>();
+    for (let i = 0; i < 1000; i++) {
+      const p = pickInterceptor(rng, squad);
+      picks.set(p.pid, (picks.get(p.pid) ?? 0) + 1);
+    }
+    const cbPicks = (picks.get(2) ?? 0) + (picks.get(3) ?? 0);
+    const stPicks = picks.get(11) ?? 0;
+    expect(cbPicks).toBeGreaterThan(stPicks);
+  });
+
+  it("pickInterceptor is driven by the interceptions rating, not tackling", () => {
+    // Give a winger a much higher interceptions rating than a center-back's,
+    // while keeping tackling the same as the base squad — pickInterceptor
+    // should now favor the winger for interception credit even though
+    // pickTackler still favors the center-back.
+    const rng = mulberry32(7);
+    const squad = makeSquad().map((p) =>
+      p.pid === 9 ? { ...p, interceptions: 95 } : p,
+    );
+    const picks = new Map<number, number>();
+    for (let i = 0; i < 2000; i++) {
+      const p = pickInterceptor(rng, squad);
+      picks.set(p.pid, (picks.get(p.pid) ?? 0) + 1);
+    }
+    const boostedWingerPicks = picks.get(9) ?? 0;
+    const otherWingerPicks = picks.get(10) ?? 0;
+    expect(boostedWingerPicks).toBeGreaterThan(otherWingerPicks * 2);
   });
 
   it("pickAssister returns null ~25% of the time", () => {
