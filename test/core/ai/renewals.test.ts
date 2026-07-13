@@ -32,7 +32,7 @@ describe("runAIContractRenewals", () => {
       return { ...t, budget: 300_000_000, roster: t.roster.filter((pid) => !otherCms.has(pid)) };
     });
 
-    const result = runAIContractRenewals(teams, players, nextSeason, USER_TID, league.played);
+    const result = runAIContractRenewals(teams, players, nextSeason, USER_TID, league.played, 42);
     const renewed = result.players.find((p) => p.pid === target.pid)!;
     expect(renewed.contract.expiresSeason).toBeGreaterThan(nextSeason);
   });
@@ -63,7 +63,7 @@ describe("runAIContractRenewals", () => {
         : t,
     );
 
-    const result = runAIContractRenewals(teams, players, nextSeason, USER_TID, league.played);
+    const result = runAIContractRenewals(teams, players, nextSeason, USER_TID, league.played, 42);
     const untouched = result.players.find((p) => p.pid === target.pid)!;
     expect(untouched.contract.expiresSeason).toBe(nextSeason);
   });
@@ -82,7 +82,7 @@ describe("runAIContractRenewals", () => {
     );
     expect(canExtend(players.find((p) => p.pid === target.pid)!, nextSeason)).toBe(false);
 
-    const result = runAIContractRenewals(league.teams, players, nextSeason, USER_TID, league.played);
+    const result = runAIContractRenewals(league.teams, players, nextSeason, USER_TID, league.played, 42);
     expect(result.players.find((p) => p.pid === target.pid)).toEqual(
       players.find((p) => p.pid === target.pid),
     );
@@ -98,7 +98,7 @@ describe("runAIContractRenewals", () => {
         : p,
     );
 
-    const result = runAIContractRenewals(league.teams, players, nextSeason, USER_TID, league.played);
+    const result = runAIContractRenewals(league.teams, players, nextSeason, USER_TID, league.played, 42);
     for (const pid of userTeam.roster) {
       expect(result.players.find((p) => p.pid === pid)).toEqual(players.find((p) => p.pid === pid));
     }
@@ -112,15 +112,15 @@ describe("runAIContractRenewals", () => {
       contract: { ...p.contract, expiresSeason: nextSeason },
     }));
 
-    const a = runAIContractRenewals(league.teams, players, nextSeason, USER_TID, league.played);
-    const b = runAIContractRenewals(league.teams, players, nextSeason, USER_TID, league.played);
+    const a = runAIContractRenewals(league.teams, players, nextSeason, USER_TID, league.played, 42);
+    const b = runAIContractRenewals(league.teams, players, nextSeason, USER_TID, league.played, 42);
     expect(a.players).toEqual(b.players);
   });
 
   it("returns the same team objects untouched (only player contracts change)", () => {
     const league = createLeagueState(USER_TID, mulberry32(26));
     const nextSeason = league.season + 1;
-    const result = runAIContractRenewals(league.teams, league.players, nextSeason, USER_TID, league.played);
+    const result = runAIContractRenewals(league.teams, league.players, nextSeason, USER_TID, league.played, 42);
     expect(result.teams).toBe(league.teams);
   });
 
@@ -132,7 +132,7 @@ describe("runAIContractRenewals", () => {
       contract: { ...p.contract, expiresSeason: nextSeason },
     }));
     expect(() =>
-      runAIContractRenewals(league.teams, players, nextSeason, USER_TID, league.played),
+      runAIContractRenewals(league.teams, players, nextSeason, USER_TID, league.played, 42),
     ).not.toThrow();
     expect(Object.keys(ROSTER_COMPOSITION).length).toBeGreaterThan(0);
   });

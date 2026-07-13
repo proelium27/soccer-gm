@@ -7,6 +7,7 @@ import {
   AI_NEED_UPGRADE_MIN, AI_NEED_UPGRADE_MAX, AI_NEED_MIN, AI_NEED_MAX,
   AI_TIMELINE_STRENGTH, AI_PRIME_NEUTRAL, AI_YOUTH_NEUTRAL,
   AI_AFFORD_FREE_FRACTION, AI_AFFORD_SLOPE, AI_AFFORD_BUDGET_FLOOR,
+  AI_SCOUT_NOISE_MIN, AI_SCOUT_NOISE_MAX,
 } from "../constants.js";
 
 /** Clamp x into [lo, hi]. */
@@ -121,4 +122,27 @@ export function evaluatePlayerForClub(player: Player, ctx: ClubContext): ClubVal
 /** Convenience: just the club-relative value (see evaluatePlayerForClub). */
 export function valueToClub(player: Player, ctx: ClubContext): number {
   return evaluatePlayerForClub(player, ctx).value;
+}
+
+/**
+ * A club's scouting noise (± fraction of value applied to any valuation it
+ * makes), scaled by frugality: the wealthiest club in the league (frugality
+ * 0) judges players almost exactly right, the poorest (frugality 1) can be
+ * off by up to AI_SCOUT_NOISE_MAX. Reuses frugality rather than adding a new
+ * ClubContext field — wealth already stands in for scouting investment.
+ */
+export function scoutNoiseFraction(ctx: ClubContext): number {
+  return AI_SCOUT_NOISE_MIN + ctx.frugality * (AI_SCOUT_NOISE_MAX - AI_SCOUT_NOISE_MIN);
+}
+
+/**
+ * valueToClub with the club's scouting noise applied — its perceived value
+ * of the player rather than the "true" club-relative value. Every AI
+ * valuation used to decide a transfer/renewal should go through this instead
+ * of the raw valueToClub, so richer/better-scouted clubs make sharper calls.
+ */
+export function perceivedValueToClub(player: Player, ctx: ClubContext, jitter: () => number): number {
+  const value = valueToClub(player, ctx);
+  const noise = scoutNoiseFraction(ctx);
+  return value * (1 + (jitter() * 2 - 1) * noise);
 }

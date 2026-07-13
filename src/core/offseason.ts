@@ -35,8 +35,12 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //    otherwise walk him to free agency next offseason with zero priority
   //    for his own club to keep him. Uses this season's now-final standings/
   //    league.played for form, same as the transfer-market steps do later.
+  //    Seeded independently of `rng` (same convention as the transfer-market
+  //    steps below) so the phase-5 scouting-noise jitter can't perturb the
+  //    progression/retirement stream the validation gates are tuned against.
   const renewals = runAIContractRenewals(
     league.teams, league.players, nextSeason, league.meta.userTid, league.played,
+    hashInts(league.lid, nextSeason, 9),
   );
 
   // 1. Release expired contracts to the free agent pool.
