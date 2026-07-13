@@ -25,6 +25,13 @@ export interface StandingsRow {
   points: number;
 }
 
+/** A completed season's final table, snapshotted at offseason rollover before `played` is cleared. */
+export interface SeasonHistoryEntry {
+  season: number;
+  table: StandingsRow[];
+  championTid: number;
+}
+
 /** Build a league table (3/1/0), sorted by points, then GD, then GF, then tid. */
 export function computeStandings(teamIds: number[], matches: MatchScore[]): StandingsRow[] {
   const rows = new Map<number, StandingsRow>();

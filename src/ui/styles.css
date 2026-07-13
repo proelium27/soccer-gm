@@ -53,6 +53,7 @@
   --sg-loss-wash: oklch(0.64 0.19 25 / 0.16);
   --sg-draw: oklch(0.66 0.012 155);
   --sg-warn: oklch(0.80 0.13 80);
+  --sg-warn-wash: oklch(0.80 0.13 80 / 0.22);
   /* Your-team highlight uses gold so it never reads as win/loss green/red. */
   --sg-user: oklch(0.82 0.12 88);
   --sg-user-wash: oklch(0.82 0.12 88 / 0.13);
@@ -241,6 +242,9 @@ a:hover {
 .team-highlight > td {
   background-color: var(--sg-user-wash) !important;
   box-shadow: inset 2px 0 0 var(--sg-user); /* leading edge marker, your club */
+}
+.champion-highlight > td {
+  background-color: var(--sg-warn-wash) !important;
 }
 .row-win > td {
   background-color: var(--sg-win-wash) !important;
