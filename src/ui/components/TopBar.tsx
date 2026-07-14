@@ -1,10 +1,17 @@
 import { useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { seasonYear } from "../format.js";
 
 export function TopBar() {
-  const { league, simAction, simming, exportJSON, importJSON } = useLeague();
+  const { league, simAction, simming, exportJSON, importJSON, switchLeagueAction } = useLeague();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
+
+  function handleSwitchLeague() {
+    switchLeagueAction();
+    navigate("/leagues");
+  }
 
   const isOffseason = league?.phase === "offseason";
   const simDisabled = simming || isOffseason || !league;
@@ -94,6 +101,10 @@ export function TopBar() {
           className="d-none"
           onChange={handleFileChange}
         />
+
+        <button className="btn btn-outline-light btn-sm" onClick={handleSwitchLeague}>
+          Switch League
+        </button>
       </div>
     </nav>
   );
