@@ -604,7 +604,7 @@ export const AI_SCOUT_NOISE_MAX = 0.08;
  * ──────────────────────────────────────────────────────────────────────── */
 
 /** Appearances needed in a season to qualify for Player of the Season / Team of the Season (of 38 matchdays). */
-export const AWARD_MIN_APPEARANCES = 15;
+export const AWARD_MIN_APPEARANCES = 19;
 
 /** Player of the Season: avgRating plus goals/assists weighted heavier than the match-rating baseline already does. */
 export const POTY_GOAL_WEIGHT: Record<"GK" | "DEF" | "MID" | "FWD", number> = {
