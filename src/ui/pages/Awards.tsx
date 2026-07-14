@@ -76,6 +76,7 @@ function TeamOfSeasonField({ awards, playersByPid }: { awards: SeasonAwards; pla
 export function Awards() {
   const { league } = useLeague();
   const [season, setSeason] = useState<number | null>(null);
+  const [division, setDivision] = useState<0 | 1>(0);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -95,8 +96,9 @@ export function Awards() {
   const entry = league.seasonHistory.find((h) => h.season === activeSeason)!;
 
   const playersByPid = new Map(league.players.map((p) => [p.pid, p]));
-  const potd = entry.awards.playerOfSeasonPid !== null ? playersByPid.get(entry.awards.playerOfSeasonPid) : undefined;
-  const goldenBoot = entry.awards.goldenBootPid !== null ? playersByPid.get(entry.awards.goldenBootPid) : undefined;
+  const divisionAwards = entry.awards[division];
+  const potd = divisionAwards.playerOfSeasonPid !== null ? playersByPid.get(divisionAwards.playerOfSeasonPid) : undefined;
+  const goldenBoot = divisionAwards.goldenBootPid !== null ? playersByPid.get(divisionAwards.goldenBootPid) : undefined;
 
   const potdStats = potd?.stats.find((s) => s.season === activeSeason);
   const goldenBootStats = goldenBoot?.stats.find((s) => s.season === activeSeason);
@@ -114,6 +116,15 @@ export function Awards() {
           {seasonOptions.map((s) => (
             <option key={s} value={s}>{seasonYear(s)}</option>
           ))}
+        </select>{" "}
+        <select
+          className="form-select form-select-sm"
+          style={{ width: "auto", display: "inline-block" }}
+          value={division}
+          onChange={(e) => setDivision(Number(e.target.value) as 0 | 1)}
+        >
+          <option value={0}>English Division 1</option>
+          <option value={1}>English Division 2</option>
         </select>
       </div>
 
@@ -139,7 +150,7 @@ export function Awards() {
       </div>
 
       <h5>Team of the Season</h5>
-      <TeamOfSeasonField awards={entry.awards} playersByPid={playersByPid} />
+      <TeamOfSeasonField awards={divisionAwards} playersByPid={playersByPid} />
     </div>
   );
 }
