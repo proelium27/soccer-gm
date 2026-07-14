@@ -556,6 +556,9 @@ a:hover {
   gap: 2px;
   z-index: 1;
 }
+.pitch-slot--open {
+  z-index: 20;
+}
 .pitch-slot--drag-over .pitch-chip {
   box-shadow: 0 0 0 3px var(--sg-green-wash);
 }
@@ -600,7 +603,7 @@ a:hover {
   transform: translateX(-50%);
   margin-top: 6px;
   z-index: 1060;
-  width: 240px;
+  width: 280px;
   background: var(--sg-surface-2);
   border: 1px solid var(--sg-border-strong);
   border-radius: var(--sg-radius);

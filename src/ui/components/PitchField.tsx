@@ -76,7 +76,9 @@ export function PitchField({
           <div
             key={p.pid}
             className={
-              "pitch-slot" + (dragOverSlotIndex === i ? " pitch-slot--drag-over" : "")
+              "pitch-slot" +
+              (dragOverSlotIndex === i ? " pitch-slot--drag-over" : "") +
+              (isOpen ? " pitch-slot--open" : "")
             }
             style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
             onDragOver={(e) => {
