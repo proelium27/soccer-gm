@@ -30,7 +30,7 @@ describe("estimatePotential", () => {
       const age = 16 + Math.floor(rng() * 25);
       const ratings = flatRatings(v);
       const ovr = computeOvr("ST", ratings, 180);
-      const pot = estimatePotential(mulberry32(i + 500), ratings, ovr, age, "ST", 180);
+      const pot = estimatePotential(mulberry32(i + 500), ratings, ovr, age, "ST", 180, i);
       expect(pot).toBeGreaterThanOrEqual(ovr);
       expect(pot).toBeLessThanOrEqual(RATING_MAX);
     }
@@ -42,8 +42,8 @@ describe("estimatePotential", () => {
     let youngSum = 0, oldSum = 0;
     const N = 200;
     for (let i = 0; i < N; i++) {
-      youngSum += estimatePotential(mulberry32(i), ratings, ovr, 17, "ST", 180) - ovr;
-      oldSum += estimatePotential(mulberry32(i + 1000), ratings, ovr, 32, "ST", 180) - ovr;
+      youngSum += estimatePotential(mulberry32(i), ratings, ovr, 17, "ST", 180, i) - ovr;
+      oldSum += estimatePotential(mulberry32(i + 1000), ratings, ovr, 32, "ST", 180, i) - ovr;
     }
     expect(youngSum / N).toBeGreaterThan(oldSum / N);
   });
@@ -55,8 +55,8 @@ describe("estimatePotential", () => {
     let gkSum = 0, stSum = 0;
     const N = 200;
     for (let i = 0; i < N; i++) {
-      gkSum += estimatePotential(mulberry32(i), ratings, gkOvr, 28, "GK", 190) - gkOvr;
-      stSum += estimatePotential(mulberry32(i + 1000), ratings, stOvr, 28, "ST", 190) - stOvr;
+      gkSum += estimatePotential(mulberry32(i), ratings, gkOvr, 28, "GK", 190, i) - gkOvr;
+      stSum += estimatePotential(mulberry32(i + 1000), ratings, stOvr, 28, "ST", 190, i) - stOvr;
     }
     expect(gkSum / N).toBeGreaterThan(stSum / N);
   });
@@ -68,7 +68,7 @@ describe("estimatePotential", () => {
     const ovr = computeOvr("ST", ratings, 185);
     const pots: number[] = [];
     for (let i = 0; i < 200; i++) {
-      pots.push(estimatePotential(mulberry32(i), ratings, ovr, 20, "ST", 185));
+      pots.push(estimatePotential(mulberry32(i), ratings, ovr, 20, "ST", 185, i));
     }
     const distinct = new Set(pots).size;
     expect(distinct).toBeGreaterThan(1);
@@ -83,7 +83,7 @@ describe("estimatePotential", () => {
     const ovr = computeOvr("ST", ratings, 200);
     expect(ovr).toBe(99);
     for (let i = 0; i < 50; i++) {
-      expect(estimatePotential(mulberry32(i), ratings, ovr, 20, "ST", 200)).toBe(99);
+      expect(estimatePotential(mulberry32(i), ratings, ovr, 20, "ST", 200, i)).toBe(99);
     }
   });
 });
@@ -147,6 +147,87 @@ describe("progressPlayer", () => {
     // Real spread: not every teenager gets the same delta.
     expect(new Set(outcomes).size).toBeGreaterThan(5);
     expect(Math.min(...outcomes)).toBeLessThan(Math.max(...outcomes) - 5);
+  });
+
+  it("the form roll + development bias let even growth-age players regress, not just grow slower", () => {
+    // The correlated form roll and per-player bias (on top of independent
+    // per-rating noise) are what make real breakout/bust seasons possible:
+    // without them, per-rating noise mostly cancels out across the many
+    // ratings a weighted-average ovr is built from, and a 22-year-old's ovr
+    // would move almost deterministically.
+    const outcomes: number[] = [];
+    for (let i = 0; i < 300; i++) {
+      const rng = mulberry32(6000 + i);
+      const p = generatePlayer(rng, "CM", 55, i, 22, 1);
+      const after = progressPlayer(rng, p, 1);
+      outcomes.push(after.ovr - p.ovr);
+    }
+    expect(outcomes.some((d) => d <= -5)).toBe(true);
+    expect(outcomes.some((d) => d >= 6)).toBe(true);
+  });
+
+  it("no longer produces a >=10-magnitude single-season swing at a meaningful rate (form roll was tightened)", () => {
+    // Regression guard for the first pass's -10-in-one-season complaint: a
+    // single form roll used to be able to swing a young player 10+ by itself.
+    // Extreme seasons should now be rare tail events, not routine.
+    const outcomes: number[] = [];
+    for (let i = 0; i < 500; i++) {
+      const rng = mulberry32(8000 + i);
+      const p = generatePlayer(rng, "CM", 55, i, 22, 1);
+      const after = progressPlayer(rng, p, 1);
+      outcomes.push(after.ovr - p.ovr);
+    }
+    const extreme = outcomes.filter((d) => Math.abs(d) >= 10).length;
+    expect(extreme / outcomes.length).toBeLessThan(0.05);
+  });
+
+  it("some players are consistent developers and some are consistent busts across consecutive seasons", () => {
+    // The persistent per-player development bias should make same-direction
+    // multi-season runs far more common than pure independent per-season
+    // noise would produce (iid baseline for 4 seasons all-same-sign is ~12.5%).
+    let allSameDir = 0;
+    const N = 300;
+    for (let i = 0; i < N; i++) {
+      const rng = mulberry32(9000 + i);
+      let p = generatePlayer(rng, "CM", 55, i, 19, 1);
+      const deltas: number[] = [];
+      for (let season = 1; season <= 4; season++) {
+        const after = progressPlayer(rng, p, season);
+        deltas.push(after.ovr - p.ovr);
+        p = after;
+      }
+      const nonzero = deltas.filter((d) => d !== 0);
+      if (nonzero.length > 0 && (nonzero.every((d) => d > 0) || nonzero.every((d) => d < 0))) {
+        allSameDir++;
+      }
+    }
+    expect(allSameDir / N).toBeGreaterThan(0.35);
+  });
+
+  it("growth damping makes big jumps rarer the closer a player already is to elite", () => {
+    // A player already near GROWTH_DAMPING_START/END should see a smaller
+    // mean/max positive delta than a mid-tier player of the same age, even
+    // though both draw from the same age-curve/bias/form distributions.
+    const meanDeltaAt = (startOvr: number): number => {
+      const N = 800;
+      let total = 0;
+      for (let i = 0; i < N; i++) {
+        const rng = mulberry32(i);
+        const p = generatePlayer(rng, "CM", 55, i, 22, 1);
+        const ratio = startOvr / p.ovr;
+        const scaled = { ...p.ratings };
+        for (const k of Object.keys(scaled) as (keyof PlayerRatings)[]) {
+          scaled[k] = Math.max(1, Math.min(99, Math.round(scaled[k] * ratio)));
+        }
+        const actualOvr = computeOvr(p.pos, scaled, p.heightCm);
+        const after = progressPlayer(rng, { ...p, ratings: scaled, ovr: actualOvr }, 1);
+        total += after.ovr - actualOvr;
+      }
+      return total / N;
+    };
+    const midTier = meanDeltaAt(55);
+    const nearElite = meanDeltaAt(85);
+    expect(nearElite).toBeLessThan(midTier);
   });
 });
 
