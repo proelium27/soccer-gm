@@ -1,0 +1,142 @@
+import { useState } from "react";
+import type { Player, Position } from "../../core/players/types.js";
+import { bestFit } from "../../core/lineup/selectXI.js";
+import { layoutSlots } from "../pitchLayout.js";
+import { getRatingColor } from "../utils/ratingColor.js";
+import { PlayerRatingsTooltip } from "./PlayerRatingsTooltip.js";
+import { Flag } from "./Flag.js";
+import { canExtend, contractTerms } from "../../core/contracts.js";
+import { formatWeeklyWage, seasonYear } from "../format.js";
+
+const DRAG_MIME = "application/x-soccer-gm-pid";
+
+function shortName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return parts[parts.length - 1];
+}
+
+export interface PitchFieldProps {
+  starters: Player[];
+  slots: Position[];
+  bench: Player[];
+  showDepthChart: boolean;
+  season: number;
+  releasablePids: Set<number>;
+  onRelease: (pid: number) => void;
+  onExtend: (pid: number) => void;
+  dragOverSlotIndex: number | null;
+  setDragOverSlotIndex: (i: number | null) => void;
+  onDropOnSlot: (slotIndex: number, draggedPid: number) => void;
+}
+
+export function PitchField({
+  starters,
+  slots,
+  bench,
+  showDepthChart,
+  season,
+  releasablePids,
+  onRelease,
+  onExtend,
+  dragOverSlotIndex,
+  setDragOverSlotIndex,
+  onDropOnSlot,
+}: PitchFieldProps) {
+  const [openPid, setOpenPid] = useState<number | null>(null);
+  const coords = layoutSlots(slots);
+
+  return (
+    <div className="pitch-field">
+      {starters.map((p, i) => {
+        const coord = coords[i];
+        const backup = showDepthChart ? bestFit(slots[i], bench) : null;
+        const isOpen = openPid === p.pid;
+        return (
+          <div
+            key={p.pid}
+            className={
+              "pitch-slot" + (dragOverSlotIndex === i ? " pitch-slot--drag-over" : "")
+            }
+            style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              setDragOverSlotIndex(i);
+            }}
+            onDragLeave={() => setDragOverSlotIndex(null)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOverSlotIndex(null);
+              const raw = e.dataTransfer.getData(DRAG_MIME);
+              if (!raw) return;
+              onDropOnSlot(i, Number(raw));
+            }}
+          >
+            <button
+              type="button"
+              className={"pitch-chip" + (p.pos === "GK" ? " pitch-chip--gk" : "")}
+              style={{ borderColor: getRatingColor(p.ovr) }}
+              onClick={() => setOpenPid(isOpen ? null : p.pid)}
+            >
+              <PlayerRatingsTooltip player={p}>
+                <span className="pitch-chip-name">{shortName(p.name)}</span>
+              </PlayerRatingsTooltip>
+              <span className="pitch-chip-ovr">{p.ovr}</span>
+            </button>
+            {showDepthChart && (
+              <div className="pitch-chip-backup">
+                {backup ? `${shortName(backup.name)} ${backup.ovr}` : "—"}
+              </div>
+            )}
+            {isOpen && (
+              <div className="pitch-chip-actions">
+                <div className="pitch-chip-actions-title">
+                  {p.name} <Flag nationality={p.nationality} /> &middot; OVR {p.ovr} / POT{" "}
+                  {p.potential}
+                </div>
+                <div className="pitch-chip-actions-meta">
+                  {formatWeeklyWage(p.contract.salary)} &middot;{" "}
+                  {p.contract.expiresSeason <= season
+                    ? "Final year"
+                    : `Through ${seasonYear(p.contract.expiresSeason)}`}
+                </div>
+                <div className="d-flex gap-1 mt-2">
+                  {canExtend(p, season) &&
+                    (() => {
+                      const terms = contractTerms(p, season);
+                      return (
+                        <button
+                          className="btn btn-sm btn-outline-success text-nowrap"
+                          onClick={() => {
+                            onExtend(p.pid);
+                            setOpenPid(null);
+                          }}
+                        >
+                          Extend {terms.lengthSeasons}y &middot; {formatWeeklyWage(terms.salary)}
+                        </button>
+                      );
+                    })()}
+                  <button
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => {
+                      onRelease(p.pid);
+                      setOpenPid(null);
+                    }}
+                    disabled={!releasablePids.has(p.pid)}
+                    title={
+                      releasablePids.has(p.pid)
+                        ? undefined
+                        : `Can't release: squad would be too thin at ${p.pos}`
+                    }
+                  >
+                    Release
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}

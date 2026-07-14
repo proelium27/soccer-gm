@@ -487,3 +487,104 @@ a:hover {
 .offer-input {
   width: 8.5rem;
 }
+
+/* =========================================================================
+   Pitch field (Roster page — Starting XI visualization)
+   ========================================================================= */
+.pitch-field {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 68 / 100;
+  margin: 0 auto 1rem;
+  background: linear-gradient(180deg, var(--sg-green-deep) 0%, var(--sg-green-deep-2) 100%);
+  border: 1px solid var(--sg-border-strong);
+  border-radius: var(--sg-radius);
+}
+.pitch-field::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid oklch(0.9 0.01 155 / 0.25);
+}
+.pitch-field::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22%;
+  aspect-ratio: 1;
+  border: 1px solid oklch(0.9 0.01 155 / 0.25);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.pitch-slot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  z-index: 1;
+}
+.pitch-slot--drag-over .pitch-chip {
+  box-shadow: 0 0 0 3px var(--sg-green-wash);
+}
+.pitch-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--sg-surface-2);
+  border: 2px solid var(--sg-border-strong);
+  border-radius: 999px;
+  color: var(--sg-text);
+  font-size: var(--sg-text-sm);
+  font-weight: var(--sg-weight-semibold);
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pitch-chip--gk {
+  box-shadow: 0 0 0 2px var(--sg-warn);
+}
+.pitch-chip-ovr {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+.pitch-chip-backup {
+  font-size: var(--sg-text-xs);
+  color: var(--sg-text-muted);
+  background: var(--sg-surface);
+  border: 1px solid var(--sg-border);
+  padding: 0 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pitch-chip-actions {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 6px;
+  z-index: 1060;
+  width: 240px;
+  background: var(--sg-surface-2);
+  border: 1px solid var(--sg-border-strong);
+  border-radius: var(--sg-radius);
+  box-shadow: var(--sg-shadow);
+  padding: 0.5rem 0.75rem;
+  font-size: var(--sg-text-sm);
+  text-align: left;
+  white-space: normal;
+}
+.pitch-chip-actions-title {
+  font-weight: var(--sg-weight-semibold);
+  color: var(--sg-text);
+}
+.pitch-chip-actions-meta {
+  color: var(--sg-text-muted);
+  margin-top: 2px;
+}
