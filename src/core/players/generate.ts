@@ -42,7 +42,7 @@ export function generatePlayer(
   const heightCm = Math.round(loH + rng() * (hiH - loH));
 
   const ovr = computeOvr(pos, ratings, heightCm);
-  const potential = estimatePotential(rng, ratings, ovr, age, pos, heightCm);
+  const potential = estimatePotential(rng, ratings, ovr, age, pos, heightCm, pid);
   const born = season - age;
 
   // Nationality/name draw from a (genSeed, pid)-derived sub-stream: `genSeed`

@@ -1,16 +1,33 @@
 import type { Player, PlayerRatings, SkillKey } from "./types.js";
 import { computeOvr } from "./ovr.js";
-import { gaussian } from "../../engine/rng.js";
+import { gaussian, hashInts, mulberry32 } from "../../engine/rng.js";
 import {
   BASE_AGE_CURVE, BASE_AGE_CURVE_PEAK, PHYSICAL_AGE_SHIFT, SKILL_AGE_SHIFT,
   GK_AGE_SHIFT,
   MINUTES_FACTOR_MIN, MINUTES_FACTOR_MAX, FULL_SEASON_APPEARANCES,
   PROGRESSION_NOISE_SD_YOUNG, PROGRESSION_NOISE_SD_OLD,
   PROGRESSION_FORM_SD_YOUNG, PROGRESSION_FORM_SD_OLD,
+  PROGRESSION_BIAS_SD_YOUNG,
   POTENTIAL_SIM_TRIALS, POTENTIAL_SIM_MAX_AGE, POTENTIAL_SIM_PERCENTILE,
   RATING_MIN, RATING_MAX,
   RETIREMENT_START_AGE, RETIREMENT_BASE_PROB, RETIREMENT_PROB_PER_YEAR,
 } from "../constants.js";
+
+/** Salt distinguishing this hash use from other pid-keyed hashes (e.g. identity rng). */
+const DEV_BIAS_SALT = 0x4445_5642; // "DEVB"
+
+/**
+ * A player's fixed development "personality": a standard-normal z-score
+ * derived deterministically from their pid, not drawn from the shared rng
+ * stream (so introducing/tuning this never shifts other players' generated
+ * ratings/names/etc. — see the RNG-stream-order lesson). Positive = trends
+ * toward a clean developer every season; negative = trends toward a bust.
+ * Same value for a given pid every time it's read, so it applies
+ * consistently across a player's whole career.
+ */
+function developmentBias(pid: number): number {
+  return gaussian(mulberry32(hashInts(DEV_BIAS_SALT, pid)));
+}
 
 /** Physical ratings peak earliest and decline first. */
 const PHYSICAL_KEYS: readonly SkillKey[] = ["speed", "strength", "stamina", "jumping"];
@@ -55,18 +72,33 @@ function sdAt(young: number, old: number, age: number): number {
 }
 
 /**
+ * Development bias's std dev, tapering to 0 by peak age (not retirement age
+ * like `sdAt` above). A persistent per-player bias that kept a nonzero
+ * contribution all the way through decline years would give a lucky
+ * player's rating group a nonzero *expected lifetime delta* over a
+ * 15+-season career — precisely the compounding failure mode
+ * `SKILL_AGE_SHIFT`/`GK_AGE_SHIFT` were tuned to close (see their comment).
+ * Confining the bias to growth years keeps its effect to "how this prospect
+ * develops," not "this veteran defies the aging curve forever."
+ */
+function biasSdAt(young: number, age: number): number {
+  return young * Math.max(0, 1 - Math.max(0, age - 18) / (BASE_AGE_CURVE_PEAK - 18));
+}
+
+/**
  * One season of rating movement: each rating group (physical vs. skill,
  * further shifted for GKs) reads its own expected delta off the base age
  * curve, nudged by `minutesFactor` during growth years only; decline years
- * are age/group-driven alone. Two layers of gaussian noise apply on top:
- * a per-rating roll (narrows with age) plus one shared per-group "form" roll
- * (also narrows with age) added identically to every rating in that group.
- * The per-rating layer alone would mostly cancel out once averaged into a
+ * are age/group-driven alone. Three layers apply on top of that mean: the
+ * player's fixed `developmentBias` (same sign/scale every season — a clean
+ * developer or a bust), a per-group "form" roll (fresh gaussian each season,
+ * shared across every rating in that group), and independent per-rating
+ * noise. Per-rating noise alone would mostly cancel out once averaged into a
  * weighted ovr across 10+ ratings, making real breakout/bust seasons
- * statistically near-impossible; the shared form roll survives that
- * averaging and is what actually swings ovr season to season. Shared by real
- * progression and potential's forward simulation so both use the exact same
- * development model. Does not mutate the input.
+ * statistically near-impossible; the shared bias/form terms survive that
+ * averaging and are what actually swings ovr season to season. Shared by
+ * real progression and potential's forward simulation so both use the exact
+ * same development model. Does not mutate the input.
  */
 function stepRatings(
   rng: () => number,
@@ -74,10 +106,13 @@ function stepRatings(
   age: number,
   pos: Player["pos"],
   minutesFactor: number,
+  pid: number,
 ): PlayerRatings {
   const gkShift = pos === "GK" ? GK_AGE_SHIFT : 0;
   const noiseSd = sdAt(PROGRESSION_NOISE_SD_YOUNG, PROGRESSION_NOISE_SD_OLD, age);
   const formSd = sdAt(PROGRESSION_FORM_SD_YOUNG, PROGRESSION_FORM_SD_OLD, age);
+  const biasSd = biasSdAt(PROGRESSION_BIAS_SD_YOUNG, age);
+  const bias = developmentBias(pid) * biasSd;
   const next = { ...ratings };
   for (const [group, shift] of [
     [PHYSICAL_KEYS, gkShift + PHYSICAL_AGE_SHIFT],
@@ -87,7 +122,7 @@ function stepRatings(
     const mean = base > 0 ? base * minutesFactor : base;
     const formRoll = gaussian(rng) * formSd;
     for (const key of group) {
-      next[key] = clampRating(next[key] + mean + formRoll + gaussian(rng) * noiseSd);
+      next[key] = clampRating(next[key] + mean + bias + formRoll + gaussian(rng) * noiseSd);
     }
   }
   return next;
@@ -109,13 +144,14 @@ export function estimatePotential(
   age: number,
   pos: Player["pos"],
   heightCm: number,
+  pid: number,
 ): number {
   const peaks: number[] = [];
   for (let trial = 0; trial < POTENTIAL_SIM_TRIALS; trial++) {
     let simRatings = ratings;
     let peak = ovr;
     for (let simAge = age + 1; simAge <= POTENTIAL_SIM_MAX_AGE; simAge++) {
-      simRatings = stepRatings(rng, simRatings, simAge, pos, 1);
+      simRatings = stepRatings(rng, simRatings, simAge, pos, 1, pid);
       const simOvr = computeOvr(pos, simRatings, heightCm);
       if (simOvr > peak) peak = simOvr;
     }
@@ -143,9 +179,9 @@ export function progressPlayer(
     + (MINUTES_FACTOR_MAX - MINUTES_FACTOR_MIN)
       * Math.max(0, Math.min(1, appearances / FULL_SEASON_APPEARANCES));
 
-  const ratings = stepRatings(rng, player.ratings, age, player.pos, minutesFactor);
+  const ratings = stepRatings(rng, player.ratings, age, player.pos, minutesFactor, player.pid);
   const ovr = computeOvr(player.pos, ratings, player.heightCm);
-  const potential = estimatePotential(rng, ratings, ovr, age, player.pos, player.heightCm);
+  const potential = estimatePotential(rng, ratings, ovr, age, player.pos, player.heightCm, player.pid);
 
   return {
     ...player,

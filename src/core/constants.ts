@@ -117,14 +117,37 @@ export const PROGRESSION_NOISE_SD_OLD = 1.5;
  * ovr movement was almost entirely the deterministic age-curve mean — no
  * player ever had a real breakout or bust year. This shared roll moves every
  * rating in a group together, so it survives the ovr average and produces
- * real season-to-season ovr swings (a lucky young player's ovr can jump well
- * past the age-curve mean; an unlucky one can dip even during growth years),
- * matching BBGM's approach of layering shared variance on top of per-rating
- * noise. Zero-mean like the per-rating noise, so it doesn't shift long-run
- * league equilibrium, only the spread around it.
+ * real season-to-season ovr swings, matching BBGM's approach of layering
+ * shared variance on top of per-rating noise. Zero-mean like the per-rating
+ * noise, so it doesn't shift long-run league equilibrium, only the spread
+ * around it. Deliberately smaller than a first pass (was 5/1): most of a
+ * single season's swing should come from the player's persistent
+ * `PROGRESSION_BIAS_SD_*` trait below, not a one-off dice roll, and the
+ * combined single-season spread is what matters for feel (a young player
+ * shouldn't realistically lose 10 ovr in one bad season).
  */
-export const PROGRESSION_FORM_SD_YOUNG = 5;
-export const PROGRESSION_FORM_SD_OLD = 1;
+export const PROGRESSION_FORM_SD_YOUNG = 3;
+export const PROGRESSION_FORM_SD_OLD = 0.75;
+
+/**
+ * Development "personality": a fixed-per-player gaussian bias (derived
+ * deterministically from pid, not drawn from the shared rng stream — see
+ * `developmentBias` in progression.ts) applied every season on top of the
+ * per-season form roll above, but only through peak age (tapers to exactly
+ * 0 by `BASE_AGE_CURVE_PEAK` — see `biasSdAt`, not the shared young/old
+ * `sdAt` helper). This is what makes some prospects consistent clean
+ * developers (every growth-age season trends up) and others consistent
+ * busts (every growth-age season trends down). It must taper to zero well
+ * before retirement age, not just narrow like the other noise terms: a
+ * persistent nonzero contribution surviving into decline years would give a
+ * lucky player's expected *lifetime* rating delta a nonzero value over a
+ * 15+-season career, reopening the exact unbounded-inflation failure mode
+ * `SKILL_AGE_SHIFT`/`GK_AGE_SHIFT` were tuned to close (see their comment) —
+ * confirmed empirically the first time this constant was added (tapering to
+ * `RETIREMENT_START_AGE` instead of peak age let 90+ players climb to 17.7%
+ * of the AI pool by season 25 in a dynasty audit, instead of staying near 0%).
+ */
+export const PROGRESSION_BIAS_SD_YOUNG = 1.5;
 
 /**
  * Potential (BBGM-style): a scout's *estimate*, not a growth driver. It plays
