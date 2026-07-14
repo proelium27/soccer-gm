@@ -30,17 +30,34 @@ function statsFor(p: Player, season: number): SeasonStats | undefined {
   return p.stats.find((s) => s.season === season);
 }
 
-function ovrBonus(p: Player): number {
-  return (p.ovr - AWARD_OVR_BASELINE) * AWARD_OVR_WEIGHT;
+/**
+ * The ovr a player actually played `season` with — NOT p.ovr, which is
+ * present-day and can be many seasons stale by the time this is called (see
+ * migrate.ts's historical-award backfill, which recomputes awards for
+ * arbitrary past seasons from today's player pool). progressPlayer tags each
+ * p.hist entry with the season that just ended, but the ratings/ovr in that
+ * entry are the *post-growth* values for the season being entered — so the
+ * ovr a player carried into `season` is the hist entry tagged `season - 1`.
+ * Falls back to the player's current ovr only when no such snapshot exists
+ * (a save's very first season, before any progression has run yet — at that
+ * point p.ovr *is* the season-1 ovr — or pre-hist legacy data).
+ */
+function ovrDuringSeason(p: Player, season: number): number {
+  const snapshot = p.hist.find((h) => h.season === season - 1);
+  return snapshot?.ovr ?? p.ovr;
 }
 
-function potyScore(p: Player, s: SeasonStats): number {
+function ovrBonus(p: Player, season: number): number {
+  return (ovrDuringSeason(p, season) - AWARD_OVR_BASELINE) * AWARD_OVR_WEIGHT;
+}
+
+function potyScore(p: Player, s: SeasonStats, season: number): number {
   const group = positionGroup(p.pos);
   return s.avgRating + s.goals * POTY_GOAL_WEIGHT[group] + s.assists * POTY_ASSIST_WEIGHT[group]
-    + ovrBonus(p);
+    + ovrBonus(p, season);
 }
 
-function totsScore(p: Player, s: SeasonStats): number {
+function totsScore(p: Player, s: SeasonStats, season: number): number {
   const group = positionGroup(p.pos);
   let score = s.avgRating;
   score += s.goals * TOTS_GOAL_WEIGHT[group];
@@ -49,18 +66,21 @@ function totsScore(p: Player, s: SeasonStats): number {
   score += s.interceptions * TOTS_INTERCEPTION_WEIGHT[group];
   if (group === "GK") score += s.saves * TOTS_SAVE_WEIGHT;
   score -= s.goalsAgainst * TOTS_GOALS_AGAINST_PENALTY[group];
-  score += ovrBonus(p);
+  score += ovrBonus(p, season);
   return score;
 }
 
-function pickPlayerOfSeason(entries: { player: Player; stats: SeasonStats }[]): number | null {
+function pickPlayerOfSeason(
+  entries: { player: Player; stats: SeasonStats }[],
+  season: number,
+): number | null {
   const qualified = entries.filter((e) => e.stats.appearances >= AWARD_MIN_APPEARANCES);
   const pool = qualified.length > 0 ? qualified : entries;
   if (pool.length === 0) return null;
   let best = pool[0];
-  let bestScore = potyScore(best.player, best.stats);
+  let bestScore = potyScore(best.player, best.stats, season);
   for (const e of pool.slice(1)) {
-    const score = potyScore(e.player, e.stats);
+    const score = potyScore(e.player, e.stats, season);
     const bestGA = best.stats.goals + best.stats.assists;
     const ga = e.stats.goals + e.stats.assists;
     if (
@@ -96,6 +116,7 @@ function pickGoldenBoot(entries: { player: Player; stats: SeasonStats }[]): numb
 function pickTeamOfSeason(
   entries: { player: Player; stats: SeasonStats }[],
   formation: Position[],
+  season: number,
 ): (number | null)[] {
   const used = new Set<number>();
   return formation.map((slotPos) => {
@@ -120,7 +141,7 @@ function pickTeamOfSeason(
       // Qualified players always outrank unqualified ones; within each group,
       // rank by totsScore. Keeps every slot filled even when a thin position
       // has no one over the appearances bar.
-      return (qualifies ? 1000 : 0) + totsScore(e.player, e.stats);
+      return (qualifies ? 1000 : 0) + totsScore(e.player, e.stats, season);
     }
   });
 }
@@ -140,8 +161,8 @@ export function computeSeasonAwards(players: Player[], season: number): SeasonAw
   }
 
   return {
-    playerOfSeasonPid: pickPlayerOfSeason(entries),
+    playerOfSeasonPid: pickPlayerOfSeason(entries, season),
     goldenBootPid: pickGoldenBoot(entries),
-    teamOfSeason: pickTeamOfSeason(entries, FORMATIONS["4-3-3"]),
+    teamOfSeason: pickTeamOfSeason(entries, FORMATIONS["4-3-3"], season),
   };
 }

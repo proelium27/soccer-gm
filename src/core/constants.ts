@@ -739,11 +739,23 @@ export const AWARD_MIN_APPEARANCES = 19;
  * attacks, and out-score a genuinely elite player who had a quieter statistical season. This term
  * pulls awards back toward "best players" rather than "best statlines" by adding
  * `(ovr - AWARD_OVR_BASELINE) * AWARD_OVR_WEIGHT` to both formulas. Baseline is the Manual's
- * "average starter" line; weight is tuned so a ~25-ovr talent gap outweighs a full season's worth
- * of goals/assists, but a big statistical season can still edge out a modest ovr edge.
+ * "average starter" line; weight is tuned so a modest ovr gap (~10) is worth meaningfully less
+ * than a strong stat season and can still be edged out by one, while a large gap (~25+) can't be
+ * fully offset by stats alone.
+ *
+ * Retuned 0.15 → 0.06 on 2026-07-14, in the same PR as the LEAGUE_BASE/TEAM_STRENGTH_SPREAD/
+ * RATING_NOISE_SD generation retune above: 0.15 was picked when the league still generated a
+ * 7-10-point-short OVR distribution (max ~73-76), so it never got exercised against real elite
+ * (80-90) players. Once generation was fixed to actually reach that range, the math didn't hold:
+ * a 90-ovr player's bonus at 0.15 is (90-65)*0.15 = 3.75, worth ~47 goals at FWD's 0.08
+ * POTY_GOAL_WEIGHT — far beyond a realistic season's output (the M3 §8 gate pins top scorers at
+ * 18-32 goals) — making awards a near-pure ovr leaderboard for any real elite player, the opposite
+ * of "a big statistical season can still edge out" the term was meant to allow. At 0.06, the same
+ * 25-ovr gap is worth 1.5, ~18-19 goals equivalent — close to a realistic season's floor rather
+ * than dwarfing it.
  */
 export const AWARD_OVR_BASELINE = 65;
-export const AWARD_OVR_WEIGHT = 0.15;
+export const AWARD_OVR_WEIGHT = 0.06;
 
 /** Player of the Season: avgRating plus goals/assists weighted heavier than the match-rating baseline already does. */
 export const POTY_GOAL_WEIGHT: Record<"GK" | "DEF" | "MID" | "FWD", number> = {
