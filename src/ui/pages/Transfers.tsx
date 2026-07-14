@@ -14,6 +14,23 @@ import { Flag } from "../components/Flag.js";
 import { OfferAmountInput } from "../components/OfferAmountInput.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { ROSTER_CAP } from "../../core/constants.js";
+import { POSITIONS } from "../../core/players/types.js";
+
+interface TransferFilters {
+  position: string;
+  minOvr: string;
+  minPot: string;
+  maxAge: string;
+  maxValue: string;
+}
+
+const EMPTY_FILTERS: TransferFilters = {
+  position: "",
+  minOvr: "",
+  minPot: "",
+  maxAge: "",
+  maxValue: "",
+};
 
 function windowBanner(league: LeagueStore): React.ReactNode {
   const ws = transferWindowState(league);
@@ -121,12 +138,31 @@ function NegotiationControls({
 export function Transfers() {
   const { league, makeOfferAction, acceptCounterAction, simming } = useLeague();
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [filters, setFilters] = useState<TransferFilters>(EMPTY_FILTERS);
 
   // The full-league candidate scan is too heavy to redo on unrelated renders.
-  const targets = useMemo(
+  const allTargets = useMemo(
     () => (league ? recommendedTransfers(league, refreshNonce) : []),
     [league, refreshNonce],
   );
+
+  const targets = useMemo(() => {
+    const minOvr = filters.minOvr === "" ? null : Number(filters.minOvr);
+    const minPot = filters.minPot === "" ? null : Number(filters.minPot);
+    const maxAge = filters.maxAge === "" ? null : Number(filters.maxAge);
+    const maxValue = filters.maxValue === "" ? null : Number(filters.maxValue);
+    return allTargets.filter(({ player: p, scoutedValue: value }) => {
+      if (filters.position && p.pos !== filters.position) return false;
+      if (minOvr !== null && Number.isFinite(minOvr) && p.ovr < minOvr) return false;
+      if (minPot !== null && Number.isFinite(minPot) && p.potential < minPot) return false;
+      if (
+        maxAge !== null && Number.isFinite(maxAge)
+        && league && league.season - p.born > maxAge
+      ) return false;
+      if (maxValue !== null && Number.isFinite(maxValue) && value > maxValue) return false;
+      return true;
+    });
+  }, [allTargets, filters, league]);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -148,7 +184,7 @@ export function Transfers() {
 
   // Talks that outlived the recommended list (e.g. the budget shrank after a
   // signing) still need controls somewhere.
-  const listedPids = new Set(targets.map((t) => t.player.pid));
+  const listedPids = new Set(allTargets.map((t) => t.player.pid));
   const orphaned = negotiations.filter(
     (n) => !listedPids.has(n.pid) && n.status !== "accepted",
   );
@@ -195,8 +231,81 @@ export function Transfers() {
                 on top of the fee.</>
               )}
             </p>
+            {allTargets.length > 0 && (
+              <div className="d-flex flex-wrap gap-2 align-items-end mb-3">
+                <div>
+                  <label className="form-label small mb-0" htmlFor="rt-filter-pos">Position</label>
+                  <select
+                    id="rt-filter-pos"
+                    className="form-select form-select-sm"
+                    value={filters.position}
+                    onChange={(e) => setFilters((f) => ({ ...f, position: e.target.value }))}
+                  >
+                    <option value="">All</option>
+                    {POSITIONS.map((pos) => (
+                      <option key={pos} value={pos}>{pos}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label small mb-0" htmlFor="rt-filter-min-ovr">Min Ovr</label>
+                  <input
+                    id="rt-filter-min-ovr"
+                    type="number"
+                    className="form-control form-control-sm"
+                    style={{ width: "5.5rem" }}
+                    value={filters.minOvr}
+                    onChange={(e) => setFilters((f) => ({ ...f, minOvr: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="form-label small mb-0" htmlFor="rt-filter-min-pot">Min Pot</label>
+                  <input
+                    id="rt-filter-min-pot"
+                    type="number"
+                    className="form-control form-control-sm"
+                    style={{ width: "5.5rem" }}
+                    value={filters.minPot}
+                    onChange={(e) => setFilters((f) => ({ ...f, minPot: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="form-label small mb-0" htmlFor="rt-filter-max-age">Max Age</label>
+                  <input
+                    id="rt-filter-max-age"
+                    type="number"
+                    className="form-control form-control-sm"
+                    style={{ width: "5.5rem" }}
+                    value={filters.maxAge}
+                    onChange={(e) => setFilters((f) => ({ ...f, maxAge: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="form-label small mb-0" htmlFor="rt-filter-max-value">Max Value</label>
+                  <input
+                    id="rt-filter-max-value"
+                    type="number"
+                    className="form-control form-control-sm"
+                    style={{ width: "8rem" }}
+                    value={filters.maxValue}
+                    onChange={(e) => setFilters((f) => ({ ...f, maxValue: e.target.value }))}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => setFilters(EMPTY_FILTERS)}
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
             {targets.length === 0 ? (
-              <p className="mb-0">No suitable targets found.</p>
+              <p className="mb-0">
+                {allTargets.length === 0
+                  ? "No suitable targets found."
+                  : "No targets match the current filters."}
+              </p>
             ) : (
               <table className="table table-striped table-sm align-middle">
                 <thead>
