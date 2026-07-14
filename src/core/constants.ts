@@ -1,10 +1,26 @@
 import type { Position } from "./players/types.js";
 
-/** League-average base rating; a team's base = LEAGUE_BASE + its strength target. */
-export const LEAGUE_BASE = 46;
+/**
+ * League-average base rating; a team's base = LEAGUE_BASE + its strength target.
+ * Raised 46→54 (2026-07-14), alongside TEAM_STRENGTH_SPREAD and RATING_NOISE_SD
+ * below, after a TOTY bug report traced back to fresh-league generation sitting
+ * ~7-10 points below every tier the Manual documents (65 avg starter / 75 best-
+ * on-a-team / 80-85 league-wide elite / 90+ rare): a from-scratch generated
+ * league measured mean starter ovr ~58 (not 65) and a league-wide max of only
+ * 73-76 across 500 players (not 80-85+). Calibrated empirically against a
+ * standalone generation harness to land starter mean ~65, best-player-per-team
+ * ~73-75, and league max in the low-to-mid 80s with 90+ still rare.
+ */
+export const LEAGUE_BASE = 54;
 
-/** Half-range of per-team strength targets (pre-normalization magnitude). */
-export const TEAM_STRENGTH_SPREAD = 7;
+/**
+ * Half-range of per-team strength targets (pre-normalization magnitude).
+ * Widened 7→9 alongside the LEAGUE_BASE/RATING_NOISE_SD retune above — a pure
+ * LEAGUE_BASE shift alone raises the whole distribution uniformly but can't
+ * close the gap between "average starter" and "a team's best player" (both
+ * ends of that gap need real spread, not just a higher floor).
+ */
+export const TEAM_STRENGTH_SPREAD = 9;
 
 /**
  * Second division (English Division 2): same team count as Division 1, a
@@ -45,8 +61,13 @@ export const DIVISION_ACADEMY_BASE_CENTER: readonly [number, number] = [
  */
 export const NORMALIZE_K = 0.08;
 
-/** Std dev of per-player, per-rating gaussian noise. */
-export const RATING_NOISE_SD = 6;
+/**
+ * Std dev of per-player, per-rating gaussian noise. Widened 6→8 alongside the
+ * LEAGUE_BASE/TEAM_STRENGTH_SPREAD retune above, so a real elite (80-85+)
+ * outlier tail exists from generation itself instead of only emerging after
+ * a decade-plus of progression variance compounding one.
+ */
+export const RATING_NOISE_SD = 8;
 
 /** Absolute-low pool for position-exclusive stats (independent of base). */
 export const ABS_LOW_MIN = 5;
@@ -323,8 +344,18 @@ export const PROSPECT_AGE_MAX = 21;
  * allocation — the running-balance/compounding design itself was kept
  * as-is, only the per-season inflow was reduced). Wages below were rescaled
  * in tandem to preserve the AI-solvency invariant.
+ *
+ * Raised 50M → 110M on 2026-07-14 alongside the LEAGUE_BASE/TEAM_STRENGTH_SPREAD/
+ * RATING_NOISE_SD generation retune above: that retune raises league-wide OVR
+ * (and thus wages, which scale cubically with ovr), so the old 50M base broke
+ * AI solvency outright (a 20-season × 3-seed dynasty audit under the new
+ * generation numbers hit a -26M AI budget and a 79M+ single-club wage bill,
+ * both impossible under the old squad-strength assumptions WAGE_SAFE_SQUAD
+ * below was benchmarked against). MAX_BUDGET's existing cap already bounds
+ * long-run compounding independently of this value, so raising it doesn't
+ * reopen the accumulation problem the 2026-07-13 cut was solving.
  */
-export const BASE_SEASON_BUDGET = 50_000_000;
+export const BASE_SEASON_BUDGET = 110_000_000;
 /**
  * Hard ceiling on a club's running budget balance, added 2026-07-13: since
  * budget compounds season over season by design (never resets to the base
@@ -346,10 +377,13 @@ export const MAX_BUDGET = 300_000_000;
  * Benchmark "dominant AI squad" the base allocation must out-fund on
  * worst-case wage deals (see the invariant note above): [count, ovr] rows,
  * matching the strongest squad shape AI free agency + progression produced
- * in dynasty audits (a 73-ovr starting XI is beyond equilibrium AI strength).
+ * in dynasty audits. Retuned 2026-07-14 alongside the generation retune above
+ * (an 80-ovr starting XI is beyond equilibrium AI strength under the new,
+ * higher-ceiling generation numbers — the prior [73, 66, 56] benchmark was
+ * calibrated to the old, lower OVR distribution).
  */
 export const WAGE_SAFE_SQUAD: readonly [count: number, ovr: number][] = [
-  [11, 73], [7, 66], [7, 56],
+  [11, 80], [7, 74], [7, 65],
 ];
 
 /**

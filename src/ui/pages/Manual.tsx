@@ -365,7 +365,7 @@ export function Manual() {
 
         <Section id="finance" title="Finance">
           <p>
-            Every club starts each season with the same base allocation (<strong>$50M</strong>),
+            Every club starts each season with the same base allocation (<strong>$110M</strong>),
             and the squad's <strong>entire season wage bill is paid up front</strong> at the season
             start. What's left is genuinely spendable — on transfer fees, mid-season signings, and
             scouting. A mid-season acquisition (transfer buy or free-agent signing) charges the
