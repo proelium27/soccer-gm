@@ -239,27 +239,34 @@ a:hover {
 /* Team highlight and result rows. table-striped paints an opaque bg on each
    <td> via CSS variables, so these must target the cells and win with
    !important, matching the original approach. Each keeps a non-color signal
-   in the markup (position number, W/D/L letters). */
+   in the markup (position number, W/D/L letters). Painted via an inset
+   box-shadow (Bootstrap's own striping technique, see --bs-table-accent-bg
+   above) rather than background-color: a plain per-cell background-color
+   left a visible seam at every column boundary — border-collapse rounding
+   let the page background show through as thin vertical lines between
+   stats, reading like bold column dividers. box-shadow isn't subject to
+   that gap. */
 .team-highlight > td {
-  background-color: var(--sg-user-wash) !important;
+  box-shadow: inset 0 0 0 9999px var(--sg-user-wash);
 }
 .team-highlight > td:first-child {
   /* Leading edge marker, your club — scoped to the row's first cell only;
      applying it to every <td> drew a stray vertical line at every column
      boundary instead of one clean marker at the row's edge. Extra
      padding keeps the marker from crowding a same-hued club color swatch
-     that can otherwise sit right on top of it. */
-  box-shadow: inset 2px 0 0 var(--sg-user);
+     that can otherwise sit right on top of it. Layered into one box-shadow
+     list with the wash above so the marker doesn't get clobbered by it. */
+  box-shadow: inset 0 0 0 9999px var(--sg-user-wash), inset 2px 0 0 var(--sg-user);
   padding-left: calc(0.5rem + 4px);
 }
 .champion-highlight > td {
-  background-color: var(--sg-warn-wash) !important;
+  box-shadow: inset 0 0 0 9999px var(--sg-warn-wash);
 }
 .row-win > td {
-  background-color: var(--sg-win-wash) !important;
+  box-shadow: inset 0 0 0 9999px var(--sg-win-wash);
 }
 .row-loss > td {
-  background-color: var(--sg-loss-wash) !important;
+  box-shadow: inset 0 0 0 9999px var(--sg-loss-wash);
 }
 
 /* =========================================================================
