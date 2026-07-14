@@ -53,7 +53,10 @@ export interface SeasonHistoryEntry {
   table: StandingsRow[];
   championTid: number;
   teamStats: TeamSeasonStats[];
-  awards: SeasonAwards;
+  /** Player of the Season / Golden Boot / Team of the Season, per division: index 0 = Division 1, index 1 = Division 2. */
+  awards: [SeasonAwards, SeasonAwards];
+  /** Each team's division *during this season* (snapshotted before any promotion/relegation swap), so a past season's table/awards can still be labeled correctly after later swaps. */
+  divisionsByTid: Record<number, 0 | 1>;
 }
 
 /** Sum each club's box-score lines across a season's played matches. */

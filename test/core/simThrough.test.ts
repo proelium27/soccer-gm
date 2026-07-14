@@ -4,6 +4,7 @@ import { generateLeague } from "../../src/core/league/generate.js";
 import { doubleRoundRobin } from "../../src/core/schedule.js";
 import { computeStandings } from "../../src/core/standings.js";
 import { simThrough } from "../../src/core/simThrough.js";
+import { createLeagueState } from "../../src/core/leagueState.js";
 import { transferWindowState } from "../../src/core/transfers/window.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { ScheduleGame } from "../../src/core/schedule.js";
@@ -35,6 +36,8 @@ function makeLeagueStore(seed: number): LeagueStore {
     hype: 50,
     scoutingSpend: 0,
     academyBase: t.academyBase,
+    division: t.division,
+    divisionConvergence: null,
     starters: null,
   }));
 
@@ -219,6 +222,16 @@ describe("simThrough", () => {
       expect(e.matchday).toBeGreaterThanOrEqual(1);
       expect(e.matchday).toBeLessThanOrEqual(38);
       expect(["hattrick", "standoutRating", "goalMilestoneSeason", "goalMilestoneCareer"]).toContain(e.type);
+    }
+  });
+
+  it("never simulates a match between teams in different divisions", () => {
+    const rng = mulberry32(11);
+    let league = createLeagueState(0, rng);
+    league = simThrough(league, "season", rng);
+    const divisionByTid = new Map(league.teams.map((t) => [t.tid, t.division]));
+    for (const m of league.played) {
+      expect(divisionByTid.get(m.home)).toBe(divisionByTid.get(m.away));
     }
   });
 });

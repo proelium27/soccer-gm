@@ -7,6 +7,7 @@ import { seasonYear } from "../format.js";
 export function Standings() {
   const { league } = useLeague();
   const [season, setSeason] = useState<number | "current">("current");
+  const [division, setDivision] = useState<0 | 1>(0);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -26,17 +27,23 @@ export function Standings() {
   let standings: StandingsRow[];
   let championTid: number;
   if (season === "current") {
-    standings = computeStandings(
-      league.teams.map((t) => t.tid),
-      league.played,
-    );
+    const teamIds = league.teams.filter((t) => t.division === division).map((t) => t.tid);
+    standings = computeStandings(teamIds, league.played.filter((m) => {
+      const home = league.teams.find((t) => t.tid === m.home);
+      return home?.division === division;
+    }));
     // A "champion" only means something once the season has actually been
     // decided by played matches, not an arbitrary tid=0 tie at kickoff.
     championTid = league.played.length > 0 ? (standings[0]?.tid ?? -1) : -1;
   } else {
     const entry = league.seasonHistory.find((h) => h.season === season)!;
-    standings = entry.table;
-    championTid = entry.championTid;
+    const divisionTids = new Set(
+      Object.entries(entry.divisionsByTid)
+        .filter(([, d]) => d === division)
+        .map(([tid]) => Number(tid)),
+    );
+    standings = entry.table.filter((row) => divisionTids.has(row.tid));
+    championTid = division === 0 ? entry.championTid : (standings[0]?.tid ?? -1);
   }
 
   return (
@@ -53,6 +60,15 @@ export function Standings() {
           {seasonOptions.map((s) => (
             <option key={s} value={s}>{seasonYear(s)}</option>
           ))}
+        </select>{" "}
+        <select
+          className="form-select form-select-sm"
+          style={{ width: "auto", display: "inline-block" }}
+          value={division}
+          onChange={(e) => setDivision(Number(e.target.value) as 0 | 1)}
+        >
+          <option value={0}>English Division 1</option>
+          <option value={1}>English Division 2</option>
         </select>
       </div>
       {standings.length === 0 ? (
@@ -100,7 +116,9 @@ export function Standings() {
                         style={{ backgroundColor: team?.colors[0] }}
                       />
                       {team?.name ?? `Team ${row.tid}`}
-                      {isChampion && <span className="text-muted small"> (Champion)</span>}
+                      {isChampion && (
+                        <span className="text-muted small"> {division === 0 ? "(Champion)" : "(1st)"}</span>
+                      )}
                     </span>
                   </td>
                   <td className="text-end">{row.played}</td>

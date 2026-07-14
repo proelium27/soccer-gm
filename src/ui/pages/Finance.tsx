@@ -33,9 +33,12 @@ export function Finance() {
   const teamName = (tid: number) =>
     league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
 
+  const divisionTeamIds = league.teams
+    .filter((t) => t.division === userTeam.division)
+    .map((t) => t.tid);
   const standings = computeStandings(
-    league.teams.map((t) => t.tid),
-    league.played,
+    divisionTeamIds,
+    league.played.filter((m) => divisionTeamIds.includes(m.home)),
   );
   const rank = standings.findIndex((r) => r.tid === league.meta.userTid) + 1;
 
@@ -45,7 +48,7 @@ export function Finance() {
   // the rank (and thus prize tier) is provisional; in the offseason it's
   // final. The wage line is an estimate either way — the actual charge uses
   // the new season's finalized roster (after retirements, expiries, youth).
-  const revenue = seasonRevenue(rank, userTeam.hype);
+  const revenue = seasonRevenue(rank, userTeam.hype, userTeam.division);
   const wages = wageBill([...userTeam.roster, ...userTeam.academyRoster], salaryMap);
   const net = revenue.total - wages - userTeam.scoutingSpend;
   const seasonOver = league.phase === "offseason";

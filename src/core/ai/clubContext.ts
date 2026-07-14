@@ -3,7 +3,6 @@ import { POSITIONS } from "../players/types.js";
 import type { StoredTeam } from "../teams/clubs.js";
 import type { PlayedMatch } from "../standings.js";
 import { computeStandings } from "../standings.js";
-import { NUM_TEAMS } from "../constants.js";
 import {
   AI_SQUAD_STRENGTH_COUNT,
   AI_AMBITION_W_STRENGTH, AI_AMBITION_W_WEALTH, AI_AMBITION_W_FAME, AI_AMBITION_W_FORM,
@@ -125,12 +124,12 @@ export function deriveLeagueContexts(league: LeagueSnapshot): Map<number, ClubCo
   const rosterOf = (t: StoredTeam): Player[] =>
     t.roster.map((pid) => playerById.get(pid)).filter((p): p is Player => p != null);
 
-  // Per-club raw metrics.
   const raw = league.teams.map((t) => {
     const roster = rosterOf(t);
     const { depth, best } = positionalDepthAndBest(roster);
     return {
       tid: t.tid,
+      division: t.division,
       budget: t.budget,
       hype: t.hype,
       strength: squadStrength(roster),
@@ -140,54 +139,71 @@ export function deriveLeagueContexts(league: LeagueSnapshot): Map<number, ClubCo
     };
   });
 
-  // Form: rank each club by current standings (1 = top). Neutral before kickoff.
-  const hasPlayed = league.played.length > 0;
-  const rankByTid = new Map<number, number>();
-  if (hasPlayed) {
-    const standings = computeStandings(league.teams.map((t) => t.tid), league.played);
-    standings.forEach((row, i) => rankByTid.set(row.tid, i + 1));
-  }
-  // Normalized form: 1 for top of the table, 0 for bottom.
-  const formNorm = (tid: number): number =>
-    hasPlayed ? normalize(NUM_TEAMS - (rankByTid.get(tid) ?? NUM_TEAMS), 0, NUM_TEAMS - 1) : 0.5;
-
-  // League ranges for min-max normalization.
-  const budgets = raw.map((r) => r.budget);
-  const hypes = raw.map((r) => r.hype);
-  const strengths = raw.map((r) => r.strength);
-  const [bMin, bMax] = [Math.min(...budgets), Math.max(...budgets)];
-  const [hMin, hMax] = [Math.min(...hypes), Math.max(...hypes)];
-  const [sMin, sMax] = [Math.min(...strengths), Math.max(...strengths)];
-
   const contexts = new Map<number, ClubContext>();
-  for (const r of raw) {
-    const wealthNorm = normalize(r.budget, bMin, bMax);
-    const fameNorm = normalize(r.hype, hMin, hMax);
-    const strengthNorm = normalize(r.strength, sMin, sMax);
-    const form = formNorm(r.tid);
 
-    const ambition =
-      AI_AMBITION_W_STRENGTH * strengthNorm +
-      AI_AMBITION_W_WEALTH * wealthNorm +
-      AI_AMBITION_W_FAME * fameNorm +
-      AI_AMBITION_W_FORM * form;
+  // Every normalization (wealth/hype/strength min-max, form rank) is scoped
+  // to the club's own division: Division 2 is structurally poorer by design
+  // (DIVISION_2_BUDGET_SCALE), so pooling both divisions into one range
+  // would read every Division 2 club as permanently near-max frugality
+  // regardless of how it's actually doing relative to its own division.
+  for (const division of [0, 1] as const) {
+    const group = raw.filter((r) => r.division === division);
+    if (group.length === 0) continue;
+    const groupTids = group.map((r) => r.tid);
+    const groupTidSet = new Set(groupTids);
+    const groupPlayed = league.played.filter(
+      (m) => groupTidSet.has(m.home) && groupTidSet.has(m.away),
+    );
 
-    // Frugality is the inverse of relative wealth: the poorest club in the
-    // league is maximally cautious, the richest barely constrained.
-    const frugality = 1 - wealthNorm;
+    const hasPlayed = groupPlayed.length > 0;
+    const rankByTid = new Map<number, number>();
+    if (hasPlayed) {
+      const groupStandings = computeStandings(groupTids, groupPlayed);
+      groupStandings.forEach((row, i) => rankByTid.set(row.tid, i + 1));
+    }
+    const groupSize = group.length;
+    const formNorm = (tid: number): number =>
+      hasPlayed
+        ? normalize(groupSize - (rankByTid.get(tid) ?? groupSize), 0, groupSize - 1)
+        : 0.5;
 
-    contexts.set(r.tid, {
-      tid: r.tid,
-      season: league.season,
-      budget: r.budget,
-      squadStrength: r.strength,
-      squadAvgAge: r.avgAge,
-      posDepth: r.depth,
-      posBestOvr: r.best,
-      ambition,
-      frugality,
-      direction: label(ambition, form, r.avgAge),
-    });
+    const budgets = group.map((r) => r.budget);
+    const hypes = group.map((r) => r.hype);
+    const strengths = group.map((r) => r.strength);
+    const [bMin, bMax] = [Math.min(...budgets), Math.max(...budgets)];
+    const [hMin, hMax] = [Math.min(...hypes), Math.max(...hypes)];
+    const [sMin, sMax] = [Math.min(...strengths), Math.max(...strengths)];
+
+    for (const r of group) {
+      const wealthNorm = normalize(r.budget, bMin, bMax);
+      const fameNorm = normalize(r.hype, hMin, hMax);
+      const strengthNorm = normalize(r.strength, sMin, sMax);
+      const form = formNorm(r.tid);
+
+      const ambition =
+        AI_AMBITION_W_STRENGTH * strengthNorm +
+        AI_AMBITION_W_WEALTH * wealthNorm +
+        AI_AMBITION_W_FAME * fameNorm +
+        AI_AMBITION_W_FORM * form;
+
+      // Frugality is the inverse of relative wealth: the poorest club in the
+      // division is maximally cautious, the richest barely constrained.
+      const frugality = 1 - wealthNorm;
+
+      contexts.set(r.tid, {
+        tid: r.tid,
+        season: league.season,
+        budget: r.budget,
+        squadStrength: r.strength,
+        squadAvgAge: r.avgAge,
+        posDepth: r.depth,
+        posBestOvr: r.best,
+        ambition,
+        frugality,
+        direction: label(ambition, form, r.avgAge),
+      });
+    }
   }
+
   return contexts;
 }

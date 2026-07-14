@@ -66,32 +66,44 @@ function careerTotals(seasons: SeasonStats[]): SeasonStats {
 
 export function Leaders() {
   const [tab, setTab] = useState<LeadersTab>("players");
+  const [division, setDivision] = useState<0 | 1>(0);
 
   return (
     <div className="container-fluid p-3">
       <h4>Stat Leaders</h4>
-      <div className="mb-3 btn-group" role="group">
-        <button
-          type="button"
-          className={`btn btn-sm ${tab === "players" ? "btn-primary" : "btn-outline-primary"}`}
-          onClick={() => setTab("players")}
+      <div className="mb-3 d-flex gap-2 align-items-center">
+        <div className="btn-group" role="group">
+          <button
+            type="button"
+            className={`btn btn-sm ${tab === "players" ? "btn-primary" : "btn-outline-primary"}`}
+            onClick={() => setTab("players")}
+          >
+            Players
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${tab === "teams" ? "btn-primary" : "btn-outline-primary"}`}
+            onClick={() => setTab("teams")}
+          >
+            Teams
+          </button>
+        </div>
+        <select
+          className="form-select form-select-sm"
+          style={{ width: "auto" }}
+          value={division}
+          onChange={(e) => setDivision(Number(e.target.value) as 0 | 1)}
         >
-          Players
-        </button>
-        <button
-          type="button"
-          className={`btn btn-sm ${tab === "teams" ? "btn-primary" : "btn-outline-primary"}`}
-          onClick={() => setTab("teams")}
-        >
-          Teams
-        </button>
+          <option value={0}>English Division 1</option>
+          <option value={1}>English Division 2</option>
+        </select>
       </div>
-      {tab === "players" ? <PlayerLeaders /> : <TeamLeaders />}
+      {tab === "players" ? <PlayerLeaders division={division} /> : <TeamLeaders division={division} />}
     </div>
   );
 }
 
-function PlayerLeaders() {
+function PlayerLeaders({ division }: { division: 0 | 1 }) {
   const { league } = useLeague();
   const [stat, setStat] = useState<StatKey>("goals");
   const [season, setSeason] = useState<number | "all">("all");
@@ -112,6 +124,7 @@ function PlayerLeaders() {
   const teamByPid = new Map<number, string>();
   const tidByPid = new Map<number, number>();
   for (const team of league.teams) {
+    if (team.division !== division) continue;
     for (const pid of team.roster) {
       teamByPid.set(pid, team.name);
       tidByPid.set(pid, team.tid);
@@ -121,6 +134,7 @@ function PlayerLeaders() {
   const rows: LeaderRow[] = [];
   if (season !== "all") {
     for (const p of league.players) {
+      if (!tidByPid.has(p.pid)) continue;
       const ss = p.stats.find((s) => s.season === season);
       if (ss && ss[stat] > 0) {
         rows.push({
@@ -134,6 +148,7 @@ function PlayerLeaders() {
     }
   } else if (scope === "career") {
     for (const p of league.players) {
+      if (!tidByPid.has(p.pid)) continue;
       const total = careerTotals(p.stats);
       if (total[stat] > 0) {
         rows.push({
@@ -148,6 +163,7 @@ function PlayerLeaders() {
   } else {
     // Single season: each player's own best individual season for this stat.
     for (const p of league.players) {
+      if (!tidByPid.has(p.pid)) continue;
       let best: SeasonStats | null = null;
       for (const s of p.stats) {
         if (s[stat] > 0 && (!best || s[stat] > best[stat])) best = s;
@@ -282,7 +298,7 @@ interface TeamLeaderRow extends TeamSeasonStats {
   isUserTeam: boolean;
 }
 
-function TeamLeaders() {
+function TeamLeaders({ division }: { division: 0 | 1 }) {
   const { league } = useLeague();
   const [stat, setStat] = useState<TeamStatKey>("goals");
   const [season, setSeason] = useState<number | "current">("current");
@@ -297,10 +313,11 @@ function TeamLeaders() {
     return <p>No matches played yet.</p>;
   }
 
-  const teamIds = league.teams.map((t) => t.tid);
+  const teamIds = league.teams.filter((t) => t.division === division).map((t) => t.tid);
   const teamStats: TeamSeasonStats[] = season === "current"
     ? computeTeamSeasonStats(teamIds, league.played)
-    : (league.seasonHistory.find((h) => h.season === season)?.teamStats ?? []);
+    : (league.seasonHistory.find((h) => h.season === season)?.teamStats ?? [])
+        .filter((s) => league.seasonHistory.find((h) => h.season === season)?.divisionsByTid[s.tid] === division);
 
   const teamByTid = new Map(league.teams.map((t) => [t.tid, t.name]));
   const rows: TeamLeaderRow[] = teamStats.map((s) => ({

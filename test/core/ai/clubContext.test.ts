@@ -51,4 +51,19 @@ describe("deriveLeagueContexts", () => {
       expect(c.frugality).toBeLessThanOrEqual(1);
     }
   });
+
+  it("normalizes wealth/ambition within each division, not pooled across both", () => {
+    // Division 2 is generated structurally poorer than Division 1
+    // (DIVISION_2_BUDGET_SCALE). If normalization pooled both divisions'
+    // budgets into one min-max range, Division 2's own richest club would
+    // still read as heavily frugal (its budget sits well below Division 1's
+    // range). Within-division normalization means Division 2's own richest
+    // club should read as barely frugal RELATIVE TO ITS OWN DIVISION, the
+    // same way Division 1's richest club does.
+    const league = createLeagueState(0, mulberry32(4));
+    const contexts = deriveLeagueContexts(league);
+    const d2Teams = league.teams.filter((t) => t.division === 1);
+    const richestD2 = d2Teams.reduce((a, b) => (a.budget > b.budget ? a : b));
+    expect(contexts.get(richestD2.tid)!.frugality).toBeLessThan(0.5);
+  });
 });

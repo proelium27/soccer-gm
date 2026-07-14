@@ -34,6 +34,26 @@ export const CLUBS: ClubIdentity[] = [
   { name: "Silverdale",            abbrev: "SIL", colors: ["#aab7b8", "#17202a"] },
   { name: "Thornbury Foresters",   abbrev: "THO", colors: ["#0e6251", "#f5b041"] },
   { name: "Wyverngate Crowns",     abbrev: "WYV", colors: ["#1f618d", "#f8f9f9"] },
+  { name: "Ambervale Rovers",    abbrev: "AMB", colors: ["#8e2de2", "#f2f2f2"] },
+  { name: "Brindlecombe",        abbrev: "BRI", colors: ["#2c3e50", "#e67e22"] },
+  { name: "Copperfield Town",    abbrev: "COP", colors: ["#b5651d", "#ffffff"] },
+  { name: "Draymoor United",     abbrev: "DRA", colors: ["#1a5276", "#f1c40f"] },
+  { name: "Elderglen",           abbrev: "ELD", colors: ["#145a32", "#ecf0f1"] },
+  { name: "Foxholt Wanderers",   abbrev: "FOX", colors: ["#c0392b", "#2c3e50"] },
+  { name: "Gaunt Valley",        abbrev: "GAU", colors: ["#5b2c6f", "#f4d03f"] },
+  { name: "Hollowbeck",          abbrev: "HOL", colors: ["#117864", "#ffffff"] },
+  { name: "Inkersley Athletic",  abbrev: "INK", colors: ["#212f3d", "#e74c3c"] },
+  { name: "Juniper Crossing",    abbrev: "JUN", colors: ["#1e8449", "#f7dc6f"] },
+  { name: "Kirkstall Miners",    abbrev: "KIR", colors: ["#4a235a", "#aeb6bf"] },
+  { name: "Larkspur Town",       abbrev: "LAR", colors: ["#0b5345", "#f5b041"] },
+  { name: "Millbrook Rangers",   abbrev: "MIL", colors: ["#7b241c", "#f0f3f4"] },
+  { name: "Norwick Athletic",    abbrev: "NOR", colors: ["#1b2631", "#f39c12"] },
+  { name: "Old Fenwick",         abbrev: "OLF", colors: ["#154360", "#ffffff"] },
+  { name: "Pinehollow",          abbrev: "PIN", colors: ["#145214", "#f8c471"] },
+  { name: "Ravensgate",          abbrev: "RAV", colors: ["#1c2833", "#c0392b"] },
+  { name: "Steeplecross",        abbrev: "STE", colors: ["#6e2c00", "#f4f6f6"] },
+  { name: "Underholt Town",      abbrev: "UND", colors: ["#283747", "#f1948a"] },
+  { name: "Vaultbridge",         abbrev: "VAU", colors: ["#512e5f", "#ffffff"] },
 ];
 
 export interface StoredTeam {
@@ -59,6 +79,14 @@ export interface StoredTeam {
   scoutingSpend: number;
   /** Fixed generation-time strength anchor for this club's youth intake (see LeagueTeam.academyBase). */
   academyBase: number;
+  /** Which division this club currently plays in: 0 = English Division 1, 1 = English Division 2. Changes on promotion/relegation. */
+  division: 0 | 1;
+  /**
+   * Non-null while academyBase is still converging toward this division's
+   * strength band after a promotion/relegation swap (see src/core/promotion.ts).
+   * Null for a club that hasn't swapped divisions (or finished converging).
+   */
+  divisionConvergence: { seasonsRemaining: number } | null;
   /**
    * User-chosen starting XI (11 pids), or null to auto-select via selectXI.
    * Only ever set for the user's own team; AI teams always auto-select.
@@ -84,10 +112,12 @@ export function assignIdentities(league: League): StoredTeam[] {
       colors: club.colors,
       roster: t.roster,
       academyRoster: [],
-      budget: chargeSeasonStart(0, wageBill(t.roster, salaryMap)),
+      budget: chargeSeasonStart(0, wageBill(t.roster, salaryMap), t.division),
       hype: HYPE_INITIAL,
       scoutingSpend: SCOUTING_SPEND_MIN,
       academyBase: t.academyBase,
+      division: t.division,
+      divisionConvergence: null,
       starters: null,
     };
   });

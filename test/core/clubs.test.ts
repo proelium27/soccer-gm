@@ -4,13 +4,13 @@ import { generateLeague } from "../../src/core/league/generate.js";
 import { CLUBS, assignIdentities } from "../../src/core/teams/clubs.js";
 
 describe("CLUBS", () => {
-  it("has exactly 20 entries", () => {
-    expect(CLUBS).toHaveLength(20);
+  it("has exactly 40 entries", () => {
+    expect(CLUBS).toHaveLength(40);
   });
 
   it("has all unique abbreviations that are exactly 3 characters", () => {
     const abbrevs = CLUBS.map((c) => c.abbrev);
-    expect(new Set(abbrevs).size).toBe(20);
+    expect(new Set(abbrevs).size).toBe(40);
     for (const a of abbrevs) {
       expect(a).toHaveLength(3);
     }
@@ -18,7 +18,7 @@ describe("CLUBS", () => {
 
   it("has all unique names", () => {
     const names = CLUBS.map((c) => c.name);
-    expect(new Set(names).size).toBe(20);
+    expect(new Set(names).size).toBe(40);
   });
 });
 
