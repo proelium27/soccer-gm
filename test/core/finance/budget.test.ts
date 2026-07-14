@@ -6,32 +6,50 @@ import {
   BASE_SEASON_BUDGET, NUM_TEAMS,
   PRIZE_CHAMPION, PRIZE_TOP_5, PRIZE_TOP_10,
   WAGE_WEEKLY_MIN, WAGE_WEEKLY_COEFF, WAGE_OVR_FLOOR, WAGE_VARIATION,
-  WAGE_SAFE_SQUAD,
+  WAGE_SAFE_SQUAD, DIVISION_2_BUDGET_SCALE,
 } from "../../../src/core/constants.js";
 import { WEEKS_PER_SEASON } from "../../../src/core/contracts.js";
 
 describe("seasonRevenue", () => {
   it("gives every club the same base allocation regardless of rank", () => {
-    const first = seasonRevenue(1, 50);
-    const last = seasonRevenue(20, 50);
+    const first = seasonRevenue(1, 50, 0);
+    const last = seasonRevenue(20, 50, 0);
     expect(first.base).toBe(BASE_SEASON_BUDGET);
     expect(last.base).toBe(BASE_SEASON_BUDGET);
   });
 
   it("pays higher-ranked clubs more in success payouts", () => {
-    const first = seasonRevenue(1, 50);
-    const last = seasonRevenue(20, 50);
+    const first = seasonRevenue(1, 50, 0);
+    const last = seasonRevenue(20, 50, 0);
     expect(first.successPayout).toBeGreaterThan(last.successPayout);
     expect(first.total).toBeGreaterThan(last.total);
   });
 
   it("gives hyped-up clubs more hype revenue, but damped well below success-payout spread", () => {
-    const lowHype = seasonRevenue(10, 0);
-    const highHype = seasonRevenue(10, 100);
+    const lowHype = seasonRevenue(10, 0, 0);
+    const highHype = seasonRevenue(10, 100, 0);
     expect(highHype.hypeRevenue).toBeGreaterThan(lowHype.hypeRevenue);
     const hypeSpread = highHype.hypeRevenue - lowHype.hypeRevenue;
-    const successSpread = seasonRevenue(1, 50).successPayout - seasonRevenue(20, 50).successPayout;
+    const successSpread = seasonRevenue(1, 50, 0).successPayout - seasonRevenue(20, 50, 0).successPayout;
     expect(hypeSpread).toBeLessThan(successSpread);
+  });
+});
+
+describe("division-scaled finances", () => {
+  it("scales base and prize money down for Division 2", () => {
+    const d1 = seasonRevenue(1, 0, 0);
+    const d2 = seasonRevenue(1, 0, 1);
+    expect(d2.base).toBeCloseTo(BASE_SEASON_BUDGET * DIVISION_2_BUDGET_SCALE, 5);
+    expect(d2.successPayout).toBeCloseTo(PRIZE_CHAMPION * DIVISION_2_BUDGET_SCALE, 5);
+    expect(d1.base).toBe(BASE_SEASON_BUDGET);
+    expect(d1.successPayout).toBe(PRIZE_CHAMPION);
+  });
+
+  it("chargeSeasonStart scales the base allocation by division", () => {
+    const d1Budget = chargeSeasonStart(0, 0, 0);
+    const d2Budget = chargeSeasonStart(0, 0, 1);
+    expect(d2Budget).toBeCloseTo(BASE_SEASON_BUDGET * DIVISION_2_BUDGET_SCALE, 5);
+    expect(d1Budget).toBe(BASE_SEASON_BUDGET);
   });
 });
 
@@ -49,17 +67,17 @@ describe("wageBill", () => {
 
 describe("successPayout", () => {
   it("pays the champion prize only to 1st place", () => {
-    expect(successPayout(1)).toBe(PRIZE_CHAMPION);
-    expect(successPayout(2)).not.toBe(PRIZE_CHAMPION);
+    expect(successPayout(1, 0)).toBe(PRIZE_CHAMPION);
+    expect(successPayout(2, 0)).not.toBe(PRIZE_CHAMPION);
   });
 
   it("pays a flat second tier for 2nd-5th and a flat third tier for 6th-10th", () => {
-    for (let rank = 2; rank <= 5; rank++) expect(successPayout(rank)).toBe(PRIZE_TOP_5);
-    for (let rank = 6; rank <= 10; rank++) expect(successPayout(rank)).toBe(PRIZE_TOP_10);
+    for (let rank = 2; rank <= 5; rank++) expect(successPayout(rank, 0)).toBe(PRIZE_TOP_5);
+    for (let rank = 6; rank <= 10; rank++) expect(successPayout(rank, 0)).toBe(PRIZE_TOP_10);
   });
 
   it("pays nothing beyond the base to the bottom half of the table", () => {
-    for (let rank = 11; rank <= NUM_TEAMS; rank++) expect(successPayout(rank)).toBe(0);
+    for (let rank = 11; rank <= NUM_TEAMS; rank++) expect(successPayout(rank, 0)).toBe(0);
   });
 
   it("keeps the tiers strictly ordered", () => {
@@ -71,21 +89,21 @@ describe("successPayout", () => {
 
 describe("settleSeasonEnd", () => {
   it("adds performance money (prize + hype revenue) and subtracts scouting spend, never wages", () => {
-    const { successPayout: payout, hypeRevenue } = seasonRevenue(5, 50);
-    const result = settleSeasonEnd(1_000_000, 5, 50, 100_000);
+    const { successPayout: payout, hypeRevenue } = seasonRevenue(5, 50, 0);
+    const result = settleSeasonEnd(1_000_000, 5, 50, 100_000, 0);
     expect(result).toBe(1_000_000 + payout + hypeRevenue - 100_000);
   });
 
   it("never shrinks a budget for a club that spent nothing on scouting", () => {
     for (let rank = 1; rank <= NUM_TEAMS; rank++) {
-      expect(settleSeasonEnd(1_000_000, rank, 0, 0)).toBeGreaterThanOrEqual(1_000_000);
+      expect(settleSeasonEnd(1_000_000, rank, 0, 0, 0)).toBeGreaterThanOrEqual(1_000_000);
     }
   });
 });
 
 describe("chargeSeasonStart", () => {
   it("pays the base allocation in and the season's wages out", () => {
-    expect(chargeSeasonStart(1_000_000, 200_000))
+    expect(chargeSeasonStart(1_000_000, 200_000, 0))
       .toBe(1_000_000 + BASE_SEASON_BUDGET - 200_000);
   });
 
@@ -104,7 +122,7 @@ describe("chargeSeasonStart", () => {
       (sum, [count, ovr]) => sum + count * worstWeekly(ovr) * WEEKS_PER_SEASON,
       0,
     );
-    expect(chargeSeasonStart(0, maxWages)).toBeGreaterThan(0);
+    expect(chargeSeasonStart(0, maxWages, 0)).toBeGreaterThan(0);
     expect(BASE_SEASON_BUDGET).toBeGreaterThan(maxWages);
   });
 });

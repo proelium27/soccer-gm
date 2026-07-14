@@ -112,7 +112,7 @@ export function assignIdentities(league: League): StoredTeam[] {
       colors: club.colors,
       roster: t.roster,
       academyRoster: [],
-      budget: chargeSeasonStart(0, wageBill(t.roster, salaryMap)),
+      budget: chargeSeasonStart(0, wageBill(t.roster, salaryMap), t.division),
       hype: HYPE_INITIAL,
       scoutingSpend: SCOUTING_SPEND_MIN,
       academyBase: t.academyBase,
