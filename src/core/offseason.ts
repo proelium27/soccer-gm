@@ -3,7 +3,9 @@ import type { Player } from "./players/types.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import { progressPlayer, rollRetirement } from "./players/progression.js";
 import { generateYouthIntake } from "./players/youth.js";
-import { releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus } from "./freeAgency.js";
+import {
+  releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
+} from "./freeAgency.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { runAIContractRenewals } from "./ai/renewals.js";
 import { computeStandings, computeTeamSeasonStats } from "./standings.js";
@@ -11,6 +13,7 @@ import { computeSeasonAwards } from "./awards.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
 import { settleSeasonEnd, chargeSeasonStart, wageBill } from "./finance/budget.js";
+import { academyContractTerms } from "./contracts.js";
 import { NUM_TEAMS, SCOUTING_SPEND_MIN } from "./constants.js";
 import { hashInts } from "../engine/rng.js";
 
@@ -105,6 +108,11 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   // 5. Youth intake for every club, anchored to each club's fixed
   //    generation-time strength (never the current roster average — see
   //    LeagueTeam.academyBase for why that ratchets OVR upward without bound).
+  //    The user's own intake lands in academyRoster (a holding pool — see
+  //    StoredTeam.academyRoster) on a flat academy stipend, requiring a
+  //    manual "promote" action before it counts toward the senior roster.
+  //    AI clubs keep the pre-Academy behavior (straight to roster, trimmed
+  //    below) — their academies aren't a real holding pool, see clubs.ts.
   let nextPid = Math.max(0, ...players.map((p) => p.pid)) + 1;
   teams = teams.map((t) => {
     // Caller-supplied seed (not drawn from `rng`) so youth nationality/name
@@ -119,9 +127,23 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       genSeed,
     );
     nextPid = updatedNextPid;
+    if (t.tid === league.meta.userTid) {
+      const academyTerms = academyContractTerms(nextSeason);
+      for (const p of youth) {
+        p.contract = { salary: academyTerms.salary, expiresSeason: academyTerms.expiresSeason };
+      }
+      players.push(...youth);
+      return { ...t, academyRoster: [...t.academyRoster, ...youth.map((p) => p.pid)] };
+    }
     players.push(...youth);
     return { ...t, roster: [...t.roster, ...youth.map((p) => p.pid)] };
   });
+
+  // 5.5. Emergency call-up: if the user's own roster has fallen dangerously
+  //      thin (no automatic top-up otherwise applies to it — see
+  //      ROSTER_SAFETY_FLOOR), promote from their academy to keep the squad
+  //      fieldable. A no-op for a healthily managed roster.
+  ({ teams, players } = ensureUserRosterSafety(teams, players, league.meta.userTid, nextSeason));
 
   // 6. Trim AI squads back down to target composition so youth intake
   //    doesn't accumulate indefinitely across seasons.
@@ -148,7 +170,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const salaryMap = new Map(players.map((p) => [p.pid, p.contract.salary]));
   teams = teams.map((t) => ({
     ...t,
-    budget: chargeSeasonStart(t.budget, wageBill(t.roster, salaryMap)),
+    budget: chargeSeasonStart(t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap)),
   }));
 
   // 7. New schedule, new season, back to regular play.

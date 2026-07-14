@@ -63,6 +63,36 @@ describe("simOffseason", () => {
     expect(sixteenYearOlds.length).toBeGreaterThanOrEqual(NUM_TEAMS * 3);
   });
 
+  it("routes the user's youth intake to the academy, not straight to the roster", () => {
+    const rng = mulberry32(5);
+    const league = playFullSeason(rng);
+    const next = simOffseason(league, rng);
+
+    const userTeam = next.teams.find((t) => t.tid === next.meta.userTid)!;
+    const academyYouth = userTeam.academyRoster.filter((pid) => {
+      const p = next.players.find((q) => q.pid === pid);
+      return p && next.season - p.born === 16;
+    });
+    expect(academyYouth.length).toBeGreaterThan(0);
+  });
+
+  it("still lands AI clubs' youth intake straight on the senior roster", () => {
+    const rng = mulberry32(5);
+    const league = playFullSeason(rng);
+    const next = simOffseason(league, rng);
+
+    const aiTeams = next.teams.filter((t) => t.tid !== next.meta.userTid);
+    for (const t of aiTeams) expect(t.academyRoster).toEqual([]);
+    // Some youth get trimmed back out immediately by trimRosterSurplus if a
+    // club was already at target depth, so check across all AI clubs rather
+    // than any single one.
+    const sixteenYearOlds = aiTeams.flatMap((t) => t.roster).filter((pid) => {
+      const p = next.players.find((q) => q.pid === pid);
+      return p && next.season - p.born === 16;
+    });
+    expect(sixteenYearOlds.length).toBeGreaterThan(0);
+  });
+
   it("no duplicate pids exist across the player pool after offseason", () => {
     const rng = mulberry32(6);
     const league = playFullSeason(rng);

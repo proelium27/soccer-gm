@@ -42,6 +42,15 @@ export interface StoredTeam {
   abbrev: string;
   colors: [string, string];
   roster: number[];
+  /**
+   * The user's own youth-academy holding pool (see YOUTH_CONTRACT_LENGTH /
+   * ACADEMY_STIPEND_WEEKLY in constants.ts): prospects here draw a flat
+   * stipend, can't be transferred, and need an explicit "promote" action to
+   * join `roster`. AI clubs' youth intake still lands straight on `roster`
+   * (unchanged) — only the user's academy is a real holding pool — so this
+   * stays empty for every AI team.
+   */
+  academyRoster: number[];
   /** Funds available to spend on wages, transfers, and scouting. */
   budget: number;
   /** Fame/popularity, 0-100; drives a damped ticket/jersey revenue channel. */
@@ -74,6 +83,7 @@ export function assignIdentities(league: League): StoredTeam[] {
       abbrev: club.abbrev,
       colors: club.colors,
       roster: t.roster,
+      academyRoster: [],
       budget: chargeSeasonStart(0, wageBill(t.roster, salaryMap)),
       hype: HYPE_INITIAL,
       scoutingSpend: SCOUTING_SPEND_MIN,

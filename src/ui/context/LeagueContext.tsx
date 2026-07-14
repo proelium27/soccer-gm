@@ -5,13 +5,15 @@ import { useSimWorker, type SimProgress } from "../useSimWorker.js";
 import { saveLeague, loadLeague } from "../../db/leagueDb.js";
 import { getActiveLid, setActiveLid, clearActiveLid } from "../../db/activeLeague.js";
 import { exportLeagueJSON, importLeagueJSON } from "../../db/exportImport.js";
-import { signFreeAgent, releasePlayer } from "../../core/freeAgency.js";
+import {
+  signFreeAgent, releasePlayer, signToAcademy, promoteFromAcademy, releaseAcademyPlayer,
+} from "../../core/freeAgency.js";
 import { clampScoutingSpend } from "../../core/finance/scouting.js";
 import { makeTransferOffer, acceptCounterOffer } from "../../core/transfers/negotiation.js";
 import {
   acceptInboundOffer, rejectInboundOffer, counterInboundOffer,
 } from "../../core/transfers/inboundOffers.js";
-import { extendContract } from "../../core/contracts.js";
+import { extendContract, extendAcademyContract } from "../../core/contracts.js";
 import { applyTeamIdentities, type TeamIdentityEdit } from "../../core/teams/customize.js";
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
@@ -28,6 +30,10 @@ interface LeagueContextValue {
   offseasonAction: () => Promise<void>;
   signFreeAgentAction: (pid: number) => Promise<void>;
   releasePlayerAction: (pid: number) => Promise<void>;
+  signToAcademyAction: (pid: number) => Promise<void>;
+  promoteFromAcademyAction: (pid: number) => Promise<void>;
+  releaseAcademyPlayerAction: (pid: number) => Promise<void>;
+  extendAcademyContractAction: (pid: number) => Promise<void>;
   setScoutingSpendAction: (spend: number) => Promise<void>;
   makeOfferAction: (pid: number, amount: number) => Promise<void>;
   acceptCounterAction: (pid: number) => Promise<void>;
@@ -255,6 +261,32 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     return { ...l, teams };
   }), [mutate]);
 
+  const signToAcademyAction = useCallback((pid: number) => mutate((l) => {
+    const { teams, players } = signToAcademy(
+      l.teams, l.players, l.meta.userTid, pid, l.season, l.phase,
+    );
+    if (teams === l.teams && players === l.players) return null;
+    return { ...l, teams, players };
+  }), [mutate]);
+
+  const promoteFromAcademyAction = useCallback((pid: number) => mutate((l) => {
+    const { teams, players } = promoteFromAcademy(
+      l.teams, l.players, l.meta.userTid, pid, l.season, l.phase,
+    );
+    if (teams === l.teams && players === l.players) return null;
+    return { ...l, teams, players };
+  }), [mutate]);
+
+  const releaseAcademyPlayerAction = useCallback((pid: number) => mutate((l) => {
+    const teams = releaseAcademyPlayer(l.teams, l.meta.userTid, pid);
+    if (teams === l.teams) return null;
+    return { ...l, teams };
+  }), [mutate]);
+
+  const extendAcademyContractAction = useCallback((pid: number) => mutate(
+    (l) => ({ ...l, players: extendAcademyContract(l.players, pid, l.season) }),
+  ), [mutate]);
+
   const setLineupAction = useCallback((starters: number[]) => mutate((l) => {
     const user = l.teams.find((t) => t.tid === l.meta.userTid);
     if (!user) return null;
@@ -305,6 +337,10 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       offseasonAction,
       signFreeAgentAction,
       releasePlayerAction,
+      signToAcademyAction,
+      promoteFromAcademyAction,
+      releaseAcademyPlayerAction,
+      extendAcademyContractAction,
       setScoutingSpendAction,
       makeOfferAction,
       acceptCounterAction,

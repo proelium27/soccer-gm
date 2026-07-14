@@ -11,8 +11,9 @@ import {
 import { chargeSeasonStart, wageBill } from "../core/finance/budget.js";
 
 /** A team as it may exist in a save written before M6 added the finance fields. */
-type StoredTeamAnyVersion = Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters"> &
-  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters">>;
+type StoredTeamAnyVersion =
+  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster"> &
+  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster">>;
 
 /**
  * Reconstruct the generation-time strength target for a save written before
@@ -121,6 +122,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
       scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_MIN,
       academyBase: t.academyBase ?? fallbackAcademyBase(t.tid),
       starters: t.starters ?? null,
+      academyRoster: t.academyRoster ?? [],
     })),
     players: migratedPlayers,
     played: league.played.map((m) => {

@@ -36,6 +36,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     abbrev: `T${String(t.tid).padStart(2, "0")}`,
     colors: ["#000000", "#FFFFFF"] as [string, string],
     roster: t.roster,
+    academyRoster: [],
     budget: BASE_SEASON_BUDGET,
     hype: HYPE_INITIAL,
     scoutingSpend: SCOUTING_SPEND_MIN,

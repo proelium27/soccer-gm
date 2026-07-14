@@ -122,7 +122,7 @@ export function Dashboard() {
             <strong>
               {currency.format(
                 wageBill(
-                  userTeam.roster,
+                  [...userTeam.roster, ...userTeam.academyRoster],
                   new Map(league.players.map((p) => [p.pid, p.contract.salary])),
                 ),
               )}

@@ -131,6 +131,29 @@ describe("migrateLeague", () => {
     expect(migrated.played).toEqual(league.played);
   });
 
+  it("backfills academyRoster to [] on pre-Academy saves", () => {
+    const league = createLeagueState(0, mulberry32(9));
+    const preAcademy = {
+      ...league,
+      teams: league.teams.map(({ academyRoster: _a, ...rest }) => rest),
+    } as unknown as LeagueStore;
+
+    const migrated = migrateLeague(preAcademy);
+    for (const team of migrated.teams) {
+      expect(team.academyRoster).toEqual([]);
+    }
+  });
+
+  it("leaves an existing academyRoster untouched", () => {
+    const league = createLeagueState(0, mulberry32(10));
+    const withAcademy: LeagueStore = {
+      ...league,
+      teams: league.teams.map((t) => (t.tid === 0 ? { ...t, academyRoster: [42] } : t)),
+    };
+    const migrated = migrateLeague(withAcademy);
+    expect(migrated.teams.find((t) => t.tid === 0)!.academyRoster).toEqual([42]);
+  });
+
   it("leaves current saves' finance values untouched", () => {
     const league = createLeagueState(0, mulberry32(2));
     const custom = {
