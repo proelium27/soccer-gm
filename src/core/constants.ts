@@ -17,7 +17,7 @@ export const TEAM_STRENGTH_SPREAD = 7;
  */
 export const NUM_TEAMS_D2 = 20;
 export const DIVISION_2_OFFSET = 7;
-export const DIVISION_2_BUDGET_SCALE = 0.5;
+export const DIVISION_2_BUDGET_SCALE = 0.6;
 
 /** Straight automatic swap each offseason: bottom N of D1 <-> top N of D2. */
 export const PROMOTION_RELEGATION_COUNT = 3;
