@@ -28,7 +28,7 @@ const GOAL_CONCEDED_PENALTY: Record<PositionGroup, number> = { FWD: 0, MID: 0.05
 
 const RATING_MIN = 0;
 const RATING_MAX = 10;
-const RATING_BASELINE = 6.0;
+export const RATING_BASELINE = 6.0;
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));

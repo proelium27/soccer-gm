@@ -64,6 +64,14 @@ export const FATIGUE_TECHNICAL_WEIGHT = 0.1;
 export const MAX_SUBS = 5;
 export const SUB_CHECKPOINTS_ELAPSED = [3600, 4500] as const;
 
+// How much a player's live match rating (see engine/matchRating.ts) sways who gets
+// subbed off, alongside fatigue: a below-baseline rating (deficit/10, roughly -0.4..0.6)
+// is added to the player's energy deficit (0..0.4) when ranking sub candidates, so a
+// tired player having a great game is less likely to be pulled than an equally tired
+// one having a poor game, and vice versa. Kept smaller than the energy deficit's own
+// range so fatigue stays the primary driver and rating only nudges the choice.
+export const SUB_RATING_INFLUENCE = 0.5;
+
 // --- Set pieces + penalties (M5) ---
 // Fraction of blocked/off-target run-of-play shots that earn a corner (one bonus
 // shot, heading-weighted attribution). Resolved via the normal off/def composites

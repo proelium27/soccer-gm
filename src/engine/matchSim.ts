@@ -28,6 +28,7 @@ import {
   FATIGUE_TECHNICAL_WEIGHT,
   MAX_SUBS,
   SUB_CHECKPOINTS_ELAPSED,
+  SUB_RATING_INFLUENCE,
   CORNER_FROM_MISS_PROB,
   PENALTY_GIVEN_FOUL,
   PENALTY_CONVERSION,
@@ -51,7 +52,7 @@ import {
   eventTypeFromShot,
   emptyLine,
 } from "./attribution.js";
-import { computeMatchRating } from "./matchRating.js";
+import { computeMatchRating, RATING_BASELINE } from "./matchRating.js";
 
 type Side = "home" | "away";
 
@@ -444,13 +445,39 @@ export function simMatchDetailed(
     return pool[0];
   }
 
+  /** Minutes played so far by a still-on-pitch player, for a live (mid-match) rating estimate. */
+  function liveMinutesFor(pid: number): number {
+    const enter = enterClock.get(pid) ?? MATCH_SECONDS;
+    return Math.max(0, Math.round((enter - clock) / 60));
+  }
+
+  /**
+   * Higher = more likely to be subbed off: fatigue (energy deficit) is the primary
+   * driver, nudged by how well the player is performing so far (live match rating,
+   * per spec's Match Rating feature) — a tired player having a great game is less
+   * likely to be pulled than an equally tired one having a poor game, and vice versa.
+   */
+  function subPriority(side: Side, p: MatchPlayer): number {
+    const energyDeficit = ENERGY_START - energy.get(p.pid)!;
+    const liveRating = computeMatchRating(
+      lines.get(p.pid)!,
+      p.pos,
+      liveMinutesFor(p.pid),
+      stat[other(side)].goals,
+    );
+    const ratingDeficit = (RATING_BASELINE - liveRating) / 10;
+    return energyDeficit + SUB_RATING_INFLUENCE * ratingDeficit;
+  }
+
   function attemptSub(side: Side, checkpoint: number): void {
     if (subsUsed[side] >= MAX_SUBS || bench[side].length === 0) return;
     const outfield = onPitch[side].filter((p) => p.pos !== "GK");
     if (outfield.length === 0) return;
 
-    const lowestEnergy = (candidates: MatchPlayer[]): MatchPlayer =>
-      candidates.reduce((worst, p) => (energy.get(p.pid)! < energy.get(worst.pid)! ? p : worst));
+    const worstSubPriority = (candidates: MatchPlayer[]): MatchPlayer =>
+      candidates.reduce((worst, p) =>
+        subPriority(side, p) > subPriority(side, worst) ? p : worst,
+      );
 
     const trailing = stat[side].goals < stat[other(side)].goals;
     let off: MatchPlayer;
@@ -458,13 +485,13 @@ export function simMatchDetailed(
     if (checkpoint === SUB_CHECKPOINTS_ELAPSED[SUB_CHECKPOINTS_ELAPSED.length - 1] && trailing) {
       // Attacking sub: bring on the bench's best (outfield) finisher for a defensive-minded player.
       const defensive = outfield.filter((p) => p.pos === "CB" || p.pos === "FB" || p.pos === "DM");
-      off = lowestEnergy(defensive.length > 0 ? defensive : outfield);
+      off = worstSubPriority(defensive.length > 0 ? defensive : outfield);
       const outfieldBench = bench[side].filter((p) => p.pos !== "GK");
       on = outfieldBench.length > 0
         ? outfieldBench.reduce((best, p) => (p.shooting > best.shooting ? p : best))
         : undefined;
     } else {
-      off = lowestEnergy(outfield);
+      off = worstSubPriority(outfield);
       on = pickReplacement(side, off.pos);
     }
     if (!on) return; // no valid (non-GK) bench replacement available
