@@ -4,6 +4,7 @@ import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
 import { resolveXI } from "../../core/lineup/resolveXI.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
+import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { canExtend, contractTerms } from "../../core/contracts.js";
 import { keepsDepthFloor } from "../../core/freeAgency.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
@@ -200,6 +201,7 @@ export function Roster() {
   const starterPids = xi.map((p) => p.pid);
   const starterPidSet = new Set(starterPids);
   const bench = sortByPosThenOvr(players.filter((p) => !starterPidSet.has(p.pid)));
+  const teamRating = computeTeamRating(players, userTeam.starters);
 
   const hasStats = league.played.length > 0;
 
@@ -238,6 +240,9 @@ export function Roster() {
         {userTeam.name} Roster{" "}
         <small className={players.length >= ROSTER_CAP ? "text-danger" : "text-muted"}>
           ({players.length}/{ROSTER_CAP})
+        </small>{" "}
+        <small className="text-muted">
+          &middot; {teamRating.ovr} OVR / {teamRating.pot} POT
         </small>
       </h4>
       {players.length === 0 ? (

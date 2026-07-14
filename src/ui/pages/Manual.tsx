@@ -84,7 +84,7 @@ export function Manual() {
           <p>Every screen in the game and what it's for:</p>
           <ul>
             <li><strong>Dashboard</strong> — your record, next fixtures, a finances snapshot with the scouting-spend slider, and the sim buttons.</li>
-            <li><strong>Standings</strong> — the league table. A season dropdown lets you look up any past season's final table alongside the current one; the champion's row is highlighted.</li>
+            <li><strong>Standings</strong> — the league table, plus each club's current OVR/POT. A season dropdown lets you look up any past season's final table alongside the current one; the champion's row is highlighted.</li>
             <li><strong>Schedule</strong> — every matchday's fixtures and results; click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong> — a Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since).</li>
             <li><strong>Awards</strong> — Player of the Season, the Golden Boot, and a Team of the Season pitch view, one entry per completed season with a dropdown to browse past years. Opens automatically the moment you advance past a season.</li>
@@ -162,6 +162,14 @@ export function Manual() {
             one in four meets or beats it. Crucially, potential has <em>zero</em> influence on how a
             player actually develops; it's a forecast of the development model, not an input to it.
             It gets re-estimated as the player ages, so it drifts toward his current OVR over time.
+          </p>
+          <p>
+            <strong>Team OVR and POT</strong> (shown on Standings and at the top of your Roster
+            page) aren't a plain average of the whole squad — like a strong bench beats a stacked
+            bench of scrubs in real football, your starting XI counts in full, and each bench
+            player behind them counts for progressively less the further down the depth chart he
+            sits. A deep, talented bench genuinely lifts the number; fringe reserves barely move
+            it.
           </p>
         </Section>
 

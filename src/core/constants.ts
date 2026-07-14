@@ -34,6 +34,20 @@ export const ROSTER_COMPOSITION: Record<Position, number> = {
 export const BENCH_SIZE = 7;
 
 /**
+ * Team OVR/POT rating (Standings, Roster header): a weighted average across
+ * the starting XI and bench, not a straight mean of the whole roster —
+ * modeled on how BBGM/Football GM derive team ratings from a top-N,
+ * depth-weighted slice of the roster rather than every rostered player.
+ * Starters all weigh TEAM_RATING_STARTER_WEIGHT (1); each bench player past
+ * them weighs less, decaying geometrically by TEAM_RATING_BENCH_DECAY per
+ * depth slot off a TEAM_RATING_BENCH_BASE_WEIGHT starting point, so a strong
+ * bench lifts the rating while deep fringe players barely move it.
+ */
+export const TEAM_RATING_STARTER_WEIGHT = 1;
+export const TEAM_RATING_BENCH_BASE_WEIGHT = 0.5;
+export const TEAM_RATING_BENCH_DECAY = 0.75;
+
+/**
  * Hard squad-size limit enforced on player-adding actions (free-agent
  * signings, transfer buys). Set comfortably above ROSTER_COMPOSITION's 25 so
  * clubs have real squad depth, matching typical real-world first-team limits.
