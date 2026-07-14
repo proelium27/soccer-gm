@@ -7,7 +7,7 @@ import { computeSeasonAwards, type SeasonAwards } from "../core/awards.js";
 import { FORMATIONS } from "../core/lineup/formations.js";
 import {
   HYPE_INITIAL, SCOUTING_SPEND_MIN,
-  LEAGUE_BASE, TEAM_STRENGTH_SPREAD, NUM_TEAMS,
+  NUM_TEAMS,
 } from "../core/constants.js";
 import { chargeSeasonStart, wageBill } from "../core/finance/budget.js";
 
@@ -17,14 +17,32 @@ type StoredTeamAnyVersion =
   Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "division" | "divisionConvergence">>;
 
 /**
+ * Generation constants frozen at the values active when academyBase was
+ * introduced as a field (the M6-era finance work) — NOT live imports from
+ * constants.js. A save missing academyBase predates that field entirely, so
+ * it was generated under whatever LEAGUE_BASE/TEAM_STRENGTH_SPREAD were in
+ * effect at *that* time, not whatever they happen to be today. Importing the
+ * live constants here meant every later generation retune (there have
+ * already been two: 2026-07-10 and 2026-07-14) silently reshuffled old
+ * saves' reconstructed academyBase out from under them on load, breaking the
+ * "academyBase is fixed at generation, never touched again" invariant the M4
+ * progression-inflation fix depends on. Pinning these avoids that for every
+ * future retune; it's still only an approximation for saves old enough to
+ * predate the 2026-07-10 rebalance too, which is a pre-existing, unavoidable
+ * limitation (no generation-time version marker was ever stored).
+ */
+const FALLBACK_LEAGUE_BASE = 46;
+const FALLBACK_TEAM_STRENGTH_SPREAD = 7;
+
+/**
  * Reconstruct the generation-time strength target for a save written before
  * academyBase existed, using the same evenly-spaced formula generateLeague
  * uses (tid ordering encodes strength: strongest at tid 0).
  */
 function fallbackAcademyBase(tid: number): number {
   const frac = tid / (NUM_TEAMS - 1);
-  const target = TEAM_STRENGTH_SPREAD - frac * (2 * TEAM_STRENGTH_SPREAD);
-  return LEAGUE_BASE + target;
+  const target = FALLBACK_TEAM_STRENGTH_SPREAD - frac * (2 * FALLBACK_TEAM_STRENGTH_SPREAD);
+  return FALLBACK_LEAGUE_BASE + target;
 }
 
 /** A league as it may exist in a save written before M6 added the transfer market. */
