@@ -54,9 +54,10 @@
   --sg-draw: oklch(0.66 0.012 155);
   --sg-warn: oklch(0.80 0.13 80);
   --sg-warn-wash: oklch(0.80 0.13 80 / 0.22);
-  /* Your-team highlight uses gold so it never reads as win/loss green/red. */
-  --sg-user: oklch(0.82 0.12 88);
-  --sg-user-wash: oklch(0.82 0.12 88 / 0.13);
+  /* Your-team highlight uses blue so it never reads as win/loss green/red,
+     and stays distinct from the champion/warn gold used elsewhere. */
+  --sg-user: oklch(0.72 0.16 240);
+  --sg-user-wash: oklch(0.72 0.16 240 / 0.14);
 
   --sg-radius: 6px;
   --sg-shadow: 0 0.5rem 1.5rem oklch(0.12 0.02 155 / 0.45);
@@ -241,7 +242,12 @@ a:hover {
    in the markup (position number, W/D/L letters). */
 .team-highlight > td {
   background-color: var(--sg-user-wash) !important;
-  box-shadow: inset 2px 0 0 var(--sg-user); /* leading edge marker, your club */
+}
+.team-highlight > td:first-child {
+  /* Leading edge marker, your club — scoped to the row's first cell only;
+     applying it to every <td> drew a stray vertical line at every column
+     boundary instead of one clean marker at the row's edge. */
+  box-shadow: inset 2px 0 0 var(--sg-user);
 }
 .champion-highlight > td {
   background-color: var(--sg-warn-wash) !important;
