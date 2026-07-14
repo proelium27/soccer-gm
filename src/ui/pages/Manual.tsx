@@ -85,6 +85,7 @@ export function Manual() {
           <ul>
             <li><strong>Dashboard</strong> — your record, next fixtures, a finances snapshot with the scouting-spend slider, and the sim buttons.</li>
             <li><strong>Standings</strong> — the league table, plus each club's current OVR/POT. A season dropdown lets you look up any past season's final table alongside the current one; the champion's row is highlighted.</li>
+            <li><strong>Power Rankings</strong> — every club ranked by squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column). Click a team to expand its full roster in place.</li>
             <li><strong>Schedule</strong> — every matchday's fixtures and results; click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong> — a Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since).</li>
             <li><strong>Awards</strong> — Player of the Season, the Golden Boot, and a Team of the Season pitch view, one entry per completed season with a dropdown to browse past years. Opens automatically the moment you advance past a season.</li>
