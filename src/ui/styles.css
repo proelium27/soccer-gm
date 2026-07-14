@@ -499,8 +499,8 @@ a:hover {
   margin: 0 auto 1rem;
   background: repeating-linear-gradient(
     90deg,
-    var(--sg-green-deep) 0 40px,
-    color-mix(in oklch, var(--sg-green-deep) 78%, white 22%) 40px 80px
+    var(--sg-green-deep) 0 70px,
+    color-mix(in oklch, var(--sg-green-deep) 90%, white 10%) 70px 140px
   );
   border: 1px solid var(--sg-border-strong);
   border-radius: var(--sg-radius);
