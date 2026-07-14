@@ -631,3 +631,13 @@ export const TOTS_SAVE_WEIGHT = 0.035;
 export const TOTS_GOALS_AGAINST_PENALTY: Record<"GK" | "DEF" | "MID" | "FWD", number> = {
   FWD: 0, MID: 0.006, DEF: 0.02, GK: 0.03,
 };
+
+/* ────────────────────────────────────────────────────────────────────────
+ * News Feed accomplishments
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** Minimum single-match rating (see engine/matchRating.ts) to qualify as a matchday's "standout performance" news item. At most one per matchday, league-wide. */
+export const NEWS_STANDOUT_RATING_FLOOR = 8.0;
+
+/** Goal-milestone news items fire every time a player's season or career goal total crosses a multiple of this. */
+export const NEWS_GOAL_MILESTONE_STEP = 10;
