@@ -41,6 +41,8 @@ function makeLeagueStore(seed: number): LeagueStore {
     hype: HYPE_INITIAL,
     scoutingSpend: SCOUTING_SPEND_MIN,
     academyBase: t.academyBase,
+    division: t.division,
+    divisionConvergence: null,
     starters: null,
   }));
 
