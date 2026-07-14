@@ -381,6 +381,10 @@ a:hover {
   box-shadow: var(--sg-shadow);
   padding: 0.5rem 0.75rem;
   font-size: var(--sg-text-sm);
+  /* Pitch chips set white-space: nowrap for their own single-line layout;
+     since white-space is inherited, this panel would otherwise inherit it
+     and refuse to wrap long names/OVR-POT text, overflowing its own width. */
+  white-space: normal;
 }
 .player-ratings-tooltip-title {
   display: block;
