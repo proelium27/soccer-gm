@@ -5,10 +5,15 @@ import { generateLeague } from "../../src/core/league/generate.js";
 import { leagueComposites } from "../../src/core/league/composites.js";
 
 const N = 20_000;
-const comps = leagueComposites(generateLeague(mulberry32(1)));
-// Ends as the strong/weak pair (used by the mismatch gates below).
-const strong = comps[0];
-const weak = comps[comps.length - 1];
+const league1 = generateLeague(mulberry32(1));
+const comps = leagueComposites(league1);
+// Strength targets are now shuffled across tids at generation, so pick the
+// strong/weak pair by actual generated avgOvr rather than array position.
+const byStrength = league1.teams
+  .map((t, i) => ({ avgOvr: t.avgOvr, comp: comps[i] }))
+  .sort((a, b) => b.avgOvr - a.avgOvr);
+const strong = byStrength[0].comp;
+const weak = byStrength[byStrength.length - 1].comp;
 
 interface AveragedMetrics {
   goalsPerGame: number;
