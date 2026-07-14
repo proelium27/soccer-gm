@@ -43,7 +43,10 @@ function TeamBoxTable({
             <th className="text-end">A</th>
             <th className="text-end">Sh</th>
             <th className="text-end">SoT</th>
+            <th className="text-end">xG</th>
             <th className="text-end">Sv</th>
+            <th className="text-end">GA</th>
+            <th className="text-end">xGA</th>
             <th className="text-end">Tkl</th>
             <th className="text-end">Int</th>
             <th className="text-end">YC</th>
@@ -67,7 +70,10 @@ function TeamBoxTable({
               <td className="text-end">{line.assists || ""}</td>
               <td className="text-end">{line.shots || ""}</td>
               <td className="text-end">{line.shotsOnTarget || ""}</td>
+              <td className="text-end">{line.xg > 0 ? line.xg.toFixed(2) : ""}</td>
               <td className="text-end">{line.saves || ""}</td>
+              <td className="text-end">{playerPos(line.pid) === "GK" ? line.goalsAgainst : ""}</td>
+              <td className="text-end">{playerPos(line.pid) === "GK" ? line.xga.toFixed(2) : ""}</td>
               <td className="text-end">{line.tackles || ""}</td>
               <td className="text-end">{line.interceptions || ""}</td>
               <td className="text-end">{line.yellowCards || ""}</td>
@@ -191,6 +197,8 @@ export function BoxScore() {
   const playerNationality = (pid: number) => playerMap.get(pid)?.nationality;
 
   const possPct = Math.round(match.possessionHome * 100);
+  const homeXg = match.boxScore.home.reduce((sum, l) => sum + l.xg, 0);
+  const awayXg = match.boxScore.away.reduce((sum, l) => sum + l.xg, 0);
   const motm = manOfTheMatch(match);
 
   const shotEvents = match.boxScore.events.filter(
@@ -209,6 +217,9 @@ export function BoxScore() {
         <small className="text-muted">Matchday {match.matchday}</small>
         <div className="mt-1">
           <small>Possession: {possPct}% — {100 - possPct}%</small>
+        </div>
+        <div className="mt-1">
+          <small>xG: {homeXg.toFixed(2)} — {awayXg.toFixed(2)}</small>
         </div>
         {motm && (
           <div className="mt-1">

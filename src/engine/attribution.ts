@@ -42,6 +42,12 @@ export interface PlayerMatchLine {
   assists: number;
   shots: number;
   shotsOnTarget: number;
+  /** Sum of pre-roll goal probability across this player's shots (incl. penalties); see engine/matchSim.ts's resolveShot. */
+  xg: number;
+  /** Goalkeepers only: the team's full-match goals conceded (0 for every other position). */
+  goalsAgainst: number;
+  /** Goalkeepers only: the opposing side's full-match attacking xG total, i.e. this keeper's "expected goals against." */
+  xga: number;
   saves: number;
   tackles: number;
   interceptions: number;
@@ -176,7 +182,7 @@ export function eventTypeFromShot(outcome: ShotOutcome): MatchEventType {
 
 export function emptyLine(pid: number): PlayerMatchLine {
   return {
-    pid, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, saves: 0, tackles: 0,
+    pid, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, xg: 0, goalsAgainst: 0, xga: 0, saves: 0, tackles: 0,
     interceptions: 0, yellowCards: 0, redCards: 0, minutesPlayed: 0, rating: 6.0,
   };
 }

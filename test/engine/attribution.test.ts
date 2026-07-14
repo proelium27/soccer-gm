@@ -145,6 +145,31 @@ describe("simMatchDetailed", () => {
     const savedEvents = result.boxScore.events.filter((e) => e.type === "shot_saved");
     expect(totalSaves).toBe(savedEvents.length);
   });
+
+  it("GK's goalsAgainst matches the team's actual goals conceded, and xga matches the opponent's total xg", () => {
+    const rng = mulberry32(789);
+    const home = makeTeam("Home");
+    const away = makeTeam("Away");
+    const result = simMatchDetailed(rng, home, away, makeSquad(0), makeSquad(100));
+
+    const homeGK = result.boxScore.home.find((l) => l.pid === 1)!;
+    const awayGK = result.boxScore.away.find((l) => l.pid === 101)!;
+    const homeXg = result.boxScore.home.reduce((s, l) => s + l.xg, 0);
+    const awayXg = result.boxScore.away.reduce((s, l) => s + l.xg, 0);
+
+    expect(homeGK.goalsAgainst).toBe(result.away);
+    expect(awayGK.goalsAgainst).toBe(result.home);
+    expect(homeGK.xga).toBeCloseTo(awayXg, 9);
+    expect(awayGK.xga).toBeCloseTo(homeXg, 9);
+
+    // Only the GK's line should ever carry goalsAgainst/xga.
+    for (const line of [...result.boxScore.home, ...result.boxScore.away]) {
+      if (line.pid !== homeGK.pid && line.pid !== awayGK.pid) {
+        expect(line.goalsAgainst).toBe(0);
+        expect(line.xga).toBe(0);
+      }
+    }
+  });
 });
 
 describe("tackle/interception credit split", () => {

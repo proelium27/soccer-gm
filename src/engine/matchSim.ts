@@ -113,30 +113,52 @@ export interface MatchResult {
 
 export type ShotOutcome = "blocked" | "off_target" | "saved" | "goal";
 
+export interface ShotResult {
+  outcome: ShotOutcome;
+  /**
+   * The chance's quality, independent of who's taking it: what an
+   * average-finishing attacker would be expected to score against this same
+   * defense. Deliberately excludes `off.finishing` (see xgOnTargetP/xgSaveP
+   * below) — an elite finisher's shots must NOT score higher xG just because
+   * he's an elite finisher, or "goals vs xG" could never reveal finishing
+   * skill (his actual conversion rate would just track his own inflated
+   * baseline). blockP/saveP still reflect the actual defense/keeper faced,
+   * since that's genuine chance difficulty, not shooter identity.
+   */
+  xg: number;
+}
+
 /** Shot resolution cascade: block -> off target -> save -> goal. (PoC lines 57-73) */
 export function resolveShot(
   rng: () => number,
   off: Composites,
   def: Composites,
-): ShotOutcome {
+): ShotResult {
   const blockP = clamp(BLOCK_BASE * (1 + 0.6 * (def.defense - 0.5)), 0.05, 0.6);
-  if (rng() < blockP) return "blocked";
-
   const onTargetP = clamp(
     ONTARGET_BASE * (1 + 0.5 * (off.finishing - 0.5)),
     0.1,
     0.9,
   );
-  if (rng() >= onTargetP) return "off_target";
-
   const saveP = clamp(
     SAVE_BASE * (1 + 0.5 * (def.keeping - 0.5)) - 0.3 * (off.finishing - 0.5),
     0.2,
     0.95,
   );
-  if (rng() < saveP) return "saved";
 
-  return "goal";
+  // xG-only probabilities: same cascade, but with the shooter's finishing
+  // held at a neutral 0.5 (the "average attacker" baseline every composite
+  // is centered on elsewhere in this file). These never drive the RNG rolls
+  // below — only the real onTargetP/saveP (which do include off.finishing)
+  // decide the actual outcome, so match balance/tuning is untouched.
+  const xgOnTargetP = clamp(ONTARGET_BASE, 0.1, 0.9);
+  const xgSaveP = clamp(SAVE_BASE * (1 + 0.5 * (def.keeping - 0.5)), 0.2, 0.95);
+  const xg = (1 - blockP) * xgOnTargetP * (1 - xgSaveP);
+
+  if (rng() < blockP) return { outcome: "blocked", xg };
+  if (rng() >= onTargetP) return { outcome: "off_target", xg };
+  if (rng() < saveP) return { outcome: "saved", xg };
+  return { outcome: "goal", xg };
 }
 
 /** Simulate one match. (PoC lines 76-141) */
@@ -241,7 +263,7 @@ export function simMatch(
       );
       if (rng() < freeKickP) {
         stat[poss].shots++;
-        const outcome = resolveShot(rng, teams[poss], teams[defSide]);
+        const { outcome } = resolveShot(rng, teams[poss], teams[defSide]);
         if (outcome === "saved" || outcome === "goal") stat[poss].sot++;
         if (outcome === "goal") {
           bumpEvent();
@@ -259,7 +281,7 @@ export function simMatch(
     }
 
     stat[poss].shots++;
-    const outcome = resolveShot(rng, off, def);
+    const { outcome } = resolveShot(rng, off, def);
 
     if (outcome === "saved" || outcome === "goal") stat[poss].sot++;
 
@@ -277,7 +299,7 @@ export function simMatch(
       // Corner: one bonus shot, still gated through the normal cascade.
       bumpEvent();
       stat[poss].shots++;
-      const cornerOutcome = resolveShot(rng, off, def);
+      const { outcome: cornerOutcome } = resolveShot(rng, off, def);
       if (cornerOutcome === "saved" || cornerOutcome === "goal") stat[poss].sot++;
       if (cornerOutcome === "goal") {
         stat[poss].goals++;
@@ -616,6 +638,13 @@ export function simMatchDetailed(
           0.55,
           0.9,
         );
+        // xG excludes the taker's own shooting rating, same reasoning as
+        // resolveShot's xgOnTargetP/xgSaveP: an ace penalty-taker's spot
+        // kicks shouldn't score higher xG just because he's an ace, or he'd
+        // never show up as beating expectation. goalP (with his rating)
+        // still drives the actual roll below.
+        const xgP = clamp(PENALTY_CONVERSION * (1 - 0.15 * (gkKeeping / 100 - 0.5)), 0.55, 0.9);
+        shooterLine.xg += xgP;
         if (rng() < goalP) {
           stat[poss].sot++;
           shooterLine.shotsOnTarget++;
@@ -648,7 +677,8 @@ export function simMatchDetailed(
         stat[poss].shots++;
         shooterLine.shots++;
 
-        const outcome = resolveShot(rng, off, def);
+        const { outcome, xg } = resolveShot(rng, off, def);
+        shooterLine.xg += xg;
         if (outcome === "saved" || outcome === "goal") {
           stat[poss].sot++;
           shooterLine.shotsOnTarget++;
@@ -679,7 +709,8 @@ export function simMatchDetailed(
     stat[poss].shots++;
     shooterLine.shots++;
 
-    const outcome = resolveShot(rng, off, def);
+    const { outcome, xg } = resolveShot(rng, off, def);
+    shooterLine.xg += xg;
 
     if (outcome === "saved" || outcome === "goal") {
       stat[poss].sot++;
@@ -723,7 +754,8 @@ export function simMatchDetailed(
       stat[poss].shots++;
       headerLine.shots++;
 
-      const cornerOutcome = resolveShot(rng, off, def);
+      const { outcome: cornerOutcome, xg: cornerXg } = resolveShot(rng, off, def);
+      headerLine.xg += cornerXg;
       if (cornerOutcome === "saved" || cornerOutcome === "goal") {
         stat[poss].sot++;
         headerLine.shotsOnTarget++;
@@ -765,22 +797,40 @@ export function simMatchDetailed(
     return Math.max(0, Math.round((enter - exit) / 60));
   };
 
+  // Goalkeepers can't currently be subbed off mid-match (see the landmine
+  // noted in matchSim.ts's history), so exactly one GK per side plays the
+  // whole game — the team's full-match goals conceded and the opponent's
+  // full-match attacking xG can both be attributed to him directly, with no
+  // need to track either per-shot.
+  const teamXg = (roster: MatchPlayer[]): number =>
+    roster.reduce((sum, p) => sum + (lines.get(p.pid)?.xg ?? 0), 0);
+
+  const homeRosterAll = [...homePlayers, ...homeBench];
+  const awayRosterAll = [...awayPlayers, ...awayBench];
+  const homeXgTotal = teamXg(homeRosterAll);
+  const awayXgTotal = teamXg(awayRosterAll);
+
   const finishLines = (
     roster: MatchPlayer[],
     appearedSet: Set<number>,
     teamGoalsAgainst: number,
+    teamXga: number,
   ): PlayerMatchLine[] =>
     roster
       .filter((p) => appearedSet.has(p.pid))
       .map((p) => {
         const line = lines.get(p.pid)!;
         line.minutesPlayed = minutesFor(p.pid);
+        if (p.pos === "GK") {
+          line.goalsAgainst = teamGoalsAgainst;
+          line.xga = teamXga;
+        }
         line.rating = computeMatchRating(line, p.pos, line.minutesPlayed, teamGoalsAgainst);
         return line;
       });
 
-  const homeLines = finishLines([...homePlayers, ...homeBench], appeared.home, stat.away.goals);
-  const awayLines = finishLines([...awayPlayers, ...awayBench], appeared.away, stat.home.goals);
+  const homeLines = finishLines(homeRosterAll, appeared.home, stat.away.goals, awayXgTotal);
+  const awayLines = finishLines(awayRosterAll, appeared.away, stat.home.goals, homeXgTotal);
 
   return {
     home: stat.home.goals,
