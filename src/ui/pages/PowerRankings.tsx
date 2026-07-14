@@ -1,11 +1,24 @@
 import { Fragment, useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import type { Player } from "../../core/players/types.js";
+import type { StoredTeam } from "../../core/teams/clubs.js";
+import { FORMATIONS } from "../../core/lineup/formations.js";
+import { resolveXI } from "../../core/lineup/resolveXI.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
+import { layoutSlots } from "../pitchLayout.js";
+import { getRatingColor } from "../utils/ratingColor.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { Flag } from "../components/Flag.js";
 import { sortByPosThenOvr } from "./Roster.js";
+
+const SLOTS = FORMATIONS["4-3-3"];
+const COORDS = layoutSlots(SLOTS);
+
+function shortName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return parts[parts.length - 1];
+}
 
 export function PowerRankings() {
   const { league } = useLeague();
@@ -65,7 +78,7 @@ export function PowerRankings() {
                   <tr>
                     <td></td>
                     <td colSpan={3}>
-                      <RosterPreview roster={roster} season={league.season} />
+                      <RosterPreview team={team} roster={roster} season={league.season} />
                     </td>
                   </tr>
                 )}
@@ -78,44 +91,86 @@ export function PowerRankings() {
   );
 }
 
-function RosterPreview({ roster, season }: { roster: Player[]; season: number }) {
+function RosterPreview({
+  team,
+  roster,
+  season,
+}: {
+  team: StoredTeam;
+  roster: Player[];
+  season: number;
+}) {
   if (roster.length === 0) {
     return <p className="text-muted mb-2">No players on roster.</p>;
   }
-  const players = sortByPosThenOvr(roster);
+  const xi = resolveXI(roster, SLOTS, team.starters);
+  const xiPids = new Set(xi.map((p) => p.pid));
+  const bench = sortByPosThenOvr(roster.filter((p) => !xiPids.has(p.pid)));
+
   return (
-    <table className="table table-sm mb-2">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Pos</th>
-          <th className="text-end">Age</th>
-          <th className="text-end">Ovr</th>
-          <th className="text-end">Pot</th>
-          <th className="text-end">Wage</th>
-          <th className="text-end">Contract</th>
-        </tr>
-      </thead>
-      <tbody>
-        {players.map((p) => (
-          <tr key={p.pid}>
-            <td>
-              <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
-              <Flag nationality={p.nationality} />
-            </td>
-            <td>{p.pos}</td>
-            <td className="text-end">{season - p.born}</td>
-            <td className="text-end">{p.ovr}</td>
-            <td className="text-end">{p.potential}</td>
-            <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
-            <td className="text-end">
-              {p.contract.expiresSeason <= season
-                ? "Final year"
-                : `Through ${seasonYear(p.contract.expiresSeason)}`}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="mb-2">
+      <div className="pitch-field">
+        <div className="pitch-goal pitch-goal--left" />
+        <div className="pitch-goal pitch-goal--right" />
+        {xi.map((p, i) => {
+          const coord = COORDS[i];
+          return (
+            <div
+              key={p.pid}
+              className="pitch-slot"
+              style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
+            >
+              <PlayerRatingsTooltip player={p}>
+                <span
+                  className={"pitch-chip" + (p.pos === "GK" ? " pitch-chip--gk" : "")}
+                  style={{ borderColor: getRatingColor(p.ovr), cursor: "default" }}
+                >
+                  <span className="pitch-chip-name">{shortName(p.name)}</span>
+                  <span className="pitch-chip-ovr">{p.ovr}</span>
+                </span>
+              </PlayerRatingsTooltip>
+            </div>
+          );
+        })}
+      </div>
+      {bench.length > 0 && (
+        <>
+          <h6 className="mt-3">Bench</h6>
+          <table className="table table-sm mb-0">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Pos</th>
+                <th className="text-end">Age</th>
+                <th className="text-end">Ovr</th>
+                <th className="text-end">Pot</th>
+                <th className="text-end">Wage</th>
+                <th className="text-end">Contract</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bench.map((p) => (
+                <tr key={p.pid}>
+                  <td>
+                    <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                    <Flag nationality={p.nationality} />
+                  </td>
+                  <td>{p.pos}</td>
+                  <td className="text-end">{season - p.born}</td>
+                  <td className="text-end">{p.ovr}</td>
+                  <td className="text-end">{p.potential}</td>
+                  <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
+                  <td className="text-end">
+                    {p.contract.expiresSeason <= season
+                      ? "Final year"
+                      : `Through ${seasonYear(p.contract.expiresSeason)}`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </div>
   );
 }
