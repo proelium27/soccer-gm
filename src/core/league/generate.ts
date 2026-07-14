@@ -41,9 +41,11 @@ export interface League {
 /**
  * Generate `count` teams' worth of rosters, tid range [tidStart, tidStart+count),
  * evenly-spaced strength targets across [-TEAM_STRENGTH_SPREAD, +TEAM_STRENGTH_SPREAD]
- * minus `strengthOffset`, tagged with `division`. Shared by generateLeague
- * (Division 1: tidStart=0, offset=0) and generateTwoDivisionLeague's Division
- * 2 half (tidStart=NUM_TEAMS, offset=DIVISION_2_OFFSET).
+ * minus `strengthOffset`, shuffled (Fisher-Yates) so the strong-to-weak
+ * gradient isn't tied to tid/club order within this division, tagged with
+ * `division`. Shared by generateLeague (Division 1: tidStart=0, offset=0)
+ * and generateTwoDivisionLeague's Division 2 half (tidStart=NUM_TEAMS,
+ * offset=DIVISION_2_OFFSET).
  */
 function generateDivisionTeams(
   rng: () => number,
@@ -58,12 +60,21 @@ function generateDivisionTeams(
   const players: Player[] = [];
   let pid = pidStart;
 
+  // Evenly spaced strength targets, then shuffled so the strong-to-weak
+  // gradient isn't tied to tid/club order within this division.
+  const targets: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const frac = count > 1 ? i / (count - 1) : 0; // 0..1
+    targets.push(TEAM_STRENGTH_SPREAD - frac * (2 * TEAM_STRENGTH_SPREAD) - strengthOffset);
+  }
+  for (let i = targets.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [targets[i], targets[j]] = [targets[j], targets[i]];
+  }
+
   for (let i = 0; i < count; i++) {
     const tid = tidStart + i;
-    // Evenly spaced target: strongest at the first tid in this division, weakest at the last.
-    const frac = count > 1 ? i / (count - 1) : 0; // 0..1
-    const target = TEAM_STRENGTH_SPREAD - frac * (2 * TEAM_STRENGTH_SPREAD) - strengthOffset;
-    const base = LEAGUE_BASE + target;
+    const base = LEAGUE_BASE + targets[i];
 
     const roster: number[] = [];
     let ovrSum = 0;

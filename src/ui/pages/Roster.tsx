@@ -16,7 +16,7 @@ import { ROSTER_CAP } from "../../core/constants.js";
 
 const DRAG_MIME = "application/x-soccer-gm-pid";
 
-function sortByPosThenOvr(players: Player[]): Player[] {
+export function sortByPosThenOvr(players: Player[]): Player[] {
   const posOrder = new Map(POSITIONS.map((pos, i) => [pos, i]));
   return [...players].sort((a, b) => {
     const posA = posOrder.get(a.pos) ?? 99;
