@@ -231,75 +231,73 @@ export function Transfers() {
                 on top of the fee.</>
               )}
             </p>
-            {allTargets.length > 0 && (
-              <div className="d-flex flex-wrap gap-2 align-items-end mb-3">
-                <div>
-                  <label className="form-label small mb-0" htmlFor="rt-filter-pos">Position</label>
-                  <select
-                    id="rt-filter-pos"
-                    className="form-select form-select-sm"
-                    value={filters.position}
-                    onChange={(e) => setFilters((f) => ({ ...f, position: e.target.value }))}
-                  >
-                    <option value="">All</option>
-                    {POSITIONS.map((pos) => (
-                      <option key={pos} value={pos}>{pos}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="form-label small mb-0" htmlFor="rt-filter-min-ovr">Min Ovr</label>
-                  <input
-                    id="rt-filter-min-ovr"
-                    type="number"
-                    className="form-control form-control-sm"
-                    style={{ width: "5.5rem" }}
-                    value={filters.minOvr}
-                    onChange={(e) => setFilters((f) => ({ ...f, minOvr: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="form-label small mb-0" htmlFor="rt-filter-min-pot">Min Pot</label>
-                  <input
-                    id="rt-filter-min-pot"
-                    type="number"
-                    className="form-control form-control-sm"
-                    style={{ width: "5.5rem" }}
-                    value={filters.minPot}
-                    onChange={(e) => setFilters((f) => ({ ...f, minPot: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="form-label small mb-0" htmlFor="rt-filter-max-age">Max Age</label>
-                  <input
-                    id="rt-filter-max-age"
-                    type="number"
-                    className="form-control form-control-sm"
-                    style={{ width: "5.5rem" }}
-                    value={filters.maxAge}
-                    onChange={(e) => setFilters((f) => ({ ...f, maxAge: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="form-label small mb-0" htmlFor="rt-filter-max-value">Max Value</label>
-                  <input
-                    id="rt-filter-max-value"
-                    type="number"
-                    className="form-control form-control-sm"
-                    style={{ width: "8rem" }}
-                    value={filters.maxValue}
-                    onChange={(e) => setFilters((f) => ({ ...f, maxValue: e.target.value }))}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-secondary"
-                  onClick={() => setFilters(EMPTY_FILTERS)}
+            <div className="d-flex flex-wrap gap-2 align-items-end mb-3">
+              <div>
+                <label className="form-label small mb-0" htmlFor="rt-filter-pos">Position</label>
+                <select
+                  id="rt-filter-pos"
+                  className="form-select form-select-sm"
+                  value={filters.position}
+                  onChange={(e) => setFilters((f) => ({ ...f, position: e.target.value }))}
                 >
-                  Clear filters
-                </button>
+                  <option value="">All</option>
+                  {POSITIONS.map((pos) => (
+                    <option key={pos} value={pos}>{pos}</option>
+                  ))}
+                </select>
               </div>
-            )}
+              <div>
+                <label className="form-label small mb-0" htmlFor="rt-filter-min-ovr">Min Ovr</label>
+                <input
+                  id="rt-filter-min-ovr"
+                  type="number"
+                  className="form-control form-control-sm"
+                  style={{ width: "5.5rem" }}
+                  value={filters.minOvr}
+                  onChange={(e) => setFilters((f) => ({ ...f, minOvr: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label small mb-0" htmlFor="rt-filter-min-pot">Min Pot</label>
+                <input
+                  id="rt-filter-min-pot"
+                  type="number"
+                  className="form-control form-control-sm"
+                  style={{ width: "5.5rem" }}
+                  value={filters.minPot}
+                  onChange={(e) => setFilters((f) => ({ ...f, minPot: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label small mb-0" htmlFor="rt-filter-max-age">Max Age</label>
+                <input
+                  id="rt-filter-max-age"
+                  type="number"
+                  className="form-control form-control-sm"
+                  style={{ width: "5.5rem" }}
+                  value={filters.maxAge}
+                  onChange={(e) => setFilters((f) => ({ ...f, maxAge: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label small mb-0" htmlFor="rt-filter-max-value">Max Value</label>
+                <input
+                  id="rt-filter-max-value"
+                  type="number"
+                  className="form-control form-control-sm"
+                  style={{ width: "8rem" }}
+                  value={filters.maxValue}
+                  onChange={(e) => setFilters((f) => ({ ...f, maxValue: e.target.value }))}
+                />
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={() => setFilters(EMPTY_FILTERS)}
+              >
+                Clear filters
+              </button>
+            </div>
             {targets.length === 0 ? (
               <p className="mb-0">
                 {allTargets.length === 0
