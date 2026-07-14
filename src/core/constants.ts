@@ -110,6 +110,23 @@ export const PROGRESSION_NOISE_SD_YOUNG = 3.5;
 export const PROGRESSION_NOISE_SD_OLD = 1.5;
 
 /**
+ * "Form" noise: one shared gaussian roll per rating group (physical, skill)
+ * per player per season, added on top of each rating's independent noise
+ * above. Per-rating noise alone averages out across the ~10-14 ratings that
+ * feed a weighted-average ovr (central limit theorem), so a season's real
+ * ovr movement was almost entirely the deterministic age-curve mean — no
+ * player ever had a real breakout or bust year. This shared roll moves every
+ * rating in a group together, so it survives the ovr average and produces
+ * real season-to-season ovr swings (a lucky young player's ovr can jump well
+ * past the age-curve mean; an unlucky one can dip even during growth years),
+ * matching BBGM's approach of layering shared variance on top of per-rating
+ * noise. Zero-mean like the per-rating noise, so it doesn't shift long-run
+ * league equilibrium, only the spread around it.
+ */
+export const PROGRESSION_FORM_SD_YOUNG = 5;
+export const PROGRESSION_FORM_SD_OLD = 1;
+
+/**
  * Potential (BBGM-style): a scout's *estimate*, not a growth driver. It plays
  * no part in progressPlayer's math — actual development is driven only by
  * age/rating-group and noise (per the BBGM manual: progression depends on

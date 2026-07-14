@@ -6,6 +6,7 @@ import {
   GK_AGE_SHIFT,
   MINUTES_FACTOR_MIN, MINUTES_FACTOR_MAX, FULL_SEASON_APPEARANCES,
   PROGRESSION_NOISE_SD_YOUNG, PROGRESSION_NOISE_SD_OLD,
+  PROGRESSION_FORM_SD_YOUNG, PROGRESSION_FORM_SD_OLD,
   POTENTIAL_SIM_TRIALS, POTENTIAL_SIM_MAX_AGE, POTENTIAL_SIM_PERCENTILE,
   RATING_MIN, RATING_MAX,
   RETIREMENT_START_AGE, RETIREMENT_BASE_PROB, RETIREMENT_PROB_PER_YEAR,
@@ -48,20 +49,24 @@ function baseAgeDelta(effectiveAge: number): number {
   return interpolate(BASE_AGE_CURVE, effectiveAge - BASE_AGE_CURVE_PEAK);
 }
 
-/** Per-rating noise std dev at a given age (narrows as players age). */
-function noiseSdAt(age: number): number {
-  return PROGRESSION_NOISE_SD_YOUNG
-    + (PROGRESSION_NOISE_SD_OLD - PROGRESSION_NOISE_SD_YOUNG)
-      * Math.max(0, Math.min(1, (age - 18) / (RETIREMENT_START_AGE - 18)));
+/** Linearly interpolate a young/old std dev pair by age (narrows as players age). */
+function sdAt(young: number, old: number, age: number): number {
+  return young + (old - young) * Math.max(0, Math.min(1, (age - 18) / (RETIREMENT_START_AGE - 18)));
 }
 
 /**
  * One season of rating movement: each rating group (physical vs. skill,
  * further shifted for GKs) reads its own expected delta off the base age
  * curve, nudged by `minutesFactor` during growth years only; decline years
- * are age/group-driven alone. Independent gaussian noise per rating narrows
- * with age. Shared by real progression and potential's forward simulation so
- * both use the exact same development model. Does not mutate the input.
+ * are age/group-driven alone. Two layers of gaussian noise apply on top:
+ * a per-rating roll (narrows with age) plus one shared per-group "form" roll
+ * (also narrows with age) added identically to every rating in that group.
+ * The per-rating layer alone would mostly cancel out once averaged into a
+ * weighted ovr across 10+ ratings, making real breakout/bust seasons
+ * statistically near-impossible; the shared form roll survives that
+ * averaging and is what actually swings ovr season to season. Shared by real
+ * progression and potential's forward simulation so both use the exact same
+ * development model. Does not mutate the input.
  */
 function stepRatings(
   rng: () => number,
@@ -71,7 +76,8 @@ function stepRatings(
   minutesFactor: number,
 ): PlayerRatings {
   const gkShift = pos === "GK" ? GK_AGE_SHIFT : 0;
-  const noiseSd = noiseSdAt(age);
+  const noiseSd = sdAt(PROGRESSION_NOISE_SD_YOUNG, PROGRESSION_NOISE_SD_OLD, age);
+  const formSd = sdAt(PROGRESSION_FORM_SD_YOUNG, PROGRESSION_FORM_SD_OLD, age);
   const next = { ...ratings };
   for (const [group, shift] of [
     [PHYSICAL_KEYS, gkShift + PHYSICAL_AGE_SHIFT],
@@ -79,8 +85,9 @@ function stepRatings(
   ] as const) {
     const base = baseAgeDelta(age + shift);
     const mean = base > 0 ? base * minutesFactor : base;
+    const formRoll = gaussian(rng) * formSd;
     for (const key of group) {
-      next[key] = clampRating(next[key] + mean + gaussian(rng) * noiseSd);
+      next[key] = clampRating(next[key] + mean + formRoll + gaussian(rng) * noiseSd);
     }
   }
   return next;

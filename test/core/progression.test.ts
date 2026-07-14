@@ -148,6 +148,22 @@ describe("progressPlayer", () => {
     expect(new Set(outcomes).size).toBeGreaterThan(5);
     expect(Math.min(...outcomes)).toBeLessThan(Math.max(...outcomes) - 5);
   });
+
+  it("a shared per-season 'form' swing lets even growth-age players regress, not just grow slower", () => {
+    // The correlated form roll (on top of independent per-rating noise) is
+    // what makes real breakout/bust seasons possible: without it, per-rating
+    // noise mostly cancels out across the many ratings a weighted-average ovr
+    // is built from, and a 22-year-old's ovr would move almost deterministically.
+    const outcomes: number[] = [];
+    for (let i = 0; i < 300; i++) {
+      const rng = mulberry32(6000 + i);
+      const p = generatePlayer(rng, "CM", 55, i, 22, 1);
+      const after = progressPlayer(rng, p, 1);
+      outcomes.push(after.ovr - p.ovr);
+    }
+    expect(outcomes.some((d) => d <= -5)).toBe(true);
+    expect(outcomes.some((d) => d >= 10)).toBe(true);
+  });
 });
 
 describe("retirementProbability", () => {
