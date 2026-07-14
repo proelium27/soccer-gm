@@ -1,15 +1,6 @@
-import { NavLink, useNavigate } from "react-router-dom";
-import { useLeague } from "../context/LeagueContext.js";
+import { NavLink } from "react-router-dom";
 
 export function Sidebar() {
-  const { switchLeagueAction } = useLeague();
-  const navigate = useNavigate();
-
-  function handleSwitchLeague() {
-    switchLeagueAction();
-    navigate("/leagues");
-  }
-
   return (
     <nav className="sidebar d-flex flex-column">
       <div className="nav-section">League</div>
@@ -31,10 +22,6 @@ export function Sidebar() {
 
       <div className="nav-section">Help</div>
       <NavLink to="/manual" className="nav-link">Manual</NavLink>
-
-      <button type="button" className="nav-link btn btn-link text-start mt-auto" onClick={handleSwitchLeague}>
-        Switch League
-      </button>
     </nav>
   );
 }

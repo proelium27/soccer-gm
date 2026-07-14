@@ -43,6 +43,22 @@ describe("migrateLeague", () => {
     expect(migrateLeague(withDeals).transfers).toEqual(withDeals.transfers);
   });
 
+  it("backfills newsEvents to an empty array for saves written before this feature", () => {
+    const league = createLeagueState(0, mulberry32(7));
+    const { newsEvents: _ne, ...withoutNewsEvents } = league;
+    const migrated = migrateLeague(withoutNewsEvents as unknown as LeagueStore);
+    expect(migrated.newsEvents).toEqual([]);
+  });
+
+  it("leaves existing newsEvents untouched", () => {
+    const league = createLeagueState(0, mulberry32(8));
+    const withEvents: LeagueStore = {
+      ...league,
+      newsEvents: [{ type: "hattrick", pid: 1, tid: 0, season: 1, matchday: 3, detail: 3 }],
+    };
+    expect(migrateLeague(withEvents).newsEvents).toEqual(withEvents.newsEvents);
+  });
+
   it("backfills minutesPlayed/rating fields from pre-Match-Rating saves", () => {
     const league = simThrough(createLeagueState(0, mulberry32(5)), "game", mulberry32(6));
     const preRating = {

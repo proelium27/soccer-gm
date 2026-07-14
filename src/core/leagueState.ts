@@ -4,6 +4,7 @@ import type { StoredTeam } from "./teams/clubs.js";
 import type { ScheduleGame } from "./schedule.js";
 import type { CompletedTransfer, TransferNegotiation } from "./transfers/negotiation.js";
 import type { InboundOffer } from "./transfers/inboundOffers.js";
+import type { NewsEvent } from "./newsEvents.js";
 import { generateLeague } from "./league/generate.js";
 import { assignIdentities } from "./teams/clubs.js";
 import { generateSchedule } from "./schedule.js";
@@ -39,6 +40,8 @@ export interface LeagueStore {
   winterMarketRunSeason: number | null;
   /** Final league table for every completed season, oldest first. */
   seasonHistory: SeasonHistoryEntry[];
+  /** Player accomplishments (hat-tricks, standout ratings, goal milestones), all seasons, oldest first. */
+  newsEvents: NewsEvent[];
 }
 
 export function createLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
@@ -65,5 +68,6 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
     transfers: [],
     winterMarketRunSeason: null,
     seasonHistory: [],
+    newsEvents: [],
   };
 }

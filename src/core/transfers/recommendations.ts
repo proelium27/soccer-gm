@@ -27,9 +27,14 @@ export interface TransferTarget {
  * they'd improve the squad (ovr above team level plus potential headroom),
  * with window-seeded noise scaled by scouting quality — poor scouts shuffle
  * the ranking, good scouts surface the genuinely best targets. Deterministic
- * within a window; empty when no window is open.
+ * within a window (and stable across renders) for a given `refreshNonce`;
+ * empty when no window is open. The UI's Refresh button bumps the nonce to
+ * re-roll the noise and surface a different set of targets on demand.
  */
-export function recommendedTransfers(league: LeagueStore): TransferTarget[] {
+export function recommendedTransfers(
+  league: LeagueStore,
+  refreshNonce = 0,
+): TransferTarget[] {
   const ws = transferWindowState(league);
   if (!ws.open) return [];
 
@@ -76,7 +81,9 @@ export function recommendedTransfers(league: LeagueStore): TransferTarget[] {
 
   const noiseSd = scoutingNoiseSd(user.scoutingSpend);
   const score = (c: TransferTarget): number => {
-    const rng = mulberry32(windowSeed(league.lid, ws.season, ws.window, c.player.pid, 3));
+    const rng = mulberry32(
+      windowSeed(league.lid, ws.season, ws.window, c.player.pid, 3 + refreshNonce * 1000),
+    );
     return (
       c.player.ovr - teamAvg
       + RECOMMENDED_UPSIDE_WEIGHT * (c.player.potential - c.player.ovr)

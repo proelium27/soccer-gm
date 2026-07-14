@@ -52,6 +52,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     transfers: [],
     winterMarketRunSeason: null,
     seasonHistory: [],
+    newsEvents: [],
   };
 }
 
@@ -192,5 +193,32 @@ describe("simThrough", () => {
     expect(champ).toBeLessThanOrEqual(94);
     expect(bottom).toBeGreaterThanOrEqual(15);
     expect(bottom).toBeLessThanOrEqual(32);
+  });
+
+  it("newsEvents: starts empty and only grows as matchdays are played, never shrinks", () => {
+    const store = makeLeagueStore(42);
+    expect(store.newsEvents).toEqual([]);
+
+    const rng = mulberry32(800);
+    const afterOneMonth = simThrough(store, "month", rng);
+    expect(Array.isArray(afterOneMonth.newsEvents)).toBe(true);
+    expect(afterOneMonth.newsEvents.length).toBeGreaterThanOrEqual(store.newsEvents.length);
+
+    const rng2 = mulberry32(801);
+    const afterFullSeason = simThrough(afterOneMonth, "season", rng2);
+    expect(afterFullSeason.newsEvents.length).toBeGreaterThanOrEqual(afterOneMonth.newsEvents.length);
+  });
+
+  it("newsEvents: every event carries the matchday it happened on and the store's season", () => {
+    const store = makeLeagueStore(42);
+    const rng = mulberry32(900);
+    const result = simThrough(store, "season", rng);
+
+    for (const e of result.newsEvents) {
+      expect(e.season).toBe(store.season);
+      expect(e.matchday).toBeGreaterThanOrEqual(1);
+      expect(e.matchday).toBeLessThanOrEqual(38);
+      expect(["hattrick", "standoutRating", "goalMilestoneSeason", "goalMilestoneCareer"]).toContain(e.type);
+    }
   });
 });

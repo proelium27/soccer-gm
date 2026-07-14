@@ -120,11 +120,12 @@ function NegotiationControls({
 
 export function Transfers() {
   const { league, makeOfferAction, acceptCounterAction, simming } = useLeague();
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   // The full-league candidate scan is too heavy to redo on unrelated renders.
   const targets = useMemo(
-    () => (league ? recommendedTransfers(league) : []),
-    [league],
+    () => (league ? recommendedTransfers(league, refreshNonce) : []),
+    [league, refreshNonce],
   );
 
   if (!league) {
@@ -175,7 +176,16 @@ export function Transfers() {
       {ws.open && (
         <div className="card mb-3">
           <div className="card-body">
-            <h5 className="card-title">Recommended Transfers</h5>
+            <div className="d-flex justify-content-between align-items-start">
+              <h5 className="card-title">Recommended Transfers</h5>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={() => setRefreshNonce((n) => n + 1)}
+              >
+                Refresh
+              </button>
+            </div>
             <p className="card-text text-muted">
               Players near your team&apos;s level, within budget. The scout
               valuation is your baseline for offers — the selling club&apos;s

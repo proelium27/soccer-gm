@@ -14,6 +14,8 @@ import { applyInjuries } from "./injuries.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { hashInts } from "../engine/rng.js";
 import type { StoredTeam } from "./teams/clubs.js";
+import { playerGoalTotals, detectMatchdayNewsEvents } from "./newsEvents.js";
+import type { NewsEvent } from "./newsEvents.js";
 
 function accumulateStats(
   players: Player[],
@@ -116,6 +118,7 @@ export function simThrough(
   let currentTeams: StoredTeam[] = league.teams;
   let transfers = league.transfers;
   let winterMarketRunSeason = league.winterMarketRunSeason;
+  const newEvents: NewsEvent[] = [];
 
   const toSim: ScheduleGame[] = [];
   const remaining: ScheduleGame[] = [];
@@ -165,6 +168,8 @@ export function simThrough(
     const leagueObj: League = { teams: toLeagueTeams(currentTeams), players: currentPlayers };
     const matchData = leagueMatchData(leagueObj);
 
+    const goalTotalsBefore = playerGoalTotals(currentPlayers, league.season);
+
     const gamesThisMatchday = toSim.filter((g) => g.matchday === matchday);
     const mdResults = gamesThisMatchday.map((game): PlayedMatch => {
       const hd = matchData[game.home];
@@ -203,6 +208,11 @@ export function simThrough(
 
     currentPlayers = applyInjuries(rng, currentPlayers, mdResults);
 
+    const goalTotalsAfter = playerGoalTotals(currentPlayers, league.season);
+    newEvents.push(
+      ...detectMatchdayNewsEvents(mdResults, league.season, matchday, goalTotalsBefore, goalTotalsAfter),
+    );
+
     newResults.push(...mdResults);
     onMatchday?.(matchday, index, matchdays.length, mdResults);
   });
@@ -216,5 +226,6 @@ export function simThrough(
     played: [...league.played, ...newResults],
     transfers,
     winterMarketRunSeason,
+    newsEvents: [...league.newsEvents, ...newEvents],
   };
 }
