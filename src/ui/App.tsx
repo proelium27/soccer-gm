@@ -5,6 +5,7 @@ import { Leagues } from "./pages/Leagues.js";
 import { NewLeague } from "./pages/NewLeague.js";
 import { Dashboard } from "./pages/Dashboard.js";
 import { Standings } from "./pages/Standings.js";
+import { PowerRankings } from "./pages/PowerRankings.js";
 import { Schedule } from "./pages/Schedule.js";
 import { Roster } from "./pages/Roster.js";
 import { Leaders } from "./pages/Leaders.js";
@@ -35,6 +36,7 @@ export function App() {
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/standings" element={<Standings />} />
+            <Route path="/power-rankings" element={<PowerRankings />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/news" element={<NewsFeed />} />
             <Route path="/awards" element={<Awards />} />
