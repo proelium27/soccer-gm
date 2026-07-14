@@ -8,6 +8,7 @@ import {
   PROGRESSION_NOISE_SD_YOUNG, PROGRESSION_NOISE_SD_OLD,
   PROGRESSION_FORM_SD_YOUNG, PROGRESSION_FORM_SD_OLD,
   PROGRESSION_BIAS_SD_YOUNG,
+  GROWTH_DAMPING_START, GROWTH_DAMPING_END, GROWTH_DAMPING_FLOOR,
   POTENTIAL_SIM_TRIALS, POTENTIAL_SIM_MAX_AGE, POTENTIAL_SIM_PERCENTILE,
   RATING_MIN, RATING_MAX,
   RETIREMENT_START_AGE, RETIREMENT_BASE_PROB, RETIREMENT_PROB_PER_YEAR,
@@ -86,19 +87,37 @@ function biasSdAt(young: number, age: number): number {
 }
 
 /**
+ * Scales down the *positive* part of a season's development as current ovr
+ * climbs through [GROWTH_DAMPING_START, GROWTH_DAMPING_END] toward
+ * GROWTH_DAMPING_FLOOR — big breakout jumps should get rarer the closer a
+ * player already is to elite, independent of age. 1 (no damping) at/below
+ * the start of the range, GROWTH_DAMPING_FLOOR at/above the end.
+ */
+function growthDamping(ovr: number): number {
+  if (ovr <= GROWTH_DAMPING_START) return 1;
+  if (ovr >= GROWTH_DAMPING_END) return GROWTH_DAMPING_FLOOR;
+  const t = (ovr - GROWTH_DAMPING_START) / (GROWTH_DAMPING_END - GROWTH_DAMPING_START);
+  return 1 - t * (1 - GROWTH_DAMPING_FLOOR);
+}
+
+/**
  * One season of rating movement: each rating group (physical vs. skill,
  * further shifted for GKs) reads its own expected delta off the base age
  * curve, nudged by `minutesFactor` during growth years only; decline years
- * are age/group-driven alone. Three layers apply on top of that mean: the
- * player's fixed `developmentBias` (same sign/scale every season — a clean
- * developer or a bust), a per-group "form" roll (fresh gaussian each season,
- * shared across every rating in that group), and independent per-rating
- * noise. Per-rating noise alone would mostly cancel out once averaged into a
- * weighted ovr across 10+ ratings, making real breakout/bust seasons
- * statistically near-impossible; the shared bias/form terms survive that
- * averaging and are what actually swings ovr season to season. Shared by
- * real progression and potential's forward simulation so both use the exact
- * same development model. Does not mutate the input.
+ * are age/group-driven alone. On top of that mean, the player's fixed
+ * `developmentBias` (same sign/scale every season — a clean developer or a
+ * bust) and a per-group "form" roll (fresh gaussian each season, shared
+ * across every rating in that group) combine into a single per-group
+ * delta; if that combined delta is positive, `growthDamping` scales it down
+ * based on the player's *current* ovr (declines are never damped — a bust
+ * should decline just as easily whether they're rated 55 or 75). Finally,
+ * independent per-rating noise applies on top, undamped. Per-rating noise
+ * alone would mostly cancel out once averaged into a weighted ovr across
+ * 10+ ratings, making real breakout/bust seasons statistically
+ * near-impossible; the shared bias/form terms survive that averaging and
+ * are what actually swings ovr season to season. Shared by real progression
+ * and potential's forward simulation so both use the exact same development
+ * model. Does not mutate the input.
  */
 function stepRatings(
   rng: () => number,
@@ -107,12 +126,14 @@ function stepRatings(
   pos: Player["pos"],
   minutesFactor: number,
   pid: number,
+  heightCm: number,
 ): PlayerRatings {
   const gkShift = pos === "GK" ? GK_AGE_SHIFT : 0;
   const noiseSd = sdAt(PROGRESSION_NOISE_SD_YOUNG, PROGRESSION_NOISE_SD_OLD, age);
   const formSd = sdAt(PROGRESSION_FORM_SD_YOUNG, PROGRESSION_FORM_SD_OLD, age);
   const biasSd = biasSdAt(PROGRESSION_BIAS_SD_YOUNG, age);
   const bias = developmentBias(pid) * biasSd;
+  const damping = growthDamping(computeOvr(pos, ratings, heightCm));
   const next = { ...ratings };
   for (const [group, shift] of [
     [PHYSICAL_KEYS, gkShift + PHYSICAL_AGE_SHIFT],
@@ -121,8 +142,10 @@ function stepRatings(
     const base = baseAgeDelta(age + shift);
     const mean = base > 0 ? base * minutesFactor : base;
     const formRoll = gaussian(rng) * formSd;
+    const combined = mean + bias + formRoll;
+    const dampedCombined = combined > 0 ? combined * damping : combined;
     for (const key of group) {
-      next[key] = clampRating(next[key] + mean + bias + formRoll + gaussian(rng) * noiseSd);
+      next[key] = clampRating(next[key] + dampedCombined + gaussian(rng) * noiseSd);
     }
   }
   return next;
@@ -151,7 +174,7 @@ export function estimatePotential(
     let simRatings = ratings;
     let peak = ovr;
     for (let simAge = age + 1; simAge <= POTENTIAL_SIM_MAX_AGE; simAge++) {
-      simRatings = stepRatings(rng, simRatings, simAge, pos, 1, pid);
+      simRatings = stepRatings(rng, simRatings, simAge, pos, 1, pid, heightCm);
       const simOvr = computeOvr(pos, simRatings, heightCm);
       if (simOvr > peak) peak = simOvr;
     }
@@ -179,7 +202,7 @@ export function progressPlayer(
     + (MINUTES_FACTOR_MAX - MINUTES_FACTOR_MIN)
       * Math.max(0, Math.min(1, appearances / FULL_SEASON_APPEARANCES));
 
-  const ratings = stepRatings(rng, player.ratings, age, player.pos, minutesFactor, player.pid);
+  const ratings = stepRatings(rng, player.ratings, age, player.pos, minutesFactor, player.pid, player.heightCm);
   const ovr = computeOvr(player.pos, ratings, player.heightCm);
   const potential = estimatePotential(rng, ratings, ovr, age, player.pos, player.heightCm, player.pid);
 

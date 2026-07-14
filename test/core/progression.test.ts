@@ -203,6 +203,32 @@ describe("progressPlayer", () => {
     }
     expect(allSameDir / N).toBeGreaterThan(0.35);
   });
+
+  it("growth damping makes big jumps rarer the closer a player already is to elite", () => {
+    // A player already near GROWTH_DAMPING_START/END should see a smaller
+    // mean/max positive delta than a mid-tier player of the same age, even
+    // though both draw from the same age-curve/bias/form distributions.
+    const meanDeltaAt = (startOvr: number): number => {
+      const N = 800;
+      let total = 0;
+      for (let i = 0; i < N; i++) {
+        const rng = mulberry32(i);
+        const p = generatePlayer(rng, "CM", 55, i, 22, 1);
+        const ratio = startOvr / p.ovr;
+        const scaled = { ...p.ratings };
+        for (const k of Object.keys(scaled) as (keyof PlayerRatings)[]) {
+          scaled[k] = Math.max(1, Math.min(99, Math.round(scaled[k] * ratio)));
+        }
+        const actualOvr = computeOvr(p.pos, scaled, p.heightCm);
+        const after = progressPlayer(rng, { ...p, ratings: scaled, ovr: actualOvr }, 1);
+        total += after.ovr - actualOvr;
+      }
+      return total / N;
+    };
+    const midTier = meanDeltaAt(55);
+    const nearElite = meanDeltaAt(85);
+    expect(nearElite).toBeLessThan(midTier);
+  });
 });
 
 describe("retirementProbability", () => {

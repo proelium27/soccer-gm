@@ -150,6 +150,22 @@ export const PROGRESSION_FORM_SD_OLD = 0.75;
 export const PROGRESSION_BIAS_SD_YOUNG = 1.5;
 
 /**
+ * Growth resistance: as a player's *current* ovr climbs through this range,
+ * the positive part of a season's development (age-curve growth + bias +
+ * form roll, combined, before per-rating noise) is scaled down toward
+ * `GROWTH_DAMPING_FLOOR` — a big breakout jump should get rarer the closer a
+ * player already is to elite, on top of (not instead of) the age curve
+ * already slowing growth down. Declines are never damped by this: a bust
+ * trending down should decline just as easily whether they're rated 55 or
+ * 75 — real resistance to being *good* isn't resistance to getting worse.
+ * Purely rating-driven, independent of age, so it also acts as a soft
+ * ceiling beneath the hard `RATING_MAX` clamp.
+ */
+export const GROWTH_DAMPING_START = 65;
+export const GROWTH_DAMPING_END = 90;
+export const GROWTH_DAMPING_FLOOR = 0.25;
+
+/**
  * Potential (BBGM-style): a scout's *estimate*, not a growth driver. It plays
  * no part in progressPlayer's math — actual development is driven only by
  * age/rating-group and noise (per the BBGM manual: progression depends on
