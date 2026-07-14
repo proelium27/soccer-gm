@@ -88,7 +88,7 @@ export function Manual() {
             <li><strong>Schedule</strong> — every matchday's fixtures and results; click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong> — a Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since).</li>
             <li><strong>News Feed</strong> — every completed transfer in the league (AI-to-AI deals included), newest first, grouped by season, with club and season filters. Your club's deals are highlighted.</li>
-            <li><strong>Roster</strong> — your squad: ratings, ages, contracts, season stats (goalkeepers additionally show goals against and xG against). Drag and drop to swap players between the starting XI and the bench, extend contracts, or release players.</li>
+            <li><strong>Roster</strong> — your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay) plus a bench table with ratings, ages, contracts, season stats (goalkeepers additionally show goals against and xG against). Drag a bench player onto a pitch slot to swap them into the XI, extend contracts, or release players.</li>
             <li><strong>Transfers</strong> — recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
             <li><strong>Incoming Offers</strong> — AI clubs bidding for <em>your</em> players. Accept, reject, or counter to squeeze the fee upward.</li>
             <li><strong>Finance</strong> — budget, the full wage-bill table, a projected (or final) season settlement, your transfer history, and a league-wide money table.</li>
@@ -239,11 +239,14 @@ export function Manual() {
         <Section id="squad" title="Your Squad: Lineups, Depth & the Roster Cap">
           <p>
             The formation is <strong>4-3-3</strong> (a formation picker hasn't been built yet). On
-            the Roster page, drag and drop to swap players between the starting XI and the bench;
-            your XI persists and is used every match. If your saved XI ever becomes invalid — a
-            starter is sold, injured, or released — the game transparently falls back to
-            auto-picking the best available XI, so you're never fielding a ghost. The bench is the
-            best 7 remaining players by OVR.
+            the Roster page, your Starting XI is shown on a pitch, one chip per slot; drag a bench
+            player from the table below the pitch onto a slot to swap them in — the outgoing
+            starter drops to the bench automatically. Click a chip to extend or release that
+            player. A <strong>Depth Chart</strong> toggle above the pitch shows each starter's
+            current best-fit backup from the bench alongside their chip. Your XI persists and is
+            used every match. If your saved XI ever becomes invalid — a starter is sold, injured,
+            or released — the game transparently falls back to auto-picking the best available XI,
+            so you're never fielding a ghost. The bench is the best 7 remaining players by OVR.
           </p>
           <p>
             <strong>Roster cap: 30 players.</strong> Signings and transfer buys are blocked once
