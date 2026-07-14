@@ -556,6 +556,9 @@ a:hover {
   gap: 2px;
   z-index: 1;
 }
+.pitch-slot:hover {
+  z-index: 15;
+}
 .pitch-slot--open {
   z-index: 20;
 }
@@ -586,6 +589,27 @@ a:hover {
 .pitch-slot--open .player-ratings-tooltip-panel {
   display: none;
 }
+/* The hover ratings tooltip defaults to anchoring below-left of the trigger
+   text (see .player-ratings-tooltip-panel), which is fine inside a table
+   cell but overflows the pitch/viewport for chips near its edges — reuse
+   the same per-slot h/v placement the actions popover uses below. */
+.pitch-slot--h-left .player-ratings-tooltip-panel {
+  left: 0;
+}
+.pitch-slot--h-center .player-ratings-tooltip-panel {
+  left: 50%;
+  transform: translateX(-50%);
+}
+.pitch-slot--h-right .player-ratings-tooltip-panel {
+  left: auto;
+  right: 0;
+}
+.pitch-slot--v-above .player-ratings-tooltip-panel {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 4px;
+}
 .pitch-chip-ovr {
   font-variant-numeric: tabular-nums;
   opacity: 0.85;
@@ -612,22 +636,22 @@ a:hover {
   text-align: left;
   white-space: normal;
 }
-.pitch-chip-actions--v-below {
+.pitch-slot--v-below .pitch-chip-actions {
   top: 100%;
   margin-top: 6px;
 }
-.pitch-chip-actions--v-above {
+.pitch-slot--v-above .pitch-chip-actions {
   bottom: 100%;
   margin-bottom: 6px;
 }
-.pitch-chip-actions--h-center {
+.pitch-slot--h-center .pitch-chip-actions {
   left: 50%;
   transform: translateX(-50%);
 }
-.pitch-chip-actions--h-left {
+.pitch-slot--h-left .pitch-chip-actions {
   left: 0;
 }
-.pitch-chip-actions--h-right {
+.pitch-slot--h-right .pitch-chip-actions {
   right: 0;
 }
 .pitch-chip-actions-title {

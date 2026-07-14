@@ -72,11 +72,14 @@ export function PitchField({
         const coord = coords[i];
         const backup = showDepthChart ? bestFit(slots[i], bench) : null;
         const isOpen = openPid === p.pid;
+        const horiz = coord.x < 35 ? "left" : coord.x > 65 ? "right" : "center";
+        const vert = coord.y > 65 ? "above" : "below";
         return (
           <div
             key={p.pid}
             className={
               "pitch-slot" +
+              ` pitch-slot--h-${horiz} pitch-slot--v-${vert}` +
               (dragOverSlotIndex === i ? " pitch-slot--drag-over" : "") +
               (isOpen ? " pitch-slot--open" : "")
             }
@@ -112,17 +115,7 @@ export function PitchField({
               </div>
             )}
             {isOpen && (
-              <div
-                className={
-                  "pitch-chip-actions" +
-                  (coord.x < 35
-                    ? " pitch-chip-actions--h-left"
-                    : coord.x > 65
-                      ? " pitch-chip-actions--h-right"
-                      : " pitch-chip-actions--h-center") +
-                  (coord.y > 65 ? " pitch-chip-actions--v-above" : " pitch-chip-actions--v-below")
-                }
-              >
+              <div className="pitch-chip-actions">
                 <div className="pitch-chip-actions-title">
                   {p.name} <Flag nationality={p.nationality} /> &middot; OVR {p.ovr} / POT{" "}
                   {p.potential}
