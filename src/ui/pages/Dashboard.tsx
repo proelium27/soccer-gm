@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings } from "../../core/standings.js";
 import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
@@ -10,6 +10,7 @@ import { currency, ordinal, seasonYear } from "../format.js";
 
 export function Dashboard() {
   const { league, simAction, offseasonAction, setScoutingSpendAction, simming } = useLeague();
+  const navigate = useNavigate();
   // Slider position while dragging; persisted (and clamped) only on release
   // so we don't write to IndexedDB on every drag tick.
   const [scoutingDraft, setScoutingDraft] = useState<number | null>(null);
@@ -223,7 +224,7 @@ export function Dashboard() {
             <button
               className="btn btn-success"
               disabled={simming}
-              onClick={() => offseasonAction()}
+              onClick={() => offseasonAction().then(() => navigate("/awards"))}
             >
               Advance to {seasonYear(league.season + 1)}
             </button>

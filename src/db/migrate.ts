@@ -3,6 +3,7 @@ import { CLUBS, type StoredTeam } from "../core/teams/clubs.js";
 import type { Player, SeasonStats } from "../core/players/types.js";
 import type { PlayerMatchLine } from "../engine/attribution.js";
 import type { TeamSeasonStats } from "../core/standings.js";
+import { computeSeasonAwards } from "../core/awards.js";
 import {
   HYPE_INITIAL, SCOUTING_SPEND_MIN,
   LEAGUE_BASE, TEAM_STRENGTH_SPREAD, NUM_TEAMS,
@@ -38,9 +39,9 @@ type SeasonStatsAnyVersion =
 type TeamSeasonStatsAnyVersion = Omit<TeamSeasonStats, "xg" | "goalsAgainst" | "xga"> &
   Partial<Pick<TeamSeasonStats, "xg" | "goalsAgainst" | "xga">>;
 
-/** A season-history entry as it may exist in a save written before Team Stat Leaders history / xG. */
-type SeasonHistoryEntryAnyVersion = Omit<LeagueStore["seasonHistory"][number], "teamStats"> &
-  Partial<{ teamStats: TeamSeasonStatsAnyVersion[] }>;
+/** A season-history entry as it may exist in a save written before Team Stat Leaders history / xG / awards. */
+type SeasonHistoryEntryAnyVersion = Omit<LeagueStore["seasonHistory"][number], "teamStats" | "awards"> &
+  Partial<{ teamStats: TeamSeasonStatsAnyVersion[]; awards: LeagueStore["seasonHistory"][number]["awards"] }>;
 
 /** A box-score line as it may exist in a save written before Match Rating / xG / xGA. */
 type PlayerMatchLineAnyVersion =
@@ -107,6 +108,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
   // Pre-M6 backfill only: seed the budget the way a season start would —
   // base allocation in, the save's current wage bill out.
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
+  const migratedPlayers = league.players.map(migratePlayer);
   return {
     ...league,
     teams: (league.teams as StoredTeamAnyVersion[]).map((t) => ({
@@ -120,7 +122,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
       academyBase: t.academyBase ?? fallbackAcademyBase(t.tid),
       starters: t.starters ?? null,
     })),
-    players: league.players.map(migratePlayer),
+    players: migratedPlayers,
     played: league.played.map((m) => {
       const boxScore = (m as PlayedMatchAnyVersion).boxScore;
       return {
@@ -151,6 +153,9 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
       teamStats: (h.teamStats ?? []).map((t) => ({
         ...t, xg: t.xg ?? 0, goalsAgainst: t.goalsAgainst ?? 0, xga: t.xga ?? 0,
       })),
+      // Player.stats is append-only and never pruned, so unlike teamStats
+      // above, past seasons' awards CAN be reconstructed after the fact.
+      awards: h.awards ?? computeSeasonAwards(migratedPlayers, h.season),
     })),
   };
 }
