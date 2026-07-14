@@ -583,6 +583,9 @@ a:hover {
 .pitch-chip .player-ratings-tooltip-anchor {
   border-bottom: none;
 }
+.pitch-slot--open .player-ratings-tooltip-panel {
+  display: none;
+}
 .pitch-chip-ovr {
   font-variant-numeric: tabular-nums;
   opacity: 0.85;
@@ -598,10 +601,6 @@ a:hover {
 }
 .pitch-chip-actions {
   position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-top: 6px;
   z-index: 1060;
   width: 280px;
   background: var(--sg-surface-2);
@@ -612,6 +611,24 @@ a:hover {
   font-size: var(--sg-text-sm);
   text-align: left;
   white-space: normal;
+}
+.pitch-chip-actions--v-below {
+  top: 100%;
+  margin-top: 6px;
+}
+.pitch-chip-actions--v-above {
+  bottom: 100%;
+  margin-bottom: 6px;
+}
+.pitch-chip-actions--h-center {
+  left: 50%;
+  transform: translateX(-50%);
+}
+.pitch-chip-actions--h-left {
+  left: 0;
+}
+.pitch-chip-actions--h-right {
+  right: 0;
 }
 .pitch-chip-actions-title {
   font-weight: var(--sg-weight-semibold);
