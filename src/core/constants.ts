@@ -476,6 +476,16 @@ export const COUNTER_PADDING_DECAY = 0.5;
 export const NEGOTIATION_MAX_ROUNDS = 5;
 
 /**
+ * Incoming Offers scout commentary: the scout's read on a buyer's offer
+ * relative to the player's (scouting-noised) value to the user's own club.
+ * At/above GOOD_RATIO the offer clears our valuation outright ("take it");
+ * below BAD_RATIO it's dismissed as a lowball; in between, the scout
+ * suggests countering up to the perceived valuation.
+ */
+export const SCOUT_COMMENTARY_GOOD_RATIO = 0.95;
+export const SCOUT_COMMENTARY_BAD_RATIO = 0.6;
+
+/**
  * Recommended Transfers page: 5-10 players of similar overall level to the
  * user's team (relative to the starting XI average ovr) and within budget.
  * The band skews upward — recommendations should mostly be improvements.
