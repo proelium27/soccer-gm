@@ -93,7 +93,9 @@ export function Manual() {
             <li><strong>Transfers</strong> — recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
             <li><strong>Incoming Offers</strong> — AI clubs bidding for <em>your</em> players. Accept, reject, or counter to squeeze the fee upward.</li>
             <li><strong>Finance</strong> — budget, the full wage-bill table, a projected (or final) season settlement, your transfer history, and a league-wide money table.</li>
-            <li><strong>Incoming Talent</strong> — this season's youth-academy intake.</li>
+            <li><strong>Incoming Talent</strong> — unsigned prospects age 21 or younger; sign them to your senior team or into your academy.</li>
+            <li><strong>Free Agents</strong> — every other unsigned player, sign straight to your senior team.</li>
+            <li><strong>Academy</strong> — your club's youth-academy holding pool: extend, release, or promote to the senior team.</li>
             <li><strong>Box Score</strong> — per-match detail: goals, cards, substitutions, injuries, and a stat line (including xG, plus goals against and xG against on the goalkeeper's row) plus 0–10 match rating for every player who appeared, with each side's total xG shown next to the score. The highest-rated player among those who actually played is starred as Man of the Match.</li>
             <li><strong>Leagues</strong> — your saved leagues. Create, enter, or delete saves; each is fully independent.</li>
           </ul>
@@ -265,10 +267,10 @@ export function Manual() {
             so you're never fielding a ghost. The bench is the best 7 remaining players by OVR.
           </p>
           <p>
-            <strong>Roster cap: 30 players.</strong> Signings and transfer buys are blocked once
-            you're full (the Roster, Transfers, and Incoming Talent pages all show an x/30 count).
-            Youth intake can briefly push you over — you just can't <em>acquire</em> anyone else
-            until a slot opens.
+            <strong>Roster cap: 30 players.</strong> Signings, transfer buys, and academy
+            promotions are blocked once you're full (the Roster, Transfers, and Incoming Talent
+            pages all show an x/30 count). Your academy has its own separate 10-player cap — see{" "}
+            <a href="#youth">The Youth Academy</a>.
           </p>
           <p>
             <strong>Depth floor.</strong> You can't sell or release a player if it would leave a
@@ -321,8 +323,9 @@ export function Manual() {
           <p>
             Contracts are one-button: the game shows you the exact weekly wage and length, and you
             take it or leave it — no salary haggling. Length is set by age: <strong>3 years</strong>{" "}
-            under 30, <strong>2 years</strong> at 30–32, <strong>1 year</strong> at 33+. Youth
-            intake arrives on 2-year deals.
+            under 30, <strong>2 years</strong> at 30–32, <strong>1 year</strong> at 33+. Academy
+            players are the exception — see <a href="#youth">The Youth Academy</a> for their flat
+            stipend, which doesn't follow this age/ovr scale.
           </p>
           <p>
             Wages scale steeply with ability — superstar money is real money. Roughly, per week
@@ -382,16 +385,39 @@ export function Manual() {
 
         <Section id="youth" title="The Youth Academy">
           <p>
-            Every offseason, each club's academy produces <strong>3–5 new 16-year-olds</strong>,
-            shown on the Incoming Talent page. They arrive raw — well below first-team level — but
-            with youth on their side, some will develop into stars (and some won't; see{" "}
-            <a href="#players">potential</a>).
+            Every offseason, your club's academy produces <strong>3–5 new 16-year-olds</strong>,
+            landing in a holding pool on the Academy page rather than straight onto your senior
+            roster. They arrive raw — well below first-team level — but with youth on their side,
+            some will develop into stars (and some won't; see <a href="#players">potential</a>).
           </p>
           <p>
             Academy quality is a fixed trait of each club, set when the league is created — a big
             club's intake trends better than a small club's, but your academy doesn't get better
-            or worse as your first team does. Youth intake ignores the roster cap on arrival, so a
-            full squad can briefly sit above 30 until you clear space.
+            or worse as your first team does.
+          </p>
+          <p>
+            Academy players draw a cheap flat weekly stipend instead of the normal wage formula
+            and can't be transferred. Each has a one-button <strong>Extend</strong> (fresh
+            stipend terms once their contract enters its final season) or <strong>Release</strong>{" "}
+            (cut them outright — the academy has no depth floor to protect, unlike your senior
+            roster). When one is ready, <strong>Promote</strong> moves him onto your senior roster
+            on a normal ovr-based wage; this is blocked once you're at the 30-man roster cap. The
+            academy has its own cap, separate from your senior roster's — 10 prospects.
+          </p>
+          <p>
+            AI clubs don't hold a real academy pool — their youth intake still lands straight on
+            their senior roster and gets trimmed back to target depth like any other offseason
+            surplus. If you leave your own academy untouched for several seasons while your senior
+            roster shrinks (retirements, expiring contracts you don't re-sign), the game will
+            automatically call up your best academy prospects — goalkeeper first if you have none
+            at all — to keep your squad fieldable. This is a last-resort safety net, not a normal
+            way to build your squad; check in on the Academy page regularly instead.
+          </p>
+          <p>
+            Prospects age 21 or younger who were never on any club's academy or roster show up on
+            the <strong>Incoming Talent</strong> page instead, where you can sign them straight to
+            your senior team or into your academy. Older free agents are on the separate{" "}
+            <strong>Free Agents</strong> page.
           </p>
         </Section>
 

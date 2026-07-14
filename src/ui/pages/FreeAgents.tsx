@@ -6,15 +6,15 @@ import { contractTerms } from "../../core/contracts.js";
 import { formatWeeklyWage } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
-import { ROSTER_CAP, ACADEMY_ROSTER_CAP, PROSPECT_AGE_MAX } from "../../core/constants.js";
+import { ROSTER_CAP, PROSPECT_AGE_MAX } from "../../core/constants.js";
 
 /**
- * Unsigned young players (age <= PROSPECT_AGE_MAX) available to sign — either
- * straight to the senior roster, or into the academy to develop first. Older
- * free agents live on the separate Free Agents page.
+ * General free-agent signing: unsigned players over PROSPECT_AGE_MAX. Young
+ * unsigned players (prospects) live on the Incoming Talent page instead,
+ * with the option to sign them to the academy.
  */
-export function IncomingTalent() {
-  const { league, signFreeAgentAction, signToAcademyAction, simming } = useLeague();
+export function FreeAgents() {
+  const { league, signFreeAgentAction, simming } = useLeague();
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -22,12 +22,11 @@ export function IncomingTalent() {
 
   const faPids = freeAgentPids(league.teams, league.players);
   const availablePlayers: Player[] = league.players.filter(
-    (p) => faPids.has(p.pid) && league.season - p.born <= PROSPECT_AGE_MAX,
+    (p) => faPids.has(p.pid) && league.season - p.born > PROSPECT_AGE_MAX,
   );
 
   const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
-  const atRosterCap = (userTeam?.roster.length ?? 0) >= ROSTER_CAP;
-  const atAcademyCap = (userTeam?.academyRoster.length ?? 0) >= ACADEMY_ROSTER_CAP;
+  const atCap = (userTeam?.roster.length ?? 0) >= ROSTER_CAP;
   // Wages are paid up front each season, so a mid-season signing charges the
   // contract's full season salary at signing; offseason signings are covered
   // by the next season-start charge.
@@ -43,24 +42,14 @@ export function IncomingTalent() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>Incoming Talent</h4>
-      <p className="text-muted">
-        Unsigned prospects age {PROSPECT_AGE_MAX} or younger. Sign straight to the senior team,
-        or into the academy to develop first.
-      </p>
-      {atRosterCap && (
+      <h4>Free Agents</h4>
+      {atCap && (
         <div className="alert alert-warning">
-          Your roster is full ({ROSTER_CAP}/{ROSTER_CAP}) — signing to the senior team is disabled.
-        </div>
-      )}
-      {atAcademyCap && (
-        <div className="alert alert-warning">
-          Your academy is full ({ACADEMY_ROSTER_CAP}/{ACADEMY_ROSTER_CAP}) — signing to the
-          academy is disabled.
+          Your roster is full ({ROSTER_CAP}/{ROSTER_CAP}). Release a player before signing another.
         </div>
       )}
       {availablePlayers.length === 0 ? (
-        <p>No available prospects.</p>
+        <p>No available players.</p>
       ) : (
         <table className="table table-striped table-sm">
           <thead>
@@ -88,28 +77,18 @@ export function IncomingTalent() {
                   <td className="text-end">{p.potential}</td>
                   <td className="text-end">{league.season - p.born}</td>
                   <td className="text-end">
-                    <div className="d-inline-flex gap-1">
-                      <button
-                        className="btn btn-sm btn-primary text-nowrap"
-                        disabled={simming || atRosterCap || unaffordable}
-                        title={
-                          unaffordable
-                            ? "Mid-season signings charge the season's wages up front"
-                            : undefined
-                        }
-                        onClick={() => signFreeAgentAction(p.pid)}
-                      >
-                        Sign to Senior &middot; {terms.lengthSeasons}y &middot;{" "}
-                        {formatWeeklyWage(terms.salary)}
-                      </button>
-                      <button
-                        className="btn btn-sm btn-outline-primary text-nowrap"
-                        disabled={simming || atAcademyCap}
-                        onClick={() => signToAcademyAction(p.pid)}
-                      >
-                        Sign to Academy
-                      </button>
-                    </div>
+                    <button
+                      className="btn btn-sm btn-primary text-nowrap"
+                      disabled={simming || atCap || unaffordable}
+                      title={
+                        unaffordable
+                          ? "Mid-season signings charge the season's wages up front"
+                          : undefined
+                      }
+                      onClick={() => signFreeAgentAction(p.pid)}
+                    >
+                      Sign {terms.lengthSeasons}y &middot; {formatWeeklyWage(terms.salary)}
+                    </button>
                   </td>
                 </tr>
               );

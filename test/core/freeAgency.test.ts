@@ -3,8 +3,11 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import {
   freeAgentPids, releaseExpiredContracts, runAIFreeAgency, signFreeAgent, releasePlayer,
+  signToAcademy, promoteFromAcademy, releaseAcademyPlayer, ensureUserRosterSafety,
 } from "../../src/core/freeAgency.js";
-import { ROSTER_COMPOSITION, ROSTER_CAP } from "../../src/core/constants.js";
+import {
+  ROSTER_COMPOSITION, ROSTER_CAP, ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR,
+} from "../../src/core/constants.js";
 
 describe("freeAgentPids", () => {
   it("is empty when every player is rostered", () => {
@@ -166,5 +169,186 @@ describe("releasePlayer depth floor", () => {
     const otherPid = league.teams[1].roster[0];
     const teams = releasePlayer(league.teams, league.players, team.tid, otherPid);
     expect(teams).toBe(league.teams);
+  });
+});
+
+describe("academy", () => {
+  it("signToAcademy adds a free agent to the academy pool on a flat stipend", () => {
+    const league = createLeagueState(0, mulberry32(20));
+    const pid = league.teams[1].roster[0];
+    const player = league.players.find((p) => p.pid === pid)!;
+    player.contract.expiresSeason = 1;
+    const teams = releaseExpiredContracts(league.teams, league.players, 1);
+
+    const { teams: signedTeams, players: signedPlayers } = signToAcademy(
+      teams, league.players, 0, pid, 1,
+    );
+    const userTeam = signedTeams.find((t) => t.tid === 0)!;
+    expect(userTeam.academyRoster).toContain(pid);
+    expect(userTeam.roster).not.toContain(pid);
+    const signed = signedPlayers.find((p) => p.pid === pid)!;
+    expect(signed.contract.salary).toBeLessThan(player.contract.salary || Infinity);
+  });
+
+  it("signToAcademy is a no-op once the academy is at ACADEMY_ROSTER_CAP", () => {
+    const league = createLeagueState(0, mulberry32(21));
+    const pid = league.teams[1].roster[0];
+    const player = league.players.find((p) => p.pid === pid)!;
+    player.contract.expiresSeason = 1;
+    let teams = releaseExpiredContracts(league.teams, league.players, 1);
+    teams = teams.map((t) =>
+      t.tid === 0
+        ? { ...t, academyRoster: Array.from({ length: ACADEMY_ROSTER_CAP }, (_, i) => 200_000 + i) }
+        : t,
+    );
+
+    const result = signToAcademy(teams, league.players, 0, pid, 1);
+    expect(result.teams).toBe(teams);
+    expect(result.players).toBe(league.players);
+  });
+
+  it("promoteFromAcademy moves a pid to the senior roster with a fresh ovr-based wage", () => {
+    const league = createLeagueState(0, mulberry32(22));
+    const userTeam = league.teams.find((t) => t.tid === 0)!;
+    const pid = userTeam.roster[0];
+    const player = league.players.find((p) => p.pid === pid)!;
+    // Simulate the player already being in the academy on a stipend.
+    const teams = league.teams.map((t) =>
+      t.tid === 0
+        ? { ...t, roster: t.roster.filter((p) => p !== pid), academyRoster: [pid] }
+        : t,
+    );
+    const players = league.players.map((p) =>
+      p.pid === pid ? { ...p, contract: { salary: 26_000, expiresSeason: 3 } } : p,
+    );
+
+    const { teams: promotedTeams, players: promotedPlayers } = promoteFromAcademy(
+      teams, players, 0, pid, 2, "offseason",
+    );
+    const updatedTeam = promotedTeams.find((t) => t.tid === 0)!;
+    expect(updatedTeam.roster).toContain(pid);
+    expect(updatedTeam.academyRoster).not.toContain(pid);
+    const promoted = promotedPlayers.find((p) => p.pid === pid)!;
+    expect(promoted.contract.salary).toBeGreaterThan(26_000);
+    void player;
+  });
+
+  it("promoteFromAcademy is a no-op for a pid not in that team's academy", () => {
+    const league = createLeagueState(0, mulberry32(23));
+    const pid = league.teams[1].roster[0]; // rostered elsewhere, never in academy
+    const result = promoteFromAcademy(league.teams, league.players, 0, pid, 2, "offseason");
+    expect(result.teams).toBe(league.teams);
+    expect(result.players).toBe(league.players);
+  });
+
+  it("promoteFromAcademy is a no-op once the roster is at ROSTER_CAP", () => {
+    const league = createLeagueState(0, mulberry32(24));
+    let teams = league.teams.map((t) =>
+      t.tid === 0
+        ? {
+            ...t,
+            roster: [...t.roster, ...Array.from(
+              { length: ROSTER_CAP - t.roster.length }, (_, i) => 300_000 + i,
+            )],
+            academyRoster: [999_999],
+          }
+        : t,
+    );
+    const players = [...league.players, {
+      ...league.players[0], pid: 999_999,
+      contract: { salary: 26_000, expiresSeason: 3 },
+    }];
+    const result = promoteFromAcademy(teams, players, 0, 999_999, 2, "offseason");
+    expect(result.teams).toBe(teams);
+  });
+
+  it("releaseAcademyPlayer removes a pid from the academy with no depth floor", () => {
+    const league = createLeagueState(0, mulberry32(25));
+    const teams = league.teams.map((t) => (t.tid === 0 ? { ...t, academyRoster: [111_111] } : t));
+    const result = releaseAcademyPlayer(teams, 0, 111_111);
+    expect(result.find((t) => t.tid === 0)!.academyRoster).not.toContain(111_111);
+  });
+
+  it("releaseAcademyPlayer no-ops for a pid not in that team's academy", () => {
+    const league = createLeagueState(0, mulberry32(26));
+    const result = releaseAcademyPlayer(league.teams, 0, 222_222);
+    expect(result).toBe(league.teams);
+  });
+
+  it("freeAgentPids excludes players parked in an academy", () => {
+    const league = createLeagueState(0, mulberry32(27));
+    const pid = league.teams[1].roster[0];
+    const player = league.players.find((p) => p.pid === pid)!;
+    player.contract.expiresSeason = 1;
+    let teams = releaseExpiredContracts(league.teams, league.players, 1);
+    expect(freeAgentPids(teams, league.players).has(pid)).toBe(true);
+
+    teams = teams.map((t) => (t.tid === 0 ? { ...t, academyRoster: [pid] } : t));
+    expect(freeAgentPids(teams, league.players).has(pid)).toBe(false);
+  });
+
+  it("releaseExpiredContracts also clears expired academy contracts", () => {
+    const league = createLeagueState(0, mulberry32(28));
+    const pid = league.teams[1].roster[0];
+    const players = league.players.map((p) =>
+      p.pid === pid ? { ...p, contract: { salary: 1000, expiresSeason: 1 } } : p,
+    );
+    const teams = league.teams.map((t) => (t.tid === 0 ? { ...t, academyRoster: [pid] } : t));
+
+    const result = releaseExpiredContracts(teams, players, 1);
+    expect(result.find((t) => t.tid === 0)!.academyRoster).not.toContain(pid);
+    expect(freeAgentPids(result, players).has(pid)).toBe(true);
+  });
+
+  describe("ensureUserRosterSafety", () => {
+    it("is a no-op when the user's roster is already above the safety floor", () => {
+      const league = createLeagueState(0, mulberry32(29));
+      const result = ensureUserRosterSafety(league.teams, league.players, 0, 2);
+      expect(result.teams).toBe(league.teams);
+      expect(result.players).toBe(league.players);
+    });
+
+    it("promotes from the academy until the roster reaches the safety floor", () => {
+      const league = createLeagueState(0, mulberry32(30));
+      const userTeam = league.teams.find((t) => t.tid === 0)!;
+      // Strip the roster down to a single GK, well below the floor, and stock
+      // the academy with enough outfielders (plus a spare GK) to cover it.
+      const gk = league.players.find((p) => userTeam.roster.includes(p.pid) && p.pos === "GK")!;
+      const academyCandidates = league.teams
+        .filter((t) => t.tid !== 0)
+        .flatMap((t) => t.roster)
+        .slice(0, ROSTER_SAFETY_FLOOR + 2);
+
+      const teams = league.teams.map((t) =>
+        t.tid === 0 ? { ...t, roster: [gk.pid], academyRoster: academyCandidates } : t,
+      );
+
+      const { teams: safeTeams, players: safePlayers } = ensureUserRosterSafety(
+        teams, league.players, 0, 2,
+      );
+      const safeUser = safeTeams.find((t) => t.tid === 0)!;
+      expect(safeUser.roster.length).toBeGreaterThanOrEqual(ROSTER_SAFETY_FLOOR);
+      expect(safeUser.roster).toContain(gk.pid);
+      void safePlayers;
+    });
+
+    it("promotes a GK from the academy if the user's roster has none at all", () => {
+      const league = createLeagueState(0, mulberry32(31));
+      const userTeam = league.teams.find((t) => t.tid === 0)!;
+      const outfielders = league.players
+        .filter((p) => userTeam.roster.includes(p.pid) && p.pos !== "GK")
+        .map((p) => p.pid);
+      const academyGk = league.players.find(
+        (p) => !userTeam.roster.includes(p.pid) && p.pos === "GK",
+      )!;
+
+      const teams = league.teams.map((t) =>
+        t.tid === 0 ? { ...t, roster: outfielders, academyRoster: [academyGk.pid] } : t,
+      );
+
+      const { teams: safeTeams } = ensureUserRosterSafety(teams, league.players, 0, 2);
+      const safeUser = safeTeams.find((t) => t.tid === 0)!;
+      expect(safeUser.roster).toContain(academyGk.pid);
+    });
   });
 });

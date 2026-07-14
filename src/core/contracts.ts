@@ -3,7 +3,7 @@ import { mulberry32, hashInts } from "../engine/rng.js";
 import {
   WAGE_WEEKLY_MIN, WAGE_OVR_FLOOR, WAGE_WEEKLY_COEFF, WAGE_VARIATION,
   EXTENSION_LENGTH_YOUNG, EXTENSION_LENGTH_MID, EXTENSION_LENGTH_OLD,
-  EXTENSION_AGE_MID, EXTENSION_AGE_OLD,
+  EXTENSION_AGE_MID, EXTENSION_AGE_OLD, ACADEMY_STIPEND_WEEKLY, YOUTH_CONTRACT_LENGTH,
 } from "./constants.js";
 
 /** Stored salaries are per-season totals; the UI presents them weekly. */
@@ -64,6 +64,29 @@ export function extendContract(players: Player[], pid: number, season: number): 
   return players.map((p) => {
     if (p.pid !== pid) return p;
     const terms = contractTerms(p, season);
+    return { ...p, contract: { salary: terms.salary, expiresSeason: terms.expiresSeason } };
+  });
+}
+
+/**
+ * Academy contract terms: a flat stipend regardless of ovr (see
+ * ACADEMY_STIPEND_WEEKLY), not the normal ovr-cubic formula — an academy
+ * prospect isn't yet competing for a senior wage. Length is always
+ * YOUTH_CONTRACT_LENGTH, same as the initial youth-intake contract.
+ */
+export function academyContractTerms(season: number): ContractTerms {
+  return {
+    salary: ACADEMY_STIPEND_WEEKLY * WEEKS_PER_SEASON,
+    lengthSeasons: YOUTH_CONTRACT_LENGTH,
+    expiresSeason: season + YOUTH_CONTRACT_LENGTH,
+  };
+}
+
+/** Re-sign an academy player to fresh flat-stipend terms, effective immediately. */
+export function extendAcademyContract(players: Player[], pid: number, season: number): Player[] {
+  return players.map((p) => {
+    if (p.pid !== pid) return p;
+    const terms = academyContractTerms(season);
     return { ...p, contract: { salary: terms.salary, expiresSeason: terms.expiresSeason } };
   });
 }

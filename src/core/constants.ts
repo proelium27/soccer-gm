@@ -43,6 +43,25 @@ export const BENCH_SIZE = 7;
  */
 export const ROSTER_CAP = 30;
 
+/**
+ * Emergency call-up floor for the user's own senior roster (offseason.ts's
+ * ensureUserRosterSafety): unlike AI, the user's roster is never
+ * auto-trimmed OR auto-replenished (free agency/youth intake skip them by
+ * design so the user manages manually) — but nothing else automatically
+ * refills it either, so an inattentive user's roster can otherwise shrink
+ * toward unfieldable purely from contract expiry/retirement over several
+ * unmanaged offseasons (a real, empirically observed risk, not
+ * hypothetical: a 25-man squad dropped to 13 by season 4 in one seeded
+ * multi-season audit with zero manual signings). Fielding fewer than 11
+ * crashes the match engine and bricks the save (see CLAUDE.md's known-gaps
+ * note), so each offseason the user's best academy prospects are
+ * automatically promoted — GK first if the roster has none, then by ovr —
+ * until the roster reaches this floor or the academy runs out. This never
+ * fires for an attentively-managed roster; it's a backstop, not a normal
+ * source of squad growth.
+ */
+export const ROSTER_SAFETY_FLOOR = 18;
+
 /** In-match injuries (M5): games missed once hurt, uniform between these inclusive bounds. */
 export const INJURY_GAMES_MIN = 1;
 export const INJURY_GAMES_MAX = 6;
@@ -209,6 +228,26 @@ export const WAGE_VARIATION = 0.15;
 export const CONTRACT_LENGTH_MIN = 1;
 export const CONTRACT_LENGTH_MAX = 3;
 export const YOUTH_CONTRACT_LENGTH = 2;
+
+/**
+ * Academy (holding pool for the user's own youth intake — see clubs.ts's
+ * StoredTeam.academyRoster): players there aren't yet competing for senior
+ * wages, so they draw a cheap flat weekly stipend instead of the normal
+ * OVR-cubic formula (seasonSalaryForOvr) — otherwise a raw 16-year-old could
+ * already cost real money before ever playing a match, and clubs would have
+ * no wage-based reason to ever promote a prospect out of the academy. Reuses
+ * YOUTH_CONTRACT_LENGTH for the academy contract length too.
+ */
+export const ACADEMY_STIPEND_WEEKLY = 500;
+/**
+ * Hard ceiling on the academy pool, mirroring ROSTER_CAP's role for the
+ * senior roster — bounds how many prospects a player can sign into the
+ * academy via Incoming Talent (youth intake itself isn't gated by this, same
+ * convention as ROSTER_CAP/youth intake).
+ */
+export const ACADEMY_ROSTER_CAP = 10;
+/** Free agents at or under this age show up on Incoming Talent (prospects) instead of Free Agents. */
+export const PROSPECT_AGE_MAX = 21;
 
 /**
  * M6 finance (see docs/finance-design.md): every club gets an equal base

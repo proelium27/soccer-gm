@@ -3,12 +3,15 @@ import { POSITIONS } from "./players/types.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import {
   ROSTER_COMPOSITION, ROSTER_CAP, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
+  ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR,
 } from "./constants.js";
-import { contractTerms, extendContract, seasonSalaryForOvr } from "./contracts.js";
+import {
+  contractTerms, extendContract, seasonSalaryForOvr, extendAcademyContract,
+} from "./contracts.js";
 
-/** Pids not currently on any team's roster. */
+/** Pids not currently on any team's roster or academy pool. */
 export function freeAgentPids(teams: StoredTeam[], players: Player[]): Set<number> {
-  const rostered = new Set(teams.flatMap((t) => t.roster));
+  const rostered = new Set(teams.flatMap((t) => [...t.roster, ...t.academyRoster]));
   return new Set(
     players.map((p) => p.pid).filter((pid) => !rostered.has(pid)),
   );
@@ -16,8 +19,8 @@ export function freeAgentPids(teams: StoredTeam[], players: Player[]): Set<numbe
 
 /**
  * Remove players whose contract expired at or before `season` from every
- * team's roster. The players remain in the league's player pool as free
- * agents; only roster membership changes.
+ * team's roster and academy pool. The players remain in the league's player
+ * pool as free agents; only roster/academy membership changes.
  */
 export function releaseExpiredContracts(
   teams: StoredTeam[],
@@ -32,6 +35,7 @@ export function releaseExpiredContracts(
   return teams.map((t) => ({
     ...t,
     roster: t.roster.filter((pid) => !expired.has(pid)),
+    academyRoster: t.academyRoster.filter((pid) => !expired.has(pid)),
   }));
 }
 
@@ -210,5 +214,147 @@ export function signFreeAgent(
         : t,
     ),
     players: extendContract(players, pid, season),
+  };
+}
+
+/**
+ * Sign a free agent into a team's academy pool (used by Incoming Talent for
+ * young prospects). No-op if the pid isn't a free agent or the academy is
+ * already at ACADEMY_ROSTER_CAP. Academy contracts are a flat stipend
+ * (academyContractTerms), not the normal ovr-cubic wage — cheap enough that
+ * it's charged immediately regardless of phase, unlike the season-salary
+ * charge signFreeAgent applies mid-season.
+ */
+export function signToAcademy(
+  teams: StoredTeam[],
+  players: Player[],
+  tid: number,
+  pid: number,
+  season: number,
+): { teams: StoredTeam[]; players: Player[] } {
+  if (!freeAgentPids(teams, players).has(pid)) {
+    return { teams, players };
+  }
+  const team = teams.find((t) => t.tid === tid);
+  if (!team || team.academyRoster.length >= ACADEMY_ROSTER_CAP) {
+    return { teams, players };
+  }
+  return {
+    teams: teams.map((t) =>
+      t.tid === tid ? { ...t, academyRoster: [...t.academyRoster, pid] } : t,
+    ),
+    players: extendAcademyContract(players, pid, season),
+  };
+}
+
+/**
+ * Promote an academy player onto the senior roster: moves the pid from
+ * academyRoster to roster and re-contracts him at the normal ovr-cubic wage
+ * (contractTerms) instead of the academy stipend — he's now competing for a
+ * real squad slot. No-op if he isn't in the team's academy or the roster is
+ * already at ROSTER_CAP. Mirrors signFreeAgent's wage-timing: a mid-season
+ * promotion charges the new contract's full season salary immediately
+ * (no-op if unaffordable); an offseason promotion is covered by the next
+ * season-start charge.
+ */
+export function promoteFromAcademy(
+  teams: StoredTeam[],
+  players: Player[],
+  tid: number,
+  pid: number,
+  season: number,
+  phase: "regular" | "offseason",
+): { teams: StoredTeam[]; players: Player[] } {
+  const team = teams.find((t) => t.tid === tid);
+  if (!team || !team.academyRoster.includes(pid) || team.roster.length >= ROSTER_CAP) {
+    return { teams, players };
+  }
+  const player = players.find((p) => p.pid === pid);
+  if (!player) return { teams, players };
+  const wageCharge = phase === "regular" ? contractTerms(player, season).salary : 0;
+  if (wageCharge > team.budget) return { teams, players };
+
+  return {
+    teams: teams.map((t) =>
+      t.tid === tid
+        ? {
+            ...t,
+            academyRoster: t.academyRoster.filter((p) => p !== pid),
+            roster: [...t.roster, pid],
+            budget: t.budget - wageCharge,
+          }
+        : t,
+    ),
+    players: extendContract(players, pid, season),
+  };
+}
+
+/**
+ * Release an academy player back to the free agent pool (the "choose not to
+ * re-sign" path, or a manual cut) — no depth floor, unlike releasePlayer, since
+ * the academy has no fixed composition target to protect.
+ */
+export function releaseAcademyPlayer(
+  teams: StoredTeam[],
+  tid: number,
+  pid: number,
+): StoredTeam[] {
+  const team = teams.find((t) => t.tid === tid);
+  if (!team || !team.academyRoster.includes(pid)) return teams;
+  return teams.map((t) =>
+    t.tid === tid ? { ...t, academyRoster: t.academyRoster.filter((p) => p !== pid) } : t,
+  );
+}
+
+/**
+ * Emergency call-up: auto-promotes from the user's own academy if their
+ * senior roster has fallen dangerously thin (see ROSTER_SAFETY_FLOOR for
+ * why this exists). GK first if the roster has none at all (fielding
+ * requires exactly one), then by ovr until the floor is reached or the
+ * academy runs out. A no-op for every other team, and for a healthily
+ * managed user roster. Called once per offseason from simOffseason.
+ */
+export function ensureUserRosterSafety(
+  teams: StoredTeam[],
+  players: Player[],
+  userTid: number,
+  season: number,
+): { teams: StoredTeam[]; players: Player[] } {
+  const team = teams.find((t) => t.tid === userTid);
+  if (!team) return { teams, players };
+
+  const playerMap = new Map(players.map((p) => [p.pid, p]));
+  const roster = [...team.roster];
+  let academy = [...team.academyRoster];
+  const promoted = new Map<number, Player>();
+
+  function promote(pid: number): void {
+    const p = playerMap.get(pid)!;
+    const terms = contractTerms(p, season);
+    promoted.set(pid, { ...p, contract: { salary: terms.salary, expiresSeason: terms.expiresSeason } });
+    roster.push(pid);
+    academy = academy.filter((q) => q !== pid);
+  }
+
+  if (!roster.some((pid) => playerMap.get(pid)?.pos === "GK")) {
+    const bestGk = academy
+      .map((pid) => playerMap.get(pid)!)
+      .filter((p) => p.pos === "GK")
+      .sort((a, b) => b.ovr - a.ovr)[0];
+    if (bestGk) promote(bestGk.pid);
+  }
+
+  while (roster.length < ROSTER_SAFETY_FLOOR && academy.length > 0) {
+    const best = academy
+      .map((pid) => playerMap.get(pid)!)
+      .sort((a, b) => b.ovr - a.ovr)[0];
+    promote(best.pid);
+  }
+
+  if (promoted.size === 0) return { teams, players };
+
+  return {
+    teams: teams.map((t) => (t.tid === userTid ? { ...t, roster, academyRoster: academy } : t)),
+    players: players.map((p) => promoted.get(p.pid) ?? p),
   };
 }
