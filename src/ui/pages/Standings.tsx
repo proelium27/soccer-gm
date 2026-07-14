@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
+import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { seasonYear } from "../format.js";
 
 export function Standings() {
@@ -70,6 +71,8 @@ export function Standings() {
               <th className="text-end">GA</th>
               <th className="text-end">GD</th>
               <th className="text-end">Pts</th>
+              {season === "current" && <th className="text-end">OVR</th>}
+              {season === "current" && <th className="text-end">POT</th>}
             </tr>
           </thead>
           <tbody>
@@ -80,6 +83,13 @@ export function Standings() {
               const rowClass = [isUser && "team-highlight", isChampion && "champion-highlight"]
                 .filter(Boolean)
                 .join(" ") || undefined;
+              const rating =
+                season === "current" && team
+                  ? computeTeamRating(
+                      league.players.filter((p) => team.roster.includes(p.pid)),
+                      team.starters,
+                    )
+                  : null;
               return (
                 <tr key={row.tid} className={rowClass}>
                   <td className="text-end">{i + 1}</td>
@@ -101,6 +111,8 @@ export function Standings() {
                   <td className="text-end">{row.ga}</td>
                   <td className="text-end">{row.gd}</td>
                   <td className="text-end">{row.points}</td>
+                  {season === "current" && <td className="text-end">{rating?.ovr ?? "-"}</td>}
+                  {season === "current" && <td className="text-end">{rating?.pot ?? "-"}</td>}
                 </tr>
               );
             })}
