@@ -246,8 +246,11 @@ a:hover {
 .team-highlight > td:first-child {
   /* Leading edge marker, your club — scoped to the row's first cell only;
      applying it to every <td> drew a stray vertical line at every column
-     boundary instead of one clean marker at the row's edge. */
+     boundary instead of one clean marker at the row's edge. Extra
+     padding keeps the marker from crowding a same-hued club color swatch
+     that can otherwise sit right on top of it. */
   box-shadow: inset 2px 0 0 var(--sg-user);
+  padding-left: calc(0.5rem + 4px);
 }
 .champion-highlight > td {
   background-color: var(--sg-warn-wash) !important;
