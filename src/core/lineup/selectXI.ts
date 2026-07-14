@@ -20,6 +20,29 @@ function fitRank(slot: Position, candidate: Position): number {
 }
 
 /**
+ * Best-fit candidate for a slot from an arbitrary pool (e.g. the bench), independent
+ * of `selectXI`'s whole-roster greedy fill. Same fit/ovr ordering as selectXI, with an
+ * explicit pid tiebreak for determinism (selectXI relies on Set iteration order instead,
+ * which is fine there since it only ever compares distinct players one at a time).
+ */
+export function bestFit(slot: Position, candidates: Player[]): Player | null {
+  let best: Player | null = null;
+  let bestKey: [number, number, number] | null = null; // [fitRank, -ovr, pid]
+  for (const p of candidates) {
+    const key: [number, number, number] = [fitRank(slot, p.pos), -p.ovr, p.pid];
+    const better =
+      !bestKey ||
+      key[0] < bestKey[0] ||
+      (key[0] === bestKey[0] && (key[1] < bestKey[1] || (key[1] === bestKey[1] && key[2] < bestKey[2])));
+    if (better) {
+      best = p;
+      bestKey = key;
+    }
+  }
+  return best;
+}
+
+/**
  * Greedily fill each slot with the best available player: prefer exact position,
  * then adjacent, then anyone; break ties by higher ovr. Deterministic.
  */
