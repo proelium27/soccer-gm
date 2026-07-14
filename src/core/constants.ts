@@ -7,6 +7,37 @@ export const LEAGUE_BASE = 46;
 export const TEAM_STRENGTH_SPREAD = 7;
 
 /**
+ * Second division (English Division 2): same team count as Division 1, a
+ * strength offset subtracted from the per-team target before generation so
+ * D2's strongest teams land around D1's mid-table strength (not just
+ * modestly below D1's weakest team), and a budget/prize scale reflecting
+ * the real financial gap between top-flight and second-tier football. Exact
+ * values are starting points, confirmed/adjusted via a dynasty audit (see
+ * the "Dynasty audit" task) rather than guessed blind.
+ */
+export const NUM_TEAMS_D2 = 20;
+export const DIVISION_2_OFFSET = 7;
+export const DIVISION_2_BUDGET_SCALE = 0.5;
+
+/** Straight automatic swap each offseason: bottom N of D1 <-> top N of D2. */
+export const PROMOTION_RELEGATION_COUNT = 3;
+
+/**
+ * A promoted/relegated club's academyBase (its generation-time strength
+ * anchor and permanent youth-intake anchor) doesn't snap to its new
+ * division's band instantly — it moves a fraction of the remaining
+ * distance each offseason, over this many seasons, so a promoted club has
+ * to earn its way up rather than get an instant strength boost.
+ */
+export const ACADEMY_BASE_CONVERGENCE_SEASONS = 3;
+
+/** Center strength each division's academyBase converges toward: [D1, D2]. */
+export const DIVISION_ACADEMY_BASE_CENTER: readonly [number, number] = [
+  LEAGUE_BASE,
+  LEAGUE_BASE - DIVISION_2_OFFSET,
+];
+
+/**
  * Composite normalization coefficient: normalized = 0.5 + NORMALIZE_K * z.
  * THE dial for league spread — after z-scoring, raw magnitudes cancel out, so
  * this (with the target distribution shape) governs both single-game favorite

@@ -25,6 +25,8 @@ export interface LeagueTeam {
    * AI-rostered players at 80+ ovr within ~40 seasons).
    */
   academyBase: number;
+  /** Which division this team belongs to at generation time: 0 = English Division 1, 1 = English Division 2. */
+  division: 0 | 1;
   /**
    * User-chosen starting XI (11 pids), or null/undefined to auto-select via
    * selectXI. Not set during generation; simThrough carries it over from
