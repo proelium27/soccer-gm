@@ -13,11 +13,14 @@ describe("leagueComposites", () => {
       expect(avg).toBeCloseTo(0.5, 1);
     }
   });
-  it("stronger teams (lower tid) get higher attack composites on average", () => {
+  it("stronger teams (by generated avgOvr) get higher attack composites on average", () => {
     const league = generateLeague(mulberry32(1));
     const comps = leagueComposites(league);
-    const topHalf = comps.slice(0, 10).reduce((s, c) => s + c.attack, 0) / 10;
-    const bottomHalf = comps.slice(10).reduce((s, c) => s + c.attack, 0) / 10;
+    const byStrength = league.teams
+      .map((t, i) => ({ avgOvr: t.avgOvr, attack: comps[i].attack }))
+      .sort((a, b) => b.avgOvr - a.avgOvr);
+    const topHalf = byStrength.slice(0, 10).reduce((s, c) => s + c.attack, 0) / 10;
+    const bottomHalf = byStrength.slice(10).reduce((s, c) => s + c.attack, 0) / 10;
     expect(topHalf).toBeGreaterThan(bottomHalf);
   });
   it("recompute reproduces the starting composites for the original XI and shifts for a changed one", () => {

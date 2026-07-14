@@ -39,9 +39,11 @@ export interface League {
 }
 
 /**
- * Hybrid talent model: each team gets a strength target evenly spaced across
- * [-SPREAD, +SPREAD]; every player is generated around base = LEAGUE_BASE +
- * target, biased by position archetype. Deterministic given the RNG.
+ * Hybrid talent model: teams get strength targets evenly spaced across
+ * [-SPREAD, +SPREAD], shuffled randomly across clubs so no club is always
+ * strong or always weak; every player is generated around base =
+ * LEAGUE_BASE + target, biased by position archetype. Deterministic given
+ * the RNG.
  */
 export function generateLeague(rng: () => number, seed = 0): League {
   const teams: LeagueTeam[] = [];
@@ -53,11 +55,20 @@ export function generateLeague(rng: () => number, seed = 0): League {
   // `genSeed` param).
   const genSeed = hashInts(seed, 1);
 
+  // Evenly spaced strength targets, then shuffled (Fisher-Yates) so the
+  // strong-to-weak gradient isn't tied to tid/club order.
+  const targets: number[] = [];
   for (let tid = 0; tid < NUM_TEAMS; tid++) {
-    // Evenly spaced target: strongest at tid 0, weakest at the end.
     const frac = tid / (NUM_TEAMS - 1); // 0..1
-    const target = TEAM_STRENGTH_SPREAD - frac * (2 * TEAM_STRENGTH_SPREAD);
-    const base = LEAGUE_BASE + target;
+    targets.push(TEAM_STRENGTH_SPREAD - frac * (2 * TEAM_STRENGTH_SPREAD));
+  }
+  for (let i = targets.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [targets[i], targets[j]] = [targets[j], targets[i]];
+  }
+
+  for (let tid = 0; tid < NUM_TEAMS; tid++) {
+    const base = LEAGUE_BASE + targets[tid];
 
     const roster: number[] = [];
     let ovrSum = 0;
