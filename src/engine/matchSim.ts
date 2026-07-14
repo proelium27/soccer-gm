@@ -113,30 +113,35 @@ export interface MatchResult {
 
 export type ShotOutcome = "blocked" | "off_target" | "saved" | "goal";
 
+export interface ShotResult {
+  outcome: ShotOutcome;
+  /** Pre-roll goal probability for this shot: (1-blockP) * onTargetP * (1-saveP), i.e. its xG. */
+  xg: number;
+}
+
 /** Shot resolution cascade: block -> off target -> save -> goal. (PoC lines 57-73) */
 export function resolveShot(
   rng: () => number,
   off: Composites,
   def: Composites,
-): ShotOutcome {
+): ShotResult {
   const blockP = clamp(BLOCK_BASE * (1 + 0.6 * (def.defense - 0.5)), 0.05, 0.6);
-  if (rng() < blockP) return "blocked";
-
   const onTargetP = clamp(
     ONTARGET_BASE * (1 + 0.5 * (off.finishing - 0.5)),
     0.1,
     0.9,
   );
-  if (rng() >= onTargetP) return "off_target";
-
   const saveP = clamp(
     SAVE_BASE * (1 + 0.5 * (def.keeping - 0.5)) - 0.3 * (off.finishing - 0.5),
     0.2,
     0.95,
   );
-  if (rng() < saveP) return "saved";
+  const xg = (1 - blockP) * onTargetP * (1 - saveP);
 
-  return "goal";
+  if (rng() < blockP) return { outcome: "blocked", xg };
+  if (rng() >= onTargetP) return { outcome: "off_target", xg };
+  if (rng() < saveP) return { outcome: "saved", xg };
+  return { outcome: "goal", xg };
 }
 
 /** Simulate one match. (PoC lines 76-141) */
@@ -241,7 +246,7 @@ export function simMatch(
       );
       if (rng() < freeKickP) {
         stat[poss].shots++;
-        const outcome = resolveShot(rng, teams[poss], teams[defSide]);
+        const { outcome } = resolveShot(rng, teams[poss], teams[defSide]);
         if (outcome === "saved" || outcome === "goal") stat[poss].sot++;
         if (outcome === "goal") {
           bumpEvent();
@@ -259,7 +264,7 @@ export function simMatch(
     }
 
     stat[poss].shots++;
-    const outcome = resolveShot(rng, off, def);
+    const { outcome } = resolveShot(rng, off, def);
 
     if (outcome === "saved" || outcome === "goal") stat[poss].sot++;
 
@@ -277,7 +282,7 @@ export function simMatch(
       // Corner: one bonus shot, still gated through the normal cascade.
       bumpEvent();
       stat[poss].shots++;
-      const cornerOutcome = resolveShot(rng, off, def);
+      const { outcome: cornerOutcome } = resolveShot(rng, off, def);
       if (cornerOutcome === "saved" || cornerOutcome === "goal") stat[poss].sot++;
       if (cornerOutcome === "goal") {
         stat[poss].goals++;
@@ -616,6 +621,8 @@ export function simMatchDetailed(
           0.55,
           0.9,
         );
+        // Penalties skip the block/on-target stages, so goalP itself is the shot's xG.
+        shooterLine.xg += goalP;
         if (rng() < goalP) {
           stat[poss].sot++;
           shooterLine.shotsOnTarget++;
@@ -648,7 +655,8 @@ export function simMatchDetailed(
         stat[poss].shots++;
         shooterLine.shots++;
 
-        const outcome = resolveShot(rng, off, def);
+        const { outcome, xg } = resolveShot(rng, off, def);
+        shooterLine.xg += xg;
         if (outcome === "saved" || outcome === "goal") {
           stat[poss].sot++;
           shooterLine.shotsOnTarget++;
@@ -679,7 +687,8 @@ export function simMatchDetailed(
     stat[poss].shots++;
     shooterLine.shots++;
 
-    const outcome = resolveShot(rng, off, def);
+    const { outcome, xg } = resolveShot(rng, off, def);
+    shooterLine.xg += xg;
 
     if (outcome === "saved" || outcome === "goal") {
       stat[poss].sot++;
@@ -723,7 +732,8 @@ export function simMatchDetailed(
       stat[poss].shots++;
       headerLine.shots++;
 
-      const cornerOutcome = resolveShot(rng, off, def);
+      const { outcome: cornerOutcome, xg: cornerXg } = resolveShot(rng, off, def);
+      headerLine.xg += cornerXg;
       if (cornerOutcome === "saved" || cornerOutcome === "goal") {
         stat[poss].sot++;
         headerLine.shotsOnTarget++;

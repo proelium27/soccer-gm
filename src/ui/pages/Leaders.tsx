@@ -12,6 +12,7 @@ type StatKey =
   | "assists"
   | "shots"
   | "shotsOnTarget"
+  | "xg"
   | "saves"
   | "tackles"
   | "interceptions"
@@ -23,6 +24,7 @@ const STAT_OPTIONS: { key: StatKey; label: string }[] = [
   { key: "assists", label: "Assists" },
   { key: "shots", label: "Shots" },
   { key: "shotsOnTarget", label: "Shots on Target" },
+  { key: "xg", label: "xG" },
   { key: "saves", label: "Saves" },
   { key: "tackles", label: "Tackles" },
   { key: "interceptions", label: "Interceptions" },
@@ -51,6 +53,7 @@ function careerTotals(seasons: SeasonStats[]): SeasonStats {
     total.assists += s.assists;
     total.shots += s.shots;
     total.shotsOnTarget += s.shotsOnTarget;
+    total.xg += s.xg;
     total.saves += s.saves;
     total.tackles += s.tackles;
     total.interceptions += s.interceptions;
@@ -214,6 +217,7 @@ function PlayerLeaders() {
             <th className="text-end">A</th>
             <th className="text-end">Sh</th>
             <th className="text-end">SoT</th>
+            <th className="text-end">xG</th>
             <th className="text-end">Sv</th>
             <th className="text-end">Tkl</th>
             <th className="text-end">Int</th>
@@ -242,6 +246,7 @@ function PlayerLeaders() {
               <td className="text-end">{row.stats.assists}</td>
               <td className="text-end">{row.stats.shots}</td>
               <td className="text-end">{row.stats.shotsOnTarget}</td>
+              <td className="text-end">{row.stats.xg.toFixed(2)}</td>
               <td className="text-end">{row.stats.saves}</td>
               <td className="text-end">{row.stats.tackles}</td>
               <td className="text-end">{row.stats.interceptions}</td>
@@ -254,13 +259,14 @@ function PlayerLeaders() {
   );
 }
 
-type TeamStatKey = "goals" | "assists" | "shots" | "shotsOnTarget" | "saves" | "tackles" | "possessionPct" | "avgRating";
+type TeamStatKey = "goals" | "assists" | "shots" | "shotsOnTarget" | "xg" | "saves" | "tackles" | "possessionPct" | "avgRating";
 
 const TEAM_STAT_OPTIONS: { key: TeamStatKey; label: string }[] = [
   { key: "goals", label: "Goals" },
   { key: "assists", label: "Assists" },
   { key: "shots", label: "Shots" },
   { key: "shotsOnTarget", label: "Shots on Target" },
+  { key: "xg", label: "xG" },
   { key: "saves", label: "Saves" },
   { key: "tackles", label: "Tackles" },
   { key: "possessionPct", label: "Possession" },
@@ -341,6 +347,7 @@ function TeamLeaders() {
               <th className="text-end">A</th>
               <th className="text-end">Sh</th>
               <th className="text-end">SoT</th>
+              <th className="text-end">xG</th>
               <th className="text-end">Sv</th>
               <th className="text-end">Tkl</th>
               <th className="text-end">Poss%</th>
@@ -360,6 +367,7 @@ function TeamLeaders() {
                 <td className="text-end">{row.assists}</td>
                 <td className="text-end">{row.shots}</td>
                 <td className="text-end">{row.shotsOnTarget}</td>
+                <td className="text-end">{row.xg.toFixed(2)}</td>
                 <td className="text-end">{row.saves}</td>
                 <td className="text-end">{row.tackles}</td>
                 <td className="text-end">{row.possessionPct.toFixed(1)}</td>

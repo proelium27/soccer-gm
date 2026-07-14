@@ -45,6 +45,7 @@ function accumulateStats(
       ss.assists += line.assists;
       ss.shots += line.shots;
       ss.shotsOnTarget += line.shotsOnTarget;
+      ss.xg += line.xg;
       ss.saves += line.saves;
       ss.tackles += line.tackles;
       ss.interceptions += line.interceptions;

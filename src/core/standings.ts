@@ -33,6 +33,7 @@ export interface TeamSeasonStats {
   assists: number;
   shots: number;
   shotsOnTarget: number;
+  xg: number;
   saves: number;
   tackles: number;
   /** Average possession share (0-100) across the team's matches. */
@@ -54,7 +55,7 @@ export function computeTeamSeasonStats(teamIds: number[], matches: PlayedMatch[]
   const rows = new Map<number, TeamSeasonStats>();
   for (const tid of teamIds) {
     rows.set(tid, {
-      tid, played: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, saves: 0, tackles: 0,
+      tid, played: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, xg: 0, saves: 0, tackles: 0,
       possessionPct: 0, avgRating: 0,
     });
   }
@@ -72,6 +73,7 @@ export function computeTeamSeasonStats(teamIds: number[], matches: PlayedMatch[]
       r.assists += l.assists;
       r.shots += l.shots;
       r.shotsOnTarget += l.shotsOnTarget;
+      r.xg += l.xg;
       r.saves += l.saves;
       r.tackles += l.tackles;
       if (l.minutesPlayed > 0) {

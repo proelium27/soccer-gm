@@ -17,11 +17,21 @@ describe("resolveShot", () => {
     const off = makeTeam("O");
     const def = makeTeam("D");
     const outcomes = new Set(
-      Array.from({ length: 200 }, () => resolveShot(rng, off, def)),
+      Array.from({ length: 200 }, () => resolveShot(rng, off, def).outcome),
     );
     expect(outcomes).toEqual(
       new Set(["blocked", "off_target", "saved", "goal"]),
     );
+  });
+
+  it("returns an xg between 0 and 1, independent of the RNG roll", () => {
+    const rng = mulberry32(7);
+    const off = makeTeam("O");
+    const def = makeTeam("D");
+    for (const { xg } of Array.from({ length: 50 }, () => resolveShot(rng, off, def))) {
+      expect(xg).toBeGreaterThan(0);
+      expect(xg).toBeLessThan(1);
+    }
   });
 });
 
