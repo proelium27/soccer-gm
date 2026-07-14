@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Player, Position } from "../../core/players/types.js";
 import { bestFit } from "../../core/lineup/selectXI.js";
 import { layoutSlots } from "../pitchLayout.js";
@@ -44,6 +44,25 @@ export function PitchField({
 }: PitchFieldProps) {
   const [openPid, setOpenPid] = useState<number | null>(null);
   const coords = layoutSlots(slots);
+
+  useEffect(() => {
+    if (openPid === null) return;
+    function handleDocClick(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".pitch-chip") && !target.closest(".pitch-chip-actions")) {
+        setOpenPid(null);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpenPid(null);
+    }
+    document.addEventListener("mousedown", handleDocClick);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleDocClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openPid]);
 
   return (
     <div className="pitch-field">
