@@ -690,6 +690,19 @@ export const AI_SCOUT_NOISE_MAX = 0.08;
 /** Appearances needed in a season to qualify for Player of the Season / Team of the Season (of 38 matchdays). */
 export const AWARD_MIN_APPEARANCES = 19;
 
+/**
+ * Award scoring is otherwise built entirely from in-match performance stats (avgRating +
+ * goals/assists/tackles/etc), with no sense of how good the player actually is — a mediocre
+ * player on a struggling team can rack up huge tackle/interception counts just from facing more
+ * attacks, and out-score a genuinely elite player who had a quieter statistical season. This term
+ * pulls awards back toward "best players" rather than "best statlines" by adding
+ * `(ovr - AWARD_OVR_BASELINE) * AWARD_OVR_WEIGHT` to both formulas. Baseline is the Manual's
+ * "average starter" line; weight is tuned so a ~25-ovr talent gap outweighs a full season's worth
+ * of goals/assists, but a big statistical season can still edge out a modest ovr edge.
+ */
+export const AWARD_OVR_BASELINE = 65;
+export const AWARD_OVR_WEIGHT = 0.15;
+
 /** Player of the Season: avgRating plus goals/assists weighted heavier than the match-rating baseline already does. */
 export const POTY_GOAL_WEIGHT: Record<"GK" | "DEF" | "MID" | "FWD", number> = {
   FWD: 0.08, MID: 0.1, DEF: 0.14, GK: 0.22,

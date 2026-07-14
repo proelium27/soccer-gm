@@ -235,9 +235,11 @@ export function Manual() {
             of the Season</strong> fills an 11-man pitch (one XI slot per position) with whoever
             rates highest at that position across the whole league, blending match rating with the
             stats that matter most for that role — goals and assists up front, tackles and
-            interceptions in defense and midfield, saves for the keeper. Only players who
-            appeared in a meaningful share of the season's matchdays are eligible for any of the
-            three.
+            interceptions in defense and midfield, saves for the keeper. Both Player of the Season
+            and Team of the Season also factor in overall quality, not just the stat line — a
+            modest player who racked up a big statistical season (often from facing heavy pressure
+            on a weaker side) won't out-rank a genuinely elite one. Only players who appeared in a
+            meaningful share of the season's matchdays are eligible for any of the three.
           </p>
           <p>
             <strong>xG (expected goals).</strong> Every shot's pre-outcome chance of going in,

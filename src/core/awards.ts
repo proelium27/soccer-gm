@@ -1,7 +1,7 @@
 import type { Player, Position, SeasonStats } from "./players/types.js";
 import { FORMATIONS } from "./lineup/formations.js";
 import {
-  AWARD_MIN_APPEARANCES,
+  AWARD_MIN_APPEARANCES, AWARD_OVR_BASELINE, AWARD_OVR_WEIGHT,
   POTY_GOAL_WEIGHT, POTY_ASSIST_WEIGHT,
   TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT, TOTS_TACKLE_WEIGHT, TOTS_INTERCEPTION_WEIGHT,
   TOTS_SAVE_WEIGHT, TOTS_GOALS_AGAINST_PENALTY,
@@ -30,9 +30,14 @@ function statsFor(p: Player, season: number): SeasonStats | undefined {
   return p.stats.find((s) => s.season === season);
 }
 
+function ovrBonus(p: Player): number {
+  return (p.ovr - AWARD_OVR_BASELINE) * AWARD_OVR_WEIGHT;
+}
+
 function potyScore(p: Player, s: SeasonStats): number {
   const group = positionGroup(p.pos);
-  return s.avgRating + s.goals * POTY_GOAL_WEIGHT[group] + s.assists * POTY_ASSIST_WEIGHT[group];
+  return s.avgRating + s.goals * POTY_GOAL_WEIGHT[group] + s.assists * POTY_ASSIST_WEIGHT[group]
+    + ovrBonus(p);
 }
 
 function totsScore(p: Player, s: SeasonStats): number {
@@ -44,6 +49,7 @@ function totsScore(p: Player, s: SeasonStats): number {
   score += s.interceptions * TOTS_INTERCEPTION_WEIGHT[group];
   if (group === "GK") score += s.saves * TOTS_SAVE_WEIGHT;
   score -= s.goalsAgainst * TOTS_GOALS_AGAINST_PENALTY[group];
+  score += ovrBonus(p);
   return score;
 }
 
