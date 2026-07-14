@@ -3,6 +3,7 @@ import { migrateLeague } from "../../src/db/migrate.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState, type LeagueStore } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
+import { simOffseason } from "../../src/core/offseason.js";
 import { HYPE_INITIAL, SCOUTING_SPEND_MIN } from "../../src/core/constants.js";
 
 describe("migrateLeague", () => {
@@ -166,6 +167,34 @@ describe("migrateLeague", () => {
       expect(team.budget).toBe(123_456);
       expect(team.hype).toBe(77);
       expect(team.scoutingSpend).toBe(5_000);
+    }
+  });
+
+  it("backfills division/divisionConvergence on old-save teams, and divisionsByTid/awards on old-save seasonHistory", () => {
+    const rng = mulberry32(12);
+    const league = simOffseason(simThrough(createLeagueState(0, mulberry32(11)), "season", rng), rng);
+    const oldLeague = {
+      ...league,
+      teams: league.teams.map(({ division: _d, divisionConvergence: _dc, ...rest }) => rest),
+      seasonHistory: league.seasonHistory.map((h) => {
+        const { divisionsByTid: _dbt, ...rest } = h;
+        return { ...rest, awards: h.awards[0] };
+      }),
+    } as unknown as LeagueStore;
+
+    const migrated = migrateLeague(oldLeague);
+
+    for (const t of migrated.teams) {
+      expect(t.division).toBe(0);
+      expect(t.divisionConvergence).toBeNull();
+    }
+
+    for (const h of migrated.seasonHistory) {
+      expect(Array.isArray(h.awards)).toBe(true);
+      expect(h.awards).toHaveLength(2);
+      for (const tid of Object.keys(h.divisionsByTid).map(Number)) {
+        expect(h.divisionsByTid[tid]).toBe(0);
+      }
     }
   });
 });
