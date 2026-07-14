@@ -2,9 +2,10 @@ import type { PlayedMatch } from "./standings.js";
 import type { PlayerMatchLine } from "../engine/attribution.js";
 import type { LeagueStore } from "./leagueState.js";
 import type { ScheduleGame } from "./schedule.js";
-import type { League, LeagueTeam } from "./league/generate.js";
+import type { LeagueTeam } from "./league/generate.js";
 import type { Player } from "./players/types.js";
 import { leagueMatchData } from "./league/composites.js";
+import type { TeamMatchData } from "./league/composites.js";
 import {
   lastMatchdayOfMonth, TRANSFER_DEADLINE_MATCHDAY, WINTER_WINDOW_OPEN_MATCHDAY,
 } from "./calendar.js";
@@ -109,6 +110,7 @@ export function simThrough(
       roster: t.roster,
       avgOvr: 0,
       academyBase: t.academyBase,
+      division: t.division,
       starters: t.starters,
     }));
 
@@ -165,15 +167,20 @@ export function simThrough(
     // Recomputed every matchday (not once for the whole batch) so that
     // injuries picked up on one matchday correctly sideline a player, and
     // recoveries bring them back, for the next.
-    const leagueObj: League = { teams: toLeagueTeams(currentTeams), players: currentPlayers };
-    const matchData = leagueMatchData(leagueObj);
+    const d1Teams = currentTeams.filter((t) => t.division === 0);
+    const d2Teams = currentTeams.filter((t) => t.division === 1);
+    const d1MatchData = leagueMatchData({ teams: toLeagueTeams(d1Teams), players: currentPlayers });
+    const d2MatchData = leagueMatchData({ teams: toLeagueTeams(d2Teams), players: currentPlayers });
+    const matchData = new Map<number, TeamMatchData>();
+    d1Teams.forEach((t, i) => matchData.set(t.tid, d1MatchData[i]));
+    d2Teams.forEach((t, i) => matchData.set(t.tid, d2MatchData[i]));
 
     const goalTotalsBefore = playerGoalTotals(currentPlayers, league.season);
 
     const gamesThisMatchday = toSim.filter((g) => g.matchday === matchday);
     const mdResults = gamesThisMatchday.map((game): PlayedMatch => {
-      const hd = matchData[game.home];
-      const ad = matchData[game.away];
+      const hd = matchData.get(game.home)!;
+      const ad = matchData.get(game.away)!;
       const result = simMatchDetailed(
         rng,
         hd.composites,
