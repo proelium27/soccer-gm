@@ -8,22 +8,39 @@ import {
 } from "./freeAgency.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { runAIContractRenewals } from "./ai/renewals.js";
-import { computeStandings, computeTeamSeasonStats } from "./standings.js";
-import { computeSeasonAwards } from "./awards.js";
+import { computeStandings, computeTeamSeasonStats, type StandingsRow } from "./standings.js";
+import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
+import { computeDivisionSwap, applyDivisionSwap, stepAcademyBaseConvergence } from "./promotion.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
 import { settleSeasonEnd, chargeSeasonStart, wageBill } from "./finance/budget.js";
 import { academyContractTerms } from "./contracts.js";
-import { NUM_TEAMS, SCOUTING_SPEND_MIN } from "./constants.js";
+import { NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_MIN } from "./constants.js";
 import { hashInts } from "../engine/rng.js";
+
+/** Awards for the season that just ended, computed separately per division from players' current club membership. */
+function awardsByDivision(
+  players: Player[],
+  teams: StoredTeam[],
+  season: number,
+): [SeasonAwards, SeasonAwards] {
+  const rosterOf = (division: 0 | 1) =>
+    new Set(teams.filter((t) => t.division === division).flatMap((t) => t.roster));
+  const d1Roster = rosterOf(0);
+  const d2Roster = rosterOf(1);
+  const d1Players = players.filter((p) => d1Roster.has(p.pid));
+  const d2Players = players.filter((p) => d2Roster.has(p.pid));
+  return [computeSeasonAwards(d1Players, season), computeSeasonAwards(d2Players, season)];
+}
 
 /**
  * Run one full offseason: contract expiry, progression, retirement, AI free
- * agency, youth intake, then a fresh schedule for the new season. Only
- * callable when the league is in the "offseason" phase (all 38 matchdays
- * played). The user's team is left untouched by free agency/youth so the UI
- * can offer those as manual actions later; youth intake still applies to
- * every club per spec (no draft mechanic).
+ * agency, youth intake, promotion/relegation, then a fresh schedule for the
+ * new season. Only callable when the league is in the "offseason" phase
+ * (all 38 matchdays played in both divisions). The user's team is left
+ * untouched by free agency/youth so the UI can offer those as manual
+ * actions later; youth intake still applies to every club per spec (no
+ * draft mechanic).
  */
 export function simOffseason(league: LeagueStore, rng: () => number): LeagueStore {
   if (league.phase !== "offseason") {
@@ -33,20 +50,16 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const endingSeason = league.season;
   const nextSeason = endingSeason + 1;
 
-  // Computed from league.players (not the `players` variable mutated below)
-  // so a player who retires this offseason still gets credit for the season
-  // he just finished, before he's filtered out of the roster.
-  const awards = computeSeasonAwards(league.players, endingSeason);
+  // Snapshotted before any roster/division change below, from league.players
+  // (not the `players` variable mutated further down) so a player who
+  // retires this offseason still gets credit for the season he just
+  // finished, and division membership reflects who actually played where.
+  const divisionsByTid: Record<number, 0 | 1> = {};
+  for (const t of league.teams) divisionsByTid[t.tid] = t.division;
+  const awards = awardsByDivision(league.players, league.teams, endingSeason);
 
-  // 0. Proactive AI contract renewals: any AI player entering his final
-  //    contract season is renewed now if his club still values him above
-  //    the new wage (by AI_RENEWAL_MARGIN) — before step 1 below would
-  //    otherwise walk him to free agency next offseason with zero priority
-  //    for his own club to keep him. Uses this season's now-final standings/
-  //    league.played for form, same as the transfer-market steps do later.
-  //    Seeded independently of `rng` (same convention as the transfer-market
-  //    steps below) so the phase-5 scouting-noise jitter can't perturb the
-  //    progression/retirement stream the validation gates are tuned against.
+  // 0. Proactive AI contract renewals (cross-division: a club's own player,
+  //    regardless of which division that club plays in).
   const renewals = runAIContractRenewals(
     league.teams, league.players, nextSeason, league.meta.userTid, league.played,
     hashInts(league.lid, nextSeason, 9),
@@ -55,9 +68,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   // 1. Release expired contracts to the free agent pool.
   let teams: StoredTeam[] = releaseExpiredContracts(renewals.teams, renewals.players, endingSeason);
 
-  // 2. Progress every remaining player's ratings. The months-long break also
-  //    heals any injury still mid-recovery when the season ended (max recovery
-  //    is INJURY_GAMES_MAX matchdays, far shorter than an offseason).
+  // 2. Progress every remaining player's ratings; heal any lingering injury.
   let players: Player[] = renewals.players.map((p) => {
     const progressed = progressPlayer(rng, p, endingSeason);
     return progressed.injury ? { ...progressed, injury: null } : progressed;
@@ -65,9 +76,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
 
   // 3. Roll retirement; drop retirees from rosters and the player pool.
   const retiredPids = new Set(
-    players
-      .filter((p) => rollRetirement(rng, p, endingSeason))
-      .map((p) => p.pid),
+    players.filter((p) => rollRetirement(rng, p, endingSeason)).map((p) => p.pid),
   );
   players = players.filter((p) => !retiredPids.has(p.pid));
   teams = teams.map((t) => ({
@@ -75,56 +84,62 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     roster: t.roster.filter((pid) => !retiredPids.has(pid)),
   }));
 
-  // 3.5. Settle season-end finances: success payout by final rank plus hype
-  //      revenue in, scouting spend out, then move hype toward this season's
-  //      performance. Wages are NOT charged here — they're paid up front at
-  //      the new season's start (step 6.5) on the finalized roster. Standings
-  //      are computed here (before AI free agency changes rosters) so rank
-  //      reflects the season that actually just played out.
-  const standings = computeStandings(teams.map((t) => t.tid), league.played);
+  // 3.5. Per-division standings, rank-based settlement, and hype update.
+  //      Each division's 20-team table is computed independently — pooling
+  //      both divisions into one 40-team table would misapply prize-tier
+  //      rank cutoffs (PRIZE_TOP_5_CUTOFF etc. assume a 20-team table) and
+  //      the hype curve (NUM_TEAMS-normalized) to a league neither was
+  //      tuned for.
+  const d1TeamIds = teams.filter((t) => t.division === 0).map((t) => t.tid);
+  const d2TeamIds = teams.filter((t) => t.division === 1).map((t) => t.tid);
+  const d1TeamIdSet = new Set(d1TeamIds);
+  const d2TeamIdSet = new Set(d2TeamIds);
+  const d1Standings = computeStandings(d1TeamIds, league.played.filter((m) => d1TeamIdSet.has(m.home)));
+  const d2Standings = computeStandings(d2TeamIds, league.played.filter((m) => d2TeamIdSet.has(m.home)));
+  const standings = [...d1Standings, ...d2Standings];
   const teamStats = computeTeamSeasonStats(teams.map((t) => t.tid), league.played);
-  const rankByTid = new Map(standings.map((row, i) => [row.tid, i + 1]));
-  const rowByTid = new Map(standings.map((row) => [row.tid, row]));
-  teams = teams.map((t) => {
-    const rank = rankByTid.get(t.tid) ?? NUM_TEAMS;
-    const row = rowByTid.get(t.tid);
-    const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend);
-    const hype = row ? updateHype(t.hype, row, rank) : t.hype;
-    return { ...t, budget, hype, scoutingSpend: SCOUTING_SPEND_MIN };
-  });
 
-  // 4. AI free agency fills roster holes (worst team picks first), skipping
-  //    the user's club so they can sign manually.
+  const settle = (rows: StandingsRow[], division: 0 | 1): void => {
+    const rankByTid = new Map(rows.map((row, i) => [row.tid, i + 1]));
+    const rowByTid = new Map(rows.map((row) => [row.tid, row]));
+    teams = teams.map((t) => {
+      if (t.division !== division) return t;
+      const defaultRank = division === 0 ? NUM_TEAMS : NUM_TEAMS_D2;
+      const rank = rankByTid.get(t.tid) ?? defaultRank;
+      const row = rowByTid.get(t.tid);
+      const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, division);
+      const hype = row ? updateHype(t.hype, row, rank) : t.hype;
+      return { ...t, budget, hype, scoutingSpend: SCOUTING_SPEND_MIN };
+    });
+  };
+  settle(d1Standings, 0);
+  settle(d2Standings, 1);
+
+  // 3.6. Promotion/relegation: bottom PROMOTION_RELEGATION_COUNT of D1 swap
+  //      with top PROMOTION_RELEGATION_COUNT of D2, using the tables just
+  //      computed above (the season that actually just played out). Then
+  //      every mid-convergence team's academyBase moves one step closer to
+  //      its current division's strength band.
+  const swap = computeDivisionSwap(d1Standings, d2Standings);
+  teams = applyDivisionSwap(teams, swap);
+  teams = stepAcademyBaseConvergence(teams);
+
+  // 4. AI free agency fills roster holes (worst team picks first, within
+  //    its own division's finishing order — cross-division buying happens
+  //    later, in the transfer market step), skipping the user's club.
   const signingOrder = [...standings].sort((a, b) => a.points - b.points).map((s) => s.tid);
   ({ teams, players } = runAIFreeAgency(
-    teams,
-    players,
-    nextSeason,
-    rng,
-    league.meta.userTid,
-    signingOrder,
+    teams, players, nextSeason, rng, league.meta.userTid, signingOrder,
   ));
 
   // 5. Youth intake for every club, anchored to each club's fixed
-  //    generation-time strength (never the current roster average — see
-  //    LeagueTeam.academyBase for why that ratchets OVR upward without bound).
-  //    The user's own intake lands in academyRoster (a holding pool — see
-  //    StoredTeam.academyRoster) on a flat academy stipend, requiring a
-  //    manual "promote" action before it counts toward the senior roster.
-  //    AI clubs keep the pre-Academy behavior (straight to roster, trimmed
-  //    below) — their academies aren't a real holding pool, see clubs.ts.
+  //    generation-time strength (academyBase — see promotion.ts for how it
+  //    moves after a division swap).
   let nextPid = Math.max(0, ...players.map((p) => p.pid)) + 1;
   teams = teams.map((t) => {
-    // Caller-supplied seed (not drawn from `rng`) so youth nationality/name
-    // generation varies across leagues/seasons/teams without perturbing the
-    // ratings/potential stream consumed per player.
     const genSeed = hashInts(league.lid, nextSeason, t.tid, 2);
     const { players: youth, nextPid: updatedNextPid } = generateYouthIntake(
-      rng,
-      t.academyBase,
-      nextSeason,
-      nextPid,
-      genSeed,
+      rng, t.academyBase, nextSeason, nextPid, genSeed,
     );
     nextPid = updatedNextPid;
     if (t.tid === league.meta.userTid) {
@@ -139,24 +154,14 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     return { ...t, roster: [...t.roster, ...youth.map((p) => p.pid)] };
   });
 
-  // 5.5. Emergency call-up: if the user's own roster has fallen dangerously
-  //      thin (no automatic top-up otherwise applies to it — see
-  //      ROSTER_SAFETY_FLOOR), promote from their academy to keep the squad
-  //      fieldable. A no-op for a healthily managed roster.
+  // 5.5. Emergency call-up for the user's own roster.
   ({ teams, players } = ensureUserRosterSafety(teams, players, league.meta.userTid, nextSeason));
 
-  // 6. Trim AI squads back down to target composition so youth intake
-  //    doesn't accumulate indefinitely across seasons.
+  // 6. Trim AI squads back down to target composition.
   teams = trimRosterSurplus(teams, players, league.meta.userTid);
 
-  // 6.4. AI↔AI transfer market (summer window): now that squads are settled,
-  //      clubs trade with each other to improve, money conserved, user
-  //      excluded. Valued for the season they're about to play (nextSeason),
-  //      with form from the season that just finished (league.played, not yet
-  //      cleared). Seeded independently of `rng` so it can't perturb the
-  //      progression/retirement stream the validation gates are tuned against.
-  //      Runs before season-start wages so any fee is reflected in the cash a
-  //      club has when its squad is paid.
+  // 6.4. AI<->AI transfer market (summer window, cross-division by design —
+  //      no division filtering here, see design doc).
   const marketSeed = hashInts(league.lid, nextSeason, 7);
   const summerMarket = runAITransferMarket(
     teams, players, league.transfers, nextSeason, league.played,
@@ -164,17 +169,18 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   );
   teams = summerMarket.teams;
 
-  // 6.5. Season-start finances on the finalized new-season rosters: the base
-  //      allocation arrives and each squad's wages for the season are paid
-  //      out of it immediately (mirrors league creation in assignIdentities).
+  // 6.5. Season-start finances on the finalized new-season rosters, scaled
+  //      by each club's (possibly just-changed) division.
   const salaryMap = new Map(players.map((p) => [p.pid, p.contract.salary]));
   teams = teams.map((t) => ({
     ...t,
-    budget: chargeSeasonStart(t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap)),
+    budget: chargeSeasonStart(t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), t.division),
   }));
 
-  // 7. New schedule, new season, back to regular play.
-  const schedule = generateSchedule(teams.map((t) => t.tid));
+  // 7. New per-division schedules, new season, back to regular play.
+  const newD1Ids = teams.filter((t) => t.division === 0).map((t) => t.tid);
+  const newD2Ids = teams.filter((t) => t.division === 1).map((t) => t.tid);
+  const schedule = [...generateSchedule(newD1Ids), ...generateSchedule(newD2Ids)];
 
   return {
     ...league,
@@ -185,11 +191,17 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     schedule,
     played: [],
     transfers: summerMarket.transfers,
-    // The winter market hasn't run for the new season yet.
     winterMarketRunSeason: null,
     seasonHistory: [
       ...league.seasonHistory,
-      { season: endingSeason, table: standings, championTid: standings[0].tid, teamStats, awards },
+      {
+        season: endingSeason,
+        table: standings,
+        championTid: d1Standings[0].tid,
+        teamStats,
+        awards,
+        divisionsByTid,
+      },
     ],
   };
 }

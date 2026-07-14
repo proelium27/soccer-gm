@@ -3,7 +3,7 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
-import { HYPE_MAX, HYPE_MIN, NUM_TEAMS, SCOUTING_SPEND_MIN } from "../../src/core/constants.js";
+import { HYPE_MAX, HYPE_MIN, NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_MIN } from "../../src/core/constants.js";
 
 function playFullSeason(rng: () => number) {
   let league = createLeagueState(0, rng);
@@ -28,7 +28,7 @@ describe("simOffseason", () => {
     expect(next.season).toBe(league.season + 1);
     expect(next.phase).toBe("regular");
     expect(next.played).toEqual([]);
-    expect(next.schedule).toHaveLength(380);
+    expect(next.schedule).toHaveLength(760);
   });
 
   it("every team still fields a full 25-man roster after progression/retirement/FA/youth", () => {
@@ -39,7 +39,33 @@ describe("simOffseason", () => {
     for (const team of next.teams) {
       expect(team.roster.length).toBeGreaterThanOrEqual(20);
     }
-    expect(next.teams).toHaveLength(NUM_TEAMS);
+    expect(next.teams).toHaveLength(NUM_TEAMS + NUM_TEAMS_D2);
+  });
+
+  it("swaps 3 up / 3 down between divisions and records pre-swap divisionsByTid", () => {
+    const rng = mulberry32(6);
+    const league = playFullSeason(rng);
+    const next = simOffseason(league, rng);
+
+    const history = next.seasonHistory.at(-1)!;
+    const d1Before = Object.values(history.divisionsByTid).filter((d) => d === 0).length;
+    const d2Before = Object.values(history.divisionsByTid).filter((d) => d === 1).length;
+    expect(d1Before).toBe(20);
+    expect(d2Before).toBe(20);
+
+    // Still 20-and-20 after the swap (composition changed, counts didn't).
+    const d1After = next.teams.filter((t) => t.division === 0).length;
+    const d2After = next.teams.filter((t) => t.division === 1).length;
+    expect(d1After).toBe(20);
+    expect(d2After).toBe(20);
+  });
+
+  it("stores per-division awards on seasonHistory", () => {
+    const rng = mulberry32(7);
+    const league = playFullSeason(rng);
+    const next = simOffseason(league, rng);
+    const history = next.seasonHistory.at(-1)!;
+    expect(history.awards).toHaveLength(2);
   });
 
   it("every roster keeps at least one GK after the offseason", () => {
@@ -107,7 +133,7 @@ describe("simOffseason", () => {
     const budgetsBefore = new Map(league.teams.map((t) => [t.tid, t.budget]));
     const next = simOffseason(league, rng);
 
-    expect(next.teams).toHaveLength(NUM_TEAMS);
+    expect(next.teams).toHaveLength(NUM_TEAMS + NUM_TEAMS_D2);
     for (const team of next.teams) {
       // Budget moved (performance money in at season end, base in and wages
       // out at the new season's start).
