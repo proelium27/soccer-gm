@@ -115,7 +115,16 @@ export type ShotOutcome = "blocked" | "off_target" | "saved" | "goal";
 
 export interface ShotResult {
   outcome: ShotOutcome;
-  /** Pre-roll goal probability for this shot: (1-blockP) * onTargetP * (1-saveP), i.e. its xG. */
+  /**
+   * The chance's quality, independent of who's taking it: what an
+   * average-finishing attacker would be expected to score against this same
+   * defense. Deliberately excludes `off.finishing` (see xgOnTargetP/xgSaveP
+   * below) — an elite finisher's shots must NOT score higher xG just because
+   * he's an elite finisher, or "goals vs xG" could never reveal finishing
+   * skill (his actual conversion rate would just track his own inflated
+   * baseline). blockP/saveP still reflect the actual defense/keeper faced,
+   * since that's genuine chance difficulty, not shooter identity.
+   */
   xg: number;
 }
 
@@ -136,7 +145,15 @@ export function resolveShot(
     0.2,
     0.95,
   );
-  const xg = (1 - blockP) * onTargetP * (1 - saveP);
+
+  // xG-only probabilities: same cascade, but with the shooter's finishing
+  // held at a neutral 0.5 (the "average attacker" baseline every composite
+  // is centered on elsewhere in this file). These never drive the RNG rolls
+  // below — only the real onTargetP/saveP (which do include off.finishing)
+  // decide the actual outcome, so match balance/tuning is untouched.
+  const xgOnTargetP = clamp(ONTARGET_BASE, 0.1, 0.9);
+  const xgSaveP = clamp(SAVE_BASE * (1 + 0.5 * (def.keeping - 0.5)), 0.2, 0.95);
+  const xg = (1 - blockP) * xgOnTargetP * (1 - xgSaveP);
 
   if (rng() < blockP) return { outcome: "blocked", xg };
   if (rng() >= onTargetP) return { outcome: "off_target", xg };
@@ -621,8 +638,13 @@ export function simMatchDetailed(
           0.55,
           0.9,
         );
-        // Penalties skip the block/on-target stages, so goalP itself is the shot's xG.
-        shooterLine.xg += goalP;
+        // xG excludes the taker's own shooting rating, same reasoning as
+        // resolveShot's xgOnTargetP/xgSaveP: an ace penalty-taker's spot
+        // kicks shouldn't score higher xG just because he's an ace, or he'd
+        // never show up as beating expectation. goalP (with his rating)
+        // still drives the actual roll below.
+        const xgP = clamp(PENALTY_CONVERSION * (1 - 0.15 * (gkKeeping / 100 - 0.5)), 0.55, 0.9);
+        shooterLine.xg += xgP;
         if (rng() < goalP) {
           stat[poss].sot++;
           shooterLine.shotsOnTarget++;
