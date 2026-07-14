@@ -30,9 +30,17 @@ export const TEAM_STRENGTH_SPREAD = 9;
  * the real financial gap between top-flight and second-tier football. Exact
  * values are starting points, confirmed/adjusted via a dynasty audit (see
  * the "Dynasty audit" task) rather than guessed blind.
+ *
+ * DIVISION_2_OFFSET kept equal to TEAM_STRENGTH_SPREAD (2026-07-14, alongside
+ * the LEAGUE_BASE/TEAM_STRENGTH_SPREAD/RATING_NOISE_SD generation retune):
+ * D2's strongest team's target is `TEAM_STRENGTH_SPREAD - DIVISION_2_OFFSET`,
+ * which only lands at D1's average (0) when the two are equal. Widening
+ * TEAM_STRENGTH_SPREAD 7→9 without this pushed D2's best team above D1's
+ * average, breaking generate.test.ts's "D2's strongest team is no stronger
+ * than D1's average team" invariant.
  */
 export const NUM_TEAMS_D2 = 20;
-export const DIVISION_2_OFFSET = 7;
+export const DIVISION_2_OFFSET = TEAM_STRENGTH_SPREAD;
 export const DIVISION_2_BUDGET_SCALE = 0.6;
 
 /** Straight automatic swap each offseason: bottom N of D1 <-> top N of D2. */
