@@ -3,10 +3,10 @@ import { POSITIONS } from "./players/types.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import {
   ROSTER_COMPOSITION, ROSTER_CAP, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
-  ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR,
+  ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR, PROSPECT_AGE_MAX,
 } from "./constants.js";
 import {
-  contractTerms, extendContract, seasonSalaryForOvr, extendAcademyContract,
+  contractTerms, extendContract, seasonSalaryForOvr, extendAcademyContract, academyContractTerms,
 } from "./contracts.js";
 
 /** Pids not currently on any team's roster or academy pool. */
@@ -219,11 +219,17 @@ export function signFreeAgent(
 
 /**
  * Sign a free agent into a team's academy pool (used by Incoming Talent for
- * young prospects). No-op if the pid isn't a free agent or the academy is
- * already at ACADEMY_ROSTER_CAP. Academy contracts are a flat stipend
- * (academyContractTerms), not the normal ovr-cubic wage — cheap enough that
- * it's charged immediately regardless of phase, unlike the season-salary
- * charge signFreeAgent applies mid-season.
+ * young prospects). No-op if the pid isn't a free agent, isn't age-eligible
+ * (PROSPECT_AGE_MAX — enforced here too, not just by Incoming Talent's UI
+ * filter, so the action itself can't park an expensive older free agent at
+ * the academy's near-zero stipend), the academy is already at
+ * ACADEMY_ROSTER_CAP, or (mid-season) the club can't afford it. Academy
+ * contracts are a flat stipend (academyContractTerms), not the normal
+ * ovr-cubic wage, but the same wage-timing convention as
+ * signFreeAgent/promoteFromAcademy still applies: a mid-season signing
+ * charges the season's stipend immediately, an offseason one is covered by
+ * the next season-start charge (wageBill folds academyRoster in alongside
+ * roster — see its call sites).
  */
 export function signToAcademy(
   teams: StoredTeam[],
@@ -231,17 +237,27 @@ export function signToAcademy(
   tid: number,
   pid: number,
   season: number,
+  phase: "regular" | "offseason",
 ): { teams: StoredTeam[]; players: Player[] } {
   if (!freeAgentPids(teams, players).has(pid)) {
+    return { teams, players };
+  }
+  const player = players.find((p) => p.pid === pid);
+  if (!player || season - player.born > PROSPECT_AGE_MAX) {
     return { teams, players };
   }
   const team = teams.find((t) => t.tid === tid);
   if (!team || team.academyRoster.length >= ACADEMY_ROSTER_CAP) {
     return { teams, players };
   }
+  const wageCharge = phase === "regular" ? academyContractTerms(season).salary : 0;
+  if (wageCharge > team.budget) return { teams, players };
+
   return {
     teams: teams.map((t) =>
-      t.tid === tid ? { ...t, academyRoster: [...t.academyRoster, pid] } : t,
+      t.tid === tid
+        ? { ...t, academyRoster: [...t.academyRoster, pid], budget: t.budget - wageCharge }
+        : t,
     ),
     players: extendAcademyContract(players, pid, season),
   };
@@ -310,9 +326,13 @@ export function releaseAcademyPlayer(
  * Emergency call-up: auto-promotes from the user's own academy if their
  * senior roster has fallen dangerously thin (see ROSTER_SAFETY_FLOOR for
  * why this exists). GK first if the roster has none at all (fielding
- * requires exactly one), then by ovr until the floor is reached or the
- * academy runs out. A no-op for every other team, and for a healthily
- * managed user roster. Called once per offseason from simOffseason.
+ * requires exactly one) — falling back to the open free-agent pool if the
+ * academy itself has no GK, since generateYouthIntake's uniform position
+ * draw means the academy can easily lack one and the whole point of this
+ * function is to guarantee a fieldable team, not just a headcount — then by
+ * ovr from the academy until the floor is reached or it runs out. A no-op
+ * for every other team, and for a healthily managed user roster. Called once
+ * per offseason from simOffseason.
  */
 export function ensureUserRosterSafety(
   teams: StoredTeam[],
@@ -337,11 +357,21 @@ export function ensureUserRosterSafety(
   }
 
   if (!roster.some((pid) => playerMap.get(pid)?.pos === "GK")) {
-    const bestGk = academy
+    const academyGk = academy
       .map((pid) => playerMap.get(pid)!)
       .filter((p) => p.pos === "GK")
       .sort((a, b) => b.ovr - a.ovr)[0];
-    if (bestGk) promote(bestGk.pid);
+    if (academyGk) {
+      promote(academyGk.pid);
+    } else {
+      // The academy has no GK either — last resort, sign the best available
+      // free-agent GK so the team can't end up call-up-"safe" but GK-less.
+      const faGk = [...freeAgentPids(teams, players)]
+        .map((fpid) => playerMap.get(fpid))
+        .filter((p): p is Player => p != null && p.pos === "GK")
+        .sort((a, b) => b.ovr - a.ovr)[0];
+      if (faGk) promote(faGk.pid);
+    }
   }
 
   while (roster.length < ROSTER_SAFETY_FLOOR && academy.length > 0) {

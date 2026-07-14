@@ -59,13 +59,19 @@ export function canExtend(player: Player, season: number): boolean {
   return player.contract.expiresSeason <= season;
 }
 
-/** Re-sign a player to fresh one-button terms, effective immediately. */
-export function extendContract(players: Player[], pid: number, season: number): Player[] {
+/** Stamp fresh terms onto a player's contract, effective immediately. */
+function applyContractTerms(players: Player[], pid: number, terms: ContractTerms): Player[] {
   return players.map((p) => {
     if (p.pid !== pid) return p;
-    const terms = contractTerms(p, season);
     return { ...p, contract: { salary: terms.salary, expiresSeason: terms.expiresSeason } };
   });
+}
+
+/** Re-sign a player to fresh one-button terms, effective immediately. */
+export function extendContract(players: Player[], pid: number, season: number): Player[] {
+  const p = players.find((q) => q.pid === pid);
+  if (!p) return players;
+  return applyContractTerms(players, pid, contractTerms(p, season));
 }
 
 /**
@@ -84,9 +90,5 @@ export function academyContractTerms(season: number): ContractTerms {
 
 /** Re-sign an academy player to fresh flat-stipend terms, effective immediately. */
 export function extendAcademyContract(players: Player[], pid: number, season: number): Player[] {
-  return players.map((p) => {
-    if (p.pid !== pid) return p;
-    const terms = academyContractTerms(season);
-    return { ...p, contract: { salary: terms.salary, expiresSeason: terms.expiresSeason } };
-  });
+  return applyContractTerms(players, pid, academyContractTerms(season));
 }

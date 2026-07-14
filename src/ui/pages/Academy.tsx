@@ -1,5 +1,5 @@
 import { useLeague } from "../context/LeagueContext.js";
-import { canExtend } from "../../core/contracts.js";
+import { canExtend, contractTerms } from "../../core/contracts.js";
 import { academyContractTerms } from "../../core/contracts.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
@@ -28,6 +28,9 @@ export function Academy() {
     .sort((a, b) => b.ovr - a.ovr);
 
   const atRosterCap = (userTeam?.roster.length ?? 0) >= ROSTER_CAP;
+  // Wages are paid up front each season, so a mid-season promotion charges
+  // the new senior contract's full season salary at promotion time.
+  const midSeason = league.phase === "regular";
 
   return (
     <div className="container-fluid p-3">
@@ -90,13 +93,24 @@ export function Academy() {
                         </button>
                       );
                     })()}
-                    <button
-                      className="btn btn-sm btn-primary text-nowrap"
-                      disabled={simming || atRosterCap}
-                      onClick={() => promoteFromAcademyAction(p.pid)}
-                    >
-                      Promote
-                    </button>
+                    {(() => {
+                      const unaffordable =
+                        midSeason && contractTerms(p, league.season).salary > (userTeam?.budget ?? 0);
+                      return (
+                        <button
+                          className="btn btn-sm btn-primary text-nowrap"
+                          disabled={simming || atRosterCap || unaffordable}
+                          title={
+                            unaffordable
+                              ? "Mid-season promotions charge the season's wages up front"
+                              : undefined
+                          }
+                          onClick={() => promoteFromAcademyAction(p.pid)}
+                        >
+                          Promote
+                        </button>
+                      );
+                    })()}
                     <button
                       className="btn btn-sm btn-outline-danger"
                       disabled={simming}

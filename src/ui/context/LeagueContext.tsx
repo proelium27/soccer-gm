@@ -262,7 +262,9 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   }), [mutate]);
 
   const signToAcademyAction = useCallback((pid: number) => mutate((l) => {
-    const { teams, players } = signToAcademy(l.teams, l.players, l.meta.userTid, pid, l.season);
+    const { teams, players } = signToAcademy(
+      l.teams, l.players, l.meta.userTid, pid, l.season, l.phase,
+    );
     if (teams === l.teams && players === l.players) return null;
     return { ...l, teams, players };
   }), [mutate]);

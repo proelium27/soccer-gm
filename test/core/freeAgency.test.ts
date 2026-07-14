@@ -178,10 +178,11 @@ describe("academy", () => {
     const pid = league.teams[1].roster[0];
     const player = league.players.find((p) => p.pid === pid)!;
     player.contract.expiresSeason = 1;
+    player.born = 1 - 20; // age 20 at season 1, within PROSPECT_AGE_MAX
     const teams = releaseExpiredContracts(league.teams, league.players, 1);
 
     const { teams: signedTeams, players: signedPlayers } = signToAcademy(
-      teams, league.players, 0, pid, 1,
+      teams, league.players, 0, pid, 1, "offseason",
     );
     const userTeam = signedTeams.find((t) => t.tid === 0)!;
     expect(userTeam.academyRoster).toContain(pid);
@@ -195,6 +196,7 @@ describe("academy", () => {
     const pid = league.teams[1].roster[0];
     const player = league.players.find((p) => p.pid === pid)!;
     player.contract.expiresSeason = 1;
+    player.born = 1 - 20;
     let teams = releaseExpiredContracts(league.teams, league.players, 1);
     teams = teams.map((t) =>
       t.tid === 0
@@ -202,7 +204,35 @@ describe("academy", () => {
         : t,
     );
 
-    const result = signToAcademy(teams, league.players, 0, pid, 1);
+    const result = signToAcademy(teams, league.players, 0, pid, 1, "offseason");
+    expect(result.teams).toBe(teams);
+    expect(result.players).toBe(league.players);
+  });
+
+  it("signToAcademy charges the stipend to budget when signed mid-season", () => {
+    const league = createLeagueState(0, mulberry32(32));
+    const pid = league.teams[1].roster[0];
+    const player = league.players.find((p) => p.pid === pid)!;
+    player.contract.expiresSeason = 1;
+    player.born = 1 - 20;
+    const teams = releaseExpiredContracts(league.teams, league.players, 1);
+    const budgetBefore = teams.find((t) => t.tid === 0)!.budget;
+
+    const { teams: signedTeams } = signToAcademy(teams, league.players, 0, pid, 1, "regular");
+    const userTeam = signedTeams.find((t) => t.tid === 0)!;
+    expect(userTeam.academyRoster).toContain(pid);
+    expect(userTeam.budget).toBeLessThan(budgetBefore);
+  });
+
+  it("signToAcademy is a no-op for a prospect older than PROSPECT_AGE_MAX", () => {
+    const league = createLeagueState(0, mulberry32(33));
+    const pid = league.teams[1].roster[0];
+    const player = league.players.find((p) => p.pid === pid)!;
+    player.contract.expiresSeason = 1;
+    player.born = 1 - 25; // age 25, over PROSPECT_AGE_MAX
+    const teams = releaseExpiredContracts(league.teams, league.players, 1);
+
+    const result = signToAcademy(teams, league.players, 0, pid, 1, "offseason");
     expect(result.teams).toBe(teams);
     expect(result.players).toBe(league.players);
   });
@@ -349,6 +379,24 @@ describe("academy", () => {
       const { teams: safeTeams } = ensureUserRosterSafety(teams, league.players, 0, 2);
       const safeUser = safeTeams.find((t) => t.tid === 0)!;
       expect(safeUser.roster).toContain(academyGk.pid);
+    });
+
+    it("falls back to the free-agent pool for a GK if the academy has none either", () => {
+      const league = createLeagueState(0, mulberry32(34));
+      const userTeam = league.teams.find((t) => t.tid === 0)!;
+      const playerMap = new Map(league.players.map((p) => [p.pid, p]));
+      // Drop the user's own GKs to free agency (not just off the roster) and
+      // leave the academy empty, so the only path to a GK is the fallback.
+      const outfielders = userTeam.roster.filter((pid) => playerMap.get(pid)?.pos !== "GK");
+      const teams = league.teams.map((t) =>
+        t.tid === 0 ? { ...t, roster: outfielders, academyRoster: [] } : t,
+      );
+      expect(teams.find((t) => t.tid === 0)!.roster.some((pid) => playerMap.get(pid)?.pos === "GK"))
+        .toBe(false);
+
+      const { teams: safeTeams } = ensureUserRosterSafety(teams, league.players, 0, 2);
+      const safeUser = safeTeams.find((t) => t.tid === 0)!;
+      expect(safeUser.roster.some((pid) => playerMap.get(pid)?.pos === "GK")).toBe(true);
     });
   });
 });

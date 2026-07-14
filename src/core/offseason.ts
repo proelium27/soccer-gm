@@ -170,7 +170,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const salaryMap = new Map(players.map((p) => [p.pid, p.contract.salary]));
   teams = teams.map((t) => ({
     ...t,
-    budget: chargeSeasonStart(t.budget, wageBill(t.roster, salaryMap)),
+    budget: chargeSeasonStart(t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap)),
   }));
 
   // 7. New schedule, new season, back to regular play.

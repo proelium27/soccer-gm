@@ -46,7 +46,7 @@ export function Finance() {
   // final. The wage line is an estimate either way — the actual charge uses
   // the new season's finalized roster (after retirements, expiries, youth).
   const revenue = seasonRevenue(rank, userTeam.hype);
-  const wages = wageBill(userTeam.roster, salaryMap);
+  const wages = wageBill([...userTeam.roster, ...userTeam.academyRoster], salaryMap);
   const net = revenue.total - wages - userTeam.scoutingSpend;
   const seasonOver = league.phase === "offseason";
 
@@ -70,7 +70,7 @@ export function Finance() {
     .reduce((sum, t) => sum + t.fee, 0);
 
   const clubRows = league.teams
-    .map((t) => ({ team: t, wages: wageBill(t.roster, salaryMap) }))
+    .map((t) => ({ team: t, wages: wageBill([...t.roster, ...t.academyRoster], salaryMap) }))
     .sort((a, b) => b.team.budget - a.team.budget);
 
   return (
