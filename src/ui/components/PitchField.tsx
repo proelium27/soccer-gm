@@ -66,6 +66,8 @@ export function PitchField({
 
   return (
     <div className="pitch-field">
+      <div className="pitch-goal pitch-goal--left" />
+      <div className="pitch-goal pitch-goal--right" />
       {starters.map((p, i) => {
         const coord = coords[i];
         const backup = showDepthChart ? bestFit(slots[i], bench) : null;

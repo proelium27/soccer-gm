@@ -494,31 +494,58 @@ a:hover {
 .pitch-field {
   position: relative;
   width: 100%;
-  max-width: 520px;
-  aspect-ratio: 68 / 100;
+  max-width: 760px;
+  aspect-ratio: 100 / 68;
   margin: 0 auto 1rem;
-  background: linear-gradient(180deg, var(--sg-green-deep) 0%, var(--sg-green-deep-2) 100%);
+  background: repeating-linear-gradient(
+    90deg,
+    var(--sg-green-deep) 0 40px,
+    color-mix(in oklch, var(--sg-green-deep) 78%, white 22%) 40px 80px
+  );
   border: 1px solid var(--sg-border-strong);
   border-radius: var(--sg-radius);
 }
 .pitch-field::before {
+  /* halfway line */
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  border-top: 1px solid oklch(0.9 0.01 155 / 0.25);
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  border-left: 1px solid oklch(0.9 0.01 155 / 0.25);
 }
 .pitch-field::after {
+  /* center circle */
   content: "";
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 22%;
+  height: 22%;
   aspect-ratio: 1;
   border: 1px solid oklch(0.9 0.01 155 / 0.25);
   border-radius: 50%;
   transform: translate(-50%, -50%);
+}
+.pitch-goal {
+  position: absolute;
+  top: 50%;
+  width: 3.5%;
+  height: 16%;
+  transform: translateY(-50%);
+  border: 2px solid oklch(0.95 0.01 155 / 0.6);
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 3px,
+    oklch(0.95 0.01 155 / 0.15) 3px 6px
+  );
+}
+.pitch-goal--left {
+  left: -3.5%;
+  border-right: none;
+}
+.pitch-goal--right {
+  right: -3.5%;
+  border-left: none;
 }
 .pitch-slot {
   position: absolute;
@@ -549,6 +576,9 @@ a:hover {
 }
 .pitch-chip--gk {
   box-shadow: 0 0 0 2px var(--sg-warn);
+}
+.pitch-chip .player-ratings-tooltip-anchor {
+  border-bottom: none;
 }
 .pitch-chip-ovr {
   font-variant-numeric: tabular-nums;

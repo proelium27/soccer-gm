@@ -6,21 +6,21 @@ export interface SlotCoord {
 }
 
 /**
- * Fixed 4-3-3 layout, percentages within the pitch container (y:0 = attacking end
- * at the top, y:100 = the GK's end at the bottom). Positions with more than one
- * slot in a formation (e.g. two CBs) list coordinates left-to-right; a formation
- * needing a third instance of a position (not currently wired up anywhere) would
- * need a third entry added here.
+ * Fixed 4-3-3 layout, percentages within the pitch container. The pitch is drawn
+ * horizontally: x:0 = the GK's own goal line (left), x:100 = the attacking end
+ * (right). Positions with more than one slot in a formation (e.g. two CBs) list
+ * coordinates top-to-bottom; a formation needing a third instance of a position
+ * (not currently wired up anywhere) would need a third entry added here.
  */
 const SLOT_LAYOUT: Record<Position, SlotCoord[]> = {
-  GK: [{ x: 50, y: 92 }],
-  CB: [{ x: 35, y: 75 }, { x: 65, y: 75 }],
-  FB: [{ x: 12, y: 72 }, { x: 88, y: 72 }],
-  DM: [{ x: 50, y: 58 }],
-  CM: [{ x: 35, y: 42 }, { x: 65, y: 42 }],
-  AM: [{ x: 50, y: 30 }],
-  W: [{ x: 15, y: 22 }, { x: 85, y: 22 }],
-  ST: [{ x: 50, y: 10 }],
+  GK: [{ x: 8, y: 50 }],
+  CB: [{ x: 25, y: 35 }, { x: 25, y: 65 }],
+  FB: [{ x: 28, y: 12 }, { x: 28, y: 88 }],
+  DM: [{ x: 42, y: 50 }],
+  CM: [{ x: 55, y: 35 }, { x: 55, y: 65 }],
+  AM: [{ x: 68, y: 50 }],
+  W: [{ x: 75, y: 15 }, { x: 75, y: 85 }],
+  ST: [{ x: 90, y: 50 }],
 };
 
 /**
