@@ -45,6 +45,8 @@ function TeamBoxTable({
             <th className="text-end">SoT</th>
             <th className="text-end">xG</th>
             <th className="text-end">Sv</th>
+            <th className="text-end">GA</th>
+            <th className="text-end">xGA</th>
             <th className="text-end">Tkl</th>
             <th className="text-end">Int</th>
             <th className="text-end">YC</th>
@@ -70,6 +72,8 @@ function TeamBoxTable({
               <td className="text-end">{line.shotsOnTarget || ""}</td>
               <td className="text-end">{line.xg > 0 ? line.xg.toFixed(2) : ""}</td>
               <td className="text-end">{line.saves || ""}</td>
+              <td className="text-end">{playerPos(line.pid) === "GK" ? line.goalsAgainst : ""}</td>
+              <td className="text-end">{playerPos(line.pid) === "GK" ? line.xga.toFixed(2) : ""}</td>
               <td className="text-end">{line.tackles || ""}</td>
               <td className="text-end">{line.interceptions || ""}</td>
               <td className="text-end">{line.yellowCards || ""}</td>

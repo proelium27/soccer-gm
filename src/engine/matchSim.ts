@@ -797,22 +797,40 @@ export function simMatchDetailed(
     return Math.max(0, Math.round((enter - exit) / 60));
   };
 
+  // Goalkeepers can't currently be subbed off mid-match (see the landmine
+  // noted in matchSim.ts's history), so exactly one GK per side plays the
+  // whole game — the team's full-match goals conceded and the opponent's
+  // full-match attacking xG can both be attributed to him directly, with no
+  // need to track either per-shot.
+  const teamXg = (roster: MatchPlayer[]): number =>
+    roster.reduce((sum, p) => sum + (lines.get(p.pid)?.xg ?? 0), 0);
+
+  const homeRosterAll = [...homePlayers, ...homeBench];
+  const awayRosterAll = [...awayPlayers, ...awayBench];
+  const homeXgTotal = teamXg(homeRosterAll);
+  const awayXgTotal = teamXg(awayRosterAll);
+
   const finishLines = (
     roster: MatchPlayer[],
     appearedSet: Set<number>,
     teamGoalsAgainst: number,
+    teamXga: number,
   ): PlayerMatchLine[] =>
     roster
       .filter((p) => appearedSet.has(p.pid))
       .map((p) => {
         const line = lines.get(p.pid)!;
         line.minutesPlayed = minutesFor(p.pid);
+        if (p.pos === "GK") {
+          line.goalsAgainst = teamGoalsAgainst;
+          line.xga = teamXga;
+        }
         line.rating = computeMatchRating(line, p.pos, line.minutesPlayed, teamGoalsAgainst);
         return line;
       });
 
-  const homeLines = finishLines([...homePlayers, ...homeBench], appeared.home, stat.away.goals);
-  const awayLines = finishLines([...awayPlayers, ...awayBench], appeared.away, stat.home.goals);
+  const homeLines = finishLines(homeRosterAll, appeared.home, stat.away.goals, awayXgTotal);
+  const awayLines = finishLines(awayRosterAll, appeared.away, stat.home.goals, homeXgTotal);
 
   return {
     home: stat.home.goals,

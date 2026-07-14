@@ -20,6 +20,10 @@ export interface SeasonStats {
   shotsOnTarget: number;
   /** Sum of per-shot goal probability across the season; see PlayerMatchLine.xg. */
   xg: number;
+  /** Goalkeepers only: total goals conceded across appearances. */
+  goalsAgainst: number;
+  /** Goalkeepers only: total expected goals against; see PlayerMatchLine.xga. */
+  xga: number;
   saves: number;
   tackles: number;
   interceptions: number;
@@ -32,8 +36,8 @@ export interface SeasonStats {
 
 export function emptySeasonStats(season: number): SeasonStats {
   return {
-    season, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, xg: 0, saves: 0, tackles: 0,
-    interceptions: 0, minutesPlayed: 0, ratingSum: 0, avgRating: 0,
+    season, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, xg: 0, goalsAgainst: 0, xga: 0,
+    saves: 0, tackles: 0, interceptions: 0, minutesPlayed: 0, ratingSum: 0, avgRating: 0,
   };
 }
 

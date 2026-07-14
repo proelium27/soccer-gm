@@ -34,6 +34,10 @@ export interface TeamSeasonStats {
   shots: number;
   shotsOnTarget: number;
   xg: number;
+  /** Total goals conceded across the season; see PlayerMatchLine.goalsAgainst (only nonzero on the match's GK line). */
+  goalsAgainst: number;
+  /** Total expected goals against; see PlayerMatchLine.xga. */
+  xga: number;
   saves: number;
   tackles: number;
   /** Average possession share (0-100) across the team's matches. */
@@ -55,8 +59,8 @@ export function computeTeamSeasonStats(teamIds: number[], matches: PlayedMatch[]
   const rows = new Map<number, TeamSeasonStats>();
   for (const tid of teamIds) {
     rows.set(tid, {
-      tid, played: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, xg: 0, saves: 0, tackles: 0,
-      possessionPct: 0, avgRating: 0,
+      tid, played: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, xg: 0, goalsAgainst: 0, xga: 0,
+      saves: 0, tackles: 0, possessionPct: 0, avgRating: 0,
     });
   }
 
@@ -74,6 +78,8 @@ export function computeTeamSeasonStats(teamIds: number[], matches: PlayedMatch[]
       r.shots += l.shots;
       r.shotsOnTarget += l.shotsOnTarget;
       r.xg += l.xg;
+      r.goalsAgainst += l.goalsAgainst;
+      r.xga += l.xga;
       r.saves += l.saves;
       r.tackles += l.tackles;
       if (l.minutesPlayed > 0) {

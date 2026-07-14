@@ -259,7 +259,9 @@ function PlayerLeaders() {
   );
 }
 
-type TeamStatKey = "goals" | "assists" | "shots" | "shotsOnTarget" | "xg" | "saves" | "tackles" | "possessionPct" | "avgRating";
+type TeamStatKey =
+  | "goals" | "assists" | "shots" | "shotsOnTarget" | "xg" | "goalsAgainst" | "xga"
+  | "saves" | "tackles" | "possessionPct" | "avgRating";
 
 const TEAM_STAT_OPTIONS: { key: TeamStatKey; label: string }[] = [
   { key: "goals", label: "Goals" },
@@ -267,6 +269,8 @@ const TEAM_STAT_OPTIONS: { key: TeamStatKey; label: string }[] = [
   { key: "shots", label: "Shots" },
   { key: "shotsOnTarget", label: "Shots on Target" },
   { key: "xg", label: "xG" },
+  { key: "goalsAgainst", label: "Goals Against" },
+  { key: "xga", label: "xG Against" },
   { key: "saves", label: "Saves" },
   { key: "tackles", label: "Tackles" },
   { key: "possessionPct", label: "Possession" },
@@ -348,6 +352,8 @@ function TeamLeaders() {
               <th className="text-end">Sh</th>
               <th className="text-end">SoT</th>
               <th className="text-end">xG</th>
+              <th className="text-end">GA</th>
+              <th className="text-end">xGA</th>
               <th className="text-end">Sv</th>
               <th className="text-end">Tkl</th>
               <th className="text-end">Poss%</th>
@@ -368,6 +374,8 @@ function TeamLeaders() {
                 <td className="text-end">{row.shots}</td>
                 <td className="text-end">{row.shotsOnTarget}</td>
                 <td className="text-end">{row.xg.toFixed(2)}</td>
+                <td className="text-end">{row.goalsAgainst}</td>
+                <td className="text-end">{row.xga.toFixed(2)}</td>
                 <td className="text-end">{row.saves}</td>
                 <td className="text-end">{row.tackles}</td>
                 <td className="text-end">{row.possessionPct.toFixed(1)}</td>

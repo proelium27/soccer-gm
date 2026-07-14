@@ -86,14 +86,14 @@ export function Manual() {
             <li><strong>Dashboard</strong> — your record, next fixtures, a finances snapshot with the scouting-spend slider, and the sim buttons.</li>
             <li><strong>Standings</strong> — the league table. A season dropdown lets you look up any past season's final table alongside the current one; the champion's row is highlighted.</li>
             <li><strong>Schedule</strong> — every matchday's fixtures and results; click a played match for its box score.</li>
-            <li><strong>Stat Leaders</strong> — a Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, totaled per club, with its own season dropdown for the current season and every completed one since).</li>
+            <li><strong>Stat Leaders</strong> — a Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since).</li>
             <li><strong>News Feed</strong> — every completed transfer in the league (AI-to-AI deals included), newest first, grouped by season, with club and season filters. Your club's deals are highlighted.</li>
-            <li><strong>Roster</strong> — your squad: ratings, ages, contracts, season stats. Drag and drop to swap players between the starting XI and the bench, extend contracts, or release players.</li>
+            <li><strong>Roster</strong> — your squad: ratings, ages, contracts, season stats (goalkeepers additionally show goals against and xG against). Drag and drop to swap players between the starting XI and the bench, extend contracts, or release players.</li>
             <li><strong>Transfers</strong> — recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
             <li><strong>Incoming Offers</strong> — AI clubs bidding for <em>your</em> players. Accept, reject, or counter to squeeze the fee upward.</li>
             <li><strong>Finance</strong> — budget, the full wage-bill table, a projected (or final) season settlement, your transfer history, and a league-wide money table.</li>
             <li><strong>Incoming Talent</strong> — this season's youth-academy intake.</li>
-            <li><strong>Box Score</strong> — per-match detail: goals, cards, substitutions, injuries, and a stat line (including xG) plus 0–10 match rating for every player who appeared, with each side's total xG shown next to the score. The highest-rated player among those who actually played is starred as Man of the Match.</li>
+            <li><strong>Box Score</strong> — per-match detail: goals, cards, substitutions, injuries, and a stat line (including xG, plus goals against and xG against on the goalkeeper's row) plus 0–10 match rating for every player who appeared, with each side's total xG shown next to the score. The highest-rated player among those who actually played is starred as Man of the Match.</li>
             <li><strong>Leagues</strong> — your saved leagues. Create, enter, or delete saves; each is fully independent.</li>
           </ul>
         </Section>
@@ -213,12 +213,26 @@ export function Manual() {
             Stat Leaders.
           </p>
           <p>
-            <strong>xG (expected goals).</strong> Every shot's pre-outcome chance of going in —
-            based on the shooter's finishing, the defense he's facing, and the keeper's shot-
-            stopping — is tallied per player and per team, shown next to the score on the Box
-            Score page and as a column on Stat Leaders. It's purely informational: it doesn't
-            feed match ratings or anything else, it just tells you whether a scoreline flattered
-            a team or was earned.
+            <strong>xG (expected goals).</strong> Every shot's pre-outcome chance of going in,
+            based on the defense and keeper it's taken against, is tallied per player and per
+            team, shown next to the score on the Box Score page and as a column on Stat Leaders.
+            It deliberately ignores the shooter's own finishing skill — an elite finisher's
+            shots don't get marked as higher-quality chances just because he's elite — so
+            comparing a player's actual goals to his xG tells you whether he's finishing above
+            or below what an average attacker would from the same opportunities, rather than the
+            two numbers just tracking each other. It's purely informational: it doesn't feed
+            match ratings or anything else, it just tells you whether a scoreline flattered a
+            team (or a keeper) or was earned.
+          </p>
+          <p>
+            <strong>Goals against &amp; xG against.</strong> The mirror stat for goalkeepers: how
+            many goals he's actually conceded versus how many an average keeper would be expected
+            to concede from the shots he faced, shown on his Roster row, his Box Score line, and
+            as Team Stat Leaders columns. A keeper conceding fewer goals than his xG against is
+            outperforming his shot-stopping expectation; more means the defense in front of him
+            is doing well but he isn't converting that into saves, or he's been unlucky.
+            Goalkeepers can't currently be substituted mid-match, so both stats always cover a
+            keeper's full 90 minutes.
           </p>
         </Section>
 

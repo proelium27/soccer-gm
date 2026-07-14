@@ -67,6 +67,8 @@ function RosterTable({
               <th className="text-end">A</th>
               <th className="text-end">Sh</th>
               <th className="text-end">Sv</th>
+              <th className="text-end">GA</th>
+              <th className="text-end">xGA</th>
               <th className="text-end">Tkl</th>
               <th className="text-end">Int</th>
               <th className="text-end">Rtg</th>
@@ -132,6 +134,8 @@ function RosterTable({
                   <td className="text-end">{ss?.assists ?? 0}</td>
                   <td className="text-end">{ss?.shots ?? 0}</td>
                   <td className="text-end">{ss?.saves ?? 0}</td>
+                  <td className="text-end">{p.pos === "GK" ? ss?.goalsAgainst ?? 0 : ""}</td>
+                  <td className="text-end">{p.pos === "GK" && ss ? ss.xga.toFixed(2) : ""}</td>
                   <td className="text-end">{ss?.tackles ?? 0}</td>
                   <td className="text-end">{ss?.interceptions ?? 0}</td>
                   <td className="text-end">{ss ? ss.avgRating.toFixed(2) : ""}</td>

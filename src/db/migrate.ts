@@ -29,20 +29,23 @@ type LeagueStoreAnyVersion =
   Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory"> &
   Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory">>;
 
-/** A season-stats entry as it may exist in a save written before Match Rating / xG. */
-type SeasonStatsAnyVersion = Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg"> &
-  Partial<Pick<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg">>;
+/** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA. */
+type SeasonStatsAnyVersion =
+  Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga"> &
+  Partial<Pick<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga">>;
 
-/** A team-season-stats row as it may exist in a save written before xG. */
-type TeamSeasonStatsAnyVersion = Omit<TeamSeasonStats, "xg"> & Partial<Pick<TeamSeasonStats, "xg">>;
+/** A team-season-stats row as it may exist in a save written before xG / xGA. */
+type TeamSeasonStatsAnyVersion = Omit<TeamSeasonStats, "xg" | "goalsAgainst" | "xga"> &
+  Partial<Pick<TeamSeasonStats, "xg" | "goalsAgainst" | "xga">>;
 
 /** A season-history entry as it may exist in a save written before Team Stat Leaders history / xG. */
 type SeasonHistoryEntryAnyVersion = Omit<LeagueStore["seasonHistory"][number], "teamStats"> &
   Partial<{ teamStats: TeamSeasonStatsAnyVersion[] }>;
 
-/** A box-score line as it may exist in a save written before Match Rating / xG. */
-type PlayerMatchLineAnyVersion = Omit<PlayerMatchLine, "minutesPlayed" | "rating" | "interceptions" | "xg"> &
-  Partial<Pick<PlayerMatchLine, "minutesPlayed" | "rating" | "interceptions" | "xg">>;
+/** A box-score line as it may exist in a save written before Match Rating / xG / xGA. */
+type PlayerMatchLineAnyVersion =
+  Omit<PlayerMatchLine, "minutesPlayed" | "rating" | "interceptions" | "xg" | "goalsAgainst" | "xga"> &
+  Partial<Pick<PlayerMatchLine, "minutesPlayed" | "rating" | "interceptions" | "xg" | "goalsAgainst" | "xga">>;
 
 /** A played match as it may exist in a save written before M3 added box scores. */
 type PlayedMatchAnyVersion = {
@@ -62,6 +65,8 @@ function migrateLine(line: PlayerMatchLineAnyVersion): PlayerMatchLine {
     rating: line.rating ?? 6.0,
     interceptions: line.interceptions ?? 0,
     xg: line.xg ?? 0,
+    goalsAgainst: line.goalsAgainst ?? 0,
+    xga: line.xga ?? 0,
   };
 }
 
@@ -75,6 +80,8 @@ function migratePlayer(p: Player): Player {
       avgRating: s.avgRating ?? 0,
       interceptions: s.interceptions ?? 0,
       xg: s.xg ?? 0,
+      goalsAgainst: s.goalsAgainst ?? 0,
+      xga: s.xga ?? 0,
     })),
   };
 }
@@ -141,7 +148,9 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     // stats rather than reconstructing false zeros.
     seasonHistory: ((anyVersion.seasonHistory ?? []) as SeasonHistoryEntryAnyVersion[]).map((h) => ({
       ...h,
-      teamStats: (h.teamStats ?? []).map((t) => ({ ...t, xg: t.xg ?? 0 })),
+      teamStats: (h.teamStats ?? []).map((t) => ({
+        ...t, xg: t.xg ?? 0, goalsAgainst: t.goalsAgainst ?? 0, xga: t.xga ?? 0,
+      })),
     })),
   };
 }
