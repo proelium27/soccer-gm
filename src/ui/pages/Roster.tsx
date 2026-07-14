@@ -9,6 +9,7 @@ import { keepsDepthFloor } from "../../core/freeAgency.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { PitchField } from "../components/PitchField.js";
 import { Flag } from "../components/Flag.js";
 import { ROSTER_CAP } from "../../core/constants.js";
 
@@ -177,6 +178,8 @@ function RosterTable({
 export function Roster() {
   const { league, releasePlayerAction, extendContractAction, setLineupAction } = useLeague();
   const [dragOverPid, setDragOverPid] = useState<number | null>(null);
+  const [dragOverSlotIndex, setDragOverSlotIndex] = useState<number | null>(null);
+  const [showDepthChart, setShowDepthChart] = useState(false);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -192,10 +195,10 @@ export function Roster() {
     rosterPids.has(p.pid),
   );
 
-  const xi = resolveXI(players, FORMATIONS["4-3-3"], userTeam.starters);
+  const slots = FORMATIONS["4-3-3"];
+  const xi = resolveXI(players, slots, userTeam.starters);
   const starterPids = xi.map((p) => p.pid);
   const starterPidSet = new Set(starterPids);
-  const starters = sortByPosThenOvr(xi);
   const bench = sortByPosThenOvr(players.filter((p) => !starterPidSet.has(p.pid)));
 
   const hasStats = league.played.length > 0;
@@ -224,6 +227,11 @@ export function Roster() {
     void setLineupAction(newStarters);
   }
 
+  function handleDropOnSlot(slotIndex: number, draggedPid: number) {
+    const targetPid = starterPids[slotIndex];
+    handleSwap(draggedPid, targetPid);
+  }
+
   return (
     <div className="container-fluid p-3">
       <h4>
@@ -237,19 +245,34 @@ export function Roster() {
       ) : (
         <>
           <p className="text-muted small mb-1">
-            Drag a player onto another to swap them between the Starting XI and the bench.
+            Drag a bench player onto a pitch slot to swap them into the Starting XI.
           </p>
           <h6 className="mt-3">Starting XI</h6>
-          <RosterTable
-            players={starters}
+          <div className="form-check form-switch mb-2">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              role="switch"
+              id="depth-chart-toggle"
+              checked={showDepthChart}
+              onChange={(e) => setShowDepthChart(e.target.checked)}
+            />
+            <label className="form-check-label" htmlFor="depth-chart-toggle">
+              Depth Chart
+            </label>
+          </div>
+          <PitchField
+            starters={xi}
+            slots={slots}
+            bench={bench}
+            showDepthChart={showDepthChart}
             season={league.season}
-            hasStats={hasStats}
+            releasablePids={releasablePids}
             onRelease={releasePlayerAction}
             onExtend={extendContractAction}
-            releasablePids={releasablePids}
-            dragOverPid={dragOverPid}
-            setDragOverPid={setDragOverPid}
-            onSwap={handleSwap}
+            dragOverSlotIndex={dragOverSlotIndex}
+            setDragOverSlotIndex={setDragOverSlotIndex}
+            onDropOnSlot={handleDropOnSlot}
           />
           <h6 className="mt-4">Bench</h6>
           {bench.length === 0 ? (
