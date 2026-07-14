@@ -591,3 +591,43 @@ export const INBOUND_OFFERS_MAX = 4;
 export const AI_SCOUT_NOISE_MIN = 0.02;
 /** Scouting noise (± fraction of value) for the poorest club in the league (frugality 1). */
 export const AI_SCOUT_NOISE_MAX = 0.08;
+
+/* ────────────────────────────────────────────────────────────────────────
+ * End-of-season awards (Player of the Season, Golden Boot, Team of the
+ * Season). Scoring layers explicit per-season goal/assist/defensive-stat
+ * weights on top of avgRating (itself already a per-match, position-weighted
+ * blend of these same stats via computeMatchRating in matchRating.ts) so a
+ * season of end product counts for more than the match-by-match average
+ * alone would credit. Weights are season-total analogs of matchRating's
+ * per-match weights, scaled down since they're summed over ~30+ appearances
+ * instead of one game.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** Appearances needed in a season to qualify for Player of the Season / Team of the Season (of 38 matchdays). */
+export const AWARD_MIN_APPEARANCES = 15;
+
+/** Player of the Season: avgRating plus goals/assists weighted heavier than the match-rating baseline already does. */
+export const POTY_GOAL_WEIGHT: Record<"GK" | "DEF" | "MID" | "FWD", number> = {
+  FWD: 0.08, MID: 0.1, DEF: 0.14, GK: 0.22,
+};
+export const POTY_ASSIST_WEIGHT: Record<"GK" | "DEF" | "MID" | "FWD", number> = {
+  FWD: 0.05, MID: 0.07, DEF: 0.09, GK: 0.16,
+};
+
+/** Team of the Season: avgRating plus every position-relevant season stat, not just goals/assists. */
+export const TOTS_GOAL_WEIGHT: Record<"GK" | "DEF" | "MID" | "FWD", number> = {
+  FWD: 0.06, MID: 0.08, DEF: 0.11, GK: 0.3,
+};
+export const TOTS_ASSIST_WEIGHT: Record<"GK" | "DEF" | "MID" | "FWD", number> = {
+  FWD: 0.04, MID: 0.055, DEF: 0.07, GK: 0.2,
+};
+export const TOTS_TACKLE_WEIGHT: Record<"GK" | "DEF" | "MID" | "FWD", number> = {
+  FWD: 0.01, MID: 0.02, DEF: 0.03, GK: 0,
+};
+export const TOTS_INTERCEPTION_WEIGHT = TOTS_TACKLE_WEIGHT;
+/** Goalkeepers only. */
+export const TOTS_SAVE_WEIGHT = 0.035;
+/** Penalty per goal conceded across the season, heaviest for GK/DEF. */
+export const TOTS_GOALS_AGAINST_PENALTY: Record<"GK" | "DEF" | "MID" | "FWD", number> = {
+  FWD: 0, MID: 0.006, DEF: 0.02, GK: 0.03,
+};

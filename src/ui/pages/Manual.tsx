@@ -87,6 +87,7 @@ export function Manual() {
             <li><strong>Standings</strong> — the league table. A season dropdown lets you look up any past season's final table alongside the current one; the champion's row is highlighted.</li>
             <li><strong>Schedule</strong> — every matchday's fixtures and results; click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong> — a Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since).</li>
+            <li><strong>Awards</strong> — Player of the Season, the Golden Boot, and a Team of the Season pitch view, one entry per completed season with a dropdown to browse past years. Opens automatically the moment you advance past a season.</li>
             <li><strong>News Feed</strong> — every completed transfer in the league (AI-to-AI deals included), newest first, grouped by season, with club and season filters. Your club's deals are highlighted.</li>
             <li><strong>Roster</strong> — your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay) plus a bench table with ratings, ages, contracts, season stats (goalkeepers additionally show goals against and xG against). Drag a bench player onto a pitch slot to swap them into the XI, extend contracts, or release players.</li>
             <li><strong>Transfers</strong> — recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
@@ -211,6 +212,21 @@ export function Manual() {
             than a goal to a striker. Short cameos are damped by minutes played, so a two-minute
             sub can't post a 9.8 off one touch. The season-long average is a sortable column on
             Stat Leaders.
+          </p>
+          <p>
+            <strong>End-of-season awards.</strong> The moment you advance past a season, the Awards
+            page opens automatically with three honors for the season that just finished. <strong>Player
+            of the Season</strong> starts from a player's season-long average match rating, then adds
+            an extra bonus for his goals and assists — weighted more heavily than the match rating
+            alone already credits them, and heavier still for a defender or keeper who chips in
+            goals — so end product genuinely tips a close race, not just consistency. The
+            <strong> Golden Boot</strong> is simply the league's top league-goals scorer. <strong>Team
+            of the Season</strong> fills an 11-man pitch (one XI slot per position) with whoever
+            rates highest at that position across the whole league, blending match rating with the
+            stats that matter most for that role — goals and assists up front, tackles and
+            interceptions in defense and midfield, saves for the keeper. Only players who
+            appeared in a meaningful share of the season's matchdays are eligible for any of the
+            three.
           </p>
           <p>
             <strong>xG (expected goals).</strong> Every shot's pre-outcome chance of going in,

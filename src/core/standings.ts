@@ -1,4 +1,5 @@
 import type { BoxScore, PlayerMatchLine } from "../engine/attribution.js";
+import type { SeasonAwards } from "./awards.js";
 
 export interface MatchScore {
   home: number;
@@ -52,6 +53,7 @@ export interface SeasonHistoryEntry {
   table: StandingsRow[];
   championTid: number;
   teamStats: TeamSeasonStats[];
+  awards: SeasonAwards;
 }
 
 /** Sum each club's box-score lines across a season's played matches. */

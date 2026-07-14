@@ -17,6 +17,7 @@ export function Sidebar() {
       <NavLink to="/standings" className="nav-link">Standings</NavLink>
       <NavLink to="/schedule" className="nav-link">Schedule</NavLink>
       <NavLink to="/leaders" className="nav-link">Stat Leaders</NavLink>
+      <NavLink to="/awards" className="nav-link">Awards</NavLink>
       <NavLink to="/news" className="nav-link">News Feed</NavLink>
 
       <div className="nav-section">Team</div>

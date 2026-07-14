@@ -7,6 +7,7 @@ import { releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus } from "./f
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { runAIContractRenewals } from "./ai/renewals.js";
 import { computeStandings, computeTeamSeasonStats } from "./standings.js";
+import { computeSeasonAwards } from "./awards.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
 import { settleSeasonEnd, chargeSeasonStart, wageBill } from "./finance/budget.js";
@@ -28,6 +29,11 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
 
   const endingSeason = league.season;
   const nextSeason = endingSeason + 1;
+
+  // Computed from league.players (not the `players` variable mutated below)
+  // so a player who retires this offseason still gets credit for the season
+  // he just finished, before he's filtered out of the roster.
+  const awards = computeSeasonAwards(league.players, endingSeason);
 
   // 0. Proactive AI contract renewals: any AI player entering his final
   //    contract season is renewed now if his club still values him above
@@ -161,7 +167,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     winterMarketRunSeason: null,
     seasonHistory: [
       ...league.seasonHistory,
-      { season: endingSeason, table: standings, championTid: standings[0].tid, teamStats },
+      { season: endingSeason, table: standings, championTid: standings[0].tid, teamStats, awards },
     ],
   };
 }

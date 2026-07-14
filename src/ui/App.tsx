@@ -14,6 +14,7 @@ import { Transfers } from "./pages/Transfers.js";
 import { IncomingOffers } from "./pages/IncomingOffers.js";
 import { Finance } from "./pages/Finance.js";
 import { NewsFeed } from "./pages/NewsFeed.js";
+import { Awards } from "./pages/Awards.js";
 import { Manual } from "./pages/Manual.js";
 
 function RootRedirect() {
@@ -34,6 +35,7 @@ export function App() {
             <Route path="/standings" element={<Standings />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/news" element={<NewsFeed />} />
+            <Route path="/awards" element={<Awards />} />
             <Route path="/box-score/:matchIndex" element={<BoxScore />} />
             <Route path="/roster" element={<Roster />} />
             <Route path="/leaders" element={<Leaders />} />
