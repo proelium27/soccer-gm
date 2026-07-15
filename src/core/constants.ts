@@ -81,6 +81,20 @@ export const DIVISION_2_OFFSET =
  */
 export const DIVISION_2_BUDGET_SCALE = 0.6;
 
+/**
+ * OVR floor above which a Division 2 player refuses to stay in Division 2
+ * (`wouldRefuseExtension`, `src/core/ai/breakoutRefusal.ts`) — simplified
+ * 2026-07-15 from a per-club valueToClub/affordability match (find a
+ * specific Division 1 club that both values him enough and can afford him)
+ * to a flat OVR preference: a "good starter" per the Manual's own 65/70/75
+ * scale (`src/ui/pages/Manual.tsx`) just doesn't want to play Division 2
+ * football, full stop, regardless of whether any particular Division 1 club
+ * happens to want or be able to afford him right now. Starting value; tune
+ * via `scripts/divisionAudit.ts` if it turns out too loose (barely reduces
+ * the season-30 drift) or too tight (empties Division 2 of anyone decent).
+ */
+export const DIVISION_2_REFUSAL_OVR_THRESHOLD = 70;
+
 /** Straight automatic swap each offseason: bottom N of D1 <-> top N of D2. */
 export const PROMOTION_RELEGATION_COUNT = 3;
 

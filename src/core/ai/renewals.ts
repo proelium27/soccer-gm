@@ -44,7 +44,7 @@ export function runAIContractRenewals(
     for (const pid of team.roster) {
       const player = playerByPid.get(pid);
       if (!player || !canExtend(player, nextSeason)) continue;
-      if (wouldRefuseExtension(player, team, teams, contexts)) continue;
+      if (wouldRefuseExtension(player, team)) continue;
 
       const terms = contractTerms(player, nextSeason);
       const jitter = mulberry32(hashInts(seed, pid));

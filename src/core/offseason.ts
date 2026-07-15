@@ -8,7 +8,6 @@ import {
 } from "./freeAgency.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { runAIContractRenewals } from "./ai/renewals.js";
-import { deriveLeagueContexts } from "./ai/clubContext.js";
 import { wouldRefuseExtension } from "./ai/breakoutRefusal.js";
 import { computeStandings, computeTeamSeasonStats, type StandingsRow } from "./standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
@@ -73,15 +72,12 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      "he wants to move up" on its own, so this set gives Division 1
   //      clubs first pick of him once he hits the free agent pool, instead
   //      of him just getting scooped back up by another Division 2 club.
-  const preRenewalContexts = deriveLeagueContexts({
-    teams: renewals.teams, players: renewals.players, season: nextSeason, played: league.played,
-  });
   const preferD1Pids = new Set(
     renewals.players
       .filter((p) => p.contract.expiresSeason <= endingSeason)
       .filter((p) => {
         const team = renewals.teams.find((t) => t.roster.includes(p.pid));
-        return team && wouldRefuseExtension(p, team, renewals.teams, preRenewalContexts);
+        return team && wouldRefuseExtension(p, team);
       })
       .map((p) => p.pid),
   );

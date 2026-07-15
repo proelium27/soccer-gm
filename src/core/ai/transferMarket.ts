@@ -98,7 +98,7 @@ export function runAITransferMarket(
       // (see wouldRefuseExtension / the Division 2 weaker-dynasty design).
       const reservation = valueToClub(player, sellerCtx);
       const normallyForSale = reservation <= market * AI_MARKET_AVAILABILITY;
-      const refusingOnly = !normallyForSale && wouldRefuseExtension(player, seller, teams, contexts);
+      const refusingOnly = !normallyForSale && wouldRefuseExtension(player, seller);
       if (!normallyForSale && !refusingOnly) continue;
 
       for (const buyer of teams) {

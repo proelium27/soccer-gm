@@ -7,7 +7,6 @@ import { trueTransferValue, perceivedTransferValue } from "../finance/valuation.
 import { clampBudget } from "../finance/budget.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { keepsDepthFloor } from "../freeAgency.js";
-import { deriveLeagueContexts } from "../ai/clubContext.js";
 import { wouldRefuseExtension } from "../ai/breakoutRefusal.js";
 import {
   ROSTER_CAP,
@@ -86,7 +85,6 @@ export function isForSale(
  * sale trigger (see the Division 2 weaker-dynasty design doc).
  */
 export function isForSaleOrRefusing(
-  league: LeagueStore,
   seller: StoredTeam,
   players: Map<number, Player>,
   pid: number,
@@ -94,10 +92,7 @@ export function isForSaleOrRefusing(
   if (isForSale(seller, players, pid)) return true;
   const player = players.get(pid);
   if (!player) return false;
-  const contexts = deriveLeagueContexts({
-    teams: league.teams, players: league.players, season: league.season, played: league.played,
-  });
-  return wouldRefuseExtension(player, seller, league.teams, contexts);
+  return wouldRefuseExtension(player, seller);
 }
 
 /**
@@ -264,7 +259,7 @@ export function makeTransferOffer(
   if (!hasRosterRoom(user)) return league;
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
-  if (!isForSaleOrRefusing(league, seller, playerMap, pid)) return league;
+  if (!isForSaleOrRefusing(seller, playerMap, pid)) return league;
   if (departsAtRollover(league, player)) return league;
 
   const existing = league.negotiations.find(
@@ -325,7 +320,7 @@ export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStor
   if (!hasRosterRoom(user)) return league;
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
-  if (!isForSaleOrRefusing(league, seller, playerMap, pid)) return league;
+  if (!isForSaleOrRefusing(seller, playerMap, pid)) return league;
   if (departsAtRollover(league, player)) return league;
 
   const accepted: TransferNegotiation = { ...negotiation, status: "accepted" };

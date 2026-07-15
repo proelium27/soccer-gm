@@ -1,53 +1,23 @@
 import type { Player } from "../players/types.js";
 import type { StoredTeam } from "../teams/clubs.js";
-import type { ClubContext } from "./clubContext.js";
-import { valueToClub } from "./evaluate.js";
-import { buyerSpendable } from "../transfers/inboundOffers.js";
-import { AI_MARKET_MIN_SURPLUS } from "../constants.js";
+import { DIVISION_2_REFUSAL_OVR_THRESHOLD } from "../constants.js";
 
 /**
  * A Division 2 player refuses to sign a new deal with his current club once
- * he'd already be a viable transfer target for some Division 1 club —
- * mirroring real feeder-league drama (a breakout player forcing a move by
- * refusing terms) rather than staying wherever he happens to be forever.
- *
- * Reuses the exact bar Phase 2 (AI↔AI market) and Phase 3 (inbound offers)
- * already use for "would this club actually want to buy him": his value to
- * some Division 1 club must clear his value to his own club by
- * AI_MARKET_MIN_SURPLUS, AND that Division 1 club must be able to afford
- * him without dipping into its cash reserve (buyerSpendable). This is
- * deterministic (no jitter) — it's checked from independent call sites (AI
- * renewals, the user's Extend button, transfer-listing checks) that must
- * all agree on the same answer without a shared RNG seed.
+ * he's simply too good to want to keep playing Division 2 football — a flat
+ * OVR preference, not a per-club match. Simplified 2026-07-15 from an
+ * earlier version that required finding one specific Division 1 club that
+ * both valued him above his own club's reservation and could afford him:
+ * that version was realistic in theory (a poor Division 2 club genuinely
+ * can't compete for a star), but in practice it depended on which specific
+ * clubs happened to have cash/need that window, was expensive to compute
+ * (a full per-club valueToClub sweep), and needed `teams`/`contexts` at
+ * every call site just to answer what's fundamentally a question about the
+ * player himself. This version is deterministic and self-contained — no
+ * club context needed — so a good player wants out of Division 2 the moment
+ * he's good enough, independent of any specific buyer's situation that
+ * window.
  */
-export function wouldRefuseExtension(
-  player: Player,
-  currentTeam: StoredTeam,
-  teams: StoredTeam[],
-  contexts: Map<number, ClubContext>,
-): boolean {
-  if (currentTeam.division !== 1) return false;
-
-  const currentCtx = contexts.get(currentTeam.tid);
-  if (!currentCtx) return false;
-  const reservation = valueToClub(player, currentCtx);
-  // A player worth nothing to his own club has no real leverage to refuse
-  // with — without this guard, a zero reservation makes the surplus check
-  // below (value < reservation * (1 + margin)) trivially pass for every
-  // club, since 0 < 0 is false.
-  if (reservation <= 0) return false;
-
-  for (const club of teams) {
-    if (club.division !== 0) continue;
-    const ctx = contexts.get(club.tid);
-    if (!ctx) continue;
-
-    const value = valueToClub(player, ctx);
-    if (value < reservation * (1 + AI_MARKET_MIN_SURPLUS)) continue;
-    if (buyerSpendable(club, ctx, 0) < reservation) continue;
-
-    return true;
-  }
-
-  return false;
+export function wouldRefuseExtension(player: Player, currentTeam: StoredTeam): boolean {
+  return currentTeam.division === 1 && player.ovr >= DIVISION_2_REFUSAL_OVR_THRESHOLD;
 }
