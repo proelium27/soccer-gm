@@ -1,12 +1,13 @@
 import { useLeague } from "../context/LeagueContext.js";
 import { freeAgentPids } from "../../core/freeAgency.js";
-import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
 import { contractTerms } from "../../core/contracts.js";
 import { formatWeeklyWage } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { ROSTER_CAP, PROSPECT_AGE_MAX } from "../../core/constants.js";
+
+const MAX_LISTED = 25;
 
 /**
  * General free-agent signing: unsigned players over PROSPECT_AGE_MAX. Young
@@ -32,13 +33,8 @@ export function FreeAgents() {
   // by the next season-start charge.
   const midSeason = league.phase === "regular";
 
-  const posOrder = new Map(POSITIONS.map((pos, i) => [pos, i]));
-  availablePlayers.sort((a, b) => {
-    const posA = posOrder.get(a.pos) ?? 99;
-    const posB = posOrder.get(b.pos) ?? 99;
-    if (posA !== posB) return posA - posB;
-    return b.ovr - a.ovr;
-  });
+  availablePlayers.sort((a, b) => b.ovr + b.potential - (a.ovr + a.potential));
+  const shownPlayers = availablePlayers.slice(0, MAX_LISTED);
 
   return (
     <div className="container-fluid p-3">
@@ -51,6 +47,10 @@ export function FreeAgents() {
       {availablePlayers.length === 0 ? (
         <p>No available players.</p>
       ) : (
+        <>
+        <p className="text-muted">
+          Showing top {shownPlayers.length} of {availablePlayers.length} by OVR + POT.
+        </p>
         <table className="table table-striped table-sm">
           <thead>
             <tr>
@@ -63,7 +63,7 @@ export function FreeAgents() {
             </tr>
           </thead>
           <tbody>
-            {availablePlayers.map((p) => {
+            {shownPlayers.map((p) => {
               const terms = contractTerms(p, league.season);
               const unaffordable = midSeason && terms.salary > (userTeam?.budget ?? 0);
               return (
@@ -95,6 +95,7 @@ export function FreeAgents() {
             })}
           </tbody>
         </table>
+        </>
       )}
     </div>
   );
