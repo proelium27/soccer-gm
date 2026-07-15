@@ -18,7 +18,14 @@ function positionGroup(pos: MatchPosition): PositionGroup {
 const GOAL_WEIGHT: Record<PositionGroup, number> = { FWD: 1.0, MID: 1.2, DEF: 1.5, GK: 2.5 };
 const ASSIST_WEIGHT: Record<PositionGroup, number> = { FWD: 0.6, MID: 0.8, DEF: 1.0, GK: 2.0 };
 const SOT_WEIGHT: Record<PositionGroup, number> = { FWD: 0.15, MID: 0.15, DEF: 0.2, GK: 0 };
-const TACKLE_WEIGHT: Record<PositionGroup, number> = { FWD: 0.05, MID: 0.15, DEF: 0.2, GK: 0 };
+// DEF/MID retuned down from 0.2/0.15 (2026-07-15): a busy CB/DM racks up
+// ~2 tackles + ~2 interceptions almost every match (a near-guaranteed
+// rating swing), while a forward's boost depends on scoring, which is much
+// rarer per match — the old weights made average season rating dominated by
+// defenders regardless of how well an attacker actually played. Audited via
+// a full-season sim: CB/FB dropped from the highest average rating in the
+// league to mid-pack.
+const TACKLE_WEIGHT: Record<PositionGroup, number> = { FWD: 0.05, MID: 0.06, DEF: 0.08, GK: 0 };
 // Same magnitude as TACKLE_WEIGHT for now (no audit data yet to justify a different
 // value per the design doc) — aliased rather than a separate literal so a future
 // retune of one requires deliberately forking this line, not an accidental drift.
