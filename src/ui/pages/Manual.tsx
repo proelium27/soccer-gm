@@ -83,7 +83,7 @@ export function Manual() {
         <Section id="pages" title="The Pages">
           <p>Every screen in the game and what it's for:</p>
           <ul>
-            <li><strong>Dashboard</strong> — your record, next fixtures, a finances snapshot with the scouting-spend slider, and the sim buttons.</li>
+            <li><strong>Dashboard</strong> — your current W/D/L record and next fixture front and center, with your division's standings to the left and the latest news headlines to the right; below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim buttons.</li>
             <li><strong>Standings</strong> — the league table, plus each club's current OVR/POT. A season dropdown lets you look up any past season's final table alongside the current one; the champion's row is highlighted.</li>
             <li><strong>Power Rankings</strong> — every club across both divisions ranked by squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column), with a badge showing each club's division and its rank within that division. Click a team to expand its full roster in place.</li>
             <li><strong>Schedule</strong> — every matchday's fixtures and results; click a played match for its box score.</li>
