@@ -194,6 +194,69 @@ export function Dashboard() {
         </div>
       </div>
 
+      {/* Sim controls */}
+      <div className="card mb-3">
+        <div className="card-body">
+          <h5 className="card-title">Simulation</h5>
+          <div className="btn-group" role="group">
+            <button
+              className="btn btn-primary"
+              disabled={disableSim}
+              onClick={() => simAction("game")}
+            >
+              Sim One Game
+            </button>
+            <button
+              className="btn btn-primary"
+              disabled={disableSim}
+              onClick={() => simAction("month")}
+            >
+              Sim to End of Month
+            </button>
+            <button
+              className="btn btn-primary"
+              disabled={disableSim || atOrPastDeadline}
+              title={
+                !disableSim && atOrPastDeadline
+                  ? "The transfer deadline has been reached this season"
+                  : undefined
+              }
+              onClick={() => simAction("deadline")}
+            >
+              Sim to Transfer Deadline
+            </button>
+            <button
+              className="btn btn-primary"
+              disabled={disableSim}
+              onClick={() => simAction("season")}
+            >
+              Sim to End of Season
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Offseason */}
+      {league.phase === "offseason" && (
+        <div className="card mb-3">
+          <div className="card-body">
+            <h5 className="card-title">Offseason</h5>
+            <p className="card-text">
+              {seasonYear(league.season)} is complete. Advancing will run player
+              progression, retirements, AI free agency, and youth intake, then
+              start {seasonYear(league.season + 1)}.
+            </p>
+            <button
+              className="btn btn-success"
+              disabled={simming}
+              onClick={() => offseasonAction().then(() => navigate("/season-preview"))}
+            >
+              Advance to {seasonYear(league.season + 1)}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Standings | Record + Next Match | News headlines */}
       <div className="row g-3 mb-3">
         <div className="col-lg-3 order-lg-1">
@@ -357,69 +420,6 @@ export function Dashboard() {
           <Link to="/leaders" className="small">Full stat leaders</Link>
         </div>
       </div>
-
-      {/* Sim controls */}
-      <div className="card">
-        <div className="card-body">
-          <h5 className="card-title">Simulation</h5>
-          <div className="btn-group" role="group">
-            <button
-              className="btn btn-primary"
-              disabled={disableSim}
-              onClick={() => simAction("game")}
-            >
-              Sim One Game
-            </button>
-            <button
-              className="btn btn-primary"
-              disabled={disableSim}
-              onClick={() => simAction("month")}
-            >
-              Sim to End of Month
-            </button>
-            <button
-              className="btn btn-primary"
-              disabled={disableSim || atOrPastDeadline}
-              title={
-                !disableSim && atOrPastDeadline
-                  ? "The transfer deadline has been reached this season"
-                  : undefined
-              }
-              onClick={() => simAction("deadline")}
-            >
-              Sim to Transfer Deadline
-            </button>
-            <button
-              className="btn btn-primary"
-              disabled={disableSim}
-              onClick={() => simAction("season")}
-            >
-              Sim to End of Season
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Offseason */}
-      {league.phase === "offseason" && (
-        <div className="card mt-3">
-          <div className="card-body">
-            <h5 className="card-title">Offseason</h5>
-            <p className="card-text">
-              {seasonYear(league.season)} is complete. Advancing will run player
-              progression, retirements, AI free agency, and youth intake, then
-              start {seasonYear(league.season + 1)}.
-            </p>
-            <button
-              className="btn btn-success"
-              disabled={simming}
-              onClick={() => offseasonAction().then(() => navigate("/season-preview"))}
-            >
-              Advance to {seasonYear(league.season + 1)}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
