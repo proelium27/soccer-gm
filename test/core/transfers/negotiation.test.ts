@@ -239,20 +239,25 @@ describe("makeTransferOffer / acceptCounterOffer", () => {
     const d1Team = league.teams.find((t) => t.division === 0 && t.tid !== 0)!;
     const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
     // Per-division normalization means an elite D2 player already reads as
-    // very valuable *within his own division's context* (reservation), so
-    // clearing AI_MARKET_MIN_SURPLUS against an absolute Division 1
-    // valuation needs a genuinely elite ovr, not just "good" — 95, not 88.
-    const star = { ...target, ovr: 95, potential: 95 };
+    // very valuable *within his own division's context* (reservation) — and
+    // with DIVISION_2_TARGET_D1_RANK at the formula's ceiling, an isolated
+    // ovr boost alone (even to 99) isn't enough surplus against a D1 buyer
+    // with no real need. Real positional scarcity on the buyer's side (as
+    // happens naturally in an aged dynasty) is what actually drives a big
+    // enough surplus, so thin the D1 buyer's roster at this position too.
+    const star = { ...target, ovr: 90, potential: 90 };
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
     // Thin the D2 club's roster at his position down to just him, so a sale
     // would break the normal depth-floor check (isForSale would say no).
-    const thinnedRoster = d2Team.roster.filter(
+    const thinnedD2Roster = d2Team.roster.filter(
       (pid) => pid === target.pid || players.find((p) => p.pid === pid)?.pos !== target.pos,
     );
+    const d1PosPids = d1Team.roster.filter((pid) => players.find((p) => p.pid === pid)?.pos === target.pos);
+    const thinnedD1Roster = d1Team.roster.filter((pid) => !d1PosPids.slice(1).includes(pid));
     const teams = league.teams.map((t) => {
-      if (t.tid === d2Team.tid) return { ...t, roster: thinnedRoster };
-      if (t.tid === d1Team.tid) return { ...t, budget: 300_000_000 };
+      if (t.tid === d2Team.tid) return { ...t, roster: thinnedD2Roster };
+      if (t.tid === d1Team.tid) return { ...t, roster: thinnedD1Roster, budget: 1_500_000_000 };
       return t;
     });
     const playerMap = new Map(players.map((p) => [p.pid, p]));
