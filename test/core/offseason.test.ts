@@ -3,6 +3,7 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
+import { computeStandings } from "../../src/core/standings.js";
 import { HYPE_MAX, HYPE_MIN, NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_MIN } from "../../src/core/constants.js";
 
 function playFullSeason(rng: () => number) {
@@ -179,7 +180,15 @@ describe("simOffseason", () => {
     const rng = mulberry32(31);
     const league = playFullSeason(rng);
     const userTid = league.meta.userTid;
-    const aiTid = league.teams.find((t) => t.tid !== userTid)!.tid;
+    // Must be a safely mid-table-or-better Division 1 club: a bottom-3
+    // finisher would get relegated this offseason, and enforceDivision2Ceiling
+    // would then immediately move this test's boosted 90-OVR player off him
+    // again (correctly, but that's a different, separately tested mechanism —
+    // not what this test is checking).
+    const d1Ids = league.teams.filter((t) => t.division === 0).map((t) => t.tid);
+    const d1IdSet = new Set(d1Ids);
+    const d1Table = computeStandings(d1Ids, league.played.filter((m) => d1IdSet.has(m.home)));
+    const aiTid = d1Table.find((row) => row.tid !== userTid)!.tid;
     const aiTeam = league.teams.find((t) => t.tid === aiTid)!;
 
     // Force the AI team's best outfield player into his final contract

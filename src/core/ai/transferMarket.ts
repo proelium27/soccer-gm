@@ -5,7 +5,6 @@ import type { CompletedTransfer } from "../transfers/negotiation.js";
 import type { TransferWindowKind } from "../transfers/window.js";
 import { deriveLeagueContexts } from "./clubContext.js";
 import { valueToClub, perceivedValueToClub } from "./evaluate.js";
-import { wouldRefuseExtension } from "./breakoutRefusal.js";
 import { trueTransferValue } from "../finance/valuation.js";
 import { clampBudget } from "../finance/budget.js";
 import { keepsDepthFloor } from "../freeAgency.js";
@@ -91,34 +90,21 @@ export function runAITransferMarket(
       const market = trueTransferValue(player, season);
       if (market < AI_MARKET_MIN_VALUE) continue;
 
-      // Reservation = what the player is worth to his current club. Only shop
-      // players the club doesn't value above their market price — unless
-      // he's a Division 2 breakout player who'd refuse to re-sign, in which
-      // case he's available regardless of how much his own club values him
-      // (see wouldRefuseExtension / the Division 2 weaker-dynasty design).
+      // Reservation = what the player is worth to his current club. Only
+      // shop players the club doesn't value above their market price.
+      // (Division 2's strength ceiling is enforced separately and
+      // deterministically — see enforceDivision2Ceiling — so this market
+      // doesn't need any Division-2-specific carve-out of its own.)
       const reservation = valueToClub(player, sellerCtx);
-      const normallyForSale = reservation <= market * AI_MARKET_AVAILABILITY;
-      const refusingOnly = !normallyForSale && wouldRefuseExtension(player, seller);
-      if (!normallyForSale && !refusingOnly) continue;
+      if (reservation > market * AI_MARKET_AVAILABILITY) continue;
 
       for (const buyer of teams) {
         if (buyer.tid === seller.tid || buyer.tid === userTid) continue;
         const buyerCtx = contexts.get(buyer.tid);
         if (!buyerCtx) continue;
 
-        // Always draw the jitter, even for a buyer we're about to reject
-        // below — skipping the draw would shift every subsequent buyer's
-        // jitter in this window (documented RNG-stream-order fragility;
-        // see transferMarket.test.ts's striker-routing test comment).
         const jittered = perceivedValueToClub(player, buyerCtx, jitter);
         if (jittered < reservation * (1 + AI_MARKET_MIN_SURPLUS)) continue;
-        // A refusing Division 2 breakout player is only listed to force a
-        // move up to Division 1 — letting the open buyer loop above (any
-        // club, any division) win the bid lets a rival Division 2 club just
-        // as easily snap him up, which merely reshuffles talent within
-        // Division 2 and defeats the point of the mechanic (found via a
-        // dynasty audit: half of these players' actual moves were D2→D2).
-        if (refusingOnly && buyer.division !== 0) continue;
 
         candidates.push({
           pid,

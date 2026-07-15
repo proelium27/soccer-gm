@@ -3,7 +3,6 @@ import type { StoredTeam } from "../teams/clubs.js";
 import type { PlayedMatch } from "../standings.js";
 import { deriveLeagueContexts } from "./clubContext.js";
 import { perceivedValueToClub } from "./evaluate.js";
-import { wouldRefuseExtension } from "./breakoutRefusal.js";
 import { canExtend, contractTerms, extendContract } from "../contracts.js";
 import { AI_RENEWAL_MARGIN } from "../constants.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
@@ -20,6 +19,12 @@ import { mulberry32, hashInts } from "../../engine/rng.js";
  * one it's buying. The user's club is untouched; their renewals stay a
  * manual UI action. Seeded independently per player so it can't perturb any
  * other stream.
+ *
+ * No Division 2 refusal check needed here: enforceDivision2Ceiling
+ * (offseason.ts) moves any Division 2 player above the OVR line to
+ * Division 1 regardless of contract length, so an AI club renewing him
+ * first doesn't block that move — it just means he changes clubs with a
+ * contract already in place, same as any other transfer.
  */
 export function runAIContractRenewals(
   teams: StoredTeam[],
@@ -44,7 +49,6 @@ export function runAIContractRenewals(
     for (const pid of team.roster) {
       const player = playerByPid.get(pid);
       if (!player || !canExtend(player, nextSeason)) continue;
-      if (wouldRefuseExtension(player, team)) continue;
 
       const terms = contractTerms(player, nextSeason);
       const jitter = mulberry32(hashInts(seed, pid));
