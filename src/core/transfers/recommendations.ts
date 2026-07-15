@@ -6,6 +6,8 @@ import { scoutingNoiseSd } from "../finance/scouting.js";
 import { resolveXI } from "../lineup/resolveXI.js";
 import { FORMATIONS } from "../lineup/formations.js";
 import { mulberry32, gaussian } from "../../engine/rng.js";
+import { deriveLeagueContexts } from "../ai/clubContext.js";
+import { wouldRefuseExtension } from "../ai/breakoutRefusal.js";
 import {
   RECOMMENDED_TRANSFERS_MIN, RECOMMENDED_TRANSFERS_MAX,
   RECOMMENDED_OVR_BELOW, RECOMMENDED_OVR_ABOVE, RECOMMENDED_BAND_WIDEN,
@@ -52,13 +54,17 @@ export function recommendedTransfers(
       ? reference.reduce((s, p) => s + p.ovr, 0) / reference.length
       : 50;
 
+  const contexts = deriveLeagueContexts({
+    teams: league.teams, players: league.players, season: league.season, played: league.played,
+  });
+
   const candidates: TransferTarget[] = [];
   for (const team of league.teams) {
     if (team.tid === user.tid) continue;
     for (const pid of team.roster) {
       const player = playerMap.get(pid);
       if (!player) continue;
-      if (!isForSale(team, playerMap, pid)) continue;
+      if (!isForSale(team, playerMap, pid) && !wouldRefuseExtension(player, team, league.teams, contexts)) continue;
       if (departsAtRollover(league, player)) continue;
       const value = scoutedValue(league.lid, ws.season, ws.window, player, user.scoutingSpend);
       if (value > user.budget) continue;

@@ -24,7 +24,7 @@ import {
  * market uses, so a rich club chasing one of the user's players doesn't get
  * spent to zero any more than it would chasing another club's).
  */
-function buyerSpendable(buyer: StoredTeam, buyerCtx: ClubContext, wageCharge: number): number {
+export function buyerSpendable(buyer: StoredTeam, buyerCtx: ClubContext, wageCharge: number): number {
   const reserveFraction =
     AI_MARKET_RESERVE_FRACTION_MIN +
     buyerCtx.frugality * (AI_MARKET_RESERVE_FRACTION_MAX - AI_MARKET_RESERVE_FRACTION_MIN);

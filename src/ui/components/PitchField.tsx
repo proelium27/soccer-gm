@@ -23,6 +23,7 @@ export interface PitchFieldProps {
   showDepthChart: boolean;
   season: number;
   releasablePids: Set<number>;
+  refusingPids: Set<number>;
   onRelease: (pid: number) => void;
   onExtend: (pid: number) => void;
   dragOverSlotIndex: number | null;
@@ -37,6 +38,7 @@ export function PitchField({
   showDepthChart,
   season,
   releasablePids,
+  refusingPids,
   onRelease,
   onExtend,
   dragOverSlotIndex,
@@ -149,8 +151,15 @@ export function PitchField({
                     : `Through ${seasonYear(p.contract.expiresSeason)}`}
                 </div>
                 <div className="d-flex gap-1 mt-2">
-                  {canExtend(p, season) &&
-                    (() => {
+                  {canExtend(p, season) && (
+                    refusingPids.has(p.pid) ? (
+                      <span
+                        className="text-muted small fst-italic text-nowrap"
+                        title="He's holding out for a move to Division 1 and won't sign a new deal here."
+                      >
+                        Wants a move to Division 1
+                      </span>
+                    ) : (() => {
                       const terms = contractTerms(p, season);
                       return (
                         <button
@@ -163,7 +172,8 @@ export function PitchField({
                           Extend {terms.lengthSeasons}y &middot; {formatWeeklyWage(terms.salary)}
                         </button>
                       );
-                    })()}
+                    })()
+                  )}
                   <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => {

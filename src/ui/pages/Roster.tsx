@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
@@ -7,6 +7,8 @@ import { FORMATIONS } from "../../core/lineup/formations.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { canExtend, contractTerms } from "../../core/contracts.js";
 import { keepsDepthFloor } from "../../core/freeAgency.js";
+import { deriveLeagueContexts } from "../../core/ai/clubContext.js";
+import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
@@ -33,6 +35,7 @@ interface RosterTableProps {
   onRelease: (pid: number) => void;
   onExtend: (pid: number) => void;
   releasablePids: Set<number>;
+  refusingPids: Set<number>;
   dragOverPid: number | null;
   setDragOverPid: (pid: number | null) => void;
   onSwap: (draggedPid: number, targetPid: number) => void;
@@ -45,6 +48,7 @@ function RosterTable({
   onRelease,
   onExtend,
   releasablePids,
+  refusingPids,
   dragOverPid,
   setDragOverPid,
   onSwap,
@@ -145,17 +149,26 @@ function RosterTable({
               )}
               <td className="text-end">
                 <div className="d-inline-flex gap-1">
-                  {canExtend(p, season) && (() => {
-                    const terms = contractTerms(p, season);
-                    return (
-                      <button
-                        className="btn btn-sm btn-outline-success text-nowrap"
-                        onClick={() => onExtend(p.pid)}
+                  {canExtend(p, season) && (
+                    refusingPids.has(p.pid) ? (
+                      <span
+                        className="text-muted small fst-italic text-nowrap"
+                        title="He's holding out for a move to Division 1 and won't sign a new deal here."
                       >
-                        Extend {terms.lengthSeasons}y &middot; {formatWeeklyWage(terms.salary)}
-                      </button>
-                    );
-                  })()}
+                        Wants a move to Division 1
+                      </span>
+                    ) : (() => {
+                      const terms = contractTerms(p, season);
+                      return (
+                        <button
+                          className="btn btn-sm btn-outline-success text-nowrap"
+                          onClick={() => onExtend(p.pid)}
+                        >
+                          Extend {terms.lengthSeasons}y &middot; {formatWeeklyWage(terms.salary)}
+                        </button>
+                      );
+                    })()
+                  )}
                   <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => onRelease(p.pid)}
@@ -181,6 +194,25 @@ export function Roster() {
   const [dragOverPid, setDragOverPid] = useState<number | null>(null);
   const [dragOverSlotIndex, setDragOverSlotIndex] = useState<number | null>(null);
   const [showDepthChart, setShowDepthChart] = useState(false);
+
+  const refusingPids = useMemo(() => {
+    if (!league) return new Set<number>();
+    const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
+    if (!userTeam || userTeam.division !== 1) return new Set<number>();
+    const contexts = deriveLeagueContexts({
+      teams: league.teams, players: league.players, season: league.season, played: league.played,
+    });
+    return new Set(
+      league.players
+        .filter(
+          (p) =>
+            userTeam.roster.includes(p.pid) &&
+            canExtend(p, league.season) &&
+            wouldRefuseExtension(p, userTeam, league.teams, contexts),
+        )
+        .map((p) => p.pid),
+    );
+  }, [league]);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -273,6 +305,7 @@ export function Roster() {
             showDepthChart={showDepthChart}
             season={league.season}
             releasablePids={releasablePids}
+            refusingPids={refusingPids}
             onRelease={releasePlayerAction}
             onExtend={extendContractAction}
             dragOverSlotIndex={dragOverSlotIndex}
@@ -290,6 +323,7 @@ export function Roster() {
               onRelease={releasePlayerAction}
               onExtend={extendContractAction}
               releasablePids={releasablePids}
+              refusingPids={refusingPids}
               dragOverPid={dragOverPid}
               setDragOverPid={setDragOverPid}
               onSwap={handleSwap}

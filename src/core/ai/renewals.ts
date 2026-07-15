@@ -3,6 +3,7 @@ import type { StoredTeam } from "../teams/clubs.js";
 import type { PlayedMatch } from "../standings.js";
 import { deriveLeagueContexts } from "./clubContext.js";
 import { perceivedValueToClub } from "./evaluate.js";
+import { wouldRefuseExtension } from "./breakoutRefusal.js";
 import { canExtend, contractTerms, extendContract } from "../contracts.js";
 import { AI_RENEWAL_MARGIN } from "../constants.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
@@ -43,6 +44,7 @@ export function runAIContractRenewals(
     for (const pid of team.roster) {
       const player = playerByPid.get(pid);
       if (!player || !canExtend(player, nextSeason)) continue;
+      if (wouldRefuseExtension(player, team, teams, contexts)) continue;
 
       const terms = contractTerms(player, nextSeason);
       const jitter = mulberry32(hashInts(seed, pid));

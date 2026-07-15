@@ -3,7 +3,7 @@ import {
   seasonRevenue, settleSeasonEnd, chargeSeasonStart, successPayout, wageBill,
 } from "../../../src/core/finance/budget.js";
 import {
-  BASE_SEASON_BUDGET, NUM_TEAMS,
+  BASE_SEASON_BUDGET, NUM_TEAMS, MAX_BUDGET,
   PRIZE_CHAMPION, PRIZE_TOP_5, PRIZE_TOP_10,
   WAGE_WEEKLY_MIN, WAGE_WEEKLY_COEFF, WAGE_OVR_FLOOR, WAGE_VARIATION,
   WAGE_SAFE_SQUAD, DIVISION_2_BUDGET_SCALE,
@@ -50,6 +50,18 @@ describe("division-scaled finances", () => {
     const d2Budget = chargeSeasonStart(0, 0, 1);
     expect(d2Budget).toBeCloseTo(BASE_SEASON_BUDGET * DIVISION_2_BUDGET_SCALE, 5);
     expect(d1Budget).toBe(BASE_SEASON_BUDGET);
+  });
+
+  it("caps Division 2 budgets at MAX_BUDGET * DIVISION_2_BUDGET_SCALE, not the shared MAX_BUDGET", () => {
+    const hugeD1 = chargeSeasonStart(MAX_BUDGET, 0, 0);
+    const hugeD2 = chargeSeasonStart(MAX_BUDGET, 0, 1);
+    expect(hugeD1).toBe(MAX_BUDGET);
+    expect(hugeD2).toBe(MAX_BUDGET * DIVISION_2_BUDGET_SCALE);
+  });
+
+  it("settleSeasonEnd also caps Division 2 at the scaled ceiling", () => {
+    const result = settleSeasonEnd(MAX_BUDGET, 1, 100, 0, 1);
+    expect(result).toBe(MAX_BUDGET * DIVISION_2_BUDGET_SCALE);
   });
 });
 

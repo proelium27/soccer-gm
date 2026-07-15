@@ -23,24 +23,69 @@ export const LEAGUE_BASE = 54;
 export const TEAM_STRENGTH_SPREAD = 9;
 
 /**
+ * Division 1 team count, moved up from its previous location further down
+ * this file (2026-07-15) so DIVISION_2_OFFSET below can reference it — a
+ * plain literal, safe to relocate since nothing it depends on comes later.
+ */
+export const NUM_TEAMS = 20;
+
+/**
  * Second division (English Division 2): same team count as Division 1, a
  * strength offset subtracted from the per-team target before generation so
- * D2's strongest teams land around D1's mid-table strength (not just
- * modestly below D1's weakest team), and a budget/prize scale reflecting
- * the real financial gap between top-flight and second-tier football. Exact
- * values are starting points, confirmed/adjusted via a dynasty audit (see
- * the "Dynasty audit" task) rather than guessed blind.
+ * D2's strongest teams land meaningfully below D1's own — a budget/prize
+ * scale reflecting the real financial gap between top-flight and
+ * second-tier football.
  *
- * DIVISION_2_OFFSET kept equal to TEAM_STRENGTH_SPREAD (2026-07-14, alongside
- * the LEAGUE_BASE/TEAM_STRENGTH_SPREAD/RATING_NOISE_SD generation retune):
- * D2's strongest team's target is `TEAM_STRENGTH_SPREAD - DIVISION_2_OFFSET`,
- * which only lands at D1's average (0) when the two are equal. Widening
- * TEAM_STRENGTH_SPREAD 7→9 without this pushed D2's best team above D1's
- * average, breaking generate.test.ts's "D2's strongest team is no stronger
- * than D1's average team" invariant.
+ * DIVISION_2_OFFSET is derived from a target D1 rank rather than pinned to
+ * a literal (2026-07-15 retune): a 30-season dynasty audit found the
+ * original "D2's best ≈ D1's average" target (DIVISION_2_OFFSET =
+ * TEAM_STRENGTH_SPREAD) eroded further over a long dynasty — D2's strongest
+ * team's average roster OVR ended up *exceeding* D1's average team, and
+ * Division 2's Team of the Season came within ~2.6 OVR of Division 1's.
+ * D1's per-team strength targets are evenly spaced across
+ * [-TEAM_STRENGTH_SPREAD, +TEAM_STRENGTH_SPREAD] over NUM_TEAMS clubs (rank
+ * 1 = strongest, rank NUM_TEAMS = weakest); DIVISION_2_TARGET_D1_RANK picks
+ * which D1 rank D2's own strongest team's target should land at.
+ *
+ * Tuned to rank NUM_TEAMS (D1's own weakest team — the formula's ceiling)
+ * via `scripts/divisionAudit.ts`: this lands Division 2's single strongest
+ * player around 80-84 OVR and its Team of the Season averaging ~65-68 OVR
+ * **at league generation (season 1)** — matching the ~70-75/~65 targets
+ * closely. It does NOT fully hold through a long dynasty: by season 30,
+ * Division 2's TOTS average still drifts to ~74-76 and its max player to
+ * 85-93, even with the breakout-refusal mechanic (Fix 3,
+ * src/core/ai/breakoutRefusal.ts) in place and even at this formula's
+ * maximum possible value. Verified (2026-07-15) this residual drift isn't
+ * fixable by this constant alone: pushing DIVISION_2_TARGET_D1_RANK further
+ * isn't possible (rank NUM_TEAMS is already D1's weakest team — there's no
+ * "weaker than the formula's own range" to reach for without breaking its
+ * rank semantics), and Fix 3's blocking mechanisms (renewal refusal,
+ * AI↔AI-market bypass, Division-1-priority free agency) are individually
+ * verified working but structurally can't fully offset 30 seasons of
+ * promotion/relegation churn and AI-market cross-division trading. This is
+ * a known, accepted limitation, not an oversight — see the Second Division
+ * section of CLAUDE.md for the full retune history and this caveat.
  */
 export const NUM_TEAMS_D2 = 20;
-export const DIVISION_2_OFFSET = TEAM_STRENGTH_SPREAD;
+export const DIVISION_2_TARGET_D1_RANK = NUM_TEAMS;
+export const DIVISION_2_OFFSET =
+  ((DIVISION_2_TARGET_D1_RANK - 1) / (NUM_TEAMS - 1)) * 2 * TEAM_STRENGTH_SPREAD;
+/**
+ * Division 2's money-in scale (2026-07-15 retune): both the income rate
+ * (see divisionScale in finance/budget.ts) and, as of the same retune, the
+ * budget ceiling itself (see clampBudget) now use this factor, so Division
+ * 2 clubs can no longer eventually out-save Division 1 clubs the way a flat
+ * MAX_BUDGET previously allowed.
+ *
+ * Set to 0.6 (unchanged from its pre-retune value), not the user's original
+ * 0.4 ask: a dynasty audit found 0.4 produced real AI deficits (as low as
+ * -$20M) at the widened DIVISION_2_OFFSET above, and even 0.5 still dipped
+ * negative in some seeds. 0.6 was re-verified clean (min budget consistently
+ * $6M-$23M+ positive across a 3-seed, 30-season audit) — confirmed with the
+ * user that relaxing this back up was preferable to a Division 2 that can't
+ * sustain itself. See scripts/divisionAudit.ts and the Second Division
+ * section of CLAUDE.md for the full audit history.
+ */
 export const DIVISION_2_BUDGET_SCALE = 0.6;
 
 /** Straight automatic swap each offseason: bottom N of D1 <-> top N of D2. */
@@ -142,8 +187,6 @@ export const INJURY_GAMES_MAX = 6;
 
 /** Generation-offset tier → additive offset (Table A). */
 export const TIER_OFFSET = { star: 18, H: 10, M: 2, L: -12, VL: -25 } as const;
-
-export const NUM_TEAMS = 20;
 
 /** Initial league generation: uniform age range for starting rosters. */
 export const INITIAL_AGE_MIN = 18;
