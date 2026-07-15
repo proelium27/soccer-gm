@@ -251,7 +251,58 @@ export function Dashboard() {
                   : "No matches played yet"}
               </p>
               <h6 className="text-muted">Next Match</h6>
-              <p className="mb-0">{nextMatchInfo}</p>
+              <p className="mb-3">{nextMatchInfo}</p>
+
+              <hr />
+
+              <h5 className="card-title text-start">Finances</h5>
+              <div className="text-start">
+                <p className="card-text mb-2">
+                  Budget: {currency.format(userTeam.budget)} &middot; Hype: {Math.round(userTeam.hype)}/100
+                  {" "}&middot; <Link to="/finance">Full breakdown</Link>
+                </p>
+                <p className="card-text mb-2">
+                  Season wage bill:{" "}
+                  <strong>
+                    {currency.format(
+                      wageBill(
+                        [...userTeam.roster, ...userTeam.academyRoster],
+                        new Map(league.players.map((p) => [p.pid, p.contract.salary])),
+                      ),
+                    )}
+                  </strong>{" "}
+                  &middot; paid up front each season
+                </p>
+                <p className="card-text mb-2">
+                  {(() => {
+                    const ws = transferWindowState(league);
+                    return ws.open ? (
+                      <>
+                        {ws.window === "summer" ? "Summer" : "Winter"} transfer window{" "}
+                        <strong>open</strong> &middot; <Link to="/transfers">Go to Transfers</Link>
+                      </>
+                    ) : (
+                      <>Transfer window closed</>
+                    );
+                  })()}
+                </p>
+                <label className="form-label mb-1" htmlFor="scouting-spend">
+                  Scouting spend this season: {currency.format(scoutingDraft ?? userTeam.scoutingSpend)}
+                </label>
+                <input
+                  id="scouting-spend"
+                  type="range"
+                  className="form-range"
+                  min={0}
+                  max={SCOUTING_SPEND_MAX}
+                  step={100_000}
+                  value={scoutingDraft ?? userTeam.scoutingSpend}
+                  disabled={simming}
+                  onChange={(e) => setScoutingDraft(Number(e.target.value))}
+                  onPointerUp={commitScoutingDraft}
+                  onBlur={commitScoutingDraft}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -304,58 +355,6 @@ export function Dashboard() {
             </div>
           </div>
           <Link to="/leaders" className="small">Full stat leaders</Link>
-        </div>
-      </div>
-
-      {/* Finances */}
-      <div className="card mb-3">
-        <div className="card-body">
-          <h5 className="card-title">Finances</h5>
-          <p className="card-text mb-2">
-            Budget: {currency.format(userTeam.budget)} &middot; Hype: {Math.round(userTeam.hype)}/100
-            {" "}&middot; <Link to="/finance">Full breakdown</Link>
-          </p>
-          <p className="card-text mb-2">
-            Season wage bill:{" "}
-            <strong>
-              {currency.format(
-                wageBill(
-                  [...userTeam.roster, ...userTeam.academyRoster],
-                  new Map(league.players.map((p) => [p.pid, p.contract.salary])),
-                ),
-              )}
-            </strong>{" "}
-            &middot; paid up front each season
-          </p>
-          <p className="card-text mb-2">
-            {(() => {
-              const ws = transferWindowState(league);
-              return ws.open ? (
-                <>
-                  {ws.window === "summer" ? "Summer" : "Winter"} transfer window{" "}
-                  <strong>open</strong> &middot; <Link to="/transfers">Go to Transfers</Link>
-                </>
-              ) : (
-                <>Transfer window closed</>
-              );
-            })()}
-          </p>
-          <label className="form-label mb-1" htmlFor="scouting-spend">
-            Scouting spend this season: {currency.format(scoutingDraft ?? userTeam.scoutingSpend)}
-          </label>
-          <input
-            id="scouting-spend"
-            type="range"
-            className="form-range"
-            min={0}
-            max={SCOUTING_SPEND_MAX}
-            step={100_000}
-            value={scoutingDraft ?? userTeam.scoutingSpend}
-            disabled={simming}
-            onChange={(e) => setScoutingDraft(Number(e.target.value))}
-            onPointerUp={commitScoutingDraft}
-            onBlur={commitScoutingDraft}
-          />
         </div>
       </div>
 
