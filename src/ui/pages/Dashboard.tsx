@@ -224,7 +224,7 @@ export function Dashboard() {
             <button
               className="btn btn-success"
               disabled={simming}
-              onClick={() => offseasonAction().then(() => navigate("/awards"))}
+              onClick={() => offseasonAction().then(() => navigate("/season-preview"))}
             >
               Advance to {seasonYear(league.season + 1)}
             </button>

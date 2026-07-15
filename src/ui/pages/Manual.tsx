@@ -88,7 +88,8 @@ export function Manual() {
             <li><strong>Power Rankings</strong> — every club ranked by squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column). Click a team to expand its full roster in place.</li>
             <li><strong>Schedule</strong> — every matchday's fixtures and results; click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong> — a Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since).</li>
-            <li><strong>Awards</strong> — Player of the Season, the Golden Boot, and a Team of the Season pitch view, one entry per completed season with a dropdown to browse past years. Opens automatically the moment you advance past a season.</li>
+            <li><strong>Awards</strong> — Player of the Season, the Golden Boot, and a Team of the Season pitch view, one entry per completed season with a dropdown to browse past years.</li>
+            <li><strong>Season Preview</strong> — a snapshot of how the offseason shook out: the league's top 10 highest-rated players, top 10 highest-rated teams (both by OVR), and the top 10 biggest transfers completed during the summer window, ranked by fee. Opens automatically the moment you advance past a season, with a link through to Awards.</li>
             <li><strong>News Feed</strong> — every completed transfer in the league (AI-to-AI deals included) plus player accomplishments — hat-tricks, a standout performance each matchday, and goal milestones every 10 (season and career) — interleaved into one timeline per season, with club and season filters. Your club's items are highlighted.</li>
             <li><strong>Roster</strong> — your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay) plus a bench table with ratings, ages, contracts, season stats (goalkeepers additionally show goals against and xG against). Drag a bench player onto a pitch slot to swap them into the XI, extend contracts, or release players.</li>
             <li><strong>Transfers</strong> — recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
@@ -225,8 +226,10 @@ export function Manual() {
             Stat Leaders.
           </p>
           <p>
-            <strong>End-of-season awards.</strong> The moment you advance past a season, the Awards
-            page opens automatically with three honors for the season that just finished. <strong>Player
+            <strong>End-of-season awards.</strong> The moment you advance past a season, you land on
+            the Season Preview page (a quick look at the league's top players, top teams, and
+            biggest offseason transfers), with a link through to the Awards page for three honors
+            covering the season that just finished. <strong>Player
             of the Season</strong> starts from a player's season-long average match rating, then adds
             an extra bonus for his goals and assists — weighted more heavily than the match rating
             alone already credits them, and heavier still for a defender or keeper who chips in
