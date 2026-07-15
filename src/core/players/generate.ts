@@ -67,6 +67,13 @@ export function generatePlayer(
     contract: { salary: seasonSalaryForOvr(ovr, pid, season), expiresSeason: 1 },
     injury: null,
     stats: [],
-    hist: [],
+    // Seeded with the player's generation-time ratings (stamped season - 1,
+    // matching progressPlayer's "entry X = ratings entering season X + 1"
+    // convention) so hist reaches length 2 — and the Roster page's
+    // RatingDelta starts showing a season-over-season arrow — after just one
+    // offseason, instead of needing two (previously hist started at [],
+    // silently swallowing the very first progression's visible delta even
+    // though ovr itself was already updating correctly).
+    hist: [{ season: season - 1, ratings, ovr, potential }],
   };
 }
