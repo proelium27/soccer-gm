@@ -658,6 +658,17 @@ a:hover {
   font-variant-numeric: tabular-nums;
   opacity: 0.85;
 }
+.pitch-chip-delta {
+  font-size: var(--sg-text-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sg-weight-semibold);
+}
+.pitch-chip-delta--up {
+  color: #198754;
+}
+.pitch-chip-delta--down {
+  color: #dc3545;
+}
 .pitch-chip-backup {
   font-size: var(--sg-text-xs);
   color: var(--sg-text-muted);

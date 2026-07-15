@@ -7,6 +7,7 @@ import { PlayerRatingsTooltip } from "./PlayerRatingsTooltip.js";
 import { Flag } from "./Flag.js";
 import { canExtend, contractTerms } from "../../core/contracts.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
+import { previousRatings } from "./RatingDelta.js";
 
 const DRAG_MIME = "application/x-soccer-gm-pid";
 
@@ -72,6 +73,8 @@ export function PitchField({
         const coord = coords[i];
         const backup = showDepthChart ? bestFit(slots[i], bench) : null;
         const isOpen = openPid === p.pid;
+        const prev = previousRatings(p);
+        const ovrDelta = prev ? p.ovr - prev.ovr : null;
         const horiz = coord.x < 35 ? "left" : coord.x > 65 ? "right" : "center";
         const vert = coord.y > 65 ? "above" : "below";
         return (
@@ -108,6 +111,17 @@ export function PitchField({
                 <span className="pitch-chip-name">{shortName(p.name)}</span>
               </PlayerRatingsTooltip>
               <span className="pitch-chip-ovr">{p.ovr}</span>
+              {ovrDelta !== null && ovrDelta !== 0 && (
+                <span
+                  className={
+                    "pitch-chip-delta " + (ovrDelta > 0 ? "pitch-chip-delta--up" : "pitch-chip-delta--down")
+                  }
+                  title={`${ovrDelta > 0 ? "Up" : "Down"} ${Math.abs(ovrDelta)} OVR since last season`}
+                >
+                  {ovrDelta > 0 ? "▲" : "▼"}
+                  {Math.abs(ovrDelta)}
+                </span>
+              )}
             </button>
             {showDepthChart && (
               <div className="pitch-chip-backup">
