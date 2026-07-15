@@ -14,6 +14,8 @@ import {
   acceptInboundOffer, rejectInboundOffer, counterInboundOffer,
 } from "../../core/transfers/inboundOffers.js";
 import { extendContract, extendAcademyContract } from "../../core/contracts.js";
+import { deriveLeagueContexts } from "../../core/ai/clubContext.js";
+import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { applyTeamIdentities, type TeamIdentityEdit } from "../../core/teams/customize.js";
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
@@ -251,9 +253,17 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     (l) => counterInboundOffer(l, pid, amount),
   ), [mutate]);
 
-  const extendContractAction = useCallback((pid: number) => mutate(
-    (l) => ({ ...l, players: extendContract(l.players, pid, l.season) }),
-  ), [mutate]);
+  const extendContractAction = useCallback((pid: number) => mutate((l) => {
+    const player = l.players.find((p) => p.pid === pid);
+    const team = l.teams.find((t) => t.roster.includes(pid));
+    if (player && team) {
+      const contexts = deriveLeagueContexts({
+        teams: l.teams, players: l.players, season: l.season, played: l.played,
+      });
+      if (wouldRefuseExtension(player, team, l.teams, contexts)) return null;
+    }
+    return { ...l, players: extendContract(l.players, pid, l.season) };
+  }), [mutate]);
 
   const releasePlayerAction = useCallback((pid: number) => mutate((l) => {
     const teams = releasePlayer(l.teams, l.players, l.meta.userTid, pid);
