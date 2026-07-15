@@ -47,27 +47,20 @@ export const NUM_TEAMS = 20;
  * 1 = strongest, rank NUM_TEAMS = weakest); DIVISION_2_TARGET_D1_RANK picks
  * which D1 rank D2's own strongest team's target should land at.
  *
- * Tuned to rank NUM_TEAMS (D1's own weakest team — the formula's ceiling)
- * via `scripts/divisionAudit.ts`: this lands Division 2's single strongest
- * player around 80-84 OVR and its Team of the Season averaging ~65-68 OVR
- * **at league generation (season 1)** — matching the ~70-75/~65 targets
- * closely. It does NOT fully hold through a long dynasty: by season 30,
- * Division 2's TOTS average still drifts to ~74-76 and its max player to
- * 85-93, even with the breakout-refusal mechanic (Fix 3,
- * src/core/ai/breakoutRefusal.ts) in place and even at this formula's
- * maximum possible value. Verified (2026-07-15) this residual drift isn't
- * fixable by this constant alone: pushing DIVISION_2_TARGET_D1_RANK further
- * isn't possible (rank NUM_TEAMS is already D1's weakest team — there's no
- * "weaker than the formula's own range" to reach for without breaking its
- * rank semantics), and Fix 3's blocking mechanisms (renewal refusal,
- * AI↔AI-market bypass, Division-1-priority free agency) are individually
- * verified working but structurally can't fully offset 30 seasons of
- * promotion/relegation churn and AI-market cross-division trading. This is
- * a known, accepted limitation, not an oversight — see the Second Division
- * section of CLAUDE.md for the full retune history and this caveat.
+ * Retuned again (2026-07-15) from NUM_TEAMS (D1's own weakest team, the
+ * formula's ceiling) down to 16: on reflection with the user, D1's weakest
+ * team was a stronger target than ever actually intended — the original
+ * design spec explicitly wanted Division 2's strongest team meaningfully
+ * above D1's bottom, not equal to it — and rank NUM_TEAMS only got picked in
+ * the prior pass as an emergency lever while separately fighting the
+ * long-dynasty drift problem (Fix 3, src/core/ai/breakoutRefusal.ts) rather
+ * than as a considered restatement of the target. Fix 3 itself doesn't care
+ * what the generation-time rank is — it fights drift regardless — so this
+ * change needs re-verifying via `scripts/divisionAudit.ts` but shouldn't
+ * require retuning Fix 3 or DIVISION_2_BUDGET_SCALE.
  */
 export const NUM_TEAMS_D2 = 20;
-export const DIVISION_2_TARGET_D1_RANK = NUM_TEAMS;
+export const DIVISION_2_TARGET_D1_RANK = 16;
 export const DIVISION_2_OFFSET =
   ((DIVISION_2_TARGET_D1_RANK - 1) / (NUM_TEAMS - 1)) * 2 * TEAM_STRENGTH_SPREAD;
 /**
