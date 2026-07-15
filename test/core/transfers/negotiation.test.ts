@@ -233,6 +233,39 @@ describe("makeTransferOffer / acceptCounterOffer", () => {
     expect(makeTransferOffer(league, ownPid, 1_000_000)).toBe(league);
   });
 
+  it("lets the user buy a Division 2 breakout player even though he fails the normal depth-floor for-sale check", () => {
+    const league = windowLeague();
+    const d2Team = league.teams.find((t) => t.division === 1 && t.tid !== 0)!;
+    const d1Team = league.teams.find((t) => t.division === 0 && t.tid !== 0)!;
+    const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
+    // Per-division normalization means an elite D2 player already reads as
+    // very valuable *within his own division's context* (reservation), so
+    // clearing AI_MARKET_MIN_SURPLUS against an absolute Division 1
+    // valuation needs a genuinely elite ovr, not just "good" — 95, not 88.
+    const star = { ...target, ovr: 95, potential: 95 };
+    const players = league.players.map((p) => (p.pid === target.pid ? star : p));
+
+    // Thin the D2 club's roster at his position down to just him, so a sale
+    // would break the normal depth-floor check (isForSale would say no).
+    const thinnedRoster = d2Team.roster.filter(
+      (pid) => pid === target.pid || players.find((p) => p.pid === pid)?.pos !== target.pos,
+    );
+    const teams = league.teams.map((t) => {
+      if (t.tid === d2Team.tid) return { ...t, roster: thinnedRoster };
+      if (t.tid === d1Team.tid) return { ...t, budget: 300_000_000 };
+      return t;
+    });
+    const playerMap = new Map(players.map((p) => [p.pid, p]));
+    expect(isForSale(teams.find((t) => t.tid === d2Team.tid)!, playerMap, target.pid)).toBe(false);
+
+    const testLeague = { ...league, teams, players };
+    const reservation = reservationPrice(testLeague.lid, testLeague.season, "winter", star);
+    const after = makeTransferOffer(testLeague, target.pid, reservation);
+
+    const user = after.teams.find((t) => t.tid === 0)!;
+    expect(user.roster).toContain(target.pid);
+  });
+
   it("re-checks the depth floor when accepting a counter", () => {
     const league = windowLeague();
     const seller = league.teams[1];
