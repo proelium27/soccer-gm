@@ -168,7 +168,8 @@ export function runAITransferMarket(
     // mid-season wage charge. Money is conserved between the two clubs.
     roster.set(c.sellerTid, sellerRoster.filter((p) => p !== c.pid));
     buyerRoster.push(c.pid);
-    budget.set(c.sellerTid, clampBudget((budget.get(c.sellerTid) ?? 0) + fee));
+    const sellerDivision = teams.find((t) => t.tid === c.sellerTid)!.division;
+    budget.set(c.sellerTid, clampBudget((budget.get(c.sellerTid) ?? 0) + fee, sellerDivision));
     budget.set(c.buyerTid, (budget.get(c.buyerTid) ?? 0) - fee - wageCharge);
     moved.add(c.pid);
     buys.set(c.buyerTid, (buys.get(c.buyerTid) ?? 0) + 1);

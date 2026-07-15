@@ -4,9 +4,25 @@ import {
   DIVISION_2_BUDGET_SCALE,
 } from "../constants.js";
 
-/** Caps a budget at MAX_BUDGET; applied everywhere a club's budget can increase. */
-export function clampBudget(budget: number): number {
-  return Math.min(budget, MAX_BUDGET);
+/**
+ * Scale factor for a division's money — both income (see seasonRevenue/
+ * chargeSeasonStart) and, since the 2026-07-15 retune, the savings ceiling
+ * (see clampBudget): 1 for Division 1, DIVISION_2_BUDGET_SCALE for
+ * Division 2.
+ */
+function divisionScale(division: 0 | 1): number {
+  return division === 0 ? 1 : DIVISION_2_BUDGET_SCALE;
+}
+
+/**
+ * Caps a budget at MAX_BUDGET, scaled down for Division 2 by
+ * DIVISION_2_BUDGET_SCALE (the same factor that scales Division 2's income
+ * — see divisionScale above) — applied everywhere a club's budget can
+ * increase, so a Division 2 club can never out-save a Division 1 club no
+ * matter how well it's run.
+ */
+export function clampBudget(budget: number, division: 0 | 1): number {
+  return Math.min(budget, MAX_BUDGET * divisionScale(division));
 }
 
 export interface SeasonRevenue {
@@ -14,11 +30,6 @@ export interface SeasonRevenue {
   successPayout: number;
   hypeRevenue: number;
   total: number;
-}
-
-/** Scale factor for a division's money-in: 1 for Division 1, DIVISION_2_BUDGET_SCALE for Division 2. */
-function divisionScale(division: 0 | 1): number {
-  return division === 0 ? 1 : DIVISION_2_BUDGET_SCALE;
 }
 
 /**
@@ -73,7 +84,7 @@ export function settleSeasonEnd(
   division: 0 | 1,
 ): number {
   const { successPayout: payout, hypeRevenue } = seasonRevenue(rank, hype, division);
-  return clampBudget(currentBudget + payout + hypeRevenue - scoutingSpend);
+  return clampBudget(currentBudget + payout + hypeRevenue - scoutingSpend, division);
 }
 
 /**
@@ -83,5 +94,5 @@ export function settleSeasonEnd(
  * the season are paid out of it immediately.
  */
 export function chargeSeasonStart(currentBudget: number, wages: number, division: 0 | 1): number {
-  return clampBudget(currentBudget + BASE_SEASON_BUDGET * divisionScale(division) - wages);
+  return clampBudget(currentBudget + BASE_SEASON_BUDGET * divisionScale(division) - wages, division);
 }

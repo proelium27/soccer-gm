@@ -175,7 +175,7 @@ export function executeTransfer(
     ...league,
     teams: league.teams.map((t) => {
       if (t.tid === fromTid) {
-        return { ...t, roster: t.roster.filter((p) => p !== pid), budget: clampBudget(t.budget + fee) };
+        return { ...t, roster: t.roster.filter((p) => p !== pid), budget: clampBudget(t.budget + fee, t.division) };
       }
       if (t.tid === toTid) {
         return { ...t, roster: [...t.roster, pid], budget: t.budget - fee - wageCharge };
