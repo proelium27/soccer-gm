@@ -92,9 +92,10 @@ describe("progressPlayer", () => {
   it("appends a hist snapshot for the season", () => {
     const rng = mulberry32(7);
     const p = generatePlayer(rng, "CB", 55, 1, 19, 1);
+    expect(p.hist).toHaveLength(1);
     const after = progressPlayer(rng, p, 1);
-    expect(after.hist).toHaveLength(1);
-    expect(after.hist[0].season).toBe(1);
+    expect(after.hist).toHaveLength(2);
+    expect(after.hist[1].season).toBe(1);
   });
 
   it("does not mutate the input player", () => {
