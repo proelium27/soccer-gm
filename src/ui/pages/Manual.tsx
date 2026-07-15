@@ -367,6 +367,13 @@ export function Manual() {
             <a href="#ai">details</a>), so the free-agent pool is mostly players somebody decided
             not to keep.
           </p>
+          <p>
+            If you run a Division 2 club, an occasional breakout player will refuse a new deal —
+            the Roster page shows "Wants a move to Division 1" instead of an Extend button once
+            he's genuinely good enough that a Division 1 club would want him. He can't be extended
+            or blocked from leaving; the best you can do is sell him yourself before his contract
+            runs out, since letting him walk for free gets you nothing.
+          </p>
         </Section>
 
         <Section id="finance" title="Finance">
