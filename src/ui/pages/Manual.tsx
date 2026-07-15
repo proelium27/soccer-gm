@@ -275,8 +275,10 @@ export function Manual() {
             player from the table below the pitch onto a slot to swap them in — the outgoing
             starter drops to the bench automatically. Click a chip to extend or release that
             player. A <strong>Depth Chart</strong> toggle above the pitch shows each starter's
-            current best-fit backup from the bench alongside their chip. Your XI persists and is
-            used every match. If your saved XI ever becomes invalid — a starter is sold, injured,
+            current best-fit backup from the bench alongside their chip. Each chip also shows a
+            small ▲/▼ badge next to a starter's OVR when it changed from the previous season —
+            green for growth, red for decline — so you can spot who's developing or fading without
+            leaving the pitch view. Your XI persists and is used every match. If your saved XI ever becomes invalid — a starter is sold, injured,
             or released — the game transparently falls back to auto-picking the best available XI,
             so you're never fielding a ghost. The bench is the best 7 remaining players by OVR.
           </p>
