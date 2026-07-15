@@ -206,8 +206,25 @@ export const YOUTH_AGE = 16;
 export const YOUTH_INTAKE_MIN = 3;
 export const YOUTH_INTAKE_MAX = 5;
 
-/** Youth are raw: generated `base` this many points below the club's current average OVR. */
-export const YOUTH_BASE_OFFSET = 20;
+/**
+ * Youth are raw: generated `base` this many points below the club's fixed
+ * academyBase anchor. Raised 20→25 (2026-07-15) after a root-cause dynasty
+ * audit found the whole league's rostered OVR climbing ~4-5 points over a
+ * generation's worth of turnover (~20-25 seasons) even with progression's
+ * per-player age-curve constants themselves net-flat-to-declining over a
+ * realistic career: `generatePlayer`'s rating rolls don't depend on age at
+ * all, so a 16-year-old was generated at the *same* quality distribution as
+ * a mature adult and then still got 8-10 more years of normal age-curve
+ * growth on top before reaching maturity — every generation of rookies
+ * entered stronger than intended and grew further, so the league's average
+ * crept up purely from turnover as older (correctly-generated, at the old
+ * standard) players retired and were replaced. Empirically swept
+ * (isolated single-division sim: generation + progression + retirement +
+ * youth intake + roster trimming, no transfers) to find the offset that
+ * holds a 40-season final mean flat against the season-1 generation mean —
+ * 20 overshot to +4.5, 30 undershot to -4, 25 landed within ~0.3.
+ */
+export const YOUTH_BASE_OFFSET = 25;
 
 /**
  * BBGM-style progression (see src/core/players/progression.ts for the full
