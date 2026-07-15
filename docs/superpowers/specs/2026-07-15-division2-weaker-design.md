@@ -25,7 +25,8 @@ Two independent causes, both confirmed in code:
    close a target once other erosion effects are added on top.
 2. **Financial gap erodes to zero.** `MAX_BUDGET` ($300M, `src/core/finance/budget.ts`)
    is a flat cap regardless of division — only the *inflow rate*
-   (`DIVISION_2_BUDGET_SCALE` = 0.6) differs. A successful Division 2 club
+   (`DIVISION_2_BUDGET_SCALE`, being lowered from 0.6 to 0.4 as part of this
+   change — see Fix 2) differs. A successful Division 2 club
    eventually reaches the same ceiling as any Division 1 club and can retain
    or outbid for its own breakout talent, instead of losing it upward the way
    a real feeder league would (Championship-sells-to-Premier-League
@@ -72,13 +73,19 @@ again later. `DIVISION_2_OFFSET` has already drifted out of sync with
 `CLAUDE.md`); deriving it from a target rank instead of a literal closes that
 failure mode permanently.
 
-## Fix 2 — division-scaled budget ceiling
+## Fix 2 — division-scaled budget ceiling, at a tightened ratio
+
+`DIVISION_2_BUDGET_SCALE` (`src/core/constants.ts`) is lowered from **0.6 to
+0.4**, per explicit user request — Division 2's money-in (base allocation,
+prize tiers) drops from 60% to 40% of Division 1's.
 
 `clampBudget` (`src/core/finance/budget.ts`) gains a `division: 0 | 1`
 parameter, capping Division 2 at `MAX_BUDGET * DIVISION_2_BUDGET_SCALE`
-($180M) instead of sharing Division 1's $300M ceiling. Reuses the existing
-0.6x factor rather than introducing a second constant, per user preference
-(start simple, retune independently later only if audits show it's wrong).
+(**$120M** at the new 0.4x, down from the $180M a straight reuse of the old
+0.6x would have given) instead of sharing Division 1's $300M ceiling. Still
+reuses the single `DIVISION_2_BUDGET_SCALE` constant for both income rate
+and ceiling rather than introducing a second constant, per the earlier
+"start simple" preference — just at the new, lower ratio.
 
 Four call sites need the division threaded through, all with the relevant
 team object already in scope:
@@ -120,13 +127,20 @@ this codebase was calibrated (see the M1/M4 milestone history in
    single max player OVR, and Division 2's Team-of-the-Season average OVR
    (reusing `computeSeasonAwards`) — both at season 1 (generation) and at
    season 30 (steady state).
-3. Apply Fix 2 (budget ceiling) alongside Fix 1, since both affect the same
-   measurements — tune them together rather than in isolation.
-4. Iterate `DIVISION_2_OFFSET` (and, if needed, `DIVISION_2_BUDGET_SCALE`)
-   until both season-1 and season-30 numbers land in range
-   (~70-75 max, ~65 TOTS average) across multiple seeds, without breaking
-   Division 2 AI solvency (the existing invariant — no AI club should ever
-   run a deficit) or making Division 2 clubs unable to transact at all.
+3. Apply Fix 2 (budget ceiling at the new fixed 0.4x/$120M) alongside Fix 1,
+   since both affect the same measurements — tune them together rather than
+   in isolation. Unlike `DIVISION_2_OFFSET`, `DIVISION_2_BUDGET_SCALE` is a
+   direct user requirement (0.4), not a free tuning variable — but the audit
+   must still confirm it doesn't break Division 2 AI solvency at that
+   tighter ratio (a real risk: `DIVISION_2_BUDGET_SCALE` was previously
+   raised 0.5→0.6 specifically because 0.5 produced small AI deficits — see
+   the second-division design doc's dynasty-audit note. 0.4 revisits territory
+   already shown to be too tight once, so if the audit finds deficits, that's
+   a signal to escalate back to the user rather than silently picking a
+   different number).
+4. Iterate `DIVISION_2_OFFSET` until both season-1 and season-30 numbers
+   land in range (~70-75 max, ~65 TOTS average) across multiple seeds,
+   without making Division 2 clubs unable to transact at all.
 5. Re-check Division 1's numbers are unaffected (should be, since none of
    Division 1's own constants change) and that the pre-existing OVR
    equilibrium invariants elsewhere in the game (documented in `CLAUDE.md`)
