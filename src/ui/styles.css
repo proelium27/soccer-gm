@@ -627,6 +627,20 @@ a:hover {
 .pitch-chip--gk {
   box-shadow: 0 0 0 2px var(--sg-warn);
 }
+.pitch-chip-contract-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--sg-win);
+  color: var(--sg-green-deep);
+  font-size: 9px;
+  font-weight: var(--sg-weight-bold);
+  line-height: 1;
+  flex: none;
+}
 .pitch-chip .player-ratings-tooltip-anchor {
   border-bottom: none;
 }

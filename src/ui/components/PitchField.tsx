@@ -107,6 +107,14 @@ export function PitchField({
               style={{ borderColor: getRatingColor(p.ovr) }}
               onClick={() => setOpenPid(isOpen ? null : p.pid)}
             >
+              {canExtend(p, season) && (
+                <span
+                  className="pitch-chip-contract-flag"
+                  title="Contract expiring — needs extending"
+                >
+                  !
+                </span>
+              )}
               <PlayerRatingsTooltip player={p}>
                 <span className="pitch-chip-name">{shortName(p.name)}</span>
               </PlayerRatingsTooltip>
