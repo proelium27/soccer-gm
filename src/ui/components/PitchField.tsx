@@ -109,7 +109,7 @@ export function PitchField({
                   className="pitch-chip-contract-flag"
                   title="Contract expiring — needs extending"
                 >
-                  ⏳
+                  !
                 </span>
               )}
               <PlayerRatingsTooltip player={p}>
