@@ -323,7 +323,10 @@ export function Manual() {
             budget), reject, or counter upward: the buyer haggles by exactly the same rules you
             face when buying, just mirrored, and walks away from greedy counters the same way a
             seller would. Sold players appear in a "Sold This Window" section so deals never
-            vanish silently.
+            vanish silently. Each offer comes with a one-line scout take — a straight "take it,"
+            a suggested counter price, or a dismissive "not worth discussing" — reflecting your
+            scout's read of the offer against the player's value to your club; like Recommended
+            Transfers, how sharp that read is depends on your scouting spend (<a href="#finance">Finance</a>).
           </p>
           <p>
             Every completed transfer in the league — yours and the AI's — lands in the News Feed.

@@ -1,29 +1,45 @@
 import { useMemo, useState } from "react";
+import type { Player } from "../../core/players/types.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { transferWindowState } from "../../core/transfers/window.js";
 import {
   inboundOfferCandidates, currentInboundOffers, type InboundOffer,
 } from "../../core/transfers/inboundOffers.js";
+import { scoutCommentary, type ScoutCommentary } from "../../core/transfers/scoutCommentary.js";
+import { deriveLeagueContexts } from "../../core/ai/clubContext.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
 import { currency, formatWeeklyWage, talksCollapsedMessage } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { OfferAmountInput } from "../components/OfferAmountInput.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 
+function scoutCommentaryText(commentary: ScoutCommentary, playerName: string): string {
+  switch (commentary.tone) {
+    case "good":
+      return `That's a great deal for ${playerName}, take it!`;
+    case "bad":
+      return `Their evaluation of ${playerName} is clearly different than ours. This isn't worth discussing.`;
+    case "counter":
+      return `Maybe try to counter at ${currency.format(commentary.suggested)} and see how it goes.`;
+  }
+}
+
 interface OfferRowProps {
   pid: number;
   buyerTid: number;
   buyerName: string;
+  playerName: string;
   offerFee: number;
   negotiation: InboundOffer | undefined;
   disabled: boolean;
+  commentary: ScoutCommentary | null;
   onAccept: (pid: number) => void;
   onReject: (pid: number) => void;
   onCounter: (pid: number, amount: number) => void;
 }
 
 function OfferRow({
-  pid, buyerName, offerFee, negotiation, disabled, onAccept, onReject, onCounter,
+  pid, buyerName, playerName, offerFee, negotiation, disabled, commentary, onAccept, onReject, onCounter,
 }: OfferRowProps) {
   const [draft, setDraft] = useState(() => String(Math.round(offerFee * 1.2)));
 
@@ -59,6 +75,11 @@ function OfferRow({
           <small className="text-muted d-block">
             Your ask: {currency.format(lastAsk)}
             {notImproving && <> &middot; ask must be lower than your last ask</>}
+          </small>
+        )}
+        {commentary && (
+          <small className="text-muted d-block fst-italic">
+            Scout: {scoutCommentaryText(commentary, playerName)}
           </small>
         )}
       </div>
@@ -118,6 +139,15 @@ export function IncomingOffers() {
   const ws = transferWindowState(league);
   const teamName = (tid: number) =>
     league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
+
+  const userCtx = deriveLeagueContexts({
+    teams: league.teams, players: league.players, season: league.season, played: league.played,
+  }).get(userTeam.tid);
+
+  const commentaryFor = (p: Player, offerFee: number): ScoutCommentary | null =>
+    userCtx && ws.open
+      ? scoutCommentary(p, offerFee, userCtx, userTeam.scoutingSpend, league.lid, ws.season, ws.window)
+      : null;
 
   const negotiations = currentInboundOffers(league);
   const negotiationByPid = new Map(negotiations.map((n) => [n.pid, n]));
@@ -197,9 +227,11 @@ export function IncomingOffers() {
                       pid={p.pid}
                       buyerTid={buyerTid}
                       buyerName={teamName(buyerTid)}
+                      playerName={p.name}
                       offerFee={offerFee}
                       negotiation={negotiation}
                       disabled={simming}
+                      commentary={commentaryFor(p, offerFee)}
                       onAccept={acceptInboundOfferAction}
                       onReject={rejectInboundOfferAction}
                       onCounter={counterInboundOfferAction}
@@ -232,9 +264,11 @@ export function IncomingOffers() {
                           pid={n.pid}
                           buyerTid={n.buyerTid}
                           buyerName={teamName(n.buyerTid)}
+                          playerName={p.name}
                           offerFee={n.offers.at(-1) ?? 0}
                           negotiation={n}
                           disabled={simming}
+                          commentary={commentaryFor(p, n.offers.at(-1) ?? 0)}
                           onAccept={acceptInboundOfferAction}
                           onReject={rejectInboundOfferAction}
                           onCounter={counterInboundOfferAction}
