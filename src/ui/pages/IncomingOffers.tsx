@@ -5,7 +5,7 @@ import {
   inboundOfferCandidates, currentInboundOffers, type InboundOffer,
 } from "../../core/transfers/inboundOffers.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
-import { currency, formatWeeklyWage } from "../format.js";
+import { currency, formatWeeklyWage, talksCollapsedMessage } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { OfferAmountInput } from "../components/OfferAmountInput.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
@@ -34,7 +34,7 @@ function OfferRow({
     return <span className="text-danger">Rejected</span>;
   }
   if (negotiation?.status === "collapsed") {
-    return <span className="text-danger">Talks ended for this window</span>;
+    return <span className="text-danger">{talksCollapsedMessage(pid)}</span>;
   }
 
   const lastAsk = negotiation?.asks.at(-1);
