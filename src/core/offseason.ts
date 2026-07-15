@@ -8,6 +8,8 @@ import {
 } from "./freeAgency.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { runAIContractRenewals } from "./ai/renewals.js";
+import { deriveLeagueContexts } from "./ai/clubContext.js";
+import { wouldRefuseExtension } from "./ai/breakoutRefusal.js";
 import { computeStandings, computeTeamSeasonStats, type StandingsRow } from "./standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
 import { computeDivisionSwap, applyDivisionSwap, stepAcademyBaseConvergence } from "./promotion.js";
@@ -63,6 +65,25 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const renewals = runAIContractRenewals(
     league.teams, league.players, nextSeason, league.meta.userTid, league.played,
     hashInts(league.lid, nextSeason, 9),
+  );
+
+  // 0.5. Identify expiring Division 2 players who'd refuse to re-sign (i.e.
+  //      would already be a viable Division 1 transfer target) before their
+  //      roster membership is cleared below — free agency has no concept of
+  //      "he wants to move up" on its own, so this set gives Division 1
+  //      clubs first pick of him once he hits the free agent pool, instead
+  //      of him just getting scooped back up by another Division 2 club.
+  const preRenewalContexts = deriveLeagueContexts({
+    teams: renewals.teams, players: renewals.players, season: nextSeason, played: league.played,
+  });
+  const preferD1Pids = new Set(
+    renewals.players
+      .filter((p) => p.contract.expiresSeason <= endingSeason)
+      .filter((p) => {
+        const team = renewals.teams.find((t) => t.roster.includes(p.pid));
+        return team && wouldRefuseExtension(p, team, renewals.teams, preRenewalContexts);
+      })
+      .map((p) => p.pid),
   );
 
   // 1. Release expired contracts to the free agent pool.
@@ -129,7 +150,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //    later, in the transfer market step), skipping the user's club.
   const signingOrder = [...standings].sort((a, b) => a.points - b.points).map((s) => s.tid);
   ({ teams, players } = runAIFreeAgency(
-    teams, players, nextSeason, rng, league.meta.userTid, signingOrder,
+    teams, players, nextSeason, rng, league.meta.userTid, signingOrder, preferD1Pids,
   ));
 
   // 5. Youth intake for every club, anchored to each club's fixed

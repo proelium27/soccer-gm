@@ -5,6 +5,7 @@ import type { CompletedTransfer } from "../transfers/negotiation.js";
 import type { TransferWindowKind } from "../transfers/window.js";
 import { deriveLeagueContexts } from "./clubContext.js";
 import { valueToClub, perceivedValueToClub } from "./evaluate.js";
+import { wouldRefuseExtension } from "./breakoutRefusal.js";
 import { trueTransferValue } from "../finance/valuation.js";
 import { clampBudget } from "../finance/budget.js";
 import { keepsDepthFloor } from "../freeAgency.js";
@@ -91,9 +92,15 @@ export function runAITransferMarket(
       if (market < AI_MARKET_MIN_VALUE) continue;
 
       // Reservation = what the player is worth to his current club. Only shop
-      // players the club doesn't value above their market price.
+      // players the club doesn't value above their market price — unless
+      // he's a Division 2 breakout player who'd refuse to re-sign, in which
+      // case he's available regardless of how much his own club values him
+      // (see wouldRefuseExtension / the Division 2 weaker-dynasty design).
       const reservation = valueToClub(player, sellerCtx);
-      if (reservation > market * AI_MARKET_AVAILABILITY) continue;
+      if (
+        reservation > market * AI_MARKET_AVAILABILITY
+        && !wouldRefuseExtension(player, seller, teams, contexts)
+      ) continue;
 
       for (const buyer of teams) {
         if (buyer.tid === seller.tid || buyer.tid === userTid) continue;

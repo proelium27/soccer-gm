@@ -86,6 +86,46 @@ describe("runAIFreeAgency", () => {
     const allPids = teams.flatMap((t) => t.roster);
     expect(new Set(allPids).size).toBe(allPids.length);
   });
+
+  it("gives Division 1 clubs first pick of a preferD1Pids free agent over Division 2 clubs", () => {
+    const league = createLeagueState(0, mulberry32(6));
+    // Strip a GK-position free agent's position shortfall onto every club so
+    // both divisions are competing for the same free agent.
+    const freeAgent = league.players.find((p) => p.pos === "GK")!;
+    const owner = league.teams.find((t) => t.roster.includes(freeAgent.pid))!;
+    let teams = league.teams.map((t) =>
+      t.tid === owner.tid ? { ...t, roster: t.roster.filter((pid) => pid !== freeAgent.pid) } : t,
+    );
+    // Strip a GK from every club so every club has a GK shortfall and would
+    // otherwise compete for this free agent on a level footing.
+    const gkPidsByTid = new Map(
+      teams.map((t) => [
+        t.tid,
+        league.players.find((p) => p.pos === "GK" && t.roster.includes(p.pid))?.pid,
+      ]),
+    );
+    teams = teams.map((t) => {
+      const gkPid = gkPidsByTid.get(t.tid);
+      return gkPid ? { ...t, roster: t.roster.filter((pid) => pid !== gkPid) } : t;
+    });
+    const players = league.players.filter(
+      (p) => ![...gkPidsByTid.values()].includes(p.pid) || p.pid === freeAgent.pid,
+    );
+
+    // Signing order puts a Division 2 club first, ahead of a Division 1 club —
+    // without preferD1Pids, the Division 2 club would win the race.
+    const d2First = teams.find((t) => t.division === 1 && t.tid !== -1)!;
+    const d1Second = teams.find((t) => t.division === 0 && t.tid !== -1)!;
+    const signingOrder = [d2First.tid, d1Second.tid, ...teams.map((t) => t.tid).filter(
+      (tid) => tid !== d2First.tid && tid !== d1Second.tid,
+    )];
+
+    const { teams: updatedTeams } = runAIFreeAgency(
+      teams, players, 2, mulberry32(7), -1, signingOrder, new Set([freeAgent.pid]),
+    );
+    const winner = updatedTeams.find((t) => t.roster.includes(freeAgent.pid));
+    expect(winner?.tid).toBe(d1Second.tid);
+  });
 });
 
 describe("signFreeAgent", () => {

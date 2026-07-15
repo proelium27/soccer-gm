@@ -54,6 +54,16 @@ function positionCounts(roster: number[], players: Map<number, Player>): Record<
  * the best available free agent at that position. Contract terms are a
  * placeholder (ovr-based salary, 1-3 season length) pending real finances.
  * Mutates neither input; returns updated teams and players.
+ *
+ * `preferD1Pids` (default empty, for backward compatibility): free agents
+ * who just refused to re-sign with their Division 2 club because a
+ * Division 1 club would want them (see wouldRefuseExtension) — without
+ * this, plain positional greedy signing has no concept of "he wants to
+ * move up," and he could simply get scooped straight back up by another
+ * Division 2 club, defeating the point of the refusal. Division 1 clubs
+ * (in signingOrderTids order) get one pre-pass at these specific pids
+ * before the normal full-pool loop runs for everyone else, including any
+ * of these pids nobody in Division 1 wanted.
  */
 export function runAIFreeAgency(
   teams: StoredTeam[],
@@ -62,11 +72,46 @@ export function runAIFreeAgency(
   rng: () => number,
   userTid: number,
   signingOrderTids: number[],
+  preferD1Pids: Set<number> = new Set(),
 ): { teams: StoredTeam[]; players: Player[] } {
   const playerMap = new Map(players.map((p) => [p.pid, { ...p }]));
   const teamMap = new Map(teams.map((t) => [t.tid, { ...t, roster: [...t.roster] }]));
 
   let pool = [...freeAgentPids(teams, players)];
+
+  const sign = (team: StoredTeam & { roster: number[] }, signing: Player): void => {
+    const length = CONTRACT_LENGTH_MIN
+      + Math.floor(rng() * (CONTRACT_LENGTH_MAX - CONTRACT_LENGTH_MIN + 1));
+    signing.contract = {
+      salary: seasonSalaryForOvr(signing.ovr, signing.pid, season),
+      expiresSeason: season + length,
+    };
+    team.roster.push(signing.pid);
+    pool = pool.filter((pid) => pid !== signing.pid);
+  };
+
+  if (preferD1Pids.size > 0) {
+    for (const tid of signingOrderTids) {
+      if (tid === userTid) continue;
+      const team = teamMap.get(tid);
+      if (!team || team.division !== 0) continue;
+
+      const counts = positionCounts(team.roster, playerMap);
+      for (const pos of POSITIONS as readonly Position[]) {
+        let shortfall = ROSTER_COMPOSITION[pos] - counts[pos];
+        while (shortfall > 0) {
+          const candidates = pool
+            .map((pid) => playerMap.get(pid)!)
+            .filter((p) => p.pos === pos && preferD1Pids.has(p.pid))
+            .sort((a, b) => b.ovr - a.ovr);
+          const signing = candidates[0];
+          if (!signing) break;
+          sign(team, signing);
+          shortfall--;
+        }
+      }
+    }
+  }
 
   for (const tid of signingOrderTids) {
     if (tid === userTid) continue;
@@ -83,15 +128,7 @@ export function runAIFreeAgency(
           .sort((a, b) => b.ovr - a.ovr);
         const signing = candidates[0];
         if (!signing) break;
-
-        const length = CONTRACT_LENGTH_MIN
-          + Math.floor(rng() * (CONTRACT_LENGTH_MAX - CONTRACT_LENGTH_MIN + 1));
-        signing.contract = {
-          salary: seasonSalaryForOvr(signing.ovr, signing.pid, season),
-          expiresSeason: season + length,
-        };
-        team.roster.push(signing.pid);
-        pool = pool.filter((pid) => pid !== signing.pid);
+        sign(team, signing);
         shortfall--;
       }
     }
