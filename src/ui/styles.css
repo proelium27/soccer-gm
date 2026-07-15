@@ -368,6 +368,30 @@ a:hover {
   border: 1px solid oklch(0.94 0.007 155 / 0.25);
 }
 
+/* =========================================================================
+   Division badge (Power Rankings — differentiate D1/D2 clubs at a glance)
+   ========================================================================= */
+.division-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: var(--sg-weight-semibold);
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 999px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.division-badge--d1 {
+  color: var(--sg-green-bright);
+  background: var(--sg-green-wash);
+  border: 1px solid oklch(0.74 0.15 150 / 0.4);
+}
+.division-badge--d2 {
+  color: var(--sg-text-muted);
+  background: var(--sg-surface-2);
+  border: 1px solid var(--sg-border);
+}
+
 /* Nationality flag */
 .player-flag {
   font-size: 0.95em;

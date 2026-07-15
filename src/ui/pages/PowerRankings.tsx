@@ -35,17 +35,27 @@ export function PowerRankings() {
     })
     .sort((a, b) => b.rating.ovr - a.rating.ovr);
 
+  const divisionRanks = new Map<number, number>();
+  const divisionCounts = new Map<number, number>();
+  for (const { team } of rankings) {
+    const next = (divisionCounts.get(team.division) ?? 0) + 1;
+    divisionCounts.set(team.division, next);
+    divisionRanks.set(team.tid, next);
+  }
+
   return (
     <div className="container-fluid p-3">
       <h4>Power Rankings</h4>
       <p className="text-muted small mb-3">
-        Teams ranked by squad OVR (Starting XI + bench, depth-weighted). Click a team to see its roster.
+        Teams ranked by squad OVR (Starting XI + bench, depth-weighted) across both divisions. Click a
+        team to see its roster.
       </p>
       <table className="table table-striped table-sm">
         <thead>
           <tr>
             <th className="text-end">#</th>
             <th>Team</th>
+            <th className="text-end">Div</th>
             <th className="text-end">OVR</th>
             <th className="text-end">POT</th>
           </tr>
@@ -71,13 +81,24 @@ export function PowerRankings() {
                       {team.name}
                     </span>
                   </td>
+                  <td className="text-end">
+                    <span
+                      className={
+                        "division-badge " +
+                        (team.division === 0 ? "division-badge--d1" : "division-badge--d2")
+                      }
+                      title={team.division === 0 ? "English Division 1" : "English Division 2"}
+                    >
+                      D{team.division + 1} #{divisionRanks.get(team.tid)}
+                    </span>
+                  </td>
                   <td className="text-end">{rating.ovr}</td>
                   <td className="text-end">{rating.pot}</td>
                 </tr>
                 {isExpanded && (
                   <tr>
                     <td></td>
-                    <td colSpan={3}>
+                    <td colSpan={4}>
                       <RosterPreview team={team} roster={roster} season={league.season} />
                     </td>
                   </tr>
