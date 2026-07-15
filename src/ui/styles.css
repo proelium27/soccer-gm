@@ -627,6 +627,11 @@ a:hover {
 .pitch-chip--gk {
   box-shadow: 0 0 0 2px var(--sg-warn);
 }
+.pitch-chip-contract-flag {
+  font-size: var(--sg-text-xs);
+  line-height: 1;
+  filter: drop-shadow(0 0 2px var(--sg-loss));
+}
 .pitch-chip .player-ratings-tooltip-anchor {
   border-bottom: none;
 }
