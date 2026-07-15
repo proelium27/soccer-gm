@@ -60,17 +60,25 @@ export const DIVISION_2_TARGET_D1_RANK = 16;
 export const DIVISION_2_OFFSET =
   ((DIVISION_2_TARGET_D1_RANK - 1) / (NUM_TEAMS - 1)) * 2 * TEAM_STRENGTH_SPREAD;
 /**
- * Division 2's money-in scale, tightened 0.6→0.4 (2026-07-15, alongside the
- * DIVISION_2_OFFSET retune above): both the income rate (see divisionScale
- * in finance/budget.ts) and, as of the same retune, the budget ceiling
- * itself (see clampBudget) now use this factor, so Division 2 clubs can no
- * longer eventually out-save Division 1 clubs the way a flat MAX_BUDGET
- * previously allowed. 0.4 revisits a ratio range this constant was already
- * moved away from once (0.5→0.6, see the second-division design doc) for
- * causing small AI deficits — re-verified clean at 0.4 via a fresh dynasty
- * audit (see the "Dynasty audit" task in the second-division plan).
+ * Division 2's money-in scale (2026-07-15 retune): both the income rate
+ * (see divisionScale in finance/budget.ts) and, as of the same retune, the
+ * budget ceiling itself (see clampBudget) now use this factor, so Division
+ * 2 clubs can no longer eventually out-save Division 1 clubs the way a flat
+ * MAX_BUDGET previously allowed.
+ *
+ * PROVISIONAL at 0.6 (unchanged from its pre-retune value), not yet final:
+ * the user's original ask was 0.4, but a dynasty audit found 0.4 (and even
+ * 0.5) produced real AI deficits under the new offset above — a dynasty
+ * audit run without the breakout-refusal mechanic (Fix 3, see
+ * src/core/ai/breakoutRefusal.ts) in place yet also showed the season-30
+ * OVR/TOTS targets can't be hit by this offset alone regardless of budget
+ * scale, since Fix 3 is specifically what's meant to stop that erosion. Both
+ * constants are being left at safe placeholder values until Fix 3 is built,
+ * then retuned together in one final empirical pass (see the "Dynasty
+ * audit"/tuning task in the second-division-weaker plan) against the
+ * complete system rather than Fix 1/2 in isolation.
  */
-export const DIVISION_2_BUDGET_SCALE = 0.4;
+export const DIVISION_2_BUDGET_SCALE = 0.6;
 
 /** Straight automatic swap each offseason: bottom N of D1 <-> top N of D2. */
 export const PROMOTION_RELEGATION_COUNT = 3;
