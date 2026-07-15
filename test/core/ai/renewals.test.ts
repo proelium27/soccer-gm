@@ -68,6 +68,27 @@ describe("runAIContractRenewals", () => {
     expect(untouched.contract.expiresSeason).toBe(nextSeason);
   });
 
+  it("does not renew a Division 2 breakout star a Division 1 club could poach", () => {
+    const league = createLeagueState(USER_TID, mulberry32(23));
+    const nextSeason = league.season + 1;
+    const d2Team = league.teams.find((t) => t.division === 1 && t.tid !== USER_TID)!;
+    const d1Team = league.teams.find((t) => t.division === 0 && t.tid !== USER_TID)!;
+    const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
+
+    const players = league.players.map((p) =>
+      p.pid === target.pid
+        ? { ...p, born: nextSeason - 24, ovr: 88, potential: 90, contract: { ...p.contract, expiresSeason: nextSeason } }
+        : p,
+    );
+    const teams: StoredTeam[] = league.teams.map((t) =>
+      t.tid === d1Team.tid ? { ...t, budget: 300_000_000 } : t,
+    );
+
+    const result = runAIContractRenewals(teams, players, nextSeason, USER_TID, league.played, 42);
+    const stillExpiring = result.players.find((p) => p.pid === target.pid)!;
+    expect(stillExpiring.contract.expiresSeason).toBe(nextSeason);
+  });
+
   it("leaves a player with more than one season left on his deal untouched", () => {
     const league = createLeagueState(USER_TID, mulberry32(23));
     const nextSeason = league.season + 1;
