@@ -235,8 +235,8 @@ describe("makeTransferOffer / acceptCounterOffer", () => {
 
   it("lets the user buy a Division 2 breakout player even though he fails the normal depth-floor for-sale check", () => {
     const league = windowLeague();
-    const d2Team = league.teams.find((t) => t.division === 1 && t.tid !== 0)!;
-    const d1Team = league.teams.find((t) => t.division === 0 && t.tid !== 0)!;
+    const d2Team = league.teams.find((t) => t.compId === 1 && t.tid !== 0)!;
+    const d1Team = league.teams.find((t) => t.compId === 0 && t.tid !== 0)!;
     const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
     // Per-division normalization means an elite D2 player already reads as
     // very valuable *within his own division's context* (reservation) — and

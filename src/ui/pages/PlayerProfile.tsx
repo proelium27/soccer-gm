@@ -83,13 +83,15 @@ export function PlayerProfile() {
   const totsSeasons: number[] = [];
   const championSeasons: number[] = [];
   for (const entry of league.seasonHistory) {
-    for (const divisionAwards of entry.awards) {
-      if (divisionAwards.playerOfSeasonPid === player.pid) potySeasons.push(entry.season);
-      if (divisionAwards.goldenBootPid === player.pid) goldenBootSeasons.push(entry.season);
-      if (divisionAwards.teamOfSeason.includes(player.pid)) totsSeasons.push(entry.season);
+    for (const compAwards of Object.values(entry.awards)) {
+      if (compAwards.playerOfSeasonPid === player.pid) potySeasons.push(entry.season);
+      if (compAwards.goldenBootPid === player.pid) goldenBootSeasons.push(entry.season);
+      if (compAwards.teamOfSeason.includes(player.pid)) totsSeasons.push(entry.season);
     }
     const ownerTid = team ? teamForSeason(playerTransfers, entry.season, team.tid) : null;
-    if (ownerTid !== null && ownerTid === entry.championTid) championSeasons.push(entry.season);
+    if (ownerTid !== null && Object.values(entry.championTidByCompId).includes(ownerTid)) {
+      championSeasons.push(entry.season);
+    }
   }
   const hasAwards =
     potySeasons.length > 0 || goldenBootSeasons.length > 0 || totsSeasons.length > 0 || championSeasons.length > 0;
@@ -112,7 +114,7 @@ export function PlayerProfile() {
       <p className="mb-3">
         {team ? (
           <>
-            {teamName(team.tid)} <small className="text-muted">({team.division === 0 ? "Division 1" : "Division 2"})</small>
+            {teamName(team.tid)} <small className="text-muted">({team.compId === 0 ? "Division 1" : "Division 2"})</small>
           </>
         ) : inAcademy ? (
           <>{teamName(inAcademy.tid)} Academy</>

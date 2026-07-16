@@ -2,9 +2,11 @@ import type { Player } from "../players/types.js";
 import type { StoredTeam } from "../teams/clubs.js";
 import type { LeagueStore } from "../leagueState.js";
 import type { TransferWindowKind } from "./window.js";
+import type { Competition } from "../competitions.js";
 import { transferWindowState } from "./window.js";
 import { trueTransferValue, perceivedTransferValue } from "../finance/valuation.js";
 import { clampBudget } from "../finance/budget.js";
+import { tierOf } from "../competitions.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { keepsDepthFloor } from "../freeAgency.js";
 import { wouldRefuseExtension } from "../ai/breakoutRefusal.js";
@@ -88,11 +90,12 @@ export function isForSaleOrRefusing(
   seller: StoredTeam,
   players: Map<number, Player>,
   pid: number,
+  competitions: Competition[],
 ): boolean {
   if (isForSale(seller, players, pid)) return true;
   const player = players.get(pid);
   if (!player) return false;
-  return wouldRefuseExtension(player, seller);
+  return wouldRefuseExtension(player, seller, competitions);
 }
 
 /**
@@ -193,7 +196,7 @@ export function executeTransfer(
     ...league,
     teams: league.teams.map((t) => {
       if (t.tid === fromTid) {
-        return { ...t, roster: t.roster.filter((p) => p !== pid), budget: clampBudget(t.budget + fee, t.division) };
+        return { ...t, roster: t.roster.filter((p) => p !== pid), budget: clampBudget(t.budget + fee, tierOf(league.competitions, t.compId)) };
       }
       if (t.tid === toTid) {
         return { ...t, roster: [...t.roster, pid], budget: t.budget - fee - wageCharge };
@@ -259,7 +262,7 @@ export function makeTransferOffer(
   if (!hasRosterRoom(user)) return league;
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
-  if (!isForSaleOrRefusing(seller, playerMap, pid)) return league;
+  if (!isForSaleOrRefusing(seller, playerMap, pid, league.competitions)) return league;
   if (departsAtRollover(league, player)) return league;
 
   const existing = league.negotiations.find(
@@ -320,7 +323,7 @@ export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStor
   if (!hasRosterRoom(user)) return league;
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
-  if (!isForSaleOrRefusing(seller, playerMap, pid)) return league;
+  if (!isForSaleOrRefusing(seller, playerMap, pid, league.competitions)) return league;
   if (departsAtRollover(league, player)) return league;
 
   const accepted: TransferNegotiation = { ...negotiation, status: "accepted" };

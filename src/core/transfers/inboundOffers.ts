@@ -81,6 +81,7 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
 
   const contexts = deriveLeagueContexts({
     teams: league.teams, players: league.players, season: league.season, played: league.played,
+    competitions: league.competitions,
   });
   const userCtx = contexts.get(userTid);
   if (!userCtx) return [];
@@ -263,6 +264,7 @@ export function counterInboundOffer(league: LeagueStore, pid: number, askAmount:
 
   const contexts = deriveLeagueContexts({
     teams: league.teams, players: league.players, season: league.season, played: league.played,
+    competitions: league.competitions,
   });
   const buyerCtx = contexts.get(resolved.buyerTid);
   if (!buyerCtx) return league;

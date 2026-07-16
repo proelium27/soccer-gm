@@ -42,15 +42,15 @@ describe("generateTwoDivisionLeague", () => {
     const league = generateTwoDivisionLeague(mulberry32(42));
     expect(league.teams).toHaveLength(NUM_TEAMS + NUM_TEAMS_D2);
     for (const t of league.teams) {
-      if (t.tid < NUM_TEAMS) expect(t.division).toBe(0);
-      else expect(t.division).toBe(1);
+      if (t.tid < NUM_TEAMS) expect(t.compId).toBe(0);
+      else expect(t.compId).toBe(1);
     }
   });
 
   it("D2's strongest team is no stronger than D1's average team", () => {
     const league = generateTwoDivisionLeague(mulberry32(42));
-    const d1 = league.teams.filter((t) => t.division === 0);
-    const d2 = league.teams.filter((t) => t.division === 1);
+    const d1 = league.teams.filter((t) => t.compId === 0);
+    const d2 = league.teams.filter((t) => t.compId === 1);
     const avgOvr = (ts: typeof d1) => ts.reduce((s, t) => s + t.avgOvr, 0) / ts.length;
     const d1Avg = avgOvr(d1);
     const d2Best = Math.max(...d2.map((t) => t.avgOvr));
@@ -60,7 +60,7 @@ describe("generateTwoDivisionLeague", () => {
   it("D1 half is identical to plain generateLeague for the same seed", () => {
     const plain = generateLeague(mulberry32(42));
     const combined = generateTwoDivisionLeague(mulberry32(42));
-    const d1FromCombined = combined.teams.filter((t) => t.division === 0);
+    const d1FromCombined = combined.teams.filter((t) => t.compId === 0);
     expect(d1FromCombined.map((t) => t.roster)).toEqual(plain.teams.map((t) => t.roster));
   });
 });

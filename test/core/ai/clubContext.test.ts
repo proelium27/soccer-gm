@@ -62,7 +62,7 @@ describe("deriveLeagueContexts", () => {
     // same way Division 1's richest club does.
     const league = createLeagueState(0, mulberry32(4));
     const contexts = deriveLeagueContexts(league);
-    const d2Teams = league.teams.filter((t) => t.division === 1);
+    const d2Teams = league.teams.filter((t) => t.compId === 1);
     const richestD2 = d2Teams.reduce((a, b) => (a.budget > b.budget ? a : b));
     expect(contexts.get(richestD2.tid)!.frugality).toBeLessThan(0.5);
   });

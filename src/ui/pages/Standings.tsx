@@ -27,10 +27,10 @@ export function Standings() {
   let standings: StandingsRow[];
   let championTid: number;
   if (season === "current") {
-    const teamIds = league.teams.filter((t) => t.division === division).map((t) => t.tid);
+    const teamIds = league.teams.filter((t) => t.compId === division).map((t) => t.tid);
     standings = computeStandings(teamIds, league.played.filter((m) => {
       const home = league.teams.find((t) => t.tid === m.home);
-      return home?.division === division;
+      return home?.compId === division;
     }));
     // A "champion" only means something once the season has actually been
     // decided by played matches, not an arbitrary tid=0 tie at kickoff.
@@ -38,12 +38,12 @@ export function Standings() {
   } else {
     const entry = league.seasonHistory.find((h) => h.season === season)!;
     const divisionTids = new Set(
-      Object.entries(entry.divisionsByTid)
+      Object.entries(entry.compsByTid)
         .filter(([, d]) => d === division)
         .map(([tid]) => Number(tid)),
     );
     standings = entry.table.filter((row) => divisionTids.has(row.tid));
-    championTid = division === 0 ? entry.championTid : (standings[0]?.tid ?? -1);
+    championTid = entry.championTidByCompId[division] ?? (standings[0]?.tid ?? -1);
   }
 
   return (

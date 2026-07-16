@@ -27,10 +27,10 @@ describe("createLeagueState", () => {
       expect(typeof t.colors[0]).toBe("string");
       expect(typeof t.colors[1]).toBe("string");
       expect(t.roster.length).toBeGreaterThan(0);
-      expect(t.division === 0 || t.division === 1).toBe(true);
+      expect(t.compId === 0 || t.compId === 1).toBe(true);
     }
-    expect(state.teams.filter((t) => t.division === 0)).toHaveLength(20);
-    expect(state.teams.filter((t) => t.division === 1)).toHaveLength(20);
+    expect(state.teams.filter((t) => t.compId === 0)).toHaveLength(20);
+    expect(state.teams.filter((t) => t.compId === 1)).toHaveLength(20);
   });
 
   it("has ~1000 players (40 teams x 25 players)", () => {
@@ -47,7 +47,7 @@ describe("createLeagueState", () => {
     }
     const teamsByTid = new Map(state.teams.map((t) => [t.tid, t]));
     for (const g of state.schedule) {
-      expect(teamsByTid.get(g.home)!.division).toBe(teamsByTid.get(g.away)!.division);
+      expect(teamsByTid.get(g.home)!.compId).toBe(teamsByTid.get(g.away)!.compId);
     }
   });
 

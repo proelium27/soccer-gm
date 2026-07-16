@@ -1,6 +1,8 @@
 import type { Player, Position } from "../players/types.js";
 import type { StoredTeam } from "../teams/clubs.js";
 import type { CompletedTransfer } from "../transfers/negotiation.js";
+import type { Competition } from "../competitions.js";
+import { tierOf } from "../competitions.js";
 import { DIVISION_2_REFUSAL_OVR_THRESHOLD, ROSTER_CAP } from "../constants.js";
 
 /**
@@ -42,10 +44,11 @@ export function enforceDivision2Ceiling(
   transfers: CompletedTransfer[],
   season: number,
   userTid: number,
+  competitions: Competition[],
 ): { teams: StoredTeam[]; players: Player[]; transfers: CompletedTransfer[] } {
   const playerByPid = new Map(players.map((p) => [p.pid, p]));
   const rosterByTid = new Map(teams.map((t) => [t.tid, [...t.roster]]));
-  const divisionByTid = new Map(teams.map((t) => [t.tid, t.division]));
+  const tierByTid = new Map(teams.map((t) => [t.tid, tierOf(competitions, t.compId)]));
   const executed: CompletedTransfer[] = [];
 
   const avgOvrAtPos = (tid: number, pos: Position): number => {
@@ -60,7 +63,7 @@ export function enforceDivision2Ceiling(
   // Division 1 club, since avgOvrAtPos is recomputed (and shifts) after
   // each move.
   const qualifying = [...rosterByTid.entries()]
-    .filter(([tid]) => divisionByTid.get(tid) === 1 && tid !== userTid)
+    .filter(([tid]) => tierByTid.get(tid) === 2 && tid !== userTid)
     .flatMap(([, roster]) => roster)
     .map((pid) => playerByPid.get(pid)!)
     .filter((p) => p.ovr >= DIVISION_2_REFUSAL_OVR_THRESHOLD)
@@ -70,8 +73,8 @@ export function enforceDivision2Ceiling(
     const sellerTid = [...rosterByTid.entries()].find(([, r]) => r.includes(player.pid))?.[0];
     if (sellerTid === undefined) continue; // already moved earlier this pass
 
-    const d1Candidates = [...divisionByTid.entries()].filter(
-      ([tid, div]) => div === 0 && tid !== userTid,
+    const d1Candidates = [...tierByTid.entries()].filter(
+      ([tid, tier]) => tier === 1 && tid !== userTid,
     );
     if (d1Candidates.length === 0) continue;
 

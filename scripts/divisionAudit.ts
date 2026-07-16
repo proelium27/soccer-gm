@@ -52,17 +52,17 @@ for (const seed of SEEDS) {
       arr.push(p.ovr);
       ovrByTid.set(tid, arr);
     }
-    lastD1 = league.teams.filter((t) => t.division === 0).flatMap((t) => ovrByTid.get(t.tid) ?? []);
-    lastD2 = league.teams.filter((t) => t.division === 1).flatMap((t) => ovrByTid.get(t.tid) ?? []);
-    lastD1TeamAvgs = league.teams.filter((t) => t.division === 0).map((t) => avg(ovrByTid.get(t.tid) ?? []));
-    lastD2TeamAvgs = league.teams.filter((t) => t.division === 1).map((t) => avg(ovrByTid.get(t.tid) ?? []));
+    lastD1 = league.teams.filter((t) => t.compId === 0).flatMap((t) => ovrByTid.get(t.tid) ?? []);
+    lastD2 = league.teams.filter((t) => t.compId === 1).flatMap((t) => ovrByTid.get(t.tid) ?? []);
+    lastD1TeamAvgs = league.teams.filter((t) => t.compId === 0).map((t) => avg(ovrByTid.get(t.tid) ?? []));
+    lastD2TeamAvgs = league.teams.filter((t) => t.compId === 1).map((t) => avg(ovrByTid.get(t.tid) ?? []));
 
     const salaryByPid = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
     lastD1WageBill = league.teams
-      .filter((t) => t.division === 0)
+      .filter((t) => t.compId === 0)
       .reduce((sum, t) => sum + t.roster.reduce((s, pid) => s + (salaryByPid.get(pid) ?? 0), 0), 0);
     lastD2WageBill = league.teams
-      .filter((t) => t.division === 1)
+      .filter((t) => t.compId === 1)
       .reduce((sum, t) => sum + t.roster.reduce((s, pid) => s + (salaryByPid.get(pid) ?? 0), 0), 0);
 
     if (s === 1) {
@@ -98,7 +98,7 @@ for (const seed of SEEDS) {
     `(D2 total: ${lastD2WageBill.toLocaleString()}, D1 total: ${lastD1WageBill.toLocaleString()})`,
   );
 
-  const finalD1Ids = new Set(league.teams.filter((t) => t.division === 0).map((t) => t.tid));
+  const finalD1Ids = new Set(league.teams.filter((t) => t.compId === 0).map((t) => t.tid));
   const startingD1Ids = new Set(Array.from({ length: 20 }, (_, i) => i));
   const stillInD1 = [...finalD1Ids].filter((tid) => startingD1Ids.has(tid)).length;
   console.log(`D1 clubs still in D1 after ${SEASONS} seasons: ${stillInD1}/20 (turnover from promotion/relegation)`);

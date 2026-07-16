@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { generateLeague } from "../../src/core/league/generate.js";
 import { CLUBS, assignIdentities } from "../../src/core/teams/clubs.js";
+import { englandCompetitions } from "../../src/core/competitions.js";
 
 describe("CLUBS", () => {
   it("has exactly 40 entries", () => {
@@ -24,7 +25,7 @@ describe("CLUBS", () => {
 
 describe("assignIdentities", () => {
   const league = generateLeague(mulberry32(42));
-  const stored = assignIdentities(league);
+  const stored = assignIdentities(league, englandCompetitions());
 
   it("maps tids correctly (tid N gets CLUBS[N])", () => {
     for (const st of stored) {

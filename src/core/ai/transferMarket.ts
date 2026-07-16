@@ -3,10 +3,12 @@ import type { StoredTeam } from "../teams/clubs.js";
 import type { PlayedMatch } from "../standings.js";
 import type { CompletedTransfer } from "../transfers/negotiation.js";
 import type { TransferWindowKind } from "../transfers/window.js";
+import type { Competition } from "../competitions.js";
 import { deriveLeagueContexts } from "./clubContext.js";
 import { valueToClub, perceivedValueToClub } from "./evaluate.js";
 import { trueTransferValue } from "../finance/valuation.js";
 import { clampBudget } from "../finance/budget.js";
+import { tierOf } from "../competitions.js";
 import { keepsDepthFloor } from "../freeAgency.js";
 import { mulberry32 } from "../../engine/rng.js";
 import {
@@ -70,8 +72,9 @@ export function runAITransferMarket(
   phase: "regular" | "offseason",
   userTid: number,
   seed: number,
+  competitions: Competition[],
 ): AITransferResult {
-  const contexts = deriveLeagueContexts({ teams, players, season, played });
+  const contexts = deriveLeagueContexts({ teams, players, season, played, competitions });
   const playerMap = new Map(players.map((p) => [p.pid, p]));
   const jitter = mulberry32(seed);
 
@@ -171,8 +174,8 @@ export function runAITransferMarket(
     // mid-season wage charge. Money is conserved between the two clubs.
     roster.set(c.sellerTid, sellerRoster.filter((p) => p !== c.pid));
     buyerRoster.push(c.pid);
-    const sellerDivision = teams.find((t) => t.tid === c.sellerTid)!.division;
-    budget.set(c.sellerTid, clampBudget((budget.get(c.sellerTid) ?? 0) + fee, sellerDivision));
+    const sellerCompId = teams.find((t) => t.tid === c.sellerTid)!.compId;
+    budget.set(c.sellerTid, clampBudget((budget.get(c.sellerTid) ?? 0) + fee, tierOf(competitions, sellerCompId)));
     budget.set(c.buyerTid, (budget.get(c.buyerTid) ?? 0) - fee - wageCharge);
     moved.add(c.pid);
     buys.set(c.buyerTid, (buys.get(c.buyerTid) ?? 0) + 1);

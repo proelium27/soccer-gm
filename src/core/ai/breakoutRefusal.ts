@@ -1,5 +1,7 @@
 import type { Player } from "../players/types.js";
 import type { StoredTeam } from "../teams/clubs.js";
+import type { Competition } from "../competitions.js";
+import { tierOf } from "../competitions.js";
 import { DIVISION_2_REFUSAL_OVR_THRESHOLD } from "../constants.js";
 
 /**
@@ -18,6 +20,9 @@ import { DIVISION_2_REFUSAL_OVR_THRESHOLD } from "../constants.js";
  * he's good enough, independent of any specific buyer's situation that
  * window.
  */
-export function wouldRefuseExtension(player: Player, currentTeam: StoredTeam): boolean {
-  return currentTeam.division === 1 && player.ovr >= DIVISION_2_REFUSAL_OVR_THRESHOLD;
+export function wouldRefuseExtension(
+  player: Player, currentTeam: StoredTeam, competitions: Competition[],
+): boolean {
+  return tierOf(competitions, currentTeam.compId) === 2
+    && player.ovr >= DIVISION_2_REFUSAL_OVR_THRESHOLD;
 }

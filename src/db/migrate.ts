@@ -4,17 +4,22 @@ import type { Player, SeasonStats } from "../core/players/types.js";
 import type { PlayerMatchLine } from "../engine/attribution.js";
 import type { TeamSeasonStats } from "../core/standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "../core/awards.js";
-import { FORMATIONS } from "../core/lineup/formations.js";
 import {
   HYPE_INITIAL, SCOUTING_SPEND_DEFAULT,
   NUM_TEAMS,
 } from "../core/constants.js";
 import { chargeSeasonStart, wageBill } from "../core/finance/budget.js";
+import { englandCompetitions, tierOf } from "../core/competitions.js";
 
-/** A team as it may exist in a save written before M6 added the finance fields, or before the second division. */
+/**
+ * A team as it may exist in a save written before M6 added the finance
+ * fields, or before the second division / competitions refactor: `compId`
+ * didn't exist yet, only the old `division: 0 | 1` field.
+ */
 type StoredTeamAnyVersion =
-  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "division" | "divisionConvergence"> &
-  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "division" | "divisionConvergence">>;
+  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence"> &
+  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence">> &
+  { division?: 0 | 1 };
 
 /**
  * Generation constants frozen at the values active when academyBase was
@@ -45,10 +50,10 @@ function fallbackAcademyBase(tid: number): number {
   return FALLBACK_LEAGUE_BASE + target;
 }
 
-/** A league as it may exist in a save written before M6 added the transfer market. */
+/** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA. */
 type SeasonStatsAnyVersion =
@@ -59,13 +64,22 @@ type SeasonStatsAnyVersion =
 type TeamSeasonStatsAnyVersion = Omit<TeamSeasonStats, "xg" | "goalsAgainst" | "xga"> &
   Partial<Pick<TeamSeasonStats, "xg" | "goalsAgainst" | "xga">>;
 
-/** A season-history entry as it may exist in a save written before Team Stat Leaders history / xG / awards / the second division. */
+/**
+ * A season-history entry as it may exist in a save written before Team Stat
+ * Leaders history / xG / awards / the second division / the competitions
+ * refactor. `awards` has gone through three shapes over time: a single
+ * SeasonAwards (pre-second-division), a [D1, D2] tuple (second division),
+ * and a Record<compId, SeasonAwards> (post-competitions-refactor).
+ */
 type SeasonHistoryEntryAnyVersion =
-  Omit<LeagueStore["seasonHistory"][number], "teamStats" | "awards" | "divisionsByTid"> &
+  Omit<LeagueStore["seasonHistory"][number], "teamStats" | "awards" | "compsByTid" | "championTidByCompId"> &
   Partial<{
     teamStats: TeamSeasonStatsAnyVersion[];
-    awards: SeasonAwards | [SeasonAwards, SeasonAwards];
+    awards: SeasonAwards | [SeasonAwards, SeasonAwards] | Record<number, SeasonAwards>;
+    compsByTid: Record<number, number>;
     divisionsByTid: Record<number, 0 | 1>;
+    championTidByCompId: Record<number, number>;
+    championTid: number;
   }>;
 
 /** A box-score line as it may exist in a save written before Match Rating / xG / xGA. */
@@ -130,26 +144,34 @@ function migratePlayer(p: Player): Player {
  */
 export function migrateLeague(league: LeagueStore): LeagueStore {
   const anyVersion = league as LeagueStoreAnyVersion;
+  // Pre-competitions-refactor saves have no competitions table at all — they
+  // were always England-only, so the 2-entry table backfills mechanically
+  // (their legacy `division` values 0/1 are already valid compIds).
+  const competitions = anyVersion.competitions ?? englandCompetitions();
   // Pre-M6 backfill only: seed the budget the way a season start would —
   // base allocation in, the save's current wage bill out.
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   const migratedPlayers = league.players.map(migratePlayer);
   return {
     ...league,
-    teams: (league.teams as StoredTeamAnyVersion[]).map((t) => ({
-      ...t,
-      name: t.name ?? CLUBS[t.tid]?.name,
-      abbrev: t.abbrev ?? CLUBS[t.tid]?.abbrev,
-      colors: t.colors ?? CLUBS[t.tid]?.colors,
-      budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), t.division ?? 0),
-      hype: t.hype ?? HYPE_INITIAL,
-      scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_DEFAULT,
-      academyBase: t.academyBase ?? fallbackAcademyBase(t.tid),
-      starters: t.starters ?? null,
-      academyRoster: t.academyRoster ?? [],
-      division: t.division ?? 0,
-      divisionConvergence: t.divisionConvergence ?? null,
-    })),
+    competitions,
+    teams: (league.teams as StoredTeamAnyVersion[]).map((t) => {
+      const compId = t.compId ?? t.division ?? 0;
+      return {
+        ...t,
+        name: t.name ?? CLUBS[t.tid]?.name,
+        abbrev: t.abbrev ?? CLUBS[t.tid]?.abbrev,
+        colors: t.colors ?? CLUBS[t.tid]?.colors,
+        budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), tierOf(competitions, compId)),
+        hype: t.hype ?? HYPE_INITIAL,
+        scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_DEFAULT,
+        academyBase: t.academyBase ?? fallbackAcademyBase(t.tid),
+        starters: t.starters ?? null,
+        academyRoster: t.academyRoster ?? [],
+        compId,
+        divisionConvergence: t.divisionConvergence ?? null,
+      };
+    }),
     players: migratedPlayers,
     played: league.played.map((m) => {
       const boxScore = (m as PlayedMatchAnyVersion).boxScore;
@@ -178,30 +200,36 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     // stats rather than reconstructing false zeros.
     seasonHistory: ((anyVersion.seasonHistory ?? []) as SeasonHistoryEntryAnyVersion[]).map((h) => {
       // Pre-second-division saves were always single-division: every team
-      // that season was Division 1.
-      const divisionsByTid: Record<number, 0 | 1> = h.divisionsByTid
-        ?? Object.fromEntries(league.teams.map((t) => [t.tid, 0 as const]));
-      const emptyAwards: SeasonAwards = {
-        playerOfSeasonPid: null,
-        goldenBootPid: null,
-        teamOfSeason: FORMATIONS["4-3-3"].map(() => null),
-      };
+      // that season was Division 1 (compId 0). Post-second-division,
+      // pre-competitions-refactor saves already have the right shape under
+      // the old field name.
+      const compsByTid: Record<number, number> = h.compsByTid
+        ?? h.divisionsByTid
+        ?? Object.fromEntries(league.teams.map((t) => [t.tid, 0]));
       // Player.stats is append-only and never pruned, so unlike teamStats
-      // above, past seasons' awards CAN be reconstructed after the fact. A
-      // pre-second-division save's single-object awards become Division 1's
-      // half of the tuple; Division 2 never existed for that season, so it
-      // gets an empty (no-eligible-player) placeholder rather than a guess.
-      const legacyOrMissingAwards = h.awards;
-      const awards: [SeasonAwards, SeasonAwards] = Array.isArray(legacyOrMissingAwards)
-        ? legacyOrMissingAwards
-        : [legacyOrMissingAwards ?? computeSeasonAwards(migratedPlayers, h.season), emptyAwards];
+      // above, past seasons' awards CAN be reconstructed after the fact.
+      // Detect which of the three historical shapes this entry has: a
+      // Record already (post-refactor, nothing to do), a [D1, D2] tuple
+      // (second-division era), or a single SeasonAwards object
+      // (pre-second-division, single competition), or missing entirely.
+      const rawAwards = h.awards;
+      const awards: Record<number, SeasonAwards> = Array.isArray(rawAwards)
+        ? { 0: rawAwards[0], 1: rawAwards[1] }
+        : rawAwards && "playerOfSeasonPid" in rawAwards
+          ? { 0: rawAwards }
+          : rawAwards
+            ? rawAwards
+            : { 0: computeSeasonAwards(migratedPlayers, h.season) };
+      const championTidByCompId: Record<number, number> = h.championTidByCompId
+        ?? (h.championTid !== undefined ? { 0: h.championTid } : { 0: h.table[0]?.tid ?? 0 });
       return {
         ...h,
         teamStats: (h.teamStats ?? []).map((t) => ({
           ...t, xg: t.xg ?? 0, goalsAgainst: t.goalsAgainst ?? 0, xga: t.xga ?? 0,
         })),
         awards,
-        divisionsByTid,
+        compsByTid,
+        championTidByCompId,
       };
     }),
     newsEvents: anyVersion.newsEvents ?? [],

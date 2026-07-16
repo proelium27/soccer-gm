@@ -59,7 +59,7 @@ export function recommendedTransfers(
     for (const pid of team.roster) {
       const player = playerMap.get(pid);
       if (!player) continue;
-      if (!isForSale(team, playerMap, pid) && !wouldRefuseExtension(player, team)) continue;
+      if (!isForSale(team, playerMap, pid) && !wouldRefuseExtension(player, team, league.competitions)) continue;
       if (departsAtRollover(league, player)) continue;
       const value = scoutedValue(league.lid, ws.season, ws.window, player, user.scoutingSpend);
       if (value > user.budget) continue;

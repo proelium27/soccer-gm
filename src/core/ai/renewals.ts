@@ -1,6 +1,7 @@
 import type { Player } from "../players/types.js";
 import type { StoredTeam } from "../teams/clubs.js";
 import type { PlayedMatch } from "../standings.js";
+import type { Competition } from "../competitions.js";
 import { deriveLeagueContexts } from "./clubContext.js";
 import { perceivedValueToClub } from "./evaluate.js";
 import { canExtend, contractTerms, extendContract } from "../contracts.js";
@@ -33,9 +34,10 @@ export function runAIContractRenewals(
   userTid: number,
   playedThisSeason: PlayedMatch[],
   seed: number,
+  competitions: Competition[],
 ): { teams: StoredTeam[]; players: Player[] } {
   const contexts = deriveLeagueContexts({
-    teams, players, season: nextSeason, played: playedThisSeason,
+    teams, players, season: nextSeason, played: playedThisSeason, competitions,
   });
 
   let updatedPlayers = players;

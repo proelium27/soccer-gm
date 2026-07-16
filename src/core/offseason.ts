@@ -1,6 +1,7 @@
 import type { LeagueStore } from "./leagueState.js";
 import type { Player } from "./players/types.js";
 import type { StoredTeam } from "./teams/clubs.js";
+import type { Competition } from "./competitions.js";
 import { progressPlayer, rollRetirement } from "./players/progression.js";
 import { generateYouthIntake } from "./players/youth.js";
 import {
@@ -11,28 +12,29 @@ import { runAIContractRenewals } from "./ai/renewals.js";
 import { enforceDivision2Ceiling } from "./ai/divisionCeiling.js";
 import { computeStandings, computeTeamSeasonStats, type StandingsRow } from "./standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
-import { computeDivisionSwap, applyDivisionSwap, stepAcademyBaseConvergence } from "./promotion.js";
+import { computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence } from "./promotion.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
 import { settleSeasonEnd, chargeSeasonStart, wageBill } from "./finance/budget.js";
 import { academyContractTerms } from "./contracts.js";
-import { NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_DEFAULT } from "./constants.js";
+import { SCOUTING_SPEND_DEFAULT } from "./constants.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
+import { tierOf } from "./competitions.js";
 import { hashInts } from "../engine/rng.js";
 
-/** Awards for the season that just ended, computed separately per division from players' current club membership. */
-function awardsByDivision(
+/** Awards for the season that just ended, computed separately per competition from players' current club membership. */
+function awardsByCompetition(
   players: Player[],
   teams: StoredTeam[],
+  competitions: Competition[],
   season: number,
-): [SeasonAwards, SeasonAwards] {
-  const rosterOf = (division: 0 | 1) =>
-    new Set(teams.filter((t) => t.division === division).flatMap((t) => t.roster));
-  const d1Roster = rosterOf(0);
-  const d2Roster = rosterOf(1);
-  const d1Players = players.filter((p) => d1Roster.has(p.pid));
-  const d2Players = players.filter((p) => d2Roster.has(p.pid));
-  return [computeSeasonAwards(d1Players, season), computeSeasonAwards(d2Players, season)];
+): Record<number, SeasonAwards> {
+  const result: Record<number, SeasonAwards> = {};
+  for (const comp of competitions) {
+    const roster = new Set(teams.filter((t) => t.compId === comp.id).flatMap((t) => t.roster));
+    result[comp.id] = computeSeasonAwards(players.filter((p) => roster.has(p.pid)), season);
+  }
+  return result;
 }
 
 /**
@@ -52,19 +54,20 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const endingSeason = league.season;
   const nextSeason = endingSeason + 1;
 
-  // Snapshotted before any roster/division change below, from league.players
-  // (not the `players` variable mutated further down) so a player who
-  // retires this offseason still gets credit for the season he just
-  // finished, and division membership reflects who actually played where.
-  const divisionsByTid: Record<number, 0 | 1> = {};
-  for (const t of league.teams) divisionsByTid[t.tid] = t.division;
-  const awards = awardsByDivision(league.players, league.teams, endingSeason);
+  // Snapshotted before any roster/competition change below, from
+  // league.players (not the `players` variable mutated further down) so a
+  // player who retires this offseason still gets credit for the season he
+  // just finished, and competition membership reflects who actually played
+  // where.
+  const compsByTid: Record<number, number> = {};
+  for (const t of league.teams) compsByTid[t.tid] = t.compId;
+  const awards = awardsByCompetition(league.players, league.teams, league.competitions, endingSeason);
 
   // 0. Proactive AI contract renewals (cross-division: a club's own player,
   //    regardless of which division that club plays in).
   const renewals = runAIContractRenewals(
     league.teams, league.players, nextSeason, league.meta.userTid, league.played,
-    hashInts(league.lid, nextSeason, 9),
+    hashInts(league.lid, nextSeason, 9), league.competitions,
   );
 
   // 1. Release expired contracts to the free agent pool.
@@ -86,45 +89,48 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     roster: t.roster.filter((pid) => !retiredPids.has(pid)),
   }));
 
-  // 3.5. Per-division standings, rank-based settlement, and hype update.
-  //      Each division's 20-team table is computed independently — pooling
-  //      both divisions into one 40-team table would misapply prize-tier
-  //      rank cutoffs (PRIZE_TOP_5_CUTOFF etc. assume a 20-team table) and
-  //      the hype curve (NUM_TEAMS-normalized) to a league neither was
-  //      tuned for.
-  const d1TeamIds = teams.filter((t) => t.division === 0).map((t) => t.tid);
-  const d2TeamIds = teams.filter((t) => t.division === 1).map((t) => t.tid);
-  const d1TeamIdSet = new Set(d1TeamIds);
-  const d2TeamIdSet = new Set(d2TeamIds);
-  const d1Standings = computeStandings(d1TeamIds, league.played.filter((m) => d1TeamIdSet.has(m.home)));
-  const d2Standings = computeStandings(d2TeamIds, league.played.filter((m) => d2TeamIdSet.has(m.home)));
-  const standings = [...d1Standings, ...d2Standings];
+  // 3.5. Per-competition standings, rank-based settlement, and hype update.
+  //      Each competition's own table is computed independently — pooling
+  //      multiple competitions into one table would misapply prize-tier rank
+  //      cutoffs (PRIZE_TOP_5_CUTOFF etc. assume a single competition's table
+  //      size) and the hype curve to a league neither was tuned for.
+  const tablesByCompId = new Map<number, StandingsRow[]>();
+  for (const comp of league.competitions) {
+    const compTids = teams.filter((t) => t.compId === comp.id).map((t) => t.tid);
+    const compTidSet = new Set(compTids);
+    tablesByCompId.set(
+      comp.id,
+      computeStandings(compTids, league.played.filter((m) => compTidSet.has(m.home))),
+    );
+  }
+  const standings = league.competitions.flatMap((comp) => tablesByCompId.get(comp.id)!);
   const teamStats = computeTeamSeasonStats(teams.map((t) => t.tid), league.played);
 
-  const settle = (rows: StandingsRow[], division: 0 | 1): void => {
+  const settle = (rows: StandingsRow[], compId: number): void => {
+    const tier = tierOf(league.competitions, compId);
+    const defaultRank = rows.length;
     const rankByTid = new Map(rows.map((row, i) => [row.tid, i + 1]));
     const rowByTid = new Map(rows.map((row) => [row.tid, row]));
     teams = teams.map((t) => {
-      if (t.division !== division) return t;
-      const defaultRank = division === 0 ? NUM_TEAMS : NUM_TEAMS_D2;
+      if (t.compId !== compId) return t;
       const rank = rankByTid.get(t.tid) ?? defaultRank;
       const row = rowByTid.get(t.tid);
-      const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, division);
+      const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, tier);
       const hype = row ? updateHype(t.hype, row, rank) : t.hype;
       return { ...t, budget, hype, scoutingSpend: clampScoutingSpend(SCOUTING_SPEND_DEFAULT, budget) };
     });
   };
-  settle(d1Standings, 0);
-  settle(d2Standings, 1);
+  for (const comp of league.competitions) settle(tablesByCompId.get(comp.id)!, comp.id);
 
-  // 3.6. Promotion/relegation: bottom PROMOTION_RELEGATION_COUNT of D1 swap
-  //      with top PROMOTION_RELEGATION_COUNT of D2, using the tables just
-  //      computed above (the season that actually just played out). Then
-  //      every mid-convergence team's academyBase moves one step closer to
-  //      its current division's strength band.
-  const swap = computeDivisionSwap(d1Standings, d2Standings);
-  teams = applyDivisionSwap(teams, swap);
-  teams = stepAcademyBaseConvergence(teams);
+  // 3.6. Promotion/relegation: per country, bottom PROMOTION_RELEGATION_COUNT
+  //      of its tier-1 table swap with top PROMOTION_RELEGATION_COUNT of its
+  //      tier-2 table, using the tables just computed above (the season that
+  //      actually just played out). Then every mid-convergence team's
+  //      academyBase moves one step closer to its current competition's
+  //      strength band.
+  const swaps = computeCountrySwaps(league.competitions, tablesByCompId);
+  teams = applyCompetitionSwaps(teams, swaps);
+  teams = stepAcademyBaseConvergence(teams, league.competitions);
 
   // 3.7. Guaranteed ceiling on Division 2 quality, first pass: any
   //      AI-controlled player at or above DIVISION_2_REFUSAL_OVR_THRESHOLD
@@ -139,7 +145,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      qualifies either time).
   let ceilingTransfers = league.transfers;
   ({ teams, transfers: ceilingTransfers } = enforceDivision2Ceiling(
-    teams, players, ceilingTransfers, nextSeason, league.meta.userTid,
+    teams, players, ceilingTransfers, nextSeason, league.meta.userTid, league.competitions,
   ));
 
   // 4. AI free agency fills roster holes (worst team picks first, within
@@ -183,7 +189,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const marketSeed = hashInts(league.lid, nextSeason, 7);
   const summerMarket = runAITransferMarket(
     teams, players, ceilingTransfers, nextSeason, league.played,
-    "summer", "offseason", league.meta.userTid, marketSeed,
+    "summer", "offseason", league.meta.userTid, marketSeed, league.competitions,
   );
   teams = summerMarket.teams;
 
@@ -198,22 +204,24 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      relegated clubs simply keeping their existing strong rosters, not
   //      anything a market mechanic alone can fix).
   const { teams: ceilingTeams, transfers: finalTransfers } = enforceDivision2Ceiling(
-    teams, players, summerMarket.transfers, nextSeason, league.meta.userTid,
+    teams, players, summerMarket.transfers, nextSeason, league.meta.userTid, league.competitions,
   );
   teams = ceilingTeams;
 
   // 6.5. Season-start finances on the finalized new-season rosters, scaled
-  //      by each club's (possibly just-changed) division.
+  //      by each club's (possibly just-changed) competition tier.
   const salaryMap = new Map(players.map((p) => [p.pid, p.contract.salary]));
   teams = teams.map((t) => ({
     ...t,
-    budget: chargeSeasonStart(t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), t.division),
+    budget: chargeSeasonStart(
+      t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), tierOf(league.competitions, t.compId),
+    ),
   }));
 
-  // 7. New per-division schedules, new season, back to regular play.
-  const newD1Ids = teams.filter((t) => t.division === 0).map((t) => t.tid);
-  const newD2Ids = teams.filter((t) => t.division === 1).map((t) => t.tid);
-  const schedule = [...generateSchedule(newD1Ids), ...generateSchedule(newD2Ids)];
+  // 7. New per-competition schedules, new season, back to regular play.
+  const schedule = league.competitions.flatMap((comp) =>
+    generateSchedule(teams.filter((t) => t.compId === comp.id).map((t) => t.tid)),
+  );
 
   return {
     ...league,
@@ -230,10 +238,14 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       {
         season: endingSeason,
         table: standings,
-        championTid: d1Standings[0].tid,
         teamStats,
         awards,
-        divisionsByTid,
+        compsByTid,
+        championTidByCompId: Object.fromEntries(
+          league.competitions
+            .filter((c) => c.tier === 1)
+            .map((c) => [c.id, tablesByCompId.get(c.id)![0].tid]),
+        ),
       },
     ],
   };

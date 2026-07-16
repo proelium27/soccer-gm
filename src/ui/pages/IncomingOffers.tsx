@@ -143,6 +143,7 @@ export function IncomingOffers() {
 
   const userCtx = deriveLeagueContexts({
     teams: league.teams, players: league.players, season: league.season, played: league.played,
+    competitions: league.competitions,
   }).get(userTeam.tid);
 
   const commentaryFor = (p: Player, offerFee: number): ScoutCommentary | null =>

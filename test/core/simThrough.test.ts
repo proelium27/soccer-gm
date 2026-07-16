@@ -9,6 +9,7 @@ import { transferWindowState } from "../../src/core/transfers/window.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { ScheduleGame } from "../../src/core/schedule.js";
 import type { StoredTeam } from "../../src/core/teams/clubs.js";
+import { englandCompetitions } from "../../src/core/competitions.js";
 
 /** Build a LeagueStore fixture from a generated league + double round robin. */
 function makeLeagueStore(seed: number): LeagueStore {
@@ -36,7 +37,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     hype: 50,
     scoutingSpend: 0,
     academyBase: t.academyBase,
-    division: t.division,
+    compId: t.compId,
     divisionConvergence: null,
     starters: null,
   }));
@@ -44,6 +45,7 @@ function makeLeagueStore(seed: number): LeagueStore {
   return {
     lid: 1,
     meta: { name: "Test League", created: Date.now(), userTid: 0 },
+    competitions: englandCompetitions(),
     teams,
     players: league.players,
     season: 2026,
@@ -229,7 +231,7 @@ describe("simThrough", () => {
     const rng = mulberry32(11);
     let league = createLeagueState(0, rng);
     league = simThrough(league, "season", rng);
-    const divisionByTid = new Map(league.teams.map((t) => [t.tid, t.division]));
+    const divisionByTid = new Map(league.teams.map((t) => [t.tid, t.compId]));
     for (const m of league.played) {
       expect(divisionByTid.get(m.home)).toBe(divisionByTid.get(m.away));
     }
