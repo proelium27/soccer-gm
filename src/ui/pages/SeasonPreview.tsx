@@ -71,7 +71,7 @@ export function SeasonPreview() {
                       <PlayerRatingsTooltip player={player}>
                         <span className="d-inline-flex align-items-center gap-1">
                           <Flag nationality={player.nationality} />
-                          {player.name}
+                          <Link to={`/player/${player.pid}`}>{player.name}</Link>
                         </span>
                       </PlayerRatingsTooltip>
                     </td>
@@ -137,7 +137,7 @@ export function SeasonPreview() {
               return (
                 <tr key={`${t.pid}-${t.season}-${i}`}>
                   <td className="text-end">{i + 1}</td>
-                  <td>{player?.name ?? "—"}</td>
+                  <td>{player ? <Link to={`/player/${player.pid}`}>{player.name}</Link> : "—"}</td>
                   <td>{from?.name ?? "—"}</td>
                   <td>{to?.name ?? "—"}</td>
                   <td className="text-end">{currency.format(t.fee)}</td>

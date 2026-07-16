@@ -5,7 +5,7 @@ import type { Player, SkillKey } from "../../core/players/types.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { Flag } from "./Flag.js";
 
-const SKILL_LABELS: Record<SkillKey, string> = {
+export const SKILL_LABELS: Record<SkillKey, string> = {
   speed: "Speed",
   strength: "Strength",
   stamina: "Stamina",

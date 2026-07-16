@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import type { Player, Position } from "../../core/players/types.js";
 import { bestFit } from "../../core/lineup/selectXI.js";
 import { layoutSlots } from "../pitchLayout.js";
@@ -141,7 +142,7 @@ export function PitchField({
             {isOpen && (
               <div className="pitch-chip-actions">
                 <div className="pitch-chip-actions-title">
-                  {p.name} <Flag nationality={p.nationality} /> &middot; OVR {p.ovr} / POT{" "}
+                  <Link to={`/player/${p.pid}`}>{p.name}</Link> <Flag nationality={p.nationality} /> &middot; OVR {p.ovr} / POT{" "}
                   {p.potential}
                 </div>
                 <div className="pitch-chip-actions-meta">

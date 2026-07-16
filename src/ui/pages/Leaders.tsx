@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
 import { emptySeasonStats } from "../../core/players/types.js";
@@ -258,7 +259,9 @@ function PlayerLeaders({ division }: { division: 0 | 1 }) {
             >
               <td className="text-end">{i + 1}</td>
               <td>
-                <PlayerRatingsTooltip player={row.player}>{row.player.name}</PlayerRatingsTooltip>{" "}
+                <PlayerRatingsTooltip player={row.player}>
+                  <Link to={`/player/${row.player.pid}`}>{row.player.name}</Link>
+                </PlayerRatingsTooltip>{" "}
                 <Flag nationality={row.player.nationality} />
               </td>
               <td>{row.teamName}</td>

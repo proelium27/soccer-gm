@@ -398,6 +398,38 @@ a:hover {
 }
 
 /* =========================================================================
+   Award pills (Player Profile — career honors as BBGM-style tab/pill badges)
+   ========================================================================= */
+.award-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.award-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--sg-surface-2);
+  border: 1px solid var(--sg-border-strong);
+  color: var(--sg-text);
+  font-size: var(--sg-text-sm);
+  font-weight: var(--sg-weight-semibold);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.award-pill-count {
+  color: var(--sg-text-muted);
+  font-weight: var(--sg-weight-regular);
+}
+.golden-boot-icon {
+  height: 1.3em;
+  width: auto;
+  vertical-align: middle;
+}
+
+/* =========================================================================
    Player ratings tooltip
    ========================================================================= */
 .player-ratings-tooltip-anchor {
@@ -643,6 +675,13 @@ a:hover {
 }
 .pitch-chip .player-ratings-tooltip-anchor {
   border-bottom: none;
+}
+.pitch-chip-name {
+  color: inherit;
+  text-decoration: none;
+}
+.pitch-chip-name:hover {
+  text-decoration: underline;
 }
 .pitch-slot--open .player-ratings-tooltip-panel {
   display: none;

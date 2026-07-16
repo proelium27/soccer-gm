@@ -20,6 +20,7 @@ import { NewsFeed } from "./pages/NewsFeed.js";
 import { Awards } from "./pages/Awards.js";
 import { SeasonPreview } from "./pages/SeasonPreview.js";
 import { Manual } from "./pages/Manual.js";
+import { PlayerProfile } from "./pages/PlayerProfile.js";
 
 function RootRedirect() {
   const { league, loadingActiveLeague } = useLeague();
@@ -52,6 +53,7 @@ export function App() {
             <Route path="/incoming-offers" element={<IncomingOffers />} />
             <Route path="/finance" element={<Finance />} />
             <Route path="/manual" element={<Manual />} />
+            <Route path="/player/:pid" element={<PlayerProfile />} />
           </Route>
           <Route path="*" element={<RootRedirect />} />
         </Routes>

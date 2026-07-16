@@ -1,4 +1,6 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { SeasonAwards } from "../../core/awards.js";
 import type { Player } from "../../core/players/types.js";
@@ -7,6 +9,7 @@ import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { Flag } from "../components/Flag.js";
+import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { seasonYear } from "../format.js";
 
 const SLOTS = FORMATIONS["4-3-3"];
@@ -17,16 +20,16 @@ function shortName(name: string): string {
   return parts[parts.length - 1];
 }
 
-function AwardCard({ title, player, subtitle }: { title: string; player: Player | undefined; subtitle: string }) {
+function AwardCard({ title, player, subtitle }: { title: ReactNode; player: Player | undefined; subtitle: string }) {
   return (
     <div className="card h-100">
       <div className="card-body">
-        <h6 className="card-title text-muted text-uppercase small">{title}</h6>
+        <h6 className="card-title text-muted text-uppercase small d-flex align-items-center gap-1">{title}</h6>
         {player ? (
           <>
             <div className="d-flex align-items-center gap-2 fs-5 fw-semibold">
               <Flag nationality={player.nationality} />
-              {player.name}
+              <Link to={`/player/${player.pid}`}>{player.name}</Link>
             </div>
             <div className="text-muted small mt-1">{subtitle}</div>
           </>
@@ -57,9 +60,11 @@ function TeamOfSeasonField({ awards, playersByPid }: { awards: SeasonAwards; pla
               <PlayerRatingsTooltip player={player}>
                 <span
                   className={"pitch-chip" + (player.pos === "GK" ? " pitch-chip--gk" : "")}
-                  style={{ borderColor: getRatingColor(player.ovr), cursor: "default" }}
+                  style={{ borderColor: getRatingColor(player.ovr) }}
                 >
-                  <span className="pitch-chip-name">{shortName(player.name)}</span>
+                  <Link to={`/player/${player.pid}`} className="pitch-chip-name">
+                    {shortName(player.name)}
+                  </Link>
                   <span className="pitch-chip-ovr">{player.ovr}</span>
                 </span>
               </PlayerRatingsTooltip>
@@ -142,7 +147,7 @@ export function Awards() {
         </div>
         <div className="col-md-6">
           <AwardCard
-            title="Golden Boot"
+            title={<><GoldenBootIcon /> Golden Boot</>}
             player={goldenBoot}
             subtitle={goldenBootStats ? `${goldenBootStats.goals} goals in ${goldenBootStats.appearances} appearances` : ""}
           />

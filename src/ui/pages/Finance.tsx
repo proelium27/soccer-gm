@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings } from "../../core/standings.js";
 import { seasonRevenue, wageBill } from "../../core/finance/budget.js";
@@ -203,7 +204,9 @@ export function Finance() {
               {rosterPlayers.map((p) => (
                 <tr key={p.pid}>
                   <td>
-                    <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                    <PlayerRatingsTooltip player={p}>
+                      <Link to={`/player/${p.pid}`}>{p.name}</Link>
+                    </PlayerRatingsTooltip>{" "}
                     <Flag nationality={p.nationality} />
                   </td>
                   <td>{p.pos}</td>
@@ -260,7 +263,7 @@ export function Finance() {
                         <td className="text-end">{seasonYear(t.season)}</td>
                         <td>{t.window === "summer" ? "Summer" : "Winter"}</td>
                         <td>
-                          {p?.name ?? `Player ${t.pid}`}{" "}
+                          {p ? <Link to={`/player/${p.pid}`}>{p.name}</Link> : `Player ${t.pid}`}{" "}
                           {p && <Flag nationality={p.nationality} />}
                         </td>
                         <td>
