@@ -2,6 +2,7 @@ import type { Player, Position } from "../players/types.js";
 import { POSITIONS } from "../players/types.js";
 import { generatePlayer } from "../players/generate.js";
 import { hashInts } from "../../engine/rng.js";
+import { worldCompetitions, partnerOf } from "../competitions.js";
 import {
   NUM_TEAMS, NUM_TEAMS_D2, LEAGUE_BASE, TEAM_STRENGTH_SPREAD, DIVISION_2_OFFSET,
   ROSTER_COMPOSITION, INITIAL_AGE_MIN, INITIAL_AGE_MAX,
@@ -55,6 +56,7 @@ function generateDivisionTeams(
   compId: number,
   genSeed: number,
   pidStart: number,
+  country: string,
 ): { teams: LeagueTeam[]; players: Player[]; nextPid: number } {
   const teams: LeagueTeam[] = [];
   const players: Player[] = [];
@@ -82,7 +84,7 @@ function generateDivisionTeams(
       for (let j = 0; j < ROSTER_COMPOSITION[pos]; j++) {
         const age = INITIAL_AGE_MIN
           + Math.floor(rng() * (INITIAL_AGE_MAX - INITIAL_AGE_MIN + 1));
-        const p = generatePlayer(rng, pos, base, pid++, age, STARTING_SEASON, genSeed);
+        const p = generatePlayer(rng, pos, base, pid++, age, STARTING_SEASON, genSeed, country);
         const length = CONTRACT_LENGTH_MIN
           + Math.floor(rng() * (CONTRACT_LENGTH_MAX - CONTRACT_LENGTH_MIN + 1));
         p.contract.expiresSeason = STARTING_SEASON + length;
@@ -113,7 +115,7 @@ function generateDivisionTeams(
  */
 export function generateLeague(rng: () => number, seed = 0): League {
   const genSeed = hashInts(seed, 1);
-  const { teams, players } = generateDivisionTeams(rng, 0, NUM_TEAMS, 0, 0, genSeed, 0);
+  const { teams, players } = generateDivisionTeams(rng, 0, NUM_TEAMS, 0, 0, genSeed, 0, "England");
   return { teams, players };
 }
 
@@ -126,10 +128,44 @@ export function generateLeague(rng: () => number, seed = 0): League {
  */
 export function generateTwoDivisionLeague(rng: () => number, seed = 0): League {
   const genSeed = hashInts(seed, 1);
-  const d1 = generateDivisionTeams(rng, 0, NUM_TEAMS, 0, 0, genSeed, 0);
-  const d2 = generateDivisionTeams(rng, NUM_TEAMS, NUM_TEAMS_D2, DIVISION_2_OFFSET, 1, genSeed, d1.nextPid);
+  const d1 = generateDivisionTeams(rng, 0, NUM_TEAMS, 0, 0, genSeed, 0, "England");
+  const d2 = generateDivisionTeams(rng, NUM_TEAMS, NUM_TEAMS_D2, DIVISION_2_OFFSET, 1, genSeed, d1.nextPid, "England");
   return {
     teams: [...d1.teams, ...d2.teams],
     players: [...d1.players, ...d2.players],
   };
+}
+
+/**
+ * Generate all 3 countries' worth of teams/players in one rng pass, sharing
+ * one shared stream — countries process in worldCompetitions() order
+ * (England, Spain, Italy), each country's tier-1 block generated before its
+ * tier-2 block, exactly mirroring generateTwoDivisionLeague's own order.
+ * England's block is therefore byte-identical to a plain
+ * generateTwoDivisionLeague call for the same seed. Equal-sibling by
+ * construction: every country uses the identical strength bands
+ * (strengthOffset 0 for tier 1, DIVISION_2_OFFSET for tier 2) — no
+ * per-country tuning.
+ */
+export function generateWorld(rng: () => number, seed = 0): League {
+  const genSeed = hashInts(seed, 1);
+  const comps = worldCompetitions();
+  let pid = 0;
+  let tidCursor = 0;
+  const teams: LeagueTeam[] = [];
+  const players: Player[] = [];
+  for (const d1 of comps.filter((c) => c.tier === 1)) {
+    const d2 = partnerOf(comps, d1.id);
+    const d1Result = generateDivisionTeams(rng, tidCursor, NUM_TEAMS, 0, d1.id, genSeed, pid, d1.country);
+    pid = d1Result.nextPid;
+    tidCursor += NUM_TEAMS;
+    const d2Result = generateDivisionTeams(
+      rng, tidCursor, NUM_TEAMS_D2, DIVISION_2_OFFSET, d2.id, genSeed, pid, d2.country,
+    );
+    pid = d2Result.nextPid;
+    tidCursor += NUM_TEAMS_D2;
+    teams.push(...d1Result.teams, ...d2Result.teams);
+    players.push(...d1Result.players, ...d2Result.players);
+  }
+  return { teams, players };
 }
