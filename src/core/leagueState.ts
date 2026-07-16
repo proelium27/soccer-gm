@@ -6,10 +6,10 @@ import type { CompletedTransfer, TransferNegotiation } from "./transfers/negotia
 import type { InboundOffer } from "./transfers/inboundOffers.js";
 import type { NewsEvent } from "./newsEvents.js";
 import type { Competition } from "./competitions.js";
-import { generateTwoDivisionLeague } from "./league/generate.js";
+import { generateWorld } from "./league/generate.js";
 import { assignIdentities } from "./teams/clubs.js";
 import { generateSchedule } from "./schedule.js";
-import { englandCompetitions } from "./competitions.js";
+import { worldCompetitions } from "./competitions.js";
 
 export type { StoredTeam } from "./teams/clubs.js";
 export type { ScheduleGame } from "./schedule.js";
@@ -59,8 +59,8 @@ export interface LeagueStore {
 }
 
 export function createLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
-  const league = generateTwoDivisionLeague(rng, seed);
-  const competitions = englandCompetitions();
+  const league = generateWorld(rng, seed);
+  const competitions = worldCompetitions();
   const teams = assignIdentities(league, competitions);
   const schedule = buildCompetitionSchedule(teams, competitions);
 
