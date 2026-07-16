@@ -134,7 +134,7 @@ export function Awards() {
       <div className="row g-3 mb-4">
         <div className="col-md-6">
           <AwardCard
-            title="Player of the Season"
+            title="⭐ Player of the Season"
             player={potd}
             subtitle={
               potdStats
@@ -145,14 +145,14 @@ export function Awards() {
         </div>
         <div className="col-md-6">
           <AwardCard
-            title="Golden Boot"
+            title="👢 Golden Boot"
             player={goldenBoot}
             subtitle={goldenBootStats ? `${goldenBootStats.goals} goals in ${goldenBootStats.appearances} appearances` : ""}
           />
         </div>
       </div>
 
-      <h5>Team of the Season</h5>
+      <h5>🎽 Team of the Season</h5>
       <TeamOfSeasonField awards={divisionAwards} playersByPid={playersByPid} />
     </div>
   );

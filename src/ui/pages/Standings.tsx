@@ -117,7 +117,7 @@ export function Standings() {
                       />
                       {team?.name ?? `Team ${row.tid}`}
                       {isChampion && (
-                        <span className="text-muted small"> {division === 0 ? "(Champion)" : "(1st)"}</span>
+                        <span className="text-muted small"> {division === 0 ? "🏆 (Champion)" : "(1st)"}</span>
                       )}
                     </span>
                   </td>
