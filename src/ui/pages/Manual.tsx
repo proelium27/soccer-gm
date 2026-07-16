@@ -394,10 +394,15 @@ export function Manual() {
             <li><strong>Scouting spend</strong> — whatever you set the slider to comes out here.</li>
           </ul>
           <p>
-            <strong>Scouting</strong> is one slider, $0–20M per season. It buys accuracy, not
-            players: at zero spend your perceived player valuations are noisy (±35%), at max spend
-            nearly exact (±5%). That noise is what shuffles the Recommended Transfers ranking —
-            cheap scouting means the "best" target on the list sometimes isn't.
+            <strong>Scouting</strong> is one slider, $0–20M per season, defaulting to $5M and
+            resetting to that default every new season. It buys accuracy, not players: every
+            value you see on a transfer target (Recommended Transfers, negotiation offers,
+            incoming offers for your own players) is a <em>perceived</em> value, not the true
+            one, and how far off it can be depends on your spend. At $0 it's noisy (±35% — a
+            target that looks like a bargain, or a rip-off, may just be a bad read), at the $20M
+            max it's nearly exact (±5%). Scouting doesn't help while you're not shopping, so a
+            common pattern is pushing it to max before a window where you plan to buy or sell,
+            then sliding it back down once you're done.
           </p>
           <p>
             The Finance page shows all of it: current budget, hype, the wage-bill table, a

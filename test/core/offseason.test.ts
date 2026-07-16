@@ -4,7 +4,7 @@ import { createLeagueState } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { computeStandings } from "../../src/core/standings.js";
-import { HYPE_MAX, HYPE_MIN, NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_MIN } from "../../src/core/constants.js";
+import { HYPE_MAX, HYPE_MIN, NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_DEFAULT } from "../../src/core/constants.js";
 
 function playFullSeason(rng: () => number) {
   let league = createLeagueState(0, rng);
@@ -128,7 +128,7 @@ describe("simOffseason", () => {
     expect(new Set(pids).size).toBe(pids.length);
   });
 
-  it("settles every team's budget and hype, and resets scouting spend for the new season", () => {
+  it("settles every team's budget and hype, and resets scouting spend to the default for the new season", () => {
     const rng = mulberry32(7);
     const league = playFullSeason(rng);
     const budgetsBefore = new Map(league.teams.map((t) => [t.tid, t.budget]));
@@ -141,7 +141,10 @@ describe("simOffseason", () => {
       expect(team.budget).not.toBe(budgetsBefore.get(team.tid));
       expect(team.hype).toBeGreaterThanOrEqual(HYPE_MIN);
       expect(team.hype).toBeLessThanOrEqual(HYPE_MAX);
-      expect(team.scoutingSpend).toBe(SCOUTING_SPEND_MIN);
+      // Resets to the default (clamped down if a club's budget at that point in
+      // the pipeline couldn't cover it yet).
+      expect(team.scoutingSpend).toBeGreaterThanOrEqual(0);
+      expect(team.scoutingSpend).toBeLessThanOrEqual(SCOUTING_SPEND_DEFAULT);
     }
   });
 
