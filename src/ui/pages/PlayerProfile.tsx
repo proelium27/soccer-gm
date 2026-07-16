@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { SKILL_KEYS } from "../../core/players/types.js";
@@ -7,6 +8,19 @@ import { getRatingColor } from "../utils/ratingColor.js";
 import { Flag } from "../components/Flag.js";
 import { BootIcon, TrophyIcon } from "../components/AwardIcons.js";
 import { currency, formatWeeklyWage, seasonYear } from "../format.js";
+
+/** One career-honor badge, e.g. "3x Golden Boot" — omits the count for a single win. */
+function AwardPill({ label, seasons, icon }: { label: string; seasons: number[]; icon?: ReactNode }) {
+  if (seasons.length === 0) return null;
+  const years = [...seasons].sort((a, b) => a - b).map(seasonYear);
+  return (
+    <span className="award-pill" title={years.join(", ")}>
+      {icon}
+      {years.length > 1 && <span className="award-pill-count">{years.length}x</span>}
+      {label}
+    </span>
+  );
+}
 
 /**
  * Best-effort reconstruction of which team a player was on during a past
@@ -139,26 +153,12 @@ export function PlayerProfile() {
               {!hasAwards ? (
                 <p className="text-muted mb-0">No individual or team honors yet.</p>
               ) : (
-                <ul className="mb-0 small">
-                  {potySeasons.length > 0 && (
-                    <li>Player of the Season: {potySeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
-                  )}
-                  {goldenBootSeasons.length > 0 && (
-                    <li className="d-flex align-items-center gap-1">
-                      <BootIcon title="Golden Boot" /> Golden Boot:{" "}
-                      {goldenBootSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}
-                    </li>
-                  )}
-                  {totsSeasons.length > 0 && (
-                    <li>Team of the Season: {totsSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
-                  )}
-                  {championSeasons.length > 0 && (
-                    <li className="d-flex align-items-center gap-1">
-                      <TrophyIcon title="League Champion" /> League Champion:{" "}
-                      {championSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}
-                    </li>
-                  )}
-                </ul>
+                <div className="award-pills">
+                  <AwardPill label="Player of the Season" seasons={potySeasons} />
+                  <AwardPill label="Golden Boot" seasons={goldenBootSeasons} icon={<BootIcon title="Golden Boot" />} />
+                  <AwardPill label="Team of the Season" seasons={totsSeasons} />
+                  <AwardPill label="League Champion" seasons={championSeasons} icon={<TrophyIcon title="League Champion" />} />
+                </div>
               )}
             </div>
           </div>
