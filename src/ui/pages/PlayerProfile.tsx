@@ -72,6 +72,7 @@ export function PlayerProfile() {
   const inAcademy = league.teams.find((t) => t.academyRoster.includes(player.pid));
   const teamByTid = new Map(league.teams.map((t) => [t.tid, t]));
   const teamName = (tid: number) => teamByTid.get(tid)?.name ?? `Team ${tid}`;
+  const teamAbbrev = (tid: number) => teamByTid.get(tid)?.abbrev ?? "???";
 
   const playerTransfers = league.transfers
     .filter((t) => t.pid === player.pid)
@@ -98,6 +99,8 @@ export function PlayerProfile() {
 
   const statsBySeasonDesc = [...player.stats].sort((a, b) => b.season - a.season);
   const histBySeasonDesc = [...player.hist].sort((a, b) => b.season - a.season);
+  const seasonTeamAbbrev = (season: number) =>
+    team ? teamAbbrev(teamForSeason(playerTransfers, season, team.tid)) : null;
 
   return (
     <div className="container-fluid p-3">
@@ -228,7 +231,12 @@ export function PlayerProfile() {
                     <tbody>
                       {statsBySeasonDesc.map((s) => (
                         <tr key={s.season}>
-                          <td>{seasonYear(s.season)}</td>
+                          <td>
+                            {seasonYear(s.season)}
+                            {seasonTeamAbbrev(s.season) && (
+                              <span className="text-muted small"> ({seasonTeamAbbrev(s.season)})</span>
+                            )}
+                          </td>
                           <td className="text-end">{s.appearances}</td>
                           <td className="text-end">{s.minutesPlayed}</td>
                           <td className="text-end">{s.goals}</td>
@@ -274,7 +282,12 @@ export function PlayerProfile() {
                     <tbody>
                       {histBySeasonDesc.map((h) => (
                         <tr key={h.season}>
-                          <td>{seasonYear(h.season)}</td>
+                          <td>
+                            {seasonYear(h.season)}
+                            {seasonTeamAbbrev(h.season) && (
+                              <span className="text-muted small"> ({seasonTeamAbbrev(h.season)})</span>
+                            )}
+                          </td>
                           <td className="text-end fw-semibold" style={{ color: getRatingColor(h.ovr) }}>{h.ovr}</td>
                           <td className="text-end" style={{ color: getRatingColor(h.potential) }}>{h.potential}</td>
                           {SKILL_KEYS.map((key) => (
