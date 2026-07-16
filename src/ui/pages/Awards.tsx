@@ -10,7 +10,7 @@ import { getRatingColor } from "../utils/ratingColor.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { Flag } from "../components/Flag.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
-import { countriesOf } from "../../core/competitions.js";
+import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { seasonYear } from "../format.js";
 
 const SLOTS = FORMATIONS["4-3-3"];
@@ -99,7 +99,6 @@ export function Awards() {
 
   const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
   const compId = compIdOverride ?? userTeam?.compId ?? league.competitions[0].id;
-  const countries = countriesOf(league.competitions);
 
   const seasonOptions = [...league.seasonHistory.map((h) => h.season)].sort((a, b) => b - a);
   const activeSeason = season ?? seasonOptions[0];
@@ -127,20 +126,11 @@ export function Awards() {
             <option key={s} value={s}>{seasonYear(s)}</option>
           ))}
         </select>{" "}
-        <select
-          className="form-select form-select-sm"
-          style={{ width: "auto", display: "inline-block" }}
+        <CompetitionSelect
+          competitions={league.competitions}
           value={compId}
-          onChange={(e) => setCompIdOverride(Number(e.target.value))}
-        >
-          {countries.map((country) => (
-            <optgroup key={country} label={country}>
-              {league.competitions.filter((c) => c.country === country).map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+          onChange={(v) => setCompIdOverride(v === "all" ? null : v)}
+        />
       </div>
 
       <div className="row g-3 mb-4">

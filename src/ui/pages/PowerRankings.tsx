@@ -30,9 +30,12 @@ export function PowerRankings() {
     return <p className="p-3">Loading...</p>;
   }
 
+  const playerByPid = new Map(league.players.map((p) => [p.pid, p]));
   const rankings = league.teams
     .map((team) => {
-      const roster = league.players.filter((p) => team.roster.includes(p.pid));
+      const roster = team.roster
+        .map((pid) => playerByPid.get(pid))
+        .filter((p): p is Player => p !== undefined);
       return { team, roster, rating: computeTeamRating(roster, team.starters) };
     })
     .sort((a, b) => b.rating.ovr - a.rating.ovr);

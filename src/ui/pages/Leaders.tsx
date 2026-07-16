@@ -6,7 +6,7 @@ import { emptySeasonStats } from "../../core/players/types.js";
 import { computeTeamSeasonStats, type TeamSeasonStats } from "../../core/standings.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
-import { countriesOf } from "../../core/competitions.js";
+import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { seasonYear } from "../format.js";
 
 type StatKey =
@@ -77,7 +77,6 @@ export function Leaders() {
 
   const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
   const compId = compIdOverride ?? userTeam?.compId ?? league.competitions[0].id;
-  const countries = countriesOf(league.competitions);
 
   return (
     <div className="container-fluid p-3">
@@ -99,20 +98,12 @@ export function Leaders() {
             Teams
           </button>
         </div>
-        <select
-          className="form-select form-select-sm"
-          style={{ width: "auto" }}
+        <CompetitionSelect
+          competitions={league.competitions}
           value={compId}
-          onChange={(e) => setCompIdOverride(Number(e.target.value))}
-        >
-          {countries.map((country) => (
-            <optgroup key={country} label={country}>
-              {league.competitions.filter((c) => c.country === country).map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+          onChange={(v) => setCompIdOverride(v === "all" ? null : v)}
+          style={{ width: "auto" }}
+        />
       </div>
       {tab === "players" ? <PlayerLeaders compId={compId} /> : <TeamLeaders compId={compId} />}
     </div>

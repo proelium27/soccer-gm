@@ -448,7 +448,10 @@ export function Manual() {
           <p>
             The Finance page shows all of it: current budget, hype, the wage-bill table, a
             settlement projection (final numbers once the season ends), your complete transfer
-            history, and every club's budget for comparison. AI clubs are tuned to never go broke;
+            history, and a league-wide money table for comparison — a competition dropdown
+            (grouped by country) scopes that table, defaulting to whichever competition your own
+            club currently plays in, with an "All Competitions" option to see every club in the
+            world at once. AI clubs are tuned to never go broke;
             <em> you</em> can overspend — hoard a full roster of elite wages and the projection
             will happily show you the shortfall coming. Budget is a running balance that carries
             over between seasons rather than resetting, capped at <strong>$300M</strong> for Division

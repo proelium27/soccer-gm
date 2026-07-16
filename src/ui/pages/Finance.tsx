@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings } from "../../core/standings.js";
 import { seasonRevenue, wageBill } from "../../core/finance/budget.js";
-import { tierOf, countriesOf } from "../../core/competitions.js";
+import { tierOf } from "../../core/competitions.js";
+import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
 import { currency, formatWeeklyWage, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
@@ -26,7 +27,6 @@ export function Finance() {
   }
 
   const compFilter = compFilterOverride ?? userTeam.compId;
-  const countries = countriesOf(league.competitions);
 
   const commitScoutingDraft = async () => {
     if (scoutingDraft === null) return;
@@ -299,21 +299,13 @@ export function Finance() {
         <div className="card-body">
           <div className="d-flex justify-content-between align-items-center mb-2">
             <h5 className="card-title mb-0">League Finances</h5>
-            <select
-              className="form-select form-select-sm"
-              style={{ width: "auto" }}
+            <CompetitionSelect
+              competitions={league.competitions}
               value={compFilter}
-              onChange={(e) => setCompFilterOverride(e.target.value === "all" ? "all" : Number(e.target.value))}
-            >
-              <option value="all">All Competitions</option>
-              {countries.map((country) => (
-                <optgroup key={country} label={country}>
-                  {league.competitions.filter((c) => c.country === country).map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+              onChange={setCompFilterOverride}
+              allOption
+              style={{ width: "auto" }}
+            />
           </div>
           <table className="table table-striped table-sm align-middle mb-0">
             <thead>
