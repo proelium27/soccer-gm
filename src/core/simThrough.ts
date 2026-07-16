@@ -34,11 +34,14 @@ function accumulateStats(
 
   for (const p of players) {
     if (!relevantPids.has(p.pid)) continue;
+    const tid = homeRoster.has(p.pid) ? homeTid : awayTid;
 
     let ss = p.stats.find((s) => s.season === season);
     if (!ss) {
-      ss = emptySeasonStats(season);
+      ss = emptySeasonStats(season, tid);
       p.stats.push(ss);
+    } else {
+      ss.tid = tid;
     }
 
     const line = allLines.find((l) => l.pid === p.pid);
