@@ -15,6 +15,7 @@ const SECTIONS: [id: string, title: string][] = [
   ["overview", "Overview"],
   ["pages", "The Pages"],
   ["season", "The Season & Simming"],
+  ["world", "The World"],
   ["players", "Players: Ratings, OVR & Potential"],
   ["development", "Player Development & Aging"],
   ["matches", "The Match Engine"],
@@ -88,7 +89,7 @@ export function Manual() {
           <ul>
             <li><strong>Dashboard</strong> — your current W/D/L record and next fixture front and center, with your division's standings to the left and the latest news headlines to the right; below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim buttons.</li>
             <li><strong>Standings</strong> — the league table, plus each club's current OVR/POT. A season dropdown lets you look up any past season's final table alongside the current one; the champion's row is highlighted.</li>
-            <li><strong>Power Rankings</strong> — every club across both divisions ranked by squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column), with a badge showing each club's division and its rank within that division. Click a team to expand its full roster in place.</li>
+            <li><strong>Power Rankings</strong> — every club in the world ranked by squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column), with a badge showing each club's competition and its rank within it. Click a team to expand its full roster in place.</li>
             <li><strong>Schedule</strong> — every matchday's fixtures and results; click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong> — a Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since).</li>
             <li><strong>Awards</strong> — Player of the Season, the Golden Boot, and a Team of the Season pitch view, one entry per completed season with a dropdown to browse past years.</li>
@@ -134,6 +135,43 @@ export function Manual() {
           <p>
             Lingering injuries are healed over the offseason, and any player still hurt at the
             rollover starts the new season fit.
+          </p>
+        </Section>
+
+        <Section id="world" title="The World">
+          <p>
+            A new save is set in one shared world: three countries — <strong>England</strong>,{" "}
+            <strong>Spain</strong>, and <strong>Italy</strong> — each with its own two-division
+            pyramid (Division 1 and Division 2, 20 clubs apiece), for 6 leagues and 120 clubs total.
+            You pick any club in any country and division when you start a new save.
+          </p>
+          <p>
+            Every country is generated to the same strength and budget bands — there's no
+            "flagship league" richer or stronger than the others. Division 2 in any country
+            generates weaker than its own Division 1, exactly like the domestic second division
+            always has; a real, structural gap is deliberately maintained across a whole dynasty
+            (see the ceiling mechanism below), not just at creation.
+          </p>
+          <p>
+            <strong>One global transfer market.</strong> The AI transfer market, free agency,
+            recommended transfers, and inbound offers for your own players all operate across every
+            country with no home-country bias — an Italian club can and will buy a Spanish player,
+            sign an English free agent, or bid on one of yours, exactly as if they shared a single
+            league. A strong Division 2 player anywhere in the world can also be pulled up to a
+            Division 1 club by the same mechanism that already applies domestically (see the
+            "Wants a move to Division 1" note in <a href="#ai">How AI Clubs Think</a>) — it isn't
+            limited to his own country.
+          </p>
+          <p>
+            Promotion and relegation (3 up, 3 down) runs independently within each country at the
+            end of every season — a poor season in Spain's top flight has no effect on England's or
+            Italy's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
+            grouped by country, to browse any of the 6 leagues; it defaults to whichever one your
+            own club currently plays in.
+          </p>
+          <p className="text-muted small">
+            Existing saves created before this feature shipped stay England-only forever — there's
+            no mid-save world expansion.
           </p>
         </Section>
 
