@@ -5,6 +5,7 @@ import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { SKILL_LABELS } from "../components/PlayerRatingsTooltip.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { Flag } from "../components/Flag.js";
+import { BootIcon, TrophyIcon } from "../components/AwardIcons.js";
 import { currency, formatWeeklyWage, seasonYear } from "../format.js";
 
 /**
@@ -143,13 +144,19 @@ export function PlayerProfile() {
                     <li>Player of the Season: {potySeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
                   )}
                   {goldenBootSeasons.length > 0 && (
-                    <li>Golden Boot: {goldenBootSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
+                    <li className="d-flex align-items-center gap-1">
+                      <BootIcon title="Golden Boot" /> Golden Boot:{" "}
+                      {goldenBootSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}
+                    </li>
                   )}
                   {totsSeasons.length > 0 && (
                     <li>Team of the Season: {totsSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
                   )}
                   {championSeasons.length > 0 && (
-                    <li>League Champion: {championSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
+                    <li className="d-flex align-items-center gap-1">
+                      <TrophyIcon title="League Champion" /> League Champion:{" "}
+                      {championSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}
+                    </li>
                   )}
                 </ul>
               )}

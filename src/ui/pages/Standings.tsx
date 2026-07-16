@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
+import { TrophyIcon } from "../components/AwardIcons.js";
 import { seasonYear } from "../format.js";
 
 export function Standings() {
@@ -117,7 +118,9 @@ export function Standings() {
                       />
                       {team?.name ?? `Team ${row.tid}`}
                       {isChampion && (
-                        <span className="text-muted small"> {division === 0 ? "(Champion)" : "(1st)"}</span>
+                        <span className="text-muted small d-inline-flex align-items-center gap-1">
+                          {division === 0 ? <><TrophyIcon title="Champion" /> (Champion)</> : "(1st)"}
+                        </span>
                       )}
                     </span>
                   </td>
