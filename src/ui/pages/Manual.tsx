@@ -77,6 +77,9 @@ export function Manual() {
             again. Or tear the squad down, hoard teenagers, and build a dynasty from the academy.
             Everything is simulated locally in your browser and saved automatically; you can run
             multiple league saves side by side and switch between them from the Leagues screen.
+            When starting a league, "Start Customized League" lets you rename every club and set
+            its abbreviation and colors before the save is created; the same editor is available
+            later via "Customize Teams" on any existing save.
           </p>
         </Section>
 
