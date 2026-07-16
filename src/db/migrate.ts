@@ -6,7 +6,7 @@ import type { TeamSeasonStats } from "../core/standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "../core/awards.js";
 import { FORMATIONS } from "../core/lineup/formations.js";
 import {
-  HYPE_INITIAL, SCOUTING_SPEND_DEFAULT,
+  HYPE_INITIAL, SCOUTING_SPEND_MIN,
   NUM_TEAMS,
 } from "../core/constants.js";
 import { chargeSeasonStart, wageBill } from "../core/finance/budget.js";
@@ -143,7 +143,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
       colors: t.colors ?? CLUBS[t.tid]?.colors,
       budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), t.division ?? 0),
       hype: t.hype ?? HYPE_INITIAL,
-      scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_DEFAULT,
+      scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_MIN,
       academyBase: t.academyBase ?? fallbackAcademyBase(t.tid),
       starters: t.starters ?? null,
       academyRoster: t.academyRoster ?? [],

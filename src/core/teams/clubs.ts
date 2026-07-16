@@ -1,7 +1,6 @@
 import type { League } from "../league/generate.js";
-import { HYPE_INITIAL, SCOUTING_SPEND_DEFAULT } from "../constants.js";
+import { HYPE_INITIAL, SCOUTING_SPEND_MIN } from "../constants.js";
 import { chargeSeasonStart, wageBill } from "../finance/budget.js";
-import { clampScoutingSpend } from "../finance/scouting.js";
 
 export interface ClubIdentity {
   name: string;
@@ -106,7 +105,6 @@ export function assignIdentities(league: League): StoredTeam[] {
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   return league.teams.map((t) => {
     const club = CLUBS[t.tid];
-    const budget = chargeSeasonStart(0, wageBill(t.roster, salaryMap), t.division);
     return {
       tid: t.tid,
       name: club.name,
@@ -114,9 +112,9 @@ export function assignIdentities(league: League): StoredTeam[] {
       colors: club.colors,
       roster: t.roster,
       academyRoster: [],
-      budget,
+      budget: chargeSeasonStart(0, wageBill(t.roster, salaryMap), t.division),
       hype: HYPE_INITIAL,
-      scoutingSpend: clampScoutingSpend(SCOUTING_SPEND_DEFAULT, budget),
+      scoutingSpend: SCOUTING_SPEND_MIN,
       academyBase: t.academyBase,
       division: t.division,
       divisionConvergence: null,

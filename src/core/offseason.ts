@@ -16,8 +16,7 @@ import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
 import { settleSeasonEnd, chargeSeasonStart, wageBill } from "./finance/budget.js";
 import { academyContractTerms } from "./contracts.js";
-import { NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_DEFAULT } from "./constants.js";
-import { clampScoutingSpend } from "./finance/scouting.js";
+import { NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_MIN } from "./constants.js";
 import { hashInts } from "../engine/rng.js";
 
 /** Awards for the season that just ended, computed separately per division from players' current club membership. */
@@ -111,7 +110,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       const row = rowByTid.get(t.tid);
       const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, division);
       const hype = row ? updateHype(t.hype, row, rank) : t.hype;
-      return { ...t, budget, hype, scoutingSpend: clampScoutingSpend(SCOUTING_SPEND_DEFAULT, budget) };
+      return { ...t, budget, hype, scoutingSpend: SCOUTING_SPEND_MIN };
     });
   };
   settle(d1Standings, 0);
