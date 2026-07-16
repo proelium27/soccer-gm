@@ -4,6 +4,7 @@ import { CLUBS } from "../../core/teams/clubs.js";
 import { createLeagueState } from "../../core/leagueState.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { useLeague } from "../context/LeagueContext.js";
+import { NUM_TEAMS, NUM_TEAMS_D2 } from "../../core/constants.js";
 
 export function NewLeague() {
   const [selectedTid, setSelectedTid] = useState<number | null>(null);
@@ -43,7 +44,7 @@ export function NewLeague() {
       <p className="text-muted">Choose your team to get started.</p>
 
       <div className="list-group mb-3">
-        {CLUBS.map((club, i) => (
+        {CLUBS.slice(0, NUM_TEAMS + NUM_TEAMS_D2).map((club, i) => (
           <button
             key={club.abbrev}
             type="button"
