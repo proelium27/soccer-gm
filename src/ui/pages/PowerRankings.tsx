@@ -6,6 +6,7 @@ import type { StoredTeam } from "../../core/teams/clubs.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
 import { resolveXI } from "../../core/lineup/resolveXI.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
+import { competitionOf, tierOf } from "../../core/competitions.js";
 import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
@@ -48,8 +49,8 @@ export function PowerRankings() {
     <div className="container-fluid p-3">
       <h4>Power Rankings</h4>
       <p className="text-muted small mb-3">
-        Teams ranked by squad OVR (Starting XI + bench, depth-weighted) across both divisions. Click a
-        team to see its roster.
+        Teams ranked by squad OVR (Starting XI + bench, depth-weighted) across every competition in
+        the world. Click a team to see its roster.
       </p>
       <table className="table table-striped table-sm">
         <thead>
@@ -83,15 +84,21 @@ export function PowerRankings() {
                     </span>
                   </td>
                   <td className="text-end">
-                    <span
-                      className={
-                        "division-badge " +
-                        (team.compId === 0 ? "division-badge--d1" : "division-badge--d2")
-                      }
-                      title={team.compId === 0 ? "English Division 1" : "English Division 2"}
-                    >
-                      D{team.compId + 1} #{divisionRanks.get(team.tid)}
-                    </span>
+                    {(() => {
+                      const comp = competitionOf(league.competitions, team.compId);
+                      const tier = tierOf(league.competitions, team.compId);
+                      return (
+                        <span
+                          className={
+                            "division-badge " +
+                            (tier === 1 ? "division-badge--d1" : "division-badge--d2")
+                          }
+                          title={comp.name}
+                        >
+                          {comp.country.slice(0, 3).toUpperCase()} D{tier} #{divisionRanks.get(team.tid)}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="text-end">{rating.ovr}</td>
                   <td className="text-end">{rating.pot}</td>

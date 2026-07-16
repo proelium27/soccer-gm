@@ -7,6 +7,7 @@ import { SKILL_LABELS } from "../components/PlayerRatingsTooltip.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { Flag } from "../components/Flag.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
+import { competitionOf } from "../../core/competitions.js";
 import { currency, formatWeeklyWage, seasonYear } from "../format.js";
 
 /** One career-honor badge, e.g. "3x Golden Boot" — omits the count for a single win. */
@@ -77,7 +78,7 @@ export function PlayerProfile() {
     .filter((t) => t.pid === player.pid)
     .sort((a, b) => b.season - a.season || (a.window === "summer" ? 1 : 0) - (b.window === "summer" ? 1 : 0));
 
-  // Career awards: scan every completed season's Division 1/2 award entries.
+  // Career awards: scan every completed season's per-competition award entries.
   const potySeasons: number[] = [];
   const goldenBootSeasons: number[] = [];
   const totsSeasons: number[] = [];
@@ -114,7 +115,7 @@ export function PlayerProfile() {
       <p className="mb-3">
         {team ? (
           <>
-            {teamName(team.tid)} <small className="text-muted">({team.compId === 0 ? "Division 1" : "Division 2"})</small>
+            {teamName(team.tid)} <small className="text-muted">({competitionOf(league.competitions, team.compId).name})</small>
           </>
         ) : inAcademy ? (
           <>{teamName(inAcademy.tid)} Academy</>
