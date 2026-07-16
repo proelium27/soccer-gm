@@ -341,10 +341,23 @@ export const PROGRESSION_BIAS_SD_YOUNG = 3;
  * 75 — real resistance to being *good* isn't resistance to getting worse.
  * Purely rating-driven, independent of age, so it also acts as a soft
  * ceiling beneath the hard `RATING_MAX` clamp.
+ *
+ * `GROWTH_DAMPING_END`/`GROWTH_DAMPING_FLOOR` retuned 90→80 / 0.25→0.02
+ * (2026-07-15), same day as the `PROGRESSION_FORM_SD_*`/`PROGRESSION_BIAS_SD_YOUNG`
+ * widening above — bigger swings alone pushed Division 1's 80+ OVR
+ * population from ~15-20 (the user's explicit target) up to 60-80 (12-16%
+ * of the pool). A wider swing distribution needs the elite end throttled
+ * harder to land the same target population, not just a proportional bump.
+ * Swept empirically against a 30-season × 3-seed dynasty audit (real
+ * `simThrough`/`simOffseason`, Division 1's ~500 players): 0.25 (unchanged)
+ * gave 61-78, 0.05 gave 39-56, 0.02 with `GROWTH_DAMPING_END` also pulled in
+ * from 90→80 landed **8-16** — back in the intended range. Re-verified via a
+ * 100-season audit that Division 1's own mean still holds flat (61-64.5
+ * throughout, no further compounding drift from tightening this).
  */
 export const GROWTH_DAMPING_START = 65;
-export const GROWTH_DAMPING_END = 90;
-export const GROWTH_DAMPING_FLOOR = 0.25;
+export const GROWTH_DAMPING_END = 80;
+export const GROWTH_DAMPING_FLOOR = 0.02;
 
 /**
  * Potential (BBGM-style): a scout's *estimate*, not a growth driver. It plays
