@@ -44,6 +44,11 @@ export function NewLeague() {
       <p className="text-muted">Choose your team to get started.</p>
 
       <div className="list-group mb-3">
+        {/* CLUBS has 120 entries (England/Spain/Italy) but createLeagueState
+            only ever generates the English 40 — offering a Spanish/Italian
+            tid here would crash on load. Remove this clamp once a later PR
+            wires createLeagueState to generateWorld()/worldCompetitions()
+            and replaces this whole picker with a real country step. */}
         {CLUBS.slice(0, NUM_TEAMS + NUM_TEAMS_D2).map((club, i) => (
           <button
             key={club.abbrev}
