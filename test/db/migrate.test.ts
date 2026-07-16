@@ -1,10 +1,38 @@
 import { describe, it, expect } from "vitest";
 import { migrateLeague } from "../../src/db/migrate.js";
 import { mulberry32 } from "../../src/engine/rng.js";
-import { createLeagueState, type LeagueStore } from "../../src/core/leagueState.js";
+import { createLeagueState, buildCompetitionSchedule, type LeagueStore } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { HYPE_INITIAL, SCOUTING_SPEND_DEFAULT } from "../../src/core/constants.js";
+import { generateTwoDivisionLeague } from "../../src/core/league/generate.js";
+import { englandCompetitions } from "../../src/core/competitions.js";
+import { assignIdentities } from "../../src/core/teams/clubs.js";
+
+/** An England-only LeagueStore, matching what createLeagueState produced before the more-leagues world refactor — used by tests that specifically simulate a pre-refactor save. */
+function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
+  const league = generateTwoDivisionLeague(rng, seed);
+  const competitions = englandCompetitions();
+  const teams = assignIdentities(league, competitions);
+  const schedule = buildCompetitionSchedule(teams, competitions);
+  return {
+    lid: 0,
+    meta: { name: "My League", created: Date.now(), userTid },
+    competitions,
+    teams,
+    players: league.players,
+    season: 1,
+    phase: "regular",
+    schedule,
+    played: [],
+    negotiations: [],
+    inboundOffers: [],
+    transfers: [],
+    winterMarketRunSeason: null,
+    seasonHistory: [],
+    newsEvents: [],
+  };
+}
 
 describe("migrateLeague", () => {
   it("backfills finance fields on teams from pre-M6 saves", () => {
@@ -172,7 +200,7 @@ describe("migrateLeague", () => {
 
   it("backfills compId/divisionConvergence on old-save teams, and a competitions table on a pre-refactor save", () => {
     const rng = mulberry32(12);
-    const league = simOffseason(simThrough(createLeagueState(0, mulberry32(11)), "season", rng), rng);
+    const league = simOffseason(simThrough(createEnglandOnlyLeagueState(0, mulberry32(11)), "season", rng), rng);
     // Simulate a save from before the second division / competitions
     // refactor: teams have legacy `division` (not `compId`), history entries
     // have `divisionsByTid` and a [D1, D2] awards tuple with a top-level

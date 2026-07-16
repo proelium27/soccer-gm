@@ -3,6 +3,7 @@ import { mulberry32 } from "../../../src/engine/rng.js";
 import { createLeagueState } from "../../../src/core/leagueState.js";
 import { enforceDivision2Ceiling } from "../../../src/core/ai/divisionCeiling.js";
 import { ROSTER_CAP, DIVISION_2_REFUSAL_OVR_THRESHOLD } from "../../../src/core/constants.js";
+import { tierOf } from "../../../src/core/competitions.js";
 
 const USER_TID = 0;
 
@@ -18,7 +19,9 @@ describe("enforceDivision2Ceiling", () => {
       league.teams, players, league.transfers, league.season, USER_TID, league.competitions,
     );
     const newTeam = teams.find((t) => t.roster.includes(star.pid))!;
-    expect(newTeam.compId).toBe(0);
+    // The receiving pool is every tier-1 club worldwide (not just England's),
+    // so the destination competition can be any country's Division 1.
+    expect(tierOf(league.competitions, newTeam.compId)).toBe(1);
     expect(newTeam.tid).not.toBe(USER_TID);
     expect(transfers.some((t) => t.pid === star.pid && t.fee === 0)).toBe(true);
   });
