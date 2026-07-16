@@ -423,6 +423,11 @@ a:hover {
   color: var(--sg-text-muted);
   font-weight: var(--sg-weight-regular);
 }
+.golden-boot-icon {
+  height: 1.3em;
+  width: auto;
+  vertical-align: middle;
+}
 
 /* =========================================================================
    Player ratings tooltip

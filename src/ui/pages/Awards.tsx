@@ -9,7 +9,7 @@ import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { Flag } from "../components/Flag.js";
-import { BootIcon } from "../components/AwardIcons.js";
+import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { seasonYear } from "../format.js";
 
 const SLOTS = FORMATIONS["4-3-3"];
@@ -147,7 +147,7 @@ export function Awards() {
         </div>
         <div className="col-md-6">
           <AwardCard
-            title={<><BootIcon title="Golden Boot" /> Golden Boot</>}
+            title={<><GoldenBootIcon /> Golden Boot</>}
             player={goldenBoot}
             subtitle={goldenBootStats ? `${goldenBootStats.goals} goals in ${goldenBootStats.appearances} appearances` : ""}
           />

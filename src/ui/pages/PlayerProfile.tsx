@@ -6,7 +6,7 @@ import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { SKILL_LABELS } from "../components/PlayerRatingsTooltip.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { Flag } from "../components/Flag.js";
-import { BootIcon, TrophyIcon } from "../components/AwardIcons.js";
+import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { currency, formatWeeklyWage, seasonYear } from "../format.js";
 
 /** One career-honor badge, e.g. "3x Golden Boot" — omits the count for a single win. */
@@ -155,9 +155,9 @@ export function PlayerProfile() {
               ) : (
                 <div className="award-pills">
                   <AwardPill label="Player of the Season" seasons={potySeasons} />
-                  <AwardPill label="Golden Boot" seasons={goldenBootSeasons} icon={<BootIcon title="Golden Boot" />} />
+                  <AwardPill label="Golden Boot" seasons={goldenBootSeasons} icon={<GoldenBootIcon />} />
                   <AwardPill label="Team of the Season" seasons={totsSeasons} />
-                  <AwardPill label="League Champion" seasons={championSeasons} icon={<TrophyIcon title="League Champion" />} />
+                  <AwardPill label="League Champion" seasons={championSeasons} icon="🏆" />
                 </div>
               )}
             </div>
