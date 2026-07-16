@@ -13,6 +13,8 @@ export type PlayerRatings = Record<SkillKey, number>;
 
 export interface SeasonStats {
   season: number;
+  /** Club the player was on as of his most recent appearance that season — not necessarily his club today. */
+  tid: number;
   appearances: number;
   goals: number;
   assists: number;
@@ -34,9 +36,9 @@ export interface SeasonStats {
   avgRating: number;
 }
 
-export function emptySeasonStats(season: number): SeasonStats {
+export function emptySeasonStats(season: number, tid: number = -1): SeasonStats {
   return {
-    season, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, xg: 0, goalsAgainst: 0, xga: 0,
+    season, tid, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, xg: 0, goalsAgainst: 0, xga: 0,
     saves: 0, tackles: 0, interceptions: 0, minutesPlayed: 0, ratingSum: 0, avgRating: 0,
   };
 }

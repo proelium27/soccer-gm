@@ -55,10 +55,10 @@ type LeagueStoreAnyVersion =
   Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions"> &
   Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions">>;
 
-/** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA. */
+/** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking. */
 type SeasonStatsAnyVersion =
-  Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga"> &
-  Partial<Pick<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga">>;
+  Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga" | "tid"> &
+  Partial<Pick<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga" | "tid">>;
 
 /** A team-season-stats row as it may exist in a save written before xG / xGA. */
 type TeamSeasonStatsAnyVersion = Omit<TeamSeasonStats, "xg" | "goalsAgainst" | "xga"> &
@@ -110,11 +110,19 @@ function migrateLine(line: PlayerMatchLineAnyVersion): PlayerMatchLine {
   };
 }
 
-function migratePlayer(p: Player): Player {
+/**
+ * `fallbackTid` is the player's *current* club — the best guess available for
+ * a save old enough to predate per-season team tracking, since no historical
+ * roster-membership data survives to reconstruct which club he was actually
+ * on in a past season (same irreconstructable-history situation as the
+ * minutes/rating defaults below).
+ */
+function migratePlayer(p: Player, fallbackTid: number): Player {
   return {
     ...p,
     stats: (p.stats as SeasonStatsAnyVersion[]).map((s) => ({
       ...s,
+      tid: s.tid ?? fallbackTid,
       minutesPlayed: s.minutesPlayed ?? 0,
       ratingSum: s.ratingSum ?? 0,
       avgRating: s.avgRating ?? 0,
@@ -151,7 +159,12 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
   // Pre-M6 backfill only: seed the budget the way a season start would —
   // base allocation in, the save's current wage bill out.
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
-  const migratedPlayers = league.players.map(migratePlayer);
+  const tidByPid = new Map<number, number>();
+  for (const t of league.teams) {
+    for (const pid of t.roster) tidByPid.set(pid, t.tid);
+    for (const pid of t.academyRoster ?? []) tidByPid.set(pid, t.tid);
+  }
+  const migratedPlayers = league.players.map((p) => migratePlayer(p, tidByPid.get(p.pid) ?? -1));
   return {
     ...league,
     competitions,
