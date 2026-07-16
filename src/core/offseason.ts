@@ -1,6 +1,7 @@
 import type { LeagueStore } from "./leagueState.js";
 import type { Player } from "./players/types.js";
 import type { StoredTeam } from "./teams/clubs.js";
+import type { Competition } from "./competitions.js";
 import { progressPlayer, rollRetirement } from "./players/progression.js";
 import { generateYouthIntake } from "./players/youth.js";
 import {
@@ -21,19 +22,19 @@ import { clampScoutingSpend } from "./finance/scouting.js";
 import { tierOf } from "./competitions.js";
 import { hashInts } from "../engine/rng.js";
 
-/** Awards for the season that just ended, computed separately per division from players' current club membership. */
-function awardsByDivision(
+/** Awards for the season that just ended, computed separately per competition from players' current club membership. */
+function awardsByCompetition(
   players: Player[],
   teams: StoredTeam[],
+  competitions: Competition[],
   season: number,
-): [SeasonAwards, SeasonAwards] {
-  const rosterOf = (division: 0 | 1) =>
-    new Set(teams.filter((t) => t.compId === division).flatMap((t) => t.roster));
-  const d1Roster = rosterOf(0);
-  const d2Roster = rosterOf(1);
-  const d1Players = players.filter((p) => d1Roster.has(p.pid));
-  const d2Players = players.filter((p) => d2Roster.has(p.pid));
-  return [computeSeasonAwards(d1Players, season), computeSeasonAwards(d2Players, season)];
+): Record<number, SeasonAwards> {
+  const result: Record<number, SeasonAwards> = {};
+  for (const comp of competitions) {
+    const roster = new Set(teams.filter((t) => t.compId === comp.id).flatMap((t) => t.roster));
+    result[comp.id] = computeSeasonAwards(players.filter((p) => roster.has(p.pid)), season);
+  }
+  return result;
 }
 
 /**
@@ -53,13 +54,14 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const endingSeason = league.season;
   const nextSeason = endingSeason + 1;
 
-  // Snapshotted before any roster/division change below, from league.players
-  // (not the `players` variable mutated further down) so a player who
-  // retires this offseason still gets credit for the season he just
-  // finished, and division membership reflects who actually played where.
-  const divisionsByTid: Record<number, 0 | 1> = {};
-  for (const t of league.teams) divisionsByTid[t.tid] = t.compId as 0 | 1;
-  const awards = awardsByDivision(league.players, league.teams, endingSeason);
+  // Snapshotted before any roster/competition change below, from
+  // league.players (not the `players` variable mutated further down) so a
+  // player who retires this offseason still gets credit for the season he
+  // just finished, and competition membership reflects who actually played
+  // where.
+  const compsByTid: Record<number, number> = {};
+  for (const t of league.teams) compsByTid[t.tid] = t.compId;
+  const awards = awardsByCompetition(league.players, league.teams, league.competitions, endingSeason);
 
   // 0. Proactive AI contract renewals (cross-division: a club's own player,
   //    regardless of which division that club plays in).
@@ -236,10 +238,14 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       {
         season: endingSeason,
         table: standings,
-        championTid: tablesByCompId.get(0)![0].tid,
         teamStats,
         awards,
-        divisionsByTid,
+        compsByTid,
+        championTidByCompId: Object.fromEntries(
+          league.competitions
+            .filter((c) => c.tier === 1)
+            .map((c) => [c.id, tablesByCompId.get(c.id)![0].tid]),
+        ),
       },
     ],
   };

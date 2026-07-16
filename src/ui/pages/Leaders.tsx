@@ -330,7 +330,7 @@ function TeamLeaders({ division }: { division: 0 | 1 }) {
   const teamStats: TeamSeasonStats[] = season === "current"
     ? computeTeamSeasonStats(teamIds, league.played)
     : (league.seasonHistory.find((h) => h.season === season)?.teamStats ?? [])
-        .filter((s) => league.seasonHistory.find((h) => h.season === season)?.divisionsByTid[s.tid] === division);
+        .filter((s) => league.seasonHistory.find((h) => h.season === season)?.compsByTid[s.tid] === division);
 
   const teamByTid = new Map(league.teams.map((t) => [t.tid, t.name]));
   const rows: TeamLeaderRow[] = teamStats.map((s) => ({

@@ -43,14 +43,14 @@ describe("simOffseason", () => {
     expect(next.teams).toHaveLength(NUM_TEAMS + NUM_TEAMS_D2);
   });
 
-  it("swaps 3 up / 3 down between divisions and records pre-swap divisionsByTid", () => {
+  it("swaps 3 up / 3 down between divisions and records pre-swap compsByTid", () => {
     const rng = mulberry32(6);
     const league = playFullSeason(rng);
     const next = simOffseason(league, rng);
 
     const history = next.seasonHistory.at(-1)!;
-    const d1Before = Object.values(history.divisionsByTid).filter((d) => d === 0).length;
-    const d2Before = Object.values(history.divisionsByTid).filter((d) => d === 1).length;
+    const d1Before = Object.values(history.compsByTid).filter((d) => d === 0).length;
+    const d2Before = Object.values(history.compsByTid).filter((d) => d === 1).length;
     expect(d1Before).toBe(20);
     expect(d2Before).toBe(20);
 
@@ -61,12 +61,12 @@ describe("simOffseason", () => {
     expect(d2After).toBe(20);
   });
 
-  it("stores per-division awards on seasonHistory", () => {
+  it("stores per-competition awards on seasonHistory", () => {
     const rng = mulberry32(7);
     const league = playFullSeason(rng);
     const next = simOffseason(league, rng);
     const history = next.seasonHistory.at(-1)!;
-    expect(history.awards).toHaveLength(2);
+    expect(Object.keys(history.awards)).toHaveLength(next.competitions.length);
   });
 
   it("every roster keeps at least one GK after the offseason", () => {

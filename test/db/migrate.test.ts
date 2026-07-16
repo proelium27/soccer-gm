@@ -170,31 +170,46 @@ describe("migrateLeague", () => {
     }
   });
 
-  it("backfills division/divisionConvergence on old-save teams, and divisionsByTid/awards on old-save seasonHistory", () => {
+  it("backfills compId/divisionConvergence on old-save teams, and a competitions table on a pre-refactor save", () => {
     const rng = mulberry32(12);
     const league = simOffseason(simThrough(createLeagueState(0, mulberry32(11)), "season", rng), rng);
+    // Simulate a save from before the second division / competitions
+    // refactor: teams have legacy `division` (not `compId`), history entries
+    // have `divisionsByTid` and a [D1, D2] awards tuple with a top-level
+    // `championTid`, and the league has no `competitions` table at all.
+    const legacyHistory = league.seasonHistory.map((h) => {
+      const { compsByTid, championTidByCompId, ...rest } = h;
+      return {
+        ...rest,
+        divisionsByTid: compsByTid,
+        championTid: championTidByCompId[0],
+        awards: [h.awards[0], h.awards[1] ?? h.awards[0]],
+      };
+    });
     const oldLeague = {
       ...league,
-      teams: league.teams.map(({ compId: _d, divisionConvergence: _dc, ...rest }) => rest),
-      seasonHistory: league.seasonHistory.map((h) => {
-        const { divisionsByTid: _dbt, ...rest } = h;
-        return { ...rest, awards: h.awards[0] };
-      }),
+      teams: league.teams.map(({ compId, divisionConvergence: _dc, ...rest }) => ({
+        ...rest, division: compId as 0 | 1,
+      })),
+      seasonHistory: legacyHistory,
     } as unknown as LeagueStore;
+    const { competitions: _c, ...oldLeagueNoCompetitions } = oldLeague;
 
-    const migrated = migrateLeague(oldLeague);
+    const migrated = migrateLeague(oldLeagueNoCompetitions as LeagueStore);
 
+    expect(migrated.competitions).toEqual([
+      { id: 0, country: "England", tier: 1, name: "English Division 1" },
+      { id: 1, country: "England", tier: 2, name: "English Division 2" },
+    ]);
     for (const t of migrated.teams) {
-      expect(t.compId).toBe(0);
+      expect(t.compId === 0 || t.compId === 1).toBe(true);
       expect(t.divisionConvergence).toBeNull();
     }
 
-    for (const h of migrated.seasonHistory) {
-      expect(Array.isArray(h.awards)).toBe(true);
-      expect(h.awards).toHaveLength(2);
-      for (const tid of Object.keys(h.divisionsByTid).map(Number)) {
-        expect(h.divisionsByTid[tid]).toBe(0);
-      }
+    for (const [i, h] of migrated.seasonHistory.entries()) {
+      expect(Array.isArray(h.awards)).toBe(false);
+      expect(h.compsByTid).toEqual(legacyHistory[i].divisionsByTid);
+      expect(h.championTidByCompId[0]).toBe(legacyHistory[i].championTid);
     }
   });
 });

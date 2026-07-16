@@ -38,12 +38,12 @@ export function Standings() {
   } else {
     const entry = league.seasonHistory.find((h) => h.season === season)!;
     const divisionTids = new Set(
-      Object.entries(entry.divisionsByTid)
+      Object.entries(entry.compsByTid)
         .filter(([, d]) => d === division)
         .map(([tid]) => Number(tid)),
     );
     standings = entry.table.filter((row) => divisionTids.has(row.tid));
-    championTid = division === 0 ? entry.championTid : (standings[0]?.tid ?? -1);
+    championTid = entry.championTidByCompId[division] ?? (standings[0]?.tid ?? -1);
   }
 
   return (
