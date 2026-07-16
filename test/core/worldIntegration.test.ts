@@ -3,19 +3,16 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { generateWorld } from "../../src/core/league/generate.js";
 import { worldCompetitions } from "../../src/core/competitions.js";
 import { assignIdentities } from "../../src/core/teams/clubs.js";
-import { generateSchedule } from "../../src/core/schedule.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
-import type { LeagueStore } from "../../src/core/leagueState.js";
+import { buildCompetitionSchedule, type LeagueStore } from "../../src/core/leagueState.js";
 
 function buildWorldLeague(seed: number): LeagueStore {
   const rng = mulberry32(seed);
   const world = generateWorld(rng, seed);
   const competitions = worldCompetitions();
   const teams = assignIdentities(world, competitions);
-  const schedule = competitions.flatMap((comp) =>
-    generateSchedule(teams.filter((t) => t.compId === comp.id).map((t) => t.tid)),
-  );
+  const schedule = buildCompetitionSchedule(teams, competitions);
   return {
     lid: 1,
     meta: { name: "World Test League", created: Date.now(), userTid: 0 },
