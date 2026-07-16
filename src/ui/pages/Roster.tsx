@@ -7,7 +7,6 @@ import { FORMATIONS } from "../../core/lineup/formations.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { canExtend, contractTerms } from "../../core/contracts.js";
 import { keepsDepthFloor } from "../../core/freeAgency.js";
-import { deriveLeagueContexts } from "../../core/ai/clubContext.js";
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
@@ -199,16 +198,13 @@ export function Roster() {
     if (!league) return new Set<number>();
     const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
     if (!userTeam || userTeam.division !== 1) return new Set<number>();
-    const contexts = deriveLeagueContexts({
-      teams: league.teams, players: league.players, season: league.season, played: league.played,
-    });
     return new Set(
       league.players
         .filter(
           (p) =>
             userTeam.roster.includes(p.pid) &&
             canExtend(p, league.season) &&
-            wouldRefuseExtension(p, userTeam, league.teams, contexts),
+            wouldRefuseExtension(p, userTeam),
         )
         .map((p) => p.pid),
     );

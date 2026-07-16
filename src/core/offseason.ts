@@ -8,8 +8,7 @@ import {
 } from "./freeAgency.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { runAIContractRenewals } from "./ai/renewals.js";
-import { deriveLeagueContexts } from "./ai/clubContext.js";
-import { wouldRefuseExtension } from "./ai/breakoutRefusal.js";
+import { enforceDivision2Ceiling } from "./ai/divisionCeiling.js";
 import { computeStandings, computeTeamSeasonStats, type StandingsRow } from "./standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
 import { computeDivisionSwap, applyDivisionSwap, stepAcademyBaseConvergence } from "./promotion.js";
@@ -65,25 +64,6 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const renewals = runAIContractRenewals(
     league.teams, league.players, nextSeason, league.meta.userTid, league.played,
     hashInts(league.lid, nextSeason, 9),
-  );
-
-  // 0.5. Identify expiring Division 2 players who'd refuse to re-sign (i.e.
-  //      would already be a viable Division 1 transfer target) before their
-  //      roster membership is cleared below — free agency has no concept of
-  //      "he wants to move up" on its own, so this set gives Division 1
-  //      clubs first pick of him once he hits the free agent pool, instead
-  //      of him just getting scooped back up by another Division 2 club.
-  const preRenewalContexts = deriveLeagueContexts({
-    teams: renewals.teams, players: renewals.players, season: nextSeason, played: league.played,
-  });
-  const preferD1Pids = new Set(
-    renewals.players
-      .filter((p) => p.contract.expiresSeason <= endingSeason)
-      .filter((p) => {
-        const team = renewals.teams.find((t) => t.roster.includes(p.pid));
-        return team && wouldRefuseExtension(p, team, renewals.teams, preRenewalContexts);
-      })
-      .map((p) => p.pid),
   );
 
   // 1. Release expired contracts to the free agent pool.
@@ -145,12 +125,28 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   teams = applyDivisionSwap(teams, swap);
   teams = stepAcademyBaseConvergence(teams);
 
+  // 3.7. Guaranteed ceiling on Division 2 quality, first pass: any
+  //      AI-controlled player at or above DIVISION_2_REFUSAL_OVR_THRESHOLD
+  //      (most commonly a just-relegated club's existing squad) is moved to
+  //      whichever (non-user) Division 1 club needs him most, no
+  //      market/affordability chance involved — see enforceDivision2Ceiling
+  //      for why a soft nudge isn't enough. Run here, before free agency, so
+  //      a club that loses a player this way still gets a chance to backfill
+  //      the hole below; run again after the summer market (step 6.45) to
+  //      also catch a player sold *into* Division 2 as ordinary market
+  //      surplus this same offseason (idempotent — a no-op if nothing
+  //      qualifies either time).
+  let ceilingTransfers = league.transfers;
+  ({ teams, transfers: ceilingTransfers } = enforceDivision2Ceiling(
+    teams, players, ceilingTransfers, nextSeason, league.meta.userTid,
+  ));
+
   // 4. AI free agency fills roster holes (worst team picks first, within
   //    its own division's finishing order — cross-division buying happens
   //    later, in the transfer market step), skipping the user's club.
   const signingOrder = [...standings].sort((a, b) => a.points - b.points).map((s) => s.tid);
   ({ teams, players } = runAIFreeAgency(
-    teams, players, nextSeason, rng, league.meta.userTid, signingOrder, preferD1Pids,
+    teams, players, nextSeason, rng, league.meta.userTid, signingOrder,
   ));
 
   // 5. Youth intake for every club, anchored to each club's fixed
@@ -185,10 +181,25 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      no division filtering here, see design doc).
   const marketSeed = hashInts(league.lid, nextSeason, 7);
   const summerMarket = runAITransferMarket(
-    teams, players, league.transfers, nextSeason, league.played,
+    teams, players, ceilingTransfers, nextSeason, league.played,
     "summer", "offseason", league.meta.userTid, marketSeed,
   );
   teams = summerMarket.teams;
+
+  // 6.45. Guaranteed ceiling on Division 2 quality, run *after* the market
+  //      above (not before) — a Division 1 club can still sell a genuinely
+  //      elite player down to Division 2 as ordinary surplus, and this must
+  //      catch that in the same offseason it happens, not wait a full cycle.
+  //      Any AI-controlled player at or above DIVISION_2_REFUSAL_OVR_THRESHOLD
+  //      is moved to whichever (non-user) Division 1 club needs him most, no
+  //      market/affordability chance involved (see enforceDivision2Ceiling
+  //      for why a soft nudge isn't enough — the dominant drift driver is
+  //      relegated clubs simply keeping their existing strong rosters, not
+  //      anything a market mechanic alone can fix).
+  const { teams: ceilingTeams, transfers: finalTransfers } = enforceDivision2Ceiling(
+    teams, players, summerMarket.transfers, nextSeason, league.meta.userTid,
+  );
+  teams = ceilingTeams;
 
   // 6.5. Season-start finances on the finalized new-season rosters, scaled
   //      by each club's (possibly just-changed) division.
@@ -211,7 +222,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     phase: "regular",
     schedule,
     played: [],
-    transfers: summerMarket.transfers,
+    transfers: finalTransfers,
     winterMarketRunSeason: null,
     seasonHistory: [
       ...league.seasonHistory,

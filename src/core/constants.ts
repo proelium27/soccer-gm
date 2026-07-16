@@ -47,27 +47,20 @@ export const NUM_TEAMS = 20;
  * 1 = strongest, rank NUM_TEAMS = weakest); DIVISION_2_TARGET_D1_RANK picks
  * which D1 rank D2's own strongest team's target should land at.
  *
- * Tuned to rank NUM_TEAMS (D1's own weakest team — the formula's ceiling)
- * via `scripts/divisionAudit.ts`: this lands Division 2's single strongest
- * player around 80-84 OVR and its Team of the Season averaging ~65-68 OVR
- * **at league generation (season 1)** — matching the ~70-75/~65 targets
- * closely. It does NOT fully hold through a long dynasty: by season 30,
- * Division 2's TOTS average still drifts to ~74-76 and its max player to
- * 85-93, even with the breakout-refusal mechanic (Fix 3,
- * src/core/ai/breakoutRefusal.ts) in place and even at this formula's
- * maximum possible value. Verified (2026-07-15) this residual drift isn't
- * fixable by this constant alone: pushing DIVISION_2_TARGET_D1_RANK further
- * isn't possible (rank NUM_TEAMS is already D1's weakest team — there's no
- * "weaker than the formula's own range" to reach for without breaking its
- * rank semantics), and Fix 3's blocking mechanisms (renewal refusal,
- * AI↔AI-market bypass, Division-1-priority free agency) are individually
- * verified working but structurally can't fully offset 30 seasons of
- * promotion/relegation churn and AI-market cross-division trading. This is
- * a known, accepted limitation, not an oversight — see the Second Division
- * section of CLAUDE.md for the full retune history and this caveat.
+ * Retuned again (2026-07-15) from NUM_TEAMS (D1's own weakest team, the
+ * formula's ceiling) down to 16: on reflection with the user, D1's weakest
+ * team was a stronger target than ever actually intended — the original
+ * design spec explicitly wanted Division 2's strongest team meaningfully
+ * above D1's bottom, not equal to it — and rank NUM_TEAMS only got picked in
+ * the prior pass as an emergency lever while separately fighting the
+ * long-dynasty drift problem (Fix 3, src/core/ai/breakoutRefusal.ts) rather
+ * than as a considered restatement of the target. Fix 3 itself doesn't care
+ * what the generation-time rank is — it fights drift regardless — so this
+ * change needs re-verifying via `scripts/divisionAudit.ts` but shouldn't
+ * require retuning Fix 3 or DIVISION_2_BUDGET_SCALE.
  */
 export const NUM_TEAMS_D2 = 20;
-export const DIVISION_2_TARGET_D1_RANK = NUM_TEAMS;
+export const DIVISION_2_TARGET_D1_RANK = 16;
 export const DIVISION_2_OFFSET =
   ((DIVISION_2_TARGET_D1_RANK - 1) / (NUM_TEAMS - 1)) * 2 * TEAM_STRENGTH_SPREAD;
 /**
@@ -87,6 +80,20 @@ export const DIVISION_2_OFFSET =
  * section of CLAUDE.md for the full audit history.
  */
 export const DIVISION_2_BUDGET_SCALE = 0.6;
+
+/**
+ * OVR floor above which a Division 2 player refuses to stay in Division 2
+ * (`wouldRefuseExtension`, `src/core/ai/breakoutRefusal.ts`) — simplified
+ * 2026-07-15 from a per-club valueToClub/affordability match (find a
+ * specific Division 1 club that both values him enough and can afford him)
+ * to a flat OVR preference: a "good starter" per the Manual's own 65/70/75
+ * scale (`src/ui/pages/Manual.tsx`) just doesn't want to play Division 2
+ * football, full stop, regardless of whether any particular Division 1 club
+ * happens to want or be able to afford him right now. Starting value; tune
+ * via `scripts/divisionAudit.ts` if it turns out too loose (barely reduces
+ * the season-30 drift) or too tight (empties Division 2 of anyone decent).
+ */
+export const DIVISION_2_REFUSAL_OVR_THRESHOLD = 70;
 
 /** Straight automatic swap each offseason: bottom N of D1 <-> top N of D2. */
 export const PROMOTION_RELEGATION_COUNT = 3;
@@ -199,8 +206,34 @@ export const YOUTH_AGE = 16;
 export const YOUTH_INTAKE_MIN = 3;
 export const YOUTH_INTAKE_MAX = 5;
 
-/** Youth are raw: generated `base` this many points below the club's current average OVR. */
-export const YOUTH_BASE_OFFSET = 20;
+/**
+ * Youth are raw: generated `base` this many points below the club's fixed
+ * academyBase anchor. Raised 20→25 (2026-07-15) after a root-cause dynasty
+ * audit found the whole league's rostered OVR climbing ~4-5 points over a
+ * generation's worth of turnover (~20-25 seasons) even with progression's
+ * per-player age-curve constants themselves net-flat-to-declining over a
+ * realistic career: `generatePlayer`'s rating rolls don't depend on age at
+ * all, so a 16-year-old was generated at the *same* quality distribution as
+ * a mature adult and then still got 8-10 more years of normal age-curve
+ * growth on top before reaching maturity — every generation of rookies
+ * entered stronger than intended and grew further, so the league's average
+ * crept up purely from turnover as older (correctly-generated, at the old
+ * standard) players retired and were replaced. Empirically swept
+ * (isolated single-division sim: generation + progression + retirement +
+ * youth intake + roster trimming, no transfers) to find the offset that
+ * holds a 40-season final mean flat against the season-1 generation mean —
+ * 20 overshot to +4.5, 30 undershot to -4, 25 landed within ~0.3.
+ *
+ * Re-swept 25→34 (2026-07-15, same day) after PROGRESSION_FORM_SD_YOUNG/OLD
+ * and PROGRESSION_BIAS_SD_YOUNG were widened for more dramatic season-to-season
+ * swings — wider variance interacting with growthDamping's asymmetry (only
+ * the positive side is damped) and the RATING_MAX clamp shifted the
+ * equilibrium this offset needs to hit, so it needed re-verifying rather
+ * than assuming the old value still held. Re-swept the same way: 25
+ * (previous value) now overshot to +8.5, 30 to +2, 35 undershot to -1.2,
+ * 34 landed within ~0.2.
+ */
+export const YOUTH_BASE_OFFSET = 34;
 
 /**
  * BBGM-style progression (see src/core/players/progression.ts for the full
@@ -255,15 +288,24 @@ export const PROGRESSION_NOISE_SD_OLD = 1.5;
  * rating in a group together, so it survives the ovr average and produces
  * real season-to-season ovr swings, matching BBGM's approach of layering
  * shared variance on top of per-rating noise. Zero-mean like the per-rating
- * noise, so it doesn't shift long-run league equilibrium, only the spread
- * around it. Deliberately smaller than a first pass (was 5/1): most of a
- * single season's swing should come from the player's persistent
- * `PROGRESSION_BIAS_SD_*` trait below, not a one-off dice roll, and the
- * combined single-season spread is what matters for feel (a young player
- * shouldn't realistically lose 10 ovr in one bad season).
+ * noise, so it doesn't shift long-run league equilibrium on its own — though
+ * combined with `growthDamping` (which only suppresses the positive side),
+ * widening this does pull the equilibrium down slightly, since a wider
+ * negative tail passes through undamped while a wider positive tail gets
+ * cut; re-verified via dynasty audit and `YOUTH_BASE_OFFSET` retuned
+ * alongside this change to hold the league flat regardless.
+ *
+ * Raised 3→6 (young) / 0.75→2 (old), 2026-07-15, per explicit user request
+ * for more dramatic season-to-season swings ("more +5, -5") — a prior pass
+ * had deliberately tightened this from an original 5/1 specifically because
+ * a young player losing 10 ovr in one season felt too extreme at the time.
+ * Swept empirically (age 20/22/26/30 samples) to a value where a ±5 swing
+ * is a regular, noticeable occurrence rather than a rare tail event (~28-36%
+ * of young players see one in a given season, was ~5-16%), while ≥10
+ * swings stay a minority outcome (2-4%, not routine) rather than common.
  */
-export const PROGRESSION_FORM_SD_YOUNG = 3;
-export const PROGRESSION_FORM_SD_OLD = 0.75;
+export const PROGRESSION_FORM_SD_YOUNG = 6;
+export const PROGRESSION_FORM_SD_OLD = 2;
 
 /**
  * Development "personality": a fixed-per-player gaussian bias (derived
@@ -282,8 +324,11 @@ export const PROGRESSION_FORM_SD_OLD = 0.75;
  * confirmed empirically the first time this constant was added (tapering to
  * `RETIREMENT_START_AGE` instead of peak age let 90+ players climb to 17.7%
  * of the AI pool by season 25 in a dynasty audit, instead of staying near 0%).
+ *
+ * Raised 1.5→3, 2026-07-15, alongside PROGRESSION_FORM_SD_* above — same
+ * "more dramatic swings" request.
  */
-export const PROGRESSION_BIAS_SD_YOUNG = 1.5;
+export const PROGRESSION_BIAS_SD_YOUNG = 3;
 
 /**
  * Growth resistance: as a player's *current* ovr climbs through this range,
@@ -296,10 +341,23 @@ export const PROGRESSION_BIAS_SD_YOUNG = 1.5;
  * 75 — real resistance to being *good* isn't resistance to getting worse.
  * Purely rating-driven, independent of age, so it also acts as a soft
  * ceiling beneath the hard `RATING_MAX` clamp.
+ *
+ * `GROWTH_DAMPING_END`/`GROWTH_DAMPING_FLOOR` retuned 90→80 / 0.25→0.02
+ * (2026-07-15), same day as the `PROGRESSION_FORM_SD_*`/`PROGRESSION_BIAS_SD_YOUNG`
+ * widening above — bigger swings alone pushed Division 1's 80+ OVR
+ * population from ~15-20 (the user's explicit target) up to 60-80 (12-16%
+ * of the pool). A wider swing distribution needs the elite end throttled
+ * harder to land the same target population, not just a proportional bump.
+ * Swept empirically against a 30-season × 3-seed dynasty audit (real
+ * `simThrough`/`simOffseason`, Division 1's ~500 players): 0.25 (unchanged)
+ * gave 61-78, 0.05 gave 39-56, 0.02 with `GROWTH_DAMPING_END` also pulled in
+ * from 90→80 landed **8-16** — back in the intended range. Re-verified via a
+ * 100-season audit that Division 1's own mean still holds flat (61-64.5
+ * throughout, no further compounding drift from tightening this).
  */
 export const GROWTH_DAMPING_START = 65;
-export const GROWTH_DAMPING_END = 90;
-export const GROWTH_DAMPING_FLOOR = 0.25;
+export const GROWTH_DAMPING_END = 80;
+export const GROWTH_DAMPING_FLOOR = 0.02;
 
 /**
  * Potential (BBGM-style): a scout's *estimate*, not a growth driver. It plays
