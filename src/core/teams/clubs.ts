@@ -106,7 +106,7 @@ export function assignIdentities(league: League): StoredTeam[] {
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   return league.teams.map((t) => {
     const club = CLUBS[t.tid];
-    const budget = chargeSeasonStart(0, wageBill(t.roster, salaryMap), t.division);
+    const budget = chargeSeasonStart(0, wageBill(t.roster, salaryMap), t.division === 0 ? 1 : 2);
     return {
       tid: t.tid,
       name: club.name,

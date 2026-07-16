@@ -49,7 +49,7 @@ export function Finance() {
   // the rank (and thus prize tier) is provisional; in the offseason it's
   // final. The wage line is an estimate either way — the actual charge uses
   // the new season's finalized roster (after retirements, expiries, youth).
-  const revenue = seasonRevenue(rank, userTeam.hype, userTeam.division);
+  const revenue = seasonRevenue(rank, userTeam.hype, userTeam.division === 0 ? 1 : 2);
   const wages = wageBill([...userTeam.roster, ...userTeam.academyRoster], salaryMap);
   const net = revenue.total - wages - userTeam.scoutingSpend;
   const seasonOver = league.phase === "offseason";

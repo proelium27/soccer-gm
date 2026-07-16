@@ -109,7 +109,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       const defaultRank = division === 0 ? NUM_TEAMS : NUM_TEAMS_D2;
       const rank = rankByTid.get(t.tid) ?? defaultRank;
       const row = rowByTid.get(t.tid);
-      const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, division);
+      const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, division === 0 ? 1 : 2);
       const hype = row ? updateHype(t.hype, row, rank) : t.hype;
       return { ...t, budget, hype, scoutingSpend: clampScoutingSpend(SCOUTING_SPEND_DEFAULT, budget) };
     });
@@ -207,7 +207,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const salaryMap = new Map(players.map((p) => [p.pid, p.contract.salary]));
   teams = teams.map((t) => ({
     ...t,
-    budget: chargeSeasonStart(t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), t.division),
+    budget: chargeSeasonStart(t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), t.division === 0 ? 1 : 2),
   }));
 
   // 7. New per-division schedules, new season, back to regular play.

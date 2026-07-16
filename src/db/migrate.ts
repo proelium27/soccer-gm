@@ -141,7 +141,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
       name: t.name ?? CLUBS[t.tid]?.name,
       abbrev: t.abbrev ?? CLUBS[t.tid]?.abbrev,
       colors: t.colors ?? CLUBS[t.tid]?.colors,
-      budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), t.division ?? 0),
+      budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), (t.division ?? 0) === 0 ? 1 : 2),
       hype: t.hype ?? HYPE_INITIAL,
       scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_DEFAULT,
       academyBase: t.academyBase ?? fallbackAcademyBase(t.tid),
