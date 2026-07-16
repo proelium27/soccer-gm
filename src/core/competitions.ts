@@ -19,6 +19,16 @@ export function englandCompetitions(): Competition[] {
   ];
 }
 
+export function worldCompetitions(): Competition[] {
+  return [
+    ...englandCompetitions(),
+    { id: 2, country: "Spain", tier: 1, name: "Spanish Division 1" },
+    { id: 3, country: "Spain", tier: 2, name: "Spanish Division 2" },
+    { id: 4, country: "Italy", tier: 1, name: "Italian Division 1" },
+    { id: 5, country: "Italy", tier: 2, name: "Italian Division 2" },
+  ];
+}
+
 export function competitionOf(competitions: Competition[], compId: number): Competition {
   const comp = competitions.find((c) => c.id === compId);
   if (!comp) throw new Error(`Unknown compId ${compId}`);
