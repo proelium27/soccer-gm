@@ -19,7 +19,7 @@ import { settleSeasonEnd, chargeSeasonStart, wageBill } from "./finance/budget.j
 import { academyContractTerms } from "./contracts.js";
 import { SCOUTING_SPEND_DEFAULT } from "./constants.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
-import { tierOf } from "./competitions.js";
+import { tierOf, competitionOf } from "./competitions.js";
 import { hashInts } from "../engine/rng.js";
 
 /** Awards for the season that just ended, computed separately per competition from players' current club membership. */
@@ -162,8 +162,9 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   let nextPid = Math.max(0, ...players.map((p) => p.pid)) + 1;
   teams = teams.map((t) => {
     const genSeed = hashInts(league.lid, nextSeason, t.tid, 2);
+    const homeCountry = competitionOf(league.competitions, t.compId).country;
     const { players: youth, nextPid: updatedNextPid } = generateYouthIntake(
-      rng, t.academyBase, nextSeason, nextPid, genSeed,
+      rng, t.academyBase, nextSeason, nextPid, genSeed, homeCountry,
     );
     nextPid = updatedNextPid;
     if (t.tid === league.meta.userTid) {

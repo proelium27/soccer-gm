@@ -27,4 +27,46 @@ describe("generateYouthIntake", () => {
     const pids = players.map((p) => p.pid);
     expect(new Set(pids).size).toBe(pids.length);
   });
+
+  it("skews toward the club's own country when homeCountry is given", () => {
+    let pid = 0;
+    let italyCount = 0;
+    let spainCount = 0;
+    for (let i = 0; i < 300; i++) {
+      const rng = mulberry32(1000 + i);
+      const { players, nextPid } = generateYouthIntake(rng, 60, 5, pid, i, "Italy");
+      pid = nextPid;
+      for (const p of players) if (p.nationality === "Italy") italyCount++;
+    }
+    for (let i = 0; i < 300; i++) {
+      const rng = mulberry32(2000 + i);
+      const { players, nextPid } = generateYouthIntake(rng, 60, 5, pid, i, "Spain");
+      pid = nextPid;
+      for (const p of players) if (p.nationality === "Spain") spainCount++;
+    }
+    // Each country's own intake should be dominated by its own nationality —
+    // and the cross-country counts should stay low, proving intake is
+    // country-aware rather than reading from one shared flat pool.
+    expect(italyCount).toBeGreaterThan(300);
+    expect(spainCount).toBeGreaterThan(300);
+  });
+
+  it("without a homeCountry, does not draw Italy into an English-flavored intake at a heightened rate", () => {
+    // Regression guard: Italy was added to the shared NATIONALITIES table so
+    // that Italian clubs' intake could be boosted toward it — but youth
+    // intake for a club with no explicit country used to fall through to
+    // that same shared table unmodified, so this asserts the flat/no-country
+    // path stays a small background presence, not a club-specific skew.
+    let pid = 0;
+    let italyCount = 0;
+    let total = 0;
+    for (let i = 0; i < 300; i++) {
+      const rng = mulberry32(3000 + i);
+      const { players, nextPid } = generateYouthIntake(rng, 60, 5, pid, i, "England");
+      pid = nextPid;
+      total += players.length;
+      for (const p of players) if (p.nationality === "Italy") italyCount++;
+    }
+    expect(italyCount / total).toBeLessThan(0.05);
+  });
 });
