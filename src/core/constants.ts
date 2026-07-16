@@ -534,6 +534,14 @@ export const HYPE_REVENUE_DAMPING = 0.4;
 /** Scouting: a single per-season spend slider (0 = no scouts) that lowers valuation noise. */
 export const SCOUTING_SPEND_MIN = 0;
 export const SCOUTING_SPEND_MAX = 20_000_000;
+/**
+ * Default per-season spend a new club starts with, and that the slider
+ * resets to each offseason. Previously reset to SCOUTING_SPEND_MIN (0),
+ * which silently maxed out valuation noise for anyone who didn't
+ * re-raise it every season; 25% of max buys a modest noise reduction
+ * out of the box without committing much budget on the user's behalf.
+ */
+export const SCOUTING_SPEND_DEFAULT = SCOUTING_SPEND_MAX * 0.25;
 /** Perceived-valuation noise (std dev, as a fraction of true value) at zero spend and at max spend. */
 export const SCOUTING_NOISE_SD_MIN_SPEND = 0.35;
 export const SCOUTING_NOISE_SD_MAX_SPEND = 0.05;
