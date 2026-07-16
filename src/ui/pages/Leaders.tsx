@@ -6,6 +6,7 @@ import { emptySeasonStats } from "../../core/players/types.js";
 import { computeTeamSeasonStats, type TeamSeasonStats } from "../../core/standings.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { countriesOf } from "../../core/competitions.js";
 import { seasonYear } from "../format.js";
 
 type StatKey =
@@ -66,8 +67,17 @@ function careerTotals(seasons: SeasonStats[]): SeasonStats {
 }
 
 export function Leaders() {
+  const { league } = useLeague();
   const [tab, setTab] = useState<LeadersTab>("players");
-  const [division, setDivision] = useState<0 | 1>(0);
+  const [compIdOverride, setCompIdOverride] = useState<number | null>(null);
+
+  if (!league) {
+    return <p className="p-3">Loading...</p>;
+  }
+
+  const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
+  const compId = compIdOverride ?? userTeam?.compId ?? league.competitions[0].id;
+  const countries = countriesOf(league.competitions);
 
   return (
     <div className="container-fluid p-3">
@@ -92,19 +102,24 @@ export function Leaders() {
         <select
           className="form-select form-select-sm"
           style={{ width: "auto" }}
-          value={division}
-          onChange={(e) => setDivision(Number(e.target.value) as 0 | 1)}
+          value={compId}
+          onChange={(e) => setCompIdOverride(Number(e.target.value))}
         >
-          <option value={0}>English Division 1</option>
-          <option value={1}>English Division 2</option>
+          {countries.map((country) => (
+            <optgroup key={country} label={country}>
+              {league.competitions.filter((c) => c.country === country).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </optgroup>
+          ))}
         </select>
       </div>
-      {tab === "players" ? <PlayerLeaders division={division} /> : <TeamLeaders division={division} />}
+      {tab === "players" ? <PlayerLeaders compId={compId} /> : <TeamLeaders compId={compId} />}
     </div>
   );
 }
 
-function PlayerLeaders({ division }: { division: 0 | 1 }) {
+function PlayerLeaders({ compId }: { compId: number }) {
   const { league } = useLeague();
   const [stat, setStat] = useState<StatKey>("goals");
   const [season, setSeason] = useState<number | "all">("all");
@@ -135,7 +150,7 @@ function PlayerLeaders({ division }: { division: 0 | 1 }) {
   const teamByPid = new Map<number, string>();
   const tidByPid = new Map<number, number>();
   for (const team of league.teams) {
-    if (team.compId !== division) continue;
+    if (team.compId !== compId) continue;
     for (const pid of team.roster) {
       teamByPid.set(pid, team.name);
       tidByPid.set(pid, team.tid);
@@ -311,7 +326,7 @@ interface TeamLeaderRow extends TeamSeasonStats {
   isUserTeam: boolean;
 }
 
-function TeamLeaders({ division }: { division: 0 | 1 }) {
+function TeamLeaders({ compId }: { compId: number }) {
   const { league } = useLeague();
   const [stat, setStat] = useState<TeamStatKey>("goals");
   const [season, setSeason] = useState<number | "current">("current");
@@ -326,11 +341,11 @@ function TeamLeaders({ division }: { division: 0 | 1 }) {
     return <p>No matches played yet.</p>;
   }
 
-  const teamIds = league.teams.filter((t) => t.compId === division).map((t) => t.tid);
+  const teamIds = league.teams.filter((t) => t.compId === compId).map((t) => t.tid);
   const teamStats: TeamSeasonStats[] = season === "current"
     ? computeTeamSeasonStats(teamIds, league.played)
     : (league.seasonHistory.find((h) => h.season === season)?.teamStats ?? [])
-        .filter((s) => league.seasonHistory.find((h) => h.season === season)?.compsByTid[s.tid] === division);
+        .filter((s) => league.seasonHistory.find((h) => h.season === season)?.compsByTid[s.tid] === compId);
 
   const teamByTid = new Map(league.teams.map((t) => [t.tid, t.name]));
   const rows: TeamLeaderRow[] = teamStats.map((s) => ({

@@ -10,6 +10,7 @@ import { getRatingColor } from "../utils/ratingColor.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { Flag } from "../components/Flag.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
+import { countriesOf } from "../../core/competitions.js";
 import { seasonYear } from "../format.js";
 
 const SLOTS = FORMATIONS["4-3-3"];
@@ -81,7 +82,7 @@ function TeamOfSeasonField({ awards, playersByPid }: { awards: SeasonAwards; pla
 export function Awards() {
   const { league } = useLeague();
   const [season, setSeason] = useState<number | null>(null);
-  const [division, setDivision] = useState<0 | 1>(0);
+  const [compIdOverride, setCompIdOverride] = useState<number | null>(null);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -96,12 +97,16 @@ export function Awards() {
     );
   }
 
+  const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
+  const compId = compIdOverride ?? userTeam?.compId ?? league.competitions[0].id;
+  const countries = countriesOf(league.competitions);
+
   const seasonOptions = [...league.seasonHistory.map((h) => h.season)].sort((a, b) => b - a);
   const activeSeason = season ?? seasonOptions[0];
   const entry = league.seasonHistory.find((h) => h.season === activeSeason)!;
 
   const playersByPid = new Map(league.players.map((p) => [p.pid, p]));
-  const divisionAwards = entry.awards[division];
+  const divisionAwards = entry.awards[compId];
   const potd = divisionAwards.playerOfSeasonPid !== null ? playersByPid.get(divisionAwards.playerOfSeasonPid) : undefined;
   const goldenBoot = divisionAwards.goldenBootPid !== null ? playersByPid.get(divisionAwards.goldenBootPid) : undefined;
 
@@ -125,11 +130,16 @@ export function Awards() {
         <select
           className="form-select form-select-sm"
           style={{ width: "auto", display: "inline-block" }}
-          value={division}
-          onChange={(e) => setDivision(Number(e.target.value) as 0 | 1)}
+          value={compId}
+          onChange={(e) => setCompIdOverride(Number(e.target.value))}
         >
-          <option value={0}>English Division 1</option>
-          <option value={1}>English Division 2</option>
+          {countries.map((country) => (
+            <optgroup key={country} label={country}>
+              {league.competitions.filter((c) => c.country === country).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </optgroup>
+          ))}
         </select>
       </div>
 
