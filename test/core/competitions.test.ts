@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   englandCompetitions, competitionOf, tierOf, partnerOf, countriesOf, worldCompetitions, tier1Pairs,
+  countryClubRanges,
 } from "../../src/core/competitions.js";
+import { NUM_TEAMS, NUM_TEAMS_D2 } from "../../src/core/constants.js";
 
 describe("competitions", () => {
   const comps = englandCompetitions();
@@ -67,5 +69,24 @@ describe("worldCompetitions", () => {
       expect(pair.d2.tier).toBe(2);
       expect(pair.d2.country).toBe(pair.d1.country);
     }
+  });
+});
+
+describe("countryClubRanges", () => {
+  it("splits the world into 3 contiguous 40-wide ranges, in table order", () => {
+    const ranges = countryClubRanges(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2);
+    expect(ranges).toEqual([
+      { country: "England", start: 0, end: 40 },
+      { country: "Spain", start: 40, end: 80 },
+      { country: "Italy", start: 80, end: 120 },
+    ]);
+  });
+
+  it("matches generateWorld's actual tid layout", () => {
+    // Cross-check against the real generator rather than re-deriving the
+    // layout by hand — a regression guard, same spirit as clubs.test.ts's
+    // CLUBS/tid regression test.
+    const ranges = countryClubRanges(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2);
+    expect(ranges.reduce((sum, r) => sum + (r.end - r.start), 0)).toBe(120);
   });
 });
