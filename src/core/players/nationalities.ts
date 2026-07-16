@@ -85,6 +85,21 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
       "Serrano", "Blanco", "Molina", "Castro", "Ortega", "Delgado",
     ],
   },
+  Italy: {
+    weight: 30,
+    first: [
+      "Marco", "Luca", "Matteo", "Alessandro", "Davide", "Simone", "Andrea", "Francesco",
+      "Lorenzo", "Riccardo", "Federico", "Gianluca", "Stefano", "Fabio", "Roberto", "Paolo",
+      "Giovanni", "Antonio", "Nicola", "Emanuele", "Daniele", "Cristian", "Filippo", "Enrico",
+      "Salvatore", "Massimo", "Vincenzo", "Domenico", "Pietro", "Angelo",
+    ],
+    last: [
+      "Rossi", "Russo", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci",
+      "Marino", "Greco", "Bruno", "Gallo", "Conti", "De Luca", "Costa", "Giordano",
+      "Mancini", "Rizzo", "Lombardi", "Moretti", "Barbieri", "Fontana", "Santoro", "Mariani",
+      "Rinaldi", "Caruso", "Ferrara", "Galli", "Martini", "Leone",
+    ],
+  },
   Portugal: {
     weight: 31,
     first: [
@@ -563,21 +578,50 @@ export const OTHER_NATIONS: Record<string, { first: string[]; last: string[] }> 
 
 const OTHER_BUCKET_WEIGHT = 8;
 
-function totalWeight(): number {
+/**
+ * The weight a home country's own nationality gets in its own leagues,
+ * matching England's existing dominant share in the original flat
+ * distribution (so "Spanish leagues draw mostly Spanish names" has the same
+ * intensity "English leagues draw mostly English names" always has).
+ */
+const HOME_NATION_WEIGHT = 390;
+
+function totalWeight(table: Record<string, NationalityDef>): number {
   let sum = OTHER_BUCKET_WEIGHT;
-  for (const def of Object.values(NATIONALITIES)) sum += def.weight;
+  for (const def of Object.values(table)) sum += def.weight;
   return sum;
 }
 
-/** Weighted-random nationality draw matching the Premier League distribution. */
-export function pickNationality(rng: () => number): string {
-  let roll = rng() * totalWeight();
-  for (const [country, def] of Object.entries(NATIONALITIES)) {
+function pickFromTable(rng: () => number, table: Record<string, NationalityDef>): string {
+  let roll = rng() * totalWeight(table);
+  for (const [country, def] of Object.entries(table)) {
     if (roll < def.weight) return country;
     roll -= def.weight;
   }
   const others = Object.keys(OTHER_NATIONS);
   return others[Math.floor(rng() * others.length)];
+}
+
+/**
+ * Weighted-random nationality draw. With no homeCountry (or "England"),
+ * matches the original flat Premier-League-flavored distribution exactly.
+ * With a homeCountry that has its own NATIONALITIES entry, that country's
+ * weight is boosted to HOME_NATION_WEIGHT (England's weight drops to what
+ * the home country's own weight normally is — a straight swap, so the total
+ * weight pool is unchanged) — every other country's weight is untouched,
+ * so the "realistic foreign mix" flavor carries over unmodified.
+ */
+export function pickNationality(rng: () => number, homeCountry?: string): string {
+  if (!homeCountry || homeCountry === "England" || !(homeCountry in NATIONALITIES)) {
+    return pickFromTable(rng, NATIONALITIES);
+  }
+  const homeDef = NATIONALITIES[homeCountry];
+  const table: Record<string, NationalityDef> = {
+    ...NATIONALITIES,
+    [homeCountry]: { ...homeDef, weight: HOME_NATION_WEIGHT },
+    England: { ...NATIONALITIES.England, weight: homeDef.weight },
+  };
+  return pickFromTable(rng, table);
 }
 
 export function namePoolFor(nationality: string): { first: string[]; last: string[] } | undefined {
