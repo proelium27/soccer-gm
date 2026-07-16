@@ -51,3 +51,21 @@ export function partnerOf(competitions: Competition[], compId: number): Competit
 export function countriesOf(competitions: Competition[]): string[] {
   return [...new Set(competitions.map((c) => c.country))];
 }
+
+/** One D1/D2 pair per country, in the table's tier-1 order. */
+export interface Tier1Pair {
+  d1: Competition;
+  d2: Competition;
+}
+
+/**
+ * Every country's tier-1/tier-2 pair, derived from the table rather than
+ * assumed from array position — shared by every caller that needs to walk
+ * "each country's two divisions" (promotion/relegation, world generation)
+ * so the pairing rule only has one implementation to keep correct.
+ */
+export function tier1Pairs(competitions: Competition[]): Tier1Pair[] {
+  return competitions
+    .filter((c) => c.tier === 1)
+    .map((d1) => ({ d1, d2: partnerOf(competitions, d1.id) }));
+}

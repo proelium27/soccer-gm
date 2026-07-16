@@ -2,7 +2,7 @@ import type { Player, Position } from "../players/types.js";
 import { POSITIONS } from "../players/types.js";
 import { generatePlayer } from "../players/generate.js";
 import { hashInts } from "../../engine/rng.js";
-import { worldCompetitions, partnerOf } from "../competitions.js";
+import { worldCompetitions, tier1Pairs } from "../competitions.js";
 import {
   NUM_TEAMS, NUM_TEAMS_D2, LEAGUE_BASE, TEAM_STRENGTH_SPREAD, DIVISION_2_OFFSET,
   ROSTER_COMPOSITION, INITIAL_AGE_MIN, INITIAL_AGE_MAX,
@@ -154,8 +154,7 @@ export function generateWorld(rng: () => number, seed = 0): League {
   let tidCursor = 0;
   const teams: LeagueTeam[] = [];
   const players: Player[] = [];
-  for (const d1 of comps.filter((c) => c.tier === 1)) {
-    const d2 = partnerOf(comps, d1.id);
+  for (const { d1, d2 } of tier1Pairs(comps)) {
     const d1Result = generateDivisionTeams(rng, tidCursor, NUM_TEAMS, 0, d1.id, genSeed, pid, d1.country);
     pid = d1Result.nextPid;
     tidCursor += NUM_TEAMS;

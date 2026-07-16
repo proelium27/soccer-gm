@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  englandCompetitions, competitionOf, tierOf, partnerOf, countriesOf, worldCompetitions,
+  englandCompetitions, competitionOf, tierOf, partnerOf, countriesOf, worldCompetitions, tier1Pairs,
 } from "../../src/core/competitions.js";
 
 describe("competitions", () => {
@@ -56,6 +56,16 @@ describe("worldCompetitions", () => {
       const partner = partnerOf(comps, comp.id);
       expect(partner.country).toBe(comp.country);
       expect(partner.tier).not.toBe(comp.tier);
+    }
+  });
+
+  it("tier1Pairs returns one pair per country, in table order", () => {
+    const pairs = tier1Pairs(comps);
+    expect(pairs.map((p) => p.d1.country)).toEqual(["England", "Spain", "Italy"]);
+    for (const pair of pairs) {
+      expect(pair.d1.tier).toBe(1);
+      expect(pair.d2.tier).toBe(2);
+      expect(pair.d2.country).toBe(pair.d1.country);
     }
   });
 });
