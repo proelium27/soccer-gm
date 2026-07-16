@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
@@ -114,7 +115,9 @@ function RosterTable({
             >
               <td className="text-muted">&#8942;&#8942;</td>
               <td>
-                <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                <PlayerRatingsTooltip player={p}>
+                  <Link to={`/player/${p.pid}`}>{p.name}</Link>
+                </PlayerRatingsTooltip>{" "}
                 <Flag nationality={p.nationality} />
               </td>
               <td>{p.pos}</td>

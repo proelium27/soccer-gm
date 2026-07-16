@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { StoredTeam } from "../../core/leagueState.js";
 import type { NewsEvent, NewsEventType } from "../../core/newsEvents.js";
@@ -84,7 +85,7 @@ export function NewsFeed() {
     const p = playerMap.get(pid);
     return (
       <>
-        {p?.name ?? `Player ${pid}`}{" "}
+        {p ? <Link to={`/player/${p.pid}`}>{p.name}</Link> : `Player ${pid}`}{" "}
         {p && <Flag nationality={p.nationality} />}
         {p && <span className="text-muted small"> ({p.pos})</span>}
       </>

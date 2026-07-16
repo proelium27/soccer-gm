@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import { transferWindowState } from "../../core/transfers/window.js";
@@ -323,7 +324,9 @@ export function Transfers() {
                   {targets.map(({ player: p, sellerTid, scoutedValue }) => (
                     <tr key={p.pid}>
                       <td>
-                        <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                        <PlayerRatingsTooltip player={p}>
+                          <Link to={`/player/${p.pid}`}>{p.name}</Link>
+                        </PlayerRatingsTooltip>{" "}
                         <Flag nationality={p.nationality} />
                       </td>
                       <td>{p.pos}</td>
@@ -366,7 +369,9 @@ export function Transfers() {
                   return (
                     <tr key={n.pid}>
                       <td>
-                        <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                        <PlayerRatingsTooltip player={p}>
+                          <Link to={`/player/${p.pid}`}>{p.name}</Link>
+                        </PlayerRatingsTooltip>{" "}
                         <Flag nationality={p.nationality} /> ({p.pos}, {teamName(n.sellerTid)})
                       </td>
                       <td>
@@ -399,7 +404,7 @@ export function Transfers() {
                 const p = playerMap.get(t.pid);
                 return (
                   <li key={i}>
-                    {p?.name ?? `Player ${t.pid}`}{" "}
+                    {p ? <Link to={`/player/${p.pid}`}>{p.name}</Link> : `Player ${t.pid}`}{" "}
                     {p && <Flag nationality={p.nationality} />} — {teamName(t.fromTid)} →{" "}
                     {teamName(t.toTid)} for {currency.format(t.fee)}
                   </li>

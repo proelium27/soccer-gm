@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { SeasonAwards } from "../../core/awards.js";
 import type { Player } from "../../core/players/types.js";
@@ -26,7 +27,7 @@ function AwardCard({ title, player, subtitle }: { title: string; player: Player 
           <>
             <div className="d-flex align-items-center gap-2 fs-5 fw-semibold">
               <Flag nationality={player.nationality} />
-              {player.name}
+              <Link to={`/player/${player.pid}`}>{player.name}</Link>
             </div>
             <div className="text-muted small mt-1">{subtitle}</div>
           </>
@@ -57,9 +58,11 @@ function TeamOfSeasonField({ awards, playersByPid }: { awards: SeasonAwards; pla
               <PlayerRatingsTooltip player={player}>
                 <span
                   className={"pitch-chip" + (player.pos === "GK" ? " pitch-chip--gk" : "")}
-                  style={{ borderColor: getRatingColor(player.ovr), cursor: "default" }}
+                  style={{ borderColor: getRatingColor(player.ovr) }}
                 >
-                  <span className="pitch-chip-name">{shortName(player.name)}</span>
+                  <Link to={`/player/${player.pid}`} className="pitch-chip-name">
+                    {shortName(player.name)}
+                  </Link>
                   <span className="pitch-chip-ovr">{player.ovr}</span>
                 </span>
               </PlayerRatingsTooltip>

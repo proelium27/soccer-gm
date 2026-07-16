@@ -100,6 +100,7 @@ export function Manual() {
             <li><strong>Academy</strong> — your club's youth-academy holding pool: extend, release, or promote to the senior team.</li>
             <li><strong>Box Score</strong> — per-match detail: goals, cards, substitutions, injuries, and a stat line (including xG, plus goals against and xG against on the goalkeeper's row) plus 0–10 match rating for every player who appeared, with each side's total xG shown next to the score. The highest-rated player among those who actually played is starred as Man of the Match.</li>
             <li><strong>Leagues</strong> — your saved leagues. Create, enter, or delete saves; each is fully independent.</li>
+            <li><strong>Player Profile</strong> — click any player's name anywhere in the game (Roster, Stat Leaders, Awards, Transfers, News Feed) to open a full career page: every attribute rating, individual and team honors (Player of the Season, Golden Boot, Team of the Season, league titles), a season-by-season stat line including columns not shown elsewhere (shots on target, xG, goals against/xG against for keepers), full transfer history, and a season-by-season OVR/POT/attribute history.</li>
           </ul>
         </Section>
 
@@ -514,6 +515,7 @@ export function Manual() {
           <p><strong>Why can't I release this player?</strong> The depth floor — releasing him would leave a position without enough cover to field a legal team. Sign or promote cover first.</p>
           <p><strong>Why did his potential drop? Scouts promised 82!</strong> Potential is a periodically re-estimated forecast (see <a href="#players">Players</a>). A development setback lowers the realistic ceiling, and the estimate follows.</p>
           <p><strong>Do AI clubs cheat?</strong> No. They play by exactly your rules: same wages, same budgets, same roster limits, same transfer machinery, no hidden income. The whole league's finances are on the Finance page if you want to audit them.</p>
+          <p><strong>A player's profile shows the wrong club for an old league title.</strong> There's no per-season roster snapshot, so a Player Profile's "League Champion" credit is reconstructed from his transfer history rather than stored directly — reliable for anyone who's ever transferred, and a reasonable assumption (he stayed put) for anyone who hasn't. (Known quirk.)</p>
         </Section>
       </div>
     </div>
