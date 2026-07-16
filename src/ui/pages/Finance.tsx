@@ -112,8 +112,8 @@ export function Finance() {
             Deducted at season end. Every value you see on a transfer target — Recommended
             Transfers, negotiation offers, offers for your own players — is a perceived value,
             not the true one: noisy (&plusmn;35%) at $0 spend, nearly exact (&plusmn;5%) at the
-            $20M max. Raise it before a window where you plan to buy or sell; it's wasted the rest
-            of the time.
+            $20M max. Defaults to $5M each season; push it toward the max before a window where
+            you plan to buy or sell, then pull it back down once you're done.
           </p>
         </div>
       </div>

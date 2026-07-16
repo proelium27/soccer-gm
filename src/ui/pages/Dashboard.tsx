@@ -374,8 +374,8 @@ export function Dashboard() {
                   onBlur={commitScoutingDraft}
                 />
                 <p className="card-text text-muted small mb-0 mt-1">
-                  Sharpens your read on transfer targets and offers — raise it before a window
-                  where you plan to buy or sell.
+                  Sharpens your read on transfer targets and offers — push it toward the max
+                  before a window where you plan to buy or sell.
                 </p>
               </div>
             </div>
