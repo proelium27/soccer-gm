@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
@@ -109,14 +109,24 @@ function PlayerLeaders({ division }: { division: 0 | 1 }) {
   const [stat, setStat] = useState<StatKey>("goals");
   const [season, setSeason] = useState<number | "all">("all");
   const [scope, setScope] = useState<Scope>("career");
+  const [initializedSeason, setInitializedSeason] = useState(false);
+
+  const seasonOptions = [
+    ...new Set((league?.players ?? []).flatMap((p) => p.stats.map((s) => s.season))),
+  ].sort((a, b) => b - a);
+
+  useEffect(() => {
+    if (!league || initializedSeason) return;
+    if (seasonOptions.includes(league.season)) {
+      setSeason(league.season);
+    }
+    setInitializedSeason(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [league, initializedSeason]);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
   }
-
-  const seasonOptions = [
-    ...new Set(league.players.flatMap((p) => p.stats.map((s) => s.season))),
-  ].sort((a, b) => b - a);
 
   if (seasonOptions.length === 0) {
     return <p>No matches played yet.</p>;
