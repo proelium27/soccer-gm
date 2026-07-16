@@ -2,6 +2,7 @@ import { useState } from "react";
 
 export interface EditableTeam {
   tid: number;
+  compId: number;
   name: string;
   abbrev: string;
   colors: [string, string];
@@ -9,6 +10,7 @@ export interface EditableTeam {
 
 interface Props {
   initialTeams: EditableTeam[];
+  competitions: { id: number; name: string }[];
   userTid: number;
   saveLabel: string;
   savingLabel: string;
@@ -20,10 +22,13 @@ interface Props {
 /**
  * Editable list of club identities (name/abbrev/colors), shared by the
  * Customize Teams editor on the Leagues page and the customized-league
- * creation flow on the New League page.
+ * creation flow on the New League page. Edits to every competition are kept
+ * in state at once (so switching which one is shown never loses work) —
+ * only the currently selected competition's teams are rendered.
  */
 export function TeamIdentityEditor({
   initialTeams,
+  competitions,
   userTid,
   saveLabel,
   savingLabel,
@@ -32,17 +37,31 @@ export function TeamIdentityEditor({
   onCancel,
 }: Props) {
   const [teams, setTeams] = useState(initialTeams);
+  const userCompId = initialTeams.find((t) => t.tid === userTid)?.compId ?? competitions[0].id;
+  const [activeCompId, setActiveCompId] = useState(userCompId);
 
   function updateTeam(tid: number, patch: Partial<EditableTeam>) {
     setTeams((ts) => ts.map((t) => (t.tid === tid ? { ...t, ...patch } : t)));
   }
 
   const valid = teams.every((t) => t.name.trim() !== "" && t.abbrev.trim() !== "");
+  const visibleTeams = teams.filter((t) => t.compId === activeCompId);
 
   return (
     <>
+      <select
+        className="form-select form-select-sm mb-3"
+        style={{ width: "auto" }}
+        value={activeCompId}
+        onChange={(e) => setActiveCompId(Number(e.target.value))}
+      >
+        {competitions.map((c) => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </select>
+
       <div className="list-group mb-3">
-        {teams.map((t) => (
+        {visibleTeams.map((t) => (
           <div key={t.tid} className="list-group-item d-flex align-items-center gap-2">
             <input
               type="color"

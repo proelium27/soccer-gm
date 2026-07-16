@@ -3,7 +3,7 @@ import type { StoredTeam } from "../teams/clubs.js";
 import type { CompletedTransfer } from "../transfers/negotiation.js";
 import type { Competition } from "../competitions.js";
 import { tierOf } from "../competitions.js";
-import { DIVISION_2_REFUSAL_OVR_THRESHOLD, ROSTER_CAP } from "../constants.js";
+import { DIVISION_2_REFUSAL_OVR_THRESHOLD, ROSTER_CAP, ROSTER_COMPOSITION } from "../constants.js";
 import { trueTransferValue } from "../finance/valuation.js";
 import { clampBudget } from "../finance/budget.js";
 
@@ -96,13 +96,45 @@ export function enforceDivision2Ceiling(
 
     let buyerRoster = rosterByTid.get(buyerTid)!;
     if (buyerRoster.length >= ROSTER_CAP) {
-      let weakestPid = buyerRoster[0];
-      let weakestOvr = playerByPid.get(weakestPid)!.ovr;
-      for (const pid of buyerRoster.slice(1)) {
+      // Prefer the weakest player whose release still keeps the buyer's
+      // positional depth floor (same bar releasePlayer/keepsDepthFloor use
+      // elsewhere) — otherwise a forced sweep can strip a club's only backup
+      // at a thin position with nothing left in this offseason to refill it
+      // (this is the second, later of enforceDivision2Ceiling's two passes;
+      // free agency/trimming/the summer market have already run). Falls back
+      // to the true weakest player only if every release would breach the
+      // floor, so the move still always succeeds.
+      const posCounts = new Map<Position, number>();
+      for (const pid of buyerRoster) {
+        const pos = playerByPid.get(pid)!.pos;
+        posCounts.set(pos, (posCounts.get(pos) ?? 0) + 1);
+      }
+      const keepsFloor = (pid: number): boolean => {
+        const pos = playerByPid.get(pid)!.pos;
+        return (posCounts.get(pos) ?? 0) - 1 >= Math.ceil(ROSTER_COMPOSITION[pos] / 2);
+      };
+
+      let weakestPid: number | null = null;
+      let weakestOvr = Infinity;
+      for (const pid of buyerRoster) {
+        if (!keepsFloor(pid)) continue;
         const ovr = playerByPid.get(pid)!.ovr;
         if (ovr < weakestOvr) {
           weakestOvr = ovr;
           weakestPid = pid;
+        }
+      }
+      if (weakestPid === null) {
+        // No release keeps every position above its floor — fall back to
+        // the true weakest overall rather than block the guaranteed move.
+        weakestPid = buyerRoster[0];
+        weakestOvr = playerByPid.get(weakestPid)!.ovr;
+        for (const pid of buyerRoster.slice(1)) {
+          const ovr = playerByPid.get(pid)!.ovr;
+          if (ovr < weakestOvr) {
+            weakestOvr = ovr;
+            weakestPid = pid;
+          }
         }
       }
       buyerRoster = buyerRoster.filter((pid) => pid !== weakestPid);

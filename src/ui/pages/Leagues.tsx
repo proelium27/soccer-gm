@@ -15,6 +15,7 @@ interface TeamEditor {
   leagueName: string;
   userTid: number;
   teams: EditableTeam[];
+  competitions: { id: number; name: string }[];
 }
 
 export function Leagues() {
@@ -52,10 +53,12 @@ export function Leagues() {
       userTid: league.meta.userTid,
       teams: league.teams.map((t) => ({
         tid: t.tid,
+        compId: t.compId,
         name: t.name,
         abbrev: t.abbrev,
         colors: [...t.colors] as [string, string],
       })),
+      competitions: league.competitions,
     });
   }
 
@@ -80,6 +83,7 @@ export function Leagues() {
         </p>
         <TeamIdentityEditor
           initialTeams={editor.teams}
+          competitions={editor.competitions}
           userTid={editor.userTid}
           saveLabel="Save"
           savingLabel="Saving..."

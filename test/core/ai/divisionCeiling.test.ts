@@ -3,6 +3,7 @@ import { mulberry32 } from "../../../src/engine/rng.js";
 import { createLeagueState } from "../../../src/core/leagueState.js";
 import { enforceDivision2Ceiling } from "../../../src/core/ai/divisionCeiling.js";
 import { ROSTER_CAP, DIVISION_2_REFUSAL_OVR_THRESHOLD } from "../../../src/core/constants.js";
+import { tierOf } from "../../../src/core/competitions.js";
 
 const USER_TID = 0;
 
@@ -18,7 +19,9 @@ describe("enforceDivision2Ceiling", () => {
       league.teams, players, league.transfers, league.season, USER_TID, league.competitions,
     );
     const newTeam = teams.find((t) => t.roster.includes(star.pid))!;
-    expect(newTeam.compId).toBe(0);
+    // The receiving pool is every tier-1 club worldwide (not just England's),
+    // so the destination competition can be any country's Division 1.
+    expect(tierOf(league.competitions, newTeam.compId)).toBe(1);
     expect(newTeam.tid).not.toBe(USER_TID);
     expect(transfers.some((t) => t.pid === star.pid && t.fee > 0)).toBe(true);
   });
@@ -51,8 +54,11 @@ describe("enforceDivision2Ceiling", () => {
     const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
     const star = { ...target, ovr: 90 };
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
-    // Impoverish every Division 1 club so no buyer can afford a 90-ovr fee.
-    const teams = league.teams.map((t) => (t.compId === 0 ? { ...t, budget: 1000 } : t));
+    // Impoverish every Division 1 club worldwide (any tier-1 competition,
+    // not just England's) so no buyer can afford a 90-ovr fee.
+    const teams = league.teams.map((t) =>
+      tierOf(league.competitions, t.compId) === 1 ? { ...t, budget: 1000 } : t,
+    );
 
     const { teams: updated, transfers } = enforceDivision2Ceiling(
       teams, players, league.transfers, league.season, USER_TID, league.competitions,
@@ -61,7 +67,7 @@ describe("enforceDivision2Ceiling", () => {
     expect(deal.fee).toBe(1000);
     for (const t of updated) expect(t.budget).toBeGreaterThanOrEqual(0);
     // The move itself still happens regardless of affordability.
-    expect(updated.find((t) => t.roster.includes(star.pid))!.compId).toBe(0);
+    expect(tierOf(league.competitions, updated.find((t) => t.roster.includes(star.pid))!.compId)).toBe(1);
   });
 
   it("leaves a Division 2 player below the threshold in place", () => {
@@ -115,9 +121,9 @@ describe("enforceDivision2Ceiling", () => {
     const star = { ...target, ovr: 90 };
     let players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
-    // Pad the weakest Division 1 club (whichever ends up as the buyer) to ROSTER_CAP.
+    // Pad the weakest Division 1 club worldwide (whichever ends up as the buyer) to ROSTER_CAP.
     const d1TeamsByOvr = league.teams
-      .filter((t) => t.compId === 0 && t.tid !== USER_TID)
+      .filter((t) => tierOf(league.competitions, t.compId) === 1 && t.tid !== USER_TID)
       .map((t) => {
         const ovrs = t.roster.map((pid) => league.players.find((p) => p.pid === pid)!.ovr);
         return { tid: t.tid, avg: ovrs.reduce((s, o) => s + o, 0) / ovrs.length };

@@ -39,11 +39,21 @@ describe("runAITransferMarket", () => {
     expect(new Set(flat).size).toBe(flat.length);
   });
 
-  it("conserves money across the league in the offseason (fees just move between clubs)", () => {
+  it("conserves money across the league in the offseason, modulo a club that briefly crosses its budget cap mid-market (fees move between clubs; banking past the cap destroys the excess by design)", () => {
     const { league, result } = runOnFresh(7);
     const before = league.teams.reduce((s, t) => s + t.budget, 0);
     const after = result.teams.reduce((s, t) => s + t.budget, 0);
-    expect(after).toBeCloseTo(before, 2);
+    // Money is never created — only moved between clubs, or destroyed when a
+    // club's running budget crosses MAX_BUDGET partway through the market
+    // (clampBudget). At world scale (120 clubs, more transfers per window)
+    // that clamp is more likely to fire mid-run than it was at 40-club scale,
+    // even though no club's *final* budget sits at the cap. This is a fixed
+    // seed, so the real loss is deterministic (~$481,596 for seed 7) — bound
+    // tightly around that rather than a loose percentage of the league's
+    // total budget, which at world scale (~$8.2B) would be loose enough to
+    // hide a real double-credit/double-spend regression worth 10-100x this.
+    expect(after).toBeLessThanOrEqual(before + 0.01);
+    expect(before - after).toBeLessThan(2_000_000);
   });
 
   it("never involves the user's club, and leaves the user roster untouched", () => {

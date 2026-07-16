@@ -69,3 +69,36 @@ export function tier1Pairs(competitions: Competition[]): Tier1Pair[] {
     .filter((c) => c.tier === 1)
     .map((d1) => ({ d1, d2: partnerOf(competitions, d1.id) }));
 }
+
+export interface CountryClubRange {
+  country: string;
+  /** Inclusive start tid (== CLUBS index) for this country's block. */
+  start: number;
+  /** Exclusive end tid (== CLUBS index) for this country's block. */
+  end: number;
+}
+
+/**
+ * The tid/CLUBS-index range each country occupies, derived the same way
+ * generateWorld() assigns tids (tier1Pairs() order, tier-1 block then
+ * tier-2 block per country) rather than a hardcoded "40 per country"
+ * literal — so a future country added to worldCompetitions() is picked up
+ * automatically. teamsPerTier1/teamsPerTier2 are passed in (NUM_TEAMS/
+ * NUM_TEAMS_D2 from constants.ts) rather than imported here to keep this
+ * file free of a dependency on team-count constants it otherwise has no
+ * reason to know about.
+ */
+export function countryClubRanges(
+  competitions: Competition[],
+  teamsPerTier1: number,
+  teamsPerTier2: number,
+): CountryClubRange[] {
+  const ranges: CountryClubRange[] = [];
+  let cursor = 0;
+  for (const { d1 } of tier1Pairs(competitions)) {
+    const count = teamsPerTier1 + teamsPerTier2;
+    ranges.push({ country: d1.country, start: cursor, end: cursor + count });
+    cursor += count;
+  }
+  return ranges;
+}

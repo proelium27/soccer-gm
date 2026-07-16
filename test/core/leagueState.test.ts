@@ -14,10 +14,13 @@ describe("createLeagueState", () => {
     expect(state).toHaveProperty("phase");
     expect(state).toHaveProperty("schedule");
     expect(state).toHaveProperty("played");
+    expect(state).toHaveProperty("competitions");
   });
 
-  it("has 40 teams (20 per division), each with name/abbrev/colors/roster/division", () => {
-    expect(state.teams).toHaveLength(40);
+  it("has 6 competitions (3 countries x 2 tiers) and 120 teams (20 per competition)", () => {
+    expect(state.competitions).toHaveLength(6);
+    expect(state.teams).toHaveLength(120);
+    const validCompIds = new Set(state.competitions.map((c) => c.id));
     for (const t of state.teams) {
       expect(typeof t.name).toBe("string");
       expect(t.name.length).toBeGreaterThan(0);
@@ -27,27 +30,26 @@ describe("createLeagueState", () => {
       expect(typeof t.colors[0]).toBe("string");
       expect(typeof t.colors[1]).toBe("string");
       expect(t.roster.length).toBeGreaterThan(0);
-      expect(t.compId === 0 || t.compId === 1).toBe(true);
+      expect(validCompIds.has(t.compId)).toBe(true);
     }
-    expect(state.teams.filter((t) => t.compId === 0)).toHaveLength(20);
-    expect(state.teams.filter((t) => t.compId === 1)).toHaveLength(20);
+    for (const comp of state.competitions) {
+      expect(state.teams.filter((t) => t.compId === comp.id)).toHaveLength(20);
+    }
   });
 
-  it("has ~1000 players (40 teams x 25 players)", () => {
-    expect(state.players).toHaveLength(1000);
+  it("has 3000 players (120 teams x 25 players)", () => {
+    expect(state.players).toHaveLength(3000);
   });
 
-  it("has 760 scheduled games (380 per division)", () => {
-    expect(state.schedule).toHaveLength(760);
+  it("has 2280 scheduled games (380 per competition x 6), each within one competition", () => {
+    expect(state.schedule).toHaveLength(2280);
+    const compByTid = new Map(state.teams.map((t) => [t.tid, t.compId]));
     for (const g of state.schedule) {
       expect(g).toHaveProperty("matchday");
       expect(g).toHaveProperty("home");
       expect(g).toHaveProperty("away");
       expect(typeof g.matchday).toBe("number");
-    }
-    const teamsByTid = new Map(state.teams.map((t) => [t.tid, t]));
-    for (const g of state.schedule) {
-      expect(teamsByTid.get(g.home)!.compId).toBe(teamsByTid.get(g.away)!.compId);
+      expect(compByTid.get(g.home)).toBe(compByTid.get(g.away));
     }
   });
 

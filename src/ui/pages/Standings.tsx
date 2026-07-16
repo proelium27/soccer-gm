@@ -2,12 +2,14 @@ import { useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
+import { tierOf } from "../../core/competitions.js";
+import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { seasonYear } from "../format.js";
 
 export function Standings() {
   const { league } = useLeague();
   const [season, setSeason] = useState<number | "current">("current");
-  const [division, setDivision] = useState<0 | 1>(0);
+  const [compIdOverride, setCompIdOverride] = useState<number | null>(null);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -22,28 +24,32 @@ export function Standings() {
     );
   }
 
+  const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
+  const compId = compIdOverride ?? userTeam?.compId ?? league.competitions[0].id;
+  const isTier1 = tierOf(league.competitions, compId) === 1;
+
   const seasonOptions = [...league.seasonHistory.map((h) => h.season)].sort((a, b) => b - a);
 
   let standings: StandingsRow[];
   let championTid: number;
   if (season === "current") {
-    const teamIds = league.teams.filter((t) => t.compId === division).map((t) => t.tid);
+    const teamIds = league.teams.filter((t) => t.compId === compId).map((t) => t.tid);
     standings = computeStandings(teamIds, league.played.filter((m) => {
       const home = league.teams.find((t) => t.tid === m.home);
-      return home?.compId === division;
+      return home?.compId === compId;
     }));
     // A "champion" only means something once the season has actually been
     // decided by played matches, not an arbitrary tid=0 tie at kickoff.
     championTid = league.played.length > 0 ? (standings[0]?.tid ?? -1) : -1;
   } else {
     const entry = league.seasonHistory.find((h) => h.season === season)!;
-    const divisionTids = new Set(
+    const compTids = new Set(
       Object.entries(entry.compsByTid)
-        .filter(([, d]) => d === division)
+        .filter(([, c]) => c === compId)
         .map(([tid]) => Number(tid)),
     );
-    standings = entry.table.filter((row) => divisionTids.has(row.tid));
-    championTid = entry.championTidByCompId[division] ?? (standings[0]?.tid ?? -1);
+    standings = entry.table.filter((row) => compTids.has(row.tid));
+    championTid = entry.championTidByCompId[compId] ?? (standings[0]?.tid ?? -1);
   }
 
   return (
@@ -61,15 +67,11 @@ export function Standings() {
             <option key={s} value={s}>{seasonYear(s)}</option>
           ))}
         </select>{" "}
-        <select
-          className="form-select form-select-sm"
-          style={{ width: "auto", display: "inline-block" }}
-          value={division}
-          onChange={(e) => setDivision(Number(e.target.value) as 0 | 1)}
-        >
-          <option value={0}>English Division 1</option>
-          <option value={1}>English Division 2</option>
-        </select>
+        <CompetitionSelect
+          competitions={league.competitions}
+          value={compId}
+          onChange={(v) => setCompIdOverride(v === "all" ? null : v)}
+        />
       </div>
       {standings.length === 0 ? (
         <p>No matches played yet.</p>
@@ -117,7 +119,7 @@ export function Standings() {
                       />
                       {team?.name ?? `Team ${row.tid}`}
                       {isChampion && (
-                        <span className="text-muted small"> {division === 0 ? "🏆 (Champion)" : "(1st)"}</span>
+                        <span className="text-muted small"> {isTier1 ? "🏆 (Champion)" : "(1st)"}</span>
                       )}
                     </span>
                   </td>
