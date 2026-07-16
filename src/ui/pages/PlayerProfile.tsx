@@ -140,16 +140,16 @@ export function PlayerProfile() {
               ) : (
                 <ul className="mb-0 small">
                   {potySeasons.length > 0 && (
-                    <li>⭐ Player of the Season: {potySeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
+                    <li>Player of the Season: {potySeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
                   )}
                   {goldenBootSeasons.length > 0 && (
-                    <li>👢 Golden Boot: {goldenBootSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
+                    <li>Golden Boot: {goldenBootSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
                   )}
                   {totsSeasons.length > 0 && (
-                    <li>🎽 Team of the Season: {totsSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
+                    <li>Team of the Season: {totsSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
                   )}
                   {championSeasons.length > 0 && (
-                    <li>🏆 League Champion: {championSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
+                    <li>League Champion: {championSeasons.map(seasonYear).sort((a, b) => a - b).join(", ")}</li>
                   )}
                 </ul>
               )}
