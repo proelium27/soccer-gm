@@ -185,7 +185,7 @@ function PlayerLeaders({ compId }: { compId: number }) {
     for (const p of league.players) {
       const ss = p.stats.find((s) => s.season === season);
       if (!ss || ss[stat] <= 0) continue;
-      if (compByTid.get(ss.tid) !== division) continue;
+      if (compByTid.get(ss.tid) !== compId) continue;
       rows.push({
         player: p,
         teamName: teamNameByTid.get(ss.tid) ?? "Unknown",
@@ -218,7 +218,7 @@ function PlayerLeaders({ compId }: { compId: number }) {
       }
       if (!best) continue;
       const compByTid = compByTidForSeason(best.season);
-      if (compByTid.get(best.tid) !== division) continue;
+      if (compByTid.get(best.tid) !== compId) continue;
       rows.push({
         player: p,
         teamName: teamNameByTid.get(best.tid) ?? "Unknown",

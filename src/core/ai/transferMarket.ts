@@ -12,7 +12,7 @@ import { tierOf } from "../competitions.js";
 import { keepsDepthFloor } from "../freeAgency.js";
 import { mulberry32 } from "../../engine/rng.js";
 import {
-  ROSTER_CAP,
+  ROSTER_CAP, ROSTER_SAFETY_FLOOR,
   AI_MARKET_MIN_VALUE, AI_MARKET_AVAILABILITY, AI_MARKET_MIN_SURPLUS,
   AI_MARKET_FEE_SHARE,
   AI_MARKET_MAX_BUYS, AI_MARKET_MAX_SELLS,
@@ -149,6 +149,13 @@ export function runAITransferMarket(
     if (!keepsDepthFloor({ ...teams.find((t) => t.tid === c.sellerTid)!, roster: sellerRoster }, playerMap, c.pid)) {
       continue;
     }
+    // keepsDepthFloor only protects the sold player's own position — a club
+    // can still sell AI_MARKET_MAX_SELLS players across several different
+    // well-stocked positions and end up dangerously thin overall (a real
+    // 22-team dynasty audit caught a club dropping to 19 total this way).
+    // Guard the whole-roster floor too, same bar as the user's own academy
+    // emergency call-up (ROSTER_SAFETY_FLOOR).
+    if (sellerRoster.length <= ROSTER_SAFETY_FLOOR) continue;
 
     const player = playerMap.get(c.pid)!;
     const wageCharge = phase === "regular" ? player.contract.salary : 0;

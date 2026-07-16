@@ -4,7 +4,9 @@ import { createLeagueState } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { computeStandings } from "../../src/core/standings.js";
-import { HYPE_MAX, HYPE_MIN, NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_DEFAULT } from "../../src/core/constants.js";
+import {
+  HYPE_MAX, HYPE_MIN, NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_DEFAULT, ROSTER_SAFETY_FLOOR,
+} from "../../src/core/constants.js";
 
 function playFullSeason(rng: () => number) {
   let league = createLeagueState(0, rng);
@@ -32,13 +34,18 @@ describe("simOffseason", () => {
     expect(next.schedule).toHaveLength(2280);
   });
 
-  it("every team still fields a full 25-man roster after progression/retirement/FA/youth", () => {
+  it("every team stays at or above the roster safety floor after progression/retirement/FA/youth", () => {
     const rng = mulberry32(3);
     const league = playFullSeason(rng);
     const next = simOffseason(league, rng);
 
+    // AI clubs now buy and sell in the transfer market, so a squad isn't
+    // pinned to the 25-man composition anymore — ROSTER_SAFETY_FLOOR (the
+    // same invariant runAITransferMarket enforces per-sale and the user's
+    // own academy emergency call-up targets) is the real floor, not a fixed
+    // squad size.
     for (const team of next.teams) {
-      expect(team.roster.length).toBeGreaterThanOrEqual(20);
+      expect(team.roster.length).toBeGreaterThanOrEqual(ROSTER_SAFETY_FLOOR);
     }
     expect(next.teams).toHaveLength(3 * (NUM_TEAMS + NUM_TEAMS_D2));
   });
