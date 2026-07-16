@@ -167,10 +167,13 @@ describe("progressPlayer", () => {
     expect(outcomes.some((d) => d >= 6)).toBe(true);
   });
 
-  it("no longer produces a >=10-magnitude single-season swing at a meaningful rate (form roll was tightened)", () => {
-    // Regression guard for the first pass's -10-in-one-season complaint: a
-    // single form roll used to be able to swing a young player 10+ by itself.
-    // Extreme seasons should now be rare tail events, not routine.
+  it("produces a +-5-magnitude single-season swing regularly, not just as a rare tail event", () => {
+    // Retuned 2026-07-15 per explicit user request for more dramatic
+    // progression/degression ("more +5, -5") — a prior pass had deliberately
+    // tightened PROGRESSION_FORM_SD_*/PROGRESSION_BIAS_SD_YOUNG specifically
+    // to make big swings rare; this reverses that. A +-5 swing should now be
+    // a routine occurrence for a growth-age player, and even a +-10 swing,
+    // while still a minority outcome, shouldn't be vanishingly rare.
     const outcomes: number[] = [];
     for (let i = 0; i < 500; i++) {
       const rng = mulberry32(8000 + i);
@@ -178,14 +181,23 @@ describe("progressPlayer", () => {
       const after = progressPlayer(rng, p, 1);
       outcomes.push(after.ovr - p.ovr);
     }
-    const extreme = outcomes.filter((d) => Math.abs(d) >= 10).length;
-    expect(extreme / outcomes.length).toBeLessThan(0.05);
+    const swingGe5 = outcomes.filter((d) => Math.abs(d) >= 5).length / outcomes.length;
+    const swingGe10 = outcomes.filter((d) => Math.abs(d) >= 10).length / outcomes.length;
+    expect(swingGe5).toBeGreaterThan(0.2);
+    expect(swingGe10).toBeGreaterThan(0.02);
   });
 
   it("some players are consistent developers and some are consistent busts across consecutive seasons", () => {
     // The persistent per-player development bias should make same-direction
-    // multi-season runs far more common than pure independent per-season
-    // noise would produce (iid baseline for 4 seasons all-same-sign is ~12.5%).
+    // multi-season runs more common than pure independent per-season noise
+    // would produce (iid baseline for 4 seasons all-same-sign is ~12.5%).
+    // Threshold lowered 0.35->0.20 (2026-07-15) alongside the PROGRESSION_FORM_SD_*/
+    // PROGRESSION_BIAS_SD_YOUNG widening for more dramatic swings: both were
+    // scaled up together so the bias-to-noise ratio is unchanged, but the
+    // now-larger form roll is a bigger share of total variance relative to
+    // the fixed age-curve mean, so a single bad-form season can now more
+    // often flip the sign away from the persistent bias's pull -- an
+    // expected trade-off of bigger swings, not a bug.
     let allSameDir = 0;
     const N = 300;
     for (let i = 0; i < N; i++) {
@@ -202,7 +214,7 @@ describe("progressPlayer", () => {
         allSameDir++;
       }
     }
-    expect(allSameDir / N).toBeGreaterThan(0.35);
+    expect(allSameDir / N).toBeGreaterThan(0.2);
   });
 
   it("growth damping makes big jumps rarer the closer a player already is to elite", () => {

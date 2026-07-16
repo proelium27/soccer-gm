@@ -223,8 +223,17 @@ export const YOUTH_INTAKE_MAX = 5;
  * youth intake + roster trimming, no transfers) to find the offset that
  * holds a 40-season final mean flat against the season-1 generation mean —
  * 20 overshot to +4.5, 30 undershot to -4, 25 landed within ~0.3.
+ *
+ * Re-swept 25→34 (2026-07-15, same day) after PROGRESSION_FORM_SD_YOUNG/OLD
+ * and PROGRESSION_BIAS_SD_YOUNG were widened for more dramatic season-to-season
+ * swings — wider variance interacting with growthDamping's asymmetry (only
+ * the positive side is damped) and the RATING_MAX clamp shifted the
+ * equilibrium this offset needs to hit, so it needed re-verifying rather
+ * than assuming the old value still held. Re-swept the same way: 25
+ * (previous value) now overshot to +8.5, 30 to +2, 35 undershot to -1.2,
+ * 34 landed within ~0.2.
  */
-export const YOUTH_BASE_OFFSET = 25;
+export const YOUTH_BASE_OFFSET = 34;
 
 /**
  * BBGM-style progression (see src/core/players/progression.ts for the full
@@ -279,15 +288,24 @@ export const PROGRESSION_NOISE_SD_OLD = 1.5;
  * rating in a group together, so it survives the ovr average and produces
  * real season-to-season ovr swings, matching BBGM's approach of layering
  * shared variance on top of per-rating noise. Zero-mean like the per-rating
- * noise, so it doesn't shift long-run league equilibrium, only the spread
- * around it. Deliberately smaller than a first pass (was 5/1): most of a
- * single season's swing should come from the player's persistent
- * `PROGRESSION_BIAS_SD_*` trait below, not a one-off dice roll, and the
- * combined single-season spread is what matters for feel (a young player
- * shouldn't realistically lose 10 ovr in one bad season).
+ * noise, so it doesn't shift long-run league equilibrium on its own — though
+ * combined with `growthDamping` (which only suppresses the positive side),
+ * widening this does pull the equilibrium down slightly, since a wider
+ * negative tail passes through undamped while a wider positive tail gets
+ * cut; re-verified via dynasty audit and `YOUTH_BASE_OFFSET` retuned
+ * alongside this change to hold the league flat regardless.
+ *
+ * Raised 3→6 (young) / 0.75→2 (old), 2026-07-15, per explicit user request
+ * for more dramatic season-to-season swings ("more +5, -5") — a prior pass
+ * had deliberately tightened this from an original 5/1 specifically because
+ * a young player losing 10 ovr in one season felt too extreme at the time.
+ * Swept empirically (age 20/22/26/30 samples) to a value where a ±5 swing
+ * is a regular, noticeable occurrence rather than a rare tail event (~28-36%
+ * of young players see one in a given season, was ~5-16%), while ≥10
+ * swings stay a minority outcome (2-4%, not routine) rather than common.
  */
-export const PROGRESSION_FORM_SD_YOUNG = 3;
-export const PROGRESSION_FORM_SD_OLD = 0.75;
+export const PROGRESSION_FORM_SD_YOUNG = 6;
+export const PROGRESSION_FORM_SD_OLD = 2;
 
 /**
  * Development "personality": a fixed-per-player gaussian bias (derived
@@ -306,8 +324,11 @@ export const PROGRESSION_FORM_SD_OLD = 0.75;
  * confirmed empirically the first time this constant was added (tapering to
  * `RETIREMENT_START_AGE` instead of peak age let 90+ players climb to 17.7%
  * of the AI pool by season 25 in a dynasty audit, instead of staying near 0%).
+ *
+ * Raised 1.5→3, 2026-07-15, alongside PROGRESSION_FORM_SD_* above — same
+ * "more dramatic swings" request.
  */
-export const PROGRESSION_BIAS_SD_YOUNG = 1.5;
+export const PROGRESSION_BIAS_SD_YOUNG = 3;
 
 /**
  * Growth resistance: as a player's *current* ovr climbs through this range,
