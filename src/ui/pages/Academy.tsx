@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { canExtend, contractTerms } from "../../core/contracts.js";
 import { academyContractTerms } from "../../core/contracts.js";
@@ -66,7 +67,9 @@ export function Academy() {
             {academyPlayers.map((p) => (
               <tr key={p.pid}>
                 <td>
-                  <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                  <PlayerRatingsTooltip player={p}>
+                    <Link to={`/player/${p.pid}`}>{p.name}</Link>
+                  </PlayerRatingsTooltip>{" "}
                   <Flag nationality={p.nationality} />
                 </td>
                 <td>{p.pos}</td>

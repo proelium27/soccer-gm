@@ -59,7 +59,7 @@ function TeamBoxTable({
             <tr key={line.pid} className={line.pid === motmPid ? "table-warning" : undefined}>
               <td>
                 {line.pid === motmPid && <span title="Man of the Match">⭐ </span>}
-                {playerName(line.pid)}{" "}
+                <Link to={`/player/${line.pid}`}>{playerName(line.pid)}</Link>{" "}
                 {playerNationality(line.pid) && (
                   <Flag nationality={playerNationality(line.pid)!} />
                 )}
@@ -98,13 +98,15 @@ function manOfTheMatch(match: PlayedMatch): PlayerMatchLine | null {
 
 function EventRow({ event, playerName }: { event: MatchEvent; playerName: (pid: number) => string }) {
   const time = formatClock(event.clock);
-  const names = event.pids.map(playerName);
+  const names = event.pids.map((pid) => (
+    <Link key={pid} to={`/player/${pid}`}>{playerName(pid)}</Link>
+  ));
 
   switch (event.type) {
     case "goal":
       return (
         <div className={`pbp-event pbp-goal ${event.side === "home" ? "text-start" : "text-end"}`}>
-          <strong>{time}</strong> GOAL — {names[0]}{names[1] ? ` (assist: ${names[1]})` : ""}
+          <strong>{time}</strong> GOAL — {names[0]}{names[1] && <> (assist: {names[1]})</>}
         </div>
       );
     case "shot_saved":

@@ -1,4 +1,5 @@
 import { Fragment, useState } from "react";
+import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { Player } from "../../core/players/types.js";
 import type { StoredTeam } from "../../core/teams/clubs.js";
@@ -146,7 +147,9 @@ function RosterPreview({
                   className={"pitch-chip" + (p.pos === "GK" ? " pitch-chip--gk" : "")}
                   style={{ borderColor: getRatingColor(p.ovr), cursor: "default" }}
                 >
-                  <span className="pitch-chip-name">{shortName(p.name)}</span>
+                  <Link to={`/player/${p.pid}`} className="pitch-chip-name">
+                    {shortName(p.name)}
+                  </Link>
                   <span className="pitch-chip-ovr">{p.ovr}</span>
                 </span>
               </PlayerRatingsTooltip>
@@ -173,7 +176,9 @@ function RosterPreview({
               {bench.map((p) => (
                 <tr key={p.pid}>
                   <td>
-                    <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                    <PlayerRatingsTooltip player={p}>
+                      <Link to={`/player/${p.pid}`}>{p.name}</Link>
+                    </PlayerRatingsTooltip>{" "}
                     <Flag nationality={p.nationality} />
                   </td>
                   <td>{p.pos}</td>

@@ -54,7 +54,8 @@ function StatLeaderList({ title, rows, decimals }: { title: string; rows: StatLe
         <ol className="mb-0 ps-3 small">
           {rows.map((r) => (
             <li key={r.player.pid}>
-              {r.player.name} <Flag nationality={r.player.nationality} />{" "}
+              <Link to={`/player/${r.player.pid}`}>{r.player.name}</Link>{" "}
+              <Flag nationality={r.player.nationality} />{" "}
               <span className="text-muted">— {decimals ? r.value.toFixed(2) : r.value}</span>
             </li>
           ))}
@@ -139,25 +140,32 @@ export function Dashboard() {
   const teamByTid = new Map(league.teams.map((t) => [t.tid, t]));
   const playerByPid = new Map(league.players.map((p) => [p.pid, p]));
 
-  const headlineText = (item: FeedItem): string => {
+  const playerLink = (player: Player | undefined): React.ReactNode =>
+    player ? <Link to={`/player/${player.pid}`}>{player.name}</Link> : "A player";
+
+  const headlineNode = (item: FeedItem): React.ReactNode => {
     if (item.kind === "transfer") {
       const t = item.data;
       const player = playerByPid.get(t.pid);
       const from = teamByTid.get(t.fromTid);
       const to = teamByTid.get(t.toTid);
-      return `${player?.name ?? "A player"} moves from ${from?.name ?? "?"} to ${to?.name ?? "?"} (${currency.format(t.fee)})`;
+      return (
+        <>
+          {playerLink(player)} moves from {from?.name ?? "?"} to {to?.name ?? "?"} ({currency.format(t.fee)})
+        </>
+      );
     }
     const e = item.data;
     const player = playerByPid.get(e.pid);
     switch (e.type) {
       case "hattrick":
-        return `${player?.name ?? "A player"} scores a hat-trick (${e.detail} goals)`;
+        return <>{playerLink(player)} scores a hat-trick ({e.detail} goals)</>;
       case "standoutRating":
-        return `${player?.name ?? "A player"} is the standout performer (${(e.detail / 10).toFixed(1)} rating)`;
+        return <>{playerLink(player)} is the standout performer ({(e.detail / 10).toFixed(1)} rating)</>;
       case "goalMilestoneSeason":
-        return `${player?.name ?? "A player"} reaches ${e.detail} goals this season`;
+        return <>{playerLink(player)} reaches {e.detail} goals this season</>;
       case "goalMilestoneCareer":
-        return `${player?.name ?? "A player"} reaches ${e.detail} career goals`;
+        return <>{playerLink(player)} reaches {e.detail} career goals</>;
     }
   };
 
@@ -379,7 +387,7 @@ export function Dashboard() {
               ) : (
                 <ul className="list-unstyled small mb-1">
                   {newsHeadlines.map((item, i) => (
-                    <li key={i} className="mb-2">{headlineText(item)}</li>
+                    <li key={i} className="mb-2">{headlineNode(item)}</li>
                   ))}
                 </ul>
               )}

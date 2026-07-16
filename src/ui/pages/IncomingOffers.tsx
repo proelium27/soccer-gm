@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import type { Player } from "../../core/players/types.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { transferWindowState } from "../../core/transfers/window.js";
@@ -214,7 +215,9 @@ export function IncomingOffers() {
               return (
                 <tr key={p.pid}>
                   <td>
-                    <PlayerRatingsTooltip player={p}>{p.name}</PlayerRatingsTooltip>{" "}
+                    <PlayerRatingsTooltip player={p}>
+                      <Link to={`/player/${p.pid}`}>{p.name}</Link>
+                    </PlayerRatingsTooltip>{" "}
                     <Flag nationality={p.nationality} />
                   </td>
                   <td>{p.pos}</td>
@@ -292,7 +295,7 @@ export function IncomingOffers() {
                 const p = league.players.find((pl) => pl.pid === t.pid);
                 return (
                   <li key={i}>
-                    {p?.name ?? `Player ${t.pid}`}{" "}
+                    {p ? <Link to={`/player/${p.pid}`}>{p.name}</Link> : `Player ${t.pid}`}{" "}
                     {p && <Flag nationality={p.nationality} />} &rarr; {teamName(t.toTid)} for{" "}
                     {currency.format(t.fee)}
                   </li>
