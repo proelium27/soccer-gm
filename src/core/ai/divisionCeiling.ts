@@ -4,6 +4,8 @@ import type { CompletedTransfer } from "../transfers/negotiation.js";
 import type { Competition } from "../competitions.js";
 import { tierOf } from "../competitions.js";
 import { DIVISION_2_REFUSAL_OVR_THRESHOLD, ROSTER_CAP } from "../constants.js";
+import { trueTransferValue } from "../finance/valuation.js";
+import { clampBudget } from "../finance/budget.js";
 
 /**
  * Guaranteed, deterministic ceiling on how good an AI-controlled Division 2
@@ -34,9 +36,12 @@ import { DIVISION_2_REFUSAL_OVR_THRESHOLD, ROSTER_CAP } from "../constants.js";
  * the same offseason spread across different needy clubs rather than
  * piling onto a single one. If the receiving club is already at ROSTER_CAP,
  * its own weakest player (any position) is released to the free agent pool
- * to make room, so the move always succeeds. No fee changes hands — this
- * is a structural correction, not a negotiated transfer — but it's still
- * logged as a zero-fee CompletedTransfer for News Feed/Finance visibility.
+ * to make room, so the move always succeeds. The move itself is guaranteed,
+ * but the money is real: the receiving club pays the player's regular market
+ * price (trueTransferValue — the same base every negotiated deal starts
+ * from), capped at whatever it can actually pay so a forced move can never
+ * push a club into deficit, and the selling club banks the fee (clamped by
+ * its tier's budget cap, same as any AI-market sale).
  */
 export function enforceDivision2Ceiling(
   teams: StoredTeam[],
@@ -49,6 +54,7 @@ export function enforceDivision2Ceiling(
   const playerByPid = new Map(players.map((p) => [p.pid, p]));
   const rosterByTid = new Map(teams.map((t) => [t.tid, [...t.roster]]));
   const tierByTid = new Map(teams.map((t) => [t.tid, tierOf(competitions, t.compId)]));
+  const budgetByTid = new Map(teams.map((t) => [t.tid, t.budget]));
   const executed: CompletedTransfer[] = [];
 
   const avgOvrAtPos = (tid: number, pos: Position): number => {
@@ -102,13 +108,31 @@ export function enforceDivision2Ceiling(
       buyerRoster = buyerRoster.filter((pid) => pid !== weakestPid);
     }
 
+    // The move is guaranteed, but the buyer still pays the regular market
+    // price for the player — capped at what it actually has, so a forced
+    // move never drives its budget negative. Money is conserved between the
+    // two clubs (before the seller's tier budget cap, same as the AI market).
+    const fee = Math.min(
+      Math.round(trueTransferValue(player, season)),
+      Math.max(0, budgetByTid.get(buyerTid) ?? 0),
+    );
+    budgetByTid.set(buyerTid, (budgetByTid.get(buyerTid) ?? 0) - fee);
+    budgetByTid.set(
+      sellerTid,
+      clampBudget((budgetByTid.get(sellerTid) ?? 0) + fee, tierByTid.get(sellerTid)!),
+    );
+
     rosterByTid.set(sellerTid, rosterByTid.get(sellerTid)!.filter((pid) => pid !== player.pid));
     rosterByTid.set(buyerTid, [...buyerRoster, player.pid]);
-    executed.push({ pid: player.pid, fromTid: sellerTid, toTid: buyerTid, fee: 0, season, window: "summer" });
+    executed.push({ pid: player.pid, fromTid: sellerTid, toTid: buyerTid, fee, season, window: "summer" });
   }
 
   return {
-    teams: teams.map((t) => ({ ...t, roster: rosterByTid.get(t.tid) ?? t.roster })),
+    teams: teams.map((t) => ({
+      ...t,
+      roster: rosterByTid.get(t.tid) ?? t.roster,
+      budget: budgetByTid.get(t.tid) ?? t.budget,
+    })),
     players,
     transfers: [...transfers, ...executed],
   };

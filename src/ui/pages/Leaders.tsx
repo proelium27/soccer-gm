@@ -125,6 +125,12 @@ function PlayerLeaders({ compId }: { compId: number }) {
     if (!league || initializedSeason) return;
     if (seasonOptions.includes(league.season)) {
       setSeason(league.season);
+    } else if (seasonOptions.length > 0) {
+      // The current season has no recorded stats yet (e.g. right after
+      // advancing to a new season, before its first match) — default to the
+      // most recent season that actually has something to show instead of
+      // silently falling back to "All Seasons".
+      setSeason(seasonOptions[0]);
     }
     setInitializedSeason(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -138,6 +144,8 @@ function PlayerLeaders({ compId }: { compId: number }) {
     return <p>No matches played yet.</p>;
   }
 
+  // A player's *current* team (used for the Career aggregate, which spans
+  // many seasons and has no single "correct" historical team to show).
   const teamByPid = new Map<number, string>();
   const tidByPid = new Map<number, number>();
   for (const team of league.teams) {
@@ -148,20 +156,43 @@ function PlayerLeaders({ compId }: { compId: number }) {
     }
   }
 
+  // A specific season's stat line carries the team the player was actually
+  // on that season (SeasonStats.tid); this map resolves any tid to its
+  // current display name/division, since a club's compId can itself have
+  // changed since then (promotion/relegation).
+  const teamNameByTid = new Map<number, string>();
+  const currentCompByTid = new Map<number, number>();
+  for (const team of league.teams) {
+    teamNameByTid.set(team.tid, team.name);
+    currentCompByTid.set(team.tid, team.compId);
+  }
+  const compByTidCache = new Map<number, Map<number, number>>();
+  const compByTidForSeason = (s: number): Map<number, number> => {
+    let m = compByTidCache.get(s);
+    if (!m) {
+      const entry = league.seasonHistory.find((h) => h.season === s);
+      m = entry
+        ? new Map(Object.entries(entry.compsByTid).map(([k, v]) => [Number(k), v]))
+        : currentCompByTid;
+      compByTidCache.set(s, m);
+    }
+    return m;
+  };
+
   const rows: LeaderRow[] = [];
   if (season !== "all") {
+    const compByTid = compByTidForSeason(season);
     for (const p of league.players) {
-      if (!tidByPid.has(p.pid)) continue;
       const ss = p.stats.find((s) => s.season === season);
-      if (ss && ss[stat] > 0) {
-        rows.push({
-          player: p,
-          teamName: teamByPid.get(p.pid) ?? "Unknown",
-          isUserTeam: tidByPid.get(p.pid) === league.meta.userTid,
-          stats: ss,
-          season: null,
-        });
-      }
+      if (!ss || ss[stat] <= 0) continue;
+      if (compByTid.get(ss.tid) !== division) continue;
+      rows.push({
+        player: p,
+        teamName: teamNameByTid.get(ss.tid) ?? "Unknown",
+        isUserTeam: ss.tid === league.meta.userTid,
+        stats: ss,
+        season: null,
+      });
     }
   } else if (scope === "career") {
     for (const p of league.players) {
@@ -178,22 +209,23 @@ function PlayerLeaders({ compId }: { compId: number }) {
       }
     }
   } else {
-    // Single season: each player's own best individual season for this stat.
+    // Single season: each player's own best individual season for this stat,
+    // shown with the team he was actually on that season.
     for (const p of league.players) {
-      if (!tidByPid.has(p.pid)) continue;
       let best: SeasonStats | null = null;
       for (const s of p.stats) {
         if (s[stat] > 0 && (!best || s[stat] > best[stat])) best = s;
       }
-      if (best) {
-        rows.push({
-          player: p,
-          teamName: teamByPid.get(p.pid) ?? "Unknown",
-          isUserTeam: tidByPid.get(p.pid) === league.meta.userTid,
-          stats: best,
-          season: best.season,
-        });
-      }
+      if (!best) continue;
+      const compByTid = compByTidForSeason(best.season);
+      if (compByTid.get(best.tid) !== division) continue;
+      rows.push({
+        player: p,
+        teamName: teamNameByTid.get(best.tid) ?? "Unknown",
+        isUserTeam: best.tid === league.meta.userTid,
+        stats: best,
+        season: best.season,
+      });
     }
   }
   rows.sort((a, b) => b.stats[stat] - a.stats[stat]);
