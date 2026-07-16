@@ -2,18 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listLeagues, deleteLeague, loadLeague } from "../../db/leagueDb.js";
 import { useLeague } from "../context/LeagueContext.js";
+import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 
 interface LeagueSummary {
   lid: number;
   name: string;
   created: number;
-}
-
-interface EditableTeam {
-  tid: number;
-  name: string;
-  abbrev: string;
-  colors: [string, string];
 }
 
 interface TeamEditor {
@@ -65,23 +59,11 @@ export function Leagues() {
     });
   }
 
-  function updateTeam(tid: number, patch: Partial<EditableTeam>) {
-    setEditor((ed) =>
-      ed && {
-        ...ed,
-        teams: ed.teams.map((t) => (t.tid === tid ? { ...t, ...patch } : t)),
-      },
-    );
-  }
-
-  const editorValid =
-    editor?.teams.every((t) => t.name.trim() !== "" && t.abbrev.trim() !== "") ?? false;
-
-  async function handleSaveTeams() {
-    if (!editor || !editorValid) return;
+  async function handleSaveTeams(teams: EditableTeam[]) {
+    if (!editor) return;
     setSaving(true);
     try {
-      await customizeTeamsAction(editor.lid, editor.teams);
+      await customizeTeamsAction(editor.lid, teams);
       setEditor(null);
       refresh();
     } finally {
@@ -96,65 +78,15 @@ export function Leagues() {
         <p className="text-muted mb-3">
           {editor.leagueName} — rename any club, change its abbreviation or colors.
         </p>
-
-        <div className="list-group mb-3">
-          {editor.teams.map((t) => (
-            <div key={t.tid} className="list-group-item d-flex align-items-center gap-2">
-              <input
-                type="color"
-                className="form-control form-control-color"
-                title="Primary color"
-                value={t.colors[0]}
-                onChange={(e) => updateTeam(t.tid, { colors: [e.target.value, t.colors[1]] })}
-              />
-              <input
-                type="color"
-                className="form-control form-control-color"
-                title="Secondary color"
-                value={t.colors[1]}
-                onChange={(e) => updateTeam(t.tid, { colors: [t.colors[0], e.target.value] })}
-              />
-              <input
-                type="text"
-                className="form-control"
-                value={t.name}
-                onChange={(e) => updateTeam(t.tid, { name: e.target.value })}
-              />
-              <input
-                type="text"
-                className="form-control text-uppercase"
-                style={{ width: 80, flex: "0 0 auto" }}
-                maxLength={3}
-                value={t.abbrev}
-                onChange={(e) => updateTeam(t.tid, { abbrev: e.target.value.toUpperCase() })}
-              />
-              {t.tid === editor.userTid && (
-                <span className="badge bg-primary" style={{ flex: "0 0 auto" }}>
-                  You
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div className="d-flex gap-2">
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!editorValid || saving}
-            onClick={handleSaveTeams}
-          >
-            {saving ? "Saving..." : "Save"}
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline-secondary"
-            disabled={saving}
-            onClick={() => setEditor(null)}
-          >
-            Cancel
-          </button>
-        </div>
+        <TeamIdentityEditor
+          initialTeams={editor.teams}
+          userTid={editor.userTid}
+          saveLabel="Save"
+          savingLabel="Saving..."
+          saving={saving}
+          onSave={handleSaveTeams}
+          onCancel={() => setEditor(null)}
+        />
       </div>
     );
   }
@@ -210,13 +142,22 @@ export function Leagues() {
         </div>
       )}
 
-      <button
-        type="button"
-        className="btn btn-outline-secondary"
-        onClick={() => navigate("/new-league")}
-      >
-        Start New League
-      </button>
+      <div className="d-flex gap-2">
+        <button
+          type="button"
+          className="btn btn-outline-secondary"
+          onClick={() => navigate("/new-league")}
+        >
+          Start New League
+        </button>
+        <button
+          type="button"
+          className="btn btn-outline-secondary"
+          onClick={() => navigate("/new-league?customize=1")}
+        >
+          Start Customized League
+        </button>
+      </div>
     </div>
   );
 }

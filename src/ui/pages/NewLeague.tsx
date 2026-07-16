@@ -1,26 +1,49 @@
 import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { CLUBS } from "../../core/teams/clubs.js";
-import { createLeagueState } from "../../core/leagueState.js";
+import { createLeagueState, type LeagueStore } from "../../core/leagueState.js";
+import { applyTeamIdentities } from "../../core/teams/customize.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { useLeague } from "../context/LeagueContext.js";
+import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 
 export function NewLeague() {
   const [selectedTid, setSelectedTid] = useState<number | null>(null);
+  const [pending, setPending] = useState<LeagueStore | null>(null);
+  const [saving, setSaving] = useState(false);
   const { setLeague, importJSON } = useLeague();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const customize = searchParams.get("customize") === "1";
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function buildLeague(tid: number): LeagueStore {
+    const seed = Date.now();
+    const rng = mulberry32(seed);
+    const league = createLeagueState(tid, rng, seed);
+    return {
+      ...league,
+      meta: { ...league.meta, name: CLUBS[tid].name },
+    };
+  }
 
   async function handleStart() {
     if (selectedTid === null) return;
-    const seed = Date.now();
-    const rng = mulberry32(seed);
-    const league = createLeagueState(selectedTid, rng, seed);
-    const named = {
-      ...league,
-      meta: { ...league.meta, name: CLUBS[selectedTid].name },
-    };
-    await setLeague(named);
+    const league = buildLeague(selectedTid);
+    if (customize) {
+      // Hold the generated league in memory and let the user edit team
+      // identities before anything is persisted.
+      setPending(league);
+      return;
+    }
+    await setLeague(league);
+    navigate("/dashboard");
+  }
+
+  async function handleSaveCustomized(teams: EditableTeam[]) {
+    if (!pending) return;
+    setSaving(true);
+    await setLeague(applyTeamIdentities(pending, teams));
     navigate("/dashboard");
   }
 
@@ -37,10 +60,39 @@ export function NewLeague() {
     }
   }
 
+  if (pending) {
+    return (
+      <div className="container py-4" style={{ maxWidth: 700 }}>
+        <h2 className="mb-1">Customize Teams</h2>
+        <p className="text-muted mb-3">
+          Rename any club, change its abbreviation or colors, then start your league.
+        </p>
+        <TeamIdentityEditor
+          initialTeams={pending.teams.map((t) => ({
+            tid: t.tid,
+            name: t.name,
+            abbrev: t.abbrev,
+            colors: [...t.colors] as [string, string],
+          }))}
+          userTid={pending.meta.userTid}
+          saveLabel="Start League"
+          savingLabel="Starting..."
+          saving={saving}
+          onSave={handleSaveCustomized}
+          onCancel={() => setPending(null)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="container py-4" style={{ maxWidth: 600 }}>
       <h2 className="mb-3">New League</h2>
-      <p className="text-muted">Choose your team to get started.</p>
+      <p className="text-muted">
+        {customize
+          ? "Choose your team, then customize every club before starting."
+          : "Choose your team to get started."}
+      </p>
 
       <div className="list-group mb-3">
         {CLUBS.map((club, i) => (
@@ -71,7 +123,7 @@ export function NewLeague() {
           disabled={selectedTid === null}
           onClick={handleStart}
         >
-          Start League
+          {customize ? "Next: Customize Teams" : "Start League"}
         </button>
 
         <button className="btn btn-outline-secondary" onClick={handleImportClick}>
