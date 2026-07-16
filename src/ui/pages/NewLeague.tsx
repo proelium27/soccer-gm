@@ -6,9 +6,14 @@ import { applyTeamIdentities } from "../../core/teams/customize.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { NUM_TEAMS, NUM_TEAMS_D2 } from "../../core/constants.js";
+import { worldCompetitions, countryClubRanges, countriesOf } from "../../core/competitions.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 
+const COUNTRY_RANGES = countryClubRanges(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2);
+const COUNTRIES = countriesOf(worldCompetitions());
+
 export function NewLeague() {
+  const [country, setCountry] = useState<string | null>(null);
   const [selectedTid, setSelectedTid] = useState<number | null>(null);
   const [pending, setPending] = useState<LeagueStore | null>(null);
   const [saving, setSaving] = useState(false);
@@ -71,10 +76,12 @@ export function NewLeague() {
         <TeamIdentityEditor
           initialTeams={pending.teams.map((t) => ({
             tid: t.tid,
+            compId: t.compId,
             name: t.name,
             abbrev: t.abbrev,
             colors: [...t.colors] as [string, string],
           }))}
+          competitions={pending.competitions}
           userTid={pending.meta.userTid}
           saveLabel="Start League"
           savingLabel="Starting..."
@@ -86,29 +93,51 @@ export function NewLeague() {
     );
   }
 
+  if (country === null) {
+    return (
+      <div className="container py-4" style={{ maxWidth: 600 }}>
+        <h2 className="mb-3">New League</h2>
+        <p className="text-muted">Choose a country to play in.</p>
+        <div className="list-group mb-3">
+          {COUNTRIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className="list-group-item list-group-item-action"
+              onClick={() => setCountry(c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const range = COUNTRY_RANGES.find((r) => r.country === country)!;
+  const countryClubs = CLUBS.slice(range.start, range.end).map((club, i) => ({
+    club,
+    tid: range.start + i,
+  }));
+
   return (
     <div className="container py-4" style={{ maxWidth: 600 }}>
       <h2 className="mb-3">New League</h2>
       <p className="text-muted">
         {customize
-          ? "Choose your team, then customize every club before starting."
-          : "Choose your team to get started."}
+          ? `Choose your ${country} club, then customize every club before starting.`
+          : `Choose your ${country} club to get started.`}
       </p>
 
       <div className="list-group mb-3">
-        {/* CLUBS has 120 entries (England/Spain/Italy) but createLeagueState
-            only ever generates the English 40 — offering a Spanish/Italian
-            tid here would crash on load. Remove this clamp once a later PR
-            wires createLeagueState to generateWorld()/worldCompetitions()
-            and replaces this whole picker with a real country step. */}
-        {CLUBS.slice(0, NUM_TEAMS + NUM_TEAMS_D2).map((club, i) => (
+        {countryClubs.map(({ club, tid }) => (
           <button
             key={club.abbrev}
             type="button"
             className={`list-group-item list-group-item-action d-flex align-items-center${
-              selectedTid === i ? " active" : ""
+              selectedTid === tid ? " active" : ""
             }`}
-            onClick={() => setSelectedTid(i)}
+            onClick={() => setSelectedTid(tid)}
           >
             <span
               className="color-swatch"
@@ -124,6 +153,9 @@ export function NewLeague() {
       </div>
 
       <div className="d-flex gap-2">
+        <button className="btn btn-outline-secondary" onClick={() => { setCountry(null); setSelectedTid(null); }}>
+          Back
+        </button>
         <button
           className="btn btn-primary"
           disabled={selectedTid === null}
