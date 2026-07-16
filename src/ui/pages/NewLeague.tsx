@@ -5,6 +5,7 @@ import { createLeagueState, type LeagueStore } from "../../core/leagueState.js";
 import { applyTeamIdentities } from "../../core/teams/customize.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { useLeague } from "../context/LeagueContext.js";
+import { NUM_TEAMS, NUM_TEAMS_D2 } from "../../core/constants.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 
 export function NewLeague() {
@@ -95,7 +96,12 @@ export function NewLeague() {
       </p>
 
       <div className="list-group mb-3">
-        {CLUBS.map((club, i) => (
+        {/* CLUBS has 120 entries (England/Spain/Italy) but createLeagueState
+            only ever generates the English 40 — offering a Spanish/Italian
+            tid here would crash on load. Remove this clamp once a later PR
+            wires createLeagueState to generateWorld()/worldCompetitions()
+            and replaces this whole picker with a real country step. */}
+        {CLUBS.slice(0, NUM_TEAMS + NUM_TEAMS_D2).map((club, i) => (
           <button
             key={club.abbrev}
             type="button"

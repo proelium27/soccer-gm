@@ -22,6 +22,7 @@ export function generateYouthIntake(
   season: number,
   nextPid: number,
   genSeed = 0,
+  homeCountry?: string,
 ): { players: Player[]; nextPid: number } {
   const count = YOUTH_INTAKE_MIN
     + Math.floor(rng() * (YOUTH_INTAKE_MAX - YOUTH_INTAKE_MIN + 1));
@@ -31,7 +32,7 @@ export function generateYouthIntake(
   let pid = nextPid;
   for (let i = 0; i < count; i++) {
     const pos = POSITIONS[Math.floor(rng() * POSITIONS.length)] as Position;
-    const p = generatePlayer(rng, pos, base, pid++, YOUTH_AGE, season, genSeed);
+    const p = generatePlayer(rng, pos, base, pid++, YOUTH_AGE, season, genSeed, homeCountry);
     p.contract.expiresSeason = season + YOUTH_CONTRACT_LENGTH;
     players.push(p);
   }

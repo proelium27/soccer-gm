@@ -31,6 +31,7 @@ export function generatePlayer(
   age: number,
   season: number,
   genSeed = 0,
+  homeCountry?: string,
 ): Player {
   const tiers = GEN_OFFSETS[pos];
   const ratings = {} as PlayerRatings;
@@ -50,7 +51,7 @@ export function generatePlayer(
   // rng sequence consumed by ratings/potential for other players, while still
   // varying across different games/seeds via genSeed.
   const identityRng = mulberry32(hashInts(genSeed, pid));
-  const nationality = pickNationality(identityRng);
+  const nationality = pickNationality(identityRng, homeCountry);
 
   return {
     pid,

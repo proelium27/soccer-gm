@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  englandCompetitions, competitionOf, tierOf, partnerOf, countriesOf,
+  englandCompetitions, competitionOf, tierOf, partnerOf, countriesOf, worldCompetitions, tier1Pairs,
 } from "../../src/core/competitions.js";
 
 describe("competitions", () => {
@@ -24,5 +24,48 @@ describe("competitions", () => {
 
   it("competitionOf throws on an unknown compId", () => {
     expect(() => competitionOf(comps, 99)).toThrow();
+  });
+});
+
+describe("worldCompetitions", () => {
+  const comps = worldCompetitions();
+
+  it("has 6 entries: 3 countries x 2 tiers", () => {
+    expect(comps).toHaveLength(6);
+  });
+
+  it("starts with England, matching englandCompetitions() exactly", () => {
+    expect(comps.slice(0, 2)).toEqual(englandCompetitions());
+  });
+
+  it("has Spain and Italy each with one tier-1 and one tier-2 competition", () => {
+    for (const country of ["Spain", "Italy"]) {
+      const group = comps.filter((c) => c.country === country);
+      expect(group).toHaveLength(2);
+      expect(group.map((c) => c.tier).sort()).toEqual([1, 2]);
+    }
+  });
+
+  it("every id is unique", () => {
+    const ids = comps.map((c) => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("partnerOf works across all 3 countries", () => {
+    for (const comp of comps) {
+      const partner = partnerOf(comps, comp.id);
+      expect(partner.country).toBe(comp.country);
+      expect(partner.tier).not.toBe(comp.tier);
+    }
+  });
+
+  it("tier1Pairs returns one pair per country, in table order", () => {
+    const pairs = tier1Pairs(comps);
+    expect(pairs.map((p) => p.d1.country)).toEqual(["England", "Spain", "Italy"]);
+    for (const pair of pairs) {
+      expect(pair.d1.tier).toBe(1);
+      expect(pair.d2.tier).toBe(2);
+      expect(pair.d2.country).toBe(pair.d1.country);
+    }
   });
 });

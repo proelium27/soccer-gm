@@ -14,6 +14,16 @@ import { englandCompetitions } from "./competitions.js";
 export type { StoredTeam } from "./teams/clubs.js";
 export type { ScheduleGame } from "./schedule.js";
 
+/** One competition's worth of fixtures per competition, concatenated — shared by createLeagueState and any test/tooling code that assembles a LeagueStore from a League + competitions table by hand. */
+export function buildCompetitionSchedule(
+  teams: Pick<StoredTeam, "tid" | "compId">[],
+  competitions: Competition[],
+): ScheduleGame[] {
+  return competitions.flatMap((comp) =>
+    generateSchedule(teams.filter((t) => t.compId === comp.id).map((t) => t.tid)),
+  );
+}
+
 export interface LeagueStore {
   lid: number;
   meta: {
@@ -52,9 +62,7 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
   const league = generateTwoDivisionLeague(rng, seed);
   const competitions = englandCompetitions();
   const teams = assignIdentities(league, competitions);
-  const schedule = competitions.flatMap((comp) =>
-    generateSchedule(teams.filter((t) => t.compId === comp.id).map((t) => t.tid)),
-  );
+  const schedule = buildCompetitionSchedule(teams, competitions);
 
   return {
     lid: 0,

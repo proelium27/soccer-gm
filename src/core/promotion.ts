@@ -1,7 +1,7 @@
 import type { StandingsRow } from "./standings.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import type { Competition } from "./competitions.js";
-import { partnerOf, tierOf } from "./competitions.js";
+import { tier1Pairs, tierOf } from "./competitions.js";
 import {
   PROMOTION_RELEGATION_COUNT, ACADEMY_BASE_CONVERGENCE_SEASONS, ACADEMY_BASE_CENTER_BY_TIER,
 } from "./constants.js";
@@ -26,19 +26,16 @@ export function computeCountrySwaps(
   competitions: Competition[],
   tablesByCompId: Map<number, StandingsRow[]>,
 ): CompetitionSwap[] {
-  return competitions
-    .filter((c) => c.tier === 1)
-    .map((d1) => {
-      const d2 = partnerOf(competitions, d1.id);
-      const d1Table = tablesByCompId.get(d1.id)!;
-      const d2Table = tablesByCompId.get(d2.id)!;
-      return {
-        d1CompId: d1.id,
-        d2CompId: d2.id,
-        promoted: d2Table.slice(0, PROMOTION_RELEGATION_COUNT).map((r) => r.tid),
-        relegated: d1Table.slice(-PROMOTION_RELEGATION_COUNT).map((r) => r.tid),
-      };
-    });
+  return tier1Pairs(competitions).map(({ d1, d2 }) => {
+    const d1Table = tablesByCompId.get(d1.id)!;
+    const d2Table = tablesByCompId.get(d2.id)!;
+    return {
+      d1CompId: d1.id,
+      d2CompId: d2.id,
+      promoted: d2Table.slice(0, PROMOTION_RELEGATION_COUNT).map((r) => r.tid),
+      relegated: d1Table.slice(-PROMOTION_RELEGATION_COUNT).map((r) => r.tid),
+    };
+  });
 }
 
 /**

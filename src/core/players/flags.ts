@@ -9,6 +9,7 @@ const FLAGS: Record<string, string> = {
   France: "🇫🇷",
   Brazil: "🇧🇷",
   Spain: "🇪🇸",
+  Italy: "🇮🇹",
   Portugal: "🇵🇹",
   Netherlands: "🇳🇱",
   Belgium: "🇧🇪",
