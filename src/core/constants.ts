@@ -107,11 +107,11 @@ export const PROMOTION_RELEGATION_COUNT = 3;
  */
 export const ACADEMY_BASE_CONVERGENCE_SEASONS = 3;
 
-/** Center strength each division's academyBase converges toward: [D1, D2]. */
-export const DIVISION_ACADEMY_BASE_CENTER: readonly [number, number] = [
-  LEAGUE_BASE,
-  LEAGUE_BASE - DIVISION_2_OFFSET,
-];
+/** Center strength each tier's academyBase converges toward after a swap. */
+export const ACADEMY_BASE_CENTER_BY_TIER: Record<1 | 2, number> = {
+  1: LEAGUE_BASE,
+  2: LEAGUE_BASE - DIVISION_2_OFFSET,
+};
 
 /**
  * Composite normalization coefficient: normalized = 0.5 + NORMALIZE_K * z.

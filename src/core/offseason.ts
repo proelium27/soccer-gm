@@ -11,13 +11,14 @@ import { runAIContractRenewals } from "./ai/renewals.js";
 import { enforceDivision2Ceiling } from "./ai/divisionCeiling.js";
 import { computeStandings, computeTeamSeasonStats, type StandingsRow } from "./standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
-import { computeDivisionSwap, applyDivisionSwap, stepAcademyBaseConvergence } from "./promotion.js";
+import { computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence } from "./promotion.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
 import { settleSeasonEnd, chargeSeasonStart, wageBill } from "./finance/budget.js";
 import { academyContractTerms } from "./contracts.js";
-import { NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_DEFAULT } from "./constants.js";
+import { SCOUTING_SPEND_DEFAULT } from "./constants.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
+import { tierOf } from "./competitions.js";
 import { hashInts } from "../engine/rng.js";
 
 /** Awards for the season that just ended, computed separately per division from players' current club membership. */
@@ -86,45 +87,48 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     roster: t.roster.filter((pid) => !retiredPids.has(pid)),
   }));
 
-  // 3.5. Per-division standings, rank-based settlement, and hype update.
-  //      Each division's 20-team table is computed independently — pooling
-  //      both divisions into one 40-team table would misapply prize-tier
-  //      rank cutoffs (PRIZE_TOP_5_CUTOFF etc. assume a 20-team table) and
-  //      the hype curve (NUM_TEAMS-normalized) to a league neither was
-  //      tuned for.
-  const d1TeamIds = teams.filter((t) => t.compId === 0).map((t) => t.tid);
-  const d2TeamIds = teams.filter((t) => t.compId === 1).map((t) => t.tid);
-  const d1TeamIdSet = new Set(d1TeamIds);
-  const d2TeamIdSet = new Set(d2TeamIds);
-  const d1Standings = computeStandings(d1TeamIds, league.played.filter((m) => d1TeamIdSet.has(m.home)));
-  const d2Standings = computeStandings(d2TeamIds, league.played.filter((m) => d2TeamIdSet.has(m.home)));
-  const standings = [...d1Standings, ...d2Standings];
+  // 3.5. Per-competition standings, rank-based settlement, and hype update.
+  //      Each competition's own table is computed independently — pooling
+  //      multiple competitions into one table would misapply prize-tier rank
+  //      cutoffs (PRIZE_TOP_5_CUTOFF etc. assume a single competition's table
+  //      size) and the hype curve to a league neither was tuned for.
+  const tablesByCompId = new Map<number, StandingsRow[]>();
+  for (const comp of league.competitions) {
+    const compTids = teams.filter((t) => t.compId === comp.id).map((t) => t.tid);
+    const compTidSet = new Set(compTids);
+    tablesByCompId.set(
+      comp.id,
+      computeStandings(compTids, league.played.filter((m) => compTidSet.has(m.home))),
+    );
+  }
+  const standings = league.competitions.flatMap((comp) => tablesByCompId.get(comp.id)!);
   const teamStats = computeTeamSeasonStats(teams.map((t) => t.tid), league.played);
 
-  const settle = (rows: StandingsRow[], division: 0 | 1): void => {
+  const settle = (rows: StandingsRow[], compId: number): void => {
+    const tier = tierOf(league.competitions, compId);
+    const defaultRank = rows.length;
     const rankByTid = new Map(rows.map((row, i) => [row.tid, i + 1]));
     const rowByTid = new Map(rows.map((row) => [row.tid, row]));
     teams = teams.map((t) => {
-      if (t.compId !== division) return t;
-      const defaultRank = division === 0 ? NUM_TEAMS : NUM_TEAMS_D2;
+      if (t.compId !== compId) return t;
       const rank = rankByTid.get(t.tid) ?? defaultRank;
       const row = rowByTid.get(t.tid);
-      const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, division === 0 ? 1 : 2);
+      const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, tier);
       const hype = row ? updateHype(t.hype, row, rank) : t.hype;
       return { ...t, budget, hype, scoutingSpend: clampScoutingSpend(SCOUTING_SPEND_DEFAULT, budget) };
     });
   };
-  settle(d1Standings, 0);
-  settle(d2Standings, 1);
+  for (const comp of league.competitions) settle(tablesByCompId.get(comp.id)!, comp.id);
 
-  // 3.6. Promotion/relegation: bottom PROMOTION_RELEGATION_COUNT of D1 swap
-  //      with top PROMOTION_RELEGATION_COUNT of D2, using the tables just
-  //      computed above (the season that actually just played out). Then
-  //      every mid-convergence team's academyBase moves one step closer to
-  //      its current division's strength band.
-  const swap = computeDivisionSwap(d1Standings, d2Standings);
-  teams = applyDivisionSwap(teams, swap);
-  teams = stepAcademyBaseConvergence(teams);
+  // 3.6. Promotion/relegation: per country, bottom PROMOTION_RELEGATION_COUNT
+  //      of its tier-1 table swap with top PROMOTION_RELEGATION_COUNT of its
+  //      tier-2 table, using the tables just computed above (the season that
+  //      actually just played out). Then every mid-convergence team's
+  //      academyBase moves one step closer to its current competition's
+  //      strength band.
+  const swaps = computeCountrySwaps(league.competitions, tablesByCompId);
+  teams = applyCompetitionSwaps(teams, swaps);
+  teams = stepAcademyBaseConvergence(teams, league.competitions);
 
   // 3.7. Guaranteed ceiling on Division 2 quality, first pass: any
   //      AI-controlled player at or above DIVISION_2_REFUSAL_OVR_THRESHOLD
@@ -203,17 +207,19 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   teams = ceilingTeams;
 
   // 6.5. Season-start finances on the finalized new-season rosters, scaled
-  //      by each club's (possibly just-changed) division.
+  //      by each club's (possibly just-changed) competition tier.
   const salaryMap = new Map(players.map((p) => [p.pid, p.contract.salary]));
   teams = teams.map((t) => ({
     ...t,
-    budget: chargeSeasonStart(t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), t.compId === 0 ? 1 : 2),
+    budget: chargeSeasonStart(
+      t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), tierOf(league.competitions, t.compId),
+    ),
   }));
 
-  // 7. New per-division schedules, new season, back to regular play.
-  const newD1Ids = teams.filter((t) => t.compId === 0).map((t) => t.tid);
-  const newD2Ids = teams.filter((t) => t.compId === 1).map((t) => t.tid);
-  const schedule = [...generateSchedule(newD1Ids), ...generateSchedule(newD2Ids)];
+  // 7. New per-competition schedules, new season, back to regular play.
+  const schedule = league.competitions.flatMap((comp) =>
+    generateSchedule(teams.filter((t) => t.compId === comp.id).map((t) => t.tid)),
+  );
 
   return {
     ...league,
@@ -230,7 +236,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       {
         season: endingSeason,
         table: standings,
-        championTid: d1Standings[0].tid,
+        championTid: tablesByCompId.get(0)![0].tid,
         teamStats,
         awards,
         divisionsByTid,

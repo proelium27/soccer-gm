@@ -1,64 +1,84 @@
 import type { StandingsRow } from "./standings.js";
 import type { StoredTeam } from "./teams/clubs.js";
+import type { Competition } from "./competitions.js";
+import { partnerOf, tierOf } from "./competitions.js";
 import {
-  PROMOTION_RELEGATION_COUNT, ACADEMY_BASE_CONVERGENCE_SEASONS, DIVISION_ACADEMY_BASE_CENTER,
+  PROMOTION_RELEGATION_COUNT, ACADEMY_BASE_CONVERGENCE_SEASONS, ACADEMY_BASE_CENTER_BY_TIER,
 } from "./constants.js";
 
-export interface DivisionSwap {
-  /** Tids moving from Division 2 up to Division 1. */
+/** One country's promotion/relegation swap between its tier-1 and tier-2 competitions. */
+export interface CompetitionSwap {
+  d1CompId: number;
+  d2CompId: number;
+  /** Tids moving from the tier-2 competition up to tier 1. */
   promoted: number[];
-  /** Tids moving from Division 1 down to Division 2. */
+  /** Tids moving from the tier-1 competition down to tier 2. */
   relegated: number[];
 }
 
 /**
- * Bottom PROMOTION_RELEGATION_COUNT of Division 1's final table swap with
- * top PROMOTION_RELEGATION_COUNT of Division 2's final table. Both tables
- * must already be sorted by computeStandings (points, then GD, then GF,
- * then tid).
+ * For every country, bottom PROMOTION_RELEGATION_COUNT of its tier-1 final
+ * table swap with top PROMOTION_RELEGATION_COUNT of its tier-2 final table.
+ * Every table in `tablesByCompId` must already be sorted by computeStandings
+ * (points, then GD, then GF, then tid).
  */
-export function computeDivisionSwap(
-  d1Table: StandingsRow[],
-  d2Table: StandingsRow[],
-): DivisionSwap {
-  return {
-    promoted: d2Table.slice(0, PROMOTION_RELEGATION_COUNT).map((r) => r.tid),
-    relegated: d1Table.slice(-PROMOTION_RELEGATION_COUNT).map((r) => r.tid),
-  };
+export function computeCountrySwaps(
+  competitions: Competition[],
+  tablesByCompId: Map<number, StandingsRow[]>,
+): CompetitionSwap[] {
+  return competitions
+    .filter((c) => c.tier === 1)
+    .map((d1) => {
+      const d2 = partnerOf(competitions, d1.id);
+      const d1Table = tablesByCompId.get(d1.id)!;
+      const d2Table = tablesByCompId.get(d2.id)!;
+      return {
+        d1CompId: d1.id,
+        d2CompId: d2.id,
+        promoted: d2Table.slice(0, PROMOTION_RELEGATION_COUNT).map((r) => r.tid),
+        relegated: d1Table.slice(-PROMOTION_RELEGATION_COUNT).map((r) => r.tid),
+      };
+    });
 }
 
 /**
- * Flip `division` for every swapped team and start (or restart) its
- * academyBase convergence toward the new division's center. Teams not in
- * the swap are returned unchanged.
+ * Move each swapped team into its new competition and start (or restart) its
+ * academyBase convergence toward the new competition's strength center.
+ * Teams not in any swap are returned unchanged.
  */
-export function applyDivisionSwap(teams: StoredTeam[], swap: DivisionSwap): StoredTeam[] {
-  const promotedSet = new Set(swap.promoted);
-  const relegatedSet = new Set(swap.relegated);
-  return teams.map((t) => {
-    if (promotedSet.has(t.tid)) {
-      return { ...t, compId: 0, divisionConvergence: { seasonsRemaining: ACADEMY_BASE_CONVERGENCE_SEASONS } };
-    }
-    if (relegatedSet.has(t.tid)) {
-      return { ...t, compId: 1, divisionConvergence: { seasonsRemaining: ACADEMY_BASE_CONVERGENCE_SEASONS } };
-    }
-    return t;
-  });
+export function applyCompetitionSwaps(teams: StoredTeam[], swaps: CompetitionSwap[]): StoredTeam[] {
+  const moveTo = new Map<number, number>();
+  for (const s of swaps) {
+    for (const tid of s.promoted) moveTo.set(tid, s.d1CompId);
+    for (const tid of s.relegated) moveTo.set(tid, s.d2CompId);
+  }
+  return teams.map((t) =>
+    moveTo.has(t.tid)
+      ? {
+          ...t,
+          compId: moveTo.get(t.tid)!,
+          divisionConvergence: { seasonsRemaining: ACADEMY_BASE_CONVERGENCE_SEASONS },
+        }
+      : t,
+  );
 }
 
 /**
  * Move every mid-convergence team's academyBase one season closer to its
- * current division's center, decrementing seasonsRemaining and clearing
- * divisionConvergence once it reaches 0. Teams with no active convergence
- * (divisionConvergence === null) are returned unchanged — this must NEVER
- * pull every team toward the division average, only ones that actually
- * swapped divisions, or it would erase the intra-division strength spread
- * generation deliberately creates.
+ * current competition's tier center, decrementing seasonsRemaining and
+ * clearing divisionConvergence once it reaches 0. Teams with no active
+ * convergence (divisionConvergence === null) are returned unchanged — this
+ * must NEVER pull every team toward the tier average, only ones that
+ * actually swapped competitions, or it would erase the intra-competition
+ * strength spread generation deliberately creates.
  */
-export function stepAcademyBaseConvergence(teams: StoredTeam[]): StoredTeam[] {
+export function stepAcademyBaseConvergence(
+  teams: StoredTeam[],
+  competitions: Competition[],
+): StoredTeam[] {
   return teams.map((t) => {
     if (!t.divisionConvergence) return t;
-    const center = DIVISION_ACADEMY_BASE_CENTER[t.compId as 0 | 1];
+    const center = ACADEMY_BASE_CENTER_BY_TIER[tierOf(competitions, t.compId)];
     const step = (center - t.academyBase) / t.divisionConvergence.seasonsRemaining;
     const seasonsRemaining = t.divisionConvergence.seasonsRemaining - 1;
     return {
