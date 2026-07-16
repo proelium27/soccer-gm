@@ -17,6 +17,7 @@ import {
 import { applyInjuries } from "../../src/core/injuries.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
 import type { PlayedMatch } from "../../src/core/standings.js";
+import { englandCompetitions } from "../../src/core/competitions.js";
 
 function makeLeagueStore(seed: number): LeagueStore {
   const rng = mulberry32(seed);
@@ -41,7 +42,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     hype: HYPE_INITIAL,
     scoutingSpend: SCOUTING_SPEND_MIN,
     academyBase: t.academyBase,
-    division: t.division,
+    compId: t.compId,
     divisionConvergence: null,
     starters: null,
   }));
@@ -49,6 +50,7 @@ function makeLeagueStore(seed: number): LeagueStore {
   return {
     lid: 1,
     meta: { name: "Test League", created: Date.now(), userTid: 0 },
+    competitions: englandCompetitions(),
     teams,
     players: league.players,
     season: 2026,

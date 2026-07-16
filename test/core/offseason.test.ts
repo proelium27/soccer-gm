@@ -55,8 +55,8 @@ describe("simOffseason", () => {
     expect(d2Before).toBe(20);
 
     // Still 20-and-20 after the swap (composition changed, counts didn't).
-    const d1After = next.teams.filter((t) => t.division === 0).length;
-    const d2After = next.teams.filter((t) => t.division === 1).length;
+    const d1After = next.teams.filter((t) => t.compId === 0).length;
+    const d2After = next.teams.filter((t) => t.compId === 1).length;
     expect(d1After).toBe(20);
     expect(d2After).toBe(20);
   });
@@ -188,7 +188,7 @@ describe("simOffseason", () => {
     // would then immediately move this test's boosted 90-OVR player off him
     // again (correctly, but that's a different, separately tested mechanism —
     // not what this test is checking).
-    const d1Ids = league.teams.filter((t) => t.division === 0).map((t) => t.tid);
+    const d1Ids = league.teams.filter((t) => t.compId === 0).map((t) => t.tid);
     const d1IdSet = new Set(d1Ids);
     const d1Table = computeStandings(d1Ids, league.played.filter((m) => d1IdSet.has(m.home)));
     const aiTid = d1Table.find((row) => row.tid !== userTid)!.tid;

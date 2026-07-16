@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings } from "../../core/standings.js";
 import { seasonRevenue, wageBill } from "../../core/finance/budget.js";
+import { tierOf } from "../../core/competitions.js";
 import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
 import { currency, formatWeeklyWage, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
@@ -35,7 +36,7 @@ export function Finance() {
     league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
 
   const divisionTeamIds = league.teams
-    .filter((t) => t.division === userTeam.division)
+    .filter((t) => t.compId === userTeam.compId)
     .map((t) => t.tid);
   const standings = computeStandings(
     divisionTeamIds,
@@ -49,7 +50,7 @@ export function Finance() {
   // the rank (and thus prize tier) is provisional; in the offseason it's
   // final. The wage line is an estimate either way — the actual charge uses
   // the new season's finalized roster (after retirements, expiries, youth).
-  const revenue = seasonRevenue(rank, userTeam.hype, userTeam.division === 0 ? 1 : 2);
+  const revenue = seasonRevenue(rank, userTeam.hype, tierOf(league.competitions, userTeam.compId));
   const wages = wageBill([...userTeam.roster, ...userTeam.academyRoster], salaryMap);
   const net = revenue.total - wages - userTeam.scoutingSpend;
   const seasonOver = league.phase === "offseason";

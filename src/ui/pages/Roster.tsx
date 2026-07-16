@@ -9,6 +9,7 @@ import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { canExtend, contractTerms } from "../../core/contracts.js";
 import { keepsDepthFloor } from "../../core/freeAgency.js";
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
+import { tierOf } from "../../core/competitions.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
@@ -200,14 +201,14 @@ export function Roster() {
   const refusingPids = useMemo(() => {
     if (!league) return new Set<number>();
     const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
-    if (!userTeam || userTeam.division !== 1) return new Set<number>();
+    if (!userTeam || tierOf(league.competitions, userTeam.compId) !== 2) return new Set<number>();
     return new Set(
       league.players
         .filter(
           (p) =>
             userTeam.roster.includes(p.pid) &&
             canExtend(p, league.season) &&
-            wouldRefuseExtension(p, userTeam),
+            wouldRefuseExtension(p, userTeam, league.competitions),
         )
         .map((p) => p.pid),
     );

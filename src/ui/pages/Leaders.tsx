@@ -135,7 +135,7 @@ function PlayerLeaders({ division }: { division: 0 | 1 }) {
   const teamByPid = new Map<number, string>();
   const tidByPid = new Map<number, number>();
   for (const team of league.teams) {
-    if (team.division !== division) continue;
+    if (team.compId !== division) continue;
     for (const pid of team.roster) {
       teamByPid.set(pid, team.name);
       tidByPid.set(pid, team.tid);
@@ -326,7 +326,7 @@ function TeamLeaders({ division }: { division: 0 | 1 }) {
     return <p>No matches played yet.</p>;
   }
 
-  const teamIds = league.teams.filter((t) => t.division === division).map((t) => t.tid);
+  const teamIds = league.teams.filter((t) => t.compId === division).map((t) => t.tid);
   const teamStats: TeamSeasonStats[] = season === "current"
     ? computeTeamSeasonStats(teamIds, league.played)
     : (league.seasonHistory.find((h) => h.season === season)?.teamStats ?? [])

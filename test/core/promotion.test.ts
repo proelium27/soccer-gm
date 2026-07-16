@@ -10,11 +10,11 @@ function row(tid: number, points: number): StandingsRow {
   return { tid, played: 38, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, gd: 0, points };
 }
 
-function team(tid: number, division: 0 | 1, academyBase: number): StoredTeam {
+function team(tid: number, compId: number, academyBase: number): StoredTeam {
   return {
     tid, name: `T${tid}`, abbrev: "ABC", colors: ["#000", "#fff"],
     roster: [], academyRoster: [], budget: 0, hype: 0, scoutingSpend: 0,
-    academyBase, division, divisionConvergence: null, starters: null,
+    academyBase, compId, divisionConvergence: null, starters: null,
   };
 }
 
@@ -36,9 +36,9 @@ describe("applyDivisionSwap", () => {
     const result = applyDivisionSwap(teams, swap);
     const promoted = result.find((t) => t.tid === 20)!;
     const untouched = result.find((t) => t.tid === 0)!;
-    expect(promoted.division).toBe(0);
+    expect(promoted.compId).toBe(0);
     expect(promoted.divisionConvergence).toEqual({ seasonsRemaining: ACADEMY_BASE_CONVERGENCE_SEASONS });
-    expect(untouched.division).toBe(0);
+    expect(untouched.compId).toBe(0);
     expect(untouched.divisionConvergence).toBeNull();
   });
 });

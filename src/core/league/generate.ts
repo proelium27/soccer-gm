@@ -23,8 +23,8 @@ export interface LeagueTeam {
    * in CLAUDE.md's M4 section for why that ratchets OVR upward without bound.
    */
   academyBase: number;
-  /** Which division this team belongs to at generation time: 0 = English Division 1, 1 = English Division 2. */
-  division: 0 | 1;
+  /** Which competition this team belongs to at generation time (see src/core/competitions.ts). */
+  compId: number;
   /**
    * User-chosen starting XI (11 pids), or null/undefined to auto-select via
    * selectXI. Not set during generation; simThrough carries it over from
@@ -52,7 +52,7 @@ function generateDivisionTeams(
   tidStart: number,
   count: number,
   strengthOffset: number,
-  division: 0 | 1,
+  compId: number,
   genSeed: number,
   pidStart: number,
 ): { teams: LeagueTeam[]; players: Player[]; nextPid: number } {
@@ -97,7 +97,7 @@ function generateDivisionTeams(
       roster,
       avgOvr: ovrSum / roster.length,
       academyBase: base,
-      division,
+      compId,
     });
   }
 

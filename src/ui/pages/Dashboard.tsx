@@ -90,12 +90,12 @@ export function Dashboard() {
   };
 
   // Compute standings (user's own division) and find user's row
-  const divisionTids = league.teams.filter((t) => t.division === userTeam.division).map((t) => t.tid);
+  const divisionTids = league.teams.filter((t) => t.compId === userTeam.compId).map((t) => t.tid);
   const standings = computeStandings(
     divisionTids,
     league.played.filter((m) => {
       const home = league.teams.find((t) => t.tid === m.home);
-      return home?.division === userTeam.division;
+      return home?.compId === userTeam.compId;
     }),
   );
   const userRow = standings.find((r) => r.tid === league.meta.userTid);
@@ -172,7 +172,7 @@ export function Dashboard() {
   // Stat leaders: league-wide (user's division) vs. the user's own team only.
   const leaguePidPool = new Set<number>();
   for (const t of league.teams) {
-    if (t.division !== userTeam.division) continue;
+    if (t.compId !== userTeam.compId) continue;
     for (const pid of t.roster) leaguePidPool.add(pid);
   }
   const teamPidPool = new Set(userTeam.roster);

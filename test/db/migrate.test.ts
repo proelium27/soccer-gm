@@ -175,7 +175,7 @@ describe("migrateLeague", () => {
     const league = simOffseason(simThrough(createLeagueState(0, mulberry32(11)), "season", rng), rng);
     const oldLeague = {
       ...league,
-      teams: league.teams.map(({ division: _d, divisionConvergence: _dc, ...rest }) => rest),
+      teams: league.teams.map(({ compId: _d, divisionConvergence: _dc, ...rest }) => rest),
       seasonHistory: league.seasonHistory.map((h) => {
         const { divisionsByTid: _dbt, ...rest } = h;
         return { ...rest, awards: h.awards[0] };
@@ -185,7 +185,7 @@ describe("migrateLeague", () => {
     const migrated = migrateLeague(oldLeague);
 
     for (const t of migrated.teams) {
-      expect(t.division).toBe(0);
+      expect(t.compId).toBe(0);
       expect(t.divisionConvergence).toBeNull();
     }
 

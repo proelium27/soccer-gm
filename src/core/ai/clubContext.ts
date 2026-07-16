@@ -2,6 +2,7 @@ import type { Player, Position } from "../players/types.js";
 import { POSITIONS } from "../players/types.js";
 import type { StoredTeam } from "../teams/clubs.js";
 import type { PlayedMatch } from "../standings.js";
+import type { Competition } from "../competitions.js";
 import { computeStandings } from "../standings.js";
 import {
   AI_SQUAD_STRENGTH_COUNT,
@@ -109,6 +110,7 @@ export interface LeagueSnapshot {
   players: Player[];
   season: number;
   played: PlayedMatch[];
+  competitions: Competition[];
 }
 
 /**
@@ -129,7 +131,7 @@ export function deriveLeagueContexts(league: LeagueSnapshot): Map<number, ClubCo
     const { depth, best } = positionalDepthAndBest(roster);
     return {
       tid: t.tid,
-      division: t.division,
+      compId: t.compId,
       budget: t.budget,
       hype: t.hype,
       strength: squadStrength(roster),
@@ -142,12 +144,12 @@ export function deriveLeagueContexts(league: LeagueSnapshot): Map<number, ClubCo
   const contexts = new Map<number, ClubContext>();
 
   // Every normalization (wealth/hype/strength min-max, form rank) is scoped
-  // to the club's own division: Division 2 is structurally poorer by design
-  // (DIVISION_2_BUDGET_SCALE), so pooling both divisions into one range
-  // would read every Division 2 club as permanently near-max frugality
-  // regardless of how it's actually doing relative to its own division.
-  for (const division of [0, 1] as const) {
-    const group = raw.filter((r) => r.division === division);
+  // to the club's own competition: tier 2 is structurally poorer by design
+  // (DIVISION_2_BUDGET_SCALE), so pooling every competition into one range
+  // would read every tier-2 club as permanently near-max frugality
+  // regardless of how it's actually doing relative to its own competition.
+  for (const comp of league.competitions) {
+    const group = raw.filter((r) => r.compId === comp.id);
     if (group.length === 0) continue;
     const groupTids = group.map((r) => r.tid);
     const groupTidSet = new Set(groupTids);

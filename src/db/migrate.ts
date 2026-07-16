@@ -10,11 +10,17 @@ import {
   NUM_TEAMS,
 } from "../core/constants.js";
 import { chargeSeasonStart, wageBill } from "../core/finance/budget.js";
+import { englandCompetitions, tierOf } from "../core/competitions.js";
 
-/** A team as it may exist in a save written before M6 added the finance fields, or before the second division. */
+/**
+ * A team as it may exist in a save written before M6 added the finance
+ * fields, or before the second division / competitions refactor: `compId`
+ * didn't exist yet, only the old `division: 0 | 1` field.
+ */
 type StoredTeamAnyVersion =
-  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "division" | "divisionConvergence"> &
-  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "division" | "divisionConvergence">>;
+  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence"> &
+  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence">> &
+  { division?: 0 | 1 };
 
 /**
  * Generation constants frozen at the values active when academyBase was
@@ -45,10 +51,10 @@ function fallbackAcademyBase(tid: number): number {
   return FALLBACK_LEAGUE_BASE + target;
 }
 
-/** A league as it may exist in a save written before M6 added the transfer market. */
+/** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA. */
 type SeasonStatsAnyVersion =
@@ -130,26 +136,34 @@ function migratePlayer(p: Player): Player {
  */
 export function migrateLeague(league: LeagueStore): LeagueStore {
   const anyVersion = league as LeagueStoreAnyVersion;
+  // Pre-competitions-refactor saves have no competitions table at all — they
+  // were always England-only, so the 2-entry table backfills mechanically
+  // (their legacy `division` values 0/1 are already valid compIds).
+  const competitions = anyVersion.competitions ?? englandCompetitions();
   // Pre-M6 backfill only: seed the budget the way a season start would —
   // base allocation in, the save's current wage bill out.
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   const migratedPlayers = league.players.map(migratePlayer);
   return {
     ...league,
-    teams: (league.teams as StoredTeamAnyVersion[]).map((t) => ({
-      ...t,
-      name: t.name ?? CLUBS[t.tid]?.name,
-      abbrev: t.abbrev ?? CLUBS[t.tid]?.abbrev,
-      colors: t.colors ?? CLUBS[t.tid]?.colors,
-      budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), (t.division ?? 0) === 0 ? 1 : 2),
-      hype: t.hype ?? HYPE_INITIAL,
-      scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_DEFAULT,
-      academyBase: t.academyBase ?? fallbackAcademyBase(t.tid),
-      starters: t.starters ?? null,
-      academyRoster: t.academyRoster ?? [],
-      division: t.division ?? 0,
-      divisionConvergence: t.divisionConvergence ?? null,
-    })),
+    competitions,
+    teams: (league.teams as StoredTeamAnyVersion[]).map((t) => {
+      const compId = t.compId ?? t.division ?? 0;
+      return {
+        ...t,
+        name: t.name ?? CLUBS[t.tid]?.name,
+        abbrev: t.abbrev ?? CLUBS[t.tid]?.abbrev,
+        colors: t.colors ?? CLUBS[t.tid]?.colors,
+        budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), tierOf(competitions, compId)),
+        hype: t.hype ?? HYPE_INITIAL,
+        scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_DEFAULT,
+        academyBase: t.academyBase ?? fallbackAcademyBase(t.tid),
+        starters: t.starters ?? null,
+        academyRoster: t.academyRoster ?? [],
+        compId,
+        divisionConvergence: t.divisionConvergence ?? null,
+      };
+    }),
     players: migratedPlayers,
     played: league.played.map((m) => {
       const boxScore = (m as PlayedMatchAnyVersion).boxScore;

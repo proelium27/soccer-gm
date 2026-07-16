@@ -110,7 +110,7 @@ export function simThrough(
       roster: t.roster,
       avgOvr: 0,
       academyBase: t.academyBase,
-      division: t.division,
+      compId: t.compId,
       starters: t.starters,
     }));
 
@@ -157,7 +157,7 @@ export function simThrough(
       const market = runAITransferMarket(
         currentTeams, currentPlayers, transfers, league.season,
         [...league.played, ...newResults], "winter", "regular",
-        league.meta.userTid, hashInts(league.lid, league.season, 8),
+        league.meta.userTid, hashInts(league.lid, league.season, 8), league.competitions,
       );
       currentTeams = market.teams;
       transfers = market.transfers;
@@ -167,13 +167,12 @@ export function simThrough(
     // Recomputed every matchday (not once for the whole batch) so that
     // injuries picked up on one matchday correctly sideline a player, and
     // recoveries bring them back, for the next.
-    const d1Teams = currentTeams.filter((t) => t.division === 0);
-    const d2Teams = currentTeams.filter((t) => t.division === 1);
-    const d1MatchData = leagueMatchData({ teams: toLeagueTeams(d1Teams), players: currentPlayers });
-    const d2MatchData = leagueMatchData({ teams: toLeagueTeams(d2Teams), players: currentPlayers });
     const matchData = new Map<number, TeamMatchData>();
-    d1Teams.forEach((t, i) => matchData.set(t.tid, d1MatchData[i]));
-    d2Teams.forEach((t, i) => matchData.set(t.tid, d2MatchData[i]));
+    for (const comp of league.competitions) {
+      const compTeams = currentTeams.filter((t) => t.compId === comp.id);
+      const compMatchData = leagueMatchData({ teams: toLeagueTeams(compTeams), players: currentPlayers });
+      compTeams.forEach((t, i) => matchData.set(t.tid, compMatchData[i]));
+    }
 
     const goalTotalsBefore = playerGoalTotals(currentPlayers, league.season);
 

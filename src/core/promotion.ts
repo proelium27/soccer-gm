@@ -37,10 +37,10 @@ export function applyDivisionSwap(teams: StoredTeam[], swap: DivisionSwap): Stor
   const relegatedSet = new Set(swap.relegated);
   return teams.map((t) => {
     if (promotedSet.has(t.tid)) {
-      return { ...t, division: 0 as const, divisionConvergence: { seasonsRemaining: ACADEMY_BASE_CONVERGENCE_SEASONS } };
+      return { ...t, compId: 0, divisionConvergence: { seasonsRemaining: ACADEMY_BASE_CONVERGENCE_SEASONS } };
     }
     if (relegatedSet.has(t.tid)) {
-      return { ...t, division: 1 as const, divisionConvergence: { seasonsRemaining: ACADEMY_BASE_CONVERGENCE_SEASONS } };
+      return { ...t, compId: 1, divisionConvergence: { seasonsRemaining: ACADEMY_BASE_CONVERGENCE_SEASONS } };
     }
     return t;
   });
@@ -58,7 +58,7 @@ export function applyDivisionSwap(teams: StoredTeam[], swap: DivisionSwap): Stor
 export function stepAcademyBaseConvergence(teams: StoredTeam[]): StoredTeam[] {
   return teams.map((t) => {
     if (!t.divisionConvergence) return t;
-    const center = DIVISION_ACADEMY_BASE_CENTER[t.division];
+    const center = DIVISION_ACADEMY_BASE_CENTER[t.compId as 0 | 1];
     const step = (center - t.academyBase) / t.divisionConvergence.seasonsRemaining;
     const seasonsRemaining = t.divisionConvergence.seasonsRemaining - 1;
     return {

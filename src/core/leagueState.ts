@@ -5,9 +5,11 @@ import type { ScheduleGame } from "./schedule.js";
 import type { CompletedTransfer, TransferNegotiation } from "./transfers/negotiation.js";
 import type { InboundOffer } from "./transfers/inboundOffers.js";
 import type { NewsEvent } from "./newsEvents.js";
+import type { Competition } from "./competitions.js";
 import { generateTwoDivisionLeague } from "./league/generate.js";
 import { assignIdentities } from "./teams/clubs.js";
 import { generateSchedule } from "./schedule.js";
+import { englandCompetitions } from "./competitions.js";
 
 export type { StoredTeam } from "./teams/clubs.js";
 export type { ScheduleGame } from "./schedule.js";
@@ -19,6 +21,8 @@ export interface LeagueStore {
     created: number;
     userTid: number;
   };
+  /** The leagues in this save's world, one entry per division per country (see competitions.ts). */
+  competitions: Competition[];
   teams: StoredTeam[];
   players: Player[];
   season: number;
@@ -46,10 +50,11 @@ export interface LeagueStore {
 
 export function createLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
   const league = generateTwoDivisionLeague(rng, seed);
-  const teams = assignIdentities(league);
-  const d1Ids = teams.filter((t) => t.division === 0).map((t) => t.tid);
-  const d2Ids = teams.filter((t) => t.division === 1).map((t) => t.tid);
-  const schedule = [...generateSchedule(d1Ids), ...generateSchedule(d2Ids)];
+  const competitions = englandCompetitions();
+  const teams = assignIdentities(league, competitions);
+  const schedule = competitions.flatMap((comp) =>
+    generateSchedule(teams.filter((t) => t.compId === comp.id).map((t) => t.tid)),
+  );
 
   return {
     lid: 0,
@@ -58,6 +63,7 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
       created: Date.now(),
       userTid,
     },
+    competitions,
     teams,
     players: league.players,
     season: 1,

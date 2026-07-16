@@ -15,6 +15,7 @@ function runOnFresh(seed: number) {
   const result = runAITransferMarket(
     league.teams, league.players, league.transfers,
     league.season + 1, league.played, "summer", "offseason", USER_TID, 12345,
+    league.competitions,
   );
   return { league, result };
 }
@@ -61,6 +62,7 @@ describe("runAITransferMarket", () => {
     const args = [
       league.teams, league.players, league.transfers,
       league.season + 1, league.played, "summer", "offseason", USER_TID, 999,
+      league.competitions,
     ] as const;
     const a = runAITransferMarket(...args);
     const b = runAITransferMarket(...args);
@@ -133,6 +135,7 @@ describe("runAITransferMarket", () => {
 
     const result = runAITransferMarket(
       teams, players, [], league.season, [], "winter", "regular", USER_TID, 42,
+      league.competitions,
     );
 
     const boughtStriker = result.transfers.some(

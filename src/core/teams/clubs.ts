@@ -1,7 +1,9 @@
 import type { League } from "../league/generate.js";
+import type { Competition } from "../competitions.js";
 import { HYPE_INITIAL, SCOUTING_SPEND_DEFAULT } from "../constants.js";
 import { chargeSeasonStart, wageBill } from "../finance/budget.js";
 import { clampScoutingSpend } from "../finance/scouting.js";
+import { tierOf } from "../competitions.js";
 
 export interface ClubIdentity {
   name: string;
@@ -80,10 +82,10 @@ export interface StoredTeam {
   scoutingSpend: number;
   /** Fixed generation-time strength anchor for this club's youth intake (see LeagueTeam.academyBase). */
   academyBase: number;
-  /** Which division this club currently plays in: 0 = English Division 1, 1 = English Division 2. Changes on promotion/relegation. */
-  division: 0 | 1;
+  /** Which competition this club currently plays in (see src/core/competitions.ts). Changes on promotion/relegation. */
+  compId: number;
   /**
-   * Non-null while academyBase is still converging toward this division's
+   * Non-null while academyBase is still converging toward this competition's
    * strength band after a promotion/relegation swap (see src/core/promotion.ts).
    * Null for a club that hasn't swapped divisions (or finished converging).
    */
@@ -102,11 +104,11 @@ export interface StoredTeam {
  * straight out of it, so a club's opening budget is its genuinely spendable
  * cash (expensive squads start with less of it).
  */
-export function assignIdentities(league: League): StoredTeam[] {
+export function assignIdentities(league: League, competitions: Competition[]): StoredTeam[] {
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   return league.teams.map((t) => {
     const club = CLUBS[t.tid];
-    const budget = chargeSeasonStart(0, wageBill(t.roster, salaryMap), t.division === 0 ? 1 : 2);
+    const budget = chargeSeasonStart(0, wageBill(t.roster, salaryMap), tierOf(competitions, t.compId));
     return {
       tid: t.tid,
       name: club.name,
@@ -118,7 +120,7 @@ export function assignIdentities(league: League): StoredTeam[] {
       hype: HYPE_INITIAL,
       scoutingSpend: clampScoutingSpend(SCOUTING_SPEND_DEFAULT, budget),
       academyBase: t.academyBase,
-      division: t.division,
+      compId: t.compId,
       divisionConvergence: null,
       starters: null,
     };

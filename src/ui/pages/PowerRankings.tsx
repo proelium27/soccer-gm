@@ -39,8 +39,8 @@ export function PowerRankings() {
   const divisionRanks = new Map<number, number>();
   const divisionCounts = new Map<number, number>();
   for (const { team } of rankings) {
-    const next = (divisionCounts.get(team.division) ?? 0) + 1;
-    divisionCounts.set(team.division, next);
+    const next = (divisionCounts.get(team.compId) ?? 0) + 1;
+    divisionCounts.set(team.compId, next);
     divisionRanks.set(team.tid, next);
   }
 
@@ -86,11 +86,11 @@ export function PowerRankings() {
                     <span
                       className={
                         "division-badge " +
-                        (team.division === 0 ? "division-badge--d1" : "division-badge--d2")
+                        (team.compId === 0 ? "division-badge--d1" : "division-badge--d2")
                       }
-                      title={team.division === 0 ? "English Division 1" : "English Division 2"}
+                      title={team.compId === 0 ? "English Division 1" : "English Division 2"}
                     >
-                      D{team.division + 1} #{divisionRanks.get(team.tid)}
+                      D{team.compId + 1} #{divisionRanks.get(team.tid)}
                     </span>
                   </td>
                   <td className="text-end">{rating.ovr}</td>

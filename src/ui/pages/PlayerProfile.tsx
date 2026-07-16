@@ -112,7 +112,7 @@ export function PlayerProfile() {
       <p className="mb-3">
         {team ? (
           <>
-            {teamName(team.tid)} <small className="text-muted">({team.division === 0 ? "Division 1" : "Division 2"})</small>
+            {teamName(team.tid)} <small className="text-muted">({team.compId === 0 ? "Division 1" : "Division 2"})</small>
           </>
         ) : inAcademy ? (
           <>{teamName(inAcademy.tid)} Academy</>

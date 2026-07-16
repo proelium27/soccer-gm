@@ -27,7 +27,7 @@ function awardsByDivision(
   season: number,
 ): [SeasonAwards, SeasonAwards] {
   const rosterOf = (division: 0 | 1) =>
-    new Set(teams.filter((t) => t.division === division).flatMap((t) => t.roster));
+    new Set(teams.filter((t) => t.compId === division).flatMap((t) => t.roster));
   const d1Roster = rosterOf(0);
   const d2Roster = rosterOf(1);
   const d1Players = players.filter((p) => d1Roster.has(p.pid));
@@ -57,14 +57,14 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   // retires this offseason still gets credit for the season he just
   // finished, and division membership reflects who actually played where.
   const divisionsByTid: Record<number, 0 | 1> = {};
-  for (const t of league.teams) divisionsByTid[t.tid] = t.division;
+  for (const t of league.teams) divisionsByTid[t.tid] = t.compId as 0 | 1;
   const awards = awardsByDivision(league.players, league.teams, endingSeason);
 
   // 0. Proactive AI contract renewals (cross-division: a club's own player,
   //    regardless of which division that club plays in).
   const renewals = runAIContractRenewals(
     league.teams, league.players, nextSeason, league.meta.userTid, league.played,
-    hashInts(league.lid, nextSeason, 9),
+    hashInts(league.lid, nextSeason, 9), league.competitions,
   );
 
   // 1. Release expired contracts to the free agent pool.
@@ -92,8 +92,8 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      rank cutoffs (PRIZE_TOP_5_CUTOFF etc. assume a 20-team table) and
   //      the hype curve (NUM_TEAMS-normalized) to a league neither was
   //      tuned for.
-  const d1TeamIds = teams.filter((t) => t.division === 0).map((t) => t.tid);
-  const d2TeamIds = teams.filter((t) => t.division === 1).map((t) => t.tid);
+  const d1TeamIds = teams.filter((t) => t.compId === 0).map((t) => t.tid);
+  const d2TeamIds = teams.filter((t) => t.compId === 1).map((t) => t.tid);
   const d1TeamIdSet = new Set(d1TeamIds);
   const d2TeamIdSet = new Set(d2TeamIds);
   const d1Standings = computeStandings(d1TeamIds, league.played.filter((m) => d1TeamIdSet.has(m.home)));
@@ -105,7 +105,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     const rankByTid = new Map(rows.map((row, i) => [row.tid, i + 1]));
     const rowByTid = new Map(rows.map((row) => [row.tid, row]));
     teams = teams.map((t) => {
-      if (t.division !== division) return t;
+      if (t.compId !== division) return t;
       const defaultRank = division === 0 ? NUM_TEAMS : NUM_TEAMS_D2;
       const rank = rankByTid.get(t.tid) ?? defaultRank;
       const row = rowByTid.get(t.tid);
@@ -139,7 +139,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      qualifies either time).
   let ceilingTransfers = league.transfers;
   ({ teams, transfers: ceilingTransfers } = enforceDivision2Ceiling(
-    teams, players, ceilingTransfers, nextSeason, league.meta.userTid,
+    teams, players, ceilingTransfers, nextSeason, league.meta.userTid, league.competitions,
   ));
 
   // 4. AI free agency fills roster holes (worst team picks first, within
@@ -183,7 +183,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const marketSeed = hashInts(league.lid, nextSeason, 7);
   const summerMarket = runAITransferMarket(
     teams, players, ceilingTransfers, nextSeason, league.played,
-    "summer", "offseason", league.meta.userTid, marketSeed,
+    "summer", "offseason", league.meta.userTid, marketSeed, league.competitions,
   );
   teams = summerMarket.teams;
 
@@ -198,7 +198,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      relegated clubs simply keeping their existing strong rosters, not
   //      anything a market mechanic alone can fix).
   const { teams: ceilingTeams, transfers: finalTransfers } = enforceDivision2Ceiling(
-    teams, players, summerMarket.transfers, nextSeason, league.meta.userTid,
+    teams, players, summerMarket.transfers, nextSeason, league.meta.userTid, league.competitions,
   );
   teams = ceilingTeams;
 
@@ -207,12 +207,12 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const salaryMap = new Map(players.map((p) => [p.pid, p.contract.salary]));
   teams = teams.map((t) => ({
     ...t,
-    budget: chargeSeasonStart(t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), t.division === 0 ? 1 : 2),
+    budget: chargeSeasonStart(t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), t.compId === 0 ? 1 : 2),
   }));
 
   // 7. New per-division schedules, new season, back to regular play.
-  const newD1Ids = teams.filter((t) => t.division === 0).map((t) => t.tid);
-  const newD2Ids = teams.filter((t) => t.division === 1).map((t) => t.tid);
+  const newD1Ids = teams.filter((t) => t.compId === 0).map((t) => t.tid);
+  const newD2Ids = teams.filter((t) => t.compId === 1).map((t) => t.tid);
   const schedule = [...generateSchedule(newD1Ids), ...generateSchedule(newD2Ids)];
 
   return {

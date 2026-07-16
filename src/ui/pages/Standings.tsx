@@ -27,10 +27,10 @@ export function Standings() {
   let standings: StandingsRow[];
   let championTid: number;
   if (season === "current") {
-    const teamIds = league.teams.filter((t) => t.division === division).map((t) => t.tid);
+    const teamIds = league.teams.filter((t) => t.compId === division).map((t) => t.tid);
     standings = computeStandings(teamIds, league.played.filter((m) => {
       const home = league.teams.find((t) => t.tid === m.home);
-      return home?.division === division;
+      return home?.compId === division;
     }));
     // A "champion" only means something once the season has actually been
     // decided by played matches, not an arbitrary tid=0 tie at kickoff.

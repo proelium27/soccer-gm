@@ -255,7 +255,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const extendContractAction = useCallback((pid: number) => mutate((l) => {
     const player = l.players.find((p) => p.pid === pid);
     const team = l.teams.find((t) => t.roster.includes(pid));
-    if (player && team && wouldRefuseExtension(player, team)) return null;
+    if (player && team && wouldRefuseExtension(player, team, l.competitions)) return null;
     return { ...l, players: extendContract(l.players, pid, l.season) };
   }), [mutate]);
 
