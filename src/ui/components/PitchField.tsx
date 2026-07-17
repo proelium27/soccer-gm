@@ -6,9 +6,10 @@ import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { PlayerRatingsTooltip } from "./PlayerRatingsTooltip.js";
 import { Flag } from "./Flag.js";
-import { canExtend, contractTerms } from "../../core/contracts.js";
+import { canExtend } from "../../core/contracts.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { previousRatings } from "./RatingDelta.js";
+import { ExtendControl } from "./ExtendControl.js";
 
 const DRAG_MIME = "application/x-soccer-gm-pid";
 
@@ -27,7 +28,7 @@ export interface PitchFieldProps {
   refusingPids: Set<number>;
   transferListedPids: Set<number>;
   onRelease: (pid: number) => void;
-  onExtend: (pid: number) => void;
+  onExtend: (pid: number, lengthSeasons: number) => void;
   onToggleTransferListed: (pid: number, listed: boolean) => void;
   dragOverSlotIndex: number | null;
   setDragOverSlotIndex: (i: number | null) => void;
@@ -169,20 +170,16 @@ export function PitchField({
                       >
                         Wants a move to Division 1
                       </span>
-                    ) : (() => {
-                      const terms = contractTerms(p, season);
-                      return (
-                        <button
-                          className="btn btn-sm btn-outline-success text-nowrap"
-                          onClick={() => {
-                            onExtend(p.pid);
-                            setOpenPid(null);
-                          }}
-                        >
-                          Extend {terms.lengthSeasons}y &middot; {formatWeeklyWage(terms.salary)}
-                        </button>
-                      );
-                    })()
+                    ) : (
+                      <ExtendControl
+                        player={p}
+                        season={season}
+                        onExtend={(pid, lengthSeasons) => {
+                          onExtend(pid, lengthSeasons);
+                          setOpenPid(null);
+                        }}
+                      />
+                    )
                   )}
                   <button
                     className={

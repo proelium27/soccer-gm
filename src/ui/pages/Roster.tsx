@@ -6,7 +6,7 @@ import type { Player } from "../../core/players/types.js";
 import { resolveXI } from "../../core/lineup/resolveXI.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
-import { canExtend, contractTerms } from "../../core/contracts.js";
+import { canExtend } from "../../core/contracts.js";
 import { keepsDepthFloor } from "../../core/freeAgency.js";
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { tierOf } from "../../core/competitions.js";
@@ -14,6 +14,7 @@ import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PitchField } from "../components/PitchField.js";
+import { ExtendControl } from "../components/ExtendControl.js";
 import { Flag } from "../components/Flag.js";
 import { ROSTER_CAP } from "../../core/constants.js";
 
@@ -34,7 +35,7 @@ interface RosterTableProps {
   season: number;
   hasStats: boolean;
   onRelease: (pid: number) => void;
-  onExtend: (pid: number) => void;
+  onExtend: (pid: number, lengthSeasons: number) => void;
   releasablePids: Set<number>;
   refusingPids: Set<number>;
   transferListedPids: Set<number>;
@@ -164,17 +165,9 @@ function RosterTable({
                       >
                         Wants a move to Division 1
                       </span>
-                    ) : (() => {
-                      const terms = contractTerms(p, season);
-                      return (
-                        <button
-                          className="btn btn-sm btn-outline-success text-nowrap"
-                          onClick={() => onExtend(p.pid)}
-                        >
-                          Extend {terms.lengthSeasons}y &middot; {formatWeeklyWage(terms.salary)}
-                        </button>
-                      );
-                    })()
+                    ) : (
+                      <ExtendControl player={p} season={season} onExtend={onExtend} />
+                    )
                   )}
                   <button
                     className={
