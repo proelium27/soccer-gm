@@ -13,7 +13,7 @@ const COUNTRY_RANGES = countryClubRanges(worldCompetitions(), NUM_TEAMS, NUM_TEA
 const COUNTRIES = countriesOf(worldCompetitions());
 
 export function NewLeague() {
-  const [country, setCountry] = useState<string | null>(null);
+  const [country, setCountry] = useState<string>(COUNTRIES[0]);
   const [selectedTid, setSelectedTid] = useState<number | null>(null);
   const [pending, setPending] = useState<LeagueStore | null>(null);
   const [saving, setSaving] = useState(false);
@@ -93,41 +93,38 @@ export function NewLeague() {
     );
   }
 
-  if (country === null) {
-    return (
-      <div className="container py-4" style={{ maxWidth: 600 }}>
-        <h2 className="mb-3">New League</h2>
-        <p className="text-muted">Choose a country to play in.</p>
-        <div className="list-group mb-3">
-          {COUNTRIES.map((c) => (
-            <button
-              key={c}
-              type="button"
-              className="list-group-item list-group-item-action"
-              onClick={() => setCountry(c)}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   const range = COUNTRY_RANGES.find((r) => r.country === country)!;
   const countryClubs = CLUBS.slice(range.start, range.end).map((club, i) => ({
     club,
     tid: range.start + i,
   }));
 
+  function selectCountry(c: string) {
+    setCountry(c);
+    setSelectedTid(null);
+  }
+
   return (
     <div className="container py-4" style={{ maxWidth: 600 }}>
       <h2 className="mb-3">New League</h2>
       <p className="text-muted">
         {customize
-          ? `Choose your ${country} club, then customize every club before starting.`
-          : `Choose your ${country} club to get started.`}
+          ? `Flip through each league to browse its clubs, then choose your ${country} club to customize every club before starting.`
+          : `Flip through each league to browse its clubs, then choose your ${country} club to get started.`}
       </p>
+
+      <div className="btn-group mb-3" role="group" aria-label="Choose a league">
+        {COUNTRIES.map((c) => (
+          <button
+            key={c}
+            type="button"
+            className={`btn btn-outline-secondary${c === country ? " active" : ""}`}
+            onClick={() => selectCountry(c)}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
 
       <div className="list-group mb-3">
         {countryClubs.map(({ club, tid }) => (
@@ -153,9 +150,6 @@ export function NewLeague() {
       </div>
 
       <div className="d-flex gap-2">
-        <button className="btn btn-outline-secondary" onClick={() => { setCountry(null); setSelectedTid(null); }}>
-          Back
-        </button>
         <button
           className="btn btn-primary"
           disabled={selectedTid === null}
