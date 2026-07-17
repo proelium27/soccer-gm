@@ -14,7 +14,7 @@ import { mulberry32 } from "../../engine/rng.js";
 import {
   ROSTER_CAP, ROSTER_SAFETY_FLOOR,
   AI_MARKET_MIN_VALUE, AI_MARKET_AVAILABILITY, AI_MARKET_MIN_SURPLUS,
-  AI_MARKET_FEE_SHARE,
+  AI_MARKET_FEE_SHARE, AI_MARKET_FEE_FLOOR_FRACTION,
   AI_MARKET_MAX_BUYS, AI_MARKET_MAX_SELLS,
   AI_MARKET_RESERVE_FRACTION_MIN, AI_MARKET_RESERVE_FRACTION_MAX,
 } from "../constants.js";
@@ -33,6 +33,8 @@ interface Candidate {
   reservation: number;
   /** Buyer's (jittered) valuation — the ceiling on the fee. */
   buyerValue: number;
+  /** Club-agnostic true market value — the anchor for AI_MARKET_FEE_FLOOR_FRACTION. */
+  market: number;
   /** buyerValue − reservation: how much more useful he is to the buyer. */
   surplus: number;
 }
@@ -115,6 +117,7 @@ export function runAITransferMarket(
           buyerTid: buyer.tid,
           reservation,
           buyerValue: jittered,
+          market,
           surplus: jittered - reservation,
         });
       }
@@ -157,9 +160,20 @@ export function runAITransferMarket(
     // emergency call-up (ROSTER_SAFETY_FLOOR).
     if (sellerRoster.length <= ROSTER_SAFETY_FLOOR) continue;
 
+    // The seller's reservation can be crushed well below true value by a bad
+    // need/timeline/affordability fit; require the buyer to actually value
+    // him at a reasonable fraction of true market value before the deal
+    // executes, and floor the fee there too, so a lowballed seller can't be
+    // flipped for many times the fee he was just sold for.
+    const feeFloor = Math.round(AI_MARKET_FEE_FLOOR_FRACTION * c.market);
+    if (c.buyerValue < feeFloor) continue;
+
     const player = playerMap.get(c.pid)!;
     const wageCharge = phase === "regular" ? player.contract.salary : 0;
-    let fee = Math.round(c.reservation + AI_MARKET_FEE_SHARE * (c.buyerValue - c.reservation));
+    let fee = Math.max(
+      feeFloor,
+      Math.round(c.reservation + AI_MARKET_FEE_SHARE * (c.buyerValue - c.reservation)),
+    );
 
     // A club spends only the surplus above its cash reserve (never its whole
     // budget), and covers any mid-season wage charge on top. The reserve

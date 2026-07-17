@@ -779,8 +779,29 @@ export const AI_MARKET_MIN_SURPLUS = 0.15;
 /**
  * The fee lands this fraction of the way from the seller's reservation up to
  * the buyer's valuation — both sides share the surplus. 0.5 = split it evenly.
+ *
+ * Tried raising this to 0.7 alongside AI_MARKET_FEE_FLOOR_FRACTION below
+ * (2026-07-16, chasing the same lowball-sale report) but reverted: on top of
+ * the floor, the extra fee-share bump pushed enough additional cash through
+ * the market to saturate some clubs' MAX_BUDGET cap mid-season and to shift
+ * the competitive-balance sim gates (test/core/simThrough.test.ts's champion
+ * points spread). The floor alone already closes the reported gap (a lowball
+ * deal can no longer clear far below true value); this dial was unnecessary
+ * on top of it.
  */
 export const AI_MARKET_FEE_SHARE = 0.5;
+
+/**
+ * A deal only executes if the buyer's own valuation clears this fraction of
+ * the player's true (club-agnostic) market value, and the fee is floored at
+ * this same fraction — added alongside the AI_MARKET_FEE_SHARE raise above,
+ * 2026-07-16, to close the same lowball-sale gap from the other side: a
+ * crushed seller reservation could still produce a very low fee even at a
+ * high fee share if the buyer's own valuation was also modest. This directly
+ * bounds how far below true value any AI↔AI fee can land, without touching
+ * the need/timeline/affordability multipliers other AI decisions rely on.
+ */
+export const AI_MARKET_FEE_FLOOR_FRACTION = 0.5;
 
 /** Most buys / sells any one AI club will make in a single window. */
 export const AI_MARKET_MAX_BUYS = 3;
