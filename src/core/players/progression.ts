@@ -193,14 +193,24 @@ export function progressPlayer(
   rng: () => number,
   player: Player,
   season: number,
+  fullMinutes = false,
 ): Player {
   const age = ageOf(player, season);
 
-  const lastSeasonStats = player.stats.find((s) => s.season === season);
-  const appearances = lastSeasonStats?.appearances ?? 0;
-  const minutesFactor = MINUTES_FACTOR_MIN
-    + (MINUTES_FACTOR_MAX - MINUTES_FACTOR_MIN)
-      * Math.max(0, Math.min(1, appearances / FULL_SEASON_APPEARANCES));
+  let minutesFactor: number;
+  if (fullMinutes) {
+    // Academy players have no senior appearances to read minutes from, but
+    // they train full-time — assume a full season rather than reading their
+    // (always-zero) senior stats and penalizing them for not playing games
+    // they're not eligible for.
+    minutesFactor = MINUTES_FACTOR_MAX;
+  } else {
+    const lastSeasonStats = player.stats.find((s) => s.season === season);
+    const appearances = lastSeasonStats?.appearances ?? 0;
+    minutesFactor = MINUTES_FACTOR_MIN
+      + (MINUTES_FACTOR_MAX - MINUTES_FACTOR_MIN)
+        * Math.max(0, Math.min(1, appearances / FULL_SEASON_APPEARANCES));
+  }
 
   const ratings = stepRatings(rng, player.ratings, age, player.pos, minutesFactor, player.pid, player.heightCm);
   const ovr = computeOvr(player.pos, ratings, player.heightCm);
