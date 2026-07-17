@@ -184,6 +184,15 @@ export interface StoredTeam {
    * Only ever set for the user's own team; AI teams always auto-select.
    */
   starters: number[] | null;
+  /**
+   * Pids the user has explicitly listed for transfer — a lower bar than
+   * AI_MARKET_MIN_SURPLUS and priority within INBOUND_OFFERS_MAX for
+   * inboundOfferCandidates (src/core/transfers/inboundOffers.ts), signaling
+   * real willingness to sell rather than guaranteeing a buyer. Only ever set
+   * for the user's own team; AI clubs never list (they already shop/sell via
+   * the AI↔AI market's own evaluation).
+   */
+  transferListed: number[];
 }
 
 /**
@@ -212,6 +221,7 @@ export function assignIdentities(league: League, competitions: Competition[]): S
       compId: t.compId,
       divisionConvergence: null,
       starters: null,
+      transferListed: [],
     };
   });
 }

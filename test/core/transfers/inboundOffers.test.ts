@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
-  inboundOfferCandidates, currentInboundOffers, respondToAsk,
+  inboundOfferCandidates, currentInboundOffers, respondToAsk, setTransferListed,
   acceptInboundOffer, rejectInboundOffer, counterInboundOffer,
 } from "../../../src/core/transfers/inboundOffers.js";
 import { createLeagueState, type LeagueStore } from "../../../src/core/leagueState.js";
 import { mulberry32 } from "../../../src/engine/rng.js";
 import {
   NEGOTIATION_LOWBALL_FACTOR, NEGOTIATION_MAX_ROUNDS,
-  AI_MARKET_MIN_SURPLUS, INBOUND_OFFERS_MAX,
+  AI_MARKET_MIN_SURPLUS, LISTED_FOR_TRANSFER_MIN_SURPLUS, INBOUND_OFFERS_MAX,
 } from "../../../src/core/constants.js";
 
 /** A league sitting in the winter window (seed picked so the user gets inbound offers). */
@@ -100,6 +100,76 @@ describe("inboundOfferCandidates", () => {
       const buyerTids = candidates.map((c) => c.buyerTid);
       expect(new Set(buyerTids).size).toBe(buyerTids.length);
     }
+  });
+
+  it("never surfaces a listed player below LISTED_FOR_TRANSFER_MIN_SURPLUS, or an unlisted one below AI_MARKET_MIN_SURPLUS", () => {
+    // LISTED_FOR_TRANSFER_MIN_SURPLUS is deliberately much smaller than
+    // AI_MARKET_MIN_SURPLUS, so listing every roster player should never
+    // shrink the candidate set and should only ever admit players at a lower
+    // bar — checked across several seeds since which bar actually binds
+    // depends on the real spread of buyer valuations that seed produces.
+    for (let seed = 1; seed <= 6; seed++) {
+      const league = windowLeague(seed);
+      const user = league.teams.find((t) => t.tid === 0)!;
+      const baseline = inboundOfferCandidates(league);
+
+      const allListed: LeagueStore = {
+        ...league,
+        teams: league.teams.map((t) => (t.tid === 0 ? { ...t, transferListed: user.roster } : t)),
+      };
+      const withEveryoneListed = inboundOfferCandidates(allListed);
+      expect(withEveryoneListed.length).toBeGreaterThanOrEqual(baseline.length);
+      for (const c of withEveryoneListed) {
+        expect(c.ceiling).toBeGreaterThanOrEqual(c.reservation * (1 + LISTED_FOR_TRANSFER_MIN_SURPLUS));
+      }
+    }
+  });
+
+  it("prioritizes a listed player within the INBOUND_OFFERS_MAX cap over unlisted players", () => {
+    // Search for a seed with more candidates than the cap allows, then
+    // confirm listing a bumped-out player pulls him back in ahead of
+    // whichever unlisted player he displaces.
+    for (let seed = 1; seed <= 40; seed++) {
+      const league = windowLeague(seed);
+      const user = league.teams.find((t) => t.tid === 0)!;
+      if (user.roster.length <= INBOUND_OFFERS_MAX) continue;
+
+      const baseline = inboundOfferCandidates(league);
+      const baselinePids = new Set(baseline.map((c) => c.player.pid));
+      const target = user.roster.find((pid) => !baselinePids.has(pid));
+      if (target === undefined) continue;
+
+      const listedLeague = setTransferListed(league, target, true);
+      const listedCandidates = inboundOfferCandidates(listedLeague);
+      if (listedCandidates.length < INBOUND_OFFERS_MAX) continue;
+      if (!listedCandidates.some((c) => c.player.pid === target)) continue;
+
+      expect(listedCandidates.length).toBeLessThanOrEqual(INBOUND_OFFERS_MAX);
+      expect(listedCandidates.some((c) => c.player.pid === target)).toBe(true);
+      return;
+    }
+    throw new Error("expected at least one seed exercising the priority cap with a listed player");
+  });
+});
+
+describe("setTransferListed", () => {
+  it("toggles a pid on and off the user's transferListed list", () => {
+    const league = windowLeague();
+    const user = league.teams.find((t) => t.tid === 0)!;
+    const pid = user.roster[0];
+
+    const listed = setTransferListed(league, pid, true);
+    expect(listed.teams.find((t) => t.tid === 0)!.transferListed).toEqual([pid]);
+
+    const unlisted = setTransferListed(listed, pid, false);
+    expect(unlisted.teams.find((t) => t.tid === 0)!.transferListed).toEqual([]);
+  });
+
+  it("is a no-op for a pid not on the user's own roster", () => {
+    const league = windowLeague();
+    const aiPid = league.teams.find((t) => t.tid !== 0)!.roster[0];
+    const updated = setTransferListed(league, aiPid, true);
+    expect(updated.teams.find((t) => t.tid === 0)!.transferListed).toEqual([]);
   });
 });
 

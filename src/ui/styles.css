@@ -680,6 +680,20 @@ a:hover {
   line-height: 1;
   flex: none;
 }
+.pitch-chip-listed-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--sg-warn);
+  color: var(--sg-green-deep);
+  font-size: 9px;
+  font-weight: var(--sg-weight-bold);
+  line-height: 1;
+  flex: none;
+}
 .pitch-chip .player-ratings-tooltip-anchor {
   border-bottom: none;
 }

@@ -38,6 +38,8 @@ interface RosterTableProps {
   onExtend: (pid: number, lengthSeasons: number) => void;
   releasablePids: Set<number>;
   refusingPids: Set<number>;
+  transferListedPids: Set<number>;
+  onToggleTransferListed: (pid: number, listed: boolean) => void;
   dragOverPid: number | null;
   setDragOverPid: (pid: number | null) => void;
   onSwap: (draggedPid: number, targetPid: number) => void;
@@ -51,6 +53,8 @@ function RosterTable({
   onExtend,
   releasablePids,
   refusingPids,
+  transferListedPids,
+  onToggleTransferListed,
   dragOverPid,
   setDragOverPid,
   onSwap,
@@ -166,6 +170,16 @@ function RosterTable({
                     )
                   )}
                   <button
+                    className={
+                      "btn btn-sm text-nowrap " +
+                      (transferListedPids.has(p.pid) ? "btn-warning" : "btn-outline-warning")
+                    }
+                    onClick={() => onToggleTransferListed(p.pid, !transferListedPids.has(p.pid))}
+                    title="Listing signals AI clubs you're willing to sell, making an offer more likely."
+                  >
+                    {transferListedPids.has(p.pid) ? "Listed" : "List for Transfer"}
+                  </button>
+                  <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => onRelease(p.pid)}
                     disabled={!releasablePids.has(p.pid)}
@@ -186,7 +200,9 @@ function RosterTable({
 }
 
 export function Roster() {
-  const { league, releasePlayerAction, extendContractAction, setLineupAction } = useLeague();
+  const {
+    league, releasePlayerAction, extendContractAction, setTransferListedAction, setLineupAction,
+  } = useLeague();
   const [dragOverPid, setDragOverPid] = useState<number | null>(null);
   const [dragOverSlotIndex, setDragOverSlotIndex] = useState<number | null>(null);
   const [showDepthChart, setShowDepthChart] = useState(false);
@@ -234,6 +250,7 @@ export function Roster() {
   const releasablePids = new Set(
     players.filter((p) => keepsDepthFloor(userTeam, playerMap, p.pid)).map((p) => p.pid),
   );
+  const transferListedPids = new Set(userTeam.transferListed);
 
   function handleSwap(draggedPid: number, targetPid: number) {
     if (draggedPid === targetPid) return;
@@ -299,8 +316,10 @@ export function Roster() {
             season={league.season}
             releasablePids={releasablePids}
             refusingPids={refusingPids}
+            transferListedPids={transferListedPids}
             onRelease={releasePlayerAction}
             onExtend={extendContractAction}
+            onToggleTransferListed={setTransferListedAction}
             dragOverSlotIndex={dragOverSlotIndex}
             setDragOverSlotIndex={setDragOverSlotIndex}
             onDropOnSlot={handleDropOnSlot}
@@ -317,6 +336,8 @@ export function Roster() {
               onExtend={extendContractAction}
               releasablePids={releasablePids}
               refusingPids={refusingPids}
+              transferListedPids={transferListedPids}
+              onToggleTransferListed={setTransferListedAction}
               dragOverPid={dragOverPid}
               setDragOverPid={setDragOverPid}
               onSwap={handleSwap}
