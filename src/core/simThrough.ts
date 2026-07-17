@@ -13,6 +13,7 @@ import { simMatchDetailed } from "../engine/matchSim.js";
 import { emptySeasonStats } from "./players/types.js";
 import { applyInjuries } from "./injuries.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
+import { runAILoanMarket } from "./loans.js";
 import { hashInts } from "../engine/rng.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import { playerGoalTotals, detectMatchdayNewsEvents } from "./newsEvents.js";
@@ -122,6 +123,7 @@ export function simThrough(
   // snapshotted once up front.
   let currentTeams: StoredTeam[] = league.teams;
   let transfers = league.transfers;
+  let activeLoans = league.activeLoans;
   let winterMarketRunSeason = league.winterMarketRunSeason;
   const newEvents: NewsEvent[] = [];
 
@@ -164,6 +166,16 @@ export function simThrough(
       );
       currentTeams = market.teams;
       transfers = market.transfers;
+
+      const loanMarket = runAILoanMarket(
+        currentTeams, currentPlayers, activeLoans, transfers, league.season,
+        [...league.played, ...newResults], "winter", league.meta.userTid,
+        hashInts(league.lid, league.season, 12), league.competitions,
+      );
+      currentTeams = loanMarket.teams;
+      activeLoans = loanMarket.activeLoans;
+      transfers = loanMarket.transfers;
+
       winterMarketRunSeason = league.season;
     }
 
@@ -234,6 +246,7 @@ export function simThrough(
     schedule: remaining,
     played: [...league.played, ...newResults],
     transfers,
+    activeLoans,
     winterMarketRunSeason,
     newsEvents: [...league.newsEvents, ...newEvents],
   };

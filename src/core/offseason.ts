@@ -10,6 +10,7 @@ import {
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { runAIContractRenewals } from "./ai/renewals.js";
 import { enforceDivision2Ceiling } from "./ai/divisionCeiling.js";
+import { processLoanReturns, runAILoanMarket } from "./loans.js";
 import { computeStandings, computeTeamSeasonStats, type StandingsRow } from "./standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
 import { computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence } from "./promotion.js";
@@ -72,6 +73,14 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
 
   // 1. Release expired contracts to the free agent pool.
   let teams: StoredTeam[] = releaseExpiredContracts(renewals.teams, renewals.players, endingSeason);
+
+  // 1.5. Loan returns due this rollover: any player whose loan ends before
+  //      nextSeason begins goes back to his parent club now — early enough
+  //      that free agency below can still fill any hole this creates, and
+  //      before season-start wages are charged so they land on the right club.
+  const loanReturns = processLoanReturns(teams, league.activeLoans, league.transfers, nextSeason);
+  teams = loanReturns.teams;
+  let activeLoans = loanReturns.activeLoans;
 
   // 2. Progress every remaining player's ratings; heal any lingering injury.
   //    Academy players have no senior appearances to read minutes from (they
@@ -147,7 +156,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      also catch a player sold *into* Division 2 as ordinary market
   //      surplus this same offseason (idempotent — a no-op if nothing
   //      qualifies either time).
-  let ceilingTransfers = league.transfers;
+  let ceilingTransfers = loanReturns.transfers;
   ({ teams, transfers: ceilingTransfers } = enforceDivision2Ceiling(
     teams, players, ceilingTransfers, nextSeason, league.meta.userTid, league.competitions,
   ));
@@ -208,10 +217,23 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      for why a soft nudge isn't enough — the dominant drift driver is
   //      relegated clubs simply keeping their existing strong rosters, not
   //      anything a market mechanic alone can fix).
-  const { teams: ceilingTeams, transfers: finalTransfers } = enforceDivision2Ceiling(
+  const { teams: ceilingTeams, transfers: postCeilingTransfers } = enforceDivision2Ceiling(
     teams, players, summerMarket.transfers, nextSeason, league.meta.userTid, league.competitions,
   );
   teams = ceilingTeams;
+
+  // 6.46. AI<->AI loan market (summer window): young, buried AI players loan
+  //       out to needier AI clubs — see loans.ts's runAILoanMarket. The
+  //       user's club never participates here; loaning the user's own
+  //       players in/out is a manual action via the Loans page.
+  const loanMarketSeed = hashInts(league.lid, nextSeason, 11);
+  const loanMarket = runAILoanMarket(
+    teams, players, activeLoans, postCeilingTransfers, nextSeason, league.played,
+    "summer", league.meta.userTid, loanMarketSeed, league.competitions,
+  );
+  teams = loanMarket.teams;
+  activeLoans = loanMarket.activeLoans;
+  const finalTransfers = loanMarket.transfers;
 
   // 6.5. Season-start finances on the finalized new-season rosters, scaled
   //      by each club's (possibly just-changed) competition tier.
@@ -228,6 +250,13 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     generateSchedule(teams.filter((t) => t.compId === comp.id).map((t) => t.tid)),
   );
 
+  // Drop any listing for a player no longer on the user's senior roster
+  // (sold, released, retired, or just loaned out this offseason) — a stale
+  // listing is otherwise inert (loanOfferCandidates already requires roster
+  // membership) but there's no reason to let it accumulate.
+  const userRosterAfter = new Set(teams.find((t) => t.tid === league.meta.userTid)?.roster ?? []);
+  const loanListings = league.loanListings.filter((l) => userRosterAfter.has(l.pid));
+
   return {
     ...league,
     teams,
@@ -237,6 +266,8 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     schedule,
     played: [],
     transfers: finalTransfers,
+    activeLoans,
+    loanListings,
     winterMarketRunSeason: null,
     seasonHistory: [
       ...league.seasonHistory,

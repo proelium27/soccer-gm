@@ -17,6 +17,7 @@ export function Sidebar() {
       <NavLink to="/roster" className="nav-link">Roster</NavLink>
       <NavLink to="/transfers" className="nav-link">Transfers</NavLink>
       <NavLink to="/incoming-offers" className="nav-link">Incoming Offers</NavLink>
+      <NavLink to="/loans" className="nav-link">Loans</NavLink>
       <NavLink to="/finance" className="nav-link">Finance</NavLink>
       <NavLink to="/incoming-talent" className="nav-link">Incoming Talent</NavLink>
       <NavLink to="/free-agents" className="nav-link">Free Agents</NavLink>

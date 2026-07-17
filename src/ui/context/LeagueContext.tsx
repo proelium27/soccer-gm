@@ -14,6 +14,9 @@ import {
   acceptInboundOffer, rejectInboundOffer, counterInboundOffer, setTransferListed,
 } from "../../core/transfers/inboundOffers.js";
 import { extendContract, extendAcademyContract } from "../../core/contracts.js";
+import {
+  listPlayerForLoan, unlistPlayerForLoan, acceptLoanOffer, rejectLoanOffer,
+} from "../../core/loans.js";
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { applyTeamIdentities, type TeamIdentityEdit } from "../../core/teams/customize.js";
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
@@ -42,6 +45,10 @@ interface LeagueContextValue {
   rejectInboundOfferAction: (pid: number) => Promise<void>;
   counterInboundOfferAction: (pid: number, amount: number) => Promise<void>;
   extendContractAction: (pid: number, lengthSeasons?: number) => Promise<void>;
+  listPlayerForLoanAction: (pid: number, seasons: 1 | 2 | 3) => Promise<void>;
+  unlistPlayerForLoanAction: (pid: number) => Promise<void>;
+  acceptLoanOfferAction: (pid: number) => Promise<void>;
+  rejectLoanOfferAction: (pid: number) => Promise<void>;
   setTransferListedAction: (pid: number, listed: boolean) => Promise<void>;
   setLineupAction: (starters: number[]) => Promise<void>;
   simming: boolean;
@@ -296,6 +303,22 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     (l) => ({ ...l, players: extendAcademyContract(l.players, pid, l.season) }),
   ), [mutate]);
 
+  const listPlayerForLoanAction = useCallback((pid: number, seasons: 1 | 2 | 3) => mutate(
+    (l) => listPlayerForLoan(l, pid, seasons),
+  ), [mutate]);
+
+  const unlistPlayerForLoanAction = useCallback((pid: number) => mutate(
+    (l) => unlistPlayerForLoan(l, pid),
+  ), [mutate]);
+
+  const acceptLoanOfferAction = useCallback((pid: number) => mutate(
+    (l) => acceptLoanOffer(l, pid),
+  ), [mutate]);
+
+  const rejectLoanOfferAction = useCallback((pid: number) => mutate(
+    (l) => rejectLoanOffer(l, pid),
+  ), [mutate]);
+
   const setLineupAction = useCallback((starters: number[]) => mutate((l) => {
     const user = l.teams.find((t) => t.tid === l.meta.userTid);
     if (!user) return null;
@@ -357,6 +380,10 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       rejectInboundOfferAction,
       counterInboundOfferAction,
       extendContractAction,
+      listPlayerForLoanAction,
+      unlistPlayerForLoanAction,
+      acceptLoanOfferAction,
+      rejectLoanOfferAction,
       setTransferListedAction,
       setLineupAction,
       simming: simming || simOverlayOpen || busy,

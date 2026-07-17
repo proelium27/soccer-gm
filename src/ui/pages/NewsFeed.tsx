@@ -172,7 +172,13 @@ export function NewsFeed() {
                           return (
                             <tr key={`t-${t.pid}-${t.season}-${t.window}-${i}`}
                                 className={highlighted ? "team-highlight" : undefined}>
-                              <td className="text-muted small text-capitalize">{t.window} window transfer</td>
+                              <td className="text-muted small text-capitalize">
+                                {t.loanReturn
+                                  ? "loan return"
+                                  : t.loanSeasons
+                                    ? `${t.window} window loan (${t.loanSeasons} season${t.loanSeasons > 1 ? "s" : ""})`
+                                    : `${t.window} window transfer`}
+                              </td>
                               <td>{playerCell(t.pid)}</td>
                               <td>
                                 <span className="d-inline-flex align-items-center gap-1">

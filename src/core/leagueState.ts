@@ -5,6 +5,7 @@ import type { ScheduleGame } from "./schedule.js";
 import type { CompletedTransfer, TransferNegotiation } from "./transfers/negotiation.js";
 import type { InboundOffer } from "./transfers/inboundOffers.js";
 import type { NewsEvent } from "./newsEvents.js";
+import type { ActiveLoan, LoanListing, LoanRejection } from "./loans.js";
 import type { Competition } from "./competitions.js";
 import { generateWorld } from "./league/generate.js";
 import { assignIdentities } from "./teams/clubs.js";
@@ -56,6 +57,12 @@ export interface LeagueStore {
   seasonHistory: SeasonHistoryEntry[];
   /** Player accomplishments (hat-tricks, standout ratings, goal milestones), all seasons, oldest first. */
   newsEvents: NewsEvent[];
+  /** Loans currently in effect (parent club still owns the contract, loanee club fields him and pays wages). */
+  activeLoans: ActiveLoan[];
+  /** The user's own senior-roster players listed for an outgoing loan, awaiting an AI club's offer. */
+  loanListings: LoanListing[];
+  /** Incoming loan offers the user has turned down this window (see loans.ts's loanOfferCandidates). */
+  loanRejections: LoanRejection[];
 }
 
 export function createLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
@@ -84,5 +91,8 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
     winterMarketRunSeason: null,
     seasonHistory: [],
     newsEvents: [],
+    activeLoans: [],
+    loanListings: [],
+    loanRejections: [],
   };
 }

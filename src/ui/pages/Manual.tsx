@@ -21,6 +21,7 @@ const SECTIONS: [id: string, title: string][] = [
   ["matches", "The Match Engine"],
   ["squad", "Your Squad: Lineups, Depth & the Roster Cap"],
   ["transfers", "Transfers & Negotiation"],
+  ["loans", "Loans"],
   ["contracts", "Contracts, Wages & Free Agents"],
   ["finance", "Finance"],
   ["youth", "The Youth Academy"],
@@ -98,6 +99,7 @@ export function Manual() {
             <li><strong>Roster</strong> — your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay) plus a bench table with ratings, ages, contracts, season stats (goalkeepers additionally show goals against and xG against). Drag a bench player onto a pitch slot to swap them into the XI, extend contracts, or release players.</li>
             <li><strong>Transfers</strong> — recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
             <li><strong>Incoming Offers</strong> — AI clubs bidding for <em>your</em> players. Accept, reject, or counter to squeeze the fee upward.</li>
+            <li><strong>Loans</strong> — list your own players for a fixed-length loan, review AI clubs' incoming loan offers, and track who's currently out on loan.</li>
             <li><strong>Finance</strong> — budget, the full wage-bill table, a projected (or final) season settlement, your transfer history, and a league-wide money table.</li>
             <li><strong>Incoming Talent</strong> — unsigned prospects age 21 or younger; sign them to your senior team or into your academy.</li>
             <li><strong>Free Agents</strong> — every other unsigned player, sign straight to your senior team.</li>
@@ -386,6 +388,28 @@ export function Manual() {
           </p>
           <p>
             Every completed transfer in the league — yours and the AI's — lands in the News Feed.
+          </p>
+        </Section>
+
+        <Section id="loans" title="Loans">
+          <p>
+            A loan sends one of your players to another club's roster for a fixed <strong>1, 2, or
+            3 seasons</strong> without selling him — he plays for (and develops at) his loanee club
+            the whole time, then comes back to you automatically once the loan ends. It's the tool
+            for a good player stuck behind a better one on your own depth chart: real minutes matter
+            for development, so a season out on loan can be worth more to him than a season on your
+            bench.
+          </p>
+          <p>
+            From the Loans page, <strong>list</strong> a senior-roster player and pick a duration
+            (the depth floor still applies — you can't loan away your last cover at a position).
+            Interested AI clubs then make offers there, each with a flat, non-negotiable fee and the
+            duration you chose; accept one and the move executes immediately, or reject to keep
+            looking. The <strong>loanee club pays the fee up front and covers his wages for the
+            whole loan</strong> — his contract itself doesn't change, and once he's back he's still
+            under the same deal he left with. AI clubs also loan their own young, buried players to
+            each other in the background — that only ever moves players between AI clubs; nothing
+            happens to your own roster unless you list a player yourself.
           </p>
         </Section>
 
