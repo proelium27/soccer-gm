@@ -368,6 +368,28 @@ a:hover {
   border: 1px solid oklch(0.94 0.007 155 / 0.25);
 }
 
+/* Club crest: real artwork when available, or a two-color swatch pair
+   fallback for clubs without art yet (see ClubCrest.tsx). */
+.club-crest {
+  display: inline-block;
+  object-fit: contain;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.club-crest-fallback {
+  display: inline-flex;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid oklch(0.94 0.007 155 / 0.25);
+}
+
+.club-crest-fallback span {
+  flex: 1 1 50%;
+}
+
 /* =========================================================================
    Division badge (Power Rankings — differentiate D1/D2 clubs at a glance)
    ========================================================================= */

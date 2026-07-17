@@ -4,6 +4,7 @@ import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { tierOf } from "../../core/competitions.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
+import { ClubCrest } from "../components/ClubCrest.js";
 import { seasonYear } from "../format.js";
 
 export function Standings() {
@@ -113,10 +114,7 @@ export function Standings() {
                   <td className="text-end">{i + 1}</td>
                   <td>
                     <span className="d-inline-flex align-items-center gap-1">
-                      <span
-                        className="color-swatch"
-                        style={{ backgroundColor: team?.colors[0] }}
-                      />
+                      <ClubCrest tid={row.tid} colors={team?.colors ?? ["#888888", "#888888"]} />
                       {team?.name ?? `Team ${row.tid}`}
                       {isChampion && (
                         <span className="text-muted small"> {isTier1 ? "🏆 (Champion)" : "(1st)"}</span>

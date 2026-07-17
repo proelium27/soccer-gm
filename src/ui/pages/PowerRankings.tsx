@@ -12,6 +12,7 @@ import { getRatingColor } from "../utils/ratingColor.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { Flag } from "../components/Flag.js";
+import { ClubCrest } from "../components/ClubCrest.js";
 import { sortByPosThenOvr } from "./Roster.js";
 
 const SLOTS = FORMATIONS["4-3-3"];
@@ -82,7 +83,7 @@ export function PowerRankings() {
                       <span className="text-muted" style={{ width: "1em", display: "inline-block" }}>
                         {isExpanded ? "▾" : "▸"}
                       </span>
-                      <span className="color-swatch" style={{ backgroundColor: team.colors[0] }} />
+                      <ClubCrest tid={team.tid} colors={team.colors} />
                       {team.name}
                     </span>
                   </td>

@@ -6,6 +6,7 @@ import type { NewsEvent, NewsEventType } from "../../core/newsEvents.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { currency, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
+import { ClubCrest } from "../components/ClubCrest.js";
 
 type ClubFilter = "all" | "user";
 
@@ -75,7 +76,7 @@ export function NewsFeed() {
     const team: StoredTeam | undefined = teamMap.get(tid);
     return (
       <span className="d-inline-flex align-items-center gap-1">
-        <span className="color-swatch" style={{ backgroundColor: team?.colors[0] }} />
+        <ClubCrest tid={tid} colors={team?.colors ?? ["#888888", "#888888"]} />
         {team?.name ?? `Team ${tid}`}
       </span>
     );
