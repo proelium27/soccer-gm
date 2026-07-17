@@ -70,6 +70,13 @@ export interface InboundOfferCandidate {
  * within a window (a per-player seeded scouting-noise jitter on the buyer's
  * valuation via perceivedValueToClub, the same role it plays in the AI↔AI
  * market); empty when no window is open or nobody clears the bar.
+ *
+ * Buyers are diversified: a club already tied to an offer this window
+ * (either picked earlier in this same pass, or already negotiating for a
+ * different player per persisted state) is skipped in favor of the next-best
+ * distinct buyer, so the same wealthy 1-2 clubs — which tend to clear the
+ * affordability bar for almost anyone — don't dominate every offer. A buyer
+ * is only reused if literally no other club clears the bar for that player.
  */
 export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandidate[] {
   const ws = transferWindowState(league);
@@ -88,6 +95,12 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
 
+  const usedBuyers = new Set(
+    league.inboundOffers
+      .filter((o) => o.season === ws.season && o.window === ws.window && o.status === "open")
+      .map((o) => o.buyerTid),
+  );
+
   const candidates: InboundOfferCandidate[] = [];
   for (const pid of user.roster) {
     const player = playerMap.get(pid);
@@ -99,6 +112,7 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
     const jitter = mulberry32(windowSeed(league.lid, ws.season, ws.window, pid, 4));
 
     let best: InboundOfferCandidate | null = null;
+    let bestAnyBuyer: InboundOfferCandidate | null = null;
     for (const buyer of league.teams) {
       if (buyer.tid === userTid) continue;
       const buyerCtx = contexts.get(buyer.tid);
@@ -110,17 +124,23 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
       // would just fail affordability at accept time (see buyerSpendable).
       const ceiling = Math.min(rawCeiling, buyerSpendable(buyer, buyerCtx, wageCharge));
       if (ceiling < reservation * (1 + AI_MARKET_MIN_SURPLUS)) continue;
-      if (!best || ceiling > best.ceiling) {
-        best = {
-          player,
-          buyerTid: buyer.tid,
-          reservation,
-          ceiling,
-          openingOffer: Math.round(reservation + AI_MARKET_FEE_SHARE * (ceiling - reservation)),
-        };
-      }
+      const candidate: InboundOfferCandidate = {
+        player,
+        buyerTid: buyer.tid,
+        reservation,
+        ceiling,
+        openingOffer: Math.round(reservation + AI_MARKET_FEE_SHARE * (ceiling - reservation)),
+      };
+      if (!bestAnyBuyer || ceiling > bestAnyBuyer.ceiling) bestAnyBuyer = candidate;
+      if (usedBuyers.has(buyer.tid)) continue;
+      if (!best || ceiling > best.ceiling) best = candidate;
     }
-    if (best) candidates.push(best);
+    // Fall back to reusing a buyer only if no fresh buyer clears the bar.
+    const chosen = best ?? bestAnyBuyer;
+    if (chosen) {
+      candidates.push(chosen);
+      usedBuyers.add(chosen.buyerTid);
+    }
   }
 
   return candidates
