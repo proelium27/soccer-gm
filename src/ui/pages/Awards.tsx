@@ -42,7 +42,17 @@ function AwardCard({ title, player, subtitle }: { title: ReactNode; player: Play
   );
 }
 
-function TeamOfSeasonField({ awards, playersByPid }: { awards: SeasonAwards; playersByPid: Map<number, Player> }) {
+function TeamOfSeasonField({
+  awards,
+  playersByPid,
+  season,
+  userTid,
+}: {
+  awards: SeasonAwards;
+  playersByPid: Map<number, Player>;
+  season: number;
+  userTid: number | undefined;
+}) {
   return (
     <div className="pitch-field">
       <div className="pitch-goal pitch-goal--left" />
@@ -51,6 +61,10 @@ function TeamOfSeasonField({ awards, playersByPid }: { awards: SeasonAwards; pla
         const pid = awards.teamOfSeason[i];
         const player = pid !== null ? playersByPid.get(pid) : undefined;
         const coord = COORDS[i];
+        const isUserPlayer =
+          player !== undefined &&
+          userTid !== undefined &&
+          player.stats.find((s) => s.season === season)?.tid === userTid;
         return (
           <div
             key={i}
@@ -60,7 +74,11 @@ function TeamOfSeasonField({ awards, playersByPid }: { awards: SeasonAwards; pla
             {player ? (
               <PlayerRatingsTooltip player={player}>
                 <span
-                  className={"pitch-chip" + (player.pos === "GK" ? " pitch-chip--gk" : "")}
+                  className={
+                    "pitch-chip" +
+                    (player.pos === "GK" ? " pitch-chip--gk" : "") +
+                    (isUserPlayer ? " pitch-chip--user" : "")
+                  }
                   style={{ borderColor: getRatingColor(player.ovr) }}
                 >
                   <Link to={`/player/${player.pid}`} className="pitch-chip-name">
@@ -155,7 +173,12 @@ export function Awards() {
       </div>
 
       <h5>Team of the Season</h5>
-      <TeamOfSeasonField awards={divisionAwards} playersByPid={playersByPid} />
+      <TeamOfSeasonField
+        awards={divisionAwards}
+        playersByPid={playersByPid}
+        season={activeSeason}
+        userTid={league.meta.userTid}
+      />
     </div>
   );
 }

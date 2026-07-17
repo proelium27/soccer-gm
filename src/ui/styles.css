@@ -659,6 +659,13 @@ a:hover {
 .pitch-chip--gk {
   box-shadow: 0 0 0 2px var(--sg-warn);
 }
+.pitch-chip--user {
+  background: var(--sg-user-wash);
+  box-shadow: 0 0 0 2px var(--sg-user);
+}
+.pitch-chip--user.pitch-chip--gk {
+  box-shadow: 0 0 0 2px var(--sg-warn), 0 0 0 4px var(--sg-user);
+}
 .pitch-chip-contract-flag {
   display: inline-flex;
   align-items: center;
