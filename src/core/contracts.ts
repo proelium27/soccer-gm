@@ -38,15 +38,19 @@ export interface ContractTerms {
 /**
  * The one-button contract terms (design: contracts are never negotiated).
  * Salary is the standard rate for the player's current ovr; length is
- * deterministic by age — long deals for the young, short for the old — so
- * the extend/sign button can state exactly what it does.
+ * deterministic by age — long deals for the young, short for the old —
+ * unless the caller overrides it (the user's own extend UI lets them pick
+ * 1-4 seasons directly; AI callers never pass an override).
  */
-export function contractTerms(player: Player, season: number): ContractTerms {
+export function contractTerms(
+  player: Player, season: number, lengthOverride?: number,
+): ContractTerms {
   const age = season - player.born;
-  const lengthSeasons =
+  const lengthSeasons = lengthOverride ?? (
     age < EXTENSION_AGE_MID ? EXTENSION_LENGTH_YOUNG
     : age < EXTENSION_AGE_OLD ? EXTENSION_LENGTH_MID
-    : EXTENSION_LENGTH_OLD;
+    : EXTENSION_LENGTH_OLD
+  );
   return {
     salary: seasonSalaryForOvr(player.ovr, player.pid, season),
     lengthSeasons,
@@ -67,11 +71,17 @@ function applyContractTerms(players: Player[], pid: number, terms: ContractTerms
   });
 }
 
-/** Re-sign a player to fresh one-button terms, effective immediately. */
-export function extendContract(players: Player[], pid: number, season: number): Player[] {
+/**
+ * Re-sign a player to fresh one-button terms, effective immediately.
+ * `lengthOverride` lets the user pick 1-4 seasons directly instead of the
+ * default age-based length.
+ */
+export function extendContract(
+  players: Player[], pid: number, season: number, lengthOverride?: number,
+): Player[] {
   const p = players.find((q) => q.pid === pid);
   if (!p) return players;
-  return applyContractTerms(players, pid, contractTerms(p, season));
+  return applyContractTerms(players, pid, contractTerms(p, season, lengthOverride));
 }
 
 /**
