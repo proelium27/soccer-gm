@@ -39,6 +39,10 @@ export interface CompletedTransfer {
   fee: number;
   season: number;
   window: TransferWindowKind;
+  /** Present for a loan move; the agreed duration in seasons. Absent = a permanent transfer. */
+  loanSeasons?: number;
+  /** True when a loaned player returns to his parent club at loan end (fee is always 0). */
+  loanReturn?: boolean;
 }
 
 /**

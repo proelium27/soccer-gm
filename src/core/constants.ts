@@ -859,6 +859,67 @@ export const AI_SCOUT_NOISE_MIN = 0.02;
 export const AI_SCOUT_NOISE_MAX = 0.08;
 
 /* ────────────────────────────────────────────────────────────────────────
+ * Loans: a player moves to another club's roster for a fixed 1-3 season
+ * commitment instead of a permanent sale — the parent club banks a flat fee
+ * up front and the loanee club takes on his wages for the duration (this
+ * falls out for free: roster membership, not contract ownership, drives
+ * wage charging, same as every other roster-move in the codebase). Real
+ * football loan fees run far below permanent transfer fees (a few percent
+ * of the player's market value even for a rare season-long marquee loan,
+ * see the design notes) — LOAN_FEE_RATE is calibrated to that, not to
+ * trueTransferValue's own scale.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** Loan fee = trueTransferValue × this fraction × a duration multiplier (see LOAN_DURATION_MULTIPLIER). */
+export const LOAN_FEE_RATE = 0.08;
+
+/**
+ * A longer loan costs more but at a diminishing rate (real loan fees don't
+ * scale linearly with duration): 1 season = the base rate, 2 = 1.5x, 3 = 1.9x.
+ */
+export const LOAN_DURATION_MULTIPLIER: Record<1 | 2 | 3, number> = {
+  1: 1.0,
+  2: 1.5,
+  3: 1.9,
+};
+
+/** Longest loan the user (or an AI club) can arrange in one deal. */
+export const LOAN_MAX_SEASONS = 3;
+
+/**
+ * An AI club only loans out its own player if he's this age or younger — the
+ * feature's whole premise is developmental (a young player buried behind a
+ * better starter goes elsewhere for minutes), so AI-initiated loans (both
+ * offering to take one of the user's listed players, and AI↔AI loans) are
+ * scoped to prospects, not established stars. The user's own outgoing
+ * listings have no such restriction — it's their squad, their call.
+ */
+export const LOAN_AI_MAX_AGE = 23;
+
+/**
+ * A loan-out is worthwhile to an AI seller only if the player isn't clearly
+ * needed at his current club: reservation (valueToClub to the parent) must
+ * be no more than this multiple of true market value — mirrors
+ * AI_MARKET_AVAILABILITY, reused as-is since "would this club rather cash in
+ * / free a slot than keep him" is the same question for a loan as a sale.
+ */
+export const LOAN_AVAILABILITY = AI_MARKET_AVAILABILITY;
+
+/**
+ * A prospective loanee club bothers only if the player would be meaningfully
+ * more useful there than at his current club — looser than
+ * AI_MARKET_MIN_SURPLUS (0.15) since a loan is cheap and reversible, so the
+ * bar for "worth taking a flier on" is lower than for a permanent buy.
+ */
+export const LOAN_MIN_SURPLUS = 0.05;
+
+/** Most incoming loan offers shown for the user's listed players in a single window. */
+export const LOAN_OFFERS_MAX = 5;
+
+/** Most loans any one AI club will send out / take on in a single window (mirrors AI_MARKET_MAX_BUYS/SELLS). */
+export const AI_LOAN_MAX_MOVES = 2;
+
+/* ────────────────────────────────────────────────────────────────────────
  * End-of-season awards (Player of the Season, Golden Boot, Team of the
  * Season). Scoring layers explicit per-season goal/assist/defensive-stat
  * weights on top of avgRating (itself already a per-match, position-weighted

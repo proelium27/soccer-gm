@@ -15,6 +15,7 @@ import { FreeAgents } from "./pages/FreeAgents.js";
 import { Academy } from "./pages/Academy.js";
 import { Transfers } from "./pages/Transfers.js";
 import { IncomingOffers } from "./pages/IncomingOffers.js";
+import { Loans } from "./pages/Loans.js";
 import { Finance } from "./pages/Finance.js";
 import { NewsFeed } from "./pages/NewsFeed.js";
 import { Awards } from "./pages/Awards.js";
@@ -51,6 +52,7 @@ export function App() {
             <Route path="/academy" element={<Academy />} />
             <Route path="/transfers" element={<Transfers />} />
             <Route path="/incoming-offers" element={<IncomingOffers />} />
+            <Route path="/loans" element={<Loans />} />
             <Route path="/finance" element={<Finance />} />
             <Route path="/manual" element={<Manual />} />
             <Route path="/player/:pid" element={<PlayerProfile />} />
