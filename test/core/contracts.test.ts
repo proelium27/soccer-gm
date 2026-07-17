@@ -36,6 +36,18 @@ describe("contractTerms", () => {
     expect(terms.salary).toBe(seasonSalaryForOvr(p.ovr, p.pid, season));
     expect(terms.expiresSeason).toBe(season + terms.lengthSeasons);
   });
+
+  it("honors a length override instead of the age-based default, salary unaffected", () => {
+    const season = 5;
+    const p = playerAged(24, season);
+    const defaultTerms = contractTerms(p, season);
+    for (const lengthSeasons of [1, 2, 3, 4]) {
+      const terms = contractTerms(p, season, lengthSeasons);
+      expect(terms.lengthSeasons).toBe(lengthSeasons);
+      expect(terms.expiresSeason).toBe(season + lengthSeasons);
+      expect(terms.salary).toBe(defaultTerms.salary);
+    }
+  });
 });
 
 describe("seasonSalaryForOvr", () => {
@@ -90,6 +102,14 @@ describe("extendContract", () => {
     const terms = contractTerms(extended, league.season);
     expect(updated.contract).toEqual({ salary: terms.salary, expiresSeason: terms.expiresSeason });
     expect(players.find((p) => p.pid === other)!.contract).toEqual(before);
+  });
+
+  it("applies a user-chosen length override when given", () => {
+    const league = createLeagueState(0, mulberry32(2));
+    const pid = league.teams[0].roster[0];
+    const players = extendContract(league.players, pid, league.season, 4);
+    const updated = players.find((p) => p.pid === pid)!;
+    expect(updated.contract.expiresSeason).toBe(league.season + 4);
   });
 });
 

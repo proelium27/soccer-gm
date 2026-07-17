@@ -669,6 +669,9 @@ export const EXTENSION_LENGTH_OLD = 1;
 /** Age cutoffs: below MID → young terms, below OLD → mid terms, else old terms. */
 export const EXTENSION_AGE_MID = 30;
 export const EXTENSION_AGE_OLD = 33;
+/** The user's own extend UI lets them pick any length in this range instead of the age default. */
+export const EXTENSION_LENGTH_USER_MIN = 1;
+export const EXTENSION_LENGTH_USER_MAX = 4;
 
 /* ─────────────────────────────────────────────────────────────────────────
  * AI evaluation core (see docs — "AI General Manager Philosophy")
