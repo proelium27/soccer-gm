@@ -431,9 +431,9 @@ export function Manual() {
           <p>
             A player whose contract expires becomes a <strong>free agent</strong> — signable for no
             transfer fee, just wages, via the same one-button terms. Extend your own players from
-            the Roster page before they walk; the AI extends its own keepers too (
-            <a href="#ai">details</a>), so the free-agent pool is mostly players somebody decided
-            not to keep.
+            the Roster page before they walk — pick any length from 1 to 4 seasons, wage unaffected
+            by length; the AI extends its own keepers too (<a href="#ai">details</a>), so the
+            free-agent pool is mostly players somebody decided not to keep.
           </p>
           <p>
             If you run a Division 2 club, an occasional breakout player will refuse a new deal —

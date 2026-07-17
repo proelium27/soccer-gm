@@ -44,7 +44,7 @@ interface LeagueContextValue {
   acceptInboundOfferAction: (pid: number) => Promise<void>;
   rejectInboundOfferAction: (pid: number) => Promise<void>;
   counterInboundOfferAction: (pid: number, amount: number) => Promise<void>;
-  extendContractAction: (pid: number) => Promise<void>;
+  extendContractAction: (pid: number, lengthSeasons?: number) => Promise<void>;
   listPlayerForLoanAction: (pid: number, seasons: 1 | 2 | 3) => Promise<void>;
   unlistPlayerForLoanAction: (pid: number) => Promise<void>;
   acceptLoanOfferAction: (pid: number) => Promise<void>;
@@ -259,11 +259,11 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     (l) => counterInboundOffer(l, pid, amount),
   ), [mutate]);
 
-  const extendContractAction = useCallback((pid: number) => mutate((l) => {
+  const extendContractAction = useCallback((pid: number, lengthSeasons?: number) => mutate((l) => {
     const player = l.players.find((p) => p.pid === pid);
     const team = l.teams.find((t) => t.roster.includes(pid));
     if (player && team && wouldRefuseExtension(player, team, l.competitions)) return null;
-    return { ...l, players: extendContract(l.players, pid, l.season) };
+    return { ...l, players: extendContract(l.players, pid, l.season, lengthSeasons) };
   }), [mutate]);
 
   const releasePlayerAction = useCallback((pid: number) => mutate((l) => {
