@@ -74,8 +74,12 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   let teams: StoredTeam[] = releaseExpiredContracts(renewals.teams, renewals.players, endingSeason);
 
   // 2. Progress every remaining player's ratings; heal any lingering injury.
+  //    Academy players have no senior appearances to read minutes from (they
+  //    don't play senior matches), so they're assumed to play a full season
+  //    rather than being penalized with the worst-case minutesFactor.
+  const academyPids = new Set(teams.flatMap((t) => t.academyRoster));
   let players: Player[] = renewals.players.map((p) => {
-    const progressed = progressPlayer(rng, p, endingSeason);
+    const progressed = progressPlayer(rng, p, endingSeason, academyPids.has(p.pid));
     return progressed.injury ? { ...progressed, injury: null } : progressed;
   });
 
