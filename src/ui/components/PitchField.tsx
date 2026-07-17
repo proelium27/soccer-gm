@@ -26,8 +26,10 @@ export interface PitchFieldProps {
   season: number;
   releasablePids: Set<number>;
   refusingPids: Set<number>;
+  transferListedPids: Set<number>;
   onRelease: (pid: number) => void;
   onExtend: (pid: number, lengthSeasons: number) => void;
+  onToggleTransferListed: (pid: number, listed: boolean) => void;
   dragOverSlotIndex: number | null;
   setDragOverSlotIndex: (i: number | null) => void;
   onDropOnSlot: (slotIndex: number, draggedPid: number) => void;
@@ -41,8 +43,10 @@ export function PitchField({
   season,
   releasablePids,
   refusingPids,
+  transferListedPids,
   onRelease,
   onExtend,
+  onToggleTransferListed,
   dragOverSlotIndex,
   setDragOverSlotIndex,
   onDropOnSlot,
@@ -119,6 +123,11 @@ export function PitchField({
                   !
                 </span>
               )}
+              {transferListedPids.has(p.pid) && (
+                <span className="pitch-chip-listed-flag" title="Listed for transfer">
+                  $
+                </span>
+              )}
               <PlayerRatingsTooltip player={p}>
                 <span className="pitch-chip-name">{shortName(p.name)}</span>
               </PlayerRatingsTooltip>
@@ -172,6 +181,16 @@ export function PitchField({
                       />
                     )
                   )}
+                  <button
+                    className={
+                      "btn btn-sm text-nowrap " +
+                      (transferListedPids.has(p.pid) ? "btn-warning" : "btn-outline-warning")
+                    }
+                    onClick={() => onToggleTransferListed(p.pid, !transferListedPids.has(p.pid))}
+                    title="Listing signals AI clubs you're willing to sell, making an offer more likely."
+                  >
+                    {transferListedPids.has(p.pid) ? "Listed for Transfer" : "List for Transfer"}
+                  </button>
                   <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => {
