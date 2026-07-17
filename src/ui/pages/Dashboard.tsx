@@ -9,6 +9,7 @@ import { wageBill } from "../../core/finance/budget.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { currency, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
+import { ClubCrest } from "../components/ClubCrest.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
 
 const STANDINGS_TOP_N = 8;
@@ -189,14 +190,7 @@ export function Dashboard() {
       <div className="card mb-3">
         <div className="card-body">
           <h4 className="card-title d-flex align-items-center gap-2">
-            <span
-              className="color-swatch"
-              style={{ backgroundColor: userTeam.colors[0] }}
-            />
-            <span
-              className="color-swatch"
-              style={{ backgroundColor: userTeam.colors[1] }}
-            />
+            <ClubCrest tid={userTeam.tid} colors={userTeam.colors} size={32} />
             {userTeam.name}
           </h4>
         </div>

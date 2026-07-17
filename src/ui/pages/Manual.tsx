@@ -83,6 +83,11 @@ export function Manual() {
             its abbreviation and colors before the save is created; the same editor is available
             later via "Customize Teams" on any existing save.
           </p>
+          <p>
+            England's 20 Division 1 clubs have real crest artwork, shown wherever a club's name
+            appears; every other club (Division 2 England, Spain, Italy) shows a two-color swatch
+            instead until it gets a crest of its own.
+          </p>
         </Section>
 
         <Section id="pages" title="The Pages">

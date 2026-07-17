@@ -8,6 +8,7 @@ import { useLeague } from "../context/LeagueContext.js";
 import { NUM_TEAMS, NUM_TEAMS_D2 } from "../../core/constants.js";
 import { worldCompetitions, countryClubRanges, countriesOf } from "../../core/competitions.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
+import { ClubCrest } from "../components/ClubCrest.js";
 
 const COUNTRY_RANGES = countryClubRanges(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2);
 const COUNTRIES = countriesOf(worldCompetitions());
@@ -136,14 +137,7 @@ export function NewLeague() {
             }`}
             onClick={() => setSelectedTid(tid)}
           >
-            <span
-              className="color-swatch"
-              style={{ background: club.colors[0] }}
-            />
-            <span
-              className="color-swatch"
-              style={{ background: club.colors[1] }}
-            />
+            <ClubCrest tid={tid} colors={club.colors} size={28} />
             {club.name}
           </button>
         ))}

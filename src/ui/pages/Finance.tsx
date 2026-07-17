@@ -9,6 +9,7 @@ import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
 import { currency, formatWeeklyWage, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { ClubCrest } from "../components/ClubCrest.js";
 
 export function Finance() {
   const { league, setScoutingSpendAction, simming } = useLeague();
@@ -327,10 +328,7 @@ export function Finance() {
                 >
                   <td>
                     <span className="d-inline-flex align-items-center gap-1">
-                      <span
-                        className="color-swatch"
-                        style={{ backgroundColor: team.colors[0] }}
-                      />
+                      <ClubCrest tid={team.tid} colors={team.colors} />
                       {team.name}
                     </span>
                   </td>

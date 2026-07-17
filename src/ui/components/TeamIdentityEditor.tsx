@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ClubCrest } from "./ClubCrest.js";
 
 export interface EditableTeam {
   tid: number;
@@ -63,6 +64,7 @@ export function TeamIdentityEditor({
       <div className="list-group mb-3">
         {visibleTeams.map((t) => (
           <div key={t.tid} className="list-group-item d-flex align-items-center gap-2">
+            <ClubCrest tid={t.tid} colors={t.colors} size={28} />
             <input
               type="color"
               className="form-control form-control-color"

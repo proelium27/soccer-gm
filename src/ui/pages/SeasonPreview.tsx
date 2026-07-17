@@ -6,6 +6,7 @@ import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { currency, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { Flag } from "../components/Flag.js";
+import { ClubCrest } from "../components/ClubCrest.js";
 
 const TOP_N = 10;
 
@@ -102,7 +103,7 @@ export function SeasonPreview() {
                   <td className="text-end">{i + 1}</td>
                   <td>
                     <span className="d-inline-flex align-items-center gap-1">
-                      <span className="color-swatch" style={{ backgroundColor: team.colors[0] }} />
+                      <ClubCrest tid={team.tid} colors={team.colors} />
                       {team.name}
                     </span>
                   </td>
