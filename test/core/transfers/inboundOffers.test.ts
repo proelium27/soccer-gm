@@ -87,6 +87,20 @@ describe("inboundOfferCandidates", () => {
     const league = windowLeague();
     expect(inboundOfferCandidates(league)).toEqual(inboundOfferCandidates(league));
   });
+
+  it("spreads offers across distinct buyers rather than letting one club dominate", () => {
+    // Across several seeds with multiple candidates, buyers shouldn't repeat
+    // (a world of 119 other clubs means a fresh buyer is essentially always
+    // available) — this is the diversification the fix guarantees whenever
+    // it's possible, only falling back to reuse if genuinely no one else clears the bar.
+    for (let seed = 1; seed <= 8; seed++) {
+      const league = windowLeague(seed);
+      const candidates = inboundOfferCandidates(league);
+      if (candidates.length < 2) continue;
+      const buyerTids = candidates.map((c) => c.buyerTid);
+      expect(new Set(buyerTids).size).toBe(buyerTids.length);
+    }
+  });
 });
 
 describe("acceptInboundOffer / rejectInboundOffer / counterInboundOffer", () => {
