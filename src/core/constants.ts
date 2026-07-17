@@ -844,6 +844,16 @@ export const AI_RENEWAL_MARGIN = 1.1;
 /** Most inbound offers shown for the user's roster in a single window. */
 export const INBOUND_OFFERS_MAX = 4;
 
+/**
+ * A player the user has explicitly listed for transfer (StoredTeam.
+ * transferListed) needs only this much surplus — instead of the normal
+ * AI_MARKET_MIN_SURPLUS — to attract a buyer, and is prioritized within
+ * INBOUND_OFFERS_MAX. Listing signals real willingness to sell, so a buyer
+ * doesn't need as decisive an upgrade to bother; it's not a guarantee, since
+ * a buyer still has to value him at or above what he's worth to the user.
+ */
+export const LISTED_FOR_TRANSFER_MIN_SURPLUS = 0.02;
+
 /* ────────────────────────────────────────────────────────────────────────
  * AI GM phase 5: imperfect/scouting-noised decisions. Every AI valuation
  * (buying, selling, renewing) now runs through perceivedValueToClub instead

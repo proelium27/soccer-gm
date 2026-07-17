@@ -17,8 +17,8 @@ import { englandCompetitions, tierOf } from "../core/competitions.js";
  * didn't exist yet, only the old `division: 0 | 1` field.
  */
 type StoredTeamAnyVersion =
-  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence"> &
-  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence">> &
+  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed"> &
+  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed">> &
   { division?: 0 | 1 };
 
 /**
@@ -183,6 +183,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
         academyRoster: t.academyRoster ?? [],
         compId,
         divisionConvergence: t.divisionConvergence ?? null,
+        transferListed: t.transferListed ?? [],
       };
     }),
     players: migratedPlayers,

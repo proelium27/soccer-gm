@@ -13,10 +13,33 @@ import { mulberry32 } from "../../engine/rng.js";
 import {
   AI_MARKET_MIN_SURPLUS, AI_MARKET_FEE_SHARE,
   AI_MARKET_RESERVE_FRACTION_MIN, AI_MARKET_RESERVE_FRACTION_MAX,
-  INBOUND_OFFERS_MAX,
+  INBOUND_OFFERS_MAX, LISTED_FOR_TRANSFER_MIN_SURPLUS,
   NEGOTIATION_LOWBALL_FACTOR, NEGOTIATION_MAX_ROUNDS,
   COUNTER_PADDING_START, COUNTER_PADDING_DECAY,
 } from "../constants.js";
+
+/**
+ * Toggle whether the user has explicitly listed a player for transfer (see
+ * StoredTeam.transferListed / LISTED_FOR_TRANSFER_MIN_SURPLUS). No-op unless
+ * the pid is actually on the user's own roster.
+ */
+export function setTransferListed(league: LeagueStore, pid: number, listed: boolean): LeagueStore {
+  const userTid = league.meta.userTid;
+  return {
+    ...league,
+    teams: league.teams.map((t) => {
+      if (t.tid !== userTid || !t.roster.includes(pid)) return t;
+      const has = t.transferListed.includes(pid);
+      if (listed === has) return t;
+      return {
+        ...t,
+        transferListed: listed
+          ? [...t.transferListed, pid]
+          : t.transferListed.filter((p) => p !== pid),
+      };
+    }),
+  };
+}
 
 /**
  * What a buyer can actually spend right now without dipping into its cash
@@ -94,6 +117,7 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
   if (!userCtx) return [];
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
+  const listedSet = new Set(user.transferListed);
 
   const usedBuyers = new Set(
     league.inboundOffers
@@ -110,6 +134,9 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
     const reservation = valueToClub(player, userCtx);
     const wageCharge = acquisitionWageCharge(league, player);
     const jitter = mulberry32(windowSeed(league.lid, ws.season, ws.window, pid, 4));
+    // Listing lowers the surplus a buyer needs to clear — see
+    // LISTED_FOR_TRANSFER_MIN_SURPLUS.
+    const minSurplus = listedSet.has(pid) ? LISTED_FOR_TRANSFER_MIN_SURPLUS : AI_MARKET_MIN_SURPLUS;
 
     let best: InboundOfferCandidate | null = null;
     let bestAnyBuyer: InboundOfferCandidate | null = null;
@@ -123,7 +150,7 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
       // fee without dipping into its cash reserve — otherwise the offer
       // would just fail affordability at accept time (see buyerSpendable).
       const ceiling = Math.min(rawCeiling, buyerSpendable(buyer, buyerCtx, wageCharge));
-      if (ceiling < reservation * (1 + AI_MARKET_MIN_SURPLUS)) continue;
+      if (ceiling < reservation * (1 + minSurplus)) continue;
       const candidate: InboundOfferCandidate = {
         player,
         buyerTid: buyer.tid,
@@ -143,11 +170,18 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
     }
   }
 
+  // Listed players are prioritized within the INBOUND_OFFERS_MAX cap — the
+  // user asked for offers on them, so they shouldn't get crowded out by
+  // unlisted players with a bigger surplus.
   return candidates
-    .sort(
-      (a, b) =>
-        (b.ceiling - b.reservation) - (a.ceiling - a.reservation) || a.player.pid - b.player.pid,
-    )
+    .sort((a, b) => {
+      const aListed = listedSet.has(a.player.pid);
+      const bListed = listedSet.has(b.player.pid);
+      if (aListed !== bListed) return aListed ? -1 : 1;
+      return (
+        (b.ceiling - b.reservation) - (a.ceiling - a.reservation) || a.player.pid - b.player.pid
+      );
+    })
     .slice(0, INBOUND_OFFERS_MAX);
 }
 

@@ -11,7 +11,7 @@ import {
 import { clampScoutingSpend } from "../../core/finance/scouting.js";
 import { makeTransferOffer, acceptCounterOffer } from "../../core/transfers/negotiation.js";
 import {
-  acceptInboundOffer, rejectInboundOffer, counterInboundOffer,
+  acceptInboundOffer, rejectInboundOffer, counterInboundOffer, setTransferListed,
 } from "../../core/transfers/inboundOffers.js";
 import { extendContract, extendAcademyContract } from "../../core/contracts.js";
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
@@ -42,6 +42,7 @@ interface LeagueContextValue {
   rejectInboundOfferAction: (pid: number) => Promise<void>;
   counterInboundOfferAction: (pid: number, amount: number) => Promise<void>;
   extendContractAction: (pid: number) => Promise<void>;
+  setTransferListedAction: (pid: number, listed: boolean) => Promise<void>;
   setLineupAction: (starters: number[]) => Promise<void>;
   simming: boolean;
   saveToDb: () => Promise<void>;
@@ -259,6 +260,10 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     return { ...l, players: extendContract(l.players, pid, l.season) };
   }), [mutate]);
 
+  const setTransferListedAction = useCallback((pid: number, listed: boolean) => mutate(
+    (l) => setTransferListed(l, pid, listed),
+  ), [mutate]);
+
   const releasePlayerAction = useCallback((pid: number) => mutate((l) => {
     const teams = releasePlayer(l.teams, l.players, l.meta.userTid, pid);
     if (teams === l.teams) return null;
@@ -352,6 +357,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       rejectInboundOfferAction,
       counterInboundOfferAction,
       extendContractAction,
+      setTransferListedAction,
       setLineupAction,
       simming: simming || simOverlayOpen || busy,
       saveToDb,

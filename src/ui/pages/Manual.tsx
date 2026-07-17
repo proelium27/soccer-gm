@@ -376,6 +376,15 @@ export function Manual() {
             Transfers, how sharp that read is depends on your scouting spend (<a href="#finance">Finance</a>).
           </p>
           <p>
+            <strong>List for Transfer.</strong> AI clubs already scout your whole roster on their
+            own, but a "List for Transfer" button on the Roster page (in each player's pitch popover
+            or bench row) lets you flag a player as available — a clearer signal that you're
+            willing to sell. A listed player needs a much smaller edge in value to some AI club to
+            draw a bid, and gets first claim on one of the 4 offer slots each window over an
+            unlisted player. It's not a guarantee — a buyer still has to rate him above what he's
+            worth to you — just better odds of a bite.
+          </p>
+          <p>
             Every completed transfer in the league — yours and the AI's — lands in the News Feed.
           </p>
         </Section>

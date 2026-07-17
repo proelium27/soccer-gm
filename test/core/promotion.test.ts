@@ -17,7 +17,7 @@ function team(tid: number, compId: number, academyBase: number): StoredTeam {
   return {
     tid, name: `T${tid}`, abbrev: "ABC", colors: ["#000", "#fff"],
     roster: [], academyRoster: [], budget: 0, hype: 0, scoutingSpend: 0,
-    academyBase, compId, divisionConvergence: null, starters: null,
+    academyBase, compId, divisionConvergence: null, starters: null, transferListed: [],
   };
 }
 
