@@ -6,6 +6,7 @@ import type { StoredTeam } from "../../core/teams/clubs.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
 import { resolveXI } from "../../core/lineup/resolveXI.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
+import { computeTeamForm } from "../../core/teams/powerRanking.js";
 import { competitionOf, tierOf } from "../../core/competitions.js";
 import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
@@ -35,15 +36,21 @@ export function PowerRankings() {
   }
 
   const playerByPid = new Map(league.players.map((p) => [p.pid, p]));
-  const rankings = league.teams
+  const withRatings = league.teams
     .filter((team) => compId === "all" || team.compId === compId)
     .map((team) => {
       const roster = team.roster
         .map((pid) => playerByPid.get(pid))
         .filter((p): p is Player => p !== undefined);
       return { team, roster, rating: computeTeamRating(roster, team.starters) };
+    });
+  const ovrByTid = new Map(withRatings.map(({ team, rating }) => [team.tid, rating.ovr]));
+  const rankings = withRatings
+    .map(({ team, roster, rating }) => {
+      const form = computeTeamForm(team.tid, rating.ovr, league.played, ovrByTid);
+      return { team, roster, rating, form, powerScore: rating.ovr + form.performanceBonus };
     })
-    .sort((a, b) => b.rating.ovr - a.rating.ovr);
+    .sort((a, b) => b.powerScore - a.powerScore);
 
   const divisionRanks = new Map<number, number>();
   const divisionCounts = new Map<number, number>();
@@ -57,8 +64,10 @@ export function PowerRankings() {
     <div className="container-fluid p-3">
       <h4>Power Rankings</h4>
       <p className="text-muted small mb-3">
-        Teams ranked by squad OVR (Starting XI + bench, depth-weighted) across every competition in
-        the world. Click a team to see its roster.
+        Teams ranked by a blended Power score: squad OVR (Starting XI + bench, depth-weighted) plus
+        a current-season form bonus — results weighted by opponent quality (beating a strong side
+        counts for more than beating a weak one) and goal difference. Click a team to see its
+        roster.
       </p>
       <div className="mb-3">
         <CompetitionSelect
@@ -74,12 +83,15 @@ export function PowerRankings() {
             <th className="text-end">#</th>
             <th>Team</th>
             <th className="text-end">Div</th>
+            <th className="text-end">Record</th>
+            <th className="text-end">GD</th>
             <th className="text-end">OVR</th>
+            <th className="text-end">Power</th>
             <th className="text-end">POT</th>
           </tr>
         </thead>
         <tbody>
-          {rankings.map(({ team, roster, rating }, i) => {
+          {rankings.map(({ team, roster, rating, form, powerScore }, i) => {
             const isUser = team.tid === league.meta.userTid;
             const isExpanded = expandedTid === team.tid;
             return (
@@ -116,13 +128,32 @@ export function PowerRankings() {
                       );
                     })()}
                   </td>
+                  <td className="text-end">
+                    {form.played > 0 ? `${form.won}-${form.drawn}-${form.lost}` : "—"}
+                  </td>
+                  <td className="text-end">
+                    {form.played > 0 ? (form.gd > 0 ? `+${form.gd}` : form.gd) : "—"}
+                  </td>
                   <td className="text-end">{rating.ovr}</td>
+                  <td className="text-end">
+                    <span className="fw-semibold">{Math.round(powerScore)}</span>
+                    {form.played > 0 && Math.abs(form.performanceBonus) >= 0.5 && (
+                      <span
+                        className={
+                          "small ms-1 " + (form.performanceBonus > 0 ? "text-success" : "text-danger")
+                        }
+                      >
+                        ({form.performanceBonus > 0 ? "+" : ""}
+                        {form.performanceBonus.toFixed(1)})
+                      </span>
+                    )}
+                  </td>
                   <td className="text-end">{rating.pot}</td>
                 </tr>
                 {isExpanded && (
                   <tr>
                     <td></td>
-                    <td colSpan={4}>
+                    <td colSpan={7}>
                       <RosterPreview team={team} roster={roster} season={league.season} />
                     </td>
                   </tr>

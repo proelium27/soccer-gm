@@ -160,6 +160,24 @@ export const TEAM_RATING_BENCH_BASE_WEIGHT = 0.5;
 export const TEAM_RATING_BENCH_DECAY = 0.75;
 
 /**
+ * Power Rankings (src/core/teams/powerRanking.ts): squad OVR alone is only
+ * half the picture, so a team's current-season results are layered on top as
+ * a bonus/penalty on the same OVR scale. Each played match is scored against
+ * an Elo-style expectation derived from the OVR gap to that specific
+ * opponent (POWER_EXPECTED_POINTS_SLOPE — extra expected points-per-game per
+ * 1 OVR point of advantage, off a 1.5 baseline for an even match, clamped to
+ * the real 0-3 a match can pay out), so beating a strong side is worth more
+ * than beating a weak one and vice versa for losses. Goal difference
+ * (capped at POWER_GD_CAP so one blowout can't swing things) is added in at
+ * POWER_GD_WEIGHT per goal. The per-game average of all that is scaled by
+ * POWER_PERFORMANCE_WEIGHT onto the OVR axis for the final bonus.
+ */
+export const POWER_EXPECTED_POINTS_SLOPE = 0.08;
+export const POWER_GD_WEIGHT = 0.15;
+export const POWER_GD_CAP = 4;
+export const POWER_PERFORMANCE_WEIGHT = 4;
+
+/**
  * Hard squad-size limit enforced on player-adding actions (free-agent
  * signings, transfer buys). Set comfortably above ROSTER_COMPOSITION's 25 so
  * clubs have real squad depth, matching typical real-world first-team limits.
