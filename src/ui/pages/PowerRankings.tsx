@@ -13,6 +13,7 @@ import { formatWeeklyWage, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
+import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { sortByPosThenOvr } from "./Roster.js";
 
 const SLOTS = FORMATIONS["4-3-3"];
@@ -26,6 +27,7 @@ function shortName(name: string): string {
 export function PowerRankings() {
   const { league } = useLeague();
   const [expandedTid, setExpandedTid] = useState<number | null>(null);
+  const [compId, setCompId] = useState<number | "all">("all");
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -33,6 +35,7 @@ export function PowerRankings() {
 
   const playerByPid = new Map(league.players.map((p) => [p.pid, p]));
   const rankings = league.teams
+    .filter((team) => compId === "all" || team.compId === compId)
     .map((team) => {
       const roster = team.roster
         .map((pid) => playerByPid.get(pid))
@@ -56,6 +59,14 @@ export function PowerRankings() {
         Teams ranked by squad OVR (Starting XI + bench, depth-weighted) across every competition in
         the world. Click a team to see its roster.
       </p>
+      <div className="mb-3">
+        <CompetitionSelect
+          competitions={league.competitions}
+          value={compId}
+          onChange={setCompId}
+          allOption
+        />
+      </div>
       <table className="table table-striped table-sm">
         <thead>
           <tr>
