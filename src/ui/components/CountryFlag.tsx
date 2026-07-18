@@ -43,6 +43,14 @@ export function CountryFlag({ country, size = 18, className }: CountryFlagProps)
           <rect x="2" width="1" height="2" fill="#ce2b37" />
         </svg>
       );
+    case "Germany":
+      return (
+        <svg {...commonProps}>
+          <rect width="3" height="2" fill="#000000" />
+          <rect y="0.667" width="3" height="0.667" fill="#dd0000" />
+          <rect y="1.333" width="3" height="0.667" fill="#ffce00" />
+        </svg>
+      );
     default:
       return <span className="country-flag-fallback" style={style} />;
   }

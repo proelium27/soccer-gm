@@ -1,9 +1,11 @@
 /**
  * A competition is one league a set of clubs plays in — one entry per
  * division per country. Teams point at a competition via StoredTeam.compId.
- * England-only today; a follow-up PR adds Spain and Italy as more rows.
- * Ids are stable forever within a save: an old save's legacy division values
- * (0 = English D1, 1 = English D2) are already valid compIds by construction.
+ * New saves span four countries (England, Spain, Italy, Germany), each a
+ * two-division pyramid; England-only saves predating the world expansion keep
+ * just competitions 0/1. Ids are stable forever within a save: an old save's
+ * legacy division values (0 = English D1, 1 = English D2) are already valid
+ * compIds by construction.
  */
 export interface Competition {
   id: number;
@@ -26,6 +28,8 @@ export function worldCompetitions(): Competition[] {
     { id: 3, country: "Spain", tier: 2, name: "Spanish Division 2" },
     { id: 4, country: "Italy", tier: 1, name: "Italian Division 1" },
     { id: 5, country: "Italy", tier: 2, name: "Italian Division 2" },
+    { id: 6, country: "Germany", tier: 1, name: "German Division 1" },
+    { id: 7, country: "Germany", tier: 2, name: "German Division 2" },
   ];
 }
 

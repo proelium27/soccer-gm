@@ -36,7 +36,7 @@ function buildWorldLeague(seed: number): LeagueStore {
 }
 
 describe("world integration (generateWorld through the real season/offseason pipeline)", () => {
-  it("simulates a full season across all 6 competitions without crashing", () => {
+  it("simulates a full season across all 8 competitions without crashing", () => {
     const rng = mulberry32(100);
     let league = buildWorldLeague(100);
     league = simThrough(league, "season", rng);
@@ -54,15 +54,15 @@ describe("world integration (generateWorld through the real season/offseason pip
     league = simThrough(league, "season", rng);
     const beforeCompByTid = new Map(league.teams.map((t) => [t.tid, t.compId]));
     league = simOffseason(league, rng);
-    expect(league.teams).toHaveLength(120);
+    expect(league.teams).toHaveLength(160);
     // Every competition still has exactly 20 teams after the swap.
     for (const comp of league.competitions) {
       expect(league.teams.filter((t) => t.compId === comp.id)).toHaveLength(20);
     }
     // At least one country actually swapped teams (statistically near-certain
-    // across 3 countries x 3 promotions each) — proves the per-country loop
+    // across 4 countries x 3 promotions each) — proves the per-country loop
     // from PR 1 (computeCountrySwaps/applyCompetitionSwaps) is actually firing
-    // for Spain and Italy, not just England.
+    // for Spain, Italy, and Germany, not just England.
     let anySwapped = false;
     for (const t of league.teams) {
       if (beforeCompByTid.get(t.tid) !== t.compId) anySwapped = true;
@@ -78,9 +78,27 @@ describe("world integration (generateWorld through the real season/offseason pip
     // AI player to a qualifying OVR.
     const spainD2Team = league.teams.find((t) => t.compId === 3 && t.tid !== league.meta.userTid)!;
     const targetPid = spainD2Team.roster[0];
+    // A qualifying player needs genuinely high underlying ratings, not just a
+    // forced `ovr`: simOffseason's progression step recomputes ovr from
+    // ratings (progressPlayer) before the ceiling sweep runs, so setting `ovr`
+    // alone gets wiped back to his real (~55) rating-derived value and he'd
+    // never qualify. Boost every rating (real ovr ~90, comfortably survives one
+    // progression step) and pin a prime age so retirement can't drop him from
+    // the roster mid-offseason.
     league = {
       ...league,
-      players: league.players.map((p) => (p.pid === targetPid ? { ...p, ovr: 95 } : p)),
+      players: league.players.map((p) =>
+        p.pid === targetPid
+          ? {
+              ...p,
+              ratings: Object.fromEntries(
+                Object.keys(p.ratings).map((k) => [k, 90]),
+              ) as typeof p.ratings,
+              ovr: 95,
+              born: league.season - 24,
+            }
+          : p,
+      ),
     };
     const next = simOffseason(league, rng);
     const newTeam = next.teams.find((t) => t.roster.includes(targetPid))!;

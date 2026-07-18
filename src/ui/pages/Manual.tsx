@@ -85,7 +85,7 @@ export function Manual() {
           </p>
           <p>
             England's 20 Division 1 clubs have real crest artwork, shown wherever a club's name
-            appears; every other club (Division 2 England, Spain, Italy) shows a two-color swatch
+            appears; every other club (Division 2 England, Spain, Italy, Germany) shows a two-color swatch
             instead until it gets a crest of its own.
           </p>
         </Section>
@@ -147,9 +147,10 @@ export function Manual() {
 
         <Section id="world" title="The World">
           <p>
-            A new save is set in one shared world: three countries — <strong>England</strong>,{" "}
-            <strong>Spain</strong>, and <strong>Italy</strong> — each with its own two-division
-            pyramid (Division 1 and Division 2, 20 clubs apiece), for 6 leagues and 120 clubs total.
+            A new save is set in one shared world: four countries — <strong>England</strong>,{" "}
+            <strong>Spain</strong>, <strong>Italy</strong>, and <strong>Germany</strong> — each with
+            its own two-division pyramid (Division 1 and Division 2, 20 clubs apiece), for 8 leagues
+            and 160 clubs total.
             You pick any club in any country and division when you start a new save.
           </p>
           <p>
@@ -171,10 +172,10 @@ export function Manual() {
           </p>
           <p>
             Promotion and relegation (3 up, 3 down) runs independently within each country at the
-            end of every season — a poor season in Spain's top flight has no effect on England's or
-            Italy's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
-            grouped by country, to browse any of the 6 leagues; it defaults to whichever one your
-            own club currently plays in.
+            end of every season — a poor season in Spain's top flight has no effect on England's,
+            Italy's, or Germany's tables. Standings, Awards, and Stat Leaders each have a competition
+            dropdown, grouped by country, to browse any of the 8 leagues; it defaults to whichever one
+            your own club currently plays in.
           </p>
           <p className="text-muted small">
             Existing saves created before this feature shipped stay England-only forever — there's
