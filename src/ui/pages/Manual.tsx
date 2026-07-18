@@ -219,6 +219,19 @@ export function Manual() {
             It gets re-estimated as the player ages, so it drifts toward his current OVR over time.
           </p>
           <p>
+            <strong>You don't see a player's exact potential — you see a scouting estimate.</strong>{" "}
+            Everywhere POT appears (Roster, prospects, free agents, transfer targets, rival squads,
+            player profiles), it's shown as a low–high band rather than a single number, and the
+            true value always sits somewhere inside that band. Two things narrow the band toward the
+            exact figure. First, your <a href="#finance">scouting spend</a>: more scouting means a
+            tighter estimate straight away. Second, time on your own senior roster: a player you own
+            sharpens on his own over about two to three seasons until his POT is fully known (higher
+            scouting spend gets you there faster). Prospects, free agents, and other clubs' players
+            are never on your roster, so they stay at their foggiest until you scout harder — or sign
+            them. Current OVR and individual attribute ratings are always shown exactly; only
+            potential is fogged.
+          </p>
+          <p>
             <strong>Team OVR and POT</strong> (shown on Standings and at the top of your Roster
             page) aren't a plain average of the whole squad — like a strong bench beats a stacked
             bench of scrubs in real football, your starting XI counts in full, and each bench
@@ -481,9 +494,12 @@ export function Manual() {
             incoming offers for your own players) is a <em>perceived</em> value, not the true
             one, and how far off it can be depends on your spend. At $0 it's noisy (±35% — a
             target that looks like a bargain, or a rip-off, may just be a bad read), at the $20M
-            max it's nearly exact (±5%). Scouting doesn't help while you're not shopping, so a
-            common pattern is pushing it to max before a window where you plan to buy or sell,
-            then sliding it back down once you're done.
+            max it's nearly exact (±5%). Spend also controls the <a href="#players">potential
+            (POT) fog</a>: more scouting narrows every player's estimated-potential band and
+            reveals a signing's true ceiling sooner. Scouting doesn't help while you're not
+            shopping, so a common pattern is pushing it to max before a window where you plan to
+            buy or sell — or when you're evaluating young prospects — then sliding it back down
+            once you're done.
           </p>
           <p>
             The Finance page shows all of it: current budget, hype, the wage-bill table, a
@@ -603,6 +619,7 @@ export function Manual() {
           <p><strong>A recommended target / incoming offer disappeared.</strong> Both lists are recomputed live from the state of the league, so a target can be bought by an AI club out from under you, and an offer can drift if the bidding club's situation changes. Deals you've already agreed are never affected.</p>
           <p><strong>Why can't I release this player?</strong> The depth floor — releasing him would leave a position without enough cover to field a legal team. Sign or promote cover first.</p>
           <p><strong>Why did his potential drop? Scouts promised 82!</strong> Potential is a periodically re-estimated forecast (see <a href="#players">Players</a>). A development setback lowers the realistic ceiling, and the estimate follows.</p>
+          <p><strong>Why is potential shown as a range like "74–88"?</strong> You never see a player's exact potential — only a scouting estimate that brackets the true value (see <a href="#players">Players</a>). Raise your <a href="#finance">scouting spend</a> to narrow it, and keep a player on your senior roster for a couple of seasons to reveal his true ceiling. The band's midpoint isn't the answer — the truth can sit anywhere inside it.</p>
           <p><strong>Do AI clubs cheat?</strong> No. They play by exactly your rules: same wages, same budgets, same roster limits, same transfer machinery, no hidden income. The whole league's finances are on the Finance page if you want to audit them.</p>
           <p><strong>A player's profile shows the wrong club for an old league title.</strong> There's no per-season roster snapshot, so a Player Profile's "League Champion" credit is reconstructed from his transfer history rather than stored directly — reliable for anyone who's ever transferred, and a reasonable assumption (he stayed put) for anyone who hasn't. (Known quirk.)</p>
         </Section>

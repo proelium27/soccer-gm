@@ -116,11 +116,15 @@ export function Finance() {
             onBlur={commitScoutingDraft}
           />
           <p className="card-text text-muted mb-0">
-            Deducted at season end. Every value you see on a transfer target — Recommended
-            Transfers, negotiation offers, offers for your own players — is a perceived value,
-            not the true one: noisy (&plusmn;35%) at $0 spend, nearly exact (&plusmn;5%) at the
-            $20M max. Defaults to $5M each season; push it toward the max before a window where
-            you plan to buy or sell, then pull it back down once you're done.
+            Deducted at season end. Two effects. First, every value you see on a transfer
+            target — Recommended Transfers, negotiation offers, offers for your own players — is
+            a perceived value, not the true one: noisy (&plusmn;35%) at $0 spend, nearly exact
+            (&plusmn;5%) at the $20M max. Second, potential (POT) is shown as an estimate band
+            rather than an exact number: more scouting narrows the band and reveals a player's
+            true ceiling sooner. Players on your senior roster also sharpen on their own over
+            2&ndash;3 seasons; prospects, free agents, and rival clubs' players stay fogged until
+            you scout or sign them. Defaults to $5M each season; push it toward the max before a
+            window where you plan to buy or sell, then pull it back down once you're done.
           </p>
         </div>
       </div>

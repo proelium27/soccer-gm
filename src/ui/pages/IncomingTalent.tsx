@@ -6,6 +6,7 @@ import { contractTerms } from "../../core/contracts.js";
 import { formatWeeklyWage } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { PotDisplay } from "../components/PotDisplay.js";
 import { ROSTER_CAP, ACADEMY_ROSTER_CAP, PROSPECT_AGE_MAX } from "../../core/constants.js";
 
 const MAX_LISTED = 25;
@@ -88,7 +89,7 @@ export function IncomingTalent() {
                   </td>
                   <td>{p.pos}</td>
                   <td className="text-end">{p.ovr}</td>
-                  <td className="text-end">{p.potential}</td>
+                  <td className="text-end"><PotDisplay player={p} /></td>
                   <td className="text-end">{league.season - p.born}</td>
                   <td className="text-end">
                     <div className="d-inline-flex gap-1">

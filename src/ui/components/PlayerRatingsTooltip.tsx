@@ -4,6 +4,7 @@ import { SKILL_KEYS } from "../../core/players/types.js";
 import type { Player, SkillKey } from "../../core/players/types.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { Flag } from "./Flag.js";
+import { PotDisplay } from "./PotDisplay.js";
 
 export const SKILL_LABELS: Record<SkillKey, string> = {
   speed: "Speed",
@@ -49,7 +50,7 @@ export function PlayerRatingsTooltip({ player, children }: { player: Player; chi
         <span id={panelId} role="tooltip" className="player-ratings-tooltip-panel">
           <span className="player-ratings-tooltip-title">
             {player.name} <Flag nationality={player.nationality} />
-            {" "}&middot; OVR {player.ovr} / POT {player.potential}
+            {" "}&middot; OVR {player.ovr} / POT <PotDisplay player={player} />
           </span>
           <span className="player-ratings-tooltip-grid">
             {SKILL_KEYS.map((key) => (

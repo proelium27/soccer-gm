@@ -13,6 +13,7 @@ import { currency, formatWeeklyWage, talksCollapsedMessage } from "../format.js"
 import { Flag } from "../components/Flag.js";
 import { OfferAmountInput } from "../components/OfferAmountInput.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { PotDisplay } from "../components/PotDisplay.js";
 
 function scoutCommentaryText(commentary: ScoutCommentary, playerName: string): string {
   switch (commentary.tone) {
@@ -224,7 +225,7 @@ export function IncomingOffers() {
                   <td>{p.pos}</td>
                   <td className="text-end">{league.season - p.born}</td>
                   <td className="text-end">{p.ovr}</td>
-                  <td className="text-end">{p.potential}</td>
+                  <td className="text-end"><PotDisplay player={p} /></td>
                   <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
                   <td>
                     <OfferRow

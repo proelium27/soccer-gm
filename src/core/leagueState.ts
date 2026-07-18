@@ -11,6 +11,7 @@ import { generateWorld } from "./league/generate.js";
 import { assignIdentities } from "./teams/clubs.js";
 import { generateSchedule } from "./schedule.js";
 import { worldCompetitions } from "./competitions.js";
+import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
 
 export type { StoredTeam } from "./teams/clubs.js";
 export type { ScheduleGame } from "./schedule.js";
@@ -70,6 +71,14 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
   const competitions = worldCompetitions();
   const teams = assignIdentities(league, competitions);
   const schedule = buildCompetitionSchedule(teams, competitions);
+
+  // Fog-of-war: stamp the user's initial senior roster as first-observed in
+  // season 1 so their potential estimates clear over the first few seasons,
+  // same as any later signing (see src/core/scouting/potentialFog.ts).
+  const userTeam = teams.find((t) => t.tid === userTid);
+  if (userTeam) {
+    userTeam.scoutingObserved = reconcileScoutingObserved({}, userTeam.roster, 1);
+  }
 
   return {
     lid: 0,

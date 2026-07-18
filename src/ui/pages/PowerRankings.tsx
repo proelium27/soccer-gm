@@ -11,6 +11,7 @@ import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { PotDisplay } from "../components/PotDisplay.js";
 import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
@@ -206,7 +207,7 @@ function RosterPreview({
                   <td>{p.pos}</td>
                   <td className="text-end">{season - p.born}</td>
                   <td className="text-end">{p.ovr}</td>
-                  <td className="text-end">{p.potential}</td>
+                  <td className="text-end"><PotDisplay player={p} /></td>
                   <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
                   <td className="text-end">
                     {p.contract.expiresSeason <= season

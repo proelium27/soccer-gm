@@ -14,6 +14,7 @@ import { currency, formatWeeklyWage, talksCollapsedMessage } from "../format.js"
 import { Flag } from "../components/Flag.js";
 import { OfferAmountInput } from "../components/OfferAmountInput.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { PotDisplay } from "../components/PotDisplay.js";
 import { ROSTER_CAP } from "../../core/constants.js";
 import { POSITIONS } from "../../core/players/types.js";
 
@@ -332,7 +333,7 @@ export function Transfers() {
                       <td>{p.pos}</td>
                       <td className="text-end">{league.season - p.born}</td>
                       <td className="text-end">{p.ovr}</td>
-                      <td className="text-end">{p.potential}</td>
+                      <td className="text-end"><PotDisplay player={p} /></td>
                       <td>{teamName(sellerTid)}</td>
                       <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
                       <td className="text-end">{currency.format(scoutedValue)}</td>
