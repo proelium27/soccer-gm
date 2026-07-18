@@ -101,6 +101,7 @@ export function Manual() {
             <li><strong>Schedule</strong> — every matchday's fixtures and results; click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong> — a Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since).</li>
             <li><strong>Awards</strong> — Player of the Season, the Golden Boot, and a Team of the Season pitch view, one entry per completed season with a dropdown to browse past years.</li>
+            <li><strong>Club History</strong> — a per-club honours page (yours by default, with a dropdown for any club in the world): a trophy case (league titles, second-tier titles, promotions and relegations), individual honours won by the club's players (Player of the Season, Golden Boot, Team of the Season selections), franchise records (best finish, most points and wins in a season, all-time record), and a season-by-season table of every completed season.</li>
             <li><strong>Season Preview</strong> — a snapshot of how the offseason shook out: the league's top 10 highest-rated players, top 10 highest-rated teams (both by OVR), and the top 10 biggest transfers completed during the summer window, ranked by fee. Opens automatically the moment you advance past a season, with a link through to Awards.</li>
             <li><strong>News Feed</strong> — every completed transfer in the league (AI-to-AI deals included) plus player accomplishments — hat-tricks, a standout performance each matchday, and goal milestones every 10 (season and career) — interleaved into one timeline per season, with club and season filters. Your club's items are highlighted.</li>
             <li><strong>Roster</strong> — your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay) plus a bench table with ratings, ages, contracts, season stats (goalkeepers additionally show goals against and xG against). Drag a bench player onto a pitch slot to swap them into the XI, extend contracts, or release players.</li>
@@ -261,6 +262,19 @@ export function Manual() {
             It gets re-estimated as the player ages, so it drifts toward his current OVR over time.
           </p>
           <p>
+            <strong>You don't see a player's exact potential — you see a scouting estimate.</strong>{" "}
+            Everywhere POT appears (Roster, prospects, free agents, transfer targets, rival squads,
+            player profiles), it's shown as a low–high band rather than a single number, and the
+            true value always sits somewhere inside that band. Two things narrow the band toward the
+            exact figure. First, your <a href="#finance">scouting spend</a>: more scouting means a
+            tighter estimate straight away. Second, time on your own senior roster: a player you own
+            sharpens on his own over about two to three seasons until his POT is fully known (higher
+            scouting spend gets you there faster). Prospects, free agents, and other clubs' players
+            are never on your roster, so they stay at their foggiest until you scout harder — or sign
+            them. Current OVR and individual attribute ratings are always shown exactly; only
+            potential is fogged.
+          </p>
+          <p>
             <strong>Team OVR and POT</strong> (shown on Standings and at the top of your Roster
             page) aren't a plain average of the whole squad — like a strong bench beats a stacked
             bench of scrubs in real football, your starting XI counts in full, and each bench
@@ -406,7 +420,9 @@ export function Manual() {
           <p>
             <strong>Buying.</strong> The Transfers page recommends 5–10 for-sale players near your
             level and within your means — how accurately they're ranked depends on your scouting
-            spend (<a href="#finance">Finance</a>). Negotiation works like this: the selling club
+            spend (<a href="#finance">Finance</a>). The filters (position, min OVR, min potential,
+            max age, max value) re-run the search rather than just hiding rows, so pinning a
+            position brings up a fresh, fuller list of players there. Negotiation works like this: the selling club
             has a hidden asking price, rolled once per window (so you can't reopen talks hoping
             for a cheaper mood). Offer far below it and they hang up for the rest of the window.
             Offer low-but-plausible and they counter above their true price, conceding less each
@@ -523,9 +539,12 @@ export function Manual() {
             incoming offers for your own players) is a <em>perceived</em> value, not the true
             one, and how far off it can be depends on your spend. At $0 it's noisy (±35% — a
             target that looks like a bargain, or a rip-off, may just be a bad read), at the $20M
-            max it's nearly exact (±5%). Scouting doesn't help while you're not shopping, so a
-            common pattern is pushing it to max before a window where you plan to buy or sell,
-            then sliding it back down once you're done.
+            max it's nearly exact (±5%). Spend also controls the <a href="#players">potential
+            (POT) fog</a>: more scouting narrows every player's estimated-potential band and
+            reveals a signing's true ceiling sooner. Scouting doesn't help while you're not
+            shopping, so a common pattern is pushing it to max before a window where you plan to
+            buy or sell — or when you're evaluating young prospects — then sliding it back down
+            once you're done.
           </p>
           <p>
             The Finance page shows all of it: current budget, hype, the wage-bill table, a
@@ -645,6 +664,7 @@ export function Manual() {
           <p><strong>A recommended target / incoming offer disappeared.</strong> Both lists are recomputed live from the state of the league, so a target can be bought by an AI club out from under you, and an offer can drift if the bidding club's situation changes. Deals you've already agreed are never affected.</p>
           <p><strong>Why can't I release this player?</strong> The depth floor — releasing him would leave a position without enough cover to field a legal team. Sign or promote cover first.</p>
           <p><strong>Why did his potential drop? Scouts promised 82!</strong> Potential is a periodically re-estimated forecast (see <a href="#players">Players</a>). A development setback lowers the realistic ceiling, and the estimate follows.</p>
+          <p><strong>Why is potential shown as a range like "74–88"?</strong> You never see a player's exact potential — only a scouting estimate that brackets the true value (see <a href="#players">Players</a>). Raise your <a href="#finance">scouting spend</a> to narrow it, and keep a player on your senior roster for a couple of seasons to reveal his true ceiling. The band's midpoint isn't the answer — the truth can sit anywhere inside it.</p>
           <p><strong>Do AI clubs cheat?</strong> No. They play by exactly your rules: same wages, same budgets, same roster limits, same transfer machinery, no hidden income. The whole league's finances are on the Finance page if you want to audit them.</p>
           <p><strong>A player's profile shows the wrong club for an old league title.</strong> There's no per-season roster snapshot, so a Player Profile's "League Champion" credit is reconstructed from his transfer history rather than stored directly — reliable for anyone who's ever transferred, and a reasonable assumption (he stayed put) for anyone who hasn't. (Known quirk.)</p>
         </Section>

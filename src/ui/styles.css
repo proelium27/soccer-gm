@@ -926,3 +926,13 @@ a:hover {
   vertical-align: -1px;
   margin-right: 0.15rem;
 }
+/* Scouting fog-of-war: a potential (POT) estimate band shown in place of the
+   exact number until the player is fully scouted (see PotDisplay.tsx). Styled
+   as a subtle, dotted-underlined hint so it reads as "an estimate, not a fact"
+   without shouting. */
+.scouting-estimate {
+  font-style: italic;
+  border-bottom: 1px dotted currentColor;
+  cursor: help;
+  white-space: nowrap;
+}

@@ -5,6 +5,7 @@ import { bestFit } from "../../core/lineup/selectXI.js";
 import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { PlayerRatingsTooltip } from "./PlayerRatingsTooltip.js";
+import { PotDisplay } from "./PotDisplay.js";
 import { Flag } from "./Flag.js";
 import { canExtend } from "../../core/contracts.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
@@ -132,7 +133,7 @@ export function PitchField({
                 <span className="pitch-chip-name">{shortName(p.name)}</span>
               </PlayerRatingsTooltip>
               <span className="pitch-chip-ovr">
-                {p.ovr}/{p.potential}
+                {p.ovr}/<PotDisplay player={p} />
               </span>
               {ovrDelta !== null && ovrDelta !== 0 && (
                 <span
@@ -155,7 +156,7 @@ export function PitchField({
               <div className="pitch-chip-actions">
                 <div className="pitch-chip-actions-title">
                   <Link to={`/player/${p.pid}`}>{p.name}</Link> <Flag nationality={p.nationality} /> &middot; OVR {p.ovr} / POT{" "}
-                  {p.potential}
+                  <PotDisplay player={p} />
                 </div>
                 <div className="pitch-chip-actions-meta">
                   {formatWeeklyWage(p.contract.salary)} &middot;{" "}

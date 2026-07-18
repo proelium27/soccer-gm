@@ -22,6 +22,22 @@ export interface TransferTarget {
 }
 
 /**
+ * User-supplied scouting criteria. These are *hard* constraints applied to
+ * the candidate pool before ranking — they change which players the search
+ * considers, not just which of a fixed list are shown. A null/undefined/""
+ * field is "no constraint". A pinned `position` also lifts the usual
+ * per-position variety cap, so asking for "FB" returns a full list of FBs
+ * rather than the two that would fit in the mixed-position list.
+ */
+export interface RecommendationFilters {
+  position?: string;
+  minOvr?: number | null;
+  minPot?: number | null;
+  maxAge?: number | null;
+  maxValue?: number | null;
+}
+
+/**
  * The Recommended Transfers list: 5-10 for-sale players of similar overall
  * level to the user's team (an ovr band around the starting-XI average,
  * skewed upward) whose scouted valuation fits the budget. Ranked by how much
@@ -31,16 +47,28 @@ export interface TransferTarget {
  * within a window (and stable across renders) for a given `refreshNonce`;
  * empty when no window is open. The UI's Refresh button bumps the nonce to
  * re-roll the noise and surface a different set of targets on demand.
+ *
+ * `filters` narrows the candidate pool (see RecommendationFilters) so the
+ * search actually re-runs against the constraint — e.g. picking a position
+ * surfaces fresh targets at that position rather than filtering the mixed
+ * list down to whatever happened to rank in the global top few.
  */
 export function recommendedTransfers(
   league: LeagueStore,
   refreshNonce = 0,
+  filters: RecommendationFilters = {},
 ): TransferTarget[] {
   const ws = transferWindowState(league);
   if (!ws.open) return [];
 
   const user = league.teams.find((t) => t.tid === league.meta.userTid);
   if (!user) return [];
+
+  const posFilter = filters.position || null;
+  const minOvr = filters.minOvr ?? null;
+  const minPot = filters.minPot ?? null;
+  const maxAge = filters.maxAge ?? null;
+  const maxValue = filters.maxValue ?? null;
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   const rosterPlayers = user.roster
@@ -61,8 +89,15 @@ export function recommendedTransfers(
       if (!player) continue;
       if (!isForSale(team, playerMap, pid) && !wouldRefuseExtension(player, team, league.competitions)) continue;
       if (departsAtRollover(league, player)) continue;
+      // Hard user constraints — these narrow *which* players the search
+      // considers, so changing a filter surfaces a genuinely new list.
+      if (posFilter && player.pos !== posFilter) continue;
+      if (minOvr !== null && player.ovr < minOvr) continue;
+      if (minPot !== null && player.potential < minPot) continue;
+      if (maxAge !== null && ws.season - player.born > maxAge) continue;
       const value = scoutedValue(league.lid, ws.season, ws.window, player, user.scoutingSpend);
       if (value > user.budget) continue;
+      if (maxValue !== null && value > maxValue) continue;
       candidates.push({ player, sellerTid: team.tid, scoutedValue: value });
     }
   }
@@ -96,14 +131,17 @@ export function recommendedTransfers(
     .map((c) => ({ target: c, score: score(c) }))
     .sort((a, b) => b.score - a.score || a.target.player.pid - b.target.player.pid);
 
-  // Keep the list varied: never more than a couple of targets per position.
+  // Keep the mixed list varied: never more than a couple of targets per
+  // position. When the user has pinned a single position, that variety cap
+  // makes no sense — they asked for that position, so show a full list of it.
+  const maxPerPosition = posFilter ? RECOMMENDED_TRANSFERS_MAX : RECOMMENDED_MAX_PER_POSITION;
   const picked: TransferTarget[] = [];
   const perPosition = new Map<string, number>();
   for (const { target } of ranked) {
     if (picked.length >= RECOMMENDED_TRANSFERS_MAX) break;
     const pos = target.player.pos;
     const count = perPosition.get(pos) ?? 0;
-    if (count >= RECOMMENDED_MAX_PER_POSITION) continue;
+    if (count >= maxPerPosition) continue;
     perPosition.set(pos, count + 1);
     picked.push(target);
   }

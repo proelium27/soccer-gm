@@ -547,6 +547,32 @@ export const SCOUTING_NOISE_SD_MIN_SPEND = 0.35;
 export const SCOUTING_NOISE_SD_MAX_SPEND = 0.05;
 
 /**
+ * Scouting fog-of-war on potential (the USER's view only — AI clubs have
+ * their own perceivedValueToClub noise, see src/core/ai/evaluate.ts). A
+ * player's true POT is never shown outright to the user; instead they see a
+ * low–high estimate band (src/core/scouting/potentialFog.ts) that narrows on
+ * two independent axes:
+ *   - Scouting spend: a bigger scouting budget narrows the band immediately
+ *     (HALFWIDTH_MAX at zero spend → HALFWIDTH_MIN at SCOUTING_SPEND_MAX) and
+ *     also speeds clearing (CLEAR_SEASONS_MAX → _MIN).
+ *   - Tenure: how many seasons a player has been on the user's *senior*
+ *     roster (tracked as StoredTeam.scoutingObserved). Prospects, free
+ *     agents, academy players, and rival clubs' players are never on the
+ *     senior roster, so they always read as tenure 0 (maximum fog for the
+ *     current spend). Owned players clear to the exact number over
+ *     CLEAR_SEASONS.
+ * The band always brackets the true value; only its center is jittered
+ * (deterministically per player/season) up to ±halfWidth × SHIFT_FRACTION so
+ * the midpoint isn't trivially the truth. Ties to BBGM, which likewise
+ * sharpens scouted ratings over ~3 seasons.
+ */
+export const SCOUT_POT_FOG_HALFWIDTH_MAX = 8;
+export const SCOUT_POT_FOG_HALFWIDTH_MIN = 2;
+export const SCOUT_POT_CLEAR_SEASONS_MAX = 3;
+export const SCOUT_POT_CLEAR_SEASONS_MIN = 2;
+export const SCOUT_POT_FOG_SHIFT_FRACTION = 0.5;
+
+/**
  * Transfer valuation formula: a "current ability" base value that climbs
  * steeply with ovr above a floor (replacement-level players are worth
  * little), multiplied by a potential premium (VALUATION_POTENTIAL_*, priced
@@ -647,8 +673,14 @@ export const RECOMMENDED_OVR_BELOW = 2;
 export const RECOMMENDED_OVR_ABOVE = 8;
 /** If the band holds fewer than the minimum, widen it by this many ovr points and retry. */
 export const RECOMMENDED_BAND_WIDEN = 6;
-/** Weight of potential headroom (potential - ovr) in the recommendation score. */
-export const RECOMMENDED_UPSIDE_WEIGHT = 0.3;
+/**
+ * Weight of potential headroom (potential - ovr) in the recommendation score.
+ * Kept as a tiebreaker rather than a dominant factor: at 0.15, a young player
+ * with ~15 points of headroom ranks only ~2.25 ovr-points ahead of an
+ * equal-ovr veteran, so prime-ready players aren't crowded out of the list by
+ * upside alone (was 0.3, which skewed recommendations heavily toward youth).
+ */
+export const RECOMMENDED_UPSIDE_WEIGHT = 0.15;
 /**
  * Scouting noise (a fraction of value, 0.35 → 0.05 by spend) rescaled into
  * ovr-points of ranking noise: bad scouts shuffle the list by ~3.5 points,

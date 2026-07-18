@@ -13,6 +13,7 @@ import { tierOf } from "../../core/competitions.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { PotDisplay } from "../components/PotDisplay.js";
 import { PitchField } from "../components/PitchField.js";
 import { ExtendControl } from "../components/ExtendControl.js";
 import { Flag } from "../components/Flag.js";
@@ -132,7 +133,7 @@ function RosterTable({
                 <RatingDelta value={p.ovr} previous={prev?.ovr ?? null} />
               </td>
               <td className="text-end">
-                <RatingDelta value={p.potential} previous={prev?.potential ?? null} />
+                <PotDisplay player={p} />
               </td>
               <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
               <td className="text-end">

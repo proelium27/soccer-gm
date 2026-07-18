@@ -148,6 +148,21 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
       "Simoes", "Tavares", "Torres", "Vaz", "Ventura",
     ],
   },
+  Italy: {
+    weight: 30,
+    first: [
+      "Marco", "Luca", "Matteo", "Alessandro", "Davide", "Simone", "Andrea", "Francesco",
+      "Lorenzo", "Riccardo", "Federico", "Gianluca", "Stefano", "Fabio", "Roberto", "Paolo",
+      "Giovanni", "Antonio", "Nicola", "Emanuele", "Daniele", "Cristian", "Filippo", "Enrico",
+      "Salvatore", "Massimo", "Vincenzo", "Domenico", "Pietro", "Angelo",
+    ],
+    last: [
+      "Rossi", "Russo", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci",
+      "Marino", "Greco", "Bruno", "Gallo", "Conti", "De Luca", "Costa", "Giordano",
+      "Mancini", "Rizzo", "Lombardi", "Moretti", "Barbieri", "Fontana", "Santoro", "Mariani",
+      "Rinaldi", "Caruso", "Ferrara", "Galli", "Martini", "Leone",
+    ],
+  },
   Netherlands: {
     weight: 28,
     first: [
@@ -576,34 +591,24 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
 };
 
 /**
- * Nationalities with a full name pool and a "home league" weight, but
- * deliberately excluded from NATIONALITIES (and therefore from
- * totalWeight()/pickFromTable's flat, no-homeCountry draw): a nation added
- * here can only ever be drawn via pickNationality(rng, homeCountry) with
- * that exact homeCountry — never as incidental flavor in another league's
- * roster, and never in the flat pool every existing save's youth
- * intake/free agency already relies on. This keeps adding a new nationality
- * from silently shifting the outcome distribution for saves that have
- * nothing to do with it. Graduate an entry to NATIONALITIES once its home
- * league actually exists in every save it could appear in.
+ * A staging table for nationalities that have a full name pool and a "home
+ * league" weight, but are deliberately excluded from NATIONALITIES (and
+ * therefore from totalWeight()/pickFromTable's flat, no-homeCountry draw): a
+ * nation placed here can only ever be drawn via
+ * pickNationality(rng, homeCountry) with that exact homeCountry — never as
+ * incidental flavor in another league's roster, and never in the flat pool
+ * every existing save's youth intake/free agency already relies on. This
+ * keeps adding a new nationality from silently shifting the outcome
+ * distribution for saves that have nothing to do with it. Graduate an entry
+ * to NATIONALITIES once its home league actually exists in every save it
+ * could appear in.
+ *
+ * Currently empty: Italy lived here while its home league was newer than some
+ * saves, and was graduated into NATIONALITIES once every world generated an
+ * Italian league — so Italians now appear abroad as ordinary foreign flavor,
+ * like Spaniards and Germans. The mechanism is kept for the next such case.
  */
-export const UNLISTED_NATIONALITIES: Record<string, NationalityDef> = {
-  Italy: {
-    weight: 30,
-    first: [
-      "Marco", "Luca", "Matteo", "Alessandro", "Davide", "Simone", "Andrea", "Francesco",
-      "Lorenzo", "Riccardo", "Federico", "Gianluca", "Stefano", "Fabio", "Roberto", "Paolo",
-      "Giovanni", "Antonio", "Nicola", "Emanuele", "Daniele", "Cristian", "Filippo", "Enrico",
-      "Salvatore", "Massimo", "Vincenzo", "Domenico", "Pietro", "Angelo",
-    ],
-    last: [
-      "Rossi", "Russo", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci",
-      "Marino", "Greco", "Bruno", "Gallo", "Conti", "De Luca", "Costa", "Giordano",
-      "Mancini", "Rizzo", "Lombardi", "Moretti", "Barbieri", "Fontana", "Santoro", "Mariani",
-      "Rinaldi", "Caruso", "Ferrara", "Galli", "Martini", "Leone",
-    ],
-  },
-};
+export const UNLISTED_NATIONALITIES: Record<string, NationalityDef> = {};
 
 // "Other Nations (combined)" bucket — a country is picked uniformly among
 // these when the weighted roll lands in that combined slot.
@@ -688,81 +693,146 @@ export const OTHER_NATIONS: Record<string, { first: string[]; last: string[] }> 
     first: ["Sipho", "Thabo", "Bongani", "Themba", "Lucky", "Katlego", "Sibusiso", "Andile"],
     last: ["Dlamini", "Nkosi", "Khumalo", "Mokoena", "Ndlovu", "Mahlangu", "Sithole", "Mabaso"],
   },
+  Kosovo: {
+    first: ["Arber", "Besart", "Endrit", "Fisnik", "Granit", "Leart", "Valon", "Blerim"],
+    last: ["Krasniqi", "Berisha", "Gashi", "Hoxha", "Shala", "Kastrati", "Morina", "Rexhepi"],
+  },
 };
 
-const OTHER_BUCKET_WEIGHT = 8;
+// Sentinel key inside a league weight table standing for the combined
+// "Rest of the World" share — when the weighted roll lands here, a nation is
+// drawn from that league's tail pool (every nation NOT named in the table),
+// weighted by its baseline frequency (see restPoolFor).
+const REST = "__REST__";
 
 /**
- * The weight a home country's own nationality gets in its own leagues,
- * matching England's existing dominant share in the original flat
- * distribution (so "Spanish leagues draw mostly Spanish names" has the same
- * intensity "English leagues draw mostly English names" always has).
+ * Per-league (home-country) nationality distributions, as relative weights
+ * calibrated from real top-flight squad breakdowns (CIES-style). Each named
+ * nation's weight is its stated percentage × 10; the REST sentinel's weight
+ * is the league's "Rest of the World (Combined)" percentage × 10. Because
+ * the source percentages don't sum to exactly 100 (rounding), the realized
+ * shares are these weights normalized to the table total — the *relative*
+ * proportions are preserved exactly, which is what matters.
+ *
+ * A club generates and draws youth from its own country's table. The
+ * no-homeCountry / unknown-country path (global free agency, and any caller
+ * that doesn't know a club's country) falls back to England's table — the
+ * same "England-flavored" default the flat pool always was, just recalibrated
+ * to the real EPL breakdown.
+ *
+ * Every named nation here has a name pool in NATIONALITIES or OTHER_NATIONS.
+ * Türkiye maps to the existing "Turkey" entry; Kosovo's pool lives in
+ * OTHER_NATIONS.
  */
-const HOME_NATION_WEIGHT = 390;
+export const LEAGUE_NATIONALITY_WEIGHTS: Record<string, Record<string, number>> = {
+  England: {
+    England: 394, France: 63, Brazil: 63, Netherlands: 60, Spain: 35, Germany: 30,
+    Portugal: 28, Argentina: 25, Belgium: 25, Wales: 23, Italy: 22, Denmark: 22, Scotland: 22,
+    [REST]: 210,
+  },
+  Spain: {
+    Spain: 618, Argentina: 39, France: 26, Morocco: 26, Uruguay: 24, Brazil: 21,
+    Netherlands: 16, Portugal: 14, Senegal: 10, Cameroon: 10, Nigeria: 10, England: 10,
+    Sweden: 8, Germany: 8, Italy: 8, Colombia: 6, Mexico: 6, Japan: 6, Croatia: 6,
+    [REST]: 144,
+  },
+  Italy: {
+    Italy: 387, France: 52, Spain: 44, Netherlands: 26, Argentina: 26, Brazil: 23,
+    Poland: 22, Croatia: 20, Serbia: 20, Denmark: 19, Sweden: 19, Portugal: 18, Belgium: 18,
+    England: 15, Morocco: 15, Germany: 15,
+    [REST]: 240,
+  },
+  Germany: {
+    Germany: 440, France: 59, Austria: 52, Denmark: 34, Switzerland: 29, Japan: 27,
+    Belgium: 23, "United States": 23, Netherlands: 22, Portugal: 22, Croatia: 20, Brazil: 16,
+    Norway: 14, Sweden: 14, Argentina: 13, Italy: 13, Turkey: 13, Nigeria: 13,
+    "Czech Republic": 13, Kosovo: 11, England: 11, Algeria: 11, Serbia: 11,
+    [REST]: 65,
+  },
+};
 
-function totalWeight(table: Record<string, NationalityDef>): number {
-  let sum = OTHER_BUCKET_WEIGHT;
-  for (const def of Object.values(table)) sum += def.weight;
-  return sum;
+// Baseline frequency of every nation that has a name pool, used to weight a
+// league's "Rest of the World" tail so it stays varied and realistic (a
+// common football nation shows up in the tail more than an obscure one)
+// rather than uniform. NATIONALITIES nations keep their listed weight;
+// OTHER_NATIONS (name-pool-only) nations get a small flat weight.
+const OTHER_TAIL_WEIGHT = 3;
+const TAIL_BASE: Record<string, number> = (() => {
+  const base: Record<string, number> = {};
+  for (const [country, def] of Object.entries(NATIONALITIES)) base[country] = def.weight;
+  for (const country of Object.keys(OTHER_NATIONS)) base[country] = (base[country] ?? 0) + OTHER_TAIL_WEIGHT;
+  return base;
+})();
+
+// Per-league memoized derivations of the weight table, so the thousands of
+// draws a world generation makes don't re-walk/rebuild these every call.
+const leagueTotalCache = new Map<string, number>();
+const namedSetCache = new Map<string, Set<string>>();
+const restPoolCache = new Map<string, { entries: [string, number][]; total: number }>();
+
+function leagueTotalFor(key: string, table: Record<string, number>): number {
+  const cached = leagueTotalCache.get(key);
+  if (cached !== undefined) return cached;
+  let total = 0;
+  for (const w of Object.values(table)) total += w;
+  leagueTotalCache.set(key, total);
+  return total;
 }
 
-// The flat table never changes at runtime, so its total is computed once
-// rather than on every one of the thousands of pickNationality calls a
-// world generation makes.
-const FLAT_TOTAL_WEIGHT = totalWeight(NATIONALITIES);
-
-function pickFromTable(rng: () => number, table: Record<string, NationalityDef>, total: number): string {
-  let roll = rng() * total;
-  for (const [country, def] of Object.entries(table)) {
-    if (roll < def.weight) return country;
-    roll -= def.weight;
-  }
-  const others = Object.keys(OTHER_NATIONS);
-  return others[Math.floor(rng() * others.length)];
-}
-
-// A home-country-boosted table only ever takes one of a handful of distinct
-// shapes (one per nation that can be a home country), so it's built once per
-// homeCountry and reused, instead of re-spreading NATIONALITIES on every
-// single generatePlayer call.
-const boostedTableCache = new Map<string, { table: Record<string, NationalityDef>; total: number }>();
-
-function boostedTableFor(homeCountry: string, homeDef: NationalityDef) {
-  const cached = boostedTableCache.get(homeCountry);
+function namedSetFor(key: string, table: Record<string, number>): Set<string> {
+  const cached = namedSetCache.get(key);
   if (cached) return cached;
-  const table: Record<string, NationalityDef> = {
-    ...NATIONALITIES,
-    [homeCountry]: { ...homeDef, weight: HOME_NATION_WEIGHT },
-    England: { ...NATIONALITIES.England, weight: homeDef.weight },
-  };
-  const built = { table, total: totalWeight(table) };
-  boostedTableCache.set(homeCountry, built);
+  const set = new Set(Object.keys(table).filter((c) => c !== REST));
+  namedSetCache.set(key, set);
+  return set;
+}
+
+// The tail pool for a league: every name-pool-bearing nation NOT already
+// named in that league's table, weighted by its TAIL_BASE frequency.
+function restPoolFor(key: string, named: Set<string>) {
+  const cached = restPoolCache.get(key);
+  if (cached) return cached;
+  const entries: [string, number][] = [];
+  let total = 0;
+  for (const [country, w] of Object.entries(TAIL_BASE)) {
+    if (named.has(country)) continue;
+    entries.push([country, w]);
+    total += w;
+  }
+  const built = { entries, total };
+  restPoolCache.set(key, built);
   return built;
 }
 
 /**
- * Weighted-random nationality draw. With no homeCountry (or "England"),
- * matches the original flat Premier-League-flavored distribution exactly —
- * this is the path every save's youth intake/free agency (which don't know
- * a club's country) and every England-only save always uses, so it must
- * never shift just because a new nation gains a name pool (see
- * UNLISTED_NATIONALITIES above). With a homeCountry found in either
- * NATIONALITIES or UNLISTED_NATIONALITIES, that country's weight is boosted
- * to HOME_NATION_WEIGHT (England's weight drops to what the home country's
- * own weight normally is — a straight swap, so the total weight pool is
- * unchanged) — every other country's weight is untouched, so the "realistic
- * foreign mix" flavor carries over unmodified.
+ * Weighted-random nationality draw for a league. `homeCountry` selects that
+ * country's real-calibrated distribution (see LEAGUE_NATIONALITY_WEIGHTS);
+ * a missing or unrecognized country falls back to England's table — the
+ * England-flavored default the global free-agency / no-country pool has
+ * always used. When the roll lands in the combined "Rest of the World" slot,
+ * a second weighted roll picks from that league's tail of all other nations.
  */
 export function pickNationality(rng: () => number, homeCountry?: string): string {
-  if (!homeCountry || homeCountry === "England") {
-    return pickFromTable(rng, NATIONALITIES, FLAT_TOTAL_WEIGHT);
+  const key = homeCountry && LEAGUE_NATIONALITY_WEIGHTS[homeCountry] ? homeCountry : "England";
+  const table = LEAGUE_NATIONALITY_WEIGHTS[key];
+  const total = leagueTotalFor(key, table);
+
+  let roll = rng() * total;
+  for (const [country, w] of Object.entries(table)) {
+    if (roll < w) {
+      if (country !== REST) return country;
+      const { entries, total: restTotal } = restPoolFor(key, namedSetFor(key, table));
+      let restRoll = rng() * restTotal;
+      for (const [tailCountry, tw] of entries) {
+        if (restRoll < tw) return tailCountry;
+        restRoll -= tw;
+      }
+      return entries[entries.length - 1][0];
+    }
+    roll -= w;
   }
-  const homeDef = NATIONALITIES[homeCountry] ?? UNLISTED_NATIONALITIES[homeCountry];
-  if (!homeDef) {
-    return pickFromTable(rng, NATIONALITIES, FLAT_TOTAL_WEIGHT);
-  }
-  const { table, total } = boostedTableFor(homeCountry, homeDef);
-  return pickFromTable(rng, table, total);
+  // Roll should always be consumed above; fall back to the home nation.
+  return key;
 }
 
 export function namePoolFor(nationality: string): { first: string[]; last: string[] } | undefined {

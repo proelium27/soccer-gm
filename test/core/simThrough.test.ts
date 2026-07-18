@@ -41,6 +41,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     divisionConvergence: null,
     starters: null,
     transferListed: [],
+    scoutingObserved: {},
   }));
 
   return {

@@ -4,6 +4,8 @@ import { useLeague } from "../context/LeagueContext.js";
 import { SKILL_KEYS } from "../../core/players/types.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { SKILL_LABELS } from "../components/PlayerRatingsTooltip.js";
+import { PotDisplay } from "../components/PotDisplay.js";
+import { potentialFog } from "../../core/scouting/potentialFog.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { Flag } from "../components/Flag.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
@@ -105,6 +107,14 @@ export function PlayerProfile() {
   const histBySeasonDesc = [...player.hist].sort((a, b) => b.season - a.season);
   const cupStatsBySeason = cupStatsBySeasonForPlayer(league.cup, league.cupHistory, player.pid);
   const showCupTab = worldHasCup(league.competitions);
+  // Scouting fog also applies to the POT column of the history table, per row
+  // and keyed off that row's own season — so a player the user has never
+  // scouted stays fogged here too (closing the "read the exact number one tab
+  // over" leak), while an owned player's estimate clears with tenure exactly
+  // as it does everywhere else.
+  const userTeamForFog = league.teams.find((t) => t.tid === league.meta.userTid);
+  const scoutObserved = userTeamForFog?.scoutingObserved?.[player.pid] ?? null;
+  const scoutSpend = userTeamForFog?.scoutingSpend ?? 0;
   const seasonTeamAbbrev = (season: number) =>
     team ? teamAbbrev(teamForSeason(playerTransfers, season, team.tid)) : null;
 
@@ -130,7 +140,7 @@ export function PlayerProfile() {
         ) : (
           <span className="text-muted">Free agent</span>
         )}
-        {" "}&middot; OVR <strong>{player.ovr}</strong> / POT <strong>{player.potential}</strong>
+        {" "}&middot; OVR <strong>{player.ovr}</strong> / POT <strong><PotDisplay player={player} /></strong>
         {" "}&middot; Wage {formatWeeklyWage(player.contract.salary)}
         {" "}&middot; Contract through {seasonYear(player.contract.expiresSeason)}
         {player.injury && (
@@ -362,7 +372,15 @@ export function PlayerProfile() {
                             )}
                           </td>
                           <td className="text-end fw-semibold" style={{ color: getRatingColor(h.ovr) }}>{h.ovr}</td>
-                          <td className="text-end" style={{ color: getRatingColor(h.potential) }}>{h.potential}</td>
+                          {(() => {
+                            const fog = potentialFog(h.potential, player.pid, h.season, scoutObserved, scoutSpend);
+                            const colorAt = fog.known ? h.potential : Math.round((fog.low + fog.high) / 2);
+                            return (
+                              <td className="text-end" style={{ color: getRatingColor(colorAt) }}>
+                                {fog.known ? h.potential : `${fog.low}–${fog.high}`}
+                              </td>
+                            );
+                          })()}
                           {SKILL_KEYS.map((key) => (
                             <td key={key} className="text-end" style={{ color: getRatingColor(h.ratings[key]) }}>
                               {h.ratings[key]}

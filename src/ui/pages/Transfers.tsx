@@ -14,6 +14,7 @@ import { currency, formatWeeklyWage, talksCollapsedMessage } from "../format.js"
 import { Flag } from "../components/Flag.js";
 import { OfferAmountInput } from "../components/OfferAmountInput.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { PotDisplay } from "../components/PotDisplay.js";
 import { ROSTER_CAP } from "../../core/constants.js";
 import { POSITIONS } from "../../core/players/types.js";
 
@@ -141,29 +142,30 @@ export function Transfers() {
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [filters, setFilters] = useState<TransferFilters>(EMPTY_FILTERS);
 
-  // The full-league candidate scan is too heavy to redo on unrelated renders.
-  const allTargets = useMemo(
-    () => (league ? recommendedTransfers(league, refreshNonce) : []),
-    [league, refreshNonce],
-  );
+  const hasFilters =
+    filters.position !== "" || filters.minOvr !== "" || filters.minPot !== ""
+    || filters.maxAge !== "" || filters.maxValue !== "";
 
+  // Filters feed into the search itself (not a post-hoc row filter), so
+  // changing one re-runs the candidate scan and surfaces genuinely new
+  // targets — e.g. picking "FB" brings up a fresh list of full-backs. The
+  // full-league scan is memoized so unrelated renders (typing an offer) don't
+  // redo it; it re-runs only when the league, refresh, or a filter changes.
   const targets = useMemo(() => {
-    const minOvr = filters.minOvr === "" ? null : Number(filters.minOvr);
-    const minPot = filters.minPot === "" ? null : Number(filters.minPot);
-    const maxAge = filters.maxAge === "" ? null : Number(filters.maxAge);
-    const maxValue = filters.maxValue === "" ? null : Number(filters.maxValue);
-    return allTargets.filter(({ player: p, scoutedValue: value }) => {
-      if (filters.position && p.pos !== filters.position) return false;
-      if (minOvr !== null && Number.isFinite(minOvr) && p.ovr < minOvr) return false;
-      if (minPot !== null && Number.isFinite(minPot) && p.potential < minPot) return false;
-      if (
-        maxAge !== null && Number.isFinite(maxAge)
-        && league && league.season - p.born > maxAge
-      ) return false;
-      if (maxValue !== null && Number.isFinite(maxValue) && value > maxValue) return false;
-      return true;
+    if (!league) return [];
+    const num = (s: string): number | null => {
+      if (s === "") return null;
+      const n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    };
+    return recommendedTransfers(league, refreshNonce, {
+      position: filters.position || undefined,
+      minOvr: num(filters.minOvr),
+      minPot: num(filters.minPot),
+      maxAge: num(filters.maxAge),
+      maxValue: num(filters.maxValue),
     });
-  }, [allTargets, filters, league]);
+  }, [league, refreshNonce, filters]);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -184,8 +186,9 @@ export function Transfers() {
   const negotiationByPid = new Map(negotiations.map((n) => [n.pid, n]));
 
   // Talks that outlived the recommended list (e.g. the budget shrank after a
-  // signing) still need controls somewhere.
-  const listedPids = new Set(allTargets.map((t) => t.player.pid));
+  // signing, or the current filters exclude the player) still need controls
+  // somewhere.
+  const listedPids = new Set(targets.map((t) => t.player.pid));
   const orphaned = negotiations.filter(
     (n) => !listedPids.has(n.pid) && n.status !== "accepted",
   );
@@ -301,9 +304,9 @@ export function Transfers() {
             </div>
             {targets.length === 0 ? (
               <p className="mb-0">
-                {allTargets.length === 0
-                  ? "No suitable targets found."
-                  : "No targets match the current filters."}
+                {hasFilters
+                  ? "No available targets match these filters — try widening them or hit Refresh."
+                  : "No suitable targets found."}
               </p>
             ) : (
               <table className="table table-striped table-sm align-middle">
@@ -332,7 +335,7 @@ export function Transfers() {
                       <td>{p.pos}</td>
                       <td className="text-end">{league.season - p.born}</td>
                       <td className="text-end">{p.ovr}</td>
-                      <td className="text-end">{p.potential}</td>
+                      <td className="text-end"><PotDisplay player={p} /></td>
                       <td>{teamName(sellerTid)}</td>
                       <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
                       <td className="text-end">{currency.format(scoutedValue)}</td>

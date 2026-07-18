@@ -20,6 +20,7 @@ import { Loans } from "./pages/Loans.js";
 import { Finance } from "./pages/Finance.js";
 import { NewsFeed } from "./pages/NewsFeed.js";
 import { Awards } from "./pages/Awards.js";
+import { ClubHistory } from "./pages/ClubHistory.js";
 import { SeasonPreview } from "./pages/SeasonPreview.js";
 import { Manual } from "./pages/Manual.js";
 import { PlayerProfile } from "./pages/PlayerProfile.js";
@@ -45,6 +46,7 @@ export function App() {
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/news" element={<NewsFeed />} />
             <Route path="/awards" element={<Awards />} />
+            <Route path="/history" element={<ClubHistory />} />
             <Route path="/season-preview" element={<SeasonPreview />} />
             <Route path="/box-score/:matchIndex" element={<BoxScore />} />
             <Route path="/roster" element={<Roster />} />
