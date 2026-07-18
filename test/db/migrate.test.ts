@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { makeLeague } from "../helpers/league.js";
 import { migrateLeague } from "../../src/db/migrate.js";
 import { mulberry32 } from "../../src/engine/rng.js";
-import { createLeagueState, buildCompetitionSchedule, type LeagueStore } from "../../src/core/leagueState.js";
+import { buildCompetitionSchedule, type LeagueStore } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { HYPE_INITIAL, SCOUTING_SPEND_DEFAULT } from "../../src/core/constants.js";
@@ -41,7 +42,7 @@ function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed =
 
 describe("migrateLeague", () => {
   it("backfills finance fields on teams from pre-M6 saves", () => {
-    const league = createLeagueState(0, mulberry32(1));
+    const league = makeLeague(0, 1);
     // Strip the finance fields to simulate a league saved before M6.
     const preM6 = {
       ...league,
@@ -60,7 +61,7 @@ describe("migrateLeague", () => {
   });
 
   it("backfills the transfer-market lists from pre-phase-3 saves", () => {
-    const league = createLeagueState(0, mulberry32(3));
+    const league = makeLeague(0, 1);
     const { negotiations: _n, transfers: _t, ...rest } = league;
     const preTransfers = rest as unknown as LeagueStore;
 
@@ -70,7 +71,7 @@ describe("migrateLeague", () => {
   });
 
   it("leaves existing transfer-market lists untouched", () => {
-    const league = createLeagueState(0, mulberry32(4));
+    const league = makeLeague(0, 1);
     const withDeals: LeagueStore = {
       ...league,
       transfers: [{ pid: 1, fromTid: 2, toTid: 0, fee: 5_000_000, season: 1, window: "winter" }],
@@ -79,14 +80,14 @@ describe("migrateLeague", () => {
   });
 
   it("backfills newsEvents to an empty array for saves written before this feature", () => {
-    const league = createLeagueState(0, mulberry32(7));
+    const league = makeLeague(0, 1);
     const { newsEvents: _ne, ...withoutNewsEvents } = league;
     const migrated = migrateLeague(withoutNewsEvents as unknown as LeagueStore);
     expect(migrated.newsEvents).toEqual([]);
   });
 
   it("leaves existing newsEvents untouched", () => {
-    const league = createLeagueState(0, mulberry32(8));
+    const league = makeLeague(0, 1);
     const withEvents: LeagueStore = {
       ...league,
       newsEvents: [{ type: "hattrick", pid: 1, tid: 0, season: 1, matchday: 3, detail: 3 }],
@@ -95,7 +96,7 @@ describe("migrateLeague", () => {
   });
 
   it("backfills minutesPlayed/rating fields from pre-Match-Rating saves", () => {
-    const league = simThrough(createLeagueState(0, mulberry32(5)), "game", mulberry32(6));
+    const league = simThrough(makeLeague(0, 1), "game", mulberry32(6));
     const preRating = {
       ...league,
       players: league.players.map((p) => ({
@@ -129,7 +130,7 @@ describe("migrateLeague", () => {
   });
 
   it("backfills interceptions to 0 on pre-existing box-score lines and season stats", () => {
-    const league = simThrough(createLeagueState(0, mulberry32(5)), "game", mulberry32(6));
+    const league = simThrough(makeLeague(0, 1), "game", mulberry32(6));
     const preInterceptions = {
       ...league,
       players: league.players.map((p) => ({
@@ -160,14 +161,14 @@ describe("migrateLeague", () => {
   });
 
   it("leaves current match-rating fields untouched", () => {
-    const league = simThrough(createLeagueState(0, mulberry32(7)), "game", mulberry32(8));
+    const league = simThrough(makeLeague(0, 1), "game", mulberry32(8));
     const migrated = migrateLeague(league);
     expect(migrated.players).toEqual(league.players);
     expect(migrated.played).toEqual(league.played);
   });
 
   it("backfills academyRoster to [] on pre-Academy saves", () => {
-    const league = createLeagueState(0, mulberry32(9));
+    const league = makeLeague(0, 1);
     const preAcademy = {
       ...league,
       teams: league.teams.map(({ academyRoster: _a, ...rest }) => rest),
@@ -180,7 +181,7 @@ describe("migrateLeague", () => {
   });
 
   it("leaves an existing academyRoster untouched", () => {
-    const league = createLeagueState(0, mulberry32(10));
+    const league = makeLeague(0, 1);
     const withAcademy: LeagueStore = {
       ...league,
       teams: league.teams.map((t) => (t.tid === 0 ? { ...t, academyRoster: [42] } : t)),
@@ -190,7 +191,7 @@ describe("migrateLeague", () => {
   });
 
   it("leaves current saves' finance values untouched", () => {
-    const league = createLeagueState(0, mulberry32(2));
+    const league = makeLeague(0, 1);
     const custom = {
       ...league,
       teams: league.teams.map((t) => ({ ...t, budget: 123_456, hype: 77, scoutingSpend: 5_000 })),
@@ -250,7 +251,7 @@ describe("migrateLeague", () => {
 
 describe("migrateLeague pre-M3 box scores", () => {
   it("tolerates played matches with no boxScore at all", () => {
-    const league = simThrough(createLeagueState(0, mulberry32(7)), "game", mulberry32(8));
+    const league = simThrough(makeLeague(0, 1), "game", mulberry32(8));
     expect(league.played.length).toBeGreaterThan(0);
     const preM3 = {
       ...league,

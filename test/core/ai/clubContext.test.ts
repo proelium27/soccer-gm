@@ -1,19 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { mulberry32 } from "../../../src/engine/rng.js";
-import { createLeagueState } from "../../../src/core/leagueState.js";
+import { makeLeague } from "../../helpers/league.js";
 import { deriveLeagueContexts } from "../../../src/core/ai/clubContext.js";
 import { POSITIONS } from "../../../src/core/players/types.js";
 
 describe("deriveLeagueContexts", () => {
   it("produces a context for every team", () => {
-    const league = createLeagueState(0, mulberry32(3));
+    const league = makeLeague(0, 1);
     const contexts = deriveLeagueContexts(league);
     expect(contexts.size).toBe(league.teams.length);
     for (const t of league.teams) expect(contexts.has(t.tid)).toBe(true);
   });
 
   it("positional depth sums to the roster size", () => {
-    const league = createLeagueState(0, mulberry32(3));
+    const league = makeLeague(0, 1);
     const contexts = deriveLeagueContexts(league);
     for (const t of league.teams) {
       const c = contexts.get(t.tid)!;
@@ -23,7 +22,7 @@ describe("deriveLeagueContexts", () => {
   });
 
   it("a rich, famous club has higher ambition and lower frugality than a poor, obscure one", () => {
-    const league = createLeagueState(0, mulberry32(4));
+    const league = makeLeague(0, 1);
     // Force two clubs to financial extremes; leave the rest as generated.
     const teams = league.teams.map((t, i) =>
       i === 0 ? { ...t, budget: 500_000_000, hype: 100 }
@@ -42,7 +41,7 @@ describe("deriveLeagueContexts", () => {
   });
 
   it("ambition and frugality stay within [0,1]", () => {
-    const league = createLeagueState(0, mulberry32(5));
+    const league = makeLeague(0, 1);
     const contexts = deriveLeagueContexts(league);
     for (const c of contexts.values()) {
       expect(c.ambition).toBeGreaterThanOrEqual(0);
@@ -60,7 +59,7 @@ describe("deriveLeagueContexts", () => {
     // range). Within-division normalization means Division 2's own richest
     // club should read as barely frugal RELATIVE TO ITS OWN DIVISION, the
     // same way Division 1's richest club does.
-    const league = createLeagueState(0, mulberry32(4));
+    const league = makeLeague(0, 1);
     const contexts = deriveLeagueContexts(league);
     const d2Teams = league.teams.filter((t) => t.compId === 1);
     const richestD2 = d2Teams.reduce((a, b) => (a.budget > b.budget ? a : b));

@@ -1,9 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { makeLeague } from "../helpers/league.js";
 import {
   contractTerms, canExtend, extendContract, weeklyWage, seasonSalaryForOvr, WEEKS_PER_SEASON,
 } from "../../src/core/contracts.js";
-import { createLeagueState } from "../../src/core/leagueState.js";
-import { mulberry32 } from "../../src/engine/rng.js";
 import {
   WAGE_WEEKLY_MIN, WAGE_VARIATION,
   EXTENSION_LENGTH_YOUNG, EXTENSION_LENGTH_MID, EXTENSION_LENGTH_OLD,
@@ -12,7 +11,7 @@ import {
 import type { Player } from "../../src/core/players/types.js";
 
 function playerAged(age: number, season: number): Player {
-  const league = createLeagueState(0, mulberry32(1));
+  const league = makeLeague(0, 1);
   return { ...league.players[0], born: season - age };
 }
 
@@ -91,7 +90,7 @@ describe("canExtend", () => {
 
 describe("extendContract", () => {
   it("replaces only the target player's contract with fresh terms", () => {
-    const league = createLeagueState(0, mulberry32(2));
+    const league = makeLeague(0, 1);
     const pid = league.teams[0].roster[0];
     const other = league.teams[0].roster[1];
     const before = league.players.find((p) => p.pid === other)!.contract;
@@ -105,7 +104,7 @@ describe("extendContract", () => {
   });
 
   it("applies a user-chosen length override when given", () => {
-    const league = createLeagueState(0, mulberry32(2));
+    const league = makeLeague(0, 1);
     const pid = league.teams[0].roster[0];
     const players = extendContract(league.players, pid, league.season, 4);
     const updated = players.find((p) => p.pid === pid)!;

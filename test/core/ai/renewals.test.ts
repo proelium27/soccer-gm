@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mulberry32 } from "../../../src/engine/rng.js";
-import { createLeagueState } from "../../../src/core/leagueState.js";
+import { makeLeague } from "../../helpers/league.js";
 import { runAIContractRenewals } from "../../../src/core/ai/renewals.js";
 import { canExtend } from "../../../src/core/contracts.js";
 import { ROSTER_COMPOSITION } from "../../../src/core/constants.js";
@@ -11,7 +10,7 @@ const USER_TID = 0;
 
 describe("runAIContractRenewals", () => {
   it("renews a clear keeper: a big upgrade at a thin position, in his prime, on a rich club", () => {
-    const league = createLeagueState(USER_TID, mulberry32(21));
+    const league = makeLeague(USER_TID, 1);
     const nextSeason = league.season + 1;
     const tid = 1;
     const team = league.teams.find((t) => t.tid === tid)!;
@@ -38,7 +37,7 @@ describe("runAIContractRenewals", () => {
   });
 
   it("does not renew a clearly expendable player: heavy surplus, old, low ovr, poor club", () => {
-    const league = createLeagueState(USER_TID, mulberry32(22));
+    const league = makeLeague(USER_TID, 1);
     const nextSeason = league.season + 1;
     const tid = 2;
     const team = league.teams.find((t) => t.tid === tid)!;
@@ -69,7 +68,7 @@ describe("runAIContractRenewals", () => {
   });
 
   it("leaves a player with more than one season left on his deal untouched", () => {
-    const league = createLeagueState(USER_TID, mulberry32(23));
+    const league = makeLeague(USER_TID, 1);
     const nextSeason = league.season + 1;
     const tid = 1;
     const target = league.players.find((p) =>
@@ -89,7 +88,7 @@ describe("runAIContractRenewals", () => {
   });
 
   it("never touches the user's team", () => {
-    const league = createLeagueState(USER_TID, mulberry32(24));
+    const league = makeLeague(USER_TID, 1);
     const nextSeason = league.season + 1;
     const userTeam = league.teams.find((t) => t.tid === USER_TID)!;
     const players = league.players.map((p) =>
@@ -105,7 +104,7 @@ describe("runAIContractRenewals", () => {
   });
 
   it("is deterministic for the same inputs", () => {
-    const league = createLeagueState(USER_TID, mulberry32(25));
+    const league = makeLeague(USER_TID, 1);
     const nextSeason = league.season + 1;
     const players = league.players.map((p) => ({
       ...p,
@@ -118,14 +117,14 @@ describe("runAIContractRenewals", () => {
   });
 
   it("returns the same team objects untouched (only player contracts change)", () => {
-    const league = createLeagueState(USER_TID, mulberry32(26));
+    const league = makeLeague(USER_TID, 1);
     const nextSeason = league.season + 1;
     const result = runAIContractRenewals(league.teams, league.players, nextSeason, USER_TID, league.played, 42, league.competitions);
     expect(result.teams).toBe(league.teams);
   });
 
   it("every ROSTER_COMPOSITION position is representable without crashing on a full league", () => {
-    const league = createLeagueState(USER_TID, mulberry32(27));
+    const league = makeLeague(USER_TID, 1);
     const nextSeason = league.season + 1;
     const players = league.players.map((p) => ({
       ...p,

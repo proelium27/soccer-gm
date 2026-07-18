@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { makeLeague } from "../helpers/league.js";
 import { mulberry32 } from "../../src/engine/rng.js";
-import { createLeagueState, type LeagueStore } from "../../src/core/leagueState.js";
+import { type LeagueStore } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { tierOf } from "../../src/core/competitions.js";
@@ -10,7 +11,7 @@ import { CUP_ROUND_MATCHDAYS } from "../../src/core/constants.js";
 
 /** Advance a fresh save to the start of season 2 (regular phase), by which point a cup is seeded. */
 function toSeason2(seed: number, userTid = 0): LeagueStore {
-  let league = createLeagueState(userTid, mulberry32(seed));
+  let league = makeLeague(userTid, 1);
   expect(league.cup).toBeNull(); // season 1 never has a cup
   league = simThrough(league, "season", mulberry32(seed + 1));
   expect(league.phase).toBe("offseason");
@@ -34,7 +35,7 @@ describe("Continental Cup — season lifecycle", () => {
     // stop-before-final rule (a tier-2 club can't qualify for the cup). The
     // fresh, unsimmed world already exposes every club's tier, so this needs
     // no extra season simulation.
-    const fresh = createLeagueState(0, mulberry32(5));
+    const fresh = makeLeague(0, 1);
     const tier2Tid = fresh.teams.find((t) => tierOf(fresh.competitions, t.compId) === 2)!.tid;
     const league2 = toSeason2(5, tier2Tid);
 

@@ -1,14 +1,14 @@
 import { describe, it, expect } from "vitest";
+import { makeLeague } from "../../helpers/league.js";
 import { transferWindowState, nextMatchday } from "../../../src/core/transfers/window.js";
-import { createLeagueState, type LeagueStore } from "../../../src/core/leagueState.js";
-import { mulberry32 } from "../../../src/engine/rng.js";
+import { type LeagueStore } from "../../../src/core/leagueState.js";
 import {
   SUMMER_WINDOW_CLOSE_MATCHDAY, TRANSFER_DEADLINE_MATCHDAY, WINTER_WINDOW_OPEN_MATCHDAY,
 } from "../../../src/core/calendar.js";
 
 /** A league whose next unplayed matchday is `md` (games before it removed). */
 function leagueAtMatchday(md: number): LeagueStore {
-  const league = createLeagueState(0, mulberry32(1));
+  const league = makeLeague(0, 1);
   return {
     ...league,
     schedule: league.schedule.filter((g) => g.matchday >= md),
@@ -17,7 +17,7 @@ function leagueAtMatchday(md: number): LeagueStore {
 
 describe("transferWindowState", () => {
   it("opens the summer window for the whole offseason phase", () => {
-    const league = { ...createLeagueState(0, mulberry32(2)), phase: "offseason" as const };
+    const league = { ...makeLeague(0, 1), phase: "offseason" as const };
     const ws = transferWindowState(league);
     expect(ws).toMatchObject({ open: true, window: "summer" });
   });
@@ -52,7 +52,7 @@ describe("transferWindowState", () => {
   });
 
   it("gives the summer window one identity across the season rollover", () => {
-    const league = createLeagueState(0, mulberry32(3));
+    const league = makeLeague(0, 1);
     const offseason = { ...league, phase: "offseason" as const };
     // What Advance does to the calendar: bump the season, back to regular
     // play with matchday 1 up next — still the same summer window.

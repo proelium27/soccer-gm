@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mulberry32 } from "../../../src/engine/rng.js";
-import { createLeagueState } from "../../../src/core/leagueState.js";
+import { makeLeague } from "../../helpers/league.js";
 import { enforceDivision2Ceiling } from "../../../src/core/ai/divisionCeiling.js";
 import { ROSTER_CAP, DIVISION_2_REFUSAL_OVR_THRESHOLD } from "../../../src/core/constants.js";
 import { tierOf } from "../../../src/core/competitions.js";
@@ -9,7 +8,7 @@ const USER_TID = 0;
 
 describe("enforceDivision2Ceiling", () => {
   it("moves an AI Division 2 player at/above the OVR threshold to a Division 1 club", () => {
-    const league = createLeagueState(USER_TID, mulberry32(11));
+    const league = makeLeague(USER_TID, 1);
     const d2Team = league.teams.find((t) => t.compId === 1 && t.tid !== USER_TID)!;
     const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
     const star = { ...target, ovr: DIVISION_2_REFUSAL_OVR_THRESHOLD };
@@ -27,7 +26,7 @@ describe("enforceDivision2Ceiling", () => {
   });
 
   it("charges the buyer the market fee and credits the seller", () => {
-    const league = createLeagueState(USER_TID, mulberry32(11));
+    const league = makeLeague(USER_TID, 1);
     const d2Team = league.teams.find((t) => t.compId === 1 && t.tid !== USER_TID)!;
     const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
     const star = { ...target, ovr: DIVISION_2_REFUSAL_OVR_THRESHOLD };
@@ -49,7 +48,7 @@ describe("enforceDivision2Ceiling", () => {
   });
 
   it("never pushes the buyer's budget negative even when it can't afford the full fee", () => {
-    const league = createLeagueState(USER_TID, mulberry32(11));
+    const league = makeLeague(USER_TID, 1);
     const d2Team = league.teams.find((t) => t.compId === 1 && t.tid !== USER_TID)!;
     const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
     const star = { ...target, ovr: 90 };
@@ -71,7 +70,7 @@ describe("enforceDivision2Ceiling", () => {
   });
 
   it("leaves a Division 2 player below the threshold in place", () => {
-    const league = createLeagueState(USER_TID, mulberry32(11));
+    const league = makeLeague(USER_TID, 1);
     const d2Team = league.teams.find((t) => t.compId === 1 && t.tid !== USER_TID)!;
     const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
     const weak = { ...target, ovr: DIVISION_2_REFUSAL_OVR_THRESHOLD - 1 };
@@ -85,7 +84,7 @@ describe("enforceDivision2Ceiling", () => {
   });
 
   it("never moves a player off the user's own Division 2 roster", () => {
-    const league = createLeagueState(USER_TID, mulberry32(11));
+    const league = makeLeague(USER_TID, 1);
     const userTeam = league.teams.find((t) => t.tid === USER_TID)!;
     // Force the user's own club into Division 2 for this test.
     const teams = league.teams.map((t) => (t.tid === USER_TID ? { ...t, compId: 1 } : t));
@@ -101,7 +100,7 @@ describe("enforceDivision2Ceiling", () => {
   });
 
   it("never force-adds a player onto the user's Division 1 roster", () => {
-    const league = createLeagueState(USER_TID, mulberry32(11));
+    const league = makeLeague(USER_TID, 1);
     const d2Team = league.teams.find((t) => t.compId === 1 && t.tid !== USER_TID)!;
     const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
     const star = { ...target, ovr: 95 };
@@ -115,7 +114,7 @@ describe("enforceDivision2Ceiling", () => {
   });
 
   it("releases the receiving club's weakest player if it's already at ROSTER_CAP", () => {
-    const league = createLeagueState(USER_TID, mulberry32(11));
+    const league = makeLeague(USER_TID, 1);
     const d2Team = league.teams.find((t) => t.compId === 1 && t.tid !== USER_TID)!;
     const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
     const star = { ...target, ovr: 90 };
@@ -154,7 +153,7 @@ describe("enforceDivision2Ceiling", () => {
   });
 
   it("never sweeps a player who is out on loan (a borrowed D2 player would be duplicated on loan return)", () => {
-    const league = createLeagueState(USER_TID, mulberry32(11));
+    const league = makeLeague(USER_TID, 1);
     const d2Team = league.teams.find((t) => t.compId === 1 && t.tid !== USER_TID)!;
     const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
     // Comfortably above the threshold — without the loan flag he'd be swept
@@ -176,7 +175,7 @@ describe("enforceDivision2Ceiling", () => {
   });
 
   it("is deterministic for the same inputs", () => {
-    const league = createLeagueState(USER_TID, mulberry32(11));
+    const league = makeLeague(USER_TID, 1);
     const d2Team = league.teams.find((t) => t.compId === 1 && t.tid !== USER_TID)!;
     const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
     const star = { ...target, ovr: 88 };
