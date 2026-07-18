@@ -1,80 +1,98 @@
 import { describe, it, expect } from "vitest";
 import {
-  NATIONALITIES, UNLISTED_NATIONALITIES, namePoolFor, pickNationality,
+  LEAGUE_NATIONALITY_WEIGHTS, namePoolFor, pickNationality,
 } from "../../src/core/players/nationalities.js";
 import { flagFor } from "../../src/core/players/flags.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 
-describe("Italy nationality pool", () => {
-  it("has a name pool with at least 20 first and 20 last names", () => {
-    const pool = namePoolFor("Italy");
-    expect(pool).toBeDefined();
-    expect(pool!.first.length).toBeGreaterThanOrEqual(20);
-    expect(pool!.last.length).toBeGreaterThanOrEqual(20);
-  });
+const REST = "__REST__";
+const LEAGUES = Object.keys(LEAGUE_NATIONALITY_WEIGHTS);
 
-  it("lives in the flat-pool NATIONALITIES table with a positive weight comparable to Spain's", () => {
-    // Italy was graduated out of UNLISTED_NATIONALITIES into NATIONALITIES
-    // once every world generated an Italian league, so Italians now appear
-    // abroad as ordinary foreign flavor (like Spaniards/Germans).
-    expect(NATIONALITIES.Italy).toBeDefined();
-    expect(UNLISTED_NATIONALITIES.Italy).toBeUndefined();
-    expect(NATIONALITIES.Italy.weight).toBeGreaterThan(0);
-    expect(NATIONALITIES.Italy.weight).toBeCloseTo(NATIONALITIES.Spain.weight, -1);
-  });
+function drawCounts(homeCountry: string | undefined, n = 4000, seed = 1): Record<string, number> {
+  const rng = mulberry32(seed);
+  const counts: Record<string, number> = {};
+  for (let i = 0; i < n; i++) {
+    const nat = pickNationality(rng, homeCountry);
+    counts[nat] = (counts[nat] ?? 0) + 1;
+  }
+  return counts;
+}
 
-  it("has a flag emoji, not the unknown-nationality placeholder", () => {
-    expect(flagFor("Italy")).toBe("🇮🇹");
-    expect(flagFor("Italy")).not.toBe("🏳️");
-  });
-
-  it("appears in the flat, no-homeCountry draw (so Italians show up abroad, not only in Italy)", () => {
-    const rng = mulberry32(5);
-    let seen = false;
-    for (let i = 0; i < 5000; i++) {
-      if (pickNationality(rng) === "Italy") { seen = true; break; }
+describe("per-league nationality tables", () => {
+  it("every named nation in every league table has a name pool (incl. Kosovo, Turkey, United States)", () => {
+    for (const table of Object.values(LEAGUE_NATIONALITY_WEIGHTS)) {
+      for (const country of Object.keys(table)) {
+        if (country === REST) continue;
+        const pool = namePoolFor(country);
+        expect(pool, `missing name pool for ${country}`).toBeDefined();
+        expect(pool!.first.length).toBeGreaterThan(0);
+        expect(pool!.last.length).toBeGreaterThan(0);
+      }
     }
-    expect(seen).toBe(true);
   });
 
-  it("is the plurality when drawn via its own homeCountry", () => {
-    const rng = mulberry32(6);
-    const counts: Record<string, number> = {};
-    for (let i = 0; i < 2000; i++) {
-      const n = pickNationality(rng, "Italy");
-      counts[n] = (counts[n] ?? 0) + 1;
+  it("every league table has a REST slot and its home nation as the plurality weight", () => {
+    for (const [home, table] of Object.entries(LEAGUE_NATIONALITY_WEIGHTS)) {
+      expect(table[REST], `${home} missing REST slot`).toBeGreaterThan(0);
+      const maxWeight = Math.max(...Object.values(table));
+      expect(table[home], `${home} not its own plurality`).toBe(maxWeight);
     }
-    const italy = counts.Italy ?? 0;
-    for (const [country, count] of Object.entries(counts)) {
-      if (country !== "Italy") expect(italy).toBeGreaterThan(count);
+  });
+
+  it("each country's own nationality is the drawn plurality in its league", () => {
+    for (const home of LEAGUES) {
+      const counts = drawCounts(home, 4000, 11);
+      const homeCount = counts[home] ?? 0;
+      for (const [country, count] of Object.entries(counts)) {
+        if (country !== home) {
+          expect(homeCount, `${country} out-drew ${home} in ${home}'s league`).toBeGreaterThan(count);
+        }
+      }
     }
   });
 });
 
-describe("pickNationality home-country weighting", () => {
-  it("with no home country, matches today's flat distribution (England is the plurality)", () => {
-    const rng = mulberry32(1);
-    const counts: Record<string, number> = {};
-    for (let i = 0; i < 2000; i++) {
-      const n = pickNationality(rng);
-      counts[n] = (counts[n] ?? 0) + 1;
-    }
+describe("league-specific flavor (real-calibrated tails)", () => {
+  it("Morocco is far commoner in Spain's league than in England's", () => {
+    const es = drawCounts("Spain", 6000, 21);
+    const en = drawCounts("England", 6000, 21);
+    expect((es.Morocco ?? 0)).toBeGreaterThan((en.Morocco ?? 0) * 3);
+  });
+
+  it("Japan is commoner in Germany's league than in England's (Bundesliga pipeline)", () => {
+    const de = drawCounts("Germany", 6000, 22);
+    const en = drawCounts("England", 6000, 22);
+    expect((de.Japan ?? 0)).toBeGreaterThan((en.Japan ?? 0));
+  });
+
+  it("Wales is a named nation in England's league but only a REST-tail nation in Spain's (notably rarer)", () => {
+    const en = drawCounts("England", 6000, 23);
+    const es = drawCounts("Spain", 6000, 23);
+    expect((en.Wales ?? 0)).toBeGreaterThan(50);
+    // Named (weight 23) in England vs. a mid-weight tail nation in Spain.
+    expect((es.Wales ?? 0)).toBeLessThan((en.Wales ?? 0) * 0.6);
+  });
+
+  it("the REST tail actually yields nations outside a league's named set", () => {
+    const named = new Set(Object.keys(LEAGUE_NATIONALITY_WEIGHTS.England).filter((c) => c !== REST));
+    const counts = drawCounts("England", 6000, 24);
+    const tailHit = Object.keys(counts).some((c) => !named.has(c));
+    expect(tailHit).toBe(true);
+  });
+
+  it("Kosovo (a Germany-only named nation) has both a name pool and a flag", () => {
+    expect(namePoolFor("Kosovo")).toBeDefined();
+    expect(flagFor("Kosovo")).not.toBe("🏳️");
+    expect(flagFor("Italy")).toBe("🇮🇹");
+  });
+});
+
+describe("no-country / fallback behavior", () => {
+  it("with no home country, falls back to England's table (England is the plurality)", () => {
+    const counts = drawCounts(undefined, 4000, 1);
     const england = counts.England ?? 0;
     for (const [country, count] of Object.entries(counts)) {
       if (country !== "England") expect(england).toBeGreaterThan(count);
-    }
-  });
-
-  it("with homeCountry 'Spain', Spain becomes the plurality instead of England", () => {
-    const rng = mulberry32(2);
-    const counts: Record<string, number> = {};
-    for (let i = 0; i < 2000; i++) {
-      const n = pickNationality(rng, "Spain");
-      counts[n] = (counts[n] ?? 0) + 1;
-    }
-    const spain = counts.Spain ?? 0;
-    for (const [country, count] of Object.entries(counts)) {
-      if (country !== "Spain") expect(spain).toBeGreaterThan(count);
     }
   });
 
@@ -86,19 +104,21 @@ describe("pickNationality home-country weighting", () => {
     expect(seqA).toEqual(seqB);
   });
 
-  it("an unrecognized homeCountry falls back to the flat distribution instead of throwing", () => {
-    const rng = mulberry32(4);
-    expect(() => pickNationality(rng, "Atlantis")).not.toThrow();
+  it("an unrecognized homeCountry falls back to England's table instead of throwing", () => {
+    expect(() => pickNationality(mulberry32(9), "Atlantis")).not.toThrow();
+    // Same stream as an England draw, since unknown -> England table.
+    const rngUnknown = mulberry32(9);
+    const rngEngland = mulberry32(9);
+    const seqUnknown = Array.from({ length: 30 }, () => pickNationality(rngUnknown, "Atlantis"));
+    const seqEngland = Array.from({ length: 30 }, () => pickNationality(rngEngland, "England"));
+    expect(seqUnknown).toEqual(seqEngland);
   });
 
-  it("the flat draw's England share matches England's weight over the current table total", () => {
-    // England's weight (390) over the current flat total: computed live from
-    // NATIONALITIES + a fixed OTHER_BUCKET_WEIGHT (8), so it self-adjusts as
-    // the table changes (e.g. Italy graduating in). Guards that pickFromTable
-    // actually realizes the weighted proportions it claims to.
-    let originalTotal = 8;
-    for (const def of Object.values(NATIONALITIES)) originalTotal += def.weight;
-    const expectedShare = NATIONALITIES.England.weight / originalTotal;
+  it("realized England share matches its table weight over the table total (~39%)", () => {
+    const table = LEAGUE_NATIONALITY_WEIGHTS.England;
+    let total = 0;
+    for (const w of Object.values(table)) total += w;
+    const expectedShare = table.England / total;
 
     const rng = mulberry32(7);
     let englandCount = 0;
