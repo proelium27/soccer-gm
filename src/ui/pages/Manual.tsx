@@ -557,10 +557,11 @@ export function Manual() {
             world at once. AI clubs are tuned to never go broke;
             <em> you</em> can overspend — hoard a full roster of elite wages and the projection
             will happily show you the shortfall coming. Budget is a running balance that carries
-            over between seasons rather than resetting, capped at <strong>$400M</strong> for Division
-            1 clubs (Division 2 clubs are capped lower, reflecting the financial gap between
-            divisions) — spending below that line is unrestricted, but a club can't bank cash past
-            it.
+            over between seasons rather than resetting. The savings cap scales with a club's fame:
+            a top-flight club can bank up to <strong>$400M</strong> at full hype, down to
+            <strong> $200M</strong> for a club with no fame (Division 2 clubs are capped lower on top
+            of that, reflecting the financial gap between divisions) — spending below your cap is
+            unrestricted, but you can't bank cash past it.
           </p>
         </Section>
 

@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
-  seasonRevenue, settleSeasonEnd, chargeSeasonStart, successPayout, wageBill,
+  seasonRevenue, settleSeasonEnd, chargeSeasonStart, successPayout, wageBill, budgetCap,
 } from "../../../src/core/finance/budget.js";
 import {
-  BASE_SEASON_BUDGET, NUM_TEAMS, MAX_BUDGET,
+  BASE_SEASON_BUDGET, NUM_TEAMS, MAX_BUDGET, MAX_BUDGET_FLOOR, HYPE_MAX,
   PRIZE_CHAMPION, PRIZE_TOP_5, PRIZE_TOP_10,
   WAGE_WEEKLY_MIN, WAGE_WEEKLY_COEFF, WAGE_OVR_FLOOR, WAGE_VARIATION,
   WAGE_SAFE_SQUAD, DIVISION_2_BUDGET_SCALE,
@@ -46,15 +46,16 @@ describe("division-scaled finances", () => {
   });
 
   it("chargeSeasonStart scales the base allocation by division", () => {
-    const d1Budget = chargeSeasonStart(0, 0, 1);
-    const d2Budget = chargeSeasonStart(0, 0, 2);
+    const d1Budget = chargeSeasonStart(0, 0, 1, 50);
+    const d2Budget = chargeSeasonStart(0, 0, 2, 50);
     expect(d2Budget).toBeCloseTo(BASE_SEASON_BUDGET * DIVISION_2_BUDGET_SCALE, 5);
     expect(d1Budget).toBe(BASE_SEASON_BUDGET);
   });
 
-  it("caps Division 2 budgets at MAX_BUDGET * DIVISION_2_BUDGET_SCALE, not the shared MAX_BUDGET", () => {
-    const hugeD1 = chargeSeasonStart(MAX_BUDGET, 0, 1);
-    const hugeD2 = chargeSeasonStart(MAX_BUDGET, 0, 2);
+  it("caps a maximally famous Division 2 club at MAX_BUDGET * DIVISION_2_BUDGET_SCALE, not the shared MAX_BUDGET", () => {
+    // At full hype the cap reaches MAX_BUDGET (tier 1) / MAX_BUDGET*scale (tier 2).
+    const hugeD1 = chargeSeasonStart(MAX_BUDGET, 0, 1, HYPE_MAX);
+    const hugeD2 = chargeSeasonStart(MAX_BUDGET, 0, 2, HYPE_MAX);
     expect(hugeD1).toBe(MAX_BUDGET);
     expect(hugeD2).toBe(MAX_BUDGET * DIVISION_2_BUDGET_SCALE);
   });
@@ -62,6 +63,31 @@ describe("division-scaled finances", () => {
   it("settleSeasonEnd also caps Division 2 at the scaled ceiling", () => {
     const result = settleSeasonEnd(MAX_BUDGET, 1, 100, 0, 2);
     expect(result).toBe(MAX_BUDGET * DIVISION_2_BUDGET_SCALE);
+  });
+});
+
+describe("budgetCap (hype-scaled savings ceiling)", () => {
+  it("scales the cap with hype between MAX_BUDGET_FLOOR and MAX_BUDGET", () => {
+    expect(budgetCap(1, 0)).toBeCloseTo(MAX_BUDGET_FLOOR, 5);
+    expect(budgetCap(1, HYPE_MAX)).toBeCloseTo(MAX_BUDGET, 5);
+    expect(budgetCap(1, HYPE_MAX / 2)).toBeCloseTo((MAX_BUDGET_FLOOR + MAX_BUDGET) / 2, 5);
+  });
+
+  it("is monotonic in hype — a more famous club can always bank at least as much", () => {
+    for (let h = 0; h < HYPE_MAX; h += 10) {
+      expect(budgetCap(1, h + 10)).toBeGreaterThan(budgetCap(1, h));
+    }
+  });
+
+  it("scales the whole cap down for tier 2 at every hype level", () => {
+    for (const h of [0, 50, HYPE_MAX]) {
+      expect(budgetCap(2, h)).toBeCloseTo(budgetCap(1, h) * DIVISION_2_BUDGET_SCALE, 5);
+    }
+  });
+
+  it("clamps out-of-range hype defensively", () => {
+    expect(budgetCap(1, -20)).toBeCloseTo(MAX_BUDGET_FLOOR, 5);
+    expect(budgetCap(1, 999)).toBeCloseTo(MAX_BUDGET, 5);
   });
 });
 
@@ -115,7 +141,7 @@ describe("settleSeasonEnd", () => {
 
 describe("chargeSeasonStart", () => {
   it("pays the base allocation in and the season's wages out", () => {
-    expect(chargeSeasonStart(1_000_000, 200_000, 1))
+    expect(chargeSeasonStart(1_000_000, 200_000, 1, 50))
       .toBe(1_000_000 + BASE_SEASON_BUDGET - 200_000);
   });
 
@@ -134,7 +160,7 @@ describe("chargeSeasonStart", () => {
       (sum, [count, ovr]) => sum + count * worstWeekly(ovr) * WEEKS_PER_SEASON,
       0,
     );
-    expect(chargeSeasonStart(0, maxWages, 1)).toBeGreaterThan(0);
+    expect(chargeSeasonStart(0, maxWages, 1, 50)).toBeGreaterThan(0);
     expect(BASE_SEASON_BUDGET).toBeGreaterThan(maxWages);
   });
 });

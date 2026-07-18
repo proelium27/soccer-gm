@@ -1,5 +1,6 @@
 import {
-  BASE_SEASON_BUDGET, MAX_BUDGET, HYPE_REVENUE_PER_POINT, HYPE_REVENUE_DAMPING,
+  BASE_SEASON_BUDGET, MAX_BUDGET, MAX_BUDGET_FLOOR, HYPE_MAX,
+  HYPE_REVENUE_PER_POINT, HYPE_REVENUE_DAMPING,
   PRIZE_CHAMPION, PRIZE_TOP_5, PRIZE_TOP_10, PRIZE_TOP_5_CUTOFF, PRIZE_TOP_10_CUTOFF,
   DIVISION_2_BUDGET_SCALE,
 } from "../constants.js";
@@ -14,14 +15,26 @@ function tierScale(tier: 1 | 2): number {
 }
 
 /**
- * Caps a budget at MAX_BUDGET, scaled down for tier 2 by
- * DIVISION_2_BUDGET_SCALE (the same factor that scales tier 2's income
- * — see tierScale above) — applied everywhere a club's budget can
- * increase, so a tier 2 club can never out-save a tier 1 club no
- * matter how well it's run.
+ * The savings ceiling for a club, scaled by its fame (hype, 0-100) between
+ * MAX_BUDGET_FLOOR (a nobody club) and MAX_BUDGET (a famous, successful one),
+ * then scaled down for tier 2. So a big club can bank/spend a bigger war chest
+ * than a struggling one — fame → money → stronger squad → more fame — while
+ * tier 2 still can't out-save its tier-1 counterparts. Hype is clamped to
+ * [0, HYPE_MAX] defensively.
  */
-export function clampBudget(budget: number, tier: 1 | 2): number {
-  return Math.min(budget, MAX_BUDGET * tierScale(tier));
+export function budgetCap(tier: 1 | 2, hype: number): number {
+  const h = Math.max(0, Math.min(HYPE_MAX, hype)) / HYPE_MAX;
+  return (MAX_BUDGET_FLOOR + h * (MAX_BUDGET - MAX_BUDGET_FLOOR)) * tierScale(tier);
+}
+
+/**
+ * Caps a budget at the club's fame-scaled ceiling (see budgetCap) — applied
+ * everywhere a club's budget can increase, so wealth tracks success and a
+ * tier 2 club can never out-save a tier 1 club at the same fame level. A club
+ * can still spend below the line freely; it just can't bank above it.
+ */
+export function clampBudget(budget: number, tier: 1 | 2, hype: number): number {
+  return Math.min(budget, budgetCap(tier, hype));
 }
 
 export interface SeasonRevenue {
@@ -83,7 +96,7 @@ export function settleSeasonEnd(
   tier: 1 | 2,
 ): number {
   const { successPayout: payout, hypeRevenue } = seasonRevenue(rank, hype, tier);
-  return clampBudget(currentBudget + payout + hypeRevenue - scoutingSpend, tier);
+  return clampBudget(currentBudget + payout + hypeRevenue - scoutingSpend, tier, hype);
 }
 
 /**
@@ -92,6 +105,6 @@ export function settleSeasonEnd(
  * allocation (scaled down for tier 2) arrives and the squad's wages for
  * the season are paid out of it immediately.
  */
-export function chargeSeasonStart(currentBudget: number, wages: number, tier: 1 | 2): number {
-  return clampBudget(currentBudget + BASE_SEASON_BUDGET * tierScale(tier) - wages, tier);
+export function chargeSeasonStart(currentBudget: number, wages: number, tier: 1 | 2, hype: number): number {
+  return clampBudget(currentBudget + BASE_SEASON_BUDGET * tierScale(tier) - wages, tier, hype);
 }

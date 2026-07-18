@@ -90,7 +90,7 @@ export function executeLoan(
         return {
           ...t,
           roster: t.roster.filter((p) => p !== pid),
-          budget: clampBudget(t.budget + fee, tierOf(league.competitions, t.compId)),
+          budget: clampBudget(t.budget + fee, tierOf(league.competitions, t.compId), t.hype),
         };
       }
       if (t.tid === loaneeTid) {
@@ -368,8 +368,8 @@ export function runAILoanMarket(
 
     roster.set(c.sellerTid, sellerRoster.filter((p) => p !== c.pid));
     buyerRoster.push(c.pid);
-    const sellerCompId = teams.find((t) => t.tid === c.sellerTid)!.compId;
-    budget.set(c.sellerTid, clampBudget((budget.get(c.sellerTid) ?? 0) + fee, tierOf(competitions, sellerCompId)));
+    const sellerTeam = teams.find((t) => t.tid === c.sellerTid)!;
+    budget.set(c.sellerTid, clampBudget((budget.get(c.sellerTid) ?? 0) + fee, tierOf(competitions, sellerTeam.compId), sellerTeam.hype));
     budget.set(c.buyerTid, (budget.get(c.buyerTid) ?? 0) - fee);
     moved.add(c.pid);
     takes.set(c.buyerTid, (takes.get(c.buyerTid) ?? 0) + 1);

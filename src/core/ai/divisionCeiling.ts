@@ -55,6 +55,7 @@ export function enforceDivision2Ceiling(
   const rosterByTid = new Map(teams.map((t) => [t.tid, [...t.roster]]));
   const tierByTid = new Map(teams.map((t) => [t.tid, tierOf(competitions, t.compId)]));
   const budgetByTid = new Map(teams.map((t) => [t.tid, t.budget]));
+  const hypeByTid = new Map(teams.map((t) => [t.tid, t.hype]));
   const executed: CompletedTransfer[] = [];
 
   const avgOvrAtPos = (tid: number, pos: Position): number => {
@@ -151,7 +152,7 @@ export function enforceDivision2Ceiling(
     budgetByTid.set(buyerTid, (budgetByTid.get(buyerTid) ?? 0) - fee);
     budgetByTid.set(
       sellerTid,
-      clampBudget((budgetByTid.get(sellerTid) ?? 0) + fee, tierByTid.get(sellerTid)!),
+      clampBudget((budgetByTid.get(sellerTid) ?? 0) + fee, tierByTid.get(sellerTid)!, hypeByTid.get(sellerTid) ?? 0),
     );
 
     rosterByTid.set(sellerTid, rosterByTid.get(sellerTid)!.filter((pid) => pid !== player.pid));

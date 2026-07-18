@@ -175,7 +175,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
         name: t.name ?? CLUBS[t.tid]?.name,
         abbrev: t.abbrev ?? CLUBS[t.tid]?.abbrev,
         colors: t.colors ?? CLUBS[t.tid]?.colors,
-        budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), tierOf(competitions, compId)),
+        budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), tierOf(competitions, compId), t.hype ?? HYPE_INITIAL),
         hype: t.hype ?? HYPE_INITIAL,
         scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_DEFAULT,
         // nextScoutingSpend (added with the season-lock, 2026-07-18): old saves
