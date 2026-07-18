@@ -8,6 +8,7 @@ import { LOAN_MAX_SEASONS } from "../../core/constants.js";
 import { currency, formatWeeklyWage } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { PotDisplay } from "../components/PotDisplay.js";
 
 const SEASON_OPTIONS = Array.from({ length: LOAN_MAX_SEASONS }, (_, i) => (i + 1) as 1 | 2 | 3);
 
@@ -72,6 +73,7 @@ export function Loans() {
                   <th>Name</th>
                   <th>Pos</th>
                   <th className="text-end">Ovr</th>
+                  <th className="text-end">Pot</th>
                   <th>Club</th>
                   <th className="text-end">Seasons</th>
                   <th className="text-end">Fee</th>
@@ -89,6 +91,7 @@ export function Loans() {
                     </td>
                     <td>{c.player.pos}</td>
                     <td className="text-end">{c.player.ovr}</td>
+                    <td className="text-end"><PotDisplay player={c.player} /></td>
                     <td>{teamName(c.buyerTid)}</td>
                     <td className="text-end">{c.seasons}</td>
                     <td className="text-end">{currency.format(c.fee)}</td>
@@ -168,6 +171,7 @@ export function Loans() {
                   <th>Pos</th>
                   <th className="text-end">Age</th>
                   <th className="text-end">Ovr</th>
+                  <th className="text-end">Pot</th>
                   <th className="text-end">Wage</th>
                   <th>Duration</th>
                   <th />
@@ -183,6 +187,7 @@ export function Loans() {
                     <td>{p.pos}</td>
                     <td className="text-end">{league.season - p.born}</td>
                     <td className="text-end">{p.ovr}</td>
+                    <td className="text-end"><PotDisplay player={p} /></td>
                     <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
                     <td>
                       <select
