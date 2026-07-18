@@ -200,7 +200,7 @@ export function executeTransfer(
     ...league,
     teams: league.teams.map((t) => {
       if (t.tid === fromTid) {
-        return { ...t, roster: t.roster.filter((p) => p !== pid), budget: clampBudget(t.budget + fee, tierOf(league.competitions, t.compId)) };
+        return { ...t, roster: t.roster.filter((p) => p !== pid), budget: clampBudget(t.budget + fee, tierOf(league.competitions, t.compId), t.hype) };
       }
       if (t.tid === toTid) {
         return { ...t, roster: [...t.roster, pid], budget: t.budget - fee - wageCharge };

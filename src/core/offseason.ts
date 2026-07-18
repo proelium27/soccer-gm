@@ -250,7 +250,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   teams = teams.map((t) => ({
     ...t,
     budget: chargeSeasonStart(
-      t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), tierOf(league.competitions, t.compId),
+      t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), tierOf(league.competitions, t.compId), t.hype,
     ),
   }));
 

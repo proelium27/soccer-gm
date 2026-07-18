@@ -6,6 +6,7 @@ import {
   VALUATION_CONTRACT_YEAR_BONUS, VALUATION_CONTRACT_YEAR_BONUS_CAP,
   VALUATION_POTENTIAL_PCT_PER_POINT, VALUATION_POTENTIAL_WEIGHT_PEAK_AGE,
   VALUATION_POTENTIAL_WEIGHT_ZERO_AGE,
+  VALUATION_ELITE_THRESHOLD, VALUATION_ELITE_COEFF, VALUATION_ELITE_EXPONENT,
 } from "../constants.js";
 
 /** Piecewise-linear interpolation over sorted [x, y] control points, clamped at the ends. */
@@ -51,7 +52,11 @@ export function trueTransferValue(player: Player, season: number): number {
   const age = season - player.born;
 
   const ovrAboveFloor = Math.max(0, player.ovr - VALUATION_OVR_FLOOR);
-  const base = VALUATION_OVR_COEFF * ovrAboveFloor ** VALUATION_OVR_EXPONENT;
+  // Steep "priceless star" premium above the elite threshold — see
+  // VALUATION_ELITE_* in constants.js. Zero for all but the very best players.
+  const ovrAboveElite = Math.max(0, player.ovr - VALUATION_ELITE_THRESHOLD);
+  const base = VALUATION_OVR_COEFF * ovrAboveFloor ** VALUATION_OVR_EXPONENT
+    + VALUATION_ELITE_COEFF * ovrAboveElite ** VALUATION_ELITE_EXPONENT;
 
   const potentialGap = Math.max(0, player.potential - player.ovr);
   const potentialMultiplier =

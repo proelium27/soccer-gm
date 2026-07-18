@@ -235,7 +235,7 @@ export function simThrough(
         currentTeams = currentTeams.map((t) => {
           const prize = prizes.get(t.tid);
           return prize
-            ? { ...t, budget: clampBudget(t.budget + prize, tierOf(league.competitions, t.compId)) }
+            ? { ...t, budget: clampBudget(t.budget + prize, tierOf(league.competitions, t.compId), t.hype) }
             : t;
         });
       }

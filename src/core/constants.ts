@@ -492,14 +492,25 @@ export const BASE_SEASON_BUDGET = 110_000_000;
  * transfer-fee receipts) via `clampBudget` in `finance/budget.ts` — a club
  * can still spend below this line freely, it just can't bank above it.
  *
- * Set to $300M (bumped up from an initial $200M same-day) so it clears the
- * top of the transfer-valuation scale rather than sitting right on top of
- * it: `trueTransferValue`'s base curve alone prices a 90-ovr player at
- * ~$201M before age/potential/contract multipliers stack further on top, so
- * a $200M cap would have made the league's most elite players structurally
- * unaffordable for every club, not just rare big-money buys.
+ * MAX_BUDGET is the ceiling for a maximally *famous* club; the actual cap
+ * scales with a club's hype between MAX_BUDGET_FLOOR (a nobody club) and
+ * MAX_BUDGET (see budgetCap in finance/budget.ts), so wealth tracks success —
+ * a big club banks/spends a bigger war chest than a struggling one. Raised to
+ * $400M (from $300M, 2026-07-18) for more spending headroom, then made the top
+ * of the hype scale the same day. Comfortably clear of the transfer-valuation
+ * scale either way: `trueTransferValue`'s base curve alone prices a 90-ovr
+ * player at ~$201M before age/potential/contract multipliers stack on top, so
+ * a top club can still afford the league's most elite players. (The cap only
+ * bounds *banking*; it can't cause a deficit, so AI solvency is unaffected.)
  */
-export const MAX_BUDGET = 300_000_000;
+export const MAX_BUDGET = 400_000_000;
+/**
+ * Floor of the hype-scaled savings ceiling (see budgetCap): the cap for a
+ * club at zero hype. A club at HYPE_INITIAL (50) sits at the midpoint
+ * (~$300M at tier 1); a maximally famous club reaches MAX_BUDGET. Set so an
+ * elite club can bank/spend roughly 2x a struggling one, before tier scaling.
+ */
+export const MAX_BUDGET_FLOOR = 200_000_000;
 /**
  * Benchmark "dominant AI squad" the base allocation must out-fund on
  * worst-case wage deals (see the invariant note above): [count, ovr] rows,
@@ -618,6 +629,23 @@ export const VALUATION_OVR_COEFF = 56_000;
 export const VALUATION_OVR_EXPONENT = 2.15;
 export const VALUATION_CONTRACT_YEAR_BONUS = 0.08;
 export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
+
+/**
+ * Elite "priceless star" premium (2026-07-18): the base curve above is
+ * deliberately flat at the top (90 ≈ 201M), which let AI clubs buy and sell
+ * even the league's very best players. This adds a steep premium for every OVR
+ * point above VALUATION_ELITE_THRESHOLD so a generational talent's asking price
+ * rockets past any club's MAX_BUDGET, making him effectively unsellable — he
+ * stays at his club like a real Haaland/Mbappé rather than churning through the
+ * market. Added to the base before the age/potential/contract multipliers.
+ * Bonus = COEFF × max(0, ovr − THRESHOLD)^EXPONENT. Tuned ("only the very top"
+ * — see the 2026-07-18 finance-tuning conversation) so 85-88 stars stay
+ * expensive-but-payable and only 90+ crosses the ~$400M cap into "priceless":
+ * 85 ≈ +0 (156M total), 88 ≈ +62M (244M), 90 ≈ +224M (425M), 92 ≈ +518M (739M).
+ */
+export const VALUATION_ELITE_THRESHOLD = 85;
+export const VALUATION_ELITE_COEFF = 4_000_000;
+export const VALUATION_ELITE_EXPONENT = 2.5;
 
 /**
  * Age's effect on transfer value, as a straight multiplier — [age,

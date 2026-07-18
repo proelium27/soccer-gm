@@ -52,6 +52,23 @@ describe("trueTransferValue", () => {
     const longDeal = makePlayer({ ovr: 75, contract: { salary: 1000, expiresSeason: 2032 } });
     expect(trueTransferValue(longDeal, 2026)).toBeGreaterThan(trueTransferValue(shortDeal, 2026));
   });
+
+  it("applies a steep 'priceless star' premium above the elite threshold", () => {
+    // At/below the elite threshold the premium is zero; above it, value climbs
+    // far faster than the base curve, pricing a generational talent out of any
+    // club's budget (see VALUATION_ELITE_* in constants.js).
+    const prime = { born: 2026 - 26, contract: { salary: 1000, expiresSeason: 2027 } };
+    const at85 = trueTransferValue(makePlayer({ ovr: 85, potential: 85, ...prime }), 2026);
+    const at90 = trueTransferValue(makePlayer({ ovr: 90, potential: 90, ...prime }), 2026);
+    const at92 = trueTransferValue(makePlayer({ ovr: 92, potential: 92, ...prime }), 2026);
+    // A 90-OVR star now clears a $400M budget cap; the 85→90 jump is far bigger
+    // than the base-curve-only 85→90 step (~156M→~201M) would produce.
+    expect(at90).toBeGreaterThan(400_000_000);
+    expect(at90 - at85).toBeGreaterThan(200_000_000);
+    // Super-linear: the 2-point 90→92 step outweighs a 1-point step lower down.
+    expect(at92 - at90).toBeGreaterThan(at85 * 0.5);
+    expect(at92).toBeGreaterThan(at90);
+  });
 });
 
 describe("perceivedTransferValue", () => {

@@ -273,7 +273,7 @@ export function assignIdentities(league: League, competitions: Competition[]): S
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   return league.teams.map((t) => {
     const club = CLUBS[t.tid];
-    const budget = chargeSeasonStart(0, wageBill(t.roster, salaryMap), tierOf(competitions, t.compId));
+    const budget = chargeSeasonStart(0, wageBill(t.roster, salaryMap), tierOf(competitions, t.compId), HYPE_INITIAL);
     return {
       tid: t.tid,
       name: club.name,

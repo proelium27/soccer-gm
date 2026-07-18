@@ -132,6 +132,7 @@ export function runAITransferMarket(
   // Live mutable state.
   const roster = new Map(teams.map((t) => [t.tid, [...t.roster]]));
   const budget = new Map(teams.map((t) => [t.tid, t.budget]));
+  const hypeByTid = new Map(teams.map((t) => [t.tid, t.hype]));
   const buys = new Map<number, number>();
   const sells = new Map<number, number>();
   const moved = new Set<number>();
@@ -196,7 +197,7 @@ export function runAITransferMarket(
     roster.set(c.sellerTid, sellerRoster.filter((p) => p !== c.pid));
     buyerRoster.push(c.pid);
     const sellerCompId = teams.find((t) => t.tid === c.sellerTid)!.compId;
-    budget.set(c.sellerTid, clampBudget((budget.get(c.sellerTid) ?? 0) + fee, tierOf(competitions, sellerCompId)));
+    budget.set(c.sellerTid, clampBudget((budget.get(c.sellerTid) ?? 0) + fee, tierOf(competitions, sellerCompId), hypeByTid.get(c.sellerTid) ?? 0));
     budget.set(c.buyerTid, (budget.get(c.buyerTid) ?? 0) - fee - wageCharge);
     moved.add(c.pid);
     buys.set(c.buyerTid, (buys.get(c.buyerTid) ?? 0) + 1);
