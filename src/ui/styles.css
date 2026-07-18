@@ -409,23 +409,10 @@ a:hover {
 /* =========================================================================
    OVR history chart (Player Profile — career OVR over time, academy vs senior)
    ========================================================================= */
-.ovr-chart-legend {
-  display: flex;
-  gap: 1rem;
+.ovr-chart-caption {
   font-size: var(--sg-text-xs);
   color: var(--sg-text-muted);
   margin-bottom: 0.35rem;
-}
-.ovr-chart-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-.ovr-chart-legend i {
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 2px;
-  display: inline-block;
 }
 .ovr-chart {
   position: relative;
@@ -479,6 +466,10 @@ a:hover {
   font-weight: 600;
   font-size: var(--sg-text-sm);
   color: var(--sg-text);
+}
+.ovr-chart-tip-academy {
+  font-weight: 400;
+  color: var(--sg-text-muted);
 }
 .ovr-chart-tip-sub {
   font-size: var(--sg-text-xs);
