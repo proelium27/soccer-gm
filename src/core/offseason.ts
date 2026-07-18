@@ -10,6 +10,7 @@ import {
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { runAIContractRenewals } from "./ai/renewals.js";
 import { enforceDivision2Ceiling } from "./ai/divisionCeiling.js";
+import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
 import { processLoanReturns, runAILoanMarket } from "./loans.js";
 import { computeStandings, computeTeamSeasonStats, type StandingsRow } from "./standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
@@ -256,6 +257,15 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   // membership) but there's no reason to let it accumulate.
   const userRosterAfter = new Set(teams.find((t) => t.tid === league.meta.userTid)?.roster ?? []);
   const loanListings = league.loanListings.filter((l) => userRosterAfter.has(l.pid));
+
+  // Fog-of-war: record any player newly on the user's senior roster as
+  // first-observed this new season, and drop those who left, so potential
+  // estimates sharpen with tenure (see src/core/scouting/potentialFog.ts).
+  teams = teams.map((t) =>
+    t.tid === league.meta.userTid
+      ? { ...t, scoutingObserved: reconcileScoutingObserved(t.scoutingObserved, t.roster, nextSeason) }
+      : t,
+  );
 
   return {
     ...league,

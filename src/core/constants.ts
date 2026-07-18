@@ -547,6 +547,32 @@ export const SCOUTING_NOISE_SD_MIN_SPEND = 0.35;
 export const SCOUTING_NOISE_SD_MAX_SPEND = 0.05;
 
 /**
+ * Scouting fog-of-war on potential (the USER's view only — AI clubs have
+ * their own perceivedValueToClub noise, see src/core/ai/evaluate.ts). A
+ * player's true POT is never shown outright to the user; instead they see a
+ * low–high estimate band (src/core/scouting/potentialFog.ts) that narrows on
+ * two independent axes:
+ *   - Scouting spend: a bigger scouting budget narrows the band immediately
+ *     (HALFWIDTH_MAX at zero spend → HALFWIDTH_MIN at SCOUTING_SPEND_MAX) and
+ *     also speeds clearing (CLEAR_SEASONS_MAX → _MIN).
+ *   - Tenure: how many seasons a player has been on the user's *senior*
+ *     roster (tracked as StoredTeam.scoutingObserved). Prospects, free
+ *     agents, academy players, and rival clubs' players are never on the
+ *     senior roster, so they always read as tenure 0 (maximum fog for the
+ *     current spend). Owned players clear to the exact number over
+ *     CLEAR_SEASONS.
+ * The band always brackets the true value; only its center is jittered
+ * (deterministically per player/season) up to ±halfWidth × SHIFT_FRACTION so
+ * the midpoint isn't trivially the truth. Ties to BBGM, which likewise
+ * sharpens scouted ratings over ~3 seasons.
+ */
+export const SCOUT_POT_FOG_HALFWIDTH_MAX = 8;
+export const SCOUT_POT_FOG_HALFWIDTH_MIN = 2;
+export const SCOUT_POT_CLEAR_SEASONS_MAX = 3;
+export const SCOUT_POT_CLEAR_SEASONS_MIN = 2;
+export const SCOUT_POT_FOG_SHIFT_FRACTION = 0.5;
+
+/**
  * Transfer valuation formula: a "current ability" base value that climbs
  * steeply with ovr above a floor (replacement-level players are worth
  * little), multiplied by a potential premium (VALUATION_POTENTIAL_*, priced

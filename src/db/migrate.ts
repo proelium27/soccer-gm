@@ -17,8 +17,8 @@ import { englandCompetitions, tierOf } from "../core/competitions.js";
  * didn't exist yet, only the old `division: 0 | 1` field.
  */
 type StoredTeamAnyVersion =
-  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed"> &
-  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed">> &
+  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "scoutingObserved"> &
+  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "scoutingObserved">> &
   { division?: 0 | 1 };
 
 /**
@@ -184,6 +184,12 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
         compId,
         divisionConvergence: t.divisionConvergence ?? null,
         transferListed: t.transferListed ?? [],
+        // Fog-of-war observation map (added 2026-07-18). Old saves get an
+        // empty map: the user's existing senior roster reads as tenure 0
+        // (fully fogged) and then clears over the next few seasons as the
+        // offseason reconcile stamps first-observed seasons — same as a
+        // fresh save's initial squad, an accepted one-time re-fog on load.
+        scoutingObserved: t.scoutingObserved ?? {},
       };
     }),
     players: migratedPlayers,

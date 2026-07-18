@@ -238,6 +238,14 @@ export interface StoredTeam {
    * the AI↔AI market's own evaluation).
    */
   transferListed: number[];
+  /**
+   * Scouting fog-of-war: pid → the season the player was first seen on this
+   * club's senior roster, so the user's potential estimate for him sharpens
+   * with tenure (see src/core/scouting/potentialFog.ts). Only ever populated
+   * for the user's own team — AI clubs don't have a fogged view — so it stays
+   * an empty object for every AI team.
+   */
+  scoutingObserved: Record<number, number>;
 }
 
 /**
@@ -267,6 +275,7 @@ export function assignIdentities(league: League, competitions: Competition[]): S
       divisionConvergence: null,
       starters: null,
       transferListed: [],
+      scoutingObserved: {},
     };
   });
 }

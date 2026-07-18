@@ -5,6 +5,7 @@ import type { StoredTeam } from "../../core/teams/clubs.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { currency, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { PotDisplay } from "../components/PotDisplay.js";
 import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 
@@ -78,7 +79,7 @@ export function SeasonPreview() {
                     </td>
                     <td>{team?.name ?? "—"}</td>
                     <td className="text-end">{player.ovr}</td>
-                    <td className="text-end">{player.potential}</td>
+                    <td className="text-end"><PotDisplay player={player} /></td>
                   </tr>
                 );
               })}
