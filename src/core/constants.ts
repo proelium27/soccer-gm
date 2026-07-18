@@ -647,8 +647,14 @@ export const RECOMMENDED_OVR_BELOW = 2;
 export const RECOMMENDED_OVR_ABOVE = 8;
 /** If the band holds fewer than the minimum, widen it by this many ovr points and retry. */
 export const RECOMMENDED_BAND_WIDEN = 6;
-/** Weight of potential headroom (potential - ovr) in the recommendation score. */
-export const RECOMMENDED_UPSIDE_WEIGHT = 0.3;
+/**
+ * Weight of potential headroom (potential - ovr) in the recommendation score.
+ * Kept as a tiebreaker rather than a dominant factor: at 0.15, a young player
+ * with ~15 points of headroom ranks only ~2.25 ovr-points ahead of an
+ * equal-ovr veteran, so prime-ready players aren't crowded out of the list by
+ * upside alone (was 0.3, which skewed recommendations heavily toward youth).
+ */
+export const RECOMMENDED_UPSIDE_WEIGHT = 0.15;
 /**
  * Scouting noise (a fraction of value, 0.35 → 0.05 by spend) rescaled into
  * ovr-points of ranking noise: bad scouts shuffle the list by ~3.5 points,
