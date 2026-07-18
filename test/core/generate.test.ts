@@ -67,15 +67,15 @@ describe("generateTwoDivisionLeague", () => {
 });
 
 describe("generateWorld", () => {
-  it("produces 120 teams across 6 competitions, 20 per competition", () => {
+  it("produces 160 teams across 8 competitions, 20 per competition", () => {
     const world = generateWorld(mulberry32(42));
-    expect(world.teams).toHaveLength(120);
+    expect(world.teams).toHaveLength(160);
     for (const comp of worldCompetitions()) {
       expect(world.teams.filter((t) => t.compId === comp.id)).toHaveLength(20);
     }
   });
 
-  it("assigns tid blocks in country order: England 0-39, Spain 40-79, Italy 80-119", () => {
+  it("assigns tid blocks in country order: England 0-39, Spain 40-79, Italy 80-119, Germany 120-159", () => {
     const world = generateWorld(mulberry32(42));
     const tidsFor = (compId: number) => world.teams.filter((t) => t.compId === compId).map((t) => t.tid);
     expect(Math.min(...tidsFor(0), ...tidsFor(1))).toBe(0);
@@ -84,11 +84,13 @@ describe("generateWorld", () => {
     expect(Math.max(...tidsFor(2), ...tidsFor(3))).toBe(79);
     expect(Math.min(...tidsFor(4), ...tidsFor(5))).toBe(80);
     expect(Math.max(...tidsFor(4), ...tidsFor(5))).toBe(119);
+    expect(Math.min(...tidsFor(6), ...tidsFor(7))).toBe(120);
+    expect(Math.max(...tidsFor(6), ...tidsFor(7))).toBe(159);
   });
 
-  it("has ~3000 players (120 teams x 25)", () => {
+  it("has ~4000 players (160 teams x 25)", () => {
     const world = generateWorld(mulberry32(42));
-    expect(world.players).toHaveLength(3000);
+    expect(world.players).toHaveLength(4000);
   });
 
   it("has unique pids across the whole world", () => {
@@ -106,7 +108,7 @@ describe("generateWorld", () => {
 
   it("each country's tier-2 strongest team is no stronger than its own tier-1 average (equal-sibling generation)", () => {
     const world = generateWorld(mulberry32(42));
-    for (const country of ["England", "Spain", "Italy"]) {
+    for (const country of ["England", "Spain", "Italy", "Germany"]) {
       const comps = worldCompetitions().filter((c) => c.country === country);
       const d1 = world.teams.filter((t) => t.compId === comps.find((c) => c.tier === 1)!.id);
       const d2 = world.teams.filter((t) => t.compId === comps.find((c) => c.tier === 2)!.id);

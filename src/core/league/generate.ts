@@ -137,9 +137,9 @@ export function generateTwoDivisionLeague(rng: () => number, seed = 0): League {
 }
 
 /**
- * Generate all 3 countries' worth of teams/players in one rng pass, sharing
+ * Generate every country's worth of teams/players in one rng pass, sharing
  * one shared stream — countries process in worldCompetitions() order
- * (England, Spain, Italy), each country's tier-1 block generated before its
+ * (England, Spain, Italy, Germany), each country's tier-1 block generated before its
  * tier-2 block, exactly mirroring generateTwoDivisionLeague's own order.
  * England's block is therefore byte-identical to a plain
  * generateTwoDivisionLeague call for the same seed. Equal-sibling by
