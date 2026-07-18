@@ -83,21 +83,42 @@ export function OvrHistoryChart({ player, league }: { player: Player; league: Le
 
   const teamByTid = new Map(league.teams.map((t) => [t.tid, t]));
   const ovrBySeason = new Map(hist.map((h) => [h.season, h.ovr]));
-  // Crests at each transfer, positioned on the line at that season's OVR.
-  const crestMarks = league.transfers
-    .filter((t) => t.pid === player.pid && ovrBySeason.has(t.season))
-    .map((t) => {
+  // Crests at each transfer, positioned on the line at that season's OVR. All
+  // transfers in one season share an anchor (x = season, y = that season's
+  // OVR), so multiple moves in a season — a summer + winter deal, or an AI
+  // journeyman's churn — would stack on the exact same spot. Group by season
+  // and fan them horizontally, centered on the season and clamped to the plot
+  // width so a busy season never overflows the chart edges.
+  const CREST_STEP_PCT = 3; // horizontal gap between fanned crests, as % of W
+  const leftBoundPct = (M.left / W) * 100;
+  const rightBoundPct = ((W - M.right) / W) * 100;
+  const bySeasonTransfers = new Map<number, typeof league.transfers>();
+  for (const t of league.transfers) {
+    if (t.pid !== player.pid || !ovrBySeason.has(t.season)) continue;
+    const arr = bySeasonTransfers.get(t.season) ?? [];
+    arr.push(t);
+    bySeasonTransfers.set(t.season, arr);
+  }
+  const crestMarks = [...bySeasonTransfers.entries()].flatMap(([season, group]) => {
+    const anchorPct = (x(season) / W) * 100;
+    const topPct = (y(ovrBySeason.get(season)!) / H) * 100;
+    const spread = (group.length - 1) * CREST_STEP_PCT;
+    // Center the fan on the season, then slide it back inside the plot bounds.
+    let start = anchorPct - spread / 2;
+    if (start < leftBoundPct) start = leftBoundPct;
+    else if (start + spread > rightBoundPct) start = Math.max(leftBoundPct, rightBoundPct - spread);
+    return group.map((t, i) => {
       const team = teamByTid.get(t.toTid);
-      const ovr = ovrBySeason.get(t.season)!;
       return {
-        key: `${t.season}-${t.window}-${t.toTid}`,
-        leftPct: (x(t.season) / W) * 100,
-        topPct: (y(ovr) / H) * 100,
+        key: `${t.season}-${t.window}-${t.toTid}-${i}`,
+        leftPct: start + i * CREST_STEP_PCT,
+        topPct,
         tid: t.toTid,
         colors: (team?.colors ?? ["#888", "#ccc"]) as [string, string],
         title: `${seasonYear(t.season)} ${t.window} — to ${team?.name ?? `Team ${t.toTid}`}${t.fee > 0 ? ` (${currency.format(t.fee)})` : " (free)"}`,
       };
     });
+  });
 
   return (
     <div>
