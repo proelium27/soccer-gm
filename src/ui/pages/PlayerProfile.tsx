@@ -5,6 +5,7 @@ import { SKILL_KEYS } from "../../core/players/types.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { SKILL_LABELS } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
+import { OvrHistoryChart } from "../components/OvrHistoryChart.js";
 import { potentialFog } from "../../core/scouting/potentialFog.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { Flag } from "../components/Flag.js";
@@ -339,6 +340,13 @@ export function PlayerProfile() {
                   </table>
                 </div>
               )}
+            </div>
+          </div>
+
+          <div className="card mb-3">
+            <div className="card-body">
+              <h6 className="card-title">OVR History</h6>
+              <OvrHistoryChart player={player} league={league} />
             </div>
           </div>
 

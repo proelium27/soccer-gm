@@ -189,6 +189,10 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       const academyTerms = academyContractTerms(nextSeason);
       for (const p of youth) {
         p.contract = { salary: academyTerms.salary, expiresSeason: academyTerms.expiresSeason };
+        // Stamp the pre-career baseline snapshot as academy too, so a youth
+        // product's OVR history starts in the academy (blue) instead of with a
+        // stray senior point before his first real academy season.
+        for (const h of p.hist) h.academy = true;
       }
       players.push(...youth);
       return { ...t, academyRoster: [...t.academyRoster, ...youth.map((p) => p.pid)] };

@@ -407,6 +407,51 @@ a:hover {
 }
 
 /* =========================================================================
+   OVR history chart (Player Profile — career OVR over time, academy vs senior)
+   ========================================================================= */
+.ovr-chart-legend {
+  display: flex;
+  gap: 1rem;
+  font-size: var(--sg-text-xs);
+  color: var(--sg-text-muted);
+  margin-bottom: 0.35rem;
+}
+.ovr-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.ovr-chart-legend i {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 2px;
+  display: inline-block;
+}
+.ovr-chart {
+  position: relative;
+  width: 100%;
+}
+.ovr-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.ovr-chart-crest {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  line-height: 0;
+  border-radius: 50%;
+  padding: 2px;
+  background: var(--sg-surface);
+  box-shadow: 0 0 0 1.5px var(--sg-border-strong);
+}
+.ovr-chart-crest .club-crest,
+.ovr-chart-crest .club-crest-fallback {
+  margin-right: 0;
+  border-radius: 50%;
+}
+
+/* =========================================================================
    Division badge (Power Rankings — differentiate D1/D2 clubs at a glance)
    ========================================================================= */
 .division-badge {

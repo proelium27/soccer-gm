@@ -193,12 +193,12 @@ export function progressPlayer(
   rng: () => number,
   player: Player,
   season: number,
-  fullMinutes = false,
+  inAcademy = false,
 ): Player {
   const age = ageOf(player, season);
 
   let minutesFactor: number;
-  if (fullMinutes) {
+  if (inAcademy) {
     // Academy players have no senior appearances to read minutes from, but
     // they train full-time — assume a full season rather than reading their
     // (always-zero) senior stats and penalizing them for not playing games
@@ -221,7 +221,7 @@ export function progressPlayer(
     ratings,
     ovr,
     potential,
-    hist: [...player.hist, { season, ratings, ovr, potential }],
+    hist: [...player.hist, { season, ratings, ovr, potential, academy: inAcademy }],
   };
 }
 
