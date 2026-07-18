@@ -1,6 +1,6 @@
 import type { LeagueStore } from "../core/leagueState.js";
 import { CLUBS, type StoredTeam } from "../core/teams/clubs.js";
-import type { Player, SeasonStats } from "../core/players/types.js";
+import type { Player, SeasonStats, RatingsSnapshot } from "../core/players/types.js";
 import type { PlayerMatchLine } from "../engine/attribution.js";
 import type { TeamSeasonStats } from "../core/standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "../core/awards.js";
@@ -130,6 +130,14 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
       xg: s.xg ?? 0,
       goalsAgainst: s.goalsAgainst ?? 0,
       xga: s.xga ?? 0,
+    })),
+    // Pre-academy-tracking saves have no per-season academy flag on their
+    // rating snapshots; there's no way to reconstruct which past seasons a
+    // player spent in the academy, so they default to senior (false) and only
+    // future seasons record the real value.
+    hist: (p.hist as (RatingsSnapshot & { academy?: boolean })[]).map((h) => ({
+      ...h,
+      academy: h.academy ?? false,
     })),
   };
 }

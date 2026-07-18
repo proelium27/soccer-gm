@@ -43,7 +43,14 @@ export function emptySeasonStats(season: number, tid: number = -1): SeasonStats 
   };
 }
 
-export interface RatingsSnapshot { season: number; ratings: PlayerRatings; ovr: number; potential: number; }
+export interface RatingsSnapshot {
+  season: number;
+  ratings: PlayerRatings;
+  ovr: number;
+  potential: number;
+  /** Was the player in a club's youth academy (not the senior squad) during this season? Only ever true for the user's own youth — AI clubs have no academy. Old saves are migrated to `false` (all-senior). */
+  academy: boolean;
+}
 
 export interface Player {
   pid: number;
