@@ -10,6 +10,7 @@ export function Sidebar() {
       <NavLink to="/schedule" className="nav-link">Schedule</NavLink>
       <NavLink to="/leaders" className="nav-link">Stat Leaders</NavLink>
       <NavLink to="/awards" className="nav-link">Awards</NavLink>
+      <NavLink to="/history" className="nav-link">Club History</NavLink>
       <NavLink to="/season-preview" className="nav-link">Season Preview</NavLink>
       <NavLink to="/news" className="nav-link">News Feed</NavLink>
 
