@@ -59,6 +59,28 @@ describe("recommendedTransfers", () => {
     }
   });
 
+  it("regenerates the list for a pinned position, past the mixed-list cap", () => {
+    // The mixed list caps each position at RECOMMENDED_MAX_PER_POSITION, so a
+    // position filter must re-run the search (not just hide rows) to surface a
+    // fuller list of that position.
+    const league = windowLeague(2);
+    const filtered = recommendedTransfers(league, 0, { position: "CB" });
+    expect(filtered.length).toBeGreaterThan(0);
+    for (const t of filtered) expect(t.player.pos).toBe("CB");
+    // More CBs than the mixed list would ever show at that position.
+    expect(filtered.length).toBeGreaterThan(RECOMMENDED_MAX_PER_POSITION);
+  });
+
+  it("applies numeric filters as hard candidate constraints", () => {
+    const league = windowLeague(4);
+    const targets = recommendedTransfers(league, 0, { minOvr: 70, maxAge: 25 });
+    expect(targets.length).toBeGreaterThan(0);
+    for (const t of targets) {
+      expect(t.player.ovr).toBeGreaterThanOrEqual(70);
+      expect(league.season - t.player.born).toBeLessThanOrEqual(25);
+    }
+  });
+
   it("is deterministic within a window", () => {
     const a = recommendedTransfers(windowLeague(3)).map((t) => t.player.pid);
     const b = recommendedTransfers(windowLeague(3)).map((t) => t.player.pid);
