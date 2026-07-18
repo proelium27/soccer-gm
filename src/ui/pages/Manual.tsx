@@ -364,7 +364,9 @@ export function Manual() {
           <p>
             <strong>Buying.</strong> The Transfers page recommends 5–10 for-sale players near your
             level and within your means — how accurately they're ranked depends on your scouting
-            spend (<a href="#finance">Finance</a>). Negotiation works like this: the selling club
+            spend (<a href="#finance">Finance</a>). The filters (position, min OVR, min potential,
+            max age, max value) re-run the search rather than just hiding rows, so pinning a
+            position brings up a fresh, fuller list of players there. Negotiation works like this: the selling club
             has a hidden asking price, rolled once per window (so you can't reopen talks hoping
             for a cheaper mood). Offer far below it and they hang up for the rest of the window.
             Offer low-but-plausible and they counter above their true price, conceding less each
