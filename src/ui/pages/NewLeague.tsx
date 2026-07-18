@@ -9,6 +9,7 @@ import { NUM_TEAMS, NUM_TEAMS_D2 } from "../../core/constants.js";
 import { worldCompetitions, countryClubRanges, countriesOf } from "../../core/competitions.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 import { ClubCrest } from "../components/ClubCrest.js";
+import { CountryFlag } from "../components/CountryFlag.js";
 
 const COUNTRY_RANGES = countryClubRanges(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2);
 const COUNTRIES = countriesOf(worldCompetitions());
@@ -119,9 +120,12 @@ export function NewLeague() {
           <button
             key={c}
             type="button"
-            className={`btn btn-outline-secondary${c === country ? " active" : ""}`}
+            className={`btn btn-outline-secondary d-inline-flex align-items-center gap-2${
+              c === country ? " active" : ""
+            }`}
             onClick={() => selectCountry(c)}
           >
+            <CountryFlag country={c} />
             {c}
           </button>
         ))}
