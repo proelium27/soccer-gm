@@ -474,14 +474,16 @@ export const BASE_SEASON_BUDGET = 110_000_000;
  * transfer-fee receipts) via `clampBudget` in `finance/budget.ts` — a club
  * can still spend below this line freely, it just can't bank above it.
  *
- * Set to $300M (bumped up from an initial $200M same-day) so it clears the
- * top of the transfer-valuation scale rather than sitting right on top of
- * it: `trueTransferValue`'s base curve alone prices a 90-ovr player at
- * ~$201M before age/potential/contract multipliers stack further on top, so
- * a $200M cap would have made the league's most elite players structurally
- * unaffordable for every club, not just rare big-money buys.
+ * Set to $400M (raised from $300M on 2026-07-18, per user request for more
+ * spending headroom) — comfortably clear of the top of the transfer-valuation
+ * scale rather than sitting right on top of it: `trueTransferValue`'s base
+ * curve alone prices a 90-ovr player at ~$201M before age/potential/contract
+ * multipliers stack further on top, so a cap near that value would have made
+ * the league's most elite players structurally unaffordable for every club,
+ * not just rare big-money buys. (Raising the cap only lets clubs bank/spend
+ * more; it can't cause a deficit, so the AI-solvency invariant is unaffected.)
  */
-export const MAX_BUDGET = 300_000_000;
+export const MAX_BUDGET = 400_000_000;
 /**
  * Benchmark "dominant AI squad" the base allocation must out-fund on
  * worst-case wage deals (see the invariant note above): [count, ovr] rows,
