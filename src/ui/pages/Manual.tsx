@@ -533,18 +533,20 @@ export function Manual() {
             <li><strong>Scouting spend</strong> — whatever you set the slider to comes out here.</li>
           </ul>
           <p>
-            <strong>Scouting</strong> is one slider, $0–20M per season, defaulting to $5M and
-            resetting to that default every new season. It buys accuracy, not players: every
-            value you see on a transfer target (Recommended Transfers, negotiation offers,
-            incoming offers for your own players) is a <em>perceived</em> value, not the true
-            one, and how far off it can be depends on your spend. At $0 it's noisy (±35% — a
-            target that looks like a bargain, or a rip-off, may just be a bad read), at the $20M
-            max it's nearly exact (±5%). Spend also controls the <a href="#players">potential
-            (POT) fog</a>: more scouting narrows every player's estimated-potential band and
-            reveals a signing's true ceiling sooner. Scouting doesn't help while you're not
-            shopping, so a common pattern is pushing it to max before a window where you plan to
-            buy or sell — or when you're evaluating young prospects — then sliding it back down
-            once you're done.
+            <strong>Scouting</strong> is one slider, $0–20M per season, defaulting to $5M. You
+            set it <em>once a year, in the offseason</em>, and it's locked for the whole season it
+            applies to (deducted at that season's end); during the season the slider is disabled.
+            That's deliberate: you commit to the spend — and pay for it — before you get the
+            sharper view, so you can't crank it up to peek at a player and turn it straight back
+            down. It buys accuracy, not players: every value you see on a transfer target
+            (Recommended Transfers, negotiation offers, incoming offers for your own players) is a{" "}
+            <em>perceived</em> value, not the true one, and how far off it can be depends on your
+            spend. At $0 it's noisy (±35% — a target that looks like a bargain, or a rip-off, may
+            just be a bad read), at the $20M max it's nearly exact (±5%). Spend also controls the{" "}
+            <a href="#players">potential (POT) fog</a>: more scouting narrows every player's
+            estimated-potential band and reveals a signing's true ceiling sooner. So plan ahead —
+            if you expect a busy transfer year, set your scouting budget high in the offseason
+            before it.
           </p>
           <p>
             The Finance page shows all of it: current budget, hype, the wage-bill table, a
@@ -649,7 +651,7 @@ export function Manual() {
             <li><strong>Age is an asset class.</strong> A 21-year-old and a 29-year-old at the same OVR are very different purchases: the young one keeps his resale value (and may still grow); the veteran's value falls every season. Buy young, sell before the decline.</li>
             <li><strong>Watch the wage bill, not just fees.</strong> Wages scale steeply with OVR and come out of your budget up front. A squad of 80s can out-wage your income even if you never pay a transfer fee — the Finance page projects exactly where you'll land.</li>
             <li><strong>Sell into demand.</strong> Incoming offers come from clubs that need your player, and their first bid is rarely their best. Counter once or twice before accepting — but greedy counters end talks.</li>
-            <li><strong>Scouting spend is only worth it when you're shopping.</strong> It sharpens valuations and target rankings. In a season where you don't plan to buy, slide it down and pocket the difference.</li>
+            <li><strong>Decide your scouting spend a year ahead.</strong> It sharpens valuations, target rankings, and potential estimates, but you set it in the offseason and it's locked for the season — so if you're planning a busy transfer year, budget for scouting the offseason before, and dial it down for a quiet one.</li>
             <li><strong>Potential is a forecast, not a fact.</strong> Most players fall short of it. Paying a big potential premium is a real gamble — that's the game working as intended.</li>
             <li><strong>Deadline day is leverage.</strong> Asking prices are fixed for the whole window, so there's no discount for waiting — but "Sim to Transfer Deadline" guarantees a last look at the market (and at any incoming offers) before the window shuts.</li>
           </ul>

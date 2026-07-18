@@ -334,13 +334,20 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     };
   }), [mutate]);
 
-  const setScoutingSpendAction = useCallback((spend: number) => mutate((l) => ({
-    ...l,
-    teams: l.teams.map((t) => {
-      if (t.tid !== l.meta.userTid) return t;
-      return { ...t, scoutingSpend: clampScoutingSpend(spend, t.budget) };
-    }),
-  })), [mutate]);
+  // Scouting spend is only adjustable during the offseason phase, and it edits
+  // nextScoutingSpend (the level that locks in for the coming season), never the
+  // current season's committed scoutingSpend. This is what prevents the peek
+  // exploit: dragging the slider can't sharpen the fog you're currently seeing.
+  const setScoutingSpendAction = useCallback((spend: number) => mutate((l) => {
+    if (l.phase !== "offseason") return l;
+    return {
+      ...l,
+      teams: l.teams.map((t) => {
+        if (t.tid !== l.meta.userTid) return t;
+        return { ...t, nextScoutingSpend: clampScoutingSpend(spend, t.budget) };
+      }),
+    };
+  }), [mutate]);
 
   const saveToDb = useCallback(async () => {
     if (leagueRef.current) await saveLeague(leagueRef.current);

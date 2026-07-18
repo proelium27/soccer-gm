@@ -362,26 +362,36 @@ export function Dashboard() {
                     );
                   })()}
                 </p>
-                <label className="form-label mb-1" htmlFor="scouting-spend">
-                  Scouting spend this season: {currency.format(scoutingDraft ?? userTeam.scoutingSpend)}
-                </label>
-                <input
-                  id="scouting-spend"
-                  type="range"
-                  className="form-range"
-                  min={0}
-                  max={SCOUTING_SPEND_MAX}
-                  step={100_000}
-                  value={scoutingDraft ?? userTeam.scoutingSpend}
-                  disabled={simming}
-                  onChange={(e) => setScoutingDraft(Number(e.target.value))}
-                  onPointerUp={commitScoutingDraft}
-                  onBlur={commitScoutingDraft}
-                />
-                <p className="card-text text-muted small mb-0 mt-1">
-                  Sharpens your read on transfer targets and offers — push it toward the max
-                  before a window where you plan to buy or sell.
-                </p>
+                {(() => {
+                  const isOffseason = league.phase === "offseason";
+                  return (
+                    <>
+                      <label className="form-label mb-1" htmlFor="scouting-spend">
+                        {isOffseason
+                          ? <>Scouting budget for next season: {currency.format(scoutingDraft ?? userTeam.nextScoutingSpend)}</>
+                          : <>Scouting spend this season: {currency.format(userTeam.scoutingSpend)} (locked)</>}
+                      </label>
+                      <input
+                        id="scouting-spend"
+                        type="range"
+                        className="form-range"
+                        min={0}
+                        max={SCOUTING_SPEND_MAX}
+                        step={100_000}
+                        value={isOffseason ? (scoutingDraft ?? userTeam.nextScoutingSpend) : userTeam.scoutingSpend}
+                        disabled={simming || !isOffseason}
+                        onChange={(e) => setScoutingDraft(Number(e.target.value))}
+                        onPointerUp={commitScoutingDraft}
+                        onBlur={commitScoutingDraft}
+                      />
+                      <p className="card-text text-muted small mb-0 mt-1">
+                        {isOffseason
+                          ? "Set your scouting budget for the coming season. It locks in when you advance to the next season, and sharpens your read on transfer targets, offers, and player potential all year."
+                          : "Scouting is locked for the season. You'll set next season's budget in the offseason — so you can't peek at sharper info without committing to pay for it."}
+                      </p>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

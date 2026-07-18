@@ -212,8 +212,22 @@ export interface StoredTeam {
   budget: number;
   /** Fame/popularity, 0-100; drives a damped ticket/jersey revenue channel. */
   hype: number;
-  /** This season's scouting spend, deducted from budget; lowers transfer valuation noise. */
+  /**
+   * The scouting spend locked in for the *current* season: deducted from
+   * budget at season-end settlement, lowers transfer valuation noise, and
+   * sharpens the user's potential fog-of-war (see potentialFog.ts). Only
+   * changeable at the offseason boundary (it's set from nextScoutingSpend
+   * there) — never mid-season — so a player can't crank scouting up to peek
+   * at sharper info and turn it back down before paying.
+   */
   scoutingSpend: number;
+  /**
+   * The scouting spend the user is setting for the *upcoming* season, editable
+   * only during the offseason phase; becomes scoutingSpend at the next
+   * offseason rollover. Kept equal to scoutingSpend for AI teams (they never
+   * edit it) and for the user outside the offseason editing window.
+   */
+  nextScoutingSpend: number;
   /** Fixed generation-time strength anchor for this club's youth intake (see LeagueTeam.academyBase). */
   academyBase: number;
   /** Which competition this club currently plays in (see src/core/competitions.ts). Changes on promotion/relegation. */
@@ -270,6 +284,7 @@ export function assignIdentities(league: League, competitions: Competition[]): S
       budget,
       hype: HYPE_INITIAL,
       scoutingSpend: clampScoutingSpend(SCOUTING_SPEND_DEFAULT, budget),
+      nextScoutingSpend: clampScoutingSpend(SCOUTING_SPEND_DEFAULT, budget),
       academyBase: t.academyBase,
       compId: t.compId,
       divisionConvergence: null,
