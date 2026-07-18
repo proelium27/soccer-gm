@@ -6,6 +6,7 @@ import { nextMatchday, transferWindowState } from "../../core/transfers/window.j
 import { TRANSFER_DEADLINE_MATCHDAY } from "../../core/calendar.js";
 import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
 import { wageBill } from "../../core/finance/budget.js";
+import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { currency, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
@@ -195,6 +196,16 @@ export function Dashboard() {
           </h4>
         </div>
       </div>
+
+      {/* Continental Cup final: the season sim halts before it, so flag why. */}
+      {league.cup &&
+        !isCupComplete(league.cup) &&
+        cupFinalists(league.cup).includes(league.meta.userTid) && (
+          <div className="alert alert-warning d-flex justify-content-between align-items-center mb-3">
+            <span>Your club has reached the Continental Cup final. Simming pauses here so you can prepare.</span>
+            <Link to="/cup" className="btn btn-sm btn-outline-warning">View bracket</Link>
+          </div>
+        )}
 
       {/* Sim controls */}
       <div className="card mb-3">

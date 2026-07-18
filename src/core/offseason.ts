@@ -14,6 +14,7 @@ import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
 import { processLoanReturns, runAILoanMarket } from "./loans.js";
 import { computeStandings, computeTeamSeasonStats, type StandingsRow } from "./standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
+import { buildCupState } from "./cup/cup.js";
 import { computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence } from "./promotion.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
@@ -279,6 +280,11 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     activeLoans,
     loanListings,
     winterMarketRunSeason: null,
+    // Archive the season's completed Continental Cup and seed the next one
+    // from the tier-1 tables just decided above (top CUP_TEAMS_PER_LEAGUE of
+    // each). buildCupState returns null if a full bracket can't be fielded.
+    cup: buildCupState(league.competitions, tablesByCompId, nextSeason),
+    cupHistory: league.cup ? [...league.cupHistory, league.cup] : league.cupHistory,
     seasonHistory: [
       ...league.seasonHistory,
       {

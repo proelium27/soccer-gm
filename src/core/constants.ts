@@ -1038,3 +1038,61 @@ export const NEWS_STANDOUT_RATING_FLOOR = 8.0;
 
 /** Goal-milestone news items fire every time a player's season or career goal total crosses a multiple of this. */
 export const NEWS_GOAL_MILESTONE_STEP = 10;
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Continental Cup (cross-country knockout tournament)
+ *
+ * A 16-team single-leg knockout played *alongside* the league season: the top
+ * CUP_TEAMS_PER_LEAGUE clubs of every tier-1 league's *previous-season* final
+ * table qualify (4 leagues × 4 = 16). Season 1 has no cup (no prior table);
+ * the first cup is season 2. Rounds fire on fixed league matchdays inside
+ * simThrough, and cup matches use their own seeded rng so league results stay
+ * bit-identical. Cup stats are tracked separately from league SeasonStats.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export const CUP_NAME = "Continental Cup";
+
+/** Top-N of each tier-1 table qualify. 4 tier-1 leagues × 4 = a 16-team bracket (a clean power of 2 — no byes). */
+export const CUP_TEAMS_PER_LEAGUE = 4;
+
+/**
+ * League matchday each knockout round is played on, indexed by round
+ * (0 = Round of 16, 1 = Quarter-final, 2 = Semi-final, 3 = Final). Spread
+ * across the 38-matchday season so rounds don't crowd the run-in.
+ */
+export const CUP_ROUND_MATCHDAYS = [8, 16, 26, 34] as const;
+
+/** Number of knockout rounds (R16 → QF → SF → Final). */
+export const CUP_ROUNDS = CUP_ROUND_MATCHDAYS.length;
+
+/** Round index of the final — the round the user's sim halts before if their club is a finalist. */
+export const CUP_FINAL_ROUND = CUP_ROUNDS - 1;
+
+/* Prize money (£), credited to a club's budget as each round is played and
+ * clamped to MAX_BUDGET like any other income. Tuned "title-ish": a champion
+ * nets ~£48M in total (participation + every round win), a runner-up ~£24M,
+ * a semi-finalist ~£10M — meaningful for squad-building without dwarfing the
+ * league's own prize tiers. Verified against a dynasty audit for AI solvency. */
+export const CUP_PRIZE_PARTICIPATION = 2_000_000;
+export const CUP_PRIZE_WIN_R16 = 3_000_000; // advance to the quarter-final
+export const CUP_PRIZE_WIN_QF = 5_000_000; // advance to the semi-final
+export const CUP_PRIZE_WIN_SF = 8_000_000; // advance to the final
+export const CUP_PRIZE_WIN_FINAL = 30_000_000; // lift the trophy
+export const CUP_PRIZE_RUNNER_UP = 6_000_000; // lose the final
+
+/** Per-round prize for winning a tie in that round, indexed like CUP_ROUND_MATCHDAYS. */
+export const CUP_PRIZE_WIN_BY_ROUND = [
+  CUP_PRIZE_WIN_R16, CUP_PRIZE_WIN_QF, CUP_PRIZE_WIN_SF, CUP_PRIZE_WIN_FINAL,
+] as const;
+
+/**
+ * Extra time: a level tie after 90' plays this many shot-chances per side
+ * (resolved with the same block→save→goal cascade as regulation) before a
+ * penalty shootout decides a still-level tie.
+ */
+export const CUP_ET_CHANCES_PER_SIDE = 6;
+
+/** Penalty shootout: standard best-of-CUP_PEN_BEST_OF, then sudden death. */
+export const CUP_PEN_BEST_OF = 5;
+/** Base per-kick conversion probability, nudged by taker finishing vs keeper. */
+export const CUP_PEN_BASE_CONVERSION = 0.75;

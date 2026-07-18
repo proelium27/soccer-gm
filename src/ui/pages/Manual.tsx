@@ -16,6 +16,7 @@ const SECTIONS: [id: string, title: string][] = [
   ["pages", "The Pages"],
   ["season", "The Season & Simming"],
   ["world", "The World"],
+  ["cup", "The Continental Cup"],
   ["players", "Players: Ratings, OVR & Potential"],
   ["development", "Player Development & Aging"],
   ["matches", "The Match Engine"],
@@ -94,7 +95,8 @@ export function Manual() {
           <p>Every screen in the game and what it's for:</p>
           <ul>
             <li><strong>Dashboard</strong> — your current W/D/L record and next fixture front and center, with your division's standings to the left and the latest news headlines to the right; below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim buttons.</li>
-            <li><strong>Standings</strong> — the league table, plus each club's current OVR/POT. A season dropdown lets you look up any past season's final table alongside the current one; the champion's row is highlighted.</li>
+            <li><strong>Standings</strong> — the league table, plus each club's current OVR/POT. A season dropdown lets you look up any past season's final table alongside the current one; the champion's row is highlighted, and the top-four <a href="#cup">Continental Cup</a> qualification places are shaded.</li>
+            <li><strong>Continental Cup</strong> — the live knockout bracket for the current season, plus past winners via a season dropdown. See <a href="#cup">The Continental Cup</a>.</li>
             <li><strong>Power Rankings</strong> — every club in the world ranked by squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column), with a badge showing each club's competition and its rank within it. Click a team to expand its full roster in place.</li>
             <li><strong>Schedule</strong> — every matchday's fixtures and results; click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong> — a Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since).</li>
@@ -181,6 +183,47 @@ export function Manual() {
           <p className="text-muted small">
             Existing saves created before this feature shipped stay England-only forever — there's
             no mid-save world expansion.
+          </p>
+        </Section>
+
+        <Section id="cup" title="The Continental Cup">
+          <p>
+            The Continental Cup is a 16-team knockout played alongside the league season. The top
+            four clubs in each of the four top-flight leagues (England, Spain, Italy and Germany)
+            qualify — 4 × 4 = 16. Qualification is purely by <strong>league position</strong>, not
+            squad quality: finish in your league's top four and you're in, however good or bad your
+            OVR. On the <a href="#pages">Standings</a> page those top-four places are shaded as the
+            qualification zone.
+          </p>
+          <p>
+            Because qualification comes from a completed table, the cup runs a season behind: the
+            first Continental Cup is in your world's <strong>second season</strong>, seeded from
+            season one's final tables. Season one has no cup.
+          </p>
+          <p>
+            It's a single-leg bracket over four rounds — Round of 16, Quarter-finals, Semi-finals,
+            Final — played on matchdays 8, 16, 26 and 34. The draw is seeded by finishing position
+            (the four league champions are the top seeds and kept apart until late). A tie level
+            after 90 minutes goes to extra time, then a penalty shootout if still level, so every
+            tie produces a winner. Rounds are played automatically as the season reaches them; the{" "}
+            <strong>Continental Cup</strong> page shows the live bracket, with your club highlighted.
+          </p>
+          <p>
+            Prize money is real and paid as you advance: every entrant banks a participation fee,
+            and each round you win pays more than the last. Going all the way is worth roughly £48M
+            in total to the champion and about £24M to the runner-up — enough to reshape a transfer
+            budget, on top of your normal league finances.
+          </p>
+          <p>
+            Cup matches are their own competition: goals, assists and appearances there are tracked
+            <strong>separately</strong> from your league stats (they don't feed Stat Leaders, the
+            end-of-season awards, or player development). You'll find a club's cup record under the
+            <strong>Cup</strong> tab on any <a href="#players">player's profile</a>.
+          </p>
+          <p>
+            One convenience: if your club reaches the final, simming to the end of the season
+            <strong>stops just before the final</strong> so you don't blow past it — check your
+            lineup, then sim on to play it.
           </p>
         </Section>
 

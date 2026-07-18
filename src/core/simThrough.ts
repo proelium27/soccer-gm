@@ -18,6 +18,12 @@ import { hashInts } from "../engine/rng.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import { playerGoalTotals, detectMatchdayNewsEvents } from "./newsEvents.js";
 import type { NewsEvent } from "./newsEvents.js";
+import type { CupState } from "./cup/types.js";
+import { dueCupRound, cupFinalists } from "./cup/cup.js";
+import { playCupRound } from "./cup/simCup.js";
+import { clampBudget } from "./finance/budget.js";
+import { tierOf } from "./competitions.js";
+import { CUP_FINAL_ROUND } from "./constants.js";
 
 function accumulateStats(
   players: Player[],
@@ -125,6 +131,11 @@ export function simThrough(
   let transfers = league.transfers;
   let activeLoans = league.activeLoans;
   let winterMarketRunSeason = league.winterMarketRunSeason;
+  // Continental Cup for this season (null before season 2, and always set for
+  // the current season by simOffseason). Knockout rounds fire on fixed league
+  // matchdays inside the loop below; the state advances round by round and is
+  // returned with the rest of the league.
+  let cup: CupState | null = league.cup;
   const newEvents: NewsEvent[] = [];
 
   const toSim: ScheduleGame[] = [];
@@ -149,7 +160,29 @@ export function simThrough(
   );
 
   const newResults: PlayedMatch[] = [];
-  matchdays.forEach((matchday, index) => {
+  // When set, the batch stopped before this matchday (the user's Continental
+  // Cup final): every game from here on is pushed back to `remaining` so the
+  // user regains control and can sim the final deliberately.
+  let stoppedBeforeMatchday: number | null = null;
+  for (let index = 0; index < matchdays.length; index++) {
+    const matchday = matchdays[index];
+
+    // Stop-before-final: if the user's club has reached the cup final (known
+    // once the semi-finals are played) and the final is still ahead of where
+    // this batch began, halt here rather than auto-simming through the final.
+    // `matchday > currentMatchday` is what lets a *resumed* batch — which
+    // starts exactly on the final's matchday — actually play it instead of
+    // stopping forever.
+    if (
+      cup &&
+      matchday > currentMatchday &&
+      dueCupRound(cup, matchday) === CUP_FINAL_ROUND &&
+      cupFinalists(cup).includes(league.meta.userTid)
+    ) {
+      stoppedBeforeMatchday = matchday;
+      break;
+    }
+
     // Winter transfer window: the first time this batch reaches the window's
     // opening matchday, run the AI↔AI market once (guarded per season so it
     // can't re-fire however the user chops up the sim). Trades here change
@@ -187,6 +220,25 @@ export function simThrough(
       const compTeams = currentTeams.filter((t) => t.compId === comp.id);
       const compMatchData = leagueMatchData({ teams: toLeagueTeams(compTeams), players: currentPlayers });
       compTeams.forEach((t, i) => matchData.set(t.tid, compMatchData[i]));
+    }
+
+    // Continental Cup: if a knockout round is due on this matchday, play it in
+    // full using the composites just built for every club, then credit each
+    // club's prize money to its budget (clamped like any other income). Cup
+    // matches use their own seeded rng (inside playCupRound), so they don't
+    // perturb the league match stream. Cup stats are kept out of SeasonStats
+    // by design — they live only on the tie's box score.
+    if (cup && dueCupRound(cup, matchday) !== null) {
+      const { cup: advanced, prizes } = playCupRound(cup, matchData, league.lid);
+      cup = advanced;
+      if (prizes.size > 0) {
+        currentTeams = currentTeams.map((t) => {
+          const prize = prizes.get(t.tid);
+          return prize
+            ? { ...t, budget: clampBudget(t.budget + prize, tierOf(league.competitions, t.compId)) }
+            : t;
+        });
+      }
     }
 
     const goalTotalsBefore = playerGoalTotals(currentPlayers, league.season);
@@ -236,18 +288,27 @@ export function simThrough(
 
     newResults.push(...mdResults);
     onMatchday?.(matchday, index, matchdays.length, mdResults);
-  });
+  }
+
+  // A stop-before-final break leaves this matchday and every later one
+  // unplayed — fold them back into `remaining` so the batch ends cleanly with
+  // the league still in its regular phase.
+  const finalRemaining =
+    stoppedBeforeMatchday === null
+      ? remaining
+      : [...toSim.filter((g) => g.matchday >= stoppedBeforeMatchday), ...remaining];
 
   return {
     ...league,
     teams: currentTeams,
     players: currentPlayers,
-    phase: remaining.length === 0 ? "offseason" : "regular",
-    schedule: remaining,
+    phase: finalRemaining.length === 0 ? "offseason" : "regular",
+    schedule: finalRemaining,
     played: [...league.played, ...newResults],
     transfers,
     activeLoans,
     winterMarketRunSeason,
     newsEvents: [...league.newsEvents, ...newEvents],
+    cup,
   };
 }

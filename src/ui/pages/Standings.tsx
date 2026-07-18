@@ -3,6 +3,8 @@ import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { tierOf } from "../../core/competitions.js";
+import { worldHasCup } from "../../core/cup/cup.js";
+import { CUP_TEAMS_PER_LEAGUE } from "../../core/constants.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { seasonYear } from "../format.js";
@@ -28,6 +30,9 @@ export function Standings() {
   const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
   const compId = compIdOverride ?? userTeam?.compId ?? league.competitions[0].id;
   const isTier1 = tierOf(league.competitions, compId) === 1;
+  // The top CUP_TEAMS_PER_LEAGUE of each tier-1 table qualify for the
+  // Continental Cup — only mark the zone in worlds that actually field one.
+  const showCupZone = isTier1 && worldHasCup(league.competitions);
 
   const seasonOptions = [...league.seasonHistory.map((h) => h.season)].sort((a, b) => b - a);
 
@@ -77,6 +82,7 @@ export function Standings() {
       {standings.length === 0 ? (
         <p>No matches played yet.</p>
       ) : (
+        <>
         <table className="table table-striped table-sm">
           <thead>
             <tr>
@@ -99,7 +105,14 @@ export function Standings() {
               const team = league.teams.find((t) => t.tid === row.tid);
               const isUser = row.tid === league.meta.userTid;
               const isChampion = row.tid === championTid;
-              const rowClass = [isUser && "team-highlight", isChampion && "champion-highlight"]
+              const isCupSpot = showCupZone && i < CUP_TEAMS_PER_LEAGUE;
+              const isCupCut = showCupZone && i === CUP_TEAMS_PER_LEAGUE - 1;
+              const rowClass = [
+                isCupSpot && "cup-qualification",
+                isCupCut && "cup-qualification-cut",
+                isUser && "team-highlight",
+                isChampion && "champion-highlight",
+              ]
                 .filter(Boolean)
                 .join(" ") || undefined;
               const rating =
@@ -136,6 +149,12 @@ export function Standings() {
             })}
           </tbody>
         </table>
+        {showCupZone && (
+          <p className="text-muted small mt-1 mb-0">
+            <span className="cup-zone-key" /> Top {CUP_TEAMS_PER_LEAGUE} qualify for the Continental Cup.
+          </p>
+        )}
+        </>
       )}
     </div>
   );
