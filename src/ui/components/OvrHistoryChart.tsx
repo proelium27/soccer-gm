@@ -1,3 +1,4 @@
+import { useState, type MouseEvent } from "react";
 import type { Player } from "../../core/players/types.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import { ClubCrest } from "./ClubCrest.js";
@@ -27,9 +28,20 @@ function ceilTo(v: number, step: number) {
  * chart). Seasons the player spent in the user's youth academy are drawn in
  * blue, senior-squad seasons in red; club crests mark transfers. Everything is
  * derived from `player.hist` (per-season OVR + academy flag) and
- * `league.transfers` — no stored chart state.
+ * `league.transfers` — no stored chart state. `teamTidForSeason` resolves which
+ * club the player was on in a given past season (for the hover tooltip).
  */
-export function OvrHistoryChart({ player, league }: { player: Player; league: LeagueStore }) {
+export function OvrHistoryChart({
+  player,
+  league,
+  teamTidForSeason,
+}: {
+  player: Player;
+  league: LeagueStore;
+  teamTidForSeason: (season: number) => number | null;
+}) {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
   const hist = [...player.hist].sort((a, b) => a.season - b.season);
 
   if (hist.length < 2) {
@@ -120,13 +132,43 @@ export function OvrHistoryChart({ player, league }: { player: Player; league: Le
     });
   });
 
+  // Map the cursor to the nearest season point and snap the tooltip/crosshair
+  // to it (we only have one data point per season).
+  const handleMove = (e: MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width === 0) return;
+    const vbX = ((e.clientX - rect.left) / rect.width) * W;
+    let best = 0;
+    let bestD = Infinity;
+    pts.forEach((p, i) => {
+      const d = Math.abs(p.px - vbX);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    });
+    setHoverIdx(best);
+  };
+
+  const hovered = hoverIdx === null ? null : pts[hoverIdx];
+  let hoverInfo: { name: string; tid: number | null; colors: [string, string] } | null = null;
+  if (hovered) {
+    const tid = teamTidForSeason(hovered.season);
+    const t = tid === null ? undefined : teamByTid.get(tid);
+    hoverInfo = {
+      name: t?.name ?? (hovered.academy ? "Academy" : "Free agent"),
+      tid,
+      colors: (t?.colors ?? ["#888", "#ccc"]) as [string, string],
+    };
+  }
+
   return (
     <div>
       <div className="ovr-chart-legend">
         <span><i style={{ background: ACADEMY_COLOR }} />Academy</span>
         <span><i style={{ background: SENIOR_COLOR }} />Senior</span>
       </div>
-      <div className="ovr-chart">
+      <div className="ovr-chart" onMouseMove={handleMove} onMouseLeave={() => setHoverIdx(null)}>
         <svg viewBox={`0 0 ${W} ${H}`} role="img"
           aria-label={`OVR history for ${player.name}`}>
           <defs>
@@ -170,13 +212,22 @@ export function OvrHistoryChart({ player, league }: { player: Player; league: Le
               strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
           )}
 
-          {/* Data points (native hover tooltip) */}
+          {/* Data points */}
           {pts.map((p) => (
             <circle key={p.season} cx={p.px} cy={p.py} r="2.5"
-              fill={p.academy ? ACADEMY_COLOR : SENIOR_COLOR}>
-              <title>{`${seasonYear(p.season)} · OVR ${p.ovr} · ${p.academy ? "Academy" : "Senior"}`}</title>
-            </circle>
+              fill={p.academy ? ACADEMY_COLOR : SENIOR_COLOR} />
           ))}
+
+          {/* Hover crosshair + highlighted point */}
+          {hovered && (
+            <g pointerEvents="none">
+              <line x1={hovered.px} y1={M.top} x2={hovered.px} y2={H - M.bottom}
+                stroke="var(--sg-text-faint)" strokeWidth="1" />
+              <circle cx={hovered.px} cy={hovered.py} r="4.5"
+                fill={hovered.academy ? ACADEMY_COLOR : SENIOR_COLOR}
+                stroke="var(--sg-surface)" strokeWidth="2" />
+            </g>
+          )}
         </svg>
 
         {/* Transfer crests, HTML-overlaid so ClubCrest art scales at a fixed size */}
@@ -186,6 +237,29 @@ export function OvrHistoryChart({ player, league }: { player: Player; league: Le
             <ClubCrest tid={c.tid} colors={c.colors} size={22} />
           </span>
         ))}
+
+        {/* Hover tooltip card */}
+        {hovered && hoverInfo && (
+          <div className="ovr-chart-tip"
+            style={{
+              left: `${Math.min(88, Math.max(12, (hovered.px / W) * 100))}%`,
+              top: `${(hovered.py / H) * 100}%`,
+            }}>
+            {hoverInfo.tid !== null && (
+              <ClubCrest tid={hoverInfo.tid} colors={hoverInfo.colors} size={24} />
+            )}
+            <div className="ovr-chart-tip-body">
+              <div className="ovr-chart-tip-name">{hoverInfo.name}</div>
+              <div className="ovr-chart-tip-sub">
+                {seasonYear(hovered.season)}{hovered.academy ? " · Academy" : ""}
+              </div>
+            </div>
+            <span className="ovr-chart-tip-badge"
+              style={{ background: hovered.academy ? ACADEMY_COLOR : SENIOR_COLOR }}>
+              OVR {hovered.ovr}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

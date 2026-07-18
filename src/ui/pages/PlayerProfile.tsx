@@ -346,7 +346,17 @@ export function PlayerProfile() {
           <div className="card mb-3">
             <div className="card-body">
               <h6 className="card-title">OVR History</h6>
-              <OvrHistoryChart player={player} league={league} />
+              <OvrHistoryChart
+                player={player}
+                league={league}
+                teamTidForSeason={(season) =>
+                  team
+                    ? teamForSeason(playerTransfers, season, team.tid)
+                    : inAcademy
+                      ? inAcademy.tid
+                      : null
+                }
+              />
             </div>
           </div>
 
