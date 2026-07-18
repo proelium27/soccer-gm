@@ -148,6 +148,21 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
       "Simoes", "Tavares", "Torres", "Vaz", "Ventura",
     ],
   },
+  Italy: {
+    weight: 30,
+    first: [
+      "Marco", "Luca", "Matteo", "Alessandro", "Davide", "Simone", "Andrea", "Francesco",
+      "Lorenzo", "Riccardo", "Federico", "Gianluca", "Stefano", "Fabio", "Roberto", "Paolo",
+      "Giovanni", "Antonio", "Nicola", "Emanuele", "Daniele", "Cristian", "Filippo", "Enrico",
+      "Salvatore", "Massimo", "Vincenzo", "Domenico", "Pietro", "Angelo",
+    ],
+    last: [
+      "Rossi", "Russo", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci",
+      "Marino", "Greco", "Bruno", "Gallo", "Conti", "De Luca", "Costa", "Giordano",
+      "Mancini", "Rizzo", "Lombardi", "Moretti", "Barbieri", "Fontana", "Santoro", "Mariani",
+      "Rinaldi", "Caruso", "Ferrara", "Galli", "Martini", "Leone",
+    ],
+  },
   Netherlands: {
     weight: 28,
     first: [
@@ -576,34 +591,24 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
 };
 
 /**
- * Nationalities with a full name pool and a "home league" weight, but
- * deliberately excluded from NATIONALITIES (and therefore from
- * totalWeight()/pickFromTable's flat, no-homeCountry draw): a nation added
- * here can only ever be drawn via pickNationality(rng, homeCountry) with
- * that exact homeCountry — never as incidental flavor in another league's
- * roster, and never in the flat pool every existing save's youth
- * intake/free agency already relies on. This keeps adding a new nationality
- * from silently shifting the outcome distribution for saves that have
- * nothing to do with it. Graduate an entry to NATIONALITIES once its home
- * league actually exists in every save it could appear in.
+ * A staging table for nationalities that have a full name pool and a "home
+ * league" weight, but are deliberately excluded from NATIONALITIES (and
+ * therefore from totalWeight()/pickFromTable's flat, no-homeCountry draw): a
+ * nation placed here can only ever be drawn via
+ * pickNationality(rng, homeCountry) with that exact homeCountry — never as
+ * incidental flavor in another league's roster, and never in the flat pool
+ * every existing save's youth intake/free agency already relies on. This
+ * keeps adding a new nationality from silently shifting the outcome
+ * distribution for saves that have nothing to do with it. Graduate an entry
+ * to NATIONALITIES once its home league actually exists in every save it
+ * could appear in.
+ *
+ * Currently empty: Italy lived here while its home league was newer than some
+ * saves, and was graduated into NATIONALITIES once every world generated an
+ * Italian league — so Italians now appear abroad as ordinary foreign flavor,
+ * like Spaniards and Germans. The mechanism is kept for the next such case.
  */
-export const UNLISTED_NATIONALITIES: Record<string, NationalityDef> = {
-  Italy: {
-    weight: 30,
-    first: [
-      "Marco", "Luca", "Matteo", "Alessandro", "Davide", "Simone", "Andrea", "Francesco",
-      "Lorenzo", "Riccardo", "Federico", "Gianluca", "Stefano", "Fabio", "Roberto", "Paolo",
-      "Giovanni", "Antonio", "Nicola", "Emanuele", "Daniele", "Cristian", "Filippo", "Enrico",
-      "Salvatore", "Massimo", "Vincenzo", "Domenico", "Pietro", "Angelo",
-    ],
-    last: [
-      "Rossi", "Russo", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci",
-      "Marino", "Greco", "Bruno", "Gallo", "Conti", "De Luca", "Costa", "Giordano",
-      "Mancini", "Rizzo", "Lombardi", "Moretti", "Barbieri", "Fontana", "Santoro", "Mariani",
-      "Rinaldi", "Caruso", "Ferrara", "Galli", "Martini", "Leone",
-    ],
-  },
-};
+export const UNLISTED_NATIONALITIES: Record<string, NationalityDef> = {};
 
 // "Other Nations (combined)" bucket — a country is picked uniformly among
 // these when the weighted roll lands in that combined slot.

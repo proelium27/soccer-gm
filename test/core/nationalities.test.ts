@@ -13,13 +13,14 @@ describe("Italy nationality pool", () => {
     expect(pool!.last.length).toBeGreaterThanOrEqual(20);
   });
 
-  it("has a positive weight comparable to Spain's, but lives outside NATIONALITIES", () => {
-    // Italy is deliberately kept out of the flat-pool table (see
-    // UNLISTED_NATIONALITIES's doc comment) so adding it can't shift the
-    // outcome distribution for saves that never touch Italy.
-    expect(NATIONALITIES.Italy).toBeUndefined();
-    expect(UNLISTED_NATIONALITIES.Italy.weight).toBeGreaterThan(0);
-    expect(UNLISTED_NATIONALITIES.Italy.weight).toBeCloseTo(NATIONALITIES.Spain.weight, -1);
+  it("lives in the flat-pool NATIONALITIES table with a positive weight comparable to Spain's", () => {
+    // Italy was graduated out of UNLISTED_NATIONALITIES into NATIONALITIES
+    // once every world generated an Italian league, so Italians now appear
+    // abroad as ordinary foreign flavor (like Spaniards/Germans).
+    expect(NATIONALITIES.Italy).toBeDefined();
+    expect(UNLISTED_NATIONALITIES.Italy).toBeUndefined();
+    expect(NATIONALITIES.Italy.weight).toBeGreaterThan(0);
+    expect(NATIONALITIES.Italy.weight).toBeCloseTo(NATIONALITIES.Spain.weight, -1);
   });
 
   it("has a flag emoji, not the unknown-nationality placeholder", () => {
@@ -27,14 +28,16 @@ describe("Italy nationality pool", () => {
     expect(flagFor("Italy")).not.toBe("🏳️");
   });
 
-  it("never appears in the flat, no-homeCountry draw (the path youth intake/free agency always use)", () => {
+  it("appears in the flat, no-homeCountry draw (so Italians show up abroad, not only in Italy)", () => {
     const rng = mulberry32(5);
+    let seen = false;
     for (let i = 0; i < 5000; i++) {
-      expect(pickNationality(rng)).not.toBe("Italy");
+      if (pickNationality(rng) === "Italy") { seen = true; break; }
     }
+    expect(seen).toBe(true);
   });
 
-  it("can still be drawn via an explicit homeCountry, despite being outside NATIONALITIES", () => {
+  it("is the plurality when drawn via its own homeCountry", () => {
     const rng = mulberry32(6);
     const counts: Record<string, number> = {};
     for (let i = 0; i < 2000; i++) {
@@ -88,11 +91,11 @@ describe("pickNationality home-country weighting", () => {
     expect(() => pickNationality(rng, "Atlantis")).not.toThrow();
   });
 
-  it("the flat draw's England share is unchanged from before Italy existed (a frozen reference proportion)", () => {
-    // England's original weight (390) over the original total (before Italy
-    // existed): computed from NATIONALITIES + a fixed OTHER_BUCKET_WEIGHT (8),
-    // pinned here as a regression guard against a future addition to
-    // NATIONALITIES silently diluting every existing save's flat draw again.
+  it("the flat draw's England share matches England's weight over the current table total", () => {
+    // England's weight (390) over the current flat total: computed live from
+    // NATIONALITIES + a fixed OTHER_BUCKET_WEIGHT (8), so it self-adjusts as
+    // the table changes (e.g. Italy graduating in). Guards that pickFromTable
+    // actually realizes the weighted proportions it claims to.
     let originalTotal = 8;
     for (const def of Object.values(NATIONALITIES)) originalTotal += def.weight;
     const expectedShare = NATIONALITIES.England.weight / originalTotal;
