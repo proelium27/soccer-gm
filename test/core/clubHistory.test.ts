@@ -1,0 +1,128 @@
+import { describe, it, expect } from "vitest";
+import { computeClubHistory } from "../../src/core/clubHistory.js";
+import type { LeagueStore } from "../../src/core/leagueState.js";
+import type { StandingsRow, SeasonHistoryEntry } from "../../src/core/standings.js";
+import type { SeasonAwards } from "../../src/core/awards.js";
+import type { Player } from "../../src/core/players/types.js";
+import { englandCompetitions } from "../../src/core/competitions.js";
+
+// Minimal StandingsRow with sensible defaults.
+function row(tid: number, points: number, won = points / 3, extra: Partial<StandingsRow> = {}): StandingsRow {
+  return { tid, played: 38, won, drawn: 0, lost: 38 - won, gf: won * 2, ga: 38 - won, gd: won * 2 - (38 - won), points, ...extra };
+}
+
+// A season entry where `orderByComp` gives, per compId, the tids in finishing order.
+function entry(
+  season: number,
+  orderByComp: Record<number, number[]>,
+  awards: Record<number, SeasonAwards>,
+): SeasonHistoryEntry {
+  const table: StandingsRow[] = [];
+  const compsByTid: Record<number, number> = {};
+  const championTidByCompId: Record<number, number> = {};
+  for (const [compIdStr, tids] of Object.entries(orderByComp)) {
+    const compId = Number(compIdStr);
+    tids.forEach((tid, i) => {
+      table.push(row(tid, (tids.length - i) * 3)); // first place = most points
+      compsByTid[tid] = compId;
+    });
+    if (compId === 0) championTidByCompId[compId] = tids[0];
+  }
+  return { season, table, teamStats: [], awards, compsByTid, championTidByCompId };
+}
+
+const noAwards: SeasonAwards = { playerOfSeasonPid: null, goldenBootPid: null, teamOfSeason: [] };
+
+function player(pid: number, seasonTids: Record<number, number>): Player {
+  const stats = Object.entries(seasonTids).map(([s, tid]) => ({ season: Number(s), tid }) as Player["stats"][number]);
+  return { pid, stats } as unknown as Player;
+}
+
+function makeLeague(
+  history: SeasonHistoryEntry[],
+  teams: { tid: number; compId: number }[],
+  players: Player[],
+): LeagueStore {
+  return {
+    competitions: englandCompetitions(),
+    seasonHistory: history,
+    teams,
+    players,
+  } as unknown as LeagueStore;
+}
+
+describe("computeClubHistory", () => {
+  it("counts titles, promotions and finishing positions across seasons", () => {
+    // Club 7 wins tier-2 in season 1 (promoted), then wins tier-1 in season 2.
+    const history = [
+      entry(1, { 0: [1, 2, 3], 1: [7, 8, 9] }, { 0: noAwards, 1: noAwards }),
+      entry(2, { 0: [7, 1, 2], 1: [3, 8, 9] }, { 0: noAwards, 1: noAwards }),
+    ];
+    // In season 3 club 7 is still tier-1 (compId 0).
+    const league = makeLeague(history, [{ tid: 7, compId: 0 }], []);
+    const h = computeClubHistory(league, 7);
+
+    expect(h.seasonsPlayed).toBe(2);
+    expect(h.leagueTitles).toEqual([2]); // tier-1 title, newest first
+    expect(h.secondTierTitles).toEqual([1]);
+    expect(h.promotions).toEqual([1]); // promoted at end of season 1
+    expect(h.relegations).toEqual([]);
+
+    // Newest-first season records.
+    expect(h.seasons[0].season).toBe(2);
+    expect(h.seasons[0].position).toBe(1);
+    expect(h.seasons[0].tier).toBe(1);
+    expect(h.seasons[1].season).toBe(1);
+    expect(h.seasons[1].position).toBe(1);
+    expect(h.seasons[1].tier).toBe(2);
+    expect(h.seasons[1].promoted).toBe(true);
+  });
+
+  it("attributes individual awards only to the club the player was on that season", () => {
+    const awardsS1: SeasonAwards = { playerOfSeasonPid: 100, goldenBootPid: 101, teamOfSeason: [100, 200, 101] };
+    const history = [entry(1, { 0: [7, 1, 2] }, { 0: awardsS1 })];
+    const league = makeLeague(
+      history,
+      [{ tid: 7, compId: 0 }],
+      [
+        player(100, { 1: 7 }), // on club 7 in season 1
+        player(101, { 1: 7 }), // on club 7
+        player(200, { 1: 1 }), // on a different club
+      ],
+    );
+    const h = computeClubHistory(league, 7);
+
+    expect(h.playerOfSeason.map((a) => a.pid)).toEqual([100]);
+    expect(h.goldenBoots.map((a) => a.pid)).toEqual([101]);
+    // 200 belonged to another club, so only 100 and 101 count for club 7.
+    expect(h.teamOfSeasonSelections.map((a) => a.pid).sort()).toEqual([100, 101]);
+    expect(h.seasons[0].teamOfSeasonPids.sort()).toEqual([100, 101]);
+  });
+
+  it("detects relegation and computes franchise records", () => {
+    // Club 3 is tier-1 in season 1 (finishes last), tier-2 in season 2.
+    const history = [
+      entry(1, { 0: [1, 2, 3], 1: [7, 8, 9] }, { 0: noAwards, 1: noAwards }),
+      entry(2, { 0: [1, 2, 7], 1: [3, 8, 9] }, { 0: noAwards, 1: noAwards }),
+    ];
+    const league = makeLeague(history, [{ tid: 3, compId: 1 }], []);
+    const h = computeClubHistory(league, 3);
+
+    expect(h.relegations).toEqual([1]);
+    expect(h.promotions).toEqual([]);
+    // Best finish prefers the tier-1 season even though it was 3rd, over the tier-2 title.
+    expect(h.bestFinish).toEqual({ season: 1, position: 3, tier: 1 });
+    expect(h.secondTierTitles).toEqual([2]); // won tier-2 in season 2
+    expect(h.totals.played).toBe(76); // 38 * 2 seasons
+    expect(h.mostPoints!.points).toBeGreaterThan(0);
+  });
+
+  it("returns an empty history when no seasons are completed", () => {
+    const league = makeLeague([], [{ tid: 7, compId: 0 }], []);
+    const h = computeClubHistory(league, 7);
+    expect(h.seasonsPlayed).toBe(0);
+    expect(h.leagueTitles).toEqual([]);
+    expect(h.bestFinish).toBeNull();
+    expect(h.seasons).toEqual([]);
+  });
+});
