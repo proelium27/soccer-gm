@@ -58,6 +58,12 @@
      and stays distinct from the champion/warn gold used elsewhere. */
   --sg-user: oklch(0.72 0.16 240);
   --sg-user-wash: oklch(0.72 0.16 240 / 0.14);
+  /* Continental Cup accent — teal, distinct from win-green, user-blue and
+     champion-gold. Used for the standings top-4 qualification zone and the
+     cup bracket. */
+  --sg-cup: oklch(0.72 0.11 200);
+  --sg-cup-wash: oklch(0.72 0.11 200 / 0.14);
+  --sg-cup-line: oklch(0.72 0.11 200 / 0.6);
 
   --sg-radius: 6px;
   --sg-shadow: 0 0.5rem 1.5rem oklch(0.12 0.02 155 / 0.45);
@@ -246,6 +252,16 @@ a:hover {
    let the page background show through as thin vertical lines between
    stats, reading like bold column dividers. box-shadow isn't subject to
    that gap. */
+/* Continental Cup qualification zone (a tier-1 table's top 4). Declared
+   before the user/champion rules so those richer highlights win when a
+   qualifying row is also your club or the champion — the top-4 tint still
+   marks the other qualification slots. */
+.cup-qualification > td {
+  box-shadow: inset 0 0 0 9999px var(--sg-cup-wash);
+}
+.cup-qualification-cut > td {
+  border-bottom: 2px solid var(--sg-cup-line);
+}
 .team-highlight > td {
   box-shadow: inset 0 0 0 9999px var(--sg-user-wash);
 }
@@ -812,4 +828,101 @@ a:hover {
 .pitch-chip-actions-meta {
   color: var(--sg-text-muted);
   margin-top: 2px;
+}
+
+/* =========================================================================
+   Continental Cup bracket
+   ========================================================================= */
+.cup-bracket {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  align-items: stretch;
+}
+.cup-round {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 0.75rem;
+  min-width: 200px;
+  flex: 1 0 auto;
+}
+.cup-round-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--bs-secondary-color);
+  text-align: center;
+}
+.cup-tie {
+  border: 1px solid var(--bs-border-color);
+  border-left: 3px solid var(--sg-cup);
+  border-radius: var(--sg-radius);
+  padding: 0.35rem 0.55rem;
+  background: var(--bs-body-bg);
+}
+.cup-tie-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.1rem 0;
+  min-width: 0;
+}
+.cup-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.cup-team-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cup-team-winner .cup-team-name { font-weight: 700; }
+.cup-team-user .cup-team-name { color: var(--sg-user); font-weight: 600; }
+.cup-tie-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+.cup-tie-note {
+  font-size: 0.7rem;
+  color: var(--bs-secondary-color);
+  text-align: right;
+  margin-top: 0.15rem;
+}
+.cup-tie-tbd {
+  color: var(--bs-secondary-color);
+  font-style: italic;
+  text-align: center;
+  padding: 0.4rem 0;
+}
+.cup-champion-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--sg-warn-wash);
+  border: 1px solid var(--sg-warn);
+  border-radius: var(--sg-radius);
+  padding: 0.45rem 0.85rem;
+}
+.cup-champion-label {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--sg-warn);
+  font-weight: 700;
+}
+.cup-zone-key {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 2px;
+  background: var(--sg-cup-wash);
+  border-left: 3px solid var(--sg-cup-line);
+  vertical-align: -1px;
+  margin-right: 0.15rem;
 }

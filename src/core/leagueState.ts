@@ -7,6 +7,7 @@ import type { InboundOffer } from "./transfers/inboundOffers.js";
 import type { NewsEvent } from "./newsEvents.js";
 import type { ActiveLoan, LoanListing, LoanRejection } from "./loans.js";
 import type { Competition } from "./competitions.js";
+import type { CupState } from "./cup/types.js";
 import { generateWorld } from "./league/generate.js";
 import { assignIdentities } from "./teams/clubs.js";
 import { generateSchedule } from "./schedule.js";
@@ -63,6 +64,15 @@ export interface LeagueStore {
   loanListings: LoanListing[];
   /** Incoming loan offers the user has turned down this window (see loans.ts's loanOfferCandidates). */
   loanRejections: LoanRejection[];
+  /**
+   * The Continental Cup being played during the current season, or null when
+   * none runs (season 1 always — no prior-season table to qualify from — and
+   * any world that can't field a full 16-team bracket). Seeded each offseason
+   * from the just-finished tier-1 tables; see core/cup.
+   */
+  cup: CupState | null;
+  /** Every completed Continental Cup, oldest first (archived at offseason rollover). */
+  cupHistory: CupState[];
 }
 
 export function createLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
@@ -94,5 +104,9 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
     activeLoans: [],
     loanListings: [],
     loanRejections: [],
+    // No cup in season 1: it's seeded from the previous season's final tables,
+    // and there is none yet. The first Continental Cup runs in season 2.
+    cup: null,
+    cupHistory: [],
   };
 }

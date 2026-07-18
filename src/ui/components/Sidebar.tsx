@@ -6,6 +6,7 @@ export function Sidebar() {
       <div className="nav-section">League</div>
       <NavLink to="/dashboard" className="nav-link">Dashboard</NavLink>
       <NavLink to="/standings" className="nav-link">Standings</NavLink>
+      <NavLink to="/cup" className="nav-link">Continental Cup</NavLink>
       <NavLink to="/power-rankings" className="nav-link">Power Rankings</NavLink>
       <NavLink to="/schedule" className="nav-link">Schedule</NavLink>
       <NavLink to="/leaders" className="nav-link">Stat Leaders</NavLink>

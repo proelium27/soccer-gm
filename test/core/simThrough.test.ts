@@ -62,6 +62,8 @@ function makeLeagueStore(seed: number): LeagueStore {
     activeLoans: [],
     loanListings: [],
     loanRejections: [],
+    cup: null,
+    cupHistory: [],
   };
 }
 

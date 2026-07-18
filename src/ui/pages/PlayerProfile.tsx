@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { SKILL_KEYS } from "../../core/players/types.js";
@@ -8,6 +8,8 @@ import { getRatingColor } from "../utils/ratingColor.js";
 import { Flag } from "../components/Flag.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { competitionOf } from "../../core/competitions.js";
+import { worldHasCup } from "../../core/cup/cup.js";
+import { cupStatsBySeasonForPlayer } from "../../core/cup/cupStats.js";
 import { currency, formatWeeklyWage, seasonYear } from "../format.js";
 
 /** One career-honor badge, e.g. "3x Golden Boot" — omits the count for a single win. */
@@ -52,6 +54,7 @@ function teamForSeason(
 export function PlayerProfile() {
   const { pid } = useParams<{ pid: string }>();
   const { league } = useLeague();
+  const [statsTab, setStatsTab] = useState<"league" | "cup">("league");
 
   if (!league || pid === undefined) {
     return <p className="p-3">Loading...</p>;
@@ -100,6 +103,8 @@ export function PlayerProfile() {
 
   const statsBySeasonDesc = [...player.stats].sort((a, b) => b.season - a.season);
   const histBySeasonDesc = [...player.hist].sort((a, b) => b.season - a.season);
+  const cupStatsBySeason = cupStatsBySeasonForPlayer(league.cup, league.cupHistory, player.pid);
+  const showCupTab = worldHasCup(league.competitions);
   const seasonTeamAbbrev = (season: number) =>
     team ? teamAbbrev(teamForSeason(playerTransfers, season, team.tid)) : null;
 
@@ -205,8 +210,75 @@ export function PlayerProfile() {
         <div className="col-lg-7">
           <div className="card mb-3">
             <div className="card-body">
-              <h6 className="card-title">Season Stats</h6>
-              {statsBySeasonDesc.length === 0 ? (
+              <div className="d-flex align-items-center justify-content-between mb-2">
+                <h6 className="card-title mb-0">
+                  {showCupTab && statsTab === "cup" ? "Continental Cup Stats" : "Season Stats"}
+                </h6>
+                {showCupTab && (
+                  <ul className="nav nav-pills nav-sm">
+                    <li className="nav-item">
+                      <button
+                        type="button"
+                        className={`nav-link py-0 px-2${statsTab === "league" ? " active" : ""}`}
+                        onClick={() => setStatsTab("league")}
+                      >
+                        League
+                      </button>
+                    </li>
+                    <li className="nav-item">
+                      <button
+                        type="button"
+                        className={`nav-link py-0 px-2${statsTab === "cup" ? " active" : ""}`}
+                        onClick={() => setStatsTab("cup")}
+                      >
+                        Cup
+                      </button>
+                    </li>
+                  </ul>
+                )}
+              </div>
+              {showCupTab && statsTab === "cup" ? (
+                cupStatsBySeason.length === 0 ? (
+                  <p className="text-muted mb-0">No Continental Cup matches yet.</p>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="table table-striped table-sm mb-0">
+                      <thead>
+                        <tr>
+                          <th>Season</th>
+                          <th className="text-end">Apps</th>
+                          <th className="text-end">Min</th>
+                          <th className="text-end">G</th>
+                          <th className="text-end">A</th>
+                          <th className="text-end">Sh</th>
+                          <th className="text-end">SoT</th>
+                          <th className="text-end">Sv</th>
+                          <th className="text-end">GA</th>
+                          <th className="text-end">Tkl</th>
+                          <th className="text-end">Int</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cupStatsBySeason.map((s) => (
+                          <tr key={s.season}>
+                            <td>{seasonYear(s.season)}</td>
+                            <td className="text-end">{s.appearances}</td>
+                            <td className="text-end">{s.minutesPlayed}</td>
+                            <td className="text-end">{s.goals}</td>
+                            <td className="text-end">{s.assists}</td>
+                            <td className="text-end">{s.shots}</td>
+                            <td className="text-end">{s.shotsOnTarget}</td>
+                            <td className="text-end">{s.saves}</td>
+                            <td className="text-end">{player.pos === "GK" ? s.goalsAgainst : ""}</td>
+                            <td className="text-end">{s.tackles}</td>
+                            <td className="text-end">{s.interceptions}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              ) : statsBySeasonDesc.length === 0 ? (
                 <p className="text-muted mb-0">No matches played yet.</p>
               ) : (
                 <div className="table-responsive">
