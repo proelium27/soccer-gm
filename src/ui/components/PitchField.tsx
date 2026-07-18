@@ -131,7 +131,9 @@ export function PitchField({
               <PlayerRatingsTooltip player={p}>
                 <span className="pitch-chip-name">{shortName(p.name)}</span>
               </PlayerRatingsTooltip>
-              <span className="pitch-chip-ovr">{p.ovr}</span>
+              <span className="pitch-chip-ovr">
+                {p.ovr}/{p.potential}
+              </span>
               {ovrDelta !== null && ovrDelta !== 0 && (
                 <span
                   className={
