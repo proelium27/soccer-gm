@@ -15,10 +15,18 @@ export const GEN_OFFSETS: Record<Position, Record<SkillKey, Tier>> = {
   ST: { speed: "H", strength: "H", stamina: "M", jumping: "H", shortPass: "M", longPass: "L", crosses: "L", dribbling: "M", longShot: "H", finishing: "star", tackling: "VL", interceptions: "L", positioning: "star", goalkeeping: "ABS" },
 };
 
-/** Table B — OVR weights (%). Keys may include "height". Each row sums to 100. */
+/**
+ * Table B — OVR weights (%). Keys may include "height". Outfield rows sum to 100.
+ * GK deliberately sums below 100 (92): a keeper's ratings are all high-tier
+ * (goalkeeping "star", positioning/jumping/longPass "H"), so a full-100 weighting
+ * left keepers reading several OVR points above every outfield position; the
+ * sub-100 sum scales the whole GK OVR down proportionally so keepers land in the
+ * pack instead of on top. See computeOvr — OVR = Σ(w/100)·value, so a 92 total is
+ * a flat 0.92× on the goalkeeping composite.
+ */
 export type OvrKey = SkillKey | "height";
 export const OVR_WEIGHTS: Record<Position, Partial<Record<OvrKey, number>>> = {
-  GK: { goalkeeping: 48, positioning: 18, jumping: 10, height: 8, longPass: 10, shortPass: 6 },
+  GK: { goalkeeping: 44, positioning: 17, jumping: 9, height: 7, longPass: 9, shortPass: 6 },
   CB: { tackling: 20, interceptions: 18, positioning: 16, strength: 14, jumping: 10, height: 6, speed: 6, longPass: 5, shortPass: 5 },
   FB: { speed: 15, tackling: 14, interceptions: 13, stamina: 12, crosses: 12, positioning: 10, shortPass: 8, dribbling: 8, strength: 8 },
   DM: { interceptions: 18, positioning: 16, tackling: 15, shortPass: 15, longPass: 12, stamina: 10, strength: 8, dribbling: 6 },

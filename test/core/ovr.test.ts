@@ -17,7 +17,7 @@ describe("computeOvr", () => {
   it("weights the position's signature stat: raising GK goalkeeping moves GK ovr a lot", () => {
     const base = computeOvr("GK", flat(50), 193);
     const better = computeOvr("GK", { ...flat(50), goalkeeping: 90 }, 193);
-    expect(better - base).toBeGreaterThan(15); // 48% weight * 40 points
+    expect(better - base).toBeGreaterThan(15); // 44% weight * 40 points
   });
   it("ignores zero-weight stats: raising a GK's finishing barely moves ovr", () => {
     const base = computeOvr("GK", flat(50), 193);

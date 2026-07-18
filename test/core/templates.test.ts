@@ -8,14 +8,17 @@ describe("archetype templates", () => {
       for (const s of SKILL_KEYS)
         expect(GEN_OFFSETS[pos][s]).toBeDefined();
   });
-  it("every position's OVR weights sum to 100", () => {
+  it("every outfield position's OVR weights sum to 100; GK is deliberately below", () => {
     for (const pos of POSITIONS) {
       const sum = Object.values(OVR_WEIGHTS[pos]).reduce((a, b) => a + b, 0);
-      expect(sum).toBe(100);
+      // GK sums below 100 on purpose (see templates.ts): every GK rating is
+      // high-tier, so a full-100 weighting left keepers reading above every
+      // outfield position — the sub-100 total scales GK OVR down proportionally.
+      expect(sum).toBe(pos === "GK" ? 92 : 100);
     }
   });
   it("GK is goalkeeper-dominant, ST is finishing-dominant", () => {
-    expect(OVR_WEIGHTS.GK.goalkeeping).toBe(48);
+    expect(OVR_WEIGHTS.GK.goalkeeping).toBe(44);
     expect(OVR_WEIGHTS.ST.finishing).toBe(26);
     expect(GEN_OFFSETS.GK.goalkeeping).toBe("star");
     expect(GEN_OFFSETS.ST.goalkeeping).toBe("ABS");
