@@ -45,7 +45,7 @@ describe("migrateLeague", () => {
     // Strip the finance fields to simulate a league saved before M6.
     const preM6 = {
       ...league,
-      teams: league.teams.map(({ budget: _b, hype: _h, scoutingSpend: _s, ...rest }) => rest),
+      teams: league.teams.map(({ budget: _b, hype: _h, scoutingSpend: _s, nextScoutingSpend: _ns, ...rest }) => rest),
     } as unknown as LeagueStore;
 
     const migrated = migrateLeague(preM6);
@@ -55,6 +55,7 @@ describe("migrateLeague", () => {
       expect(team.budget).toBe(league.teams[i].budget);
       expect(team.hype).toBe(HYPE_INITIAL);
       expect(team.scoutingSpend).toBe(SCOUTING_SPEND_DEFAULT);
+      expect(team.nextScoutingSpend).toBe(SCOUTING_SPEND_DEFAULT);
     }
   });
 

@@ -36,6 +36,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     budget: 50_000_000,
     hype: 50,
     scoutingSpend: 0,
+    nextScoutingSpend: 0,
     academyBase: t.academyBase,
     compId: t.compId,
     divisionConvergence: null,

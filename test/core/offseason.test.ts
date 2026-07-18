@@ -135,7 +135,7 @@ describe("simOffseason", () => {
     expect(new Set(pids).size).toBe(pids.length);
   });
 
-  it("settles every team's budget and hype, and resets scouting spend to the default for the new season", () => {
+  it("settles every team's budget and hype, and locks in each team's next-season scouting spend", () => {
     const rng = mulberry32(7);
     const league = playFullSeason(rng);
     const budgetsBefore = new Map(league.teams.map((t) => [t.tid, t.budget]));
@@ -148,11 +148,31 @@ describe("simOffseason", () => {
       expect(team.budget).not.toBe(budgetsBefore.get(team.tid));
       expect(team.hype).toBeGreaterThanOrEqual(HYPE_MIN);
       expect(team.hype).toBeLessThanOrEqual(HYPE_MAX);
-      // Resets to the default (clamped down if a club's budget at that point in
-      // the pipeline couldn't cover it yet).
+      // The committed scouting spend for the new season is nextScoutingSpend
+      // carried through (clamped to budget), and the two are kept in sync so
+      // the offseason slider defaults to the just-locked value.
       expect(team.scoutingSpend).toBeGreaterThanOrEqual(0);
+      expect(team.scoutingSpend).toBe(team.nextScoutingSpend);
+      // AI teams never touch nextScoutingSpend, so they stay at the default.
       expect(team.scoutingSpend).toBeLessThanOrEqual(SCOUTING_SPEND_DEFAULT);
     }
+  });
+
+  it("carries a user-set next-season scouting spend through the offseason into the locked value", () => {
+    const rng = mulberry32(7);
+    const league = playFullSeason(rng);
+    const userTid = league.meta.userTid;
+    // Simulate an offseason edit: the user bumps next season's scouting budget.
+    const target = SCOUTING_SPEND_DEFAULT / 2;
+    league.teams = league.teams.map((t) =>
+      t.tid === userTid ? { ...t, nextScoutingSpend: target } : t,
+    );
+    const next = simOffseason(league, rng);
+    const userTeam = next.teams.find((t) => t.tid === userTid)!;
+    // The value locks in for the new season (clamped to budget, which is ample
+    // here), and scoutingSpend now equals it.
+    expect(userTeam.scoutingSpend).toBe(target);
+    expect(userTeam.nextScoutingSpend).toBe(target);
   });
 
   it("produces a spread of budgets across clubs (success payouts aren't flat)", () => {

@@ -17,8 +17,8 @@ import { englandCompetitions, tierOf } from "../core/competitions.js";
  * didn't exist yet, only the old `division: 0 | 1` field.
  */
 type StoredTeamAnyVersion =
-  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "scoutingObserved"> &
-  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "scoutingObserved">> &
+  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "nextScoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "scoutingObserved"> &
+  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "nextScoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "scoutingObserved">> &
   { division?: 0 | 1 };
 
 /**
@@ -178,6 +178,10 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
         budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), tierOf(competitions, compId)),
         hype: t.hype ?? HYPE_INITIAL,
         scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_DEFAULT,
+        // nextScoutingSpend (added with the season-lock, 2026-07-18): old saves
+        // seed it from the current spend, so nothing changes until the user
+        // adjusts it in an offseason window.
+        nextScoutingSpend: t.nextScoutingSpend ?? t.scoutingSpend ?? SCOUTING_SPEND_DEFAULT,
         academyBase: t.academyBase ?? fallbackAcademyBase(t.tid),
         starters: t.starters ?? null,
         academyRoster: t.academyRoster ?? [],

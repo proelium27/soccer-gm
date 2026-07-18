@@ -20,7 +20,6 @@ import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
 import { settleSeasonEnd, chargeSeasonStart, wageBill } from "./finance/budget.js";
 import { academyContractTerms } from "./contracts.js";
-import { SCOUTING_SPEND_DEFAULT } from "./constants.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
 import { tierOf, competitionOf } from "./competitions.js";
 import { hashInts } from "../engine/rng.js";
@@ -132,7 +131,11 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       const row = rowByTid.get(t.tid);
       const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, tier);
       const hype = row ? updateHype(t.hype, row, rank) : t.hype;
-      return { ...t, budget, hype, scoutingSpend: clampScoutingSpend(SCOUTING_SPEND_DEFAULT, budget) };
+      // The scouting spend the club committed to during the offseason window
+      // (nextScoutingSpend) now locks in for the coming season. AI teams never
+      // touch it, so it stays at the default they were created with.
+      const scoutingSpend = clampScoutingSpend(t.nextScoutingSpend, budget);
+      return { ...t, budget, hype, scoutingSpend, nextScoutingSpend: scoutingSpend };
     });
   };
   for (const comp of league.competitions) settle(tablesByCompId.get(comp.id)!, comp.id);
