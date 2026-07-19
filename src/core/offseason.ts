@@ -6,6 +6,7 @@ import type { Competition } from "./competitions.js";
 import { progressPlayer, rollRetirement, isGenerational } from "./players/progression.js";
 import type { NewsEvent } from "./newsEvents.js";
 import { generateYouthIntake } from "./players/youth.js";
+import { computeAcademyFormModifiers } from "./players/academyForm.js";
 import {
   releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
 } from "./freeAgency.js";
@@ -178,14 +179,22 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
 
   // 5. Youth intake for every club, anchored to each club's fixed
   //    generation-time strength (academyBase — see promotion.ts for how it
-  //    moves after a division swap).
+  //    moves after a division swap) plus a recent-form modifier: prospects
+  //    are drawn toward clubs that have finished well over the last few
+  //    seasons and away from strugglers. The modifier is zero-sum within
+  //    each division (see academyForm.ts), so it can't reopen the
+  //    league-wide intake inflation the fixed anchor exists to prevent.
+  const academyFormModifiers = computeAcademyFormModifiers(
+    tablesByCompId.values(), league.seasonHistory,
+  );
   let nextPid = Math.max(0, ...players.map((p) => p.pid)) + 1;
   const generationalEvents: NewsEvent[] = [];
   teams = teams.map((t) => {
     const genSeed = hashInts(league.lid, nextSeason, t.tid, 2);
     const homeCountry = competitionOf(league.competitions, t.compId).country;
     const { players: youth, nextPid: updatedNextPid } = generateYouthIntake(
-      rng, t.academyBase, nextSeason, nextPid, genSeed, homeCountry,
+      rng, t.academyBase + (academyFormModifiers.get(t.tid) ?? 0),
+      nextSeason, nextPid, genSeed, homeCountry,
     );
     nextPid = updatedNextPid;
     // A generational talent arriving through any club's youth intake is

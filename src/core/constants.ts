@@ -280,6 +280,23 @@ export const YOUTH_INTAKE_MAX = 5;
 export const YOUTH_BASE_OFFSET = 34;
 
 /**
+ * Dynamic academy attraction: a club's youth-intake quality gets a bonus or
+ * penalty based on its league finishes over the last ACADEMY_FORM_SEASONS
+ * completed seasons — better young players are drawn to clubs that have been
+ * playing well, and shun clubs scrapping at the bottom. The modifier is
+ * derived from *normalized finishing rank within the club's own competition
+ * each season* (champion = +1, bottom = -1, mid-table = 0, averaged across
+ * the window and scaled by ACADEMY_FORM_SWING points), which makes it
+ * zero-sum within each division by construction: one club's stronger intake
+ * is exactly offset by a rival's weaker one, so — unlike the old
+ * anchor-to-current-roster-average design that YOUTH_BASE_OFFSET's comment
+ * above describes tearing out — sustained success can't ratchet the *league's*
+ * intake quality upward, only redistribute it toward the successful.
+ */
+export const ACADEMY_FORM_SEASONS = 3;
+export const ACADEMY_FORM_SWING = 5;
+
+/**
  * BBGM-style progression (see src/core/players/progression.ts for the full
  * model). Base age curve is defined around a canonical peak of ~26
  * ("25-27: around peak" per design brief); PHYSICAL and SKILL rating groups
