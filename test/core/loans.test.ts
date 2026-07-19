@@ -11,7 +11,7 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { trueTransferValue } from "../../src/core/finance/valuation.js";
 import { tierOf } from "../../src/core/competitions.js";
 import { resolveXI } from "../../src/core/lineup/resolveXI.js";
-import { FORMATIONS } from "../../src/core/lineup/formations.js";
+import { teamSlots } from "../../src/core/lineup/formations.js";
 import { LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, ROSTER_CAP } from "../../src/core/constants.js";
 
 function windowLeague(seed = 1): LeagueStore {
@@ -248,7 +248,9 @@ describe("runAILoanMarket", () => {
     const xiByTid = new Map(
       league.teams.map((t) => {
         const roster = t.roster.map((pid) => playerMap.get(pid)!).filter(Boolean);
-        return [t.tid, new Set(resolveXI(roster, FORMATIONS["4-3-3"], t.starters).map((p) => p.pid))];
+        // Use each club's own formation — the loan market excludes a player from
+        // the XI its actual shape fields, which is no longer always 4-3-3.
+        return [t.tid, new Set(resolveXI(roster, teamSlots(t), t.starters).map((p) => p.pid))];
       }),
     );
 

@@ -9,7 +9,7 @@ import type { ActiveLoan, LoanListing, LoanRejection } from "./loans.js";
 import type { Competition } from "./competitions.js";
 import type { CupState } from "./cup/types.js";
 import { generateWorld } from "./league/generate.js";
-import { assignIdentities } from "./teams/clubs.js";
+import { assignIdentities, assignAIFormations } from "./teams/clubs.js";
 import { generateSchedule } from "./schedule.js";
 import { worldCompetitions } from "./competitions.js";
 import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
@@ -79,7 +79,9 @@ export interface LeagueStore {
 export function createLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
   const league = generateWorld(rng, seed);
   const competitions = worldCompetitions();
-  const teams = assignIdentities(league, competitions);
+  // Each AI club lines up in the formation that fields its strongest XI; the
+  // user's club keeps the neutral 4-3-3 default and picks its own on the Roster page.
+  const teams = assignAIFormations(assignIdentities(league, competitions), league.players, userTid);
   const schedule = buildCompetitionSchedule(teams, competitions);
 
   // Fog-of-war: stamp the user's initial senior roster as first-observed in

@@ -1,6 +1,8 @@
 import type { League } from "../league/generate.js";
 import type { Competition } from "../competitions.js";
 import type { FormationId } from "../lineup/formations.js";
+import { chooseBestFormation } from "../lineup/formations.js";
+import type { Player } from "../players/types.js";
 import { HYPE_INITIAL, SCOUTING_SPEND_DEFAULT } from "../constants.js";
 import { chargeSeasonStart, wageBill } from "../finance/budget.js";
 import { clampScoutingSpend } from "../finance/scouting.js";
@@ -301,5 +303,27 @@ export function assignIdentities(league: League, competitions: Competition[]): S
       transferListed: [],
       scoutingObserved: {},
     };
+  });
+}
+
+/**
+ * Point every AI club at the formation that fields its strongest XI (via
+ * chooseBestFormation on its current roster). The user's own club is skipped —
+ * they pick their formation manually — so this is safe to re-run each offseason
+ * without ever overwriting a user choice. Called at league creation and once
+ * per offseason on the settled rosters.
+ */
+export function assignAIFormations(
+  teams: StoredTeam[],
+  players: Player[],
+  userTid: number,
+): StoredTeam[] {
+  const byPid = new Map(players.map((p) => [p.pid, p]));
+  return teams.map((t) => {
+    if (t.tid === userTid) return t;
+    const roster = t.roster
+      .map((pid) => byPid.get(pid))
+      .filter((p): p is Player => p !== undefined);
+    return { ...t, formation: chooseBestFormation(roster) };
   });
 }
