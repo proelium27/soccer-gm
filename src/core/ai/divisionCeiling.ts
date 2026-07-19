@@ -2,6 +2,7 @@ import type { Player, Position } from "../players/types.js";
 import type { StoredTeam } from "../teams/clubs.js";
 import type { CompletedTransfer } from "../transfers/negotiation.js";
 import type { Competition } from "../competitions.js";
+import type { ActiveLoan } from "../loans.js";
 import { tierOf } from "../competitions.js";
 import { DIVISION_2_REFUSAL_OVR_THRESHOLD, ROSTER_CAP, ROSTER_COMPOSITION } from "../constants.js";
 import { trueTransferValue } from "../finance/valuation.js";
@@ -46,12 +47,17 @@ import { clampBudget } from "../finance/budget.js";
 export function enforceDivision2Ceiling(
   teams: StoredTeam[],
   players: Player[],
+  activeLoans: ActiveLoan[],
   transfers: CompletedTransfer[],
   season: number,
   userTid: number,
   competitions: Competition[],
 ): { teams: StoredTeam[]; players: Player[]; transfers: CompletedTransfer[] } {
   const playerByPid = new Map(players.map((p) => [p.pid, p]));
+  // A loaned player sits on the loanee's roster but is owned by his parent.
+  // Never sweep him out to a Division 1 club — processLoanReturns would later
+  // return a copy to the parent, duplicating the pid across two rosters.
+  const onLoanPids = new Set(activeLoans.map((l) => l.pid));
   const rosterByTid = new Map(teams.map((t) => [t.tid, [...t.roster]]));
   const tierByTid = new Map(teams.map((t) => [t.tid, tierOf(competitions, t.compId)]));
   const budgetByTid = new Map(teams.map((t) => [t.tid, t.budget]));
@@ -72,6 +78,7 @@ export function enforceDivision2Ceiling(
   const qualifying = [...rosterByTid.entries()]
     .filter(([tid]) => tierByTid.get(tid) === 2 && tid !== userTid)
     .flatMap(([, roster]) => roster)
+    .filter((pid) => !onLoanPids.has(pid))
     .map((pid) => playerByPid.get(pid)!)
     .filter((p) => p.ovr >= DIVISION_2_REFUSAL_OVR_THRESHOLD)
     .sort((a, b) => b.ovr - a.ovr || a.pid - b.pid);

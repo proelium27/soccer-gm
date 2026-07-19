@@ -5,9 +5,14 @@ import {
   runAILoanMarket,
 } from "../../src/core/loans.js";
 import { createLeagueState, type LeagueStore } from "../../src/core/leagueState.js";
+import { simThrough } from "../../src/core/simThrough.js";
+import { simOffseason } from "../../src/core/offseason.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { trueTransferValue } from "../../src/core/finance/valuation.js";
-import { LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, ROSTER_CAP } from "../../src/core/constants.js";
+import { tierOf } from "../../src/core/competitions.js";
+import {
+  LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, ROSTER_CAP, DIVISION_2_REFUSAL_OVR_THRESHOLD,
+} from "../../src/core/constants.js";
 
 function windowLeague(seed = 1): LeagueStore {
   const league = createLeagueState(0, mulberry32(seed));
@@ -168,6 +173,53 @@ describe("loanOfferCandidates / acceptLoanOffer / rejectLoanOffer", () => {
     expect(state.loanListings.some((l) => l.pid === pid)).toBe(true);
     const after = loanOfferCandidates(state);
     expect(after.some((c) => c.player.pid === pid && c.buyerTid === rejectedBuyer)).toBe(false);
+  });
+});
+
+describe("no phantom players (loan + market/sweep interaction)", () => {
+  it("never leaves a pid on more than one roster when a loaned player is a market/sweep target", () => {
+    // Regression: a loaned player sits on the loanee's roster but is owned by
+    // his parent. If the AI market or the Division-2 ceiling sweep could sell
+    // him, processLoanReturns would later return a *copy* to the parent — the
+    // same pid on two rosters. Set up the deterministic trigger: a strong
+    // (>= threshold) AI-owned player loaned to a Division 2 club, whom the
+    // ceiling sweep would otherwise move to Division 1 every offseason.
+    const rng = mulberry32(1);
+    const base = createLeagueState(0, rng);
+    const b = base.teams.find((t) => tierOf(base.competitions, t.compId) === 2 && t.tid !== 0)!; // loanee (D2)
+    const a = base.teams.find((t) => t.tid !== 0 && t.tid !== b.tid)!; // parent
+    const pid = a.roster[0];
+
+    const players = base.players.map((p) =>
+      p.pid === pid ? { ...p, ovr: DIVISION_2_REFUSAL_OVR_THRESHOLD + 8, born: base.season - 24 } : p,
+    );
+    const teams = base.teams.map((t) => {
+      if (t.tid === a.tid) return { ...t, roster: t.roster.filter((r) => r !== pid) };
+      if (t.tid === b.tid) return { ...t, roster: [...t.roster, pid] };
+      return t;
+    });
+    let league: LeagueStore = {
+      ...base,
+      players,
+      teams,
+      activeLoans: [{
+        pid, parentTid: a.tid, loaneeTid: b.tid,
+        startSeason: base.season, seasons: 2, returnSeason: base.season + 2, fee: 0,
+      }],
+    };
+
+    // Sim across the loan's return (returnSeason = season + 2).
+    for (let s = 0; s < 2; s++) {
+      league = simThrough(league, "season", rng);
+      league = simOffseason(league, rng);
+      const count = new Map<number, number>();
+      for (const t of league.teams) for (const r of t.roster) count.set(r, (count.get(r) ?? 0) + 1);
+      const dup = [...count.entries()].find(([, n]) => n > 1);
+      expect(dup, dup ? `pid ${dup[0]} on ${dup[1]} rosters after season ${s + 1}` : undefined).toBeUndefined();
+    }
+    // And the loaned player came home to exactly one club (his parent).
+    const homes = league.teams.filter((t) => t.roster.includes(pid));
+    expect(homes.length).toBe(1);
   });
 });
 

@@ -4,6 +4,7 @@ import type { PlayedMatch } from "../standings.js";
 import type { CompletedTransfer } from "../transfers/negotiation.js";
 import type { TransferWindowKind } from "../transfers/window.js";
 import type { Competition } from "../competitions.js";
+import type { ActiveLoan } from "../loans.js";
 import { deriveLeagueContexts } from "./clubContext.js";
 import { valueToClub, perceivedValueToClub } from "./evaluate.js";
 import { trueTransferValue } from "../finance/valuation.js";
@@ -67,6 +68,7 @@ interface Candidate {
 export function runAITransferMarket(
   teams: StoredTeam[],
   players: Player[],
+  activeLoans: ActiveLoan[],
   transfers: CompletedTransfer[],
   season: number,
   played: PlayedMatch[],
@@ -80,6 +82,13 @@ export function runAITransferMarket(
   const playerMap = new Map(players.map((p) => [p.pid, p]));
   const jitter = mulberry32(seed);
 
+  // A player physically playing for a club on loan sits on that club's roster
+  // but is still owned by his parent — the loanee must never be able to sell
+  // him permanently, or processLoanReturns would later hand a copy back to the
+  // parent and the same pid would end up on two rosters at once. Skip anyone
+  // currently out on loan (keyed by pid, so this holds whoever the parent is).
+  const onLoanPids = new Set(activeLoans.map((l) => l.pid));
+
   // Assemble every deal that looks worthwhile at window open. Valuations are
   // read from this snapshot; live roster/budget state is applied later.
   const candidates: Candidate[] = [];
@@ -89,6 +98,7 @@ export function runAITransferMarket(
     if (!sellerCtx) continue;
 
     for (const pid of seller.roster) {
+      if (onLoanPids.has(pid)) continue;
       const player = playerMap.get(pid);
       if (!player) continue;
 

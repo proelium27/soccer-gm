@@ -16,7 +16,7 @@ describe("enforceDivision2Ceiling", () => {
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
     const { teams, transfers } = enforceDivision2Ceiling(
-      league.teams, players, league.transfers, league.season, USER_TID, league.competitions,
+      league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const newTeam = teams.find((t) => t.roster.includes(star.pid))!;
     // The receiving pool is every tier-1 club worldwide (not just England's),
@@ -34,7 +34,7 @@ describe("enforceDivision2Ceiling", () => {
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
     const { teams, transfers } = enforceDivision2Ceiling(
-      league.teams, players, league.transfers, league.season, USER_TID, league.competitions,
+      league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const deal = transfers.find((t) => t.pid === star.pid)!;
     const buyerBefore = league.teams.find((t) => t.tid === deal.toTid)!;
@@ -61,7 +61,7 @@ describe("enforceDivision2Ceiling", () => {
     );
 
     const { teams: updated, transfers } = enforceDivision2Ceiling(
-      teams, players, league.transfers, league.season, USER_TID, league.competitions,
+      teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const deal = transfers.find((t) => t.pid === star.pid)!;
     expect(deal.fee).toBe(1000);
@@ -78,7 +78,7 @@ describe("enforceDivision2Ceiling", () => {
     const players = league.players.map((p) => (p.pid === target.pid ? weak : p));
 
     const { teams } = enforceDivision2Ceiling(
-      league.teams, players, league.transfers, league.season, USER_TID, league.competitions,
+      league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const team = teams.find((t) => t.roster.includes(weak.pid))!;
     expect(team.tid).toBe(d2Team.tid);
@@ -94,7 +94,7 @@ describe("enforceDivision2Ceiling", () => {
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
     const { teams: updated } = enforceDivision2Ceiling(
-      teams, players, league.transfers, league.season, USER_TID, league.competitions,
+      teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const team = updated.find((t) => t.roster.includes(star.pid))!;
     expect(team.tid).toBe(USER_TID);
@@ -108,7 +108,7 @@ describe("enforceDivision2Ceiling", () => {
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
     const { teams } = enforceDivision2Ceiling(
-      league.teams, players, league.transfers, league.season, USER_TID, league.competitions,
+      league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const userTeam = teams.find((t) => t.tid === USER_TID)!;
     expect(userTeam.roster.includes(star.pid)).toBe(false);
@@ -147,10 +147,32 @@ describe("enforceDivision2Ceiling", () => {
     expect(teams.find((t) => t.tid === weakestD1Tid)!.roster.length).toBe(ROSTER_CAP);
 
     const { teams: updated } = enforceDivision2Ceiling(
-      teams, players, league.transfers, league.season, USER_TID, league.competitions,
+      teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const buyer = updated.find((t) => t.roster.includes(star.pid))!;
     expect(buyer.roster.length).toBeLessThanOrEqual(ROSTER_CAP);
+  });
+
+  it("never sweeps a player who is out on loan (a borrowed D2 player would be duplicated on loan return)", () => {
+    const league = createLeagueState(USER_TID, mulberry32(11));
+    const d2Team = league.teams.find((t) => t.compId === 1 && t.tid !== USER_TID)!;
+    const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
+    // Comfortably above the threshold — without the loan flag he'd be swept
+    // (see the first test in this file), so this proves the guard, not luck.
+    const star = { ...target, ovr: DIVISION_2_REFUSAL_OVR_THRESHOLD + 5 };
+    const players = league.players.map((p) => (p.pid === target.pid ? star : p));
+    // He's only on this D2 club on loan — owned by someone else, due back next
+    // season — so the sweep must leave him where he is.
+    const activeLoans = [{
+      pid: star.pid, parentTid: -1, loaneeTid: d2Team.tid,
+      startSeason: league.season, seasons: 1 as const, returnSeason: league.season + 1, fee: 0,
+    }];
+
+    const { teams, transfers } = enforceDivision2Ceiling(
+      league.teams, players, activeLoans, league.transfers, league.season, USER_TID, league.competitions,
+    );
+    expect(teams.find((t) => t.roster.includes(star.pid))!.tid).toBe(d2Team.tid);
+    expect(transfers.some((t) => t.pid === star.pid)).toBe(false);
   });
 
   it("is deterministic for the same inputs", () => {
@@ -160,8 +182,8 @@ describe("enforceDivision2Ceiling", () => {
     const star = { ...target, ovr: 88 };
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
-    const a = enforceDivision2Ceiling(league.teams, players, league.transfers, league.season, USER_TID, league.competitions);
-    const b = enforceDivision2Ceiling(league.teams, players, league.transfers, league.season, USER_TID, league.competitions);
+    const a = enforceDivision2Ceiling(league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions);
+    const b = enforceDivision2Ceiling(league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions);
     expect(a.teams).toEqual(b.teams);
   });
 });
