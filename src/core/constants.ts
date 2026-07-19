@@ -204,6 +204,15 @@ export const POWER_GD_CAP = 4;
 export const POWER_PERFORMANCE_WEIGHT = 4;
 
 /**
+ * Power-rankings history: a full snapshot of the rankings is persisted after
+ * every POWER_SNAPSHOT_INTERVAL-th matchday (5, 10, ..., 35) plus the season's
+ * final matchday, so past rankings stay browsable — they can't be rebuilt
+ * retroactively, since rosters change mid-season and `played` is wiped every
+ * offseason. See LeagueStore.powerRankingHistory.
+ */
+export const POWER_SNAPSHOT_INTERVAL = 5;
+
+/**
  * Hard squad-size limit enforced on player-adding actions (free-agent
  * signings, transfer buys). Set comfortably above ROSTER_COMPOSITION's 25 so
  * clubs have real squad depth, matching typical real-world first-team limits.

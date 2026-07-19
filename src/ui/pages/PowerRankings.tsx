@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { HelpHint, PotHelp } from "../components/HelpHint.js";
@@ -6,8 +6,10 @@ import type { Player } from "../../core/players/types.js";
 import type { StoredTeam } from "../../core/teams/clubs.js";
 import { teamSlots, teamFormation } from "../../core/lineup/formations.js";
 import { resolveXI } from "../../core/lineup/resolveXI.js";
-import { computeTeamRating } from "../../core/teams/teamRating.js";
-import { computeTeamForm } from "../../core/teams/powerRanking.js";
+import {
+  computePowerRankingSnapshot,
+  type PowerRankingSnapshot,
+} from "../../core/teams/powerRanking.js";
 import { competitionOf, tierOf } from "../../core/competitions.js";
 import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
@@ -24,39 +26,75 @@ function shortName(name: string): string {
   return parts[parts.length - 1];
 }
 
+/** The stored snapshot immediately preceding `snapshot` within the same season, for rank-movement arrows. */
+function previousSnapshot(
+  history: PowerRankingSnapshot[],
+  snapshot: PowerRankingSnapshot,
+): PowerRankingSnapshot | null {
+  let prev: PowerRankingSnapshot | null = null;
+  for (const s of history) {
+    if (s.season !== snapshot.season || s.matchday >= snapshot.matchday) continue;
+    if (prev === null || s.matchday > prev.matchday) prev = s;
+  }
+  return prev;
+}
+
 export function PowerRankings() {
   const { league } = useLeague();
   const [expandedTid, setExpandedTid] = useState<number | null>(null);
   const [compId, setCompId] = useState<number | "all">("all");
+  // -1 = the live "Current" view; otherwise an index into powerRankingHistory.
+  const [viewIndex, setViewIndex] = useState(-1);
 
-  if (!league) {
+  const history = league?.powerRankingHistory ?? [];
+  const isCurrent = viewIndex < 0 || viewIndex >= history.length;
+
+  const snapshot = useMemo(() => {
+    if (!league) return null;
+    if (!isCurrent) return history[viewIndex];
+    return computePowerRankingSnapshot(
+      league.teams,
+      league.players,
+      league.played,
+      league.season,
+      0,
+    );
+  }, [league, history, isCurrent, viewIndex]);
+
+  if (!league || !snapshot) {
     return <p className="p-3">Loading...</p>;
   }
 
+  const teamByTid = new Map(league.teams.map((t) => [t.tid, t]));
   const playerByPid = new Map(league.players.map((p) => [p.pid, p]));
-  const withRatings = league.teams
-    .filter((team) => compId === "all" || team.compId === compId)
-    .map((team) => {
-      const roster = team.roster
-        .map((pid) => playerByPid.get(pid))
-        .filter((p): p is Player => p !== undefined);
-      return { team, roster, rating: computeTeamRating(roster, team.starters, teamSlots(team)) };
-    });
-  const ovrByTid = new Map(withRatings.map(({ team, rating }) => [team.tid, rating.ovr]));
-  const rankings = withRatings
-    .map(({ team, roster, rating }) => {
-      const form = computeTeamForm(team.tid, rating.ovr, league.played, ovrByTid);
-      return { team, roster, rating, form, powerScore: rating.ovr + form.performanceBonus };
-    })
-    .sort((a, b) => b.powerScore - a.powerScore);
+
+  const rows = snapshot.rows.filter((r) => compId === "all" || r.compId === compId);
+
+  // Rank movement vs the previous stored snapshot of the same season (the
+  // live view compares against the season's latest snapshot). Ranks are
+  // recomputed within the current competition filter so the arrows always
+  // describe movement in the list actually being shown.
+  const prev = isCurrent
+    ? [...history].reverse().find((s) => s.season === league.season) ?? null
+    : previousSnapshot(history, snapshot);
+  const prevRankByTid = new Map<number, number>();
+  if (prev) {
+    prev.rows
+      .filter((r) => compId === "all" || r.compId === compId)
+      .forEach((r, i) => prevRankByTid.set(r.tid, i + 1));
+  }
 
   const divisionRanks = new Map<number, number>();
   const divisionCounts = new Map<number, number>();
-  for (const { team } of rankings) {
-    const next = (divisionCounts.get(team.compId) ?? 0) + 1;
-    divisionCounts.set(team.compId, next);
-    divisionRanks.set(team.tid, next);
+  for (const r of rows) {
+    const next = (divisionCounts.get(r.compId) ?? 0) + 1;
+    divisionCounts.set(r.compId, next);
+    divisionRanks.set(r.tid, next);
   }
+
+  // Newest first in the dropdown: seasons descending, matchdays descending
+  // within a season. Values are indices into powerRankingHistory.
+  const seasonsDesc = [...new Set(history.map((s) => s.season))].sort((a, b) => b - a);
 
   return (
     <div className="container-fluid p-3">
@@ -64,10 +102,34 @@ export function PowerRankings() {
       <p className="text-muted small mb-3">
         Teams ranked by a blended Power score: squad OVR (Starting XI + bench, depth-weighted) plus
         a current-season form bonus — results weighted by opponent quality (beating a strong side
-        counts for more than beating a weak one) and goal difference. Click a team to see its
-        roster.
+        counts for more than beating a weak one) and goal difference. Snapshots are kept every few
+        matchdays, so you can look back at how the rankings moved through any season.
+        {isCurrent && " Click a team to see its roster."}
       </p>
-      <div className="mb-3">
+      <div className="mb-3 d-flex flex-wrap gap-2">
+        <select
+          className="form-select form-select-sm w-auto"
+          value={isCurrent ? -1 : viewIndex}
+          onChange={(e) => {
+            setViewIndex(Number(e.target.value));
+            setExpandedTid(null);
+          }}
+        >
+          <option value={-1}>Current</option>
+          {seasonsDesc.map((season) => (
+            <optgroup key={season} label={String(seasonYear(season))}>
+              {history
+                .map((s, i) => ({ s, i }))
+                .filter(({ s }) => s.season === season)
+                .sort((a, b) => b.s.matchday - a.s.matchday)
+                .map(({ s, i }) => (
+                  <option key={i} value={i}>
+                    Matchday {s.matchday}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
+        </select>
         <CompetitionSelect
           competitions={league.competitions}
           value={compId}
@@ -75,10 +137,18 @@ export function PowerRankings() {
           allOption
         />
       </div>
+      {!isCurrent && (
+        <p className="text-muted small mb-2">
+          Rankings as they stood after matchday {snapshot.matchday},{" "}
+          {seasonYear(snapshot.season)}. Movement is relative to the previous snapshot of that
+          season.
+        </p>
+      )}
       <table className="table table-striped table-sm">
         <thead>
           <tr>
             <th className="text-end">#</th>
+            <th style={{ width: "2.5em" }}></th>
             <th>Team</th>
             <th className="text-end">Div</th>
             <th className="text-end">Record</th>
@@ -97,30 +167,52 @@ export function PowerRankings() {
           </tr>
         </thead>
         <tbody>
-          {rankings.map(({ team, roster, rating, form, powerScore }, i) => {
-            const isUser = team.tid === league.meta.userTid;
-            const isExpanded = expandedTid === team.tid;
+          {rows.map((r, i) => {
+            const team = teamByTid.get(r.tid);
+            if (!team) return null;
+            const isUser = r.tid === league.meta.userTid;
+            const isExpanded = isCurrent && expandedTid === r.tid;
+            const prevRank = prevRankByTid.get(r.tid);
+            const move = prevRank === undefined ? null : prevRank - (i + 1);
             return (
-              <Fragment key={team.tid}>
+              <Fragment key={r.tid}>
                 <tr
                   className={isUser ? "team-highlight" : undefined}
-                  style={{ cursor: "pointer" }}
-                  onClick={() => setExpandedTid(isExpanded ? null : team.tid)}
+                  style={isCurrent ? { cursor: "pointer" } : undefined}
+                  onClick={
+                    isCurrent
+                      ? () => setExpandedTid(isExpanded ? null : r.tid)
+                      : undefined
+                  }
                 >
                   <td className="text-end">{i + 1}</td>
+                  <td className="text-center small">
+                    {move !== null && move !== 0 && (
+                      <span
+                        className={move > 0 ? "text-success" : "text-danger"}
+                        title={`${move > 0 ? "Up" : "Down"} ${Math.abs(move)} since the previous snapshot`}
+                      >
+                        {move > 0 ? "▲" : "▼"}
+                        {Math.abs(move)}
+                      </span>
+                    )}
+                    {move === 0 && <span className="text-muted">–</span>}
+                  </td>
                   <td>
                     <span className="d-inline-flex align-items-center gap-1">
-                      <span className="text-muted" style={{ width: "1em", display: "inline-block" }}>
-                        {isExpanded ? "▾" : "▸"}
-                      </span>
+                      {isCurrent && (
+                        <span className="text-muted" style={{ width: "1em", display: "inline-block" }}>
+                          {isExpanded ? "▾" : "▸"}
+                        </span>
+                      )}
                       <ClubCrest tid={team.tid} colors={team.colors} />
                       {team.name}
                     </span>
                   </td>
                   <td className="text-end">
                     {(() => {
-                      const comp = competitionOf(league.competitions, team.compId);
-                      const tier = tierOf(league.competitions, team.compId);
+                      const comp = competitionOf(league.competitions, r.compId);
+                      const tier = tierOf(league.competitions, r.compId);
                       return (
                         <span
                           className={
@@ -129,38 +221,44 @@ export function PowerRankings() {
                           }
                           title={comp.name}
                         >
-                          {comp.country.slice(0, 3).toUpperCase()} D{tier} #{divisionRanks.get(team.tid)}
+                          {comp.country.slice(0, 3).toUpperCase()} D{tier} #{divisionRanks.get(r.tid)}
                         </span>
                       );
                     })()}
                   </td>
                   <td className="text-end">
-                    {form.played > 0 ? `${form.won}-${form.drawn}-${form.lost}` : "—"}
+                    {r.played > 0 ? `${r.won}-${r.drawn}-${r.lost}` : "—"}
                   </td>
                   <td className="text-end">
-                    {form.played > 0 ? (form.gd > 0 ? `+${form.gd}` : form.gd) : "—"}
+                    {r.played > 0 ? (r.gd > 0 ? `+${r.gd}` : r.gd) : "—"}
                   </td>
-                  <td className="text-end">{rating.ovr}</td>
+                  <td className="text-end">{r.ovr}</td>
                   <td className="text-end">
-                    <span className="fw-semibold">{Math.round(powerScore)}</span>
-                    {form.played > 0 && Math.abs(form.performanceBonus) >= 0.5 && (
+                    <span className="fw-semibold">{Math.round(r.powerScore)}</span>
+                    {r.played > 0 && Math.abs(r.performanceBonus) >= 0.5 && (
                       <span
                         className={
-                          "small ms-1 " + (form.performanceBonus > 0 ? "text-success" : "text-danger")
+                          "small ms-1 " + (r.performanceBonus > 0 ? "text-success" : "text-danger")
                         }
                       >
-                        ({form.performanceBonus > 0 ? "+" : ""}
-                        {form.performanceBonus.toFixed(1)})
+                        ({r.performanceBonus > 0 ? "+" : ""}
+                        {r.performanceBonus.toFixed(1)})
                       </span>
                     )}
                   </td>
-                  <td className="text-end">{rating.pot}</td>
+                  <td className="text-end">{r.pot}</td>
                 </tr>
                 {isExpanded && (
                   <tr>
-                    <td></td>
+                    <td colSpan={2}></td>
                     <td colSpan={7}>
-                      <RosterPreview team={team} roster={roster} season={league.season} />
+                      <RosterPreview
+                        team={team}
+                        roster={team.roster
+                          .map((pid) => playerByPid.get(pid))
+                          .filter((p): p is Player => p !== undefined)}
+                        season={league.season}
+                      />
                     </td>
                   </tr>
                 )}

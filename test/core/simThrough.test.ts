@@ -67,6 +67,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     loanRejections: [],
     cup: null,
     cupHistory: [],
+    powerRankingHistory: [],
   };
 }
 
@@ -234,6 +235,35 @@ describe("simThrough", () => {
       expect(e.matchday).toBeLessThanOrEqual(38);
       expect(["hattrick", "standoutRating", "goalMilestoneSeason", "goalMilestoneCareer"]).toContain(e.type);
     }
+  });
+
+  it("powerRankingHistory: a full season stores snapshots every 5 matchdays plus the finale", () => {
+    const store = makeLeagueStore(42);
+    const rng = mulberry32(1000);
+    const result = simThrough(store, "season", rng);
+
+    expect(result.powerRankingHistory.map((s) => s.matchday)).toEqual([
+      5, 10, 15, 20, 25, 30, 35, 38,
+    ]);
+    for (const snapshot of result.powerRankingHistory) {
+      expect(snapshot.season).toBe(store.season);
+      expect(snapshot.rows).toHaveLength(store.teams.length);
+      // Form in each snapshot reflects exactly the matches played so far:
+      // 10 games per matchday, 2 team-appearances per game.
+      const totalPlayed = snapshot.rows.reduce((sum, r) => sum + r.played, 0);
+      expect(totalPlayed).toBe(snapshot.matchday * 10 * 2);
+    }
+  });
+
+  it("powerRankingHistory: no snapshot before matchday 5, and batching sims doesn't duplicate any", () => {
+    const store = makeLeagueStore(42);
+    const afterOneMonth = simThrough(store, "month", mulberry32(1100)); // matchdays 1-4
+    expect(afterOneMonth.powerRankingHistory).toEqual([]);
+
+    const afterFullSeason = simThrough(afterOneMonth, "season", mulberry32(1101));
+    expect(afterFullSeason.powerRankingHistory.map((s) => s.matchday)).toEqual([
+      5, 10, 15, 20, 25, 30, 35, 38,
+    ]);
   });
 
   it("never simulates a match between teams in different divisions", () => {

@@ -20,12 +20,14 @@ import type { StoredTeam } from "./teams/clubs.js";
 import { assignAIFormations } from "./teams/clubs.js";
 import { playerGoalTotals, detectMatchdayNewsEvents } from "./newsEvents.js";
 import type { NewsEvent } from "./newsEvents.js";
+import { computePowerRankingSnapshot } from "./teams/powerRanking.js";
+import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { CupState } from "./cup/types.js";
 import { dueCupRound, cupFinalists } from "./cup/cup.js";
 import { playCupRound } from "./cup/simCup.js";
 import { clampBudget } from "./finance/budget.js";
 import { tierOf } from "./competitions.js";
-import { CUP_FINAL_ROUND } from "./constants.js";
+import { CUP_FINAL_ROUND, POWER_SNAPSHOT_INTERVAL } from "./constants.js";
 
 function accumulateStats(
   players: Player[],
@@ -140,6 +142,7 @@ export function simThrough(
   // returned with the rest of the league.
   let cup: CupState | null = league.cup;
   const newEvents: NewsEvent[] = [];
+  const newSnapshots: PowerRankingSnapshot[] = [];
 
   const toSim: ScheduleGame[] = [];
   const remaining: ScheduleGame[] = [];
@@ -309,6 +312,20 @@ export function simThrough(
     );
 
     newResults.push(...mdResults);
+
+    // Persist a power-rankings snapshot at fixed points through the season
+    // (every POWER_SNAPSHOT_INTERVAL matchdays, plus the finale — 38 matching
+    // the "season" target above). Each matchday is simmed exactly once per
+    // season, so no duplicate guard is needed however the user batches sims.
+    if (matchday % POWER_SNAPSHOT_INTERVAL === 0 || matchday === 38) {
+      newSnapshots.push(
+        computePowerRankingSnapshot(
+          currentTeams, currentPlayers, [...league.played, ...newResults],
+          league.season, matchday,
+        ),
+      );
+    }
+
     onMatchday?.(matchday, index, matchdays.length, mdResults);
   }
 
@@ -331,6 +348,7 @@ export function simThrough(
     activeLoans,
     winterMarketRunSeason,
     newsEvents: [...league.newsEvents, ...newEvents],
+    powerRankingHistory: [...league.powerRankingHistory, ...newSnapshots],
     cup,
   };
 }

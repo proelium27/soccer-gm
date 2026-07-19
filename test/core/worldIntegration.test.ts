@@ -34,6 +34,7 @@ function buildWorldLeague(seed: number): LeagueStore {
     loanRejections: [],
     cup: null,
     cupHistory: [],
+    powerRankingHistory: [],
   };
 }
 
