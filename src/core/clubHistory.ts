@@ -1,6 +1,8 @@
 import type { LeagueStore } from "./leagueState.js";
 import type { StandingsRow } from "./standings.js";
 import { tierOf } from "./competitions.js";
+import { clubCupRun } from "./cup/cup.js";
+import { CUP_FINAL_ROUND } from "./constants.js";
 
 /** One completed season from a single club's perspective. */
 export interface ClubSeasonRecord {
@@ -24,6 +26,14 @@ export interface ClubSeasonRecord {
   goldenBootPid: number | null;
   /** This club's players selected in the season's Team of the Season. */
   teamOfSeasonPids: number[];
+  /**
+   * The club's Continental Cup run this season: the furthest round reached and
+   * whether it won that round (so `round === CUP_FINAL_ROUND && wonRound` is a
+   * cup win, `round === CUP_FINAL_ROUND && !wonRound` a runner-up, and any other
+   * round the stage it was eliminated at). Null if it didn't qualify or the
+   * world fields no cup.
+   */
+  cupRun: { round: number; wonRound: boolean } | null;
 }
 
 /** An individual honour won by one of the club's players in a given season. */
@@ -44,6 +54,10 @@ export interface ClubHistory {
   promotions: number[];
   /** Seasons at the end of which the club was relegated, newest first. */
   relegations: number[];
+  /** Seasons the club won the Continental Cup, newest first. */
+  cupTitles: number[];
+  /** Seasons the club reached the Continental Cup final but lost it, newest first. */
+  cupFinals: number[];
   playerOfSeason: ClubIndividualHonour[];
   goldenBoots: ClubIndividualHonour[];
   teamOfSeasonSelections: ClubIndividualHonour[];
@@ -83,6 +97,12 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
   const currentTeam = league.teams.find((t) => t.tid === tid);
   const currentTier = currentTeam ? tierOf(competitions, currentTeam.compId) : undefined;
 
+  // Completed seasons' Continental Cups all live in cupHistory (the live
+  // `league.cup` is always the current, not-yet-completed season's cup), so a
+  // club's per-season cup run is a lookup keyed by season. Guard for old saves
+  // and worlds that field no cup — both leave this empty.
+  const cupBySeason = new Map((league.cupHistory ?? []).map((c) => [c.season, c]));
+
   const records: ClubSeasonRecord[] = ordered.map((entry, i) => {
     const compId = entry.compsByTid[tid];
     const tier = tierOf(competitions, compId);
@@ -110,6 +130,9 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
       ? awards.teamOfSeason.filter((pid): pid is number => belongs(pid))
       : [];
 
+    const cup = cupBySeason.get(entry.season);
+    const cupRun = cup ? clubCupRun(cup, tid) : null;
+
     return {
       season: entry.season,
       compId,
@@ -123,6 +146,7 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
       playerOfSeasonPid,
       goldenBootPid,
       teamOfSeasonPids,
+      cupRun,
     };
   });
 
@@ -171,6 +195,12 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
     secondTierTitles: newest.filter((r) => r.champion && r.tier === 2).map((r) => r.season),
     promotions: newest.filter((r) => r.promoted).map((r) => r.season),
     relegations: newest.filter((r) => r.relegated).map((r) => r.season),
+    cupTitles: newest
+      .filter((r) => r.cupRun?.round === CUP_FINAL_ROUND && r.cupRun.wonRound)
+      .map((r) => r.season),
+    cupFinals: newest
+      .filter((r) => r.cupRun?.round === CUP_FINAL_ROUND && !r.cupRun.wonRound)
+      .map((r) => r.season),
     playerOfSeason: newest
       .filter((r) => r.playerOfSeasonPid !== null)
       .map((r) => ({ season: r.season, compId: r.compId, pid: r.playerOfSeasonPid! })),
