@@ -57,8 +57,8 @@ type LeagueStoreAnyVersion =
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking. */
 type SeasonStatsAnyVersion =
-  Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga" | "tid"> &
-  Partial<Pick<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga" | "tid">>;
+  Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga" | "tid" | "passes" | "passesCompleted" | "crosses" | "foulsCommitted"> &
+  Partial<Pick<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga" | "tid" | "passes" | "passesCompleted" | "crosses" | "foulsCommitted">>;
 
 /** A team-season-stats row as it may exist in a save written before xG / xGA. */
 type TeamSeasonStatsAnyVersion = Omit<TeamSeasonStats, "xg" | "goalsAgainst" | "xga"> &
@@ -84,8 +84,8 @@ type SeasonHistoryEntryAnyVersion =
 
 /** A box-score line as it may exist in a save written before Match Rating / xG / xGA. */
 type PlayerMatchLineAnyVersion =
-  Omit<PlayerMatchLine, "minutesPlayed" | "rating" | "interceptions" | "xg" | "goalsAgainst" | "xga"> &
-  Partial<Pick<PlayerMatchLine, "minutesPlayed" | "rating" | "interceptions" | "xg" | "goalsAgainst" | "xga">>;
+  Omit<PlayerMatchLine, "minutesPlayed" | "rating" | "interceptions" | "xg" | "goalsAgainst" | "xga" | "passes" | "passesCompleted" | "crosses" | "foulsCommitted"> &
+  Partial<Pick<PlayerMatchLine, "minutesPlayed" | "rating" | "interceptions" | "xg" | "goalsAgainst" | "xga" | "passes" | "passesCompleted" | "crosses" | "foulsCommitted">>;
 
 /** A played match as it may exist in a save written before M3 added box scores. */
 type PlayedMatchAnyVersion = {
@@ -107,6 +107,10 @@ function migrateLine(line: PlayerMatchLineAnyVersion): PlayerMatchLine {
     xg: line.xg ?? 0,
     goalsAgainst: line.goalsAgainst ?? 0,
     xga: line.xga ?? 0,
+    passes: line.passes ?? 0,
+    passesCompleted: line.passesCompleted ?? 0,
+    crosses: line.crosses ?? 0,
+    foulsCommitted: line.foulsCommitted ?? 0,
   };
 }
 
@@ -130,6 +134,10 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
       xg: s.xg ?? 0,
       goalsAgainst: s.goalsAgainst ?? 0,
       xga: s.xga ?? 0,
+      passes: s.passes ?? 0,
+      passesCompleted: s.passesCompleted ?? 0,
+      crosses: s.crosses ?? 0,
+      foulsCommitted: s.foulsCommitted ?? 0,
     })),
     // Pre-academy-tracking saves have no per-season academy flag on their
     // rating snapshots; there's no way to reconstruct which past seasons a

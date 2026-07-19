@@ -18,6 +18,9 @@ type StatKey =
   | "saves"
   | "tackles"
   | "interceptions"
+  | "passes"
+  | "crosses"
+  | "foulsCommitted"
   | "avgRating"
   | "minutesPlayed";
 
@@ -30,6 +33,9 @@ const STAT_OPTIONS: { key: StatKey; label: string }[] = [
   { key: "saves", label: "Saves" },
   { key: "tackles", label: "Tackles" },
   { key: "interceptions", label: "Interceptions" },
+  { key: "passes", label: "Passes" },
+  { key: "crosses", label: "Crosses" },
+  { key: "foulsCommitted", label: "Fouls" },
   { key: "avgRating", label: "Match Rating" },
   { key: "minutesPlayed", label: "Minutes" },
 ];
@@ -59,6 +65,10 @@ function careerTotals(seasons: SeasonStats[]): SeasonStats {
     total.saves += s.saves;
     total.tackles += s.tackles;
     total.interceptions += s.interceptions;
+    total.passes += s.passes;
+    total.passesCompleted += s.passesCompleted;
+    total.crosses += s.crosses;
+    total.foulsCommitted += s.foulsCommitted;
     total.minutesPlayed += s.minutesPlayed;
     total.ratingSum += s.ratingSum;
   }
@@ -286,6 +296,9 @@ function PlayerLeaders({ compId }: { compId: number }) {
             <th className="text-end">Sv</th>
             <th className="text-end">Tkl</th>
             <th className="text-end">Int</th>
+            <th className="text-end" title="Passes completed / attempted">Pass</th>
+            <th className="text-end" title="Crosses">Crs</th>
+            <th className="text-end" title="Fouls committed">Fls</th>
             <th className="text-end">Rtg</th>
           </tr>
         </thead>
@@ -317,6 +330,9 @@ function PlayerLeaders({ compId }: { compId: number }) {
               <td className="text-end">{row.stats.saves}</td>
               <td className="text-end">{row.stats.tackles}</td>
               <td className="text-end">{row.stats.interceptions}</td>
+              <td className="text-end">{row.stats.passes ? `${row.stats.passesCompleted}/${row.stats.passes}` : ""}</td>
+              <td className="text-end">{row.stats.crosses}</td>
+              <td className="text-end">{row.stats.foulsCommitted}</td>
               <td className="text-end">{row.stats.avgRating.toFixed(2)}</td>
             </tr>
           ))}

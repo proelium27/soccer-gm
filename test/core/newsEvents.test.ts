@@ -7,7 +7,9 @@ import type { PlayerMatchLine } from "../../src/engine/attribution.js";
 function line(overrides: Partial<PlayerMatchLine> & { pid: number }): PlayerMatchLine {
   return {
     goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, xg: 0, goalsAgainst: 0,
-    xga: 0, saves: 0, tackles: 0, interceptions: 0, yellowCards: 0, redCards: 0,
+    xga: 0, saves: 0, tackles: 0, interceptions: 0,
+    passes: 0, passesCompleted: 0, crosses: 0, foulsCommitted: 0,
+    yellowCards: 0, redCards: 0,
     minutesPlayed: 90, rating: 6.0,
     ...overrides,
   };

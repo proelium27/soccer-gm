@@ -29,6 +29,11 @@ export interface SeasonStats {
   saves: number;
   tackles: number;
   interceptions: number;
+  /** Passes attempted across appearances (decorative; see PlayerMatchLine.passes). */
+  passes: number;
+  passesCompleted: number;
+  crosses: number;
+  foulsCommitted: number;
   minutesPlayed: number;
   /** Sum of per-match ratings across appearances; divide by `appearances` for the average. */
   ratingSum: number;
@@ -39,7 +44,8 @@ export interface SeasonStats {
 export function emptySeasonStats(season: number, tid: number = -1): SeasonStats {
   return {
     season, tid, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, xg: 0, goalsAgainst: 0, xga: 0,
-    saves: 0, tackles: 0, interceptions: 0, minutesPlayed: 0, ratingSum: 0, avgRating: 0,
+    saves: 0, tackles: 0, interceptions: 0, passes: 0, passesCompleted: 0, crosses: 0, foulsCommitted: 0,
+    minutesPlayed: 0, ratingSum: 0, avgRating: 0,
   };
 }
 

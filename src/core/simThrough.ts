@@ -65,6 +65,10 @@ function accumulateStats(
       ss.saves += line.saves;
       ss.tackles += line.tackles;
       ss.interceptions += line.interceptions;
+      ss.passes += line.passes;
+      ss.passesCompleted += line.passesCompleted;
+      ss.crosses += line.crosses;
+      ss.foulsCommitted += line.foulsCommitted;
       ss.minutesPlayed += line.minutesPlayed;
       ss.ratingSum += line.rating;
       ss.avgRating = ss.ratingSum / ss.appearances;
