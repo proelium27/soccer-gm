@@ -168,7 +168,7 @@ export function PitchField({
                     ? "Final year"
                     : `Through ${seasonYear(p.contract.expiresSeason)}`}
                 </div>
-                <div className="d-flex gap-1 mt-2">
+                <div className="d-flex flex-wrap gap-1 mt-2">
                   {canExtend(p, season) && (
                     refusingPids.has(p.pid) ? (
                       <span
