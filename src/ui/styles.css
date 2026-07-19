@@ -868,6 +868,12 @@ a:hover {
 .pitch-chip .player-ratings-tooltip-anchor {
   border-bottom: none;
 }
+.pitch-chip-pos {
+  font-size: var(--sg-text-xs);
+  font-weight: var(--sg-weight-semibold);
+  opacity: 0.65;
+  flex: none;
+}
 .pitch-chip-name {
   color: inherit;
   text-decoration: none;

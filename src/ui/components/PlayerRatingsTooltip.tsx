@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { SKILL_KEYS } from "../../core/players/types.js";
 import type { Player, SkillKey } from "../../core/players/types.js";
 import { getRatingColor } from "../utils/ratingColor.js";
+import { useLeague } from "../context/LeagueContext.js";
 import { Flag } from "./Flag.js";
 import { PotDisplay } from "./PotDisplay.js";
 
@@ -30,6 +31,7 @@ export const SKILL_LABELS: Record<SkillKey, string> = {
  */
 export function PlayerRatingsTooltip({ player, children }: { player: Player; children: ReactNode }) {
   const [visible, setVisible] = useState(false);
+  const { league } = useLeague();
   const panelId = `player-ratings-tooltip-${player.pid}`;
 
   return (
@@ -50,6 +52,7 @@ export function PlayerRatingsTooltip({ player, children }: { player: Player; chi
         <span id={panelId} role="tooltip" className="player-ratings-tooltip-panel">
           <span className="player-ratings-tooltip-title">
             {player.name} <Flag nationality={player.nationality} />
+            {league && <>{" "}&middot; Age {league.season - player.born}</>}
             {" "}&middot; OVR {player.ovr} / POT <PotDisplay player={player} />
           </span>
           <span className="player-ratings-tooltip-grid">

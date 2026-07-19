@@ -132,6 +132,7 @@ export function PitchField({
                   $
                 </span>
               )}
+              <span className="pitch-chip-pos">{p.pos}</span>
               <PlayerRatingsTooltip player={p}>
                 <span className="pitch-chip-name">{shortName(p.name)}</span>
               </PlayerRatingsTooltip>
