@@ -22,6 +22,7 @@ import { applyTeamIdentities, type TeamIdentityEdit } from "../../core/teams/cus
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
 import { teamSlots, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { SimOverlay } from "../components/SimOverlay.js";
+import { trackEvent } from "../analytics.js";
 
 interface LeagueContextValue {
   league: LeagueStore | null;
@@ -209,6 +210,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       }
       pendingResultRef.current = result;
       setAnimDone(true);
+      trackEvent("season_simmed", { through });
     } catch (err) {
       pendingResultRef.current = null;
       closeOverlay();
@@ -223,6 +225,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       const result = await runOffseason(current);
       const lid = await saveLeague(result);
       commitLeague({ ...result, lid });
+      trackEvent("offseason_advanced");
     } catch (err) {
       console.error("Offseason failed:", err);
     }
@@ -238,11 +241,16 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       l.phase,
     );
     if (teams === l.teams && players === l.players) return null;
+    trackEvent("free_agent_signed");
     return { ...l, teams, players };
   }), [mutate]);
 
   const makeOfferAction = useCallback((pid: number, amount: number) => mutate(
-    (l) => makeTransferOffer(l, pid, amount),
+    (l) => {
+      const updated = makeTransferOffer(l, pid, amount);
+      if (updated && updated !== l) trackEvent("transfer_offer_made");
+      return updated;
+    },
   ), [mutate]);
 
   const acceptCounterAction = useCallback((pid: number) => mutate(
@@ -250,7 +258,11 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   ), [mutate]);
 
   const acceptInboundOfferAction = useCallback((pid: number) => mutate(
-    (l) => acceptInboundOffer(l, pid),
+    (l) => {
+      const updated = acceptInboundOffer(l, pid);
+      if (updated && updated !== l) trackEvent("inbound_offer_accepted");
+      return updated;
+    },
   ), [mutate]);
 
   const rejectInboundOfferAction = useCallback((pid: number) => mutate(
@@ -305,7 +317,11 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   ), [mutate]);
 
   const listPlayerForLoanAction = useCallback((pid: number, seasons: 1 | 2 | 3) => mutate(
-    (l) => listPlayerForLoan(l, pid, seasons),
+    (l) => {
+      const updated = listPlayerForLoan(l, pid, seasons);
+      if (updated && updated !== l) trackEvent("player_loaned_out", { seasons });
+      return updated;
+    },
   ), [mutate]);
 
   const unlistPlayerForLoanAction = useCallback((pid: number) => mutate(
@@ -342,6 +358,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   // re-drag. Only the user's team ever has a chosen formation; AI stays 4-3-3.
   const setFormationAction = useCallback((formation: FormationId) => mutate((l) => {
     if (!(FORMATION_IDS as readonly string[]).includes(formation)) return null;
+    trackEvent("formation_changed", { formation });
     return {
       ...l,
       teams: l.teams.map((t) =>

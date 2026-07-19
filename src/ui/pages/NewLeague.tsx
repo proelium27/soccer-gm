@@ -10,6 +10,7 @@ import { worldCompetitions, countryClubRanges, countriesOf } from "../../core/co
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { CountryFlag } from "../components/CountryFlag.js";
+import { trackEvent } from "../analytics.js";
 
 const WORLD_COMPETITIONS = worldCompetitions();
 const COUNTRY_RANGES = countryClubRanges(WORLD_COMPETITIONS, NUM_TEAMS, NUM_TEAMS_D2);
@@ -34,6 +35,13 @@ export function NewLeague() {
   const customize = searchParams.get("customize") === "1";
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Which tier the chosen club plays in: tier-1 clubs fill the first NUM_TEAMS
+  // slots of a country's range, tier-2 the rest (see countryClubRanges).
+  function tierForTid(tid: number): 1 | 2 {
+    const range = COUNTRY_RANGES.find((r) => tid >= r.start && tid < r.end);
+    return range && tid < range.start + NUM_TEAMS ? 1 : 2;
+  }
+
   function buildLeague(tid: number): LeagueStore {
     const seed = Date.now();
     const rng = mulberry32(seed);
@@ -53,13 +61,15 @@ export function NewLeague() {
       setPending(league);
       return;
     }
+    trackEvent("league_created", { country, tier: tierForTid(selectedTid) });
     await setLeague(league);
     navigate("/dashboard");
   }
 
   async function handleSaveCustomized(teams: EditableTeam[]) {
-    if (!pending) return;
+    if (!pending || selectedTid === null) return;
     setSaving(true);
+    trackEvent("league_created", { country, tier: tierForTid(selectedTid) });
     await setLeague(applyTeamIdentities(pending, teams));
     navigate("/dashboard");
   }
