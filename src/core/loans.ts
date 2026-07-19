@@ -13,7 +13,7 @@ import { clampBudget } from "./finance/budget.js";
 import { tierOf } from "./competitions.js";
 import { keepsDepthFloor } from "./freeAgency.js";
 import { resolveXI } from "./lineup/resolveXI.js";
-import { FORMATIONS } from "./lineup/formations.js";
+import { teamSlots } from "./lineup/formations.js";
 import { deriveLeagueContexts } from "./ai/clubContext.js";
 import { valueToClub, perceivedValueToClub } from "./ai/evaluate.js";
 import { mulberry32 } from "../engine/rng.js";
@@ -332,7 +332,7 @@ export function runAILoanMarket(
       .map((pid) => playerMap.get(pid))
       .filter((p): p is Player => p !== undefined);
     const xiPids = new Set(
-      resolveXI(sellerPlayers, FORMATIONS["4-3-3"], seller.starters).map((p) => p.pid),
+      resolveXI(sellerPlayers, teamSlots(seller), seller.starters).map((p) => p.pid),
     );
 
     for (const pid of seller.roster) {

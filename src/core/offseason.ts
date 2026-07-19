@@ -1,6 +1,7 @@
 import type { LeagueStore } from "./leagueState.js";
 import type { Player } from "./players/types.js";
 import type { StoredTeam } from "./teams/clubs.js";
+import { assignAIFormations } from "./teams/clubs.js";
 import type { Competition } from "./competitions.js";
 import { progressPlayer, rollRetirement, isGenerational } from "./players/progression.js";
 import type { NewsEvent } from "./newsEvents.js";
@@ -266,6 +267,11 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), tierOf(league.competitions, t.compId), t.hype,
     ),
   }));
+
+  // 6.6. AI formation selection: each AI club lines up in whichever shape
+  //      fields its strongest XI given the just-settled roster (youth, transfers,
+  //      loans all applied). The user's chosen formation is left untouched.
+  teams = assignAIFormations(teams, players, league.meta.userTid);
 
   // 7. New per-competition schedules, new season, back to regular play.
   const schedule = league.competitions.flatMap((comp) =>

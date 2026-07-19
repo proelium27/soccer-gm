@@ -17,8 +17,8 @@ import { englandCompetitions, tierOf } from "../core/competitions.js";
  * didn't exist yet, only the old `division: 0 | 1` field.
  */
 type StoredTeamAnyVersion =
-  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "nextScoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "scoutingObserved"> &
-  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "nextScoutingSpend" | "academyBase" | "starters" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "scoutingObserved">> &
+  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "nextScoutingSpend" | "academyBase" | "starters" | "formation" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "scoutingObserved"> &
+  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "nextScoutingSpend" | "academyBase" | "starters" | "formation" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "scoutingObserved">> &
   { division?: 0 | 1 };
 
 /**
@@ -192,6 +192,9 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
         nextScoutingSpend: t.nextScoutingSpend ?? t.scoutingSpend ?? SCOUTING_SPEND_DEFAULT,
         academyBase: t.academyBase ?? fallbackAcademyBase(t.tid),
         starters: t.starters ?? null,
+        // Formation (added 2026-07-19). Old saves default to 4-3-3, the shape
+        // every team fielded before formations were selectable.
+        formation: t.formation ?? "4-3-3",
         academyRoster: t.academyRoster ?? [],
         compId,
         divisionConvergence: t.divisionConvergence ?? null,

@@ -3,7 +3,7 @@ import type { Player } from "../players/types.js";
 import type { MatchPlayer } from "../../engine/attribution.js";
 import type { League } from "./generate.js";
 import { resolveXI } from "../lineup/resolveXI.js";
-import { FORMATIONS } from "../lineup/formations.js";
+import { teamSlots } from "../lineup/formations.js";
 import { rollupComposites } from "../composites.js";
 import { normalizeLeague, computeNormStats, normalizeWith } from "./normalize.js";
 import { toMatchPlayers } from "./matchPlayers.js";
@@ -23,7 +23,7 @@ export interface TeamMatchData {
 }
 
 /**
- * Full pipeline: for each team, pick a default 4-3-3 XI, roll up raw composites,
+ * Full pipeline: for each team, pick its XI in its chosen formation, roll up raw composites,
  * then z-normalize across the league. Returns composites, the XI, and a bench
  * (best remaining players by ovr, capped at BENCH_SIZE) for in-match substitutions.
  * Injured players (gamesRemaining > 0) are excluded from both XI and bench selection.
@@ -34,7 +34,7 @@ export function leagueMatchData(league: League): TeamMatchData[] {
   const benches: Player[][] = [];
   const raw = league.teams.map((t) => {
     const roster = t.roster.map((pid) => byPid.get(pid)!).filter((p) => !p.injury);
-    const xi = resolveXI(roster, FORMATIONS["4-3-3"], t.starters);
+    const xi = resolveXI(roster, teamSlots(t), t.starters);
     xis.push(xi);
     const xiPids = new Set(xi.map((p) => p.pid));
     const bench = roster

@@ -4,7 +4,7 @@ import { transferWindowState } from "./window.js";
 import { departsAtRollover, isForSale, scoutedValue, windowSeed } from "./negotiation.js";
 import { scoutingNoiseSd } from "../finance/scouting.js";
 import { resolveXI } from "../lineup/resolveXI.js";
-import { FORMATIONS } from "../lineup/formations.js";
+import { teamSlots } from "../lineup/formations.js";
 import { mulberry32, gaussian } from "../../engine/rng.js";
 import { wouldRefuseExtension } from "../ai/breakoutRefusal.js";
 import {
@@ -74,7 +74,7 @@ export function recommendedTransfers(
   const rosterPlayers = user.roster
     .map((pid) => playerMap.get(pid))
     .filter((p): p is Player => p !== undefined);
-  const xi = resolveXI(rosterPlayers, FORMATIONS["4-3-3"], user.starters);
+  const xi = resolveXI(rosterPlayers, teamSlots(user), user.starters);
   const reference = xi.length === 11 ? xi : rosterPlayers;
   const teamAvg =
     reference.length > 0

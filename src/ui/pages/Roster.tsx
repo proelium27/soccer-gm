@@ -4,7 +4,7 @@ import { useLeague } from "../context/LeagueContext.js";
 import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
 import { resolveXI } from "../../core/lineup/resolveXI.js";
-import { FORMATIONS } from "../../core/lineup/formations.js";
+import { teamSlots, teamFormation, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { canExtend } from "../../core/contracts.js";
 import { keepsDepthFloor } from "../../core/freeAgency.js";
@@ -203,6 +203,7 @@ function RosterTable({
 export function Roster() {
   const {
     league, releasePlayerAction, extendContractAction, setTransferListedAction, setLineupAction,
+    setFormationAction,
   } = useLeague();
   const [dragOverPid, setDragOverPid] = useState<number | null>(null);
   const [dragOverSlotIndex, setDragOverSlotIndex] = useState<number | null>(null);
@@ -238,12 +239,13 @@ export function Roster() {
     rosterPids.has(p.pid),
   );
 
-  const slots = FORMATIONS["4-3-3"];
+  const formation = teamFormation(userTeam);
+  const slots = teamSlots(userTeam);
   const xi = resolveXI(players, slots, userTeam.starters);
   const starterPids = xi.map((p) => p.pid);
   const starterPidSet = new Set(starterPids);
   const bench = sortByPosThenOvr(players.filter((p) => !starterPidSet.has(p.pid)));
-  const teamRating = computeTeamRating(players, userTeam.starters);
+  const teamRating = computeTeamRating(players, userTeam.starters, slots);
 
   const hasStats = league.played.length > 0;
 
@@ -295,7 +297,30 @@ export function Roster() {
           <p className="text-muted small mb-1">
             Drag a bench player onto a pitch slot to swap them into the Starting XI.
           </p>
-          <h6 className="mt-3">Starting XI</h6>
+          <div className="d-flex align-items-center gap-3 mt-3 mb-1 flex-wrap">
+            <h6 className="mb-0">Starting XI</h6>
+            <div className="d-flex align-items-center gap-2">
+              <label htmlFor="formation-select" className="form-label mb-0 small text-muted">
+                Formation
+              </label>
+              <select
+                id="formation-select"
+                className="form-select form-select-sm"
+                style={{ width: "auto" }}
+                value={formation}
+                onChange={(e) => void setFormationAction(e.target.value as FormationId)}
+              >
+                {FORMATION_IDS.map((id) => (
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <p className="text-muted small mb-2">
+            Changing formation resets your Starting XI to the auto-picked best fit for the new shape.
+          </p>
           <div className="form-check form-switch mb-2">
             <input
               className="form-check-input"
@@ -312,6 +337,7 @@ export function Roster() {
           <PitchField
             starters={xi}
             slots={slots}
+            formation={formation}
             bench={bench}
             showDepthChart={showDepthChart}
             season={league.season}

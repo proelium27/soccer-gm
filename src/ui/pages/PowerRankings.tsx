@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { Player } from "../../core/players/types.js";
 import type { StoredTeam } from "../../core/teams/clubs.js";
-import { FORMATIONS } from "../../core/lineup/formations.js";
+import { teamSlots, teamFormation } from "../../core/lineup/formations.js";
 import { resolveXI } from "../../core/lineup/resolveXI.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { computeTeamForm } from "../../core/teams/powerRanking.js";
@@ -17,9 +17,6 @@ import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { sortByPosThenOvr } from "./Roster.js";
-
-const SLOTS = FORMATIONS["4-3-3"];
-const COORDS = layoutSlots(SLOTS);
 
 function shortName(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -42,7 +39,7 @@ export function PowerRankings() {
       const roster = team.roster
         .map((pid) => playerByPid.get(pid))
         .filter((p): p is Player => p !== undefined);
-      return { team, roster, rating: computeTeamRating(roster, team.starters) };
+      return { team, roster, rating: computeTeamRating(roster, team.starters, teamSlots(team)) };
     });
   const ovrByTid = new Map(withRatings.map(({ team, rating }) => [team.tid, rating.ovr]));
   const rankings = withRatings
@@ -179,7 +176,9 @@ function RosterPreview({
   if (roster.length === 0) {
     return <p className="text-muted mb-2">No players on roster.</p>;
   }
-  const xi = resolveXI(roster, SLOTS, team.starters);
+  const slots = teamSlots(team);
+  const coords = layoutSlots(teamFormation(team));
+  const xi = resolveXI(roster, slots, team.starters);
   const xiPids = new Set(xi.map((p) => p.pid));
   const bench = sortByPosThenOvr(roster.filter((p) => !xiPids.has(p.pid)));
 
@@ -189,7 +188,7 @@ function RosterPreview({
         <div className="pitch-goal pitch-goal--left" />
         <div className="pitch-goal pitch-goal--right" />
         {xi.map((p, i) => {
-          const coord = COORDS[i];
+          const coord = coords[i];
           return (
             <div
               key={p.pid}
