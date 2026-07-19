@@ -13,7 +13,7 @@ const USER_TID = 0;
 function runOnFresh(seed: number) {
   const league = createLeagueState(USER_TID, mulberry32(seed));
   const result = runAITransferMarket(
-    league.teams, league.players, league.transfers,
+    league.teams, league.players, league.activeLoans, league.transfers,
     league.season + 1, league.played, "summer", "offseason", USER_TID, 12345,
     league.competitions,
   );
@@ -70,7 +70,7 @@ describe("runAITransferMarket", () => {
   it("is deterministic for the same inputs and seed", () => {
     const { league } = runOnFresh(7);
     const args = [
-      league.teams, league.players, league.transfers,
+      league.teams, league.players, league.activeLoans, league.transfers,
       league.season + 1, league.played, "summer", "offseason", USER_TID, 999,
       league.competitions,
     ] as const;
@@ -109,6 +109,34 @@ describe("runAITransferMarket", () => {
     expect(aiBudgets.every((b) => b > 0)).toBe(true);
   });
 
+  it("never permanently sells a player who is out on loan (a borrowed player would be duplicated on loan return)", () => {
+    // A loaned player sits on the loanee's roster but is owned by his parent.
+    // If the loanee could sell him, processLoanReturns would later hand a copy
+    // back to the parent and the same pid would be on two rosters at once.
+    const { league } = runOnFresh(7);
+    const control = runAITransferMarket(
+      league.teams, league.players, league.activeLoans, league.transfers,
+      league.season + 1, league.played, "summer", "offseason", USER_TID, 12345,
+      league.competitions,
+    );
+    // The fresh-league market moves players, so there's a real deal to guard.
+    expect(control.transfers.length).toBeGreaterThan(0);
+    const victim = control.transfers[0];
+
+    // Flag exactly that player as on loan — borrowed by the club that just sold
+    // him — and re-run with an identical seed. He must no longer be sold.
+    const activeLoans = [{
+      pid: victim.pid, parentTid: -1, loaneeTid: victim.fromTid,
+      startSeason: league.season, seasons: 1 as const, returnSeason: league.season + 1, fee: 0,
+    }];
+    const guarded = runAITransferMarket(
+      league.teams, league.players, activeLoans, league.transfers,
+      league.season + 1, league.played, "summer", "offseason", USER_TID, 12345,
+      league.competitions,
+    );
+    expect(guarded.transfers.some((t) => t.pid === victim.pid)).toBe(false);
+  });
+
   it("routes a clearly-surplus striker to a club that badly needs one", () => {
     // Seed 2, not 1 or 3: progression's new shared "form" noise draw shifts
     // every downstream rng() call (documented RNG-stream-order fragility),
@@ -144,7 +172,7 @@ describe("runAITransferMarket", () => {
     });
 
     const result = runAITransferMarket(
-      teams, players, [], league.season, [], "winter", "regular", USER_TID, 42,
+      teams, players, [], [], league.season, [], "winter", "regular", USER_TID, 42,
       league.competitions,
     );
 

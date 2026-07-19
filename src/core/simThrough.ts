@@ -193,7 +193,7 @@ export function simThrough(
       matchday <= TRANSFER_DEADLINE_MATCHDAY
     ) {
       const market = runAITransferMarket(
-        currentTeams, currentPlayers, transfers, league.season,
+        currentTeams, currentPlayers, activeLoans, transfers, league.season,
         [...league.played, ...newResults], "winter", "regular",
         league.meta.userTid, hashInts(league.lid, league.season, 8), league.competitions,
       );

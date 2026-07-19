@@ -163,7 +163,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      qualifies either time).
   let ceilingTransfers = loanReturns.transfers;
   ({ teams, transfers: ceilingTransfers } = enforceDivision2Ceiling(
-    teams, players, ceilingTransfers, nextSeason, league.meta.userTid, league.competitions,
+    teams, players, activeLoans, ceilingTransfers, nextSeason, league.meta.userTid, league.competitions,
   ));
 
   // 4. AI free agency fills roster holes (worst team picks first, within
@@ -211,7 +211,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      no division filtering here, see design doc).
   const marketSeed = hashInts(league.lid, nextSeason, 7);
   const summerMarket = runAITransferMarket(
-    teams, players, ceilingTransfers, nextSeason, league.played,
+    teams, players, activeLoans, ceilingTransfers, nextSeason, league.played,
     "summer", "offseason", league.meta.userTid, marketSeed, league.competitions,
   );
   teams = summerMarket.teams;
@@ -227,7 +227,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      relegated clubs simply keeping their existing strong rosters, not
   //      anything a market mechanic alone can fix).
   const { teams: ceilingTeams, transfers: postCeilingTransfers } = enforceDivision2Ceiling(
-    teams, players, summerMarket.transfers, nextSeason, league.meta.userTid, league.competitions,
+    teams, players, activeLoans, summerMarket.transfers, nextSeason, league.meta.userTid, league.competitions,
   );
   teams = ceilingTeams;
 
