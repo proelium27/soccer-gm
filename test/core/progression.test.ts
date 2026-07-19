@@ -6,7 +6,7 @@ import {
   isGenerational,
 } from "../../src/core/players/progression.js";
 import { computeOvr } from "../../src/core/players/ovr.js";
-import type { PlayerRatings } from "../../src/core/players/types.js";
+import type { Player, PlayerRatings } from "../../src/core/players/types.js";
 import { RETIREMENT_START_AGE, RATING_MAX } from "../../src/core/constants.js";
 
 const flatRatings = (v: number): PlayerRatings => ({
@@ -292,7 +292,7 @@ describe("generational talents", () => {
     const template = generatePlayer(mulberry32(11), "CM", 24, 999, 16, 2026);
     const careerPeak = (pid: number, seed: number): number => {
       const rng = mulberry32(seed);
-      let p = { ...template, pid, stats: [], hist: [] };
+      let p: Player = { ...template, pid, stats: [], hist: [] };
       let peak = p.ovr;
       for (let season = 2027; season <= 2044; season++) {
         p = progressPlayer(rng, p, season, true);
