@@ -9,6 +9,8 @@ import {
   PROGRESSION_FORM_SD_YOUNG, PROGRESSION_FORM_SD_OLD,
   PROGRESSION_BIAS_SD_YOUNG,
   GROWTH_DAMPING_START, GROWTH_DAMPING_END, GROWTH_DAMPING_FLOOR,
+  GENERATIONAL_CHANCE, GENERATIONAL_DAMPING_END, GENERATIONAL_DAMPING_FLOOR,
+  GENERATIONAL_BIAS_MIN_Z,
   POTENTIAL_SIM_TRIALS, POTENTIAL_SIM_MAX_AGE, POTENTIAL_SIM_PERCENTILE,
   RATING_MIN, RATING_MAX,
   RETIREMENT_START_AGE, RETIREMENT_BASE_PROB, RETIREMENT_PROB_PER_YEAR,
@@ -16,6 +18,20 @@ import {
 
 /** Salt distinguishing this hash use from other pid-keyed hashes (e.g. identity rng). */
 const DEV_BIAS_SALT = 0x4445_5642; // "DEVB"
+/** Salt for the generational-talent flag (must differ from every other pid-keyed salt). */
+const GENERATIONAL_SALT = 0x4745_4E54; // "GENT"
+
+/**
+ * Whether this player is a once-in-a-generation talent — a fixed, hidden
+ * trait derived deterministically from pid (same pattern as developmentBias:
+ * never drawn from the shared rng stream, so introducing it shifts nothing
+ * else). Generational players develop under a much softer growth-damping
+ * curve (see GENERATIONAL_* in constants.ts) and can genuinely reach the
+ * 90+ OVR range the normal curve makes unreachable.
+ */
+export function isGenerational(pid: number): boolean {
+  return mulberry32(hashInts(GENERATIONAL_SALT, pid))() < GENERATIONAL_CHANCE;
+}
 
 /**
  * A player's fixed development "personality": a standard-normal z-score
@@ -93,11 +109,15 @@ function biasSdAt(young: number, age: number): number {
  * player already is to elite, independent of age. 1 (no damping) at/below
  * the start of the range, GROWTH_DAMPING_FLOOR at/above the end.
  */
-function growthDamping(ovr: number): number {
+function growthDamping(ovr: number, generational: boolean): number {
+  // Generational talents damp on a much softer curve (same start, far higher
+  // end and floor) — elite is resistible, legendary is merely rare.
+  const end = generational ? GENERATIONAL_DAMPING_END : GROWTH_DAMPING_END;
+  const floor = generational ? GENERATIONAL_DAMPING_FLOOR : GROWTH_DAMPING_FLOOR;
   if (ovr <= GROWTH_DAMPING_START) return 1;
-  if (ovr >= GROWTH_DAMPING_END) return GROWTH_DAMPING_FLOOR;
-  const t = (ovr - GROWTH_DAMPING_START) / (GROWTH_DAMPING_END - GROWTH_DAMPING_START);
-  return 1 - t * (1 - GROWTH_DAMPING_FLOOR);
+  if (ovr >= end) return floor;
+  const t = (ovr - GROWTH_DAMPING_START) / (end - GROWTH_DAMPING_START);
+  return 1 - t * (1 - floor);
 }
 
 /**
@@ -132,8 +152,15 @@ function stepRatings(
   const noiseSd = sdAt(PROGRESSION_NOISE_SD_YOUNG, PROGRESSION_NOISE_SD_OLD, age);
   const formSd = sdAt(PROGRESSION_FORM_SD_YOUNG, PROGRESSION_FORM_SD_OLD, age);
   const biasSd = biasSdAt(PROGRESSION_BIAS_SD_YOUNG, age);
-  const bias = developmentBias(pid) * biasSd;
-  const damping = growthDamping(computeOvr(pos, ratings, heightCm));
+  const generational = isGenerational(pid);
+  // A generational talent's development personality is floored at a solidly
+  // positive z — never a total bust, though per-season form rolls still vary
+  // (a slump season stays possible; the trend doesn't).
+  const biasZ = generational
+    ? Math.max(developmentBias(pid), GENERATIONAL_BIAS_MIN_Z)
+    : developmentBias(pid);
+  const bias = biasZ * biasSd;
+  const damping = growthDamping(computeOvr(pos, ratings, heightCm), generational);
   const next = { ...ratings };
   for (const [group, shift] of [
     [PHYSICAL_KEYS, gkShift + PHYSICAL_AGE_SHIFT],

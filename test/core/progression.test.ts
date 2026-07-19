@@ -3,9 +3,10 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { generatePlayer } from "../../src/core/players/generate.js";
 import {
   ageOf, progressPlayer, retirementProbability, rollRetirement, estimatePotential,
+  isGenerational,
 } from "../../src/core/players/progression.js";
 import { computeOvr } from "../../src/core/players/ovr.js";
-import type { PlayerRatings } from "../../src/core/players/types.js";
+import type { Player, PlayerRatings } from "../../src/core/players/types.js";
 import { RETIREMENT_START_AGE, RATING_MAX } from "../../src/core/constants.js";
 
 const flatRatings = (v: number): PlayerRatings => ({
@@ -260,5 +261,55 @@ describe("rollRetirement", () => {
     const rng = mulberry32(1);
     const p = generatePlayer(rng, "ST", 55, 1, 21, 1);
     expect(rollRetirement(rng, p, 1)).toBe(false);
+  });
+});
+
+describe("generational talents", () => {
+  it("isGenerational is deterministic and rare (~1 in 2500)", () => {
+    let count = 0;
+    for (let pid = 0; pid < 200_000; pid++) {
+      if (isGenerational(pid)) count++;
+    }
+    // Expected 80 at 1/2500; allow generous hash noise either side.
+    expect(count).toBeGreaterThan(40);
+    expect(count).toBeLessThan(140);
+    // Deterministic: same pid, same answer.
+    expect(isGenerational(12345)).toBe(isGenerational(12345));
+  });
+
+  it("a generational kid's career peaks far above an otherwise-identical normal kid's", () => {
+    // Find one flagged pid and one unflagged pid, then run the same
+    // 16-year-old template through full careers under each identity with
+    // identical rng seeds — only the pid (and therefore the generational
+    // flag + development bias) differs.
+    let genPid = -1;
+    for (let pid = 0; pid < 100_000 && genPid < 0; pid++) {
+      if (isGenerational(pid)) genPid = pid;
+    }
+    expect(genPid).toBeGreaterThanOrEqual(0);
+    const normalPid = isGenerational(1) ? 2 : 1;
+
+    const template = generatePlayer(mulberry32(11), "CM", 24, 999, 16, 2026);
+    const careerPeak = (pid: number, seed: number): number => {
+      const rng = mulberry32(seed);
+      let p: Player = { ...template, pid, stats: [], hist: [] };
+      let peak = p.ovr;
+      for (let season = 2027; season <= 2044; season++) {
+        p = progressPlayer(rng, p, season, true);
+        if (p.ovr > peak) peak = p.ovr;
+      }
+      return peak;
+    };
+
+    const trials = 8;
+    let genSum = 0;
+    let normSum = 0;
+    for (let i = 0; i < trials; i++) {
+      genSum += careerPeak(genPid, 100 + i);
+      normSum += careerPeak(normalPid, 100 + i);
+    }
+    // Tuned so generational careers peak at a median ~80 vs ~46 for the same
+    // kid unflagged — demand a wide, unambiguous margin, not a tie-breaker.
+    expect(genSum / trials).toBeGreaterThan(normSum / trials + 10);
   });
 });

@@ -122,6 +122,32 @@ export const ACADEMY_BASE_CENTER_BY_TIER: Record<1 | 2, number> = {
 export const NORMALIZE_K = 0.08;
 
 /**
+ * Historic team seasons ("extremism", 2026-07-19, user ask): each club, each
+ * season, has a small chance of a hidden season-long form swing — a dream
+ * season (+TEAM_SEASON_FORM_DELTA on every normalized composite) or a season
+ * from hell (−the same), derived deterministically from
+ * hash(lid, season, tid) so it needs no schema change, survives any save
+ * batching, and re-rolls every season. Applied when simThrough builds each
+ * matchday's TeamMatchData (so league matches and cup ties both feel it);
+ * ratings, valuations, and wages are untouched — it's purely on-pitch, so
+ * standings/hype/prize money respond naturally and there are no market side
+ * effects. The user's club is eligible like any other (user call:
+ * symmetric). For scale: composites are 0-1 with 0.5 = average and
+ * NORMALIZE_K (0.08) per z-score of true squad strength, so a delta of 0.12
+ * ≈ ±1.5 z ≈ a mid-table squad playing like a title contender (or a
+ * relegation corpse) for one season. Tuned against a 30-season world audit
+ * with a form-disabled control on the same seed: 0.06 was a no-op at the
+ * table level (5 champions with 90+ points vs the control's organic 3);
+ * 0.12 lands 8 with a best of 100 points — a real "invincibles"-tier
+ * campaign somewhere in the world every ~4 seasons — while champion churn
+ * (14-18 distinct D1 winners/30 seasons) and the OVR equilibrium stay
+ * intact. Probability is per direction (so ~3% of club-seasons total are
+ * historic; in a 20-club division, one roughly every other season).
+ */
+export const TEAM_SEASON_FORM_PROB = 0.015;
+export const TEAM_SEASON_FORM_DELTA = 0.12;
+
+/**
  * Std dev of per-player, per-rating gaussian noise. Widened 6→8 alongside the
  * LEAGUE_BASE/TEAM_STRENGTH_SPREAD retune above, so a real elite (80-85+)
  * outlier tail exists from generation itself instead of only emerging after
@@ -376,6 +402,32 @@ export const PROGRESSION_BIAS_SD_YOUNG = 3;
 export const GROWTH_DAMPING_START = 65;
 export const GROWTH_DAMPING_END = 80;
 export const GROWTH_DAMPING_FLOOR = 0.02;
+
+/**
+ * Generational talents ("extremism", 2026-07-19, user ask): the damping above
+ * deliberately makes 90+ OVR unreachable — stable, but it means the game can
+ * never produce a Messi/Haaland-tier legend. A tiny fraction of players are
+ * flagged *generational*, derived deterministically from pid via a salted
+ * hash (the developmentBias pattern — consumes zero shared rng, no schema
+ * change, no migration): for them growth damping relaxes to the
+ * GENERATIONAL_DAMPING_* curve (still damped, just with real headroom to
+ * ~90+), and their development bias z-score is floored at
+ * GENERATIONAL_BIAS_MIN_Z so a generational kid is always at least a decent
+ * developer — though form rolls still vary season to season, so the arc is a
+ * story, not a script. GENERATIONAL_CHANCE is per player ever generated;
+ * youth intake runs ~500-650 players/season world-wide, so 1/2500 ≈ one new
+ * generational talent somewhere in the world every ~4-5 seasons. Tuned
+ * empirically (200-trial career sims per template kid): announced kids peak
+ * at a median ~80 OVR, ~30% reach 85+, ~13% reach 90+ (max observed 96) —
+ * so a genuine 90+ legend emerges roughly once every ~30 seasons, while an
+ * identical kid without the flag never passed 79 in the same trials. Rare
+ * enough that the league-wide OVR equilibrium (audited at length above) is
+ * undisturbed; his arrival is announced on the News Feed.
+ */
+export const GENERATIONAL_CHANCE = 1 / 2500;
+export const GENERATIONAL_DAMPING_END = 95;
+export const GENERATIONAL_DAMPING_FLOOR = 0.6;
+export const GENERATIONAL_BIAS_MIN_Z = 1.5;
 
 /**
  * Potential (BBGM-style): a scout's *estimate*, not a growth driver. It plays

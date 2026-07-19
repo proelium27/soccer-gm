@@ -6,7 +6,8 @@ export type NewsEventType =
   | "hattrick"
   | "standoutRating"
   | "goalMilestoneSeason"
-  | "goalMilestoneCareer";
+  | "goalMilestoneCareer"
+  | "generationalTalent";
 
 /**
  * A player accomplishment surfaced on the News Feed, interleaved there with
@@ -22,7 +23,9 @@ export interface NewsEvent {
   /**
    * Interpreted per `type`: hattrick = goals scored this match;
    * standoutRating = rating × 10 (integer); goalMilestoneSeason /
-   * goalMilestoneCareer = the milestone crossed (10, 20, 30...).
+   * goalMilestoneCareer = the milestone crossed (10, 20, 30...);
+   * generationalTalent = the player's age at arrival (matchday is 0 —
+   * announced with the new season's youth intake, before matchday 1).
    */
   detail: number;
 }

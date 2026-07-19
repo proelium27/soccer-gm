@@ -15,6 +15,7 @@ const EVENT_LABEL: Record<NewsEventType, string> = {
   standoutRating: "⭐ Standout performance",
   goalMilestoneSeason: "🎯 Season milestone",
   goalMilestoneCareer: "🎯 Career milestone",
+  generationalTalent: "💎 Generational talent",
 };
 
 function eventDetail(e: NewsEvent): string {
@@ -27,6 +28,8 @@ function eventDetail(e: NewsEvent): string {
       return `${e.detail} goals this season`;
     case "goalMilestoneCareer":
       return `${e.detail} career goals`;
+    case "generationalTalent":
+      return `once-in-a-generation prospect joins the academy, age ${e.detail}`;
   }
 }
 

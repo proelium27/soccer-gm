@@ -2,7 +2,8 @@ import type { LeagueStore } from "./leagueState.js";
 import type { Player } from "./players/types.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import type { Competition } from "./competitions.js";
-import { progressPlayer, rollRetirement } from "./players/progression.js";
+import { progressPlayer, rollRetirement, isGenerational } from "./players/progression.js";
+import type { NewsEvent } from "./newsEvents.js";
 import { generateYouthIntake } from "./players/youth.js";
 import {
   releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
@@ -178,6 +179,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //    generation-time strength (academyBase — see promotion.ts for how it
   //    moves after a division swap).
   let nextPid = Math.max(0, ...players.map((p) => p.pid)) + 1;
+  const generationalEvents: NewsEvent[] = [];
   teams = teams.map((t) => {
     const genSeed = hashInts(league.lid, nextSeason, t.tid, 2);
     const homeCountry = competitionOf(league.competitions, t.compId).country;
@@ -185,6 +187,17 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       rng, t.academyBase, nextSeason, nextPid, genSeed, homeCountry,
     );
     nextPid = updatedNextPid;
+    // A generational talent arriving through any club's youth intake is
+    // league-wide news — the pid-hash flag is checked here (not rolled), so
+    // this reads the same trait progression will use for his whole career.
+    for (const p of youth) {
+      if (isGenerational(p.pid)) {
+        generationalEvents.push({
+          type: "generationalTalent", pid: p.pid, tid: t.tid,
+          season: nextSeason, matchday: 0, detail: nextSeason - p.born,
+        });
+      }
+    }
     if (t.tid === league.meta.userTid) {
       const academyTerms = academyContractTerms(nextSeason);
       for (const p of youth) {
@@ -286,6 +299,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     transfers: finalTransfers,
     activeLoans,
     loanListings,
+    newsEvents: [...league.newsEvents, ...generationalEvents],
     winterMarketRunSeason: null,
     // Archive the season's completed Continental Cup and seed the next one
     // from the tier-1 tables just decided above (top CUP_TEAMS_PER_LEAGUE of

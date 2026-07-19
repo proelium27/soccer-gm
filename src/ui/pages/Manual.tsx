@@ -121,9 +121,18 @@ export function Manual() {
         <Section id="season" title="The Season & Simming">
           <p>
             A season is a double round-robin: 38 matchdays from August to May, every club playing
-            every other home and away. Win = 3 points, draw = 1. There are no cups or continental
-            competitions (yet) — the league is the whole calendar. Every save's first season is
-            displayed as 2026, advancing one year each time you go to the offseason.
+            every other home and away. Win = 3 points, draw = 1. Alongside the league, the world's
+            best clubs contest the <a href="#cup">Continental Cup</a> on fixed matchdays. Every
+            save's first season is displayed as 2026, advancing one year each time you go to the
+            offseason.
+          </p>
+          <p>
+            <strong>Historic seasons.</strong> Very occasionally, a club's whole season just
+            clicks — or falls apart. A rare hidden form swing can carry a squad well above (or
+            below) what its ratings say for one season only: the source of the runaway
+            record-points champion, and of the collapse nobody saw coming. It's season-long and
+            season-scoped — ratings, values, and wages are untouched, and next year the club is
+            back to its true level. Your club is as eligible as any other, in both directions.
           </p>
           <p>
             You sim from the Dashboard in chunks: one matchday, one month, or straight to the next
@@ -304,6 +313,18 @@ export function Manual() {
           <p>
             Retirement becomes possible at 33 and grows more likely each year after. Declining
             veterans and marginal players go first; a still-elite 34-year-old may well play on.
+          </p>
+          <p>
+            <strong>Generational talents.</strong> Development normally gets much harder the
+            better a player already is — that resistance is what keeps the league's elite tier
+            genuinely rare. But every once in a long while (think years, not seasons), a youth
+            prospect arrives somewhere in the world who is simply built different: development
+            resistance barely applies to him, and he can genuinely climb to heights no ordinary
+            player reaches. His arrival makes the News Feed, and scouts will see the unusual
+            ceiling in his potential estimate. It's a trajectory, not a guarantee — a rough run
+            of seasons can still leave him merely very good — but these players are where the
+            game's true legends come from. If one lands in <em>your</em> academy, treat him
+            accordingly.
           </p>
         </Section>
 
