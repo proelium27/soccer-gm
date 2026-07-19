@@ -2,8 +2,10 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
-import { computeClubHistory, type ClubIndividualHonour } from "../../core/clubHistory.js";
+import { computeClubHistory, type ClubIndividualHonour, type ClubSeasonRecord } from "../../core/clubHistory.js";
 import { competitionOf, countriesOf } from "../../core/competitions.js";
+import { worldHasCup, cupRoundName } from "../../core/cup/cup.js";
+import { CUP_FINAL_ROUND } from "../../core/constants.js";
 import type { Player } from "../../core/players/types.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
@@ -16,6 +18,13 @@ function TrophyIcon({ size = 18 }: { size?: number }) {
       <path d="M18 3h3v3a4 4 0 0 1-4 4h-.35A6 6 0 0 1 13 13.9V16h2a3 3 0 0 1 3 3v2H6v-2a3 3 0 0 1 3-3h2v-2.1A6 6 0 0 1 7.35 10H7a4 4 0 0 1-4-4V3h3V2h12v1zM6 5H5v1a2 2 0 0 0 1 1.73V5zm13 0h-1v2.73A2 2 0 0 0 19 6V5z" />
     </svg>
   );
+}
+
+/** Short label for a club's Continental Cup run in one season, e.g. "Cup Winners". */
+function cupRunNote(cupRun: ClubSeasonRecord["cupRun"]): string | null {
+  if (!cupRun) return null;
+  if (cupRun.round === CUP_FINAL_ROUND) return cupRun.wonRound ? "Cup Winners" : "Cup Runners-up";
+  return `Cup ${cupRoundName(cupRun.round)}`;
 }
 
 function StatCard({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
@@ -88,6 +97,7 @@ export function ClubHistory() {
   const playersByPid = new Map(league.players.map((p) => [p.pid, p]));
 
   const countries = countriesOf(league.competitions);
+  const hasCup = worldHasCup(league.competitions);
 
   const titleYears = (seasons: number[]) => seasons.map((s) => seasonYear(s)).join(", ");
 
@@ -142,6 +152,21 @@ export function ClubHistory() {
                 sub={history.leagueTitles.length > 0 ? titleYears(history.leagueTitles) : "—"}
               />
             </div>
+            {hasCup && (
+              <div className="col-6 col-md-3">
+                <StatCard
+                  label="Continental Cups"
+                  value={history.cupTitles.length}
+                  sub={
+                    history.cupTitles.length > 0
+                      ? titleYears(history.cupTitles)
+                      : history.cupFinals.length > 0
+                        ? `${history.cupFinals.length} final${history.cupFinals.length === 1 ? "" : "s"} lost`
+                        : "—"
+                  }
+                />
+              </div>
+            )}
             <div className="col-6 col-md-3">
               <StatCard
                 label="2nd-Tier Titles"
@@ -244,6 +269,8 @@ export function ClubHistory() {
                 if (s.champion) notes.push(s.tier === 1 ? "Champions" : "Div 2 Champions");
                 if (s.promoted) notes.push("Promoted");
                 if (s.relegated) notes.push("Relegated");
+                const cupNote = cupRunNote(s.cupRun);
+                if (cupNote) notes.push(cupNote);
                 return (
                   <tr key={s.season} className={s.champion && s.tier === 1 ? "champion-highlight" : undefined}>
                     <td>{seasonYear(s.season)}</td>

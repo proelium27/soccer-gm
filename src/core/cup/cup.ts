@@ -134,6 +134,25 @@ export function dueCupRound(cup: CupState, matchday: number): number | null {
   return matchday >= CUP_ROUND_MATCHDAYS[r] ? r : null;
 }
 
+/**
+ * One club's run in a single cup: the furthest round it appeared in and whether
+ * it won that round's tie (so a caller can distinguish champion / runner-up /
+ * eliminated-at-round). Null if the club didn't qualify for this cup.
+ */
+export function clubCupRun(cup: CupState, tid: number): { round: number; wonRound: boolean } | null {
+  if (!cup.teams.includes(tid)) return null;
+  let round = -1;
+  let wonRound = false;
+  for (const tie of cup.ties) {
+    if ((tie.home === tid || tie.away === tid) && tie.round > round) {
+      round = tie.round;
+      wonRound = tie.winner === tid;
+    }
+  }
+  if (round < 0) return null; // qualified but no tie played yet (in-progress cup)
+  return { round, wonRound };
+}
+
 /** Display name for a round index (0 = Round of 16 … CUP_FINAL_ROUND = Final). */
 export function cupRoundName(round: number): string {
   const teamsInRound = 2 ** (CUP_ROUNDS - round);

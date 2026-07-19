@@ -5,6 +5,8 @@ import type { StandingsRow, SeasonHistoryEntry } from "../../src/core/standings.
 import type { SeasonAwards } from "../../src/core/awards.js";
 import type { Player } from "../../src/core/players/types.js";
 import { englandCompetitions } from "../../src/core/competitions.js";
+import type { CupState, CupTie } from "../../src/core/cup/types.js";
+import { CUP_FINAL_ROUND } from "../../src/core/constants.js";
 
 // Minimal StandingsRow with sensible defaults.
 function row(tid: number, points: number, won = points / 3, extra: Partial<StandingsRow> = {}): StandingsRow {
@@ -42,13 +44,23 @@ function makeLeague(
   history: SeasonHistoryEntry[],
   teams: { tid: number; compId: number }[],
   players: Player[],
+  cupHistory: CupState[] = [],
 ): LeagueStore {
   return {
     competitions: englandCompetitions(),
     seasonHistory: history,
     teams,
     players,
+    cupHistory,
   } as unknown as LeagueStore;
+}
+
+function cupTie(round: number, home: number, away: number, winner: number): CupTie {
+  return { round, home, away, winner } as unknown as CupTie;
+}
+
+function cup(season: number, teams: number[], ties: CupTie[]): CupState {
+  return { season, teams, ties } as unknown as CupState;
 }
 
 describe("computeClubHistory", () => {
@@ -115,6 +127,40 @@ describe("computeClubHistory", () => {
     expect(h.secondTierTitles).toEqual([2]); // won tier-2 in season 2
     expect(h.totals.played).toBe(76); // 38 * 2 seasons
     expect(h.mostPoints!.points).toBeGreaterThan(0);
+  });
+
+  it("records Continental Cup titles, finals lost, and eliminations per season", () => {
+    // Club 7 plays three seasons: wins the cup, loses the final, then goes out in the semis.
+    const history = [
+      entry(1, { 0: [7, 1, 2] }, { 0: noAwards }),
+      entry(2, { 0: [7, 1, 2] }, { 0: noAwards }),
+      entry(3, { 0: [7, 1, 2] }, { 0: noAwards }),
+    ];
+    const cups = [
+      cup(1, [7, 8], [cupTie(CUP_FINAL_ROUND, 7, 8, 7)]), // won the final
+      cup(2, [7, 8], [cupTie(CUP_FINAL_ROUND, 7, 8, 8)]), // lost the final
+      cup(3, [7, 8], [cupTie(CUP_FINAL_ROUND - 1, 7, 8, 8)]), // out in the semis
+    ];
+    const league = makeLeague(history, [{ tid: 7, compId: 0 }], [], cups);
+    const h = computeClubHistory(league, 7);
+
+    expect(h.cupTitles).toEqual([1]);
+    expect(h.cupFinals).toEqual([2]);
+    // Per-season cup runs, newest first (seasons 3, 2, 1).
+    expect(h.seasons[0].cupRun).toEqual({ round: CUP_FINAL_ROUND - 1, wonRound: false });
+    expect(h.seasons[1].cupRun).toEqual({ round: CUP_FINAL_ROUND, wonRound: false });
+    expect(h.seasons[2].cupRun).toEqual({ round: CUP_FINAL_ROUND, wonRound: true });
+  });
+
+  it("leaves cup runs null when the club didn't qualify or no cup ran", () => {
+    const history = [entry(1, { 0: [7, 1, 2] }, { 0: noAwards })];
+    // A cup that season, but club 7 isn't in it.
+    const cups = [cup(1, [1, 2], [cupTie(CUP_FINAL_ROUND, 1, 2, 1)])];
+    const league = makeLeague(history, [{ tid: 7, compId: 0 }], [], cups);
+    const h = computeClubHistory(league, 7);
+    expect(h.cupTitles).toEqual([]);
+    expect(h.cupFinals).toEqual([]);
+    expect(h.seasons[0].cupRun).toBeNull();
   });
 
   it("returns an empty history when no seasons are completed", () => {
