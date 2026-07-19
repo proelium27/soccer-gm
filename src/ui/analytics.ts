@@ -1,4 +1,5 @@
 import { track } from "@vercel/analytics";
+import posthog from "posthog-js";
 
 // Custom gameplay events reported to Vercel Web Analytics.
 //
@@ -34,6 +35,18 @@ export interface GameEvents {
   formation_changed: { formation: string };
   /** The user listed one of their players for loan. */
   player_loaned_out: { seasons: 1 | 2 | 3 };
+  /** The user released a player from their senior roster. */
+  player_released: Record<string, never>;
+  /** The user extended a player's contract on their senior roster. */
+  contract_extended: Record<string, never>;
+  /** The user signed a prospect to their youth academy. */
+  player_signed_to_academy: Record<string, never>;
+  /** The user promoted an academy player to the senior roster. */
+  player_promoted_from_academy: Record<string, never>;
+  /** The user accepted an AI club's loan offer for one of their listed players. */
+  loan_offer_accepted: Record<string, never>;
+  /** The user imported a save file. */
+  league_imported: Record<string, never>;
 }
 
 /**
@@ -48,6 +61,11 @@ export function trackEvent<K extends keyof GameEvents>(
 ): void {
   try {
     track(name, props[0]);
+  } catch {
+    // Analytics must never break the game.
+  }
+  try {
+    posthog.capture(name, props[0]);
   } catch {
     // Analytics must never break the game.
   }

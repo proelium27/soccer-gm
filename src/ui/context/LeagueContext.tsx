@@ -277,6 +277,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     const player = l.players.find((p) => p.pid === pid);
     const team = l.teams.find((t) => t.roster.includes(pid));
     if (player && team && wouldRefuseExtension(player, team, l.competitions)) return null;
+    trackEvent("contract_extended");
     return { ...l, players: extendContract(l.players, pid, l.season, lengthSeasons) };
   }), [mutate]);
 
@@ -287,6 +288,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const releasePlayerAction = useCallback((pid: number) => mutate((l) => {
     const teams = releasePlayer(l.teams, l.players, l.meta.userTid, pid);
     if (teams === l.teams) return null;
+    trackEvent("player_released");
     return { ...l, teams };
   }), [mutate]);
 
@@ -295,6 +297,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       l.teams, l.players, l.meta.userTid, pid, l.season, l.phase,
     );
     if (teams === l.teams && players === l.players) return null;
+    trackEvent("player_signed_to_academy");
     return { ...l, teams, players };
   }), [mutate]);
 
@@ -303,6 +306,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       l.teams, l.players, l.meta.userTid, pid, l.season, l.phase,
     );
     if (teams === l.teams && players === l.players) return null;
+    trackEvent("player_promoted_from_academy");
     return { ...l, teams, players };
   }), [mutate]);
 
@@ -329,7 +333,11 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   ), [mutate]);
 
   const acceptLoanOfferAction = useCallback((pid: number) => mutate(
-    (l) => acceptLoanOffer(l, pid),
+    (l) => {
+      const updated = acceptLoanOffer(l, pid);
+      if (updated && updated !== l) trackEvent("loan_offer_accepted");
+      return updated;
+    },
   ), [mutate]);
 
   const rejectLoanOfferAction = useCallback((pid: number) => mutate(

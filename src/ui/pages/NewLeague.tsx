@@ -81,6 +81,7 @@ export function NewLeague() {
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
+      trackEvent("league_imported");
       await importJSON(file);
       e.target.value = "";
       navigate("/dashboard");
