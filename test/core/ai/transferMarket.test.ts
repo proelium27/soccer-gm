@@ -3,7 +3,8 @@ import { mulberry32 } from "../../../src/engine/rng.js";
 import { createLeagueState } from "../../../src/core/leagueState.js";
 import { runAITransferMarket } from "../../../src/core/ai/transferMarket.js";
 import { keepsDepthFloor } from "../../../src/core/freeAgency.js";
-import { ROSTER_CAP } from "../../../src/core/constants.js";
+import { ROSTER_CAP, DIVISION_2_REFUSAL_OVR_THRESHOLD } from "../../../src/core/constants.js";
+import { tierOf } from "../../../src/core/competitions.js";
 import type { StoredTeam } from "../../../src/core/teams/clubs.js";
 import type { Player } from "../../../src/core/players/types.js";
 
@@ -48,12 +49,16 @@ describe("runAITransferMarket", () => {
     // (clampBudget). At world scale (120 clubs, more transfers per window)
     // that clamp is more likely to fire mid-run than it was at 40-club scale,
     // even though no club's *final* budget sits at the cap. This is a fixed
-    // seed, so the real loss is deterministic (~$481,596 for seed 7) — bound
-    // tightly around that rather than a loose percentage of the league's
-    // total budget, which at world scale (~$8.2B) would be loose enough to
-    // hide a real double-credit/double-spend regression worth 10-100x this.
+    // seed, so the real loss is deterministic — measured ~$13.3M for seed 7
+    // since the tier-2 elite-buy guard landed (elite fees now always route to
+    // tier-1 sellers, which sit nearer their budget caps, so more of a big
+    // fee gets clamped away; it was ~$482k pre-guard). Bound around that
+    // measurement rather than a loose percentage of the league's total
+    // budget (~$8.2B), which would be loose enough to hide a real
+    // double-credit/double-spend regression. Creation stays exactly banned
+    // by the first assertion either way.
     expect(after).toBeLessThanOrEqual(before + 0.01);
-    expect(before - after).toBeLessThan(2_000_000);
+    expect(before - after).toBeLessThan(20_000_000);
   });
 
   it("never involves the user's club, and leaves the user roster untouched", () => {
@@ -135,6 +140,32 @@ describe("runAITransferMarket", () => {
       league.competitions,
     );
     expect(guarded.transfers.some((t) => t.pid === victim.pid)).toBe(false);
+  });
+
+  it("never sells a player at/above the D2 ceiling threshold to a tier-2 club", () => {
+    // Prevention twin of the ceiling sweep: a tier-2 club buying a >=70 ovr
+    // player would just have him confiscated back to tier 1 (summer) or host
+    // him illegally for half a season (winter). Verified load-bearing by
+    // neutering the guard: without it this same fresh-league market sells
+    // ~40 elite players into tier-2 clubs per window; with it, zero.
+    const { league, result } = runOnFresh(7);
+    const ovrByPid = new Map(league.players.map((p) => [p.pid, p.ovr]));
+    const tierOfTid = (tid: number) =>
+      tierOf(league.competitions, league.teams.find((t) => t.tid === tid)!.compId);
+
+    const eliteToT2 = result.transfers.filter(
+      (t) => (ovrByPid.get(t.pid) ?? 0) >= DIVISION_2_REFUSAL_OVR_THRESHOLD && tierOfTid(t.toTid) === 2,
+    );
+    expect(eliteToT2).toEqual([]);
+
+    // Non-vacuous: elite players do move (to tier-1 clubs), and tier-2 clubs
+    // do actively buy (sub-threshold players) — only the combination is banned.
+    expect(result.transfers.some(
+      (t) => (ovrByPid.get(t.pid) ?? 0) >= DIVISION_2_REFUSAL_OVR_THRESHOLD && tierOfTid(t.toTid) === 1,
+    )).toBe(true);
+    expect(result.transfers.some(
+      (t) => (ovrByPid.get(t.pid) ?? 0) < DIVISION_2_REFUSAL_OVR_THRESHOLD && tierOfTid(t.toTid) === 2,
+    )).toBe(true);
   });
 
   it("routes a clearly-surplus striker to a club that badly needs one", () => {

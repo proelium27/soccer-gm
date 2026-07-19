@@ -472,9 +472,12 @@ export function Manual() {
             duration you chose; accept one and the move executes immediately, or reject to keep
             looking. The <strong>loanee club pays the fee up front and covers his wages for the
             whole loan</strong> — his contract itself doesn't change, and once he's back he's still
-            under the same deal he left with. AI clubs also loan their own young, buried players to
-            each other in the background — that only ever moves players between AI clubs; nothing
-            happens to your own roster unless you list a player yourself.
+            under the same deal he left with. AI clubs also loan players to each other in the
+            background, and they follow the real-football logic strictly: <strong>only young
+            players who aren't in their club's starting XI</strong> go out on loan — a starter is
+            already getting his minutes at home, so he's never loaned, however the numbers shake
+            out. That background market only ever moves players between AI clubs; nothing happens
+            to your own roster unless you list a player yourself.
           </p>
         </Section>
 
@@ -514,7 +517,11 @@ export function Manual() {
             the Roster page shows "Wants a move to Division 1" instead of an Extend button once
             he's genuinely good enough that a Division 1 club would want him. He can't be extended
             or blocked from leaving; the best you can do is sell him yourself before his contract
-            runs out, since letting him walk for free gets you nothing.
+            runs out, since letting him walk for free gets you nothing. The same logic runs in the
+            other direction too: <strong>Division 2 clubs never buy players of that caliber</strong>{" "}
+            — not from each other, and not from you — a player good enough for the top flight
+            simply wouldn't sign for the second division, so don't expect a Division 2 club among
+            the bidders for your stars.
           </p>
         </Section>
 

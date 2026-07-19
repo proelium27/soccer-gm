@@ -18,6 +18,7 @@ import {
   AI_MARKET_FEE_SHARE, AI_MARKET_FEE_FLOOR_FRACTION,
   AI_MARKET_MAX_BUYS, AI_MARKET_MAX_SELLS,
   AI_MARKET_RESERVE_FRACTION_MIN, AI_MARKET_RESERVE_FRACTION_MAX,
+  DIVISION_2_REFUSAL_OVR_THRESHOLD,
 } from "../constants.js";
 
 export interface AITransferResult {
@@ -81,6 +82,7 @@ export function runAITransferMarket(
   const contexts = deriveLeagueContexts({ teams, players, season, played, competitions });
   const playerMap = new Map(players.map((p) => [p.pid, p]));
   const jitter = mulberry32(seed);
+  const tierByTid = new Map(teams.map((t) => [t.tid, tierOf(competitions, t.compId)]));
 
   // A player physically playing for a club on loan sits on that club's roster
   // but is still owned by his parent — the loanee must never be able to sell
@@ -119,6 +121,19 @@ export function runAITransferMarket(
         if (!buyerCtx) continue;
 
         const jittered = perceivedValueToClub(player, buyerCtx, jitter);
+        // A tier-2 club never buys a player at or above the Division 2
+        // ceiling threshold — the ceiling sweep would just confiscate him
+        // back to a tier-1 club the same offseason (summer) or he'd sit
+        // illegally in Division 2 for half a season (winter). Prevention
+        // beats correction: a 15-season audit found 44% of all sweep moves
+        // were players this market had sold into Division 2 that same
+        // window. Guard placed AFTER the jitter draw — skipping the draw
+        // for filtered buyers would shift every subsequent buyer's jitter
+        // (see the documented RNG-stream-order lesson).
+        if (
+          tierByTid.get(buyer.tid) === 2 &&
+          player.ovr >= DIVISION_2_REFUSAL_OVR_THRESHOLD
+        ) continue;
         if (jittered < reservation * (1 + AI_MARKET_MIN_SURPLUS)) continue;
 
         candidates.push({

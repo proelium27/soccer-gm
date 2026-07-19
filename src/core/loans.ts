@@ -12,6 +12,8 @@ import { trueTransferValue } from "./finance/valuation.js";
 import { clampBudget } from "./finance/budget.js";
 import { tierOf } from "./competitions.js";
 import { keepsDepthFloor } from "./freeAgency.js";
+import { resolveXI } from "./lineup/resolveXI.js";
+import { FORMATIONS } from "./lineup/formations.js";
 import { deriveLeagueContexts } from "./ai/clubContext.js";
 import { valueToClub, perceivedValueToClub } from "./ai/evaluate.js";
 import { mulberry32 } from "../engine/rng.js";
@@ -289,6 +291,14 @@ export interface AILoanResult {
  * given `seed`; the user's club is never a party on either side (loaning the
  * user's own players in/out is a manual action — see loanOfferCandidates /
  * the Loans page).
+ *
+ * "Buried" is literal, not just a valuation screen: a player in his club's
+ * own starting XI is never loaned out, whatever his keep-value — the whole
+ * point of a loan is real minutes for a young player who isn't getting them
+ * at home, and a starter already is. This is also what keeps genuinely
+ * elite youngsters out of the loan pool (a 75+ prospect is starting
+ * somewhere), so Division 2 can't end up hosting a loaned-in star the
+ * ceiling sweep can never touch.
  */
 export function runAILoanMarket(
   teams: StoredTeam[],
@@ -316,8 +326,18 @@ export function runAILoanMarket(
     const sellerCtx = contexts.get(seller.tid);
     if (!sellerCtx) continue;
 
+    // A starter is getting his minutes at home — only players outside the
+    // club's starting XI are loan candidates (see the doc comment above).
+    const sellerPlayers = seller.roster
+      .map((pid) => playerMap.get(pid))
+      .filter((p): p is Player => p !== undefined);
+    const xiPids = new Set(
+      resolveXI(sellerPlayers, FORMATIONS["4-3-3"], seller.starters).map((p) => p.pid),
+    );
+
     for (const pid of seller.roster) {
       if (onLoanPids.has(pid)) continue;
+      if (xiPids.has(pid)) continue;
       const player = playerMap.get(pid);
       if (!player) continue;
       if (season - player.born > LOAN_AI_MAX_AGE) continue;
