@@ -10,6 +10,8 @@ import { simOffseason } from "../../src/core/offseason.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { trueTransferValue } from "../../src/core/finance/valuation.js";
 import { tierOf } from "../../src/core/competitions.js";
+import { resolveXI } from "../../src/core/lineup/resolveXI.js";
+import { FORMATIONS } from "../../src/core/lineup/formations.js";
 import { LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, ROSTER_CAP } from "../../src/core/constants.js";
 
 function windowLeague(seed = 1): LeagueStore {
@@ -236,6 +238,32 @@ describe("no phantom players (loan + market/sweep interaction)", () => {
 });
 
 describe("runAILoanMarket", () => {
+  it("never loans out a player from his club's starting XI", () => {
+    // Loans exist to get minutes for young players who aren't getting them
+    // at home — a starter already is, so he's never a loan candidate no
+    // matter how the valuations shake out.
+    const league = windowLeague();
+    const userTid = league.meta.userTid;
+    const playerMap = new Map(league.players.map((p) => [p.pid, p]));
+    const xiByTid = new Map(
+      league.teams.map((t) => {
+        const roster = t.roster.map((pid) => playerMap.get(pid)!).filter(Boolean);
+        return [t.tid, new Set(resolveXI(roster, FORMATIONS["4-3-3"], t.starters).map((p) => p.pid))];
+      }),
+    );
+
+    const result = runAILoanMarket(
+      league.teams, league.players, [], [], league.season, league.played,
+      "summer", userTid, 42, league.competitions,
+    );
+    // The market actually moves players in this scenario (guard is exercised,
+    // not vacuously true).
+    expect(result.activeLoans.length).toBeGreaterThan(0);
+    for (const loan of result.activeLoans) {
+      expect(xiByTid.get(loan.parentTid)!.has(loan.pid)).toBe(false);
+    }
+  });
+
   it("never moves the user's players or exceeds ROSTER_CAP", () => {
     const league = windowLeague();
     const userTid = league.meta.userTid;
