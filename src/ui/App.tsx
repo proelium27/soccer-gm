@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LeagueProvider, useLeague } from "./context/LeagueContext.js";
+import { SportNameProvider } from "./sportName.js";
 import { Layout } from "./components/Layout.js";
 import { Leagues } from "./pages/Leagues.js";
 import { NewLeague } from "./pages/NewLeague.js";
@@ -34,6 +35,7 @@ function RootRedirect() {
 export function App() {
   return (
     <BrowserRouter>
+      <SportNameProvider>
       <LeagueProvider>
         <Routes>
           <Route path="/leagues" element={<Leagues />} />
@@ -64,6 +66,7 @@ export function App() {
           <Route path="*" element={<RootRedirect />} />
         </Routes>
       </LeagueProvider>
+      </SportNameProvider>
     </BrowserRouter>
   );
 }

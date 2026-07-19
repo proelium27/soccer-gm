@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useSportName } from "../sportName.js";
 
 /**
  * The in-game manual: player-facing documentation of every shipped feature,
@@ -42,6 +43,8 @@ function Section({ id, title, children }: { id: string; title: string; children:
 }
 
 export function Manual() {
+  const { brand, term } = useSportName();
+  const sport = term.toLowerCase();
   return (
     <div className="container-fluid p-3">
       <h4>Manual</h4>
@@ -65,7 +68,7 @@ export function Manual() {
 
         <Section id="overview" title="Overview">
           <p>
-            Soccer GM is a single-player soccer management sim. You are the general manager of one
+            {brand} is a single-player {sport} management sim. You are the general manager of one
             club in a 20-team league: you pick the starting XI, buy and sell players, negotiate
             transfers, manage contracts and the wage bill, and try to build a squad that wins —
             this season, or three seasons from now, your call.
@@ -76,7 +79,7 @@ export function Manual() {
             club's own situation rather than a script (see <a href="#ai">How AI Clubs Think</a>).
           </p>
           <p>
-            There is no way to "win" Soccer GM — the game never ends. Win the league, then win it
+            There is no way to "win" {brand} — the game never ends. Win the league, then win it
             again. Or tear the squad down, hoard teenagers, and build a dynasty from the academy.
             Everything is simulated locally in your browser and saved automatically; you can run
             multiple league saves side by side and switch between them from the Leagues screen.
