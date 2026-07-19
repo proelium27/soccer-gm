@@ -168,6 +168,12 @@ export function Dashboard() {
         return <>{playerLink(player)} reaches {e.detail} goals this season</>;
       case "goalMilestoneCareer":
         return <>{playerLink(player)} reaches {e.detail} career goals</>;
+      case "generationalTalent":
+        return (
+          <>
+            {playerLink(player)}, a once-in-a-generation talent, joins {teamByTid.get(e.tid)?.name ?? "?"} (age {e.detail})
+          </>
+        );
     }
   };
 

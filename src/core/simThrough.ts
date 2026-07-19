@@ -6,6 +6,7 @@ import type { LeagueTeam } from "./league/generate.js";
 import type { Player } from "./players/types.js";
 import { leagueMatchData } from "./league/composites.js";
 import type { TeamMatchData } from "./league/composites.js";
+import { teamSeasonFormDelta, applySeasonForm } from "./teamSeasonForm.js";
 import {
   lastMatchdayOfMonth, TRANSFER_DEADLINE_MATCHDAY, WINTER_WINDOW_OPEN_MATCHDAY,
 } from "./calendar.js";
@@ -219,7 +220,20 @@ export function simThrough(
     for (const comp of league.competitions) {
       const compTeams = currentTeams.filter((t) => t.compId === comp.id);
       const compMatchData = leagueMatchData({ teams: toLeagueTeams(compTeams), players: currentPlayers });
-      compTeams.forEach((t, i) => matchData.set(t.tid, compMatchData[i]));
+      compTeams.forEach((t, i) => {
+        // Historic team seasons: a rare hidden season-long form swing shifts
+        // this club's composites all season (dream season up, season from
+        // hell down) — wrapped around recompute too so substitutions/red
+        // cards don't wash it out, and shared with cup ties via this same
+        // map. See teamSeasonForm.ts.
+        const formDelta = teamSeasonFormDelta(league.lid, league.season, t.tid);
+        const d = compMatchData[i];
+        matchData.set(t.tid, formDelta === 0 ? d : {
+          ...d,
+          composites: applySeasonForm(d.composites, formDelta),
+          recompute: (onPitch) => applySeasonForm(d.recompute(onPitch), formDelta),
+        });
+      });
     }
 
     // Continental Cup: if a knockout round is due on this matchday, play it in
