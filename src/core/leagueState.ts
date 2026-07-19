@@ -5,6 +5,7 @@ import type { ScheduleGame } from "./schedule.js";
 import type { CompletedTransfer, TransferNegotiation } from "./transfers/negotiation.js";
 import type { InboundOffer } from "./transfers/inboundOffers.js";
 import type { NewsEvent } from "./newsEvents.js";
+import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { ActiveLoan, LoanListing, LoanRejection } from "./loans.js";
 import type { Competition } from "./competitions.js";
 import type { CupState } from "./cup/types.js";
@@ -59,6 +60,13 @@ export interface LeagueStore {
   seasonHistory: SeasonHistoryEntry[];
   /** Player accomplishments (hat-tricks, standout ratings, goal milestones), all seasons, oldest first. */
   newsEvents: NewsEvent[];
+  /**
+   * Power-rankings snapshots taken at fixed points during every season (every
+   * POWER_SNAPSHOT_INTERVAL matchdays plus the finale — see simThrough),
+   * oldest first. Persisted because past rankings can't be recomputed: rosters
+   * change mid-season and `played` is wiped at every offseason rollover.
+   */
+  powerRankingHistory: PowerRankingSnapshot[];
   /** Loans currently in effect (parent club still owns the contract, loanee club fields him and pays wages). */
   activeLoans: ActiveLoan[];
   /** The user's own senior-roster players listed for an outgoing loan, awaiting an AI club's offer. */
@@ -112,6 +120,7 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
     winterMarketRunSeason: null,
     seasonHistory: [],
     newsEvents: [],
+    powerRankingHistory: [],
     activeLoans: [],
     loanListings: [],
     loanRejections: [],

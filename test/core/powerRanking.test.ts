@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { computeTeamForm } from "../../src/core/teams/powerRanking.js";
+import { computeTeamForm, computePowerRankingSnapshot } from "../../src/core/teams/powerRanking.js";
+import { computeTeamRating } from "../../src/core/teams/teamRating.js";
+import { mulberry32 } from "../../src/engine/rng.js";
+import { generateLeague } from "../../src/core/league/generate.js";
 import type { PlayedMatch } from "../../src/core/standings.js";
+import type { StoredTeam } from "../../src/core/teams/clubs.js";
 
 // computeTeamForm only reads home/away/homeGoals/awayGoals; the rest of PlayedMatch is irrelevant here.
 function match(home: number, away: number, homeGoals: number, awayGoals: number): PlayedMatch {
@@ -68,5 +72,74 @@ describe("computeTeamForm", () => {
     const withFallback = computeTeamForm(1, 65, [match(1, 2, 1, 1)], new Map());
     const withExplicitEqualOvr = computeTeamForm(1, 65, [match(1, 2, 1, 1)], new Map([[2, 65]]));
     expect(withFallback.performanceBonus).toBeCloseTo(withExplicitEqualOvr.performanceBonus, 10);
+  });
+});
+
+describe("computePowerRankingSnapshot", () => {
+  function makeFixture() {
+    const league = generateLeague(mulberry32(7));
+    // Only the fields the snapshot reads matter; the rest of StoredTeam is inert here.
+    const teams = league.teams.map((t) => ({
+      tid: t.tid,
+      name: t.name,
+      roster: t.roster,
+      compId: t.compId,
+      starters: null,
+      formation: "4-3-3",
+    })) as unknown as StoredTeam[];
+    return { teams, players: league.players };
+  }
+
+  it("ranks every team exactly once, sorted by powerScore descending, and stamps season/matchday", () => {
+    const { teams, players } = makeFixture();
+    const snapshot = computePowerRankingSnapshot(teams, players, [], 3, 15);
+
+    expect(snapshot.season).toBe(3);
+    expect(snapshot.matchday).toBe(15);
+    expect(snapshot.rows).toHaveLength(teams.length);
+    expect(new Set(snapshot.rows.map((r) => r.tid)).size).toBe(teams.length);
+    for (let i = 1; i < snapshot.rows.length; i++) {
+      expect(snapshot.rows[i - 1].powerScore).toBeGreaterThanOrEqual(snapshot.rows[i].powerScore);
+    }
+  });
+
+  it("with no matches played, powerScore equals the club's squad OVR and the record is zeroed", () => {
+    const { teams, players } = makeFixture();
+    const snapshot = computePowerRankingSnapshot(teams, players, [], 1, 5);
+
+    const playerByPid = new Map(players.map((p) => [p.pid, p]));
+    for (const row of snapshot.rows) {
+      const team = teams.find((t) => t.tid === row.tid)!;
+      const roster = team.roster.map((pid) => playerByPid.get(pid)!);
+      expect(row.ovr).toBe(computeTeamRating(roster, null).ovr);
+      expect(row.powerScore).toBe(row.ovr);
+      expect(row.played).toBe(0);
+      expect(row.performanceBonus).toBe(0);
+    }
+  });
+
+  it("a win over an even-strength opponent lifts a club's powerScore above its raw OVR", () => {
+    const { teams, players } = makeFixture();
+    const winner = teams[0].tid;
+    const loser = teams[1].tid;
+    const snapshot = computePowerRankingSnapshot(
+      teams, players, [match(winner, loser, 3, 0)], 1, 5,
+    );
+
+    const winnerRow = snapshot.rows.find((r) => r.tid === winner)!;
+    const loserRow = snapshot.rows.find((r) => r.tid === loser)!;
+    expect(winnerRow.powerScore).toBeGreaterThan(winnerRow.ovr);
+    expect(winnerRow.won).toBe(1);
+    expect(winnerRow.gd).toBe(3);
+    expect(loserRow.powerScore).toBeLessThan(loserRow.ovr);
+    expect(loserRow.lost).toBe(1);
+  });
+
+  it("records each club's competition at snapshot time", () => {
+    const { teams, players } = makeFixture();
+    const snapshot = computePowerRankingSnapshot(teams, players, [], 1, 5);
+    for (const row of snapshot.rows) {
+      expect(row.compId).toBe(teams.find((t) => t.tid === row.tid)!.compId);
+    }
   });
 });

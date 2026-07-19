@@ -37,6 +37,7 @@ function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed =
     loanRejections: [],
     cup: null,
     cupHistory: [],
+    powerRankingHistory: [],
   };
 }
 
@@ -84,6 +85,22 @@ describe("migrateLeague", () => {
     const { newsEvents: _ne, ...withoutNewsEvents } = league;
     const migrated = migrateLeague(withoutNewsEvents as unknown as LeagueStore);
     expect(migrated.newsEvents).toEqual([]);
+  });
+
+  it("backfills powerRankingHistory to an empty array for saves written before this feature", () => {
+    const league = makeLeague(0, 1);
+    const { powerRankingHistory: _prh, ...withoutHistory } = league;
+    const migrated = migrateLeague(withoutHistory as unknown as LeagueStore);
+    expect(migrated.powerRankingHistory).toEqual([]);
+  });
+
+  it("leaves an existing powerRankingHistory untouched", () => {
+    const league = makeLeague(0, 1);
+    const withHistory: LeagueStore = {
+      ...league,
+      powerRankingHistory: [{ season: 1, matchday: 5, rows: [] }],
+    };
+    expect(migrateLeague(withHistory).powerRankingHistory).toEqual(withHistory.powerRankingHistory);
   });
 
   it("leaves existing newsEvents untouched", () => {
