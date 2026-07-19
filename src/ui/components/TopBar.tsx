@@ -1,10 +1,12 @@
 import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { useSportName } from "../sportName.js";
 import { seasonYear } from "../format.js";
 
 export function TopBar() {
   const { league, simAction, simming, exportJSON, importJSON, switchLeagueAction } = useLeague();
+  const { brand } = useSportName();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -47,7 +49,7 @@ export function TopBar() {
     <nav className="navbar navbar-dark app-topbar px-3">
       <span className="navbar-brand mb-0 h1 d-flex align-items-center gap-2">
         <img src="/favicon.png" alt="" width="32" height="32" className="rounded" />
-        Soccer GM
+        {brand}
       </span>
 
       <span className="text-light">{statusText}</span>
