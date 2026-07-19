@@ -11,8 +11,17 @@ import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentit
 import { ClubCrest } from "../components/ClubCrest.js";
 import { CountryFlag } from "../components/CountryFlag.js";
 
-const COUNTRY_RANGES = countryClubRanges(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2);
-const COUNTRIES = countriesOf(worldCompetitions());
+const WORLD_COMPETITIONS = worldCompetitions();
+const COUNTRY_RANGES = countryClubRanges(WORLD_COMPETITIONS, NUM_TEAMS, NUM_TEAMS_D2);
+const COUNTRIES = countriesOf(WORLD_COMPETITIONS);
+
+/** Competition name for a country's given tier (e.g. "English Division 1"). */
+function divisionName(country: string, tier: 1 | 2): string {
+  return (
+    WORLD_COMPETITIONS.find((c) => c.country === country && c.tier === tier)?.name ??
+    `Division ${tier}`
+  );
+}
 
 export function NewLeague() {
   const [country, setCountry] = useState<string>(COUNTRIES[0]);
@@ -100,6 +109,10 @@ export function NewLeague() {
     club,
     tid: range.start + i,
   }));
+  // Within a country's block, generateWorld() lays out the tier-1 clubs
+  // first, then the tier-2 clubs — so the first NUM_TEAMS are Division 1.
+  const d1Clubs = countryClubs.slice(0, NUM_TEAMS);
+  const d2Clubs = countryClubs.slice(NUM_TEAMS);
 
   function selectCountry(c: string) {
     setCountry(c);
@@ -131,21 +144,31 @@ export function NewLeague() {
         ))}
       </div>
 
-      <div className="list-group mb-3">
-        {countryClubs.map(({ club, tid }) => (
-          <button
-            key={club.abbrev}
-            type="button"
-            className={`list-group-item list-group-item-action d-flex align-items-center${
-              selectedTid === tid ? " active" : ""
-            }`}
-            onClick={() => setSelectedTid(tid)}
-          >
-            <ClubCrest tid={tid} colors={club.colors} size={28} />
-            {club.name}
-          </button>
-        ))}
-      </div>
+      {(
+        [
+          [divisionName(country, 1), d1Clubs],
+          [divisionName(country, 2), d2Clubs],
+        ] as const
+      ).map(([label, clubs]) => (
+        <div key={label} className="mb-3">
+          <h6 className="text-muted text-uppercase small fw-semibold mb-2">{label}</h6>
+          <div className="list-group">
+            {clubs.map(({ club, tid }) => (
+              <button
+                key={club.abbrev}
+                type="button"
+                className={`list-group-item list-group-item-action d-flex align-items-center${
+                  selectedTid === tid ? " active" : ""
+                }`}
+                onClick={() => setSelectedTid(tid)}
+              >
+                <ClubCrest tid={tid} colors={club.colors} size={28} />
+                {club.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
 
       <div className="d-flex gap-2">
         <button
