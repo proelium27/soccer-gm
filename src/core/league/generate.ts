@@ -1,4 +1,5 @@
 import type { Player, Position } from "../players/types.js";
+import type { FormationId } from "../lineup/formations.js";
 import { POSITIONS } from "../players/types.js";
 import { generatePlayer } from "../players/generate.js";
 import { hashInts } from "../../engine/rng.js";
@@ -32,6 +33,12 @@ export interface LeagueTeam {
    * StoredTeam.starters so leagueMatchData can respect it.
    */
   starters?: number[] | null;
+  /**
+   * The club's formation, carried over from StoredTeam.formation by simThrough
+   * so leagueMatchData picks the XI in the right shape. Undefined during
+   * generation and for any team that hasn't chosen one (defaults to 4-3-3).
+   */
+  formation?: FormationId;
 }
 
 export interface League {

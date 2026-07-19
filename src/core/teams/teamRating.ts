@@ -1,4 +1,4 @@
-import type { Player } from "../players/types.js";
+import type { Player, Position } from "../players/types.js";
 import { resolveXI } from "../lineup/resolveXI.js";
 import { FORMATIONS } from "../lineup/formations.js";
 import {
@@ -19,14 +19,16 @@ export interface TeamRating {
  * the whole roster. Reuses resolveXI so a user's manual lineup choice is
  * reflected, and falls back to the auto-picked best XI otherwise (AI teams
  * always take this path, since only the user's team ever sets `starters`).
+ * `slots` defaults to 4-3-3 so callers without a formation stay unchanged.
  */
 export function computeTeamRating(
   roster: Player[],
   starters: number[] | null | undefined,
+  slots: Position[] = FORMATIONS["4-3-3"],
 ): TeamRating {
   if (roster.length === 0) return { ovr: 0, pot: 0 };
 
-  const xi = resolveXI(roster, FORMATIONS["4-3-3"], starters);
+  const xi = resolveXI(roster, slots, starters);
   const xiPids = new Set(xi.map((p) => p.pid));
   const bench = roster
     .filter((p) => !xiPids.has(p.pid))

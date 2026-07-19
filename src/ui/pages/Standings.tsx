@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
+import { teamSlots } from "../../core/lineup/formations.js";
 import { tierOf } from "../../core/competitions.js";
 import { worldHasCup } from "../../core/cup/cup.js";
 import { CUP_TEAMS_PER_LEAGUE } from "../../core/constants.js";
@@ -120,6 +121,7 @@ export function Standings() {
                   ? computeTeamRating(
                       league.players.filter((p) => team.roster.includes(p.pid)),
                       team.starters,
+                      teamSlots(team),
                     )
                   : null;
               return (

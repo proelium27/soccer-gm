@@ -1,4 +1,4 @@
-import type { Position } from "../core/players/types.js";
+import type { FormationId } from "../core/lineup/formations.js";
 
 export interface SlotCoord {
   x: number;
@@ -6,35 +6,74 @@ export interface SlotCoord {
 }
 
 /**
- * Fixed 4-3-3 layout, percentages within the pitch container. The pitch is drawn
- * horizontally: x:0 = the GK's own goal line (left), x:100 = the attacking end
- * (right). Positions with more than one slot in a formation (e.g. two CBs) list
- * coordinates top-to-bottom; a formation needing a third instance of a position
- * (not currently wired up anywhere) would need a third entry added here.
+ * Pitch coordinates for each formation, as percentages within the pitch
+ * container. The pitch is drawn horizontally: x:0 = the GK's own goal line
+ * (left), x:100 = the attacking end (right); y:0 = top touchline, y:100 =
+ * bottom. Each array is index-aligned with that formation's slot array in
+ * FORMATIONS, so slot i renders at coordinate i. Per-formation (rather than
+ * per-position) so back-3/back-5 shapes and pushed-up wing-backs lay out
+ * correctly instead of reusing a fixed two-CB template.
  */
-const SLOT_LAYOUT: Record<Position, SlotCoord[]> = {
-  GK: [{ x: 8, y: 50 }],
-  CB: [{ x: 25, y: 35 }, { x: 25, y: 65 }],
-  FB: [{ x: 28, y: 12 }, { x: 28, y: 88 }],
-  DM: [{ x: 42, y: 50 }],
-  CM: [{ x: 55, y: 35 }, { x: 55, y: 65 }],
-  AM: [{ x: 68, y: 50 }],
-  W: [{ x: 75, y: 15 }, { x: 75, y: 85 }],
-  ST: [{ x: 90, y: 50 }],
+export const FORMATION_LAYOUTS: Record<FormationId, SlotCoord[]> = {
+  // GK, CB, CB, FB, FB, DM, CM, CM, W, W, ST
+  "4-3-3": [
+    { x: 8, y: 50 },
+    { x: 25, y: 35 },
+    { x: 25, y: 65 },
+    { x: 28, y: 12 },
+    { x: 28, y: 88 },
+    { x: 42, y: 50 },
+    { x: 55, y: 35 },
+    { x: 55, y: 65 },
+    { x: 75, y: 15 },
+    { x: 75, y: 85 },
+    { x: 90, y: 50 },
+  ],
+  // GK, CB, CB, FB, FB, W, CM, CM, W, ST, ST
+  "4-4-2": [
+    { x: 8, y: 50 },
+    { x: 25, y: 38 },
+    { x: 25, y: 62 },
+    { x: 25, y: 12 },
+    { x: 25, y: 88 },
+    { x: 52, y: 12 },
+    { x: 50, y: 38 },
+    { x: 50, y: 62 },
+    { x: 52, y: 88 },
+    { x: 88, y: 38 },
+    { x: 88, y: 62 },
+  ],
+  // GK, CB, CB, CB, FB, FB, CM, CM, AM, ST, ST
+  "3-5-2": [
+    { x: 8, y: 50 },
+    { x: 24, y: 25 },
+    { x: 24, y: 50 },
+    { x: 24, y: 75 },
+    { x: 48, y: 10 },
+    { x: 48, y: 90 },
+    { x: 46, y: 38 },
+    { x: 46, y: 62 },
+    { x: 66, y: 50 },
+    { x: 88, y: 38 },
+    { x: 88, y: 62 },
+  ],
+  // GK, CB, CB, CB, FB, FB, DM, CM, CM, ST, ST
+  "5-3-2": [
+    { x: 8, y: 50 },
+    { x: 24, y: 30 },
+    { x: 24, y: 50 },
+    { x: 24, y: 70 },
+    { x: 28, y: 10 },
+    { x: 28, y: 90 },
+    { x: 48, y: 50 },
+    { x: 58, y: 32 },
+    { x: 58, y: 68 },
+    { x: 88, y: 38 },
+    { x: 88, y: 62 },
+  ],
 };
 
-/**
- * Maps each slot in `slots` to a pitch coordinate, index-aligned with the input.
- * When a position repeats (e.g. two CBs), successive occurrences pull the next
- * coordinate from that position's list; if a formation ever asks for more
- * occurrences than SLOT_LAYOUT has entries for, the last entry is reused.
- */
-export function layoutSlots(slots: Position[]): SlotCoord[] {
-  const seen: Partial<Record<Position, number>> = {};
-  return slots.map((pos) => {
-    const index = seen[pos] ?? 0;
-    seen[pos] = index + 1;
-    const coords = SLOT_LAYOUT[pos];
-    return coords[Math.min(index, coords.length - 1)];
-  });
+/** The pitch coordinates for a formation, one per slot, index-aligned with FORMATIONS[formation]. */
+export function layoutSlots(formation: FormationId): SlotCoord[] {
+  return FORMATION_LAYOUTS[formation];
 }

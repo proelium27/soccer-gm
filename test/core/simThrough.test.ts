@@ -40,6 +40,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     academyBase: t.academyBase,
     compId: t.compId,
     divisionConvergence: null,
+    formation: "4-3-3",
     starters: null,
     transferListed: [],
     scoutingObserved: {},

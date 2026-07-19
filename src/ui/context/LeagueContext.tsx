@@ -20,7 +20,7 @@ import {
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { applyTeamIdentities, type TeamIdentityEdit } from "../../core/teams/customize.js";
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
-import { FORMATIONS } from "../../core/lineup/formations.js";
+import { teamSlots, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { SimOverlay } from "../components/SimOverlay.js";
 
 interface LeagueContextValue {
@@ -51,6 +51,7 @@ interface LeagueContextValue {
   rejectLoanOfferAction: (pid: number) => Promise<void>;
   setTransferListedAction: (pid: number, listed: boolean) => Promise<void>;
   setLineupAction: (starters: number[]) => Promise<void>;
+  setFormationAction: (formation: FormationId) => Promise<void>;
   simming: boolean;
   saveToDb: () => Promise<void>;
   exportJSON: () => void;
@@ -326,11 +327,26 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     const rosterPlayers = l.players.filter((p) => rosterSet.has(p.pid));
     // Refuse invalid lineups (duplicate pids, off-roster pids, non-GK in the
     // GK slot) at the action layer so bad state can never be persisted, no
-    // matter what the drag-and-drop UI lets through.
-    if (!isValidStarters(rosterPlayers, FORMATIONS["4-3-3"], starters)) return null;
+    // matter what the drag-and-drop UI lets through. Validated against the
+    // user's current formation, since its slot shape decides which pids are GK.
+    if (!isValidStarters(rosterPlayers, teamSlots(user), starters)) return null;
     return {
       ...l,
       teams: l.teams.map((t) => (t.tid === l.meta.userTid ? { ...t, starters } : t)),
+    };
+  }), [mutate]);
+
+  // Change the user's formation and clear their manual starters, so the new
+  // shape auto-picks a fresh best XI (a saved lineup for the old shape would
+  // otherwise drop players into positionally-wrong slots). The user can then
+  // re-drag. Only the user's team ever has a chosen formation; AI stays 4-3-3.
+  const setFormationAction = useCallback((formation: FormationId) => mutate((l) => {
+    if (!(FORMATION_IDS as readonly string[]).includes(formation)) return null;
+    return {
+      ...l,
+      teams: l.teams.map((t) =>
+        t.tid === l.meta.userTid ? { ...t, formation, starters: null } : t,
+      ),
     };
   }), [mutate]);
 
@@ -393,6 +409,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       rejectLoanOfferAction,
       setTransferListedAction,
       setLineupAction,
+      setFormationAction,
       simming: simming || simOverlayOpen || busy,
       saveToDb,
       exportJSON: doExport,

@@ -123,6 +123,7 @@ export function simThrough(
       academyBase: t.academyBase,
       compId: t.compId,
       starters: t.starters,
+      formation: t.formation,
     }));
 
   // Team state can change mid-batch (the winter transfer market moves players

@@ -3,6 +3,7 @@ import { useLeague } from "../context/LeagueContext.js";
 import type { Player } from "../../core/players/types.js";
 import type { StoredTeam } from "../../core/teams/clubs.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
+import { teamSlots } from "../../core/lineup/formations.js";
 import { currency, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
@@ -31,7 +32,7 @@ export function SeasonPreview() {
   const topTeams = league.teams
     .map((team) => {
       const roster = league.players.filter((p) => team.roster.includes(p.pid));
-      return { team, rating: computeTeamRating(roster, team.starters) };
+      return { team, rating: computeTeamRating(roster, team.starters, teamSlots(team)) };
     })
     .sort((a, b) => b.rating.ovr - a.rating.ovr)
     .slice(0, TOP_N);

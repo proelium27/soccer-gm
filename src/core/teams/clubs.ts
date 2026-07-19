@@ -1,5 +1,6 @@
 import type { League } from "../league/generate.js";
 import type { Competition } from "../competitions.js";
+import type { FormationId } from "../lineup/formations.js";
 import { HYPE_INITIAL, SCOUTING_SPEND_DEFAULT } from "../constants.js";
 import { chargeSeasonStart, wageBill } from "../finance/budget.js";
 import { clampScoutingSpend } from "../finance/scouting.js";
@@ -239,6 +240,13 @@ export interface StoredTeam {
    */
   divisionConvergence: { seasonsRemaining: number } | null;
   /**
+   * The formation this club lines up in (see FORMATIONS in
+   * src/core/lineup/formations.js). The user picks theirs on the Roster page;
+   * every AI team stays at the "4-3-3" default. Drives which 11 slots the XI
+   * fills, so it feeds the real match sim, not just the pitch display.
+   */
+  formation: FormationId;
+  /**
    * User-chosen starting XI (11 pids), or null to auto-select via selectXI.
    * Only ever set for the user's own team; AI teams always auto-select.
    */
@@ -288,6 +296,7 @@ export function assignIdentities(league: League, competitions: Competition[]): S
       academyBase: t.academyBase,
       compId: t.compId,
       divisionConvergence: null,
+      formation: "4-3-3",
       starters: null,
       transferListed: [],
       scoutingObserved: {},

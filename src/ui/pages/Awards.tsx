@@ -14,7 +14,7 @@ import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { seasonYear } from "../format.js";
 
 const SLOTS = FORMATIONS["4-3-3"];
-const COORDS = layoutSlots(SLOTS);
+const COORDS = layoutSlots("4-3-3");
 
 function shortName(name: string): string {
   const parts = name.trim().split(/\s+/);

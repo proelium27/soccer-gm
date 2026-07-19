@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Player, Position } from "../../core/players/types.js";
+import type { FormationId } from "../../core/lineup/formations.js";
 import { bestFit } from "../../core/lineup/selectXI.js";
 import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
@@ -22,6 +23,7 @@ function shortName(name: string): string {
 export interface PitchFieldProps {
   starters: Player[];
   slots: Position[];
+  formation: FormationId;
   bench: Player[];
   showDepthChart: boolean;
   season: number;
@@ -39,6 +41,7 @@ export interface PitchFieldProps {
 export function PitchField({
   starters,
   slots,
+  formation,
   bench,
   showDepthChart,
   season,
@@ -53,7 +56,7 @@ export function PitchField({
   onDropOnSlot,
 }: PitchFieldProps) {
   const [openPid, setOpenPid] = useState<number | null>(null);
-  const coords = layoutSlots(slots);
+  const coords = layoutSlots(formation);
 
   useEffect(() => {
     if (openPid === null) return;
