@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
-import { HelpHint } from "../components/HelpHint.js";
 import type { StoredTeam } from "../../core/leagueState.js";
 import type { NewsEvent, NewsEventType } from "../../core/newsEvents.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
@@ -105,18 +104,10 @@ export function NewsFeed() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>
-        News Feed
-        <HelpHint>
-          A season-by-season timeline of everything happening in the world: completed transfers
-          (AI-to-AI deals included) and player accomplishments like hat-tricks, standout
-          performances, and goal milestones. Filter by club or season.
-        </HelpHint>
-      </h4>
+      <h4>News Feed</h4>
       <p className="text-muted">
-        Every completed transfer across the league — including deals between rival clubs — plus
-        player accomplishments like hat-tricks, standout performances, and goal milestones,
-        newest first.
+        The news feed includes every completed transfer across the league, player milestones,
+        standout performances.
       </p>
 
       <div className="d-flex flex-wrap gap-2 mb-3">

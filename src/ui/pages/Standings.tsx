@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
-import { HelpHint } from "../components/HelpHint.js";
+import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { teamSlots } from "../../core/lineup/formations.js";
@@ -64,11 +64,7 @@ export function Standings() {
     <div className="container-fluid p-3">
       <h4>
         Standings
-        <HelpHint>
-          The league table for your competition, with each club's current OVR and POT.
-          Use the season dropdown to look up any past season's final table — the champion's
-          row is highlighted, and the top-four Continental Cup qualification places are shaded.
-        </HelpHint>
+        <HelpHint>The top four spots qualify for the Continental Cup.</HelpHint>
       </h4>
       <div className="mb-3">
         <select
@@ -106,7 +102,7 @@ export function Standings() {
               <th className="text-end">GD</th>
               <th className="text-end">Pts</th>
               {season === "current" && <th className="text-end">OVR</th>}
-              {season === "current" && <th className="text-end">POT</th>}
+              {season === "current" && <th className="text-end">POT <PotHelp /></th>}
             </tr>
           </thead>
           <tbody>

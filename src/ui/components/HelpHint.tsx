@@ -46,3 +46,18 @@ export function HelpHint({
     </span>
   );
 }
+
+/**
+ * The standard "what is potential?" hint, dropped next to a POT column header
+ * anywhere potential is shown. Kept as one component so the copy stays
+ * identical across the whole game.
+ */
+export function PotHelp() {
+  return (
+    <HelpHint label="What is potential?">
+      Potential is our scouts' estimate of how good a player could become. It shows as a range
+      until he's been scouted enough — spending more on scouting (and keeping him on your roster
+      longer) narrows the range toward his true ceiling and reveals the exact number sooner.
+    </HelpHint>
+  );
+}

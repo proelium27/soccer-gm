@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
-import { HelpHint } from "../components/HelpHint.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
 import { emptySeasonStats } from "../../core/players/types.js";
 import { computeTeamSeasonStats, type TeamSeasonStats } from "../../core/standings.js";
@@ -81,14 +80,7 @@ export function Leaders() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>
-        Stat Leaders
-        <HelpHint>
-          League-wide leaderboards for players and teams — goals, assists, xG, tackles, saves,
-          average match rating and more. Switch between a single season, career totals, or each
-          player's single best season.
-        </HelpHint>
-      </h4>
+      <h4>Stat Leaders</h4>
       <div className="mb-3 d-flex gap-2 align-items-center">
         <div className="btn-group" role="group">
           <button

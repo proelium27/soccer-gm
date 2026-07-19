@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
-import { HelpHint } from "../components/HelpHint.js";
+import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
 import { resolveXI } from "../../core/lineup/resolveXI.js";
@@ -70,7 +70,7 @@ function RosterTable({
           <th>Pos</th>
           <th className="text-end">Age</th>
           <th className="text-end">Ovr</th>
-          <th className="text-end">Pot</th>
+          <th className="text-end">Pot <PotHelp /></th>
           <th className="text-end">Wage</th>
           <th className="text-end">Contract</th>
           {hasStats && (

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Player } from "../../core/players/types.js";
 import { useLeague } from "../context/LeagueContext.js";
-import { HelpHint } from "../components/HelpHint.js";
+import { PotHelp } from "../components/HelpHint.js";
 import { transferWindowState } from "../../core/transfers/window.js";
 import {
   inboundOfferCandidates, currentInboundOffers, type InboundOffer,
@@ -172,14 +172,7 @@ export function IncomingOffers() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>
-        Incoming Offers
-        <HelpHint>
-          When AI clubs want to buy your players, their bids show up here to accept, reject, or
-          counter — the same haggling as your own offers, mirrored. Listing a player for transfer
-          on the Roster page makes offers for him more likely.
-        </HelpHint>
-      </h4>
+      <h4>Incoming Offers</h4>
 
       {!ws.open ? (
         <div className="alert alert-secondary mb-3">
@@ -211,7 +204,7 @@ export function IncomingOffers() {
               <th>Pos</th>
               <th className="text-end">Age</th>
               <th className="text-end">Ovr</th>
-              <th className="text-end">Pot</th>
+              <th className="text-end">Pot <PotHelp /></th>
               <th className="text-end">Wage</th>
               <th>Offer</th>
             </tr>

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
-import { HelpHint } from "../components/HelpHint.js";
+import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import { freeAgentPids } from "../../core/freeAgency.js";
 import type { Player } from "../../core/players/types.js";
 import { contractTerms } from "../../core/contracts.js";
@@ -67,7 +67,7 @@ export function FreeAgents() {
               <th>Name</th>
               <th>Pos</th>
               <th className="text-end">OVR</th>
-              <th className="text-end">POT</th>
+              <th className="text-end">POT <PotHelp /></th>
               <th className="text-end">Age</th>
               <th></th>
             </tr>

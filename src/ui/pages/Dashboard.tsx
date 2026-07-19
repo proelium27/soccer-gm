@@ -217,14 +217,7 @@ export function Dashboard() {
       {/* Sim controls */}
       <div className="card mb-3">
         <div className="card-body">
-          <h5 className="card-title">
-            Simulation
-            <HelpHint>
-              Advance the season — sim one matchday, a batch of them, or jump to the next transfer
-              deadline. The sim pauses for transfer windows and, if you reach it, your Continental
-              Cup final.
-            </HelpHint>
-          </h5>
+          <h5 className="card-title">Simulation</h5>
           <div className="btn-group" role="group">
             <button
               className="btn btn-primary"
@@ -345,14 +338,7 @@ export function Dashboard() {
 
               <hr />
 
-              <h5 className="card-title text-start">
-                Finances
-                <HelpHint>
-                  A quick look at your budget, hype, and the wages due at season end, plus the
-                  scouting-spend slider — higher spend sharpens your read on players' potential
-                  and transfer values. The Finance page has the full breakdown.
-                </HelpHint>
-              </h5>
+              <h5 className="card-title text-start">Finances</h5>
               <div className="text-start">
                 <p className="card-text mb-2">
                   Budget: {currency.format(userTeam.budget)} &middot; Hype: {Math.round(userTeam.hype)}/100
@@ -388,9 +374,16 @@ export function Dashboard() {
                   return (
                     <>
                       <label className="form-label mb-1" htmlFor="scouting-spend">
-                        {isOffseason
-                          ? <>Scouting budget for next season: {currency.format(scoutingDraft ?? userTeam.nextScoutingSpend)}</>
-                          : <>Scouting spend this season: {currency.format(userTeam.scoutingSpend)} (locked)</>}
+                        {isOffseason ? (
+                          <>Scouting budget for next season: {currency.format(scoutingDraft ?? userTeam.nextScoutingSpend)}</>
+                        ) : (
+                          <>Scouting spend this season: {currency.format(userTeam.scoutingSpend)} (locked)</>
+                        )}
+                        <HelpHint>
+                          {isOffseason
+                            ? "Higher scouting spend sharpens everything you see all season: transfer valuations for targets and for your own players become far more accurate, and players' potential (POT) is revealed as an exact number sooner instead of a wide range."
+                            : "Wait until the offseason to set your scouting budget."}
+                        </HelpHint>
                       </label>
                       <input
                         id="scouting-spend"
@@ -405,11 +398,6 @@ export function Dashboard() {
                         onPointerUp={commitScoutingDraft}
                         onBlur={commitScoutingDraft}
                       />
-                      <p className="card-text text-muted small mb-0 mt-1">
-                        {isOffseason
-                          ? "Set your scouting budget for the coming season. It locks in when you advance to the next season, and sharpens your read on transfer targets, offers, and player potential all year."
-                          : "Scouting is locked for the season. You'll set next season's budget in the offseason — so you can't peek at sharper info without committing to pay for it."}
-                      </p>
                     </>
                   );
                 })()}

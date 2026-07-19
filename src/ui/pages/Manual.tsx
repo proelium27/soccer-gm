@@ -55,9 +55,9 @@ export function Manual() {
           secret exists and how it behaves, not its value.
         </p>
         <p className="text-muted">
-          For a quick reminder while you play, most screens have a small <strong>?</strong> next
-          to their title — hover (or focus) it for a one-line explanation of what that page does.
-          This manual is the full version of those hints.
+          For a quick reminder while you play, look for a small <strong>?</strong> next to a
+          heading or a column like Potential, Scout value, or Power — hover (or focus) it for a
+          one-line explanation. This manual is the full version of those hints.
         </p>
 
         <div id="toc" className="card mb-3">
