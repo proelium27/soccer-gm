@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { transferFeeLabel } from "../../src/ui/format.js";
-import type { CompletedTransfer } from "../../src/core/transfers/negotiation.js";
 
 const base = { pid: 1, fromTid: 0, toTid: 1, season: 2026, window: "summer" as const };
 
