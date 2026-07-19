@@ -407,6 +407,83 @@ a:hover {
 }
 
 /* =========================================================================
+   OVR history chart (Player Profile — career OVR over time, academy vs senior)
+   ========================================================================= */
+.ovr-chart-caption {
+  font-size: var(--sg-text-xs);
+  color: var(--sg-text-muted);
+  margin-bottom: 0.35rem;
+}
+.ovr-chart {
+  position: relative;
+  width: 100%;
+}
+.ovr-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.ovr-chart-crest {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  line-height: 0;
+  border-radius: 50%;
+  padding: 2px;
+  background: var(--sg-surface);
+  box-shadow: 0 0 0 1.5px var(--sg-border-strong);
+}
+.ovr-chart-crest .club-crest,
+.ovr-chart-crest .club-crest-fallback {
+  margin-right: 0;
+  border-radius: 50%;
+}
+.ovr-chart-tip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 14px));
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.4rem 0.3rem 0.35rem;
+  background: var(--sg-surface-2);
+  border: 1px solid var(--sg-border-strong);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
+}
+.ovr-chart-tip .club-crest,
+.ovr-chart-tip .club-crest-fallback {
+  margin-right: 0;
+  border-radius: 50%;
+}
+.ovr-chart-tip-body {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.ovr-chart-tip-name {
+  font-weight: 600;
+  font-size: var(--sg-text-sm);
+  color: var(--sg-text);
+}
+.ovr-chart-tip-academy {
+  font-weight: 400;
+  color: var(--sg-text-muted);
+}
+.ovr-chart-tip-sub {
+  font-size: var(--sg-text-xs);
+  color: var(--sg-text-muted);
+}
+.ovr-chart-tip-badge {
+  font-size: var(--sg-text-xs);
+  font-weight: 700;
+  color: var(--sg-on-green);
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+}
+
+/* =========================================================================
    Division badge (Power Rankings — differentiate D1/D2 clubs at a glance)
    ========================================================================= */
 .division-badge {
