@@ -10,9 +10,7 @@ import { simOffseason } from "../../src/core/offseason.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { trueTransferValue } from "../../src/core/finance/valuation.js";
 import { tierOf } from "../../src/core/competitions.js";
-import {
-  LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, ROSTER_CAP, DIVISION_2_REFUSAL_OVR_THRESHOLD,
-} from "../../src/core/constants.js";
+import { LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, ROSTER_CAP } from "../../src/core/constants.js";
 
 function windowLeague(seed = 1): LeagueStore {
   const league = createLeagueState(0, mulberry32(seed));
@@ -190,8 +188,22 @@ describe("no phantom players (loan + market/sweep interaction)", () => {
     const a = base.teams.find((t) => t.tid !== 0 && t.tid !== b.tid)!; // parent
     const pid = a.roster[0];
 
+    // Force his underlying *ratings* elite, not just ovr — simOffseason's
+    // progression recomputes ovr from ratings before the sweep runs, so a
+    // forced ovr alone would be wiped at the first offseason (documented
+    // pitfall, see worldIntegration.test.ts) and the player could then even
+    // hit a retirement roll at his reverted rating. All-90 ratings keep him
+    // a genuine sweep/market target for the whole test.
     const players = base.players.map((p) =>
-      p.pid === pid ? { ...p, ovr: DIVISION_2_REFUSAL_OVR_THRESHOLD + 8, born: base.season - 24 } : p,
+      p.pid === pid
+        ? {
+            ...p,
+            ratings: Object.fromEntries(Object.keys(p.ratings).map((k) => [k, 90])) as typeof p.ratings,
+            ovr: 90,
+            potential: 90,
+            born: base.season - 24,
+          }
+        : p,
     );
     const teams = base.teams.map((t) => {
       if (t.tid === a.tid) return { ...t, roster: t.roster.filter((r) => r !== pid) };
