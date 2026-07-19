@@ -30,6 +30,7 @@
     "bootstrap": "^5.3.8",
     "csstype": "^3.2.3",
     "idb": "^8.0.3",
+    "posthog-js": "^1.404.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.1"

@@ -13,6 +13,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Analytics } from "@vercel/analytics/react";
 import { App } from "./App.js";
+import { initAnalytics } from "./analytics.js";
+
+// Start PostHog (custom gameplay events + page views). No-ops without a key.
+initAnalytics();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
