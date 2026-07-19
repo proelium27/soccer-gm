@@ -4,8 +4,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
  * The user's preferred name for the sport. This is a per-device display
  * preference (like the active-league pointer) — it's global to the user, not
  * stored on any league save and not included in exports. On first launch the
- * user is asked once; the choice drives the top-left brand ("Soccer GM" vs
- * "Football GM") and every other brand mention.
+ * user is asked once; the choice drives the top-left brand ("World Soccer
+ * Simulator" vs "World Football Simulator") and every other brand mention.
  */
 export type SportChoice = "soccer" | "football";
 
@@ -27,7 +27,7 @@ interface SportNameValue {
   choice: SportChoice | null;
   /** Capitalized term to render — falls back to "Soccer" before a choice. */
   term: string;
-  /** The full brand, e.g. "Soccer GM". */
+  /** The full brand, e.g. "World Soccer Simulator". */
   brand: string;
   /** Record the user's pick. */
   choose: (c: SportChoice) => void;
@@ -39,7 +39,7 @@ export function SportNameProvider({ children }: { children: ReactNode }) {
   const [choice, setChoice] = useState<SportChoice | null>(() => readStored());
 
   const term = displayTerm(choice ?? "soccer");
-  const brand = `${term} GM`;
+  const brand = `World ${term} Simulator`;
 
   // Keep the browser tab title in sync with the chosen brand.
   useEffect(() => {
