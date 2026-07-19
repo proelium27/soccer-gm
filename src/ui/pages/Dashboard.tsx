@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
 import { TRANSFER_DEADLINE_MATCHDAY } from "../../core/calendar.js";
@@ -216,7 +217,14 @@ export function Dashboard() {
       {/* Sim controls */}
       <div className="card mb-3">
         <div className="card-body">
-          <h5 className="card-title">Simulation</h5>
+          <h5 className="card-title">
+            Simulation
+            <HelpHint>
+              Advance the season — sim one matchday, a batch of them, or jump to the next transfer
+              deadline. The sim pauses for transfer windows and, if you reach it, your Continental
+              Cup final.
+            </HelpHint>
+          </h5>
           <div className="btn-group" role="group">
             <button
               className="btn btn-primary"
@@ -337,7 +345,14 @@ export function Dashboard() {
 
               <hr />
 
-              <h5 className="card-title text-start">Finances</h5>
+              <h5 className="card-title text-start">
+                Finances
+                <HelpHint>
+                  A quick look at your budget, hype, and the wages due at season end, plus the
+                  scouting-spend slider — higher spend sharpens your read on players' potential
+                  and transfer values. The Finance page has the full breakdown.
+                </HelpHint>
+              </h5>
               <div className="text-start">
                 <p className="card-text mb-2">
                   Budget: {currency.format(userTeam.budget)} &middot; Hype: {Math.round(userTeam.hype)}/100

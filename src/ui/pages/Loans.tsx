@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint } from "../components/HelpHint.js";
 import { transferWindowState } from "../../core/transfers/window.js";
 import { loanOfferCandidates } from "../../core/loans.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
@@ -43,7 +44,14 @@ export function Loans() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>Loans</h4>
+      <h4>
+        Loans
+        <HelpHint>
+          Send a player to another club for 1–3 seasons to get him minutes he isn't getting with
+          you — and minutes drive development. List a player, then accept or reject the flat-fee
+          loan offers that come in; he returns automatically when the loan ends.
+        </HelpHint>
+      </h4>
 
       {!ws.open ? (
         <div className="alert alert-secondary mb-3">

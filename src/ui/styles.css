@@ -598,6 +598,62 @@ a:hover {
   color: var(--sg-text);
 }
 
+/* Contextual "?" help badge shown beside a section title. */
+.help-hint {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 0.4rem;
+  cursor: help;
+}
+.help-hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05em;
+  height: 1.05em;
+  border-radius: 50%;
+  border: 1px solid var(--sg-border-strong);
+  background: var(--sg-surface-2);
+  color: var(--sg-text-muted);
+  font-size: 0.72em;
+  font-weight: var(--sg-weight-semibold);
+  line-height: 1;
+  font-style: normal;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.help-hint:hover .help-hint-icon,
+.help-hint:focus-visible .help-hint-icon {
+  color: var(--sg-text);
+  border-color: var(--sg-text-muted);
+}
+.help-hint:focus-visible {
+  outline: none;
+}
+.help-hint-panel {
+  display: block;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1060;
+  margin-top: 6px;
+  width: 260px;
+  max-width: 76vw;
+  background: var(--sg-surface-2);
+  border: 1px solid var(--sg-border-strong);
+  border-radius: var(--sg-radius);
+  box-shadow: var(--sg-shadow);
+  padding: 0.55rem 0.7rem;
+  font-size: var(--sg-text-sm);
+  font-weight: var(--sg-weight-regular);
+  line-height: 1.4;
+  color: var(--sg-text-muted);
+  white-space: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  text-align: left;
+}
+
 /* =========================================================================
    Sim overlay + ticker (already the app's best-crafted component; retinted
    to the system so it stops being an exception and becomes the template).

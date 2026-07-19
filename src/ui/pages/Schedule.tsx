@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint } from "../components/HelpHint.js";
 import type { ScheduleGame } from "../../core/schedule.js";
 
 interface FixtureRow {
@@ -64,7 +65,13 @@ export function Schedule() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>Schedule</h4>
+      <h4>
+        Schedule
+        <HelpHint>
+          Every matchday's fixtures and results for the season. Click a played match to open
+          its full box score.
+        </HelpHint>
+      </h4>
       {allRows.length === 0 ? (
         <p>No fixtures found.</p>
       ) : (

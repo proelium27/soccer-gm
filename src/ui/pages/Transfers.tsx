@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint } from "../components/HelpHint.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import { transferWindowState } from "../../core/transfers/window.js";
 import { recommendedTransfers } from "../../core/transfers/recommendations.js";
@@ -199,7 +200,14 @@ export function Transfers() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>Transfers</h4>
+      <h4>
+        Transfers
+        <HelpHint>
+          Buy players from other clubs. During an open transfer window, Recommended Transfers
+          suggests affordable targets near your level; make an offer and negotiate against the
+          seller's hidden, window-stable asking price.
+        </HelpHint>
+      </h4>
       {windowBanner(league)}
 
       <p>

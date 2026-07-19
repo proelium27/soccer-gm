@@ -54,6 +54,11 @@ export function Manual() {
           where the game keeps a secret (like a club's asking price), the manual tells you a
           secret exists and how it behaves, not its value.
         </p>
+        <p className="text-muted">
+          For a quick reminder while you play, most screens have a small <strong>?</strong> next
+          to their title — hover (or focus) it for a one-line explanation of what that page does.
+          This manual is the full version of those hints.
+        </p>
 
         <div id="toc" className="card mb-3">
           <div className="card-body">

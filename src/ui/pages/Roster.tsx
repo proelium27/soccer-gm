@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint } from "../components/HelpHint.js";
 import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
 import { resolveXI } from "../../core/lineup/resolveXI.js";
@@ -289,6 +290,11 @@ export function Roster() {
         <small className="text-muted">
           &middot; {teamRating.ovr} OVR / {teamRating.pot} POT
         </small>
+        <HelpHint>
+          Your squad. Choose your formation, then drag players between the pitch and the bench to
+          set your Starting XI; click a player to extend or release him. Team OVR/POT and your
+          bench update as you go. The cap is {ROSTER_CAP} players.
+        </HelpHint>
       </h4>
       {players.length === 0 ? (
         <p>No players on roster.</p>

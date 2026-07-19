@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings } from "../../core/standings.js";
 import { seasonRevenue, wageBill } from "../../core/finance/budget.js";
 import { tierOf } from "../../core/competitions.js";
@@ -86,7 +87,14 @@ export function Finance() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>Finance</h4>
+      <h4>
+        Finance
+        <HelpHint>
+          Your club's money in one place: current budget and hype, the scouting-spend slider, a
+          projected season-end settlement, your full wage bill, transfer history, and a
+          league-wide finances table.
+        </HelpHint>
+      </h4>
 
       {/* Overview + scouting control */}
       <div className="card mb-3">

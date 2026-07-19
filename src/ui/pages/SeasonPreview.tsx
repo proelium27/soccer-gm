@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint } from "../components/HelpHint.js";
 import type { Player } from "../../core/players/types.js";
 import type { StoredTeam } from "../../core/teams/clubs.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
@@ -46,7 +47,14 @@ export function SeasonPreview() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>Season Preview — {seasonYear(league.season)}</h4>
+      <h4>
+        Season Preview — {seasonYear(league.season)}
+        <HelpHint>
+          A snapshot of how the offseason shook out — the league's highest-rated players and
+          teams, and the summer window's biggest transfers by fee. Shown automatically each time
+          you advance past a season.
+        </HelpHint>
+      </h4>
       <p className="text-muted small mb-4">
         Here's how the offseason shook out before {seasonYear(league.season)} kicks off.
       </p>

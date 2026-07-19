@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint } from "../components/HelpHint.js";
 import { computeClubHistory, type ClubIndividualHonour } from "../../core/clubHistory.js";
 import { competitionOf, countriesOf } from "../../core/competitions.js";
 import type { Player } from "../../core/players/types.js";
@@ -96,6 +97,11 @@ export function ClubHistory() {
       <div className="d-flex align-items-center gap-2 mb-1">
         <ClubCrest tid={tid} colors={team?.colors ?? ["#888888", "#888888"]} size={32} />
         <h4 className="mb-0">{team?.name ?? `Team ${tid}`}</h4>
+        <HelpHint>
+          A club's honours and records: league and second-tier titles, promotions and
+          relegations, individual awards won by its players, franchise records, and a
+          season-by-season history. Pick any club in the world from the dropdown.
+        </HelpHint>
       </div>
       <div className="text-muted mb-3">
         {currentComp ? `${currentComp.name} · ${history.seasonsPlayed} season${history.seasonsPlayed === 1 ? "" : "s"} on record` : ""}

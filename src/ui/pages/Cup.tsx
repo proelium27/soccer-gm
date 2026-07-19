@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint } from "../components/HelpHint.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { seasonYear } from "../format.js";
 import type { CupState, CupTie } from "../../core/cup/types.js";
@@ -77,7 +78,14 @@ export function Cup() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>Continental Cup</h4>
+      <h4>
+        Continental Cup
+        <HelpHint>
+          A 16-team knockout played alongside the league, contested by the top four clubs of each
+          top-flight league. Rounds fire on set matchdays; the live bracket and past winners are
+          shown here. If your club reaches the final, the sim pauses so you can play it.
+        </HelpHint>
+      </h4>
       <div className="mb-3">
         <select
           className="form-select form-select-sm"
