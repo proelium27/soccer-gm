@@ -614,9 +614,15 @@ export function Manual() {
             some will develop into stars (and some won't; see <a href="#players">potential</a>).
           </p>
           <p>
-            Academy quality is a fixed trait of each club, set when the league is created — a big
-            club's intake trends better than a small club's, but your academy doesn't get better
-            or worse as your first team does.
+            Academy quality starts from a fixed trait of each club, set when the league is
+            created — a big club's intake trends better than a small club's. On top of that
+            anchor, <strong>recent results move the needle</strong>: young players want to join a
+            club that's been winning, so finishing high in your league over the last few seasons
+            nudges your intake quality up, and finishing low nudges it down. It's a modest pull,
+            not a transformation — sustained success at the top of the table is worth a few
+            points of intake quality versus sustained struggle, judged over roughly the last
+            three seasons, and it fades as results normalize. Buying a great squad doesn't do
+            it; the results themselves are what count.
           </p>
           <p>
             Academy players draw a cheap flat weekly stipend instead of the normal wage formula
