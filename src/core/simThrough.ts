@@ -17,6 +17,7 @@ import { runAITransferMarket } from "./ai/transferMarket.js";
 import { runAILoanMarket } from "./loans.js";
 import { hashInts } from "../engine/rng.js";
 import type { StoredTeam } from "./teams/clubs.js";
+import { assignAIFormations } from "./teams/clubs.js";
 import { playerGoalTotals, detectMatchdayNewsEvents } from "./newsEvents.js";
 import type { NewsEvent } from "./newsEvents.js";
 import type { CupState } from "./cup/types.js";
@@ -210,6 +211,12 @@ export function simThrough(
       currentTeams = loanMarket.teams;
       activeLoans = loanMarket.activeLoans;
       transfers = loanMarket.transfers;
+
+      // End of the winter window: each AI club re-picks the formation that
+      // fields its strongest XI now that it has its new signings (mirrors the
+      // summer-window refresh done in simOffseason). The user's choice is left
+      // untouched. Flows into the leagueMatchData recompute below.
+      currentTeams = assignAIFormations(currentTeams, currentPlayers, league.meta.userTid);
 
       winterMarketRunSeason = league.season;
     }
