@@ -92,6 +92,18 @@ export function PowerRankings() {
     divisionRanks.set(r.tid, next);
   }
 
+  // World rank = a club's position among every club in the world by Power
+  // score. snapshot.rows is the full, globally-sorted list (before the
+  // competition filter), so its index order is exactly that.
+  const worldRankByTid = new Map<number, number>();
+  snapshot.rows.forEach((r, i) => worldRankByTid.set(r.tid, i + 1));
+  const worldTotal = snapshot.rows.length;
+
+  // When a single competition is selected, everyone shares a division, so the
+  // "Div" badge just mirrors the # column — show each club's world rank there
+  // instead, which is genuinely new information in that view.
+  const showWorldRank = compId !== "all";
+
   // Newest first in the dropdown: seasons descending, matchdays descending
   // within a season. Values are indices into powerRankingHistory.
   const seasonsDesc = [...new Set(history.map((s) => s.season))].sort((a, b) => b - a);
@@ -150,7 +162,7 @@ export function PowerRankings() {
             <th className="text-end">#</th>
             <th style={{ width: "2.5em" }}></th>
             <th>Team</th>
-            <th className="text-end">Div</th>
+            <th className="text-end">{showWorldRank ? "World" : "Div"}</th>
             <th className="text-end">Record</th>
             <th className="text-end">GD</th>
             <th className="text-end">OVR</th>
@@ -211,6 +223,16 @@ export function PowerRankings() {
                   </td>
                   <td className="text-end">
                     {(() => {
+                      if (showWorldRank) {
+                        return (
+                          <span
+                            className="text-muted"
+                            title={`World rank ${worldRankByTid.get(r.tid)} of ${worldTotal} by Power score`}
+                          >
+                            #{worldRankByTid.get(r.tid)}
+                          </span>
+                        );
+                      }
                       const comp = competitionOf(league.competitions, r.compId);
                       const tier = tierOf(league.competitions, r.compId);
                       return (
