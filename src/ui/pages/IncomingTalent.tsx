@@ -43,6 +43,13 @@ export function IncomingTalent() {
   return (
     <div className="container-fluid p-3">
       <h4>Incoming Talent</h4>
+      <p className="text-muted" style={{ maxWidth: "48rem" }}>
+        Every club's yearly academy intake is shaped by two things: a fixed academy strength set
+        when the league was created, and the club's league finishes over the past few seasons —
+        young players are drawn to clubs that have been winning and shy away from strugglers.
+        Your own intake lands on the Academy page each offseason; the prospects below are the
+        unsigned ones no club has claimed, free to join anyone.
+      </p>
       {atRosterCap && (
         <div className="alert alert-warning">
           Your roster is full ({ROSTER_CAP}/{ROSTER_CAP}) — signing to the senior team is disabled.
