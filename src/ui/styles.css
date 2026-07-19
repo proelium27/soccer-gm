@@ -725,8 +725,68 @@ a:hover {
     transform: translateY(0) scale(1);
   }
 }
+
+/* Continental Cup ties are emphasized over the plain league cards: a gold frame,
+   a glow, and a slow pulse so knockout nights stand out in the sim ticker. */
+.sim-ticker-cup {
+  min-width: 108px;
+  border: 2px solid var(--sg-warn);
+  background: var(--sg-warn-wash);
+  box-shadow: 0 0 0 1px var(--sg-warn), 0 4px 14px oklch(0.80 0.13 80 / 0.35);
+  animation:
+    sim-card-in 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    sim-cup-pulse 1.8s ease-in-out 200ms 3;
+}
+.sim-ticker-cup-label {
+  text-align: center;
+  font-size: var(--sg-text-xs, 0.65rem);
+  font-weight: var(--sg-weight-bold, 700);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sg-warn);
+  padding: 0.2rem 0.4rem 0;
+}
+.sim-ticker-cup-sub {
+  text-align: center;
+  font-size: var(--sg-text-xs, 0.65rem);
+  color: var(--sg-text-muted, var(--sg-text));
+  padding: 0 0.4rem 0.15rem;
+  border-bottom: 1px solid var(--sg-warn);
+}
+.sim-ticker-cup .sim-ticker-row:first-child {
+  border-bottom: none;
+}
+.sim-ticker-cup-note {
+  text-align: center;
+  font-size: var(--sg-text-xs, 0.65rem);
+  font-style: italic;
+  color: var(--sg-text-muted, var(--sg-text));
+  padding: 0.1rem 0.4rem 0.25rem;
+}
+.sim-ticker-cup-win .sim-ticker-row {
+  background: var(--sg-win-wash);
+}
+.sim-ticker-cup-loss .sim-ticker-row {
+  background: var(--sg-loss-wash);
+}
+.sim-ticker-cup-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 128px;
+}
+.sim-ticker-cup-marker .sim-ticker-cup-sub {
+  border-bottom: none;
+}
+@keyframes sim-cup-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px var(--sg-warn), 0 4px 14px oklch(0.80 0.13 80 / 0.35); }
+  50% { box-shadow: 0 0 0 2px var(--sg-warn), 0 4px 20px oklch(0.80 0.13 80 / 0.6); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sim-ticker-card { animation: none; }
+  .sim-ticker-cup { animation: none; }
   * { scroll-behavior: auto; }
 }
 

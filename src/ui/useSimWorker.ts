@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LeagueStore } from "../core/leagueState.js";
 import type { PlayedMatch } from "../core/standings.js";
+import type { CupTie } from "../core/cup/types.js";
 import type { SimThrough, WorkerResponse } from "../worker/protocol.js";
 
 export type SimProgress = {
@@ -9,6 +10,7 @@ export type SimProgress = {
   matchdayIndex: number;
   totalMatchdays: number;
   results: PlayedMatch[];
+  cupTies: CupTie[];
 };
 
 type Pending = {
@@ -29,8 +31,8 @@ export function useSimWorker() {
     );
     worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
       if (e.data.type === "simProgress") {
-        const { matchday, matchdayIndex, totalMatchdays, results } = e.data;
-        progressRef.current?.({ matchday, matchdayIndex, totalMatchdays, results });
+        const { matchday, matchdayIndex, totalMatchdays, results, cupTies } = e.data;
+        progressRef.current?.({ matchday, matchdayIndex, totalMatchdays, results, cupTies });
         return;
       }
       if (e.data.type === "simResult" || e.data.type === "offseasonResult") {
