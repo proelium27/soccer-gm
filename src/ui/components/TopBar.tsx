@@ -3,8 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { useSportName } from "../sportName.js";
 import { seasonYear } from "../format.js";
+import { Dropdown } from "./Dropdown.js";
 
-export function TopBar() {
+interface TopBarProps {
+  /** Toggle the mobile navigation drawer (rendered as a hamburger, mobile only). */
+  onToggleNav: () => void;
+}
+
+export function TopBar({ onToggleNav }: TopBarProps) {
   const { league, simAction, simming, exportJSON, importJSON, switchLeagueAction } = useLeague();
   const { brand } = useSportName();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,56 +52,85 @@ export function TopBar() {
   }
 
   return (
-    <nav className="navbar navbar-dark app-topbar px-3">
+    <nav className="navbar navbar-dark app-topbar px-2 px-md-3">
+      <button
+        className="btn btn-sm mobile-nav-toggle d-md-none"
+        type="button"
+        aria-label="Open navigation menu"
+        onClick={onToggleNav}
+      >
+        <span aria-hidden="true" className="mobile-nav-toggle-icon" />
+      </button>
+
       <span className="navbar-brand mb-0 h1 d-flex align-items-center gap-2">
         <img src="/favicon.png" alt="" width="32" height="32" className="rounded" />
-        {brand}
+        <span className="d-none d-sm-inline">{brand}</span>
       </span>
 
-      <span className="text-light">{statusText}</span>
+      <span className="topbar-status text-light">{statusText}</span>
 
       <div className="d-flex align-items-center gap-2">
-        <div className="dropdown">
-          <button
-            className="btn btn-outline-light btn-sm dropdown-toggle"
-            type="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-            disabled={simDisabled}
-          >
-            {simming ? "Simming..." : "Sim"}
+        <Dropdown label={simming ? "Simming..." : "Sim"} alignEnd disabled={simDisabled}>
+          <li>
+            <button className="dropdown-item" onClick={() => simAction("game")} disabled={simDisabled}>
+              Sim One Game
+            </button>
+          </li>
+          <li>
+            <button className="dropdown-item" onClick={() => simAction("month")} disabled={simDisabled}>
+              Sim to End of Month
+            </button>
+          </li>
+          <li>
+            <button className="dropdown-item" onClick={() => simAction("deadline")} disabled={simDisabled}>
+              Sim to Transfer Deadline
+            </button>
+          </li>
+          <li>
+            <button className="dropdown-item" onClick={() => simAction("season")} disabled={simDisabled}>
+              Sim to End of Season
+            </button>
+          </li>
+        </Dropdown>
+
+        {/* Desktop: the save controls sit inline. */}
+        <div className="d-none d-md-flex align-items-center gap-2">
+          <button className="btn btn-outline-light btn-sm" onClick={exportJSON} disabled={!league}>
+            Export
           </button>
-          <ul className="dropdown-menu dropdown-menu-end">
-            <li>
-              <button className="dropdown-item" onClick={() => simAction("game")} disabled={simDisabled}>
-                Sim One Game
-              </button>
-            </li>
-            <li>
-              <button className="dropdown-item" onClick={() => simAction("month")} disabled={simDisabled}>
-                Sim to End of Month
-              </button>
-            </li>
-            <li>
-              <button className="dropdown-item" onClick={() => simAction("deadline")} disabled={simDisabled}>
-                Sim to Transfer Deadline
-              </button>
-            </li>
-            <li>
-              <button className="dropdown-item" onClick={() => simAction("season")} disabled={simDisabled}>
-                Sim to End of Season
-              </button>
-            </li>
-          </ul>
+          <button className="btn btn-outline-light btn-sm" onClick={handleImportClick}>
+            Import
+          </button>
+          <button className="btn btn-outline-light btn-sm" onClick={handleSwitchLeague}>
+            Switch League
+          </button>
         </div>
 
-        <button className="btn btn-outline-light btn-sm" onClick={exportJSON} disabled={!league}>
-          Export
-        </button>
+        {/* Mobile: the same controls collapse into an overflow menu. */}
+        <Dropdown
+          className="d-md-none"
+          buttonClassName="btn btn-outline-light btn-sm topbar-more-toggle"
+          ariaLabel="More actions"
+          label={<span aria-hidden="true">•••</span>}
+          alignEnd
+        >
+          <li>
+            <button className="dropdown-item" onClick={exportJSON} disabled={!league}>
+              Export Save
+            </button>
+          </li>
+          <li>
+            <button className="dropdown-item" onClick={handleImportClick}>
+              Import Save
+            </button>
+          </li>
+          <li>
+            <button className="dropdown-item" onClick={handleSwitchLeague}>
+              Switch League
+            </button>
+          </li>
+        </Dropdown>
 
-        <button className="btn btn-outline-light btn-sm" onClick={handleImportClick}>
-          Import
-        </button>
         <input
           ref={fileInputRef}
           type="file"
@@ -103,10 +138,6 @@ export function TopBar() {
           className="d-none"
           onChange={handleFileChange}
         />
-
-        <button className="btn btn-outline-light btn-sm" onClick={handleSwitchLeague}>
-          Switch League
-        </button>
       </div>
     </nav>
   );
