@@ -16,13 +16,14 @@ self.onmessage = (e: MessageEvent<WorkerCommand>) => {
       cmd.league,
       cmd.through,
       rng,
-      (matchday, matchdayIndex, totalMatchdays, results) => {
+      (matchday, matchdayIndex, totalMatchdays, results, cupTies) => {
         const progress: WorkerResponse = {
           type: "simProgress",
           matchday,
           matchdayIndex,
           totalMatchdays,
           results,
+          cupTies,
         };
         self.postMessage(progress);
       },

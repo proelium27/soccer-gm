@@ -22,7 +22,7 @@ import { playerGoalTotals, detectMatchdayNewsEvents } from "./newsEvents.js";
 import type { NewsEvent } from "./newsEvents.js";
 import { computePowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
-import type { CupState } from "./cup/types.js";
+import type { CupState, CupTie } from "./cup/types.js";
 import { dueCupRound, cupFinalists } from "./cup/cup.js";
 import { playCupRound } from "./cup/simCup.js";
 import { clampBudget } from "./finance/budget.js";
@@ -80,6 +80,7 @@ export type MatchdayProgress = (
   matchdayIndex: number,
   totalMatchdays: number,
   results: PlayedMatch[],
+  cupTies: CupTie[],
 ) => void;
 
 export function simThrough(
@@ -253,9 +254,14 @@ export function simThrough(
     // matches use their own seeded rng (inside playCupRound), so they don't
     // perturb the league match stream. Cup stats are kept out of SeasonStats
     // by design — they live only on the tie's box score.
+    let mdCupTies: CupTie[] = [];
     if (cup && dueCupRound(cup, matchday) !== null) {
+      const priorTieCount = cup.ties.length;
       const { cup: advanced, prizes } = playCupRound(cup, matchData, league.lid);
       cup = advanced;
+      // The ties added by this round — surfaced to the sim-progress callback so
+      // the simming overlay can show cup games alongside the league fixtures.
+      mdCupTies = advanced.ties.slice(priorTieCount);
       if (prizes.size > 0) {
         currentTeams = currentTeams.map((t) => {
           const prize = prizes.get(t.tid);
@@ -326,7 +332,7 @@ export function simThrough(
       );
     }
 
-    onMatchday?.(matchday, index, matchdays.length, mdResults);
+    onMatchday?.(matchday, index, matchdays.length, mdResults, mdCupTies);
   }
 
   // A stop-before-final break leaves this matchday and every later one

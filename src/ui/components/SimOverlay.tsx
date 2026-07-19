@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { StoredTeam } from "../../core/teams/clubs.js";
 import type { SimProgress } from "../useSimWorker.js";
 import type { PlayedMatch } from "../../core/standings.js";
+import type { CupTie } from "../../core/cup/types.js";
+import { cupRoundName } from "../../core/cup/cup.js";
 
 interface SimOverlayProps {
   open: boolean;
@@ -19,6 +21,29 @@ function teamLabel(teams: StoredTeam[], tid: number): string {
 
 function userGame(md: SimProgress | undefined, userTid: number): PlayedMatch | undefined {
   return md?.results.find((r) => r.home === userTid || r.away === userTid);
+}
+
+// One card in the ticker: the user's league match, the user's cup tie, or — when
+// a cup round is played on a matchday the user's club isn't in — a compact
+// marker so the tournament is still visible in the animation.
+type TickerItem =
+  | { kind: "league"; game: PlayedMatch }
+  | { kind: "cup"; tie: CupTie }
+  | { kind: "cup-marker"; round: number; matchday: number };
+
+function tickerItemsFor(md: SimProgress, userTid: number): TickerItem[] {
+  const items: TickerItem[] = [];
+  const league = userGame(md, userTid);
+  if (league) items.push({ kind: "league", game: league });
+
+  const userTie = md.cupTies.find((t) => t.home === userTid || t.away === userTid);
+  if (userTie) {
+    items.push({ kind: "cup", tie: userTie });
+  } else if (md.cupTies.length > 0) {
+    const t = md.cupTies[0];
+    items.push({ kind: "cup-marker", round: t.round, matchday: t.matchday });
+  }
+  return items;
 }
 
 export function SimOverlay({ open, teams, queue, done, userTid, onComplete }: SimOverlayProps) {
@@ -61,9 +86,7 @@ export function SimOverlay({ open, teams, queue, done, userTid, onComplete }: Si
 
   const currentMd = queue[mdIndex];
   const revealedMatchdays = queue.slice(0, currentMd ? mdIndex + 1 : mdIndex);
-  const revealedGames = revealedMatchdays
-    .map((md) => userGame(md, userTid))
-    .filter((g): g is PlayedMatch => g != null);
+  const revealedItems = revealedMatchdays.flatMap((md) => tickerItemsFor(md, userTid));
   const totalMatchdays = queue[0]?.totalMatchdays ?? 0;
   const progressPct =
     totalMatchdays > 0 ? Math.min(100, Math.round((mdIndex / totalMatchdays) * 100)) : 0;
@@ -86,29 +109,74 @@ export function SimOverlay({ open, teams, queue, done, userTid, onComplete }: Si
             />
           </div>
           <div className="sim-overlay-ticker" ref={tickerRef}>
-            {revealedGames.length === 0 && (
+            {revealedItems.length === 0 && (
               <div className="text-muted small">Kicking off...</div>
             )}
-            {revealedGames.map((g) => {
-              const userIsHome = g.home === userTid;
-              const userGoals = userIsHome ? g.homeGoals : g.awayGoals;
-              const oppGoals = userIsHome ? g.awayGoals : g.homeGoals;
-              const oppTid = userIsHome ? g.away : g.home;
-              const outcome =
-                userGoals > oppGoals ? "win" : userGoals < oppGoals ? "loss" : "draw";
+            {revealedItems.map((item) => {
+              if (item.kind === "league") {
+                const g = item.game;
+                const userIsHome = g.home === userTid;
+                const userGoals = userIsHome ? g.homeGoals : g.awayGoals;
+                const oppGoals = userIsHome ? g.awayGoals : g.homeGoals;
+                const oppTid = userIsHome ? g.away : g.home;
+                const outcome =
+                  userGoals > oppGoals ? "win" : userGoals < oppGoals ? "loss" : "draw";
+                return (
+                  <div
+                    key={`l-${g.matchday}-${g.home}-${g.away}`}
+                    className={`sim-ticker-card sim-ticker-${outcome}`}
+                  >
+                    <div className="sim-ticker-row">
+                      <span className="sim-ticker-team">{teamLabel(teams, userTid)}</span>
+                      <span className="sim-ticker-score">{userGoals}</span>
+                    </div>
+                    <div className="sim-ticker-row">
+                      <span className="sim-ticker-team">{teamLabel(teams, oppTid)}</span>
+                      <span className="sim-ticker-score">{oppGoals}</span>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (item.kind === "cup-marker") {
+                return (
+                  <div
+                    key={`cm-${item.matchday}`}
+                    className="sim-ticker-card sim-ticker-cup sim-ticker-cup-marker"
+                  >
+                    <div className="sim-ticker-cup-label">Continental Cup</div>
+                    <div className="sim-ticker-cup-sub">{cupRoundName(item.round)}</div>
+                  </div>
+                );
+              }
+
+              const t = item.tie;
+              const won = t.winner === userTid;
+              const oppTid = t.home === userTid ? t.away : t.home;
+              const note = t.wentToPens
+                ? `Pens ${t.homePens}–${t.awayPens}`
+                : t.wentToExtraTime
+                  ? "AET"
+                  : null;
               return (
                 <div
-                  key={`${g.matchday}-${g.home}-${g.away}`}
-                  className={`sim-ticker-card sim-ticker-${outcome}`}
+                  key={`c-${t.matchday}-${t.home}-${t.away}`}
+                  className={`sim-ticker-card sim-ticker-cup sim-ticker-cup-${won ? "win" : "loss"}`}
                 >
+                  <div className="sim-ticker-cup-label">Continental Cup</div>
+                  <div className="sim-ticker-cup-sub">{cupRoundName(t.round)}</div>
                   <div className="sim-ticker-row">
-                    <span className="sim-ticker-team">{teamLabel(teams, userTid)}</span>
-                    <span className="sim-ticker-score">{userGoals}</span>
+                    <span className="sim-ticker-team">{teamLabel(teams, t.home)}</span>
+                    <span className="sim-ticker-score">{t.homeGoals}</span>
                   </div>
                   <div className="sim-ticker-row">
-                    <span className="sim-ticker-team">{teamLabel(teams, oppTid)}</span>
-                    <span className="sim-ticker-score">{oppGoals}</span>
+                    <span className="sim-ticker-team">{teamLabel(teams, t.away)}</span>
+                    <span className="sim-ticker-score">{t.awayGoals}</span>
                   </div>
+                  {note && <div className="sim-ticker-cup-note">{note}</div>}
+                  <span className="visually-hidden">
+                    {won ? "won" : "lost"} vs {teamLabel(teams, oppTid)}
+                  </span>
                 </div>
               );
             })}

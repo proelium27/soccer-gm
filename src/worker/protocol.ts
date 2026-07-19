@@ -1,5 +1,6 @@
 import type { LeagueStore } from "../core/leagueState.js";
 import type { PlayedMatch } from "../core/standings.js";
+import type { CupTie } from "../core/cup/types.js";
 
 export type SimThrough = "game" | "month" | "deadline" | "season";
 
@@ -18,4 +19,5 @@ export type WorkerResponse =
       matchdayIndex: number;
       totalMatchdays: number;
       results: PlayedMatch[];
+      cupTies: CupTie[];
     };
