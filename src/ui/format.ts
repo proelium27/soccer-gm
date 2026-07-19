@@ -1,8 +1,23 @@
 import { weeklyWage } from "../core/contracts.js";
+import type { CompletedTransfer } from "../core/transfers/negotiation.js";
 
 export const currency = new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", maximumFractionDigits: 0,
 });
+
+/**
+ * Fee-cell text for a completed transfer, distinguishing loan moves from
+ * permanent ones. A loan-out carries the (small) loan fee; a loan return is
+ * always fee-less — showing it as a bare "Free"/"$0" reads like a mystery
+ * free transfer (it's the player simply coming home off loan).
+ */
+export function transferFeeLabel(t: CompletedTransfer): string {
+  if (t.loanReturn) return "Loan return";
+  if (t.loanSeasons) {
+    return t.fee > 0 ? `${currency.format(t.fee)} (loan)` : "Loan";
+  }
+  return t.fee > 0 ? currency.format(t.fee) : "Free";
+}
 
 /** Present a stored per-season salary as the weekly wage the design calls for. */
 export function formatWeeklyWage(seasonSalary: number): string {

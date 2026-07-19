@@ -14,7 +14,7 @@ import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { competitionOf } from "../../core/competitions.js";
 import { worldHasCup } from "../../core/cup/cup.js";
 import { cupStatsBySeasonForPlayer } from "../../core/cup/cupStats.js";
-import { currency, formatWeeklyWage, seasonYear } from "../format.js";
+import { formatWeeklyWage, seasonYear, transferFeeLabel } from "../format.js";
 
 /** One career-honor badge, e.g. "3x Golden Boot" — omits the count for a single win. */
 function AwardPill({ label, seasons, icon }: { label: string; seasons: number[]; icon?: ReactNode }) {
@@ -209,7 +209,7 @@ export function PlayerProfile() {
                         <td className="text-capitalize">{t.window}</td>
                         <td>{teamName(t.fromTid)}</td>
                         <td>{teamName(t.toTid)}</td>
-                        <td className="text-end">{t.fee > 0 ? currency.format(t.fee) : "Free"}</td>
+                        <td className="text-end">{transferFeeLabel(t)}</td>
                       </tr>
                     ))}
                   </tbody>

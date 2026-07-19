@@ -7,7 +7,7 @@ import { seasonRevenue, wageBill } from "../../core/finance/budget.js";
 import { tierOf } from "../../core/competitions.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
-import { currency, formatWeeklyWage, ordinal, seasonYear } from "../format.js";
+import { currency, formatWeeklyWage, ordinal, seasonYear, transferFeeLabel } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { ClubCrest } from "../components/ClubCrest.js";
@@ -283,7 +283,7 @@ export function Finance() {
                           )}
                         </td>
                         <td>{teamName(bought ? t.fromTid : t.toTid)}</td>
-                        <td className="text-end">{currency.format(t.fee)}</td>
+                        <td className="text-end">{transferFeeLabel(t)}</td>
                       </tr>
                     );
                   })}

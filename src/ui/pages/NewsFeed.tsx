@@ -188,7 +188,7 @@ export function NewsFeed() {
                                   {teamCell(t.fromTid)} <span className="text-muted">→</span> {teamCell(t.toTid)}
                                 </span>
                               </td>
-                              <td className="text-end stat-num">{currency.format(t.fee)}</td>
+                              <td className="text-end stat-num">{t.loanReturn ? "—" : currency.format(t.fee)}</td>
                             </tr>
                           );
                         }
