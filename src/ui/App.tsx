@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { LeagueProvider, useLeague } from "./context/LeagueContext.js";
+import { LeagueProvider } from "./context/LeagueContext.js";
 import { SportNameProvider } from "./sportName.js";
 import { Layout } from "./components/Layout.js";
 import { Leagues } from "./pages/Leagues.js";
@@ -27,9 +27,7 @@ import { Manual } from "./pages/Manual.js";
 import { PlayerProfile } from "./pages/PlayerProfile.js";
 
 function RootRedirect() {
-  const { league, loadingActiveLeague } = useLeague();
-  if (loadingActiveLeague) return <p className="p-3">Loading...</p>;
-  return <Navigate to={league ? "/dashboard" : "/leagues"} replace />;
+  return <Navigate to="/leagues" replace />;
 }
 
 export function App() {
