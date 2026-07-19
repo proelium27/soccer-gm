@@ -4,6 +4,7 @@ import type { Player, Position } from "../../core/players/types.js";
 import type { FormationId } from "../../core/lineup/formations.js";
 import { bestFit } from "../../core/lineup/selectXI.js";
 import { layoutSlots } from "../pitchLayout.js";
+import { useIsMobile } from "../useIsMobile.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { PlayerRatingsTooltip } from "./PlayerRatingsTooltip.js";
 import { PotDisplay } from "./PotDisplay.js";
@@ -57,6 +58,11 @@ export function PitchField({
 }: PitchFieldProps) {
   const [openPid, setOpenPid] = useState<number | null>(null);
   const coords = layoutSlots(formation);
+  // On phones the pitch is drawn vertically (portrait) so the XI fills the
+  // tall screen without chips clipping off the sides. The stored coordinates
+  // are horizontal (x = own-goal→attack, y = touchline); rotate them a quarter
+  // turn so the GK sits at the bottom and the attack points up.
+  const vertical = useIsMobile();
 
   useEffect(() => {
     if (openPid === null) return;
@@ -78,17 +84,21 @@ export function PitchField({
   }, [openPid]);
 
   return (
-    <div className="pitch-field">
+    <div className={"pitch-field" + (vertical ? " pitch-field--vertical" : "")}>
       <div className="pitch-goal pitch-goal--left" />
       <div className="pitch-goal pitch-goal--right" />
       {starters.map((p, i) => {
         const coord = coords[i];
+        // Visual position: horizontal uses the stored coords directly; vertical
+        // rotates them (left ← y, top ← own-goal end at the bottom).
+        const visualLeft = vertical ? coord.y : coord.x;
+        const visualTop = vertical ? 100 - coord.x : coord.y;
         const backup = showDepthChart ? bestFit(slots[i], bench) : null;
         const isOpen = openPid === p.pid;
         const prev = previousRatings(p);
         const ovrDelta = prev ? p.ovr - prev.ovr : null;
-        const horiz = coord.x < 35 ? "left" : coord.x > 65 ? "right" : "center";
-        const vert = coord.y > 65 ? "above" : "below";
+        const horiz = visualLeft < 35 ? "left" : visualLeft > 65 ? "right" : "center";
+        const vert = visualTop > 65 ? "above" : "below";
         return (
           <div
             key={p.pid}
@@ -98,7 +108,7 @@ export function PitchField({
               (dragOverSlotIndex === i ? " pitch-slot--drag-over" : "") +
               (isOpen ? " pitch-slot--open" : "")
             }
-            style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
+            style={{ left: `${visualLeft}%`, top: `${visualTop}%` }}
             onDragOver={(e) => {
               e.preventDefault();
               e.dataTransfer.dropEffect = "move";
