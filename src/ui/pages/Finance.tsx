@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings } from "../../core/standings.js";
 import { seasonRevenue, wageBill } from "../../core/finance/budget.js";
 import { tierOf } from "../../core/competitions.js";
@@ -138,22 +139,6 @@ export function Finance() {
           <h5 className="card-title">
             {seasonOver ? "Offseason Cash Flow" : "Projected Offseason Cash Flow"}
           </h5>
-          <p className="card-text text-muted">
-            {seasonOver ? (
-              <>
-                Final position: {ordinal(rank)}. Applied to your budget when
-                you advance to {seasonYear(league.season + 1)}; the wage charge is
-                estimated from your current squad.
-              </>
-            ) : (
-              <>
-                Based on your current league position ({ordinal(rank)}) and
-                hype; prize money is decided by final position. Next
-                season&apos;s wages are estimated from your current squad and
-                charged up front when the season starts.
-              </>
-            )}
-          </p>
           <table className="table table-sm w-auto align-middle mb-0">
             <tbody>
               <tr>
@@ -163,7 +148,14 @@ export function Finance() {
                 </td>
               </tr>
               <tr>
-                <td>Hype revenue</td>
+                <td>
+                  Hype revenue
+                  <HelpHint>
+                    Hype is your club's fame (0&ndash;100), earned by winning and by big results.
+                    It drives a ticket-and-merchandise revenue stream paid at season end — the
+                    more hype you carry, the more money it brings in.
+                  </HelpHint>
+                </td>
                 <td className="text-end">
                   {currency.format(revenue.hypeRevenue)}
                 </td>

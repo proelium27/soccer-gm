@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Player } from "../../core/players/types.js";
 import { useLeague } from "../context/LeagueContext.js";
+import { PotHelp } from "../components/HelpHint.js";
 import { transferWindowState } from "../../core/transfers/window.js";
 import {
   inboundOfferCandidates, currentInboundOffers, type InboundOffer,
@@ -203,7 +204,7 @@ export function IncomingOffers() {
               <th>Pos</th>
               <th className="text-end">Age</th>
               <th className="text-end">Ovr</th>
-              <th className="text-end">Pot</th>
+              <th className="text-end">Pot <PotHelp /></th>
               <th className="text-end">Wage</th>
               <th>Offer</th>
             </tr>

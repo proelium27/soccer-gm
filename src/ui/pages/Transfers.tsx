@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import { transferWindowState } from "../../core/transfers/window.js";
 import { recommendedTransfers } from "../../core/transfers/recommendations.js";
@@ -316,10 +317,17 @@ export function Transfers() {
                     <th>Pos</th>
                     <th className="text-end">Age</th>
                     <th className="text-end">Ovr</th>
-                    <th className="text-end">Pot</th>
+                    <th className="text-end">Pot <PotHelp /></th>
                     <th>Club</th>
                     <th className="text-end">Wage</th>
-                    <th className="text-end">Scout value</th>
+                    <th className="text-end">
+                      Scout value
+                      <HelpHint>
+                        Our scouts' estimate of this player's transfer value — an estimate, not the
+                        exact asking price. Higher scouting spend makes it more accurate (it can be
+                        off by up to &plusmn;35% at &pound;0 spend, down to about &plusmn;5% at the max).
+                      </HelpHint>
+                    </th>
                     <th>Offer</th>
                   </tr>
                 </thead>

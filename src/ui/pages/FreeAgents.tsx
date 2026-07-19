@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import { freeAgentPids } from "../../core/freeAgency.js";
 import type { Player } from "../../core/players/types.js";
 import { contractTerms } from "../../core/contracts.js";
@@ -40,7 +41,14 @@ export function FreeAgents() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>Free Agents</h4>
+      <h4>
+        Free Agents
+        <HelpHint>
+          Unsigned players you can add on a free transfer (no fee), at a wage based on their
+          rating. Released veterans end up here; younger prospects live on the Incoming Talent
+          page.
+        </HelpHint>
+      </h4>
       {atCap && (
         <div className="alert alert-warning">
           Your roster is full ({ROSTER_CAP}/{ROSTER_CAP}). Release a player before signing another.
@@ -59,7 +67,7 @@ export function FreeAgents() {
               <th>Name</th>
               <th>Pos</th>
               <th className="text-end">OVR</th>
-              <th className="text-end">POT</th>
+              <th className="text-end">POT <PotHelp /></th>
               <th className="text-end">Age</th>
               <th></th>
             </tr>

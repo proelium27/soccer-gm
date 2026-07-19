@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { PotHelp } from "../components/HelpHint.js";
 import { freeAgentPids } from "../../core/freeAgency.js";
 import type { Player } from "../../core/players/types.js";
 import { contractTerms } from "../../core/contracts.js";
@@ -42,10 +43,6 @@ export function IncomingTalent() {
   return (
     <div className="container-fluid p-3">
       <h4>Incoming Talent</h4>
-      <p className="text-muted">
-        Unsigned prospects age {PROSPECT_AGE_MAX} or younger. Sign straight to the senior team,
-        or into the academy to develop first.
-      </p>
       {atRosterCap && (
         <div className="alert alert-warning">
           Your roster is full ({ROSTER_CAP}/{ROSTER_CAP}) — signing to the senior team is disabled.
@@ -70,7 +67,7 @@ export function IncomingTalent() {
               <th>Name</th>
               <th>Pos</th>
               <th className="text-end">OVR</th>
-              <th className="text-end">POT</th>
+              <th className="text-end">POT <PotHelp /></th>
               <th className="text-end">Age</th>
               <th></th>
             </tr>

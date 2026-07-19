@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { teamSlots } from "../../core/lineup/formations.js";
@@ -61,7 +62,10 @@ export function Standings() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>Standings</h4>
+      <h4>
+        Standings
+        <HelpHint>The top four spots qualify for the Continental Cup.</HelpHint>
+      </h4>
       <div className="mb-3">
         <select
           className="form-select form-select-sm"
@@ -98,7 +102,7 @@ export function Standings() {
               <th className="text-end">GD</th>
               <th className="text-end">Pts</th>
               {season === "current" && <th className="text-end">OVR</th>}
-              {season === "current" && <th className="text-end">POT</th>}
+              {season === "current" && <th className="text-end">POT <PotHelp /></th>}
             </tr>
           </thead>
           <tbody>

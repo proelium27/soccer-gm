@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { PotHelp } from "../components/HelpHint.js";
 import type { Player } from "../../core/players/types.js";
 import type { StoredTeam } from "../../core/teams/clubs.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
@@ -61,7 +62,7 @@ export function SeasonPreview() {
                 <th>Player</th>
                 <th>Team</th>
                 <th className="text-end">OVR</th>
-                <th className="text-end">POT</th>
+                <th className="text-end">POT <PotHelp /></th>
               </tr>
             </thead>
             <tbody>
@@ -96,7 +97,7 @@ export function SeasonPreview() {
                 <th className="text-end">#</th>
                 <th>Team</th>
                 <th className="text-end">OVR</th>
-                <th className="text-end">POT</th>
+                <th className="text-end">POT <PotHelp /></th>
               </tr>
             </thead>
             <tbody>

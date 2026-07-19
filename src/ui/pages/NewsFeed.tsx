@@ -106,9 +106,8 @@ export function NewsFeed() {
     <div className="container-fluid p-3">
       <h4>News Feed</h4>
       <p className="text-muted">
-        Every completed transfer across the league — including deals between rival clubs — plus
-        player accomplishments like hat-tricks, standout performances, and goal milestones,
-        newest first.
+        The news feed includes every completed transfer across the league, player milestones,
+        standout performances.
       </p>
 
       <div className="d-flex flex-wrap gap-2 mb-3">

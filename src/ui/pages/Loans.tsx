@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import { transferWindowState } from "../../core/transfers/window.js";
 import { loanOfferCandidates } from "../../core/loans.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
@@ -43,7 +44,14 @@ export function Loans() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>Loans</h4>
+      <h4>
+        Loans
+        <HelpHint>
+          Send a player to another club for 1–3 seasons to get him minutes he isn't getting with
+          you — and minutes drive development. List a player, then accept or reject the flat-fee
+          loan offers that come in; he returns automatically when the loan ends.
+        </HelpHint>
+      </h4>
 
       {!ws.open ? (
         <div className="alert alert-secondary mb-3">
@@ -73,7 +81,7 @@ export function Loans() {
                   <th>Name</th>
                   <th>Pos</th>
                   <th className="text-end">Ovr</th>
-                  <th className="text-end">Pot</th>
+                  <th className="text-end">Pot <PotHelp /></th>
                   <th>Club</th>
                   <th className="text-end">Seasons</th>
                   <th className="text-end">Fee</th>
@@ -171,7 +179,7 @@ export function Loans() {
                   <th>Pos</th>
                   <th className="text-end">Age</th>
                   <th className="text-end">Ovr</th>
-                  <th className="text-end">Pot</th>
+                  <th className="text-end">Pot <PotHelp /></th>
                   <th className="text-end">Wage</th>
                   <th>Duration</th>
                   <th />

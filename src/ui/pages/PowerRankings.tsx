@@ -1,6 +1,7 @@
 import { Fragment, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import type { Player } from "../../core/players/types.js";
 import type { StoredTeam } from "../../core/teams/clubs.js";
 import { teamSlots, teamFormation } from "../../core/lineup/formations.js";
@@ -83,8 +84,16 @@ export function PowerRankings() {
             <th className="text-end">Record</th>
             <th className="text-end">GD</th>
             <th className="text-end">OVR</th>
-            <th className="text-end">Power</th>
-            <th className="text-end">POT</th>
+            <th className="text-end">
+              Power
+              <HelpHint>
+                Power blends a club's squad strength (its starting XI plus a depth-weighted bench)
+                with current-season form — beating a strong side counts for more than beating a
+                weak one, and goal difference factors in — so a club can rank above or below its
+                raw OVR depending on how it's actually playing.
+              </HelpHint>
+            </th>
+            <th className="text-end">POT <PotHelp /></th>
           </tr>
         </thead>
         <tbody>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
 import { TRANSFER_DEADLINE_MATCHDAY } from "../../core/calendar.js";
@@ -373,9 +374,16 @@ export function Dashboard() {
                   return (
                     <>
                       <label className="form-label mb-1" htmlFor="scouting-spend">
-                        {isOffseason
-                          ? <>Scouting budget for next season: {currency.format(scoutingDraft ?? userTeam.nextScoutingSpend)}</>
-                          : <>Scouting spend this season: {currency.format(userTeam.scoutingSpend)} (locked)</>}
+                        {isOffseason ? (
+                          <>Scouting budget for next season: {currency.format(scoutingDraft ?? userTeam.nextScoutingSpend)}</>
+                        ) : (
+                          <>Scouting spend this season: {currency.format(userTeam.scoutingSpend)} (locked)</>
+                        )}
+                        <HelpHint>
+                          {isOffseason
+                            ? "Higher scouting spend sharpens everything you see all season: transfer valuations for targets and for your own players become far more accurate, and players' potential (POT) is revealed as an exact number sooner instead of a wide range."
+                            : "Wait until the offseason to set your scouting budget."}
+                        </HelpHint>
                       </label>
                       <input
                         id="scouting-spend"
@@ -390,11 +398,6 @@ export function Dashboard() {
                         onPointerUp={commitScoutingDraft}
                         onBlur={commitScoutingDraft}
                       />
-                      <p className="card-text text-muted small mb-0 mt-1">
-                        {isOffseason
-                          ? "Set your scouting budget for the coming season. It locks in when you advance to the next season, and sharpens your read on transfer targets, offers, and player potential all year."
-                          : "Scouting is locked for the season. You'll set next season's budget in the offseason — so you can't peek at sharper info without committing to pay for it."}
-                      </p>
                     </>
                   );
                 })()}

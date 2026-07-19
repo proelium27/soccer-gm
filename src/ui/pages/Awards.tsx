@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { HelpHint } from "../components/HelpHint.js";
 import type { SeasonAwards } from "../../core/awards.js";
 import type { Player } from "../../core/players/types.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
@@ -132,7 +133,13 @@ export function Awards() {
 
   return (
     <div className="container-fluid p-3">
-      <h4>Awards</h4>
+      <h4>
+        Awards
+        <HelpHint>
+          End-of-season honours: Player of the Season, the Golden Boot for the top scorer, and a
+          Team of the Season best XI. Use the dropdown to browse past seasons.
+        </HelpHint>
+      </h4>
       <div className="mb-3">
         <select
           className="form-select form-select-sm"
