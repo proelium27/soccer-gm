@@ -20,6 +20,11 @@ The game has a player-facing Manual page (`src/ui/pages/Manual.tsx`, sidebar und
 - **When a constant quoted in the Manual is retuned** (wages, prize money, roster cap, window matchdays, budget, etc.), fix its mention there too — grep `Manual.tsx` for the old value.
 - The Manual deliberately explains hidden mechanics' *behavior* without spoiling hidden *values* (e.g. it says asking prices are hidden and window-stable, not what they are). Keep new sections to that standard, and keep the "FAQ & Known Quirks" section honest about known gaps — it documents them for players instead of hiding them.
 
+## Player-facing Changelog (keep it in sync too)
+There's a player-facing Changelog page (`src/ui/pages/Changelog.tsx`, sidebar under Help next to the Manual, `/changelog`) — a reverse-chronological list of every player-visible change, read from the hand-maintained `CHANGELOG` array in `src/core/changelog.ts`.
+- **When a player-visible feature ships, changes, or is removed, PREPEND a dated entry to `CHANGELOG` in the same PR** (newest first). Same bar as the Manual rule above — anything a player would notice. This is *what changed and when*; the Manual is *how it works*. Update both.
+- Write entries in plain, player-facing language (second person, like the Manual) and don't spoil hidden values. Group changes shipped together under one dated entry.
+
 ## Milestone status
 (per `SOCCER_GM_SPEC.md` §7; keep this current — see above)
 

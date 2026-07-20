@@ -24,6 +24,7 @@ import { Awards } from "./pages/Awards.js";
 import { ClubHistory } from "./pages/ClubHistory.js";
 import { SeasonPreview } from "./pages/SeasonPreview.js";
 import { Manual } from "./pages/Manual.js";
+import { Changelog } from "./pages/Changelog.js";
 import { PlayerProfile } from "./pages/PlayerProfile.js";
 
 function RootRedirect() {
@@ -59,6 +60,7 @@ export function App() {
             <Route path="/loans" element={<Loans />} />
             <Route path="/finance" element={<Finance />} />
             <Route path="/manual" element={<Manual />} />
+            <Route path="/changelog" element={<Changelog />} />
             <Route path="/player/:pid" element={<PlayerProfile />} />
           </Route>
           <Route path="*" element={<RootRedirect />} />
