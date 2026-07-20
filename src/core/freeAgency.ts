@@ -8,6 +8,18 @@ import {
 import {
   contractTerms, extendContract, seasonSalaryForOvr, extendAcademyContract, academyContractTerms,
 } from "./contracts.js";
+import { mulberry32, hashInts } from "../engine/rng.js";
+
+/**
+ * True while a player the user signed from free agency is inside his
+ * one-season transfer hold (see Player.faSignedSeason). The user can't sell him
+ * — via inbound offers or otherwise — until the season after the signing takes
+ * effect, so free agents can't be flipped for a fee the same window. Only ever
+ * meaningful for the user's own roster (AI signings don't set faSignedSeason).
+ */
+export function faTransferLocked(player: Player, season: number): boolean {
+  return player.faSignedSeason != null && season <= player.faSignedSeason;
+}
 
 /** Pids not currently on any team's roster or academy pool. */
 export function freeAgentPids(teams: StoredTeam[], players: Player[]): Set<number> {
@@ -102,6 +114,55 @@ export function runAIFreeAgency(
         sign(team, signing);
         shortfall--;
       }
+    }
+  }
+
+  // Second pass: AI clubs poach the best remaining quality free agents to
+  // upgrade a position they're already stocked at (same worst-first order, so
+  // weaker clubs improve most). Each club adds at most one player per position
+  // — a genuine upgrade over its current weakest there — taking that position
+  // to ROSTER_COMPOSITION + 1. trimRosterSurplus (run later in the offseason)
+  // then keeps the best complement and releases the now-weakest, so the net
+  // effect is that the strongest free agents get pulled out of the pool and a
+  // weaker player is returned in their place. That drains quality from the
+  // market the user shops in — most good free agents are gone before the user
+  // gets to them — without ballooning AI squad sizes or their wage bills (trim
+  // caps size; wages are charged on the post-trim roster at season start).
+  //
+  // Contract length is drawn from a per-signing seeded stream, NOT the shared
+  // rng, so this pass consumes no shared draws and youth generation downstream
+  // stays bit-identical (the RNG-stream-order invariant).
+  const poachSign = (team: StoredTeam & { roster: number[] }, signing: Player): void => {
+    const lenRng = mulberry32(hashInts(season, team.tid, signing.pid, 5));
+    const length = CONTRACT_LENGTH_MIN
+      + Math.floor(lenRng() * (CONTRACT_LENGTH_MAX - CONTRACT_LENGTH_MIN + 1));
+    signing.contract = {
+      salary: seasonSalaryForOvr(signing.ovr, signing.pid, season),
+      expiresSeason: season + length,
+    };
+    team.roster.push(signing.pid);
+    pool = pool.filter((pid) => pid !== signing.pid);
+  };
+
+  for (const tid of signingOrderTids) {
+    if (tid === userTid) continue;
+    const team = teamMap.get(tid);
+    if (!team) continue;
+
+    for (const pos of POSITIONS as readonly Position[]) {
+      if (team.roster.length >= ROSTER_CAP) break;
+      const atPos = team.roster
+        .map((pid) => playerMap.get(pid)!)
+        .filter((p) => p.pos === pos);
+      // Only positions already at target depth are eligible for a depth
+      // upgrade; genuine shortfalls were filled in the first pass above.
+      if (atPos.length < ROSTER_COMPOSITION[pos]) continue;
+      const weakest = Math.min(...atPos.map((p) => p.ovr));
+      const best = pool
+        .map((pid) => playerMap.get(pid)!)
+        .filter((p) => p.pos === pos)
+        .sort((a, b) => b.ovr - a.ovr)[0];
+      if (best && best.ovr > weakest) poachSign(team, best);
     }
   }
 
@@ -215,13 +276,21 @@ export function signFreeAgent(
   const wageCharge = phase === "regular" ? contractTerms(player, season).salary : 0;
   if (wageCharge > team.budget) return { teams, players };
 
+  // The one-season transfer hold is keyed to the season the player actually
+  // joins the XI: a mid-season signing plays this season; an offseason signing
+  // plays next season (the rollover bumps league.season to season + 1).
+  const effectiveSeason = phase === "offseason" ? season + 1 : season;
+  const contracted = extendContract(players, pid, season);
+
   return {
     teams: teams.map((t) =>
       t.tid === tid
         ? { ...t, roster: [...t.roster, pid], budget: t.budget - wageCharge }
         : t,
     ),
-    players: extendContract(players, pid, season),
+    players: contracted.map((p) =>
+      p.pid === pid ? { ...p, faSignedSeason: effectiveSeason } : p,
+    ),
   };
 }
 

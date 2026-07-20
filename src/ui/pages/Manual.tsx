@@ -186,7 +186,7 @@ export function Manual() {
             <li>Retirements, usually from the mid-30s onward.</li>
             <li>Every player ages a year and develops (or declines) per the <a href="#development">development model</a>.</li>
             <li>The youth academy delivers each club's new intake (<a href="#youth">details</a>).</li>
-            <li>AI clubs sign free agents to fill holes, then trim their squads back to 25.</li>
+            <li>AI clubs sign free agents, both to fill holes and to poach any that upgrade a spot they're already stocked at, then trim their squads back to 25.</li>
             <li>The summer transfer window opens and the AI-to-AI market runs.</li>
             <li>New season: budgets get settled, base allocation in and the full season's wages out (<a href="#finance">details</a>).</li>
           </ol>
@@ -618,6 +618,22 @@ export function Manual() {
             Roster page before they walk (pick any length from 1 to 4 seasons, and length doesn't
             change the wage). The AI extends its own keepers too (<a href="#ai">details</a>), so the
             free-agent pool is mostly players somebody decided not to hang onto.
+          </p>
+          <p>
+            Don't count on picking up a gem for free, though. Each offseason the AI clubs work the
+            free-agent pool before you do, and they don't just fill holes: any club will grab a
+            genuinely useful free agent to upgrade a spot it's already stocked at. By the time you
+            get to the Free Agents page, most of the good ones are gone and what's left skews toward
+            squad filler and reclamation projects. A real bargain still turns up now and then, but
+            it's the exception.
+          </p>
+          <p>
+            <strong>Signed a free agent? You're keeping him for a season.</strong> A free agent you
+            sign onto your senior roster can't be sold until the following season &mdash; no AI club
+            will bid on him, and the Roster page shows "Can't sell yet (just signed)" in place of the
+            List for Transfer button until the hold clears. This closes the old loophole of signing a
+            free agent for nothing and immediately flipping him for a fee. You can still release him
+            for free at any time; you just can't cash him in right away.
           </p>
           <p>
             If you run a Division 2 club, every so often a breakout player will refuse a new deal.

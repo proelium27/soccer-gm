@@ -23,6 +23,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
+    title: "No more free-agent flipping, and a thinner free-agent pool",
+    items: [
+      "Closed a loophole: you could sign a free agent for nothing and immediately sell him for a fee. Now a free agent you sign onto your senior roster can't be sold until the following season. No AI club will bid on him in the meantime, and the Roster page shows \"Can't sell yet (just signed)\" until the hold clears. You can still release him for free whenever you like.",
+      "The free-agent pool is weaker now. Each offseason the AI clubs work it before you do, and they'll grab any genuinely useful free agent to upgrade a spot, not just to fill a hole. By the time you reach the Free Agents page, most of the good ones are already gone. Bargains still turn up, but they're the exception, not the rule.",
+    ],
+  },
+  {
+    date: "2026-07-20",
     title: "You can't just buy your way to the top anymore",
     items: [
       "A common bit of feedback: winning the league gets too easy once you have money to spend. So building a champion is now genuinely harder.",
