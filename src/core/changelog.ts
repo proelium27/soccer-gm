@@ -22,6 +22,14 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-07-20",
+    title: "Easier lineup swaps on mobile",
+    items: [
+      "We saw a lot of players struggling to move players in and out of the Starting XI on mobile, since drag-and-drop doesn't work well on phones.",
+      "Now you can just tap the four dots on the left side of a player, then tap a spot in the Starting XI (or another player) to swap them in. Drag-and-drop still works too if you're on a computer.",
+    ],
+  },
+  {
     date: "2026-07-19",
     title: "Generational talents & historic seasons",
     items: [
