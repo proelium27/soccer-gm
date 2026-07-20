@@ -375,6 +375,17 @@ export function Manual() {
             back at minute 20 genuinely hurts for the other 70.
           </p>
           <p>
+            <strong>Finishing is individual.</strong> How many chances your team creates comes from
+            the whole XI's strength, but whether a given shot goes in also leans on the specific
+            player taking it, measured against his own teammates. A striker who's a clear cut above
+            the rest of his side will bury chances they'd miss and rack up goals even on a weak team,
+            while a poor finisher wastes good ones. It's a redistribution, not free goals: your side's
+            best finishers score more than their share, the rest score less, and the league's overall
+            scoring stays the same. Corners work the same way off a player's heading. (Your xG stays a
+            neutral, team-blind chance quality, so goals well above xG is exactly what a great finisher
+            looks like.)
+          </p>
+          <p>
             <strong>Match ratings.</strong> Every appearance earns a FotMob-style 0.0&ndash;10.0
             rating, starting from a 6.0 baseline and moving with the player's stat line, weighted by
             position. A clean sheet means more to a keeper, and a goal from a defender is worth more

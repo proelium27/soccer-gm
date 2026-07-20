@@ -23,6 +23,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
+    title: "Finishing skill now decides who scores",
+    items: [
+      "A shot going in used to depend only on how good your team was overall, not on who was taking it, so a brilliant finisher stuck on a weak side didn't score any more than his teammates would have.",
+      "Now the individual finisher matters. Whether a shot goes in leans on the specific player taking it, measured against his own teammates, so a clear standout will bury chances the rest of the side would waste and pile up goals even on a struggling team. Corners work the same way off a player's heading.",
+      "It's a redistribution, not a goal fountain: your best finishers score more than their share, weaker ones score less, and the league's overall scoring is unchanged. One knock-on effect is that a season's top scorer can now push into the mid-30s, like real-world Golden Boot winners.",
+      "Expected goals (xG) is unchanged and still team-blind, which means beating your xG is now exactly what a great finisher looks like.",
+    ],
+  },
+  {
+    date: "2026-07-20",
     title: "God Mode: a sandbox for building your dream league",
     items: [
       "A lot of you asked for a Basketball GM-style \"God Mode,\" a sandbox where you can override the game instead of just playing it straight. It's here, and it's completely optional.",

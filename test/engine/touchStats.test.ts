@@ -12,8 +12,13 @@ import { attributeTouchStats, emptyLine, type TouchSide, type PlayerMatchLine } 
 // A full deterministic season through the real pipeline; reused across cases.
 const SEASON = simSeason(mulberry32(12345));
 
-/** Baseline scoreline hash captured from the engine BEFORE touch attribution existed. */
-const BASELINE_SCORELINE_HASH = 3651364913;
+/**
+ * Baseline scoreline hash. Still guards that touch attribution (passes/crosses)
+ * never perturbs the scoreline — it runs on a separate rng stream. The fixed
+ * value was rebased once when the individual-finisher effect (SHOOTER_FINISH_WEIGHT)
+ * was added to resolveShot, which deliberately changed shot outcomes.
+ */
+const BASELINE_SCORELINE_HASH = 4126293308;
 
 function scorelineHash(matches: typeof SEASON.matches): number {
   const s = matches.map((m) => `${m.home}:${m.homeGoals}-${m.awayGoals}:${m.away}`).join("|");
