@@ -95,7 +95,7 @@ Each entry: what it is / where it lives / gotchas.
 **Finance**
 - `budget` is a **cumulative running balance**, never reset to base — light spending compounds. Bounded by `budgetCap(tier, hype)` (`core/finance/budget.ts`): hype-scaled ceiling between `MAX_BUDGET_FLOOR` and `MAX_BUDGET`, ×`financeScale` per country/tier. Banking past the cap destroys the excess (never causes a deficit).
 - Wages: cubic in ovr (`seasonSalaryForOvr`, `core/contracts.ts`), charged **up front** at season start (`chargeSeasonStart`); season-end `settleSeasonEnd` handles prize + hype − scouting only. Mid-season acquisitions charge full season salary at acquisition.
-- **"Priceless star" premium** (`core/finance/valuation.ts`) — steep premium above ovr 85 rockets 90+ players past the budget cap so no club can afford them (keeps generational talents un-tradeable).
+- **"Priceless star" premium** (`core/finance/valuation.ts`, `VALUATION_ELITE_*`) — steep premium above `VALUATION_ELITE_THRESHOLD` (76 ≈ the top of a league) rockets the genuine best players past every budget cap, so the difference-makers who actually win titles can't be bought at any price — you develop them, not buy them. This is the load-bearing **difficulty lever** (money buys a good squad, not a great one); note a global player-quality nerf can *not* substitute for it, because match composites z-normalize league-wide quality away (proven — it left title-win rates unchanged), whereas gating the *market* does bite.
 - **Finance page** (`/finance`) — pure display of budget/hype, scouting slider, settlement breakdown, wage bill, transfer history, league-wide table.
 
 **World / leagues** (competitions-as-data)

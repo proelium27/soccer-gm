@@ -754,20 +754,26 @@ export const VALUATION_CONTRACT_YEAR_BONUS = 0.08;
 export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
 
 /**
- * Elite "priceless star" premium (2026-07-18): the base curve above is
- * deliberately flat at the top (90 ≈ 201M), which let AI clubs buy and sell
- * even the league's very best players. This adds a steep premium for every OVR
- * point above VALUATION_ELITE_THRESHOLD so a generational talent's asking price
- * rockets past any club's MAX_BUDGET, making him effectively unsellable — he
- * stays at his club like a real Haaland/Mbappé rather than churning through the
- * market. Added to the base before the age/potential/contract multipliers.
- * Bonus = COEFF × max(0, ovr − THRESHOLD)^EXPONENT. Tuned ("only the very top"
- * — see the 2026-07-18 finance-tuning conversation) so 85-88 stars stay
- * expensive-but-payable and only 90+ crosses the ~$400M cap into "priceless":
- * 85 ≈ +0 (156M total), 88 ≈ +62M (244M), 90 ≈ +224M (425M), 92 ≈ +518M (739M).
+ * Elite "priceless star" premium. The base curve above is deliberately flat at
+ * the top, which let clubs buy even the league's very best players. This adds a
+ * steep premium for every OVR point above VALUATION_ELITE_THRESHOLD so the best
+ * players' asking prices rocket past any club's MAX_BUDGET, making them
+ * effectively unsellable. Added to the base before the age/potential/contract
+ * multipliers. Bonus = COEFF × max(0, ovr − THRESHOLD)^EXPONENT.
+ *
+ * Retuned 2026-07-20 as a **difficulty lever**: originally the threshold sat at
+ * 85 so only literal 90+ generational talents were priceless, but in a normal
+ * (deflated) league the players that actually win titles are only ~72-78, so a
+ * club could still just *buy* a championship squad. Lowering the threshold to
+ * 76 (≈ the genuine top of a league) prices the real difference-makers out of
+ * every budget — you develop champions, you don't buy them. Note a global
+ * player-quality nerf can NOT substitute for this: match composites z-normalize
+ * league-wide quality away (measured: it left title-win rates unchanged),
+ * whereas gating the market bites. Tuned so ≤76 stays freely payable, 78 is
+ * pricey (~2x a 76), and 80+ clears the ~$400M cap into "priceless".
  */
-export const VALUATION_ELITE_THRESHOLD = 85;
-export const VALUATION_ELITE_COEFF = 4_000_000;
+export const VALUATION_ELITE_THRESHOLD = 76;
+export const VALUATION_ELITE_COEFF = 11_000_000;
 export const VALUATION_ELITE_EXPONENT = 2.5;
 
 /**

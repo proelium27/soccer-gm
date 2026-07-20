@@ -54,20 +54,21 @@ describe("trueTransferValue", () => {
   });
 
   it("applies a steep 'priceless star' premium above the elite threshold", () => {
-    // At/below the elite threshold the premium is zero; above it, value climbs
-    // far faster than the base curve, pricing a generational talent out of any
-    // club's budget (see VALUATION_ELITE_* in constants.js).
+    // At/below the elite threshold (VALUATION_ELITE_THRESHOLD, currently 76) the
+    // premium is zero; above it, value climbs far faster than the base curve so
+    // the league's genuine best players are priced out of any club's budget —
+    // you develop them, you don't buy them (see VALUATION_ELITE_* in constants.js).
     const prime = { born: 2026 - 26, contract: { salary: 1000, expiresSeason: 2027 } };
-    const at85 = trueTransferValue(makePlayer({ ovr: 85, potential: 85, ...prime }), 2026);
-    const at90 = trueTransferValue(makePlayer({ ovr: 90, potential: 90, ...prime }), 2026);
-    const at92 = trueTransferValue(makePlayer({ ovr: 92, potential: 92, ...prime }), 2026);
-    // A 90-OVR star now clears a $400M budget cap; the 85→90 jump is far bigger
-    // than the base-curve-only 85→90 step (~156M→~201M) would produce.
-    expect(at90).toBeGreaterThan(400_000_000);
-    expect(at90 - at85).toBeGreaterThan(200_000_000);
-    // Super-linear: the 2-point 90→92 step outweighs a 1-point step lower down.
-    expect(at92 - at90).toBeGreaterThan(at85 * 0.5);
-    expect(at92).toBeGreaterThan(at90);
+    const at76 = trueTransferValue(makePlayer({ ovr: 76, potential: 76, ...prime }), 2026);
+    const at78 = trueTransferValue(makePlayer({ ovr: 78, potential: 78, ...prime }), 2026);
+    const at80 = trueTransferValue(makePlayer({ ovr: 80, potential: 80, ...prime }), 2026);
+    const at82 = trueTransferValue(makePlayer({ ovr: 82, potential: 82, ...prime }), 2026);
+    // Just above the threshold the premium already bites; by ovr 80 the player
+    // has cleared the $400M budget cap and is effectively unbuyable.
+    expect(at78).toBeGreaterThan(at76 * 1.5); // a 2-point step above the knee lifts value sharply
+    expect(at80).toBeGreaterThan(400_000_000);
+    // Super-linear: each 2-point step near the top outweighs the last.
+    expect(at82 - at80).toBeGreaterThan(at80 - at78);
   });
 });
 

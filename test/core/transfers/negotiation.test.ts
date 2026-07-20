@@ -238,14 +238,13 @@ describe("makeTransferOffer / acceptCounterOffer", () => {
     const d2Team = league.teams.find((t) => t.compId === 1 && t.tid !== 0)!;
     const d1Team = league.teams.find((t) => t.compId === 0 && t.tid !== 0)!;
     const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
-    // Per-division normalization means an elite D2 player already reads as
-    // very valuable *within his own division's context* (reservation) — and
-    // with DIVISION_2_TARGET_D1_RANK at the formula's ceiling, an isolated
-    // ovr boost alone (even to 99) isn't enough surplus against a D1 buyer
-    // with no real need. Real positional scarcity on the buyer's side (as
-    // happens naturally in an aged dynasty) is what actually drives a big
-    // enough surplus, so thin the D1 buyer's roster at this position too.
-    const star = { ...target, ovr: 90, potential: 90 };
+    // A "breakout" D2 player is one at/above DIVISION_2_REFUSAL_OVR_THRESHOLD
+    // (70): wouldRefuseExtension flags him as buyable even though the depth
+    // floor wouldn't. Keep him below VALUATION_ELITE_THRESHOLD (76) so he's
+    // still affordable — the elite premium deliberately prices the very best
+    // players out of every budget (see valuation.test.ts), which is a separate
+    // mechanic from the refusal path this test exercises.
+    const star = { ...target, ovr: 74, potential: 74 };
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
     // Thin the D2 club's roster at his position down to just him, so a sale

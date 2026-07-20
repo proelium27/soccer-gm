@@ -23,6 +23,15 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
+    title: "You can't just buy your way to the top anymore",
+    items: [
+      "A common bit of feedback: winning the league gets too easy once you have money to spend. So building a champion is now genuinely harder.",
+      "The very best players can't be bought. The league's genuine elite are now priced so high that no club can afford them, yours included. You can still buy a solid, competitive squad, but the difference-makers who actually win titles aren't for sale at any price. To get one, you have to develop him yourself or bring him through your academy.",
+      "The upshot: money buys you a good team, not a great one. Winning the top flight now takes patience and a bit of luck in who you develop, not just a fat transfer budget.",
+    ],
+  },
+  {
+    date: "2026-07-20",
     title: "\"Copy AI Prompt to Customize\" moved to the top bar",
     items: [
       "The button that copies an AI prompt for importing real teams (now labeled \"Copy AI Prompt to Customize\") lives in the top bar while you're in a save, instead of on each save's row on the Leagues screen. Export Teams and Import Teams stay on the Leagues screen.",

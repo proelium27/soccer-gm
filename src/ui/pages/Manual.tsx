@@ -516,6 +516,15 @@ export function Manual() {
             pricier to pry loose).
           </p>
           <p>
+            <strong>The very best players can't be bought.</strong> Above a certain OVR &mdash;
+            roughly the top of any league &mdash; value climbs so steeply that the game's genuine
+            elite are priced clean out of every club's budget. You can buy a solid, competitive
+            squad, but the difference-makers who actually win titles aren't for sale at any price:
+            you have to develop them yourself (and, per the note on potential above, that's a
+            gamble) or hope one comes through your own academy. Money buys you a good team; it can't
+            buy you a great one.
+          </p>
+          <p>
             <strong>Buying.</strong> The Transfers page recommends 5&ndash;10 for-sale players near
             your level and within your budget, and how accurately they're ranked comes down to your
             scouting spend (<a href="#finance">Finance</a>). The filters (position, min OVR, min
