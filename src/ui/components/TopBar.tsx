@@ -11,7 +11,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ onToggleNav }: TopBarProps) {
-  const { league, simAction, simming, exportJSON, importJSON, switchLeagueAction } = useLeague();
+  const { league, simAction, simming, exportJSON, importJSON, switchLeagueAction, setGodModeAction } = useLeague();
   const { brand } = useSportName();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -104,6 +104,14 @@ export function TopBar({ onToggleNav }: TopBarProps) {
           <button className="btn btn-outline-light btn-sm" onClick={handleSwitchLeague}>
             Switch League
           </button>
+          <button
+            className={`btn btn-sm ${league?.godMode ? "btn-warning" : "btn-outline-light"}`}
+            onClick={() => league && setGodModeAction(!league.godMode)}
+            disabled={!league}
+            title="Toggle God Mode: unlock guardrail-free editing for this save"
+          >
+            God Mode{league?.godMode ? ": On" : ""}
+          </button>
         </div>
 
         {/* Mobile: the same controls collapse into an overflow menu. */}
@@ -127,6 +135,15 @@ export function TopBar({ onToggleNav }: TopBarProps) {
           <li>
             <button className="dropdown-item" onClick={handleSwitchLeague}>
               Switch League
+            </button>
+          </li>
+          <li>
+            <button
+              className="dropdown-item"
+              onClick={() => league && setGodModeAction(!league.godMode)}
+              disabled={!league}
+            >
+              {league?.godMode ? "Disable God Mode" : "Enable God Mode"}
             </button>
           </li>
         </Dropdown>

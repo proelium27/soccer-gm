@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useLeague } from "../context/LeagueContext.js";
 
 interface SidebarProps {
   /** Drawer open state (only affects the mobile off-canvas presentation). */
@@ -8,6 +9,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ open, onNavigate }: SidebarProps) {
+  const { league } = useLeague();
   return (
     <nav
       className={`sidebar d-flex flex-column${open ? " open" : ""}`}
@@ -34,6 +36,13 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
       <NavLink to="/incoming-talent" className="nav-link" onClick={onNavigate}>Incoming Talent</NavLink>
       <NavLink to="/free-agents" className="nav-link" onClick={onNavigate}>Free Agents</NavLink>
       <NavLink to="/academy" className="nav-link" onClick={onNavigate}>Academy</NavLink>
+
+      {league?.godMode && (
+        <>
+          <div className="nav-section">God Mode</div>
+          <NavLink to="/god-mode" className="nav-link" onClick={onNavigate}>Sandbox Tools</NavLink>
+        </>
+      )}
 
       <div className="nav-section">Help</div>
       <NavLink to="/manual" className="nav-link" onClick={onNavigate}>Manual</NavLink>
