@@ -25,7 +25,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-07-20",
     title: "Two new leagues: France and Portugal",
     items: [
-      "France and Portugal are in the game now, each with their own two-division setup. That brings the world up to six countries and 240 clubs.",
+      "A lot of you have been asking for more leagues, so France and Portugal are in the game now, each with their own two-division setup. That brings the world up to six countries and 240 clubs.",
       "They're both meant to be weaker than the four leagues you already know, and Portugal is the weakest of the bunch. Their clubs have smaller budgets, so they tend to sell their best players off to the richer leagues instead of buying.",
       "They play in the Continental Cup too, but only each country's champion gets in, and even then it has to win a play-in round first just to reach the main 16-team bracket.",
     ],
