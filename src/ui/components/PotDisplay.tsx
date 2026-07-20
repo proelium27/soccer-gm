@@ -3,7 +3,7 @@ import { useLeague } from "../context/LeagueContext.js";
 import { potentialFog } from "../../core/scouting/potentialFog.js";
 
 const FOG_TITLE =
-  "Scouting estimate — sharpens with your scouting spend and how long the player has been on your senior roster.";
+  "Scouting estimate. Sharpens with your scouting spend and how long the player has been on your senior roster.";
 
 /**
  * Renders a player's potential the way the *user* perceives it: an exact
@@ -15,6 +15,8 @@ const FOG_TITLE =
 export function PotDisplay({ player }: { player: Player }) {
   const { league } = useLeague();
   if (!league) return <>{player.potential}</>;
+  // God Mode is a sandbox — no reason to hide info; show true POT everywhere.
+  if (league.godMode) return <>{player.potential}</>;
 
   const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
   const observed = userTeam?.scoutingObserved?.[player.pid] ?? null;

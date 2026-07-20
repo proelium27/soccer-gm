@@ -40,9 +40,9 @@ export function Academy() {
       <h4>
         Academy
         <HelpHint>
-          Your youth holding pool. Prospects here draw a cheap flat stipend and don't count
-          against your senior roster; promote one to the first team when he's ready, or
-          extend/release him. Only your club has an academy.
+          Your youth holding pool. Prospects here draw a cheap flat stipend and don't count against
+          your senior roster. Promote one to the first team when he's ready, or extend/release him.
+          Only your club has an academy.
         </HelpHint>
       </h4>
       {atRosterCap && (
@@ -52,7 +52,7 @@ export function Academy() {
         </div>
       )}
       {academyPlayers.length === 0 ? (
-        <p>No players in the academy yet — check back after your next offseason.</p>
+        <p>No players in the academy yet. Check back after your next offseason.</p>
       ) : (
         <table className="table table-striped table-sm">
           <thead>

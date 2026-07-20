@@ -82,6 +82,12 @@ export interface LeagueStore {
   cup: CupState | null;
   /** Every completed Continental Cup, oldest first (archived at offseason rollover). */
   cupHistory: CupState[];
+  /**
+   * God Mode sandbox toggle for this save. When true, guardrail-free editing
+   * is unlocked (see src/core/godMode.ts) and potential is shown un-fogged
+   * everywhere. Purely a save-scoped switch; migrated to false for old saves.
+   */
+  godMode: boolean;
 }
 
 export function createLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
@@ -128,5 +134,6 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
     // and there is none yet. The first Continental Cup runs in season 2.
     cup: null,
     cupHistory: [],
+    godMode: false,
   };
 }

@@ -1451,3 +1451,47 @@ a:hover {
 body.nav-drawer-open {
   overflow: hidden;
 }
+
+/* =========================================================================
+   God Mode editor modal + sandbox panels. A wider, scrollable modal (the
+   player editor carries ~20 fields) built on the same fixed-backdrop pattern
+   as the sport-name prompt above.
+   ========================================================================= */
+.gm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: oklch(0.12 0.02 155 / 0.72);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+  overflow-y: auto;
+  z-index: 1080;
+}
+.gm-modal {
+  width: 620px;
+  max-width: 96vw;
+  background: var(--sg-surface);
+  border: 1px solid var(--sg-border-strong);
+  border-radius: var(--sg-radius);
+  box-shadow: var(--sg-shadow);
+  padding: 1.5rem;
+}
+.gm-ratings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.5rem 0.75rem;
+}
+.gm-panel {
+  border: 1px solid var(--sg-warn, #b8860b);
+  border-radius: var(--sg-radius);
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+}
+.gm-panel-title {
+  font-size: var(--sg-text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sg-text-muted);
+  margin-bottom: 0.5rem;
+}

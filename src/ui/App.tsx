@@ -19,6 +19,7 @@ import { Transfers } from "./pages/Transfers.js";
 import { IncomingOffers } from "./pages/IncomingOffers.js";
 import { Loans } from "./pages/Loans.js";
 import { Finance } from "./pages/Finance.js";
+import { GodMode } from "./pages/GodMode.js";
 import { NewsFeed } from "./pages/NewsFeed.js";
 import { Awards } from "./pages/Awards.js";
 import { ClubHistory } from "./pages/ClubHistory.js";
@@ -59,6 +60,7 @@ export function App() {
             <Route path="/incoming-offers" element={<IncomingOffers />} />
             <Route path="/loans" element={<Loans />} />
             <Route path="/finance" element={<Finance />} />
+            <Route path="/god-mode" element={<GodMode />} />
             <Route path="/manual" element={<Manual />} />
             <Route path="/changelog" element={<Changelog />} />
             <Route path="/player/:pid" element={<PlayerProfile />} />

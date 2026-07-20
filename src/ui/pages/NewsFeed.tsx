@@ -106,8 +106,8 @@ export function NewsFeed() {
     <div className="container-fluid p-3">
       <h4>News Feed</h4>
       <p className="text-muted">
-        The news feed includes every completed transfer across the league, player milestones,
-        standout performances.
+        The news feed covers every completed transfer across the league, plus player milestones
+        and standout performances.
       </p>
 
       <div className="d-flex flex-wrap gap-2 mb-3">
