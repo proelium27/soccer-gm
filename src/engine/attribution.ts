@@ -1,4 +1,13 @@
 import type { ShotOutcome } from "./matchSim.js";
+import { mulberry32 } from "./rng.js";
+import {
+  PASSES_PER_TICK,
+  PASS_ATTEMPT_NOISE,
+  PASS_COMPLETION_BASE,
+  PASS_COMPLETION_CONTROL_K,
+  CROSSES_PER_TICK,
+  CROSS_NOISE,
+} from "./constants.js";
 
 export type MatchPosition =
   | "GK" | "CB" | "FB" | "DM" | "CM" | "AM" | "W" | "ST";
@@ -51,6 +60,14 @@ export interface PlayerMatchLine {
   saves: number;
   tackles: number;
   interceptions: number;
+  /** Passes attempted. Decorative (see attributeTouchStats) — never affects the scoreline. */
+  passes: number;
+  /** Passes completed; passesCompleted <= passes. */
+  passesCompleted: number;
+  /** Crosses attempted. */
+  crosses: number;
+  /** Fouls committed (every FOUL_BASE tick, whether or not it drew a card). */
+  foulsCommitted: number;
   yellowCards: number;
   redCards: number;
   minutesPlayed: number;
@@ -183,6 +200,111 @@ export function eventTypeFromShot(outcome: ShotOutcome): MatchEventType {
 export function emptyLine(pid: number): PlayerMatchLine {
   return {
     pid, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, xg: 0, goalsAgainst: 0, xga: 0, saves: 0, tackles: 0,
-    interceptions: 0, yellowCards: 0, redCards: 0, minutesPlayed: 0, rating: 6.0,
+    interceptions: 0, passes: 0, passesCompleted: 0, crosses: 0, foulsCommitted: 0,
+    yellowCards: 0, redCards: 0, minutesPlayed: 0, rating: 6.0,
   };
+}
+
+// --- Decorative touch attribution (passes / crosses) -----------------------
+// Passes and crosses aren't modeled by the composite tick loop, so they're
+// synthesized after the match from possession volume on a SEPARATE rng stream
+// (see attributeTouchStats' seed in matchSim.ts) — they can never shift the
+// scoreline or any stat the main stream drives. Fouls, by contrast, are real
+// events: matchSim credits foulsCommitted directly off the existing pickFouler.
+
+const clampNum = (x: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, x));
+
+/** Per-position share of a team's passes (centre/deep positions circulate the ball most). */
+const PASS_POS_WEIGHT: Record<MatchPosition, number> = {
+  GK: 0.6, CB: 1.5, FB: 1.3, DM: 1.5, CM: 1.4, AM: 1.1, W: 0.95, ST: 0.75,
+};
+
+/** Per-position share of a team's crosses (wide players dominate). */
+const CROSS_POS_WEIGHT: Record<MatchPosition, number> = {
+  GK: 0, CB: 0.1, FB: 3, DM: 0.3, CM: 0.6, AM: 1.2, W: 4, ST: 0.5,
+};
+
+export interface TouchSidePlayer {
+  pid: number;
+  pos: MatchPosition;
+  minutes: number;
+}
+
+export interface TouchSide {
+  players: TouchSidePlayer[];
+  /** This side's possession ticks (proxy for time on the ball). */
+  ticks: number;
+  /** Team control composite (0..1, 0.5 = league avg); drives pass completion. */
+  control: number;
+}
+
+/**
+ * Distribute an integer `total` across `weights` proportionally, using the
+ * largest-remainder method so the parts always sum to exactly `total`.
+ * Deterministic (index tie-break); no rng.
+ */
+function distributeInt(total: number, weights: number[]): number[] {
+  const n = weights.length;
+  const out = new Array<number>(n).fill(0);
+  const sum = weights.reduce((a, b) => a + b, 0);
+  if (total <= 0 || sum <= 0) return out;
+  const quota = weights.map((w) => (w / sum) * total);
+  const floors = quota.map((q) => Math.floor(q));
+  const remainder = total - floors.reduce((a, b) => a + b, 0);
+  const order = quota
+    .map((q, i) => ({ i, frac: q - Math.floor(q) }))
+    .sort((a, b) => b.frac - a.frac || a.i - b.i);
+  for (let k = 0; k < remainder; k++) floors[order[k].i]++;
+  return floors;
+}
+
+function attributeSide(rng: () => number, lines: Map<number, PlayerMatchLine>, side: TouchSide): void {
+  const players = side.players;
+  if (players.length === 0 || side.ticks <= 0) return;
+  const minShare = (m: number): number => Math.max(1, m) / 90;
+
+  // Passes: team total from possession volume (± noise), split by position × minutes.
+  const passNoise = 1 + PASS_ATTEMPT_NOISE * (rng() * 2 - 1);
+  const teamPasses = Math.max(0, Math.round(side.ticks * PASSES_PER_TICK * passNoise));
+  const passWeights = players.map((p) => PASS_POS_WEIGHT[p.pos] * minShare(p.minutes));
+  const perPasses = distributeInt(teamPasses, passWeights);
+  const compRate = clampNum(
+    PASS_COMPLETION_BASE + PASS_COMPLETION_CONTROL_K * (side.control - 0.5),
+    0.7,
+    0.92,
+  );
+  for (let i = 0; i < players.length; i++) {
+    const line = lines.get(players[i].pid);
+    if (!line) continue;
+    const att = perPasses[i];
+    const rate = clampNum(compRate + (rng() * 2 - 1) * 0.05, 0.6, 0.98);
+    line.passes += att;
+    line.passesCompleted += Math.min(att, Math.round(att * rate));
+  }
+
+  // Crosses: team total from possession volume (± noise), split toward wide players.
+  const crossNoise = 1 + CROSS_NOISE * (rng() * 2 - 1);
+  const teamCrosses = Math.max(0, Math.round(side.ticks * CROSSES_PER_TICK * crossNoise));
+  const crossWeights = players.map((p) => CROSS_POS_WEIGHT[p.pos] * minShare(p.minutes));
+  const perCrosses = distributeInt(teamCrosses, crossWeights);
+  for (let i = 0; i < players.length; i++) {
+    const line = lines.get(players[i].pid);
+    if (line) line.crosses += perCrosses[i];
+  }
+}
+
+/**
+ * Fill in passes/crosses for both sides on a completed match's box-score lines,
+ * using a caller-supplied seed for its own rng stream. Never reads the match's
+ * main rng, so scorelines and every other stat stay bit-identical.
+ */
+export function attributeTouchStats(
+  lines: Map<number, PlayerMatchLine>,
+  home: TouchSide,
+  away: TouchSide,
+  seed: number,
+): void {
+  const rng = mulberry32(seed);
+  attributeSide(rng, lines, home);
+  attributeSide(rng, lines, away);
 }

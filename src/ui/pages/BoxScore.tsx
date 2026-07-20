@@ -49,6 +49,9 @@ function TeamBoxTable({
             <th className="text-end">xGA</th>
             <th className="text-end">Tkl</th>
             <th className="text-end">Int</th>
+            <th className="text-end" title="Passes completed / attempted">Pass</th>
+            <th className="text-end" title="Crosses">Crs</th>
+            <th className="text-end" title="Fouls committed">Fls</th>
             <th className="text-end">YC</th>
             <th className="text-end">RC</th>
             <th className="text-end">Rtg</th>
@@ -76,6 +79,9 @@ function TeamBoxTable({
               <td className="text-end">{playerPos(line.pid) === "GK" ? line.xga.toFixed(2) : ""}</td>
               <td className="text-end">{line.tackles || ""}</td>
               <td className="text-end">{line.interceptions || ""}</td>
+              <td className="text-end">{line.passes ? `${line.passesCompleted}/${line.passes}` : ""}</td>
+              <td className="text-end">{line.crosses || ""}</td>
+              <td className="text-end">{line.foulsCommitted || ""}</td>
               <td className="text-end">{line.yellowCards || ""}</td>
               <td className="text-end">{line.redCards || ""}</td>
               <td className={`text-end ${ratingClass(line.rating)}`}>{line.rating.toFixed(1)}</td>
