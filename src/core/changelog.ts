@@ -23,11 +23,11 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
-    title: "You can't just buy your way to the top anymore",
+    title: "You can't just buy the title anymore",
     items: [
-      "A common bit of feedback: winning the league gets too easy once you have money to spend. So building a champion is now genuinely harder.",
-      "The very best players can't be bought. The league's genuine elite are now priced so high that no club can afford them, yours included. You can still buy a solid, competitive squad, but the difference-makers who actually win titles aren't for sale at any price. To get one, you have to develop him yourself or bring him through your academy.",
-      "The upshot: money buys you a good team, not a great one. Winning the top flight now takes patience and a bit of luck in who you develop, not just a fat transfer budget.",
+      "A bunch of you said the game gets too easy once you've got money to throw around. Fair enough, so I made it harder to win.",
+      "The best players in the world basically aren't for sale now. They cost way more than any club can pay, yours included. You can still put a good squad together in the transfer market, but the guys who actually win you titles? You're not buying those. You develop them yourself, or bring them up through your academy.",
+      "So money gets you a good team, not a great one. Winning the league takes some patience now, and a bit of luck with who you bring through.",
     ],
   },
   {
@@ -94,7 +94,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-07-20",
     title: "Easier lineup swaps on mobile",
     items: [
-      "We saw a lot of players struggling to move players in and out of the Starting XI on mobile, since drag-and-drop doesn't work well on phones.",
+      "I saw a lot of players struggling to move players in and out of the Starting XI on mobile, since drag-and-drop doesn't work well on phones.",
       "Now you can just tap the four dots on the left side of a player, then tap a spot in the Starting XI (or another player) to swap them in. Drag-and-drop still works too if you're on a computer.",
     ],
   },
