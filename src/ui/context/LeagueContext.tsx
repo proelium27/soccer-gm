@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, type ReactNode } from "react";
 import type { LeagueStore } from "../../core/leagueState.js";
 import type { SimThrough } from "../../worker/protocol.js";
 import { useSimWorker, type SimProgress } from "../useSimWorker.js";
@@ -19,6 +19,8 @@ import {
 } from "../../core/loans.js";
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { applyTeamIdentities, type TeamIdentityEdit } from "../../core/teams/customize.js";
+import { applyRosterFile, type RosterFileApplyResult } from "../../core/teams/rosterImport.js";
+import type { RosterFile } from "../../core/teams/rosterFile.js";
 import {
   movePlayerToClub, detachPlayer, applyPlayerEdit, createCustomPlayer, setClubFinances,
   type PlayerEdit, type NewPlayerSpec,
@@ -35,6 +37,8 @@ interface LeagueContextValue {
   loadLeagueAction: (lid: number) => Promise<void>;
   switchLeagueAction: () => void;
   customizeTeamsAction: (lid: number, edits: TeamIdentityEdit[]) => Promise<void>;
+  /** Overlay a parsed roster file onto a save (identities + optional real squads). Returns a summary of what changed. */
+  importRosterAction: (lid: number, file: RosterFile) => Promise<Omit<RosterFileApplyResult, "league">>;
   simAction: (through: SimThrough) => Promise<void>;
   offseasonAction: () => Promise<void>;
   signFreeAgentAction: (pid: number) => Promise<void>;
@@ -99,7 +103,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   // (lost update). The ref gives queued actions the freshest committed value;
   // the promise chain guarantees only one read-modify-save runs at a time.
   const leagueRef = useRef<LeagueStore | null>(null);
-  const chainRef = useRef<Promise<void>>(Promise.resolve());
+  const chainRef = useRef<Promise<unknown>>(Promise.resolve());
   const pendingOpsRef = useRef(0);
   const [busy, setBusy] = useState(false);
 
@@ -108,7 +112,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     setLeagueState(l);
   }, []);
 
-  const runExclusive = useCallback((fn: () => Promise<void>): Promise<void> => {
+  const runExclusive = useCallback(<T,>(fn: () => Promise<T>): Promise<T> => {
     pendingOpsRef.current++;
     setBusy(true);
     const run = chainRef.current.then(fn).finally(() => {
@@ -176,6 +180,20 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         const updated = applyTeamIdentities(target, edits);
         await saveLeague(updated);
         if (active?.lid === lid) commitLeague(updated);
+      }),
+    [runExclusive, commitLeague],
+  );
+
+  const importRosterAction = useCallback(
+    (lid: number, file: RosterFile) =>
+      runExclusive(async () => {
+        const active = leagueRef.current;
+        const target = active?.lid === lid ? active : await loadLeague(lid);
+        if (!target) return { warnings: [], clubsRenamed: 0, squadsReplaced: 0, playersAdded: 0 };
+        const { league: updated, ...summary } = applyRosterFile(target, file);
+        await saveLeague(updated);
+        if (active?.lid === lid) commitLeague(updated);
+        return summary;
       }),
     [runExclusive, commitLeague],
   );
@@ -452,47 +470,70 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     commitLeague({ ...imported, lid });
   }, [commitLeague]);
 
+  // Memoize the context value so its identity only changes when something a
+  // consumer actually reads changes. Without this, the provider re-renders on
+  // every rapidly-changing bit of transient state it holds — most importantly
+  // the per-matchday `animQueue` push during a sim — and each re-render would
+  // rebuild this object, forcing every `useLeague()` consumer (all 23 pages,
+  // the sidebar, etc.) to re-render dozens of times per sim. `animQueue` and
+  // `animDone` are deliberately NOT read here (they go straight to SimOverlay),
+  // so progress ticks no longer touch this value's identity.
+  const value = useMemo<LeagueContextValue>(() => ({
+    league,
+    loadingActiveLeague,
+    setLeague,
+    loadLeagueAction,
+    switchLeagueAction,
+    customizeTeamsAction,
+    importRosterAction,
+    simAction,
+    offseasonAction,
+    signFreeAgentAction,
+    releasePlayerAction,
+    signToAcademyAction,
+    promoteFromAcademyAction,
+    releaseAcademyPlayerAction,
+    extendAcademyContractAction,
+    setScoutingSpendAction,
+    makeOfferAction,
+    acceptCounterAction,
+    acceptInboundOfferAction,
+    rejectInboundOfferAction,
+    counterInboundOfferAction,
+    extendContractAction,
+    listPlayerForLoanAction,
+    unlistPlayerForLoanAction,
+    acceptLoanOfferAction,
+    rejectLoanOfferAction,
+    setTransferListedAction,
+    setLineupAction,
+    setFormationAction,
+    setGodModeAction,
+    movePlayerToClubAction,
+    releasePlayerGodModeAction,
+    editPlayerAction,
+    createPlayerAction,
+    setClubFinancesAction,
+    simming: simming || simOverlayOpen || busy,
+    saveToDb,
+    exportJSON: doExport,
+    importJSON: doImport,
+  }), [
+    league, loadingActiveLeague, setLeague, loadLeagueAction, switchLeagueAction,
+    customizeTeamsAction, importRosterAction, simAction, offseasonAction, signFreeAgentAction,
+    releasePlayerAction, signToAcademyAction, promoteFromAcademyAction,
+    releaseAcademyPlayerAction, extendAcademyContractAction, setScoutingSpendAction,
+    makeOfferAction, acceptCounterAction, acceptInboundOfferAction,
+    rejectInboundOfferAction, counterInboundOfferAction, extendContractAction,
+    listPlayerForLoanAction, unlistPlayerForLoanAction, acceptLoanOfferAction,
+    rejectLoanOfferAction, setTransferListedAction, setLineupAction, setFormationAction,
+    setGodModeAction, movePlayerToClubAction, releasePlayerGodModeAction,
+    editPlayerAction, createPlayerAction, setClubFinancesAction,
+    simming, simOverlayOpen, busy, saveToDb, doExport, doImport,
+  ]);
+
   return (
-    <Ctx.Provider value={{
-      league,
-      loadingActiveLeague,
-      setLeague,
-      loadLeagueAction,
-      switchLeagueAction,
-      customizeTeamsAction,
-      simAction,
-      offseasonAction,
-      signFreeAgentAction,
-      releasePlayerAction,
-      signToAcademyAction,
-      promoteFromAcademyAction,
-      releaseAcademyPlayerAction,
-      extendAcademyContractAction,
-      setScoutingSpendAction,
-      makeOfferAction,
-      acceptCounterAction,
-      acceptInboundOfferAction,
-      rejectInboundOfferAction,
-      counterInboundOfferAction,
-      extendContractAction,
-      listPlayerForLoanAction,
-      unlistPlayerForLoanAction,
-      acceptLoanOfferAction,
-      rejectLoanOfferAction,
-      setTransferListedAction,
-      setLineupAction,
-      setFormationAction,
-      setGodModeAction,
-      movePlayerToClubAction,
-      releasePlayerGodModeAction,
-      editPlayerAction,
-      createPlayerAction,
-      setClubFinancesAction,
-      simming: simming || simOverlayOpen || busy,
-      saveToDb,
-      exportJSON: doExport,
-      importJSON: doImport,
-    }}>
+    <Ctx.Provider value={value}>
       {children}
       <SimOverlay
         open={simOverlayOpen}

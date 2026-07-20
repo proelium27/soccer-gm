@@ -6,6 +6,7 @@ import {
   STRENGTH_K,
   BLOCK_BASE,
   ONTARGET_BASE,
+  SHOOTER_FINISH_WEIGHT,
   SAVE_BASE,
   TURNOVER_BASE,
   TACKLE_CREDIT_PROB,
@@ -136,15 +137,26 @@ export function resolveShot(
   rng: () => number,
   off: Composites,
   def: Composites,
+  /**
+   * Individual finisher adjustment (simMatchDetailed only): the on-pitch
+   * shooter/header's own skill relative to his team's average finisher, already
+   * scaled by SHOOTER_FINISH_WEIGHT. Added to the team finishing composite when
+   * deciding the REAL outcome (onTargetP/saveP) so a great finisher converts
+   * above his team's baseline. Default 0 leaves the composite-only sim, corners
+   * in the fast path, and every existing caller/test bit-identical. Never enters
+   * xG below (xG stays the "average attacker" baseline on purpose).
+   */
+  finishAdj: number = 0,
 ): ShotResult {
+  const effFinishing = clamp(off.finishing + finishAdj, 0.05, 0.95);
   const blockP = clamp(BLOCK_BASE * (1 + 0.6 * (def.defense - 0.5)), 0.05, 0.6);
   const onTargetP = clamp(
-    ONTARGET_BASE * (1 + 0.5 * (off.finishing - 0.5)),
+    ONTARGET_BASE * (1 + 0.5 * (effFinishing - 0.5)),
     0.1,
     0.9,
   );
   const saveP = clamp(
-    SAVE_BASE * (1 + 0.5 * (def.keeping - 0.5)) - 0.3 * (off.finishing - 0.5),
+    SAVE_BASE * (1 + 0.5 * (def.keeping - 0.5)) - 0.3 * (effFinishing - 0.5),
     0.2,
     0.95,
   );
@@ -162,6 +174,24 @@ export function resolveShot(
   if (rng() >= onTargetP) return { outcome: "off_target", xg };
   if (rng() < saveP) return { outcome: "saved", xg };
   return { outcome: "goal", xg };
+}
+
+/**
+ * The individual-finisher adjustment to feed resolveShot: how much better/worse
+ * the finisher is at `key` (shooting for shots, heading for corner headers) than
+ * his own team's average outfielder, scaled by SHOOTER_FINISH_WEIGHT and put on
+ * the composite's 0..1 scale. Centered on the team average, so it redistributes
+ * a team's goals toward its best finishers without shifting league-wide scoring.
+ */
+export function finisherAdj(
+  finisher: MatchPlayer,
+  onPitch: MatchPlayer[],
+  key: "shooting" | "heading",
+): number {
+  const outfield = onPitch.filter((p) => p.pos !== "GK");
+  if (outfield.length === 0) return 0;
+  const avg = outfield.reduce((a, p) => a + p[key], 0) / outfield.length;
+  return SHOOTER_FINISH_WEIGHT * ((finisher[key] - avg) / 100);
 }
 
 /** Simulate one match. (PoC lines 76-141) */
@@ -707,7 +737,9 @@ export function simMatchDetailed(
         stat[poss].shots++;
         shooterLine.shots++;
 
-        const { outcome, xg } = resolveShot(rng, off, def);
+        const { outcome, xg } = resolveShot(
+          rng, off, def, finisherAdj(shooter, onPitch[poss], "shooting"),
+        );
         shooterLine.xg += xg;
         if (outcome === "saved" || outcome === "goal") {
           stat[poss].sot++;
@@ -739,7 +771,9 @@ export function simMatchDetailed(
     stat[poss].shots++;
     shooterLine.shots++;
 
-    const { outcome, xg } = resolveShot(rng, off, def);
+    const { outcome, xg } = resolveShot(
+      rng, off, def, finisherAdj(shooter, onPitch[poss], "shooting"),
+    );
     shooterLine.xg += xg;
 
     if (outcome === "saved" || outcome === "goal") {
@@ -784,7 +818,9 @@ export function simMatchDetailed(
       stat[poss].shots++;
       headerLine.shots++;
 
-      const { outcome: cornerOutcome, xg: cornerXg } = resolveShot(rng, off, def);
+      const { outcome: cornerOutcome, xg: cornerXg } = resolveShot(
+        rng, off, def, finisherAdj(header, onPitch[poss], "heading"),
+      );
       headerLine.xg += cornerXg;
       if (cornerOutcome === "saved" || cornerOutcome === "goal") {
         stat[poss].sot++;
