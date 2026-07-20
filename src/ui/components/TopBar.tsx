@@ -1,8 +1,9 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { useSportName } from "../sportName.js";
 import { seasonYear } from "../format.js";
+import { buildImportPromptText } from "../../core/teams/rosterAiPrompt.js";
 import { Dropdown } from "./Dropdown.js";
 
 interface TopBarProps {
@@ -15,10 +16,33 @@ export function TopBar({ onToggleNav }: TopBarProps) {
   const { brand } = useSportName();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const [promptCopied, setPromptCopied] = useState(false);
 
   function handleSwitchLeague() {
     switchLeagueAction();
     navigate("/leagues");
+  }
+
+  async function handleCopyPrompt() {
+    if (!league) return;
+    const prompt = buildImportPromptText(league);
+    try {
+      await navigator.clipboard.writeText(prompt);
+    } catch {
+      // Clipboard can be blocked (permissions/insecure context); fall back to a download.
+      const blob = new Blob([prompt], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "soccer-gm-ai-prompt.txt";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+    setPromptCopied(true);
+    window.setTimeout(() => setPromptCopied(false), 2000);
   }
 
   const isOffseason = league?.phase === "offseason";
@@ -105,6 +129,14 @@ export function TopBar({ onToggleNav }: TopBarProps) {
             Switch League
           </button>
           <button
+            className="btn btn-outline-light btn-sm"
+            onClick={handleCopyPrompt}
+            disabled={!league}
+            title="Copy a paste-ready prompt that teaches an AI this save's team-import format"
+          >
+            {promptCopied ? "Copied!" : "Copy AI Prompt"}
+          </button>
+          <button
             className={`btn btn-sm ${league?.godMode ? "btn-warning" : "btn-outline-light"}`}
             onClick={() => league && setGodModeAction(!league.godMode)}
             disabled={!league}
@@ -135,6 +167,11 @@ export function TopBar({ onToggleNav }: TopBarProps) {
           <li>
             <button className="dropdown-item" onClick={handleSwitchLeague}>
               Switch League
+            </button>
+          </li>
+          <li>
+            <button className="dropdown-item" onClick={handleCopyPrompt} disabled={!league}>
+              {promptCopied ? "Copied AI Prompt!" : "Copy AI Prompt"}
             </button>
           </li>
           <li>
