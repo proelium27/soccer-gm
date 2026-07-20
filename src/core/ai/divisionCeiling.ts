@@ -3,7 +3,7 @@ import type { StoredTeam } from "../teams/clubs.js";
 import type { CompletedTransfer } from "../transfers/negotiation.js";
 import type { Competition } from "../competitions.js";
 import type { ActiveLoan } from "../loans.js";
-import { tierOf } from "../competitions.js";
+import { tierOf, competitionOf } from "../competitions.js";
 import { DIVISION_2_REFUSAL_OVR_THRESHOLD, ROSTER_CAP, ROSTER_COMPOSITION } from "../constants.js";
 import { trueTransferValue } from "../finance/valuation.js";
 import { clampBudget, financeScale } from "../finance/budget.js";
@@ -60,6 +60,7 @@ export function enforceDivision2Ceiling(
   const onLoanPids = new Set(activeLoans.map((l) => l.pid));
   const rosterByTid = new Map(teams.map((t) => [t.tid, [...t.roster]]));
   const tierByTid = new Map(teams.map((t) => [t.tid, tierOf(competitions, t.compId)]));
+  const countryByTid = new Map(teams.map((t) => [t.tid, competitionOf(competitions, t.compId).country]));
   const scaleByTid = new Map(teams.map((t) => [t.tid, financeScale(competitions, t.compId)]));
   const budgetByTid = new Map(teams.map((t) => [t.tid, t.budget]));
   const hypeByTid = new Map(teams.map((t) => [t.tid, t.hype]));
@@ -88,8 +89,16 @@ export function enforceDivision2Ceiling(
     const sellerTid = [...rosterByTid.entries()].find(([, r]) => r.includes(player.pid))?.[0];
     if (sellerTid === undefined) continue; // already moved earlier this pass
 
+    // Receiving pool is the player's OWN country's tier-1 clubs — the ceiling
+    // invariant is "a country's D2 can't out-strengthen its own D1", so a
+    // Portuguese D2 star is pulled up into Portuguese D1, not dumped into
+    // whichever weak-league club happens to be the globally weakest. (Scoping
+    // this worldwide systematically injected strong players into France/Portugal
+    // D1 — the weakest tier-1 clubs — compressing the deliberate cross-country
+    // strength gap over a dynasty; a 15-season audit confirmed the compression.)
+    const sellerCountry = countryByTid.get(sellerTid);
     const d1Candidates = [...tierByTid.entries()].filter(
-      ([tid, tier]) => tier === 1 && tid !== userTid,
+      ([tid, tier]) => tier === 1 && tid !== userTid && countryByTid.get(tid) === sellerCountry,
     );
     if (d1Candidates.length === 0) continue;
 
