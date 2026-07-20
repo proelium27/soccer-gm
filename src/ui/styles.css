@@ -951,14 +951,15 @@ a:hover {
 .pitch-slot--open {
   z-index: 20;
 }
-.pitch-slot--drag-over .pitch-chip {
+.pitch-slot--drag-over .pitch-chip,
+.pitch-chip--selected {
   box-shadow: 0 0 0 3px var(--sg-green-wash);
 }
 .pitch-chip {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+  gap: 2px;
+  padding: 2px 8px 2px 2px;
   background: var(--sg-surface-2);
   border: 2px solid var(--sg-border-strong);
   border-radius: 999px;
@@ -966,7 +967,6 @@ a:hover {
   font-size: var(--sg-text-sm);
   font-weight: var(--sg-weight-semibold);
   line-height: 1.4;
-  cursor: pointer;
   white-space: nowrap;
 }
 .pitch-chip--gk {
@@ -978,6 +978,45 @@ a:hover {
 }
 .pitch-chip--user.pitch-chip--gk {
   box-shadow: 0 0 0 2px var(--sg-warn), 0 0 0 4px var(--sg-user);
+}
+.pitch-chip-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.55;
+  cursor: grab;
+  padding: 4px 3px;
+  margin: -4px 0;
+  font-size: var(--sg-text-sm);
+  line-height: 1;
+}
+.pitch-chip-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.drag-handle-btn {
+  background: transparent;
+  border: none;
+  color: var(--sg-text-muted);
+  cursor: grab;
+  padding: 6px 8px;
+  font-size: 1rem;
+  line-height: 1;
+}
+.drag-handle-btn--selected {
+  color: var(--sg-win);
 }
 .pitch-chip-contract-flag {
   display: inline-flex;
@@ -1402,8 +1441,8 @@ a:hover {
      so a smaller font is the cheapest way to keep the XI readable. --------- */
   .pitch-chip {
     font-size: var(--sg-text-xs);
-    padding: 2px 6px;
-    gap: 3px;
+    padding: 2px 6px 2px 1px;
+    gap: 1px;
     border-width: 1px;
   }
 }

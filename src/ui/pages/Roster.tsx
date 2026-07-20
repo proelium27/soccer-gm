@@ -45,6 +45,8 @@ interface RosterTableProps {
   dragOverPid: number | null;
   setDragOverPid: (pid: number | null) => void;
   onSwap: (draggedPid: number, targetPid: number) => void;
+  selectedPid: number | null;
+  onTapToMove: (pid: number) => void;
 }
 
 function RosterTable({
@@ -60,6 +62,8 @@ function RosterTable({
   dragOverPid,
   setDragOverPid,
   onSwap,
+  selectedPid,
+  onTapToMove,
 }: RosterTableProps) {
   return (
     <table className="table table-striped table-sm">
@@ -117,11 +121,31 @@ function RosterTable({
                 onSwap(Number(raw), p.pid);
               }}
               onDragEnd={() => setDragOverPid(null)}
-              className={dragOverPid === p.pid ? "table-active" : undefined}
+              className={
+                dragOverPid === p.pid || selectedPid === p.pid ? "table-active" : undefined
+              }
               style={{ cursor: "grab" }}
-              title="Drag to swap with a starter or bench player"
             >
-              <td className="text-muted">&#8942;&#8942;</td>
+              <td>
+                <button
+                  type="button"
+                  className={
+                    "drag-handle-btn" + (selectedPid === p.pid ? " drag-handle-btn--selected" : "")
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTapToMove(p.pid);
+                  }}
+                  aria-label={selectedPid === p.pid ? "Cancel move" : "Move player"}
+                  title={
+                    selectedPid === p.pid
+                      ? "Cancel move"
+                      : "Drag to swap, or tap to pick up and tap another player's handle to swap"
+                  }
+                >
+                  &#8942;&#8942;
+                </button>
+              </td>
               <td>
                 <PlayerRatingsTooltip player={p}>
                   <Link to={`/player/${p.pid}`}>{p.name}</Link>
@@ -209,6 +233,7 @@ export function Roster() {
   const [dragOverPid, setDragOverPid] = useState<number | null>(null);
   const [dragOverSlotIndex, setDragOverSlotIndex] = useState<number | null>(null);
   const [showDepthChart, setShowDepthChart] = useState(false);
+  const [selectedPid, setSelectedPid] = useState<number | null>(null);
 
   const refusingPids = useMemo(() => {
     if (!league) return new Set<number>();
@@ -280,6 +305,20 @@ export function Roster() {
     handleSwap(draggedPid, targetPid);
   }
 
+  // Tap-to-swap fallback for touch devices, where native HTML5 drag-and-drop
+  // never fires: tap a player's handle to pick them up, tap another handle to
+  // complete the swap (or tap the same handle again to cancel).
+  function handleTapToMove(pid: number) {
+    if (selectedPid === null) {
+      setSelectedPid(pid);
+    } else if (selectedPid === pid) {
+      setSelectedPid(null);
+    } else {
+      handleSwap(selectedPid, pid);
+      setSelectedPid(null);
+    }
+  }
+
   return (
     <div className="container-fluid p-3">
       <h4>
@@ -292,8 +331,9 @@ export function Roster() {
         </small>
         <HelpHint>
           Your squad. Choose your formation, then drag players between the pitch and the bench to
-          set your Starting XI; click a player to extend or release him. Team OVR/POT and your
-          bench update as you go. The cap is {ROSTER_CAP} players.
+          set your Starting XI (or, on touch devices, tap a player's &#8942;&#8942; handle to pick
+          them up, then tap another player's handle to swap); click a player to extend or release
+          him. Team OVR/POT and your bench update as you go. The cap is {ROSTER_CAP} players.
         </HelpHint>
       </h4>
       {players.length === 0 ? (
@@ -301,8 +341,25 @@ export function Roster() {
       ) : (
         <>
           <p className="text-muted small mb-1">
-            Drag a bench player onto a pitch slot to swap them into the Starting XI.
+            Drag a bench player onto a pitch slot to swap them into the Starting XI — or tap a
+            player's &#8942;&#8942; handle to pick them up, then tap another player's handle to
+            swap.
           </p>
+          {selectedPid !== null && (
+            <div className="alert alert-info py-1 px-2 small d-flex justify-content-between align-items-center mb-2">
+              <span>
+                Moving <strong>{playerMap.get(selectedPid)?.name ?? "player"}</strong> — tap
+                another player's &#8942;&#8942; handle to swap, or tap it again to cancel.
+              </span>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={() => setSelectedPid(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
           <div className="d-flex align-items-center gap-3 mt-3 mb-1 flex-wrap">
             <h6 className="mb-0">Starting XI</h6>
             <div className="d-flex align-items-center gap-2">
@@ -356,6 +413,8 @@ export function Roster() {
             dragOverSlotIndex={dragOverSlotIndex}
             setDragOverSlotIndex={setDragOverSlotIndex}
             onDropOnSlot={handleDropOnSlot}
+            selectedPid={selectedPid}
+            onTapToMove={handleTapToMove}
           />
           <h6 className="mt-4">Bench</h6>
           {bench.length === 0 ? (
@@ -374,6 +433,8 @@ export function Roster() {
               dragOverPid={dragOverPid}
               setDragOverPid={setDragOverPid}
               onSwap={handleSwap}
+              selectedPid={selectedPid}
+              onTapToMove={handleTapToMove}
             />
           )}
         </>
