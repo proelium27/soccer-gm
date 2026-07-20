@@ -37,6 +37,8 @@ export interface PitchFieldProps {
   dragOverSlotIndex: number | null;
   setDragOverSlotIndex: (i: number | null) => void;
   onDropOnSlot: (slotIndex: number, draggedPid: number) => void;
+  selectedPid: number | null;
+  onTapToMove: (pid: number) => void;
 }
 
 export function PitchField({
@@ -55,6 +57,8 @@ export function PitchField({
   dragOverSlotIndex,
   setDragOverSlotIndex,
   onDropOnSlot,
+  selectedPid,
+  onTapToMove,
 }: PitchFieldProps) {
   const [openPid, setOpenPid] = useState<number | null>(null);
   const coords = layoutSlots(formation);
@@ -123,44 +127,69 @@ export function PitchField({
               onDropOnSlot(i, Number(raw));
             }}
           >
-            <button
-              type="button"
-              className={"pitch-chip" + (p.pos === "GK" ? " pitch-chip--gk" : "")}
+            <div
+              className={
+                "pitch-chip" +
+                (p.pos === "GK" ? " pitch-chip--gk" : "") +
+                (selectedPid === p.pid ? " pitch-chip--selected" : "")
+              }
               style={{ borderColor: getRatingColor(p.ovr) }}
-              onClick={() => setOpenPid(isOpen ? null : p.pid)}
             >
-              {canExtend(p, season) && (
-                <span
-                  className="pitch-chip-contract-flag"
-                  title="Contract expiring — needs extending"
-                >
-                  !
+              <button
+                type="button"
+                className="pitch-chip-handle"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTapToMove(p.pid);
+                }}
+                aria-label={selectedPid === p.pid ? "Cancel move" : "Move player"}
+                title={
+                  selectedPid === p.pid
+                    ? "Cancel move"
+                    : "Drag to swap, or tap to pick up and tap another player's handle to swap"
+                }
+              >
+                &#8942;&#8942;
+              </button>
+              <button
+                type="button"
+                className="pitch-chip-info"
+                onClick={() => setOpenPid(isOpen ? null : p.pid)}
+              >
+                {canExtend(p, season) && (
+                  <span
+                    className="pitch-chip-contract-flag"
+                    title="Contract expiring — needs extending"
+                  >
+                    !
+                  </span>
+                )}
+                {transferListedPids.has(p.pid) && (
+                  <span className="pitch-chip-listed-flag" title="Listed for transfer">
+                    $
+                  </span>
+                )}
+                <span className="pitch-chip-pos">{p.pos}</span>
+                <PlayerRatingsTooltip player={p}>
+                  <span className="pitch-chip-name">{shortName(p.name)}</span>
+                </PlayerRatingsTooltip>
+                <span className="pitch-chip-ovr">
+                  {p.ovr}/<PotDisplay player={p} />
                 </span>
-              )}
-              {transferListedPids.has(p.pid) && (
-                <span className="pitch-chip-listed-flag" title="Listed for transfer">
-                  $
-                </span>
-              )}
-              <span className="pitch-chip-pos">{p.pos}</span>
-              <PlayerRatingsTooltip player={p}>
-                <span className="pitch-chip-name">{shortName(p.name)}</span>
-              </PlayerRatingsTooltip>
-              <span className="pitch-chip-ovr">
-                {p.ovr}/<PotDisplay player={p} />
-              </span>
-              {ovrDelta !== null && ovrDelta !== 0 && (
-                <span
-                  className={
-                    "pitch-chip-delta " + (ovrDelta > 0 ? "pitch-chip-delta--up" : "pitch-chip-delta--down")
-                  }
-                  title={`${ovrDelta > 0 ? "Up" : "Down"} ${Math.abs(ovrDelta)} OVR since last season`}
-                >
-                  {ovrDelta > 0 ? "▲" : "▼"}
-                  {Math.abs(ovrDelta)}
-                </span>
-              )}
-            </button>
+                {ovrDelta !== null && ovrDelta !== 0 && (
+                  <span
+                    className={
+                      "pitch-chip-delta " +
+                      (ovrDelta > 0 ? "pitch-chip-delta--up" : "pitch-chip-delta--down")
+                    }
+                    title={`${ovrDelta > 0 ? "Up" : "Down"} ${Math.abs(ovrDelta)} OVR since last season`}
+                  >
+                    {ovrDelta > 0 ? "▲" : "▼"}
+                    {Math.abs(ovrDelta)}
+                  </span>
+                )}
+              </button>
+            </div>
             {showDepthChart && (
               <div className="pitch-chip-backup">
                 {backup ? `${shortName(backup.name)} ${backup.ovr}` : "—"}

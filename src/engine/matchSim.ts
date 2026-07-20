@@ -40,7 +40,7 @@ import {
   STOPPAGE_SECONDS_PER_EVENT,
 } from "./constants.js";
 import type { Composites } from "./composites.js";
-import type { MatchPlayer, MatchEvent, BoxScore, PlayerMatchLine } from "./attribution.js";
+import type { MatchPlayer, MatchEvent, BoxScore, PlayerMatchLine, TouchSide } from "./attribution.js";
 import {
   pickShooter,
   pickAssister,
@@ -51,7 +51,9 @@ import {
   pickCarrier,
   eventTypeFromShot,
   emptyLine,
+  attributeTouchStats,
 } from "./attribution.js";
+import { hashInts } from "./rng.js";
 import { computeMatchRating, RATING_BASELINE } from "./matchRating.js";
 
 type Side = "home" | "away";
@@ -600,6 +602,7 @@ export function simMatchDetailed(
 
     if (rng() < FOUL_BASE) {
       const fouler = pickFouler(rng, onPitch[defSide]);
+      lines.get(fouler.pid)!.foulsCommitted++;
       const cardRoll = rng();
       if (cardRoll < RED_STRAIGHT_GIVEN_FOUL) {
         lines.get(fouler.pid)!.redCards++;
@@ -836,6 +839,34 @@ export function simMatchDetailed(
   const awayRosterAll = [...awayPlayers, ...awayBench];
   const homeXgTotal = teamXg(homeRosterAll);
   const awayXgTotal = teamXg(awayRosterAll);
+
+  // Decorative passes/crosses, attributed on a separate rng stream seeded from
+  // match-intrinsic values already fixed by the completed sim — never touches
+  // the main `rng`, so the scoreline and every other stat stay bit-identical.
+  // `home`/`away` are the pre-fatigue normalized composites (team passing quality).
+  const touchSide = (roster: MatchPlayer[], appearedSet: Set<number>, control: number, ticks: number): TouchSide => ({
+    players: roster
+      .filter((p) => appearedSet.has(p.pid))
+      .map((p) => ({ pid: p.pid, pos: p.pos, minutes: minutesFor(p.pid) })),
+    ticks,
+    control,
+  });
+  const attrSeed = hashInts(
+    homePlayers[0]?.pid ?? 0,
+    awayPlayers[0]?.pid ?? 0,
+    stat.home.ticks,
+    stat.away.ticks,
+    stat.home.goals,
+    stat.away.goals,
+    stat.home.shots,
+    stat.away.shots,
+  );
+  attributeTouchStats(
+    lines,
+    touchSide(homeRosterAll, appeared.home, home.control, stat.home.ticks),
+    touchSide(awayRosterAll, appeared.away, away.control, stat.away.ticks),
+    attrSeed,
+  );
 
   const finishLines = (
     roster: MatchPlayer[],

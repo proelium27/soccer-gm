@@ -29,6 +29,17 @@ export const REBOUND_PROB = 0.12; // after a saved/blocked shot, attacker keeps 
 
 export const HOME_ATTACK_BONUS = 0.1; // home advantage, applied to home attack composite
 
+// --- Decorative touch attribution (passes / crosses), simMatchDetailed only ---
+// Synthesized after the match on a separate rng stream (see attributeTouchStats),
+// so they never affect scorelines. Calibrated to real top-flight per-team volumes:
+// ~470 passes/team at ~82% completion, ~16 crosses/team. A side plays ~470 ticks.
+export const PASSES_PER_TICK = 1.0; // passes attempted per possession tick
+export const PASS_ATTEMPT_NOISE = 0.08; // ± fractional noise on a team's pass total
+export const PASS_COMPLETION_BASE = 0.82; // league-average completion rate
+export const PASS_COMPLETION_CONTROL_K = 0.35; // control composite's pull on completion
+export const CROSSES_PER_TICK = 0.034; // crosses attempted per possession tick
+export const CROSS_NOISE = 0.15; // ± fractional noise on a team's cross total
+
 // --- Cards (M5) ---
 export const FOUL_BASE = 0.016; // per-tick prob the defending side commits a foul
 export const FREE_KICK_CHANCE_BASE = 0.05; // bonus shot-chance prob for the fouled side, same tick
