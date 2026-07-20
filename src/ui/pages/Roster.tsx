@@ -8,7 +8,7 @@ import { resolveXI } from "../../core/lineup/resolveXI.js";
 import { teamSlots, teamFormation, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { canExtend } from "../../core/contracts.js";
-import { keepsDepthFloor } from "../../core/freeAgency.js";
+import { keepsDepthFloor, faTransferLocked } from "../../core/freeAgency.js";
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { tierOf } from "../../core/competitions.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
@@ -195,16 +195,25 @@ function RosterTable({
                       <ExtendControl player={p} season={season} onExtend={onExtend} />
                     )
                   )}
-                  <button
-                    className={
-                      "btn btn-sm text-nowrap " +
-                      (transferListedPids.has(p.pid) ? "btn-warning" : "btn-outline-warning")
-                    }
-                    onClick={() => onToggleTransferListed(p.pid, !transferListedPids.has(p.pid))}
-                    title="Listing signals AI clubs you're willing to sell, making an offer more likely."
-                  >
-                    {transferListedPids.has(p.pid) ? "Listed" : "List for Transfer"}
-                  </button>
+                  {faTransferLocked(p, season) ? (
+                    <span
+                      className="text-muted small fst-italic text-nowrap"
+                      title={`You signed him from free agency, so he can't be sold until next season (${seasonYear(p.faSignedSeason! + 1)}).`}
+                    >
+                      Can't sell yet (just signed)
+                    </span>
+                  ) : (
+                    <button
+                      className={
+                        "btn btn-sm text-nowrap " +
+                        (transferListedPids.has(p.pid) ? "btn-warning" : "btn-outline-warning")
+                      }
+                      onClick={() => onToggleTransferListed(p.pid, !transferListedPids.has(p.pid))}
+                      title="Listing signals AI clubs you're willing to sell, making an offer more likely."
+                    >
+                      {transferListedPids.has(p.pid) ? "Listed" : "List for Transfer"}
+                    </button>
+                  )}
                   <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => onRelease(p.pid)}

@@ -4,6 +4,7 @@ import type { ClubContext } from "../ai/clubContext.js";
 import type { TransferWindowKind } from "./window.js";
 import type { StoredTeam } from "../teams/clubs.js";
 import { transferWindowState } from "./window.js";
+import { faTransferLocked } from "../freeAgency.js";
 import {
   windowSeed, departsAtRollover, acquisitionWageCharge, hasRosterRoom, executeTransfer,
 } from "./negotiation.js";
@@ -132,6 +133,9 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
     const player = playerMap.get(pid);
     if (!player) continue;
     if (departsAtRollover(league, player)) continue;
+    // A free agent the user just signed is under a one-season transfer hold —
+    // no club can bid on him until it clears (see faTransferLocked).
+    if (faTransferLocked(player, league.season)) continue;
 
     const reservation = valueToClub(player, userCtx);
     const wageCharge = acquisitionWageCharge(league, player);

@@ -88,6 +88,32 @@ describe("inboundOfferCandidates", () => {
     expect(inboundOfferCandidates(league)).toEqual(inboundOfferCandidates(league));
   });
 
+  it("never surfaces a player inside his free-agent transfer hold", () => {
+    // Find a seed that actually produces at least one inbound candidate, then
+    // put that player inside a fresh FA transfer hold — he should vanish from
+    // the candidate set while every other candidate is unaffected.
+    for (let seed = 1; seed <= 8; seed++) {
+      const league = windowLeague(seed);
+      const baseline = inboundOfferCandidates(league);
+      if (baseline.length === 0) continue;
+      const held = baseline[0].player.pid;
+      const locked: LeagueStore = {
+        ...league,
+        players: league.players.map((p) =>
+          p.pid === held ? { ...p, faSignedSeason: league.season } : p,
+        ),
+      };
+      const after = inboundOfferCandidates(locked);
+      expect(after.some((c) => c.player.pid === held)).toBe(false);
+      // Everyone else who cleared the bar before still can.
+      const otherBefore = baseline.filter((c) => c.player.pid !== held).map((c) => c.player.pid).sort();
+      const stillOffered = new Set(after.map((c) => c.player.pid));
+      for (const pid of otherBefore) expect(stillOffered.has(pid)).toBe(true);
+      return;
+    }
+    throw new Error("no seed produced an inbound candidate to lock");
+  });
+
   it("spreads offers across distinct buyers rather than letting one club dominate", () => {
     // Across several seeds with multiple candidates, buyers shouldn't repeat
     // (a world of 119 other clubs means a fresh buyer is essentially always

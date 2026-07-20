@@ -147,6 +147,11 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
       ...h,
       academy: h.academy ?? false,
     })),
+    // faSignedSeason (the free-agent transfer hold) is intentionally left
+    // absent on pre-feature saves: there's no way to know which past free-agent
+    // signings would still be inside their hold, and "absent" is the correct
+    // default — it means "not held," so nobody is retroactively locked. Only
+    // free agents signed after this feature shipped carry the field.
   };
 }
 

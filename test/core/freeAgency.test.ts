@@ -4,6 +4,7 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import {
   freeAgentPids, releaseExpiredContracts, runAIFreeAgency, signFreeAgent, releasePlayer,
   signToAcademy, promoteFromAcademy, releaseAcademyPlayer, ensureUserRosterSafety,
+  faTransferLocked,
 } from "../../src/core/freeAgency.js";
 import {
   ROSTER_COMPOSITION, ROSTER_CAP, ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR,
@@ -133,6 +134,82 @@ describe("signFreeAgent", () => {
     const result = signFreeAgent(teams, league.players, 0, pid, 1, "offseason");
     expect(result.teams).toBe(teams);
     expect(result.players).toBe(league.players);
+  });
+});
+
+describe("free-agent transfer hold", () => {
+  it("stamps faSignedSeason at next season for an offseason signing", () => {
+    const league = makeLeague(0, 1);
+    const pid = league.teams[1].roster[0];
+    const player = league.players.find((p) => p.pid === pid)!;
+    player.contract.expiresSeason = 5;
+    const teams = releaseExpiredContracts(league.teams, league.players, 5);
+
+    const { players } = signFreeAgent(teams, league.players, 0, pid, 5, "offseason");
+    const signed = players.find((p) => p.pid === pid)!;
+    // Signed in the offseason after season 5 → he joins for season 6.
+    expect(signed.faSignedSeason).toBe(6);
+    expect(faTransferLocked(signed, 6)).toBe(true);
+    expect(faTransferLocked(signed, 7)).toBe(false);
+  });
+
+  it("stamps faSignedSeason at the current season for a mid-season signing", () => {
+    const league = makeLeague(0, 1);
+    const pid = league.teams[1].roster[0];
+    const player = league.players.find((p) => p.pid === pid)!;
+    player.contract.expiresSeason = 5;
+    const teams = releaseExpiredContracts(league.teams, league.players, 5);
+    // Give team 0 enough budget to cover the mid-season wage charge.
+    const funded = teams.map((t) => (t.tid === 0 ? { ...t, budget: 1_000_000_000 } : t));
+
+    const { players } = signFreeAgent(funded, league.players, 0, pid, 6, "regular");
+    const signed = players.find((p) => p.pid === pid)!;
+    expect(signed.faSignedSeason).toBe(6);
+    expect(faTransferLocked(signed, 6)).toBe(true);
+    expect(faTransferLocked(signed, 7)).toBe(false);
+  });
+
+  it("treats a player never signed from free agency as unlocked", () => {
+    const league = makeLeague(0, 1);
+    const player = league.players[0];
+    expect(player.faSignedSeason).toBeUndefined();
+    expect(faTransferLocked(player, 1)).toBe(false);
+  });
+});
+
+describe("runAIFreeAgency quality poaching", () => {
+  it("poaches a high-ovr free agent even when no club has a shortfall", () => {
+    const league = makeLeague(0, 1);
+    // A pure extra free agent: a strong CM belonging to no roster, so no club
+    // has a positional shortfall — only the poaching pass can pick him up.
+    const star = { ...structuredClone(league.players[0]), pid: 999_001, pos: "CM" as const, ovr: 99 };
+    const scrub = { ...structuredClone(league.players[0]), pid: 999_002, pos: "CM" as const, ovr: 20 };
+    const players = [...league.players, star, scrub];
+
+    const signingOrder = league.teams.map((t) => t.tid);
+    const { teams } = runAIFreeAgency(
+      league.teams, players, 2, mulberry32(11), /* userTid */ -1, signingOrder,
+    );
+
+    const stillFree = freeAgentPids(teams, players);
+    // The star upgrades someone's weakest CM, so he's poached out of the pool;
+    // the scrub is worse than every club's weakest CM, so he's left behind.
+    expect(stillFree.has(star.pid)).toBe(false);
+    expect(stillFree.has(scrub.pid)).toBe(true);
+  });
+
+  it("never poaches onto the user's club", () => {
+    const league = makeLeague(0, 1);
+    const userTid = 0;
+    const before = new Set(league.teams.find((t) => t.tid === userTid)!.roster);
+    const star = { ...structuredClone(league.players[0]), pid: 999_003, pos: "CM" as const, ovr: 99 };
+    const players = [...league.players, star];
+
+    const { teams } = runAIFreeAgency(
+      league.teams, players, 2, mulberry32(13), userTid, league.teams.map((t) => t.tid),
+    );
+    const after = teams.find((t) => t.tid === userTid)!;
+    for (const pid of after.roster) expect(before.has(pid)).toBe(true);
   });
 });
 

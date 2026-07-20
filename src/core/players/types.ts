@@ -72,4 +72,12 @@ export interface Player {
   injury: { gamesRemaining: number; type: string } | null;
   stats: SeasonStats[];
   hist: RatingsSnapshot[];
+  /**
+   * The season a free-agent signing by the user's club takes effect (set by
+   * signFreeAgent). While `league.season <= faSignedSeason` the player can't be
+   * sold — a one-season hold that kills the "sign a free agent, flip him for a
+   * fee the same window" exploit. Absent for players who were never signed from
+   * free agency by the user (and for pre-feature saves — see migrate.ts).
+   */
+  faSignedSeason?: number;
 }
