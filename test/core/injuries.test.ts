@@ -73,6 +73,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     cup: null,
     cupHistory: [],
     powerRankingHistory: [],
+    godMode: false,
   };
 }
 

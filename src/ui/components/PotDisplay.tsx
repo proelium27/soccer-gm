@@ -15,6 +15,8 @@ const FOG_TITLE =
 export function PotDisplay({ player }: { player: Player }) {
   const { league } = useLeague();
   if (!league) return <>{player.potential}</>;
+  // God Mode is a sandbox — no reason to hide info; show true POT everywhere.
+  if (league.godMode) return <>{player.potential}</>;
 
   const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
   const observed = userTeam?.scoutingObserved?.[player.pid] ?? null;
