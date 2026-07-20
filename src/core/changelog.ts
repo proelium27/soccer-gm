@@ -23,6 +23,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
+    title: "Import and export team names",
+    items: [
+      "A lot of you asked to bring real teams into the game. This is the first step: the Leagues screen now has \"Export Names\" and \"Import Names\" on every save.",
+      "Export Names downloads a plain text (JSON) file listing every club in your world, grouped by league. Edit the names, abbreviations, and colors however you like, or hand the file to an AI and ask it to fill in a real league, then load it back with Import Names to rename clubs in bulk.",
+      "It only touches names, abbreviations, and colors, the same thing Customize Teams does, just from a file instead of one club at a time. You can include only the leagues you care about and leave the rest of the world as it is.",
+      "Bringing in real players this way is the next step.",
+    ],
+  },
+  {
+    date: "2026-07-20",
     title: "God Mode: a sandbox for building your dream league",
     items: [
       "A lot of you asked for a Basketball GM-style \"God Mode,\" a sandbox where you can override the game instead of just playing it straight. It's here, and it's completely optional.",
