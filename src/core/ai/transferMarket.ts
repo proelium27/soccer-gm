@@ -8,7 +8,7 @@ import type { ActiveLoan } from "../loans.js";
 import { deriveLeagueContexts } from "./clubContext.js";
 import { valueToClub, perceivedValueToClub } from "./evaluate.js";
 import { trueTransferValue } from "../finance/valuation.js";
-import { clampBudget } from "../finance/budget.js";
+import { clampBudget, financeScale } from "../finance/budget.js";
 import { tierOf } from "../competitions.js";
 import { keepsDepthFloor } from "../freeAgency.js";
 import { mulberry32 } from "../../engine/rng.js";
@@ -222,7 +222,7 @@ export function runAITransferMarket(
     roster.set(c.sellerTid, sellerRoster.filter((p) => p !== c.pid));
     buyerRoster.push(c.pid);
     const sellerCompId = teams.find((t) => t.tid === c.sellerTid)!.compId;
-    budget.set(c.sellerTid, clampBudget((budget.get(c.sellerTid) ?? 0) + fee, tierOf(competitions, sellerCompId), hypeByTid.get(c.sellerTid) ?? 0));
+    budget.set(c.sellerTid, clampBudget((budget.get(c.sellerTid) ?? 0) + fee, financeScale(competitions, sellerCompId), hypeByTid.get(c.sellerTid) ?? 0));
     budget.set(c.buyerTid, (budget.get(c.buyerTid) ?? 0) - fee - wageCharge);
     moved.add(c.pid);
     buys.set(c.buyerTid, (buys.get(c.buyerTid) ?? 0) + 1);

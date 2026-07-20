@@ -39,7 +39,7 @@ function buildWorldLeague(seed: number): LeagueStore {
 }
 
 describe("world integration (generateWorld through the real season/offseason pipeline)", () => {
-  it("simulates a full season across all 8 competitions without crashing", () => {
+  it("simulates a full season across all 12 competitions without crashing", () => {
     const rng = mulberry32(100);
     let league = buildWorldLeague(100);
     league = simThrough(league, "season", rng);
@@ -57,13 +57,13 @@ describe("world integration (generateWorld through the real season/offseason pip
     league = simThrough(league, "season", rng);
     const beforeCompByTid = new Map(league.teams.map((t) => [t.tid, t.compId]));
     league = simOffseason(league, rng);
-    expect(league.teams).toHaveLength(160);
+    expect(league.teams).toHaveLength(240);
     // Every competition still has exactly 20 teams after the swap.
     for (const comp of league.competitions) {
       expect(league.teams.filter((t) => t.compId === comp.id)).toHaveLength(20);
     }
     // At least one country actually swapped teams (statistically near-certain
-    // across 4 countries x 3 promotions each) — proves the per-country loop
+    // across 6 countries x 3 promotions each) — proves the per-country loop
     // from PR 1 (computeCountrySwaps/applyCompetitionSwaps) is actually firing
     // for Spain, Italy, and Germany, not just England.
     let anySwapped = false;

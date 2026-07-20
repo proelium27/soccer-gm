@@ -6,7 +6,7 @@ import type { ActiveLoan } from "../loans.js";
 import { tierOf } from "../competitions.js";
 import { DIVISION_2_REFUSAL_OVR_THRESHOLD, ROSTER_CAP, ROSTER_COMPOSITION } from "../constants.js";
 import { trueTransferValue } from "../finance/valuation.js";
-import { clampBudget } from "../finance/budget.js";
+import { clampBudget, financeScale } from "../finance/budget.js";
 
 /**
  * Guaranteed, deterministic ceiling on how good an AI-controlled Division 2
@@ -60,6 +60,7 @@ export function enforceDivision2Ceiling(
   const onLoanPids = new Set(activeLoans.map((l) => l.pid));
   const rosterByTid = new Map(teams.map((t) => [t.tid, [...t.roster]]));
   const tierByTid = new Map(teams.map((t) => [t.tid, tierOf(competitions, t.compId)]));
+  const scaleByTid = new Map(teams.map((t) => [t.tid, financeScale(competitions, t.compId)]));
   const budgetByTid = new Map(teams.map((t) => [t.tid, t.budget]));
   const hypeByTid = new Map(teams.map((t) => [t.tid, t.hype]));
   const executed: CompletedTransfer[] = [];
@@ -159,7 +160,7 @@ export function enforceDivision2Ceiling(
     budgetByTid.set(buyerTid, (budgetByTid.get(buyerTid) ?? 0) - fee);
     budgetByTid.set(
       sellerTid,
-      clampBudget((budgetByTid.get(sellerTid) ?? 0) + fee, tierByTid.get(sellerTid)!, hypeByTid.get(sellerTid) ?? 0),
+      clampBudget((budgetByTid.get(sellerTid) ?? 0) + fee, scaleByTid.get(sellerTid)!, hypeByTid.get(sellerTid) ?? 0),
     );
 
     rosterByTid.set(sellerTid, rosterByTid.get(sellerTid)!.filter((pid) => pid !== player.pid));

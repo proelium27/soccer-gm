@@ -5,8 +5,7 @@ import type { TransferWindowKind } from "./window.js";
 import type { Competition } from "../competitions.js";
 import { transferWindowState } from "./window.js";
 import { trueTransferValue, perceivedTransferValue } from "../finance/valuation.js";
-import { clampBudget } from "../finance/budget.js";
-import { tierOf } from "../competitions.js";
+import { clampBudget, financeScale } from "../finance/budget.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { keepsDepthFloor } from "../freeAgency.js";
 import { wouldRefuseExtension } from "../ai/breakoutRefusal.js";
@@ -200,7 +199,7 @@ export function executeTransfer(
     ...league,
     teams: league.teams.map((t) => {
       if (t.tid === fromTid) {
-        return { ...t, roster: t.roster.filter((p) => p !== pid), budget: clampBudget(t.budget + fee, tierOf(league.competitions, t.compId), t.hype) };
+        return { ...t, roster: t.roster.filter((p) => p !== pid), budget: clampBudget(t.budget + fee, financeScale(league.competitions, t.compId), t.hype) };
       }
       if (t.tid === toTid) {
         return { ...t, roster: [...t.roster, pid], budget: t.budget - fee - wageCharge };

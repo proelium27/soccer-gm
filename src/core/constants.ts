@@ -107,11 +107,56 @@ export const PROMOTION_RELEGATION_COUNT = 3;
  */
 export const ACADEMY_BASE_CONVERGENCE_SEASONS = 3;
 
-/** Center strength each tier's academyBase converges toward after a swap. */
-export const ACADEMY_BASE_CENTER_BY_TIER: Record<1 | 2, number> = {
-  1: LEAGUE_BASE,
-  2: LEAGUE_BASE - DIVISION_2_OFFSET,
+/**
+ * Per-country strength handicap, subtracted from every team's generation-time
+ * strength target (on top of any tier offset) so some countries field weaker
+ * leagues than others. The big-four leagues (England/Spain/Italy/Germany) are
+ * equal siblings at 0; France and Portugal are deliberately weaker, with
+ * Portugal weakest — anchored on the real UEFA coefficient / EA FC ordering
+ * (England ≫ the pack ≫ France > Portugal). Because match composites are
+ * z-normalized *within* each competition, this handicap is invisible in a
+ * country's own domestic matches (someone still wins Ligue 1) and only bites
+ * where leagues meet: transfer valuations (weaker players are cheaper, so they
+ * drain upward to richer/stronger leagues) and the Continental Cup (once its
+ * composites are normalized against a shared baseline — see simThrough/simCup).
+ *
+ * Starting values; tune via scripts/divisionAudit.ts — the exact magnitudes
+ * matter less than the ordering, and both are wired to be adjusted from here.
+ * An unlisted country (the big four) defaults to 0 via countryStrengthOffset().
+ */
+export const COUNTRY_STRENGTH_OFFSET: Record<string, number> = {
+  France: 5,
+  Portugal: 10,
 };
+export function countryStrengthOffset(country: string): number {
+  return COUNTRY_STRENGTH_OFFSET[country] ?? 0;
+}
+
+/**
+ * Per-country money scale, multiplied into a competition's finance scale on top
+ * of the tier scale (see financeScale in finance/budget.ts). A weaker league is
+ * also a poorer one — France and Portugal can't out-bid the big four, which is
+ * what turns them into selling leagues that feed talent upward. Kept above the
+ * clubs' (lower, because OVR-driven and OVR is lower here) wage bills so the
+ * "no AI club runs a deficit" invariant still holds — verify via the audit.
+ * Unlisted countries default to 1 via countryBudgetScale().
+ */
+export const COUNTRY_BUDGET_SCALE: Record<string, number> = {
+  France: 0.7,
+  Portugal: 0.5,
+};
+export function countryBudgetScale(country: string): number {
+  return COUNTRY_BUDGET_SCALE[country] ?? 1;
+}
+
+/**
+ * Center strength a club's academyBase converges toward after a promotion/
+ * relegation swap — its new tier's band within its own country, so a promoted
+ * French club rises toward French D1's (handicapped) level, not England's.
+ */
+export function academyBaseCenter(country: string, tier: 1 | 2): number {
+  return LEAGUE_BASE - countryStrengthOffset(country) - (tier === 2 ? DIVISION_2_OFFSET : 0);
+}
 
 /**
  * Composite normalization coefficient: normalized = 0.5 + NORMALIZE_K * z.

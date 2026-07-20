@@ -697,6 +697,22 @@ export const OTHER_NATIONS: Record<string, { first: string[]; last: string[] }> 
     first: ["Arber", "Besart", "Endrit", "Fisnik", "Granit", "Leart", "Valon", "Blerim"],
     last: ["Krasniqi", "Berisha", "Gashi", "Hoxha", "Shala", "Kastrati", "Morina", "Rexhepi"],
   },
+  "Ivory Coast": {
+    first: ["Serge", "Yaya", "Wilfried", "Franck", "Cheick", "Ibrahim", "Seydou", "Max"],
+    last: ["Kouame", "Toure", "Kone", "Bamba", "Gadji", "Yao", "Coulibaly", "Zoro"],
+  },
+  Greece: {
+    first: ["Giorgos", "Dimitris", "Kostas", "Nikos", "Vasilis", "Panagiotis", "Christos", "Stelios"],
+    last: ["Papadopoulos", "Nikolaou", "Georgiou", "Vlachos", "Karatzas", "Samaras", "Fortounis", "Retsos"],
+  },
+  "Cape Verde": {
+    first: ["Nuno", "Ricardo", "Jorge", "Djaniny", "Garry", "Kenny", "Ianique", "Dylan"],
+    last: ["Tavares", "Furtado", "Lopes", "Semedo", "Rodrigues", "Fernandes", "Andrade", "Varela"],
+  },
+  "Guinea-Bissau": {
+    first: ["Mama", "Frederic", "Nanu", "Carlos", "Mamadu", "Jorginho", "Bura", "Sori"],
+    last: ["Balde", "Mendy", "Embalo", "Cande", "Djalo", "Na Silva", "Indjai", "Camara"],
+  },
 };
 
 // Sentinel key inside a league weight table standing for the combined
@@ -748,6 +764,25 @@ export const LEAGUE_NATIONALITY_WEIGHTS: Record<string, Record<string, number>> 
     Norway: 14, Sweden: 14, Argentina: 13, Italy: 13, Turkey: 13, Nigeria: 13,
     "Czech Republic": 13, Kosovo: 11, England: 11, Algeria: 11, Serbia: 11,
     [REST]: 65,
+  },
+  // Ligue 1: strong French base, then a Francophone West/North African tail
+  // (Senegal/Ivory Coast/Morocco/Mali/Algeria/Cameroon) unique to French
+  // football, plus Belgium/Portugal as developmental neighbours.
+  France: {
+    France: 556, Senegal: 81, "Ivory Coast": 51, Morocco: 42, Belgium: 32, Mali: 32,
+    Algeria: 32, Portugal: 32, England: 26, Cameroon: 26, Brazil: 24, Ghana: 24,
+    Argentina: 18, Nigeria: 18, Denmark: 16, Switzerland: 16, Netherlands: 14,
+    [REST]: 81,
+  },
+  // Primeira Liga: heavily international but overwhelmingly Brazilian, then
+  // Spain and the PALOP (Portuguese-speaking African) nations Angola/Cape
+  // Verde/Guinea-Bissau — the league's distinctive cultural pipelines.
+  Portugal: {
+    Portugal: 448, Brazil: 234, Spain: 99, France: 44, Uruguay: 24, Colombia: 20,
+    Greece: 18, Netherlands: 18, Angola: 18, Argentina: 16, Nigeria: 16,
+    "Ivory Coast": 16, "Cape Verde": 14, Sweden: 14, "Guinea-Bissau": 14,
+    England: 14, Senegal: 14, Morocco: 12,
+    [REST]: 72,
   },
 };
 

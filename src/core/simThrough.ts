@@ -25,8 +25,7 @@ import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { CupState, CupTie } from "./cup/types.js";
 import { dueCupRound, cupFinalists } from "./cup/cup.js";
 import { playCupRound } from "./cup/simCup.js";
-import { clampBudget } from "./finance/budget.js";
-import { tierOf } from "./competitions.js";
+import { clampBudget, financeScale } from "./finance/budget.js";
 import { CUP_FINAL_ROUND, POWER_SNAPSHOT_INTERVAL } from "./constants.js";
 
 function accumulateStats(
@@ -266,7 +265,7 @@ export function simThrough(
         currentTeams = currentTeams.map((t) => {
           const prize = prizes.get(t.tid);
           return prize
-            ? { ...t, budget: clampBudget(t.budget + prize, tierOf(league.competitions, t.compId), t.hype) }
+            ? { ...t, budget: clampBudget(t.budget + prize, financeScale(league.competitions, t.compId), t.hype) }
             : t;
         });
       }

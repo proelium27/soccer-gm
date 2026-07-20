@@ -8,8 +8,8 @@ import {
   HYPE_INITIAL, SCOUTING_SPEND_DEFAULT,
   NUM_TEAMS,
 } from "../core/constants.js";
-import { chargeSeasonStart, wageBill } from "../core/finance/budget.js";
-import { englandCompetitions, tierOf } from "../core/competitions.js";
+import { chargeSeasonStart, wageBill, financeScale } from "../core/finance/budget.js";
+import { englandCompetitions } from "../core/competitions.js";
 
 /**
  * A team as it may exist in a save written before M6 added the finance
@@ -183,7 +183,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
         name: t.name ?? CLUBS[t.tid]?.name,
         abbrev: t.abbrev ?? CLUBS[t.tid]?.abbrev,
         colors: t.colors ?? CLUBS[t.tid]?.colors,
-        budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), tierOf(competitions, compId), t.hype ?? HYPE_INITIAL),
+        budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), financeScale(competitions, compId), t.hype ?? HYPE_INITIAL),
         hype: t.hype ?? HYPE_INITIAL,
         scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_DEFAULT,
         // nextScoutingSpend (added with the season-lock, 2026-07-18): old saves

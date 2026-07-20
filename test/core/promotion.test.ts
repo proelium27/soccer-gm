@@ -5,7 +5,7 @@ import {
 import { englandCompetitions } from "../../src/core/competitions.js";
 import type { StandingsRow } from "../../src/core/standings.js";
 import type { StoredTeam } from "../../src/core/teams/clubs.js";
-import { ACADEMY_BASE_CENTER_BY_TIER, ACADEMY_BASE_CONVERGENCE_SEASONS } from "../../src/core/constants.js";
+import { academyBaseCenter, ACADEMY_BASE_CONVERGENCE_SEASONS } from "../../src/core/constants.js";
 
 const COMPS = englandCompetitions();
 
@@ -50,7 +50,7 @@ describe("applyCompetitionSwaps", () => {
 
 describe("stepAcademyBaseConvergence", () => {
   it("moves academyBase toward the current competition's tier center and counts down", () => {
-    const d1Center = ACADEMY_BASE_CENTER_BY_TIER[1];
+    const d1Center = academyBaseCenter("England", 1);
     const t = { ...team(20, 0, d1Center - 9), divisionConvergence: { seasonsRemaining: 3 } };
     const step1 = stepAcademyBaseConvergence([t], COMPS)[0];
     expect(step1.academyBase).toBeCloseTo(d1Center - 6, 5); // moved 1/3 of the remaining 9-point gap
@@ -58,7 +58,7 @@ describe("stepAcademyBaseConvergence", () => {
   });
 
   it("clears divisionConvergence once seasonsRemaining reaches 0", () => {
-    const d1Center = ACADEMY_BASE_CENTER_BY_TIER[1];
+    const d1Center = academyBaseCenter("England", 1);
     const t = { ...team(20, 0, d1Center - 3), divisionConvergence: { seasonsRemaining: 1 } };
     const result = stepAcademyBaseConvergence([t], COMPS)[0];
     expect(result.academyBase).toBeCloseTo(d1Center, 5);

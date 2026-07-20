@@ -51,6 +51,22 @@ export function CountryFlag({ country, size = 18, className }: CountryFlagProps)
           <rect y="1.333" width="3" height="0.667" fill="#ffce00" />
         </svg>
       );
+    case "France":
+      return (
+        <svg {...commonProps}>
+          <rect width="1" height="2" fill="#0055a4" />
+          <rect x="1" width="1" height="2" fill="#ffffff" />
+          <rect x="2" width="1" height="2" fill="#ef4135" />
+        </svg>
+      );
+    case "Portugal":
+      return (
+        <svg {...commonProps}>
+          <rect width="3" height="2" fill="#da291c" />
+          <rect width="1.2" height="2" fill="#046a38" />
+          <circle cx="1.2" cy="1" r="0.32" fill="#ffe600" />
+        </svg>
+      );
     default:
       return <span className="country-flag-fallback" style={style} />;
   }

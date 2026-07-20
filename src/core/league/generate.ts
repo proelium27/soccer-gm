@@ -7,7 +7,7 @@ import { worldCompetitions, tier1Pairs } from "../competitions.js";
 import {
   NUM_TEAMS, NUM_TEAMS_D2, LEAGUE_BASE, TEAM_STRENGTH_SPREAD, DIVISION_2_OFFSET,
   ROSTER_COMPOSITION, INITIAL_AGE_MIN, INITIAL_AGE_MAX,
-  CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
+  CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX, countryStrengthOffset,
 } from "../constants.js";
 
 const STARTING_SEASON = 1;
@@ -162,11 +162,16 @@ export function generateWorld(rng: () => number, seed = 0): League {
   const teams: LeagueTeam[] = [];
   const players: Player[] = [];
   for (const { d1, d2 } of tier1Pairs(comps)) {
-    const d1Result = generateDivisionTeams(rng, tidCursor, NUM_TEAMS, 0, d1.id, genSeed, pid, d1.country);
+    // Per-country strength handicap stacked onto the tier offset (0 for the
+    // big four, so England stays byte-identical). Changing a player's `base`
+    // doesn't alter rng-stream consumption, and France/Portugal are generated
+    // last, so this can't perturb any other country's players.
+    const countryOffset = countryStrengthOffset(d1.country);
+    const d1Result = generateDivisionTeams(rng, tidCursor, NUM_TEAMS, countryOffset, d1.id, genSeed, pid, d1.country);
     pid = d1Result.nextPid;
     tidCursor += NUM_TEAMS;
     const d2Result = generateDivisionTeams(
-      rng, tidCursor, NUM_TEAMS_D2, DIVISION_2_OFFSET, d2.id, genSeed, pid, d2.country,
+      rng, tidCursor, NUM_TEAMS_D2, DIVISION_2_OFFSET + countryOffset, d2.id, genSeed, pid, d2.country,
     );
     pid = d2Result.nextPid;
     tidCursor += NUM_TEAMS_D2;
