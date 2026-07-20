@@ -95,6 +95,32 @@ export function Manual() {
             any existing save does the same thing later.
           </p>
           <p>
+            If you'd rather bring in real teams in bulk, the Leagues screen has "Export Teams" and
+            "Import Teams" on each save. Export hands you a plain text (JSON) file listing every club,
+            grouped by league; edit it however you like (or ask an AI to fill in a real league) and
+            load it back with "Import Teams". The file matches clubs to your existing leagues by slot,
+            so it's the easiest way to turn the fictional default world into real ones, and you can
+            list only the leagues you care about and leave the rest alone.
+          </p>
+          <p>
+            A club entry can also carry a <em>players</em> list to bring in a real squad, not just a
+            name. Each player needs a name, position, and age, plus either an <em>overall</em> (the
+            game builds position-appropriate ratings to match it) or an exact <em>ratings</em> block
+            if you want full control; nationality, height, and potential are optional. You don't have
+            to list a full 25 — whatever you leave short gets topped up with lower-rated reserves so
+            the squad is always legal to field. Importing a squad replaces that club's existing
+            players, so it's best done on a fresh save. Leave the players list off a club and only its
+            name and colors change, exactly like Customize Teams.
+          </p>
+          <p>
+            Writing all that JSON by hand is tedious, so the easiest route is to let an AI build it.
+            The "Copy AI Prompt" button on each save copies a ready-made prompt to your clipboard,
+            already filled in with your world's exact league names and sizes. Paste it into ChatGPT or
+            Claude, tell it which leagues you want and how real to make them, save its reply as a
+            <code>.json</code> file, and load it with Import Teams. (If your browser blocks clipboard
+            access, the button downloads the prompt as a text file instead.)
+          </p>
+          <p>
             England's 20 Division 1 clubs have real crest art that shows up wherever the club's
             name does. Every other club (Division 2 England, plus Spain, Italy, Germany, France and
             Portugal) just shows a two-color swatch until it gets a crest of its own.
