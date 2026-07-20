@@ -23,6 +23,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
+    title: "You can't just buy your way to the top anymore",
+    items: [
+      "A common bit of feedback: winning the league gets too easy once you have money to spend. So building a champion is now genuinely harder, in two connected ways.",
+      "The very best players can't be bought. The league's genuine elite are now priced so high that no club can afford them, yours included. You can still buy a solid, competitive squad, but the difference-makers who actually win titles aren't for sale at any price. To get one, you have to develop him yourself or bring him through your academy.",
+      "Prospects rarely hit their ceiling. A young player's shown potential is now a best-case forecast, so most kids fall well short of it and only about one in ten reaches or beats it. Betting on a wonderkid is a real gamble now, not a sure thing. (As before, potential is only a forecast, it never changes how a player actually develops.)",
+      "Put together, the message is: money buys you a good team, not a great one. Winning the top flight now takes patience and a bit of luck in who you develop, not just a fat transfer budget.",
+    ],
+  },
+  {
+    date: "2026-07-20",
     title: "God Mode: a sandbox for building your dream league",
     items: [
       "A lot of you asked for a Basketball GM-style \"God Mode,\" a sandbox where you can override the game instead of just playing it straight. It's here, and it's completely optional.",

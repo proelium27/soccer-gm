@@ -94,7 +94,7 @@ Each entry: what it is / where it lives / gotchas.
 **Finance**
 - `budget` is a **cumulative running balance**, never reset to base — light spending compounds. Bounded by `budgetCap(tier, hype)` (`core/finance/budget.ts`): hype-scaled ceiling between `MAX_BUDGET_FLOOR` and `MAX_BUDGET`, ×`financeScale` per country/tier. Banking past the cap destroys the excess (never causes a deficit).
 - Wages: cubic in ovr (`seasonSalaryForOvr`, `core/contracts.ts`), charged **up front** at season start (`chargeSeasonStart`); season-end `settleSeasonEnd` handles prize + hype − scouting only. Mid-season acquisitions charge full season salary at acquisition.
-- **"Priceless star" premium** (`core/finance/valuation.ts`) — steep premium above ovr 85 rockets 90+ players past the budget cap so no club can afford them (keeps generational talents un-tradeable).
+- **"Priceless star" premium** (`core/finance/valuation.ts`, `VALUATION_ELITE_*`) — steep premium above `VALUATION_ELITE_THRESHOLD` (76 ≈ the top of a league) rockets the genuine best players past every budget cap, so the difference-makers who actually win titles can't be bought at any price — you develop them, not buy them. This is the load-bearing **difficulty lever** (money buys a good squad, not a great one); note a global player-quality nerf can *not* substitute for it, because match composites z-normalize league-wide quality away (proven — it left title-win rates unchanged), whereas gating the *market* does bite.
 - **Finance page** (`/finance`) — pure display of budget/hype, scouting slider, settlement breakdown, wage bill, transfer history, league-wide table.
 
 **World / leagues** (competitions-as-data)
@@ -118,6 +118,7 @@ Each entry: what it is / where it lives / gotchas.
 **Scouting fog-of-war on potential** (`core/scouting/potentialFog.ts`)
 - Fogs **POT only** (OVR/attributes stay exact) as a low-high range, narrowed by scouting spend + ownership tenure, clearing to exact over ~2-3 seasons. `StoredTeam.scoutingObserved` (pid→first-seen season, user only, reconciled at league creation + each offseason). `<PotDisplay>` replaces every raw potential render; AI clubs unaffected (they have their own `perceivedValueToClub` noise). Team-level aggregates stay exact.
 - **Scouting spend is locked per season** — `StoredTeam.nextScoutingSpend` (editable only in offseason) becomes the committed `scoutingSpend` at rollover, closing a peek-then-lower exploit.
+- **Potential is a best-case forecast** — `estimatePotential` reports the `POTENTIAL_SIM_PERCENTILE` (0.90) of simulated career peaks, so a shown potential is deliberately optimistic: most players fall short and only ~1 in 10 meets/beats it. Pure texture/difficulty (potential is never a growth input), pairs with the "priceless star" market gate so you can't reliably *buy or grow* your way to a champion.
 
 **OVR history chart** (`ui/components/OvrHistoryChart.tsx`)
 - Per-player career OVR area chart on Player Profile, colored by the club each season, crests at transfers. `RatingsSnapshot.academy` stores the academy/senior flag *going forward* (irreconstructable for old saves → `false`). Academy shows only in the hover tooltip label.

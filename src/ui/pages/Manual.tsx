@@ -291,9 +291,10 @@ export function Manual() {
           </ul>
           <p>
             <strong>Potential is a scout's guess, not a promise.</strong> The game simulates a
-            player's future career a bunch of times and reports the 75th percentile of those peaks,
-            so roughly three players in four never quite reach their listed potential, and one in
-            four meets or beats it. And here's the important bit: potential has <em>zero</em> effect
+            player's future career a bunch of times and reports the 90th percentile of those peaks,
+            so most players never quite reach their listed potential &mdash; only about one in ten
+            meets or beats it. Betting on a prospect is a real gamble, and a homegrown kid hitting
+            his ceiling is the exception, not the rule. And here's the important bit: potential has <em>zero</em> effect
             on how a player actually develops. It's a forecast of the development model, not an input
             to it. It also gets re-estimated as the player ages, so it drifts toward his current OVR
             over time.
@@ -476,6 +477,15 @@ export function Manual() {
             between potential and current OVR is worth a real premium for young players, fading to
             nothing by 30), and by remaining contract length (a player locked up for years is
             pricier to pry loose).
+          </p>
+          <p>
+            <strong>The very best players can't be bought.</strong> Above a certain OVR &mdash;
+            roughly the top of any league &mdash; value climbs so steeply that the game's genuine
+            elite are priced clean out of every club's budget. You can buy a solid, competitive
+            squad, but the difference-makers who actually win titles aren't for sale at any price:
+            you have to develop them yourself (and, per the note on potential above, that's a
+            gamble) or hope one comes through your own academy. Money buys you a good team; it can't
+            buy you a great one.
           </p>
           <p>
             <strong>Buying.</strong> The Transfers page recommends 5&ndash;10 for-sale players near

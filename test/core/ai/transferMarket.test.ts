@@ -49,16 +49,17 @@ describe("runAITransferMarket", () => {
     // (clampBudget). At world scale (120 clubs, more transfers per window)
     // that clamp is more likely to fire mid-run than it was at 40-club scale,
     // even though no club's *final* budget sits at the cap. This is a fixed
-    // seed, so the real loss is deterministic — measured ~$13.3M for seed 7
-    // since the tier-2 elite-buy guard landed (elite fees now always route to
-    // tier-1 sellers, which sit nearer their budget caps, so more of a big
-    // fee gets clamped away; it was ~$482k pre-guard). Bound around that
-    // measurement rather than a loose percentage of the league's total
-    // budget (~$8.2B), which would be loose enough to hide a real
-    // double-credit/double-spend regression. Creation stays exactly banned
-    // by the first assertion either way.
+    // seed, so the real loss is deterministic — measured ~$24.7M for seed 7
+    // after the 2026-07-20 "priceless star" retune (VALUATION_ELITE_THRESHOLD
+    // 85→76): the elite premium now bites at the actual top of the league, so
+    // the fees that do clear route bigger sums to near-cap tier-1 sellers and
+    // more gets clamped away (was ~$13.3M under the old threshold, ~$482k before
+    // the tier-2 elite-buy guard). Bound around that measurement rather than a
+    // loose percentage of the league's total budget (~$8.2B), which would be
+    // loose enough to hide a real double-credit/double-spend regression.
+    // Creation stays exactly banned by the first assertion either way.
     expect(after).toBeLessThanOrEqual(before + 0.01);
-    expect(before - after).toBeLessThan(20_000_000);
+    expect(before - after).toBeLessThan(30_000_000);
   });
 
   it("never involves the user's club, and leaves the user roster untouched", () => {
