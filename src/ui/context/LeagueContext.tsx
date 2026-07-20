@@ -19,6 +19,8 @@ import {
 } from "../../core/loans.js";
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { applyTeamIdentities, type TeamIdentityEdit } from "../../core/teams/customize.js";
+import { applyRosterFile, type RosterFileApplyResult } from "../../core/teams/rosterImport.js";
+import type { RosterFile } from "../../core/teams/rosterFile.js";
 import {
   movePlayerToClub, detachPlayer, applyPlayerEdit, createCustomPlayer, setClubFinances,
   type PlayerEdit, type NewPlayerSpec,
@@ -35,6 +37,8 @@ interface LeagueContextValue {
   loadLeagueAction: (lid: number) => Promise<void>;
   switchLeagueAction: () => void;
   customizeTeamsAction: (lid: number, edits: TeamIdentityEdit[]) => Promise<void>;
+  /** Overlay a parsed roster file onto a save (identities + optional real squads). Returns a summary of what changed. */
+  importRosterAction: (lid: number, file: RosterFile) => Promise<Omit<RosterFileApplyResult, "league">>;
   simAction: (through: SimThrough) => Promise<void>;
   offseasonAction: () => Promise<void>;
   signFreeAgentAction: (pid: number) => Promise<void>;
@@ -99,7 +103,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   // (lost update). The ref gives queued actions the freshest committed value;
   // the promise chain guarantees only one read-modify-save runs at a time.
   const leagueRef = useRef<LeagueStore | null>(null);
-  const chainRef = useRef<Promise<void>>(Promise.resolve());
+  const chainRef = useRef<Promise<unknown>>(Promise.resolve());
   const pendingOpsRef = useRef(0);
   const [busy, setBusy] = useState(false);
 
@@ -108,7 +112,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     setLeagueState(l);
   }, []);
 
-  const runExclusive = useCallback((fn: () => Promise<void>): Promise<void> => {
+  const runExclusive = useCallback(<T,>(fn: () => Promise<T>): Promise<T> => {
     pendingOpsRef.current++;
     setBusy(true);
     const run = chainRef.current.then(fn).finally(() => {
@@ -176,6 +180,20 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         const updated = applyTeamIdentities(target, edits);
         await saveLeague(updated);
         if (active?.lid === lid) commitLeague(updated);
+      }),
+    [runExclusive, commitLeague],
+  );
+
+  const importRosterAction = useCallback(
+    (lid: number, file: RosterFile) =>
+      runExclusive(async () => {
+        const active = leagueRef.current;
+        const target = active?.lid === lid ? active : await loadLeague(lid);
+        if (!target) return { warnings: [], clubsRenamed: 0, squadsReplaced: 0, playersAdded: 0 };
+        const { league: updated, ...summary } = applyRosterFile(target, file);
+        await saveLeague(updated);
+        if (active?.lid === lid) commitLeague(updated);
+        return summary;
       }),
     [runExclusive, commitLeague],
   );
@@ -460,6 +478,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       loadLeagueAction,
       switchLeagueAction,
       customizeTeamsAction,
+      importRosterAction,
       simAction,
       offseasonAction,
       signFreeAgentAction,
