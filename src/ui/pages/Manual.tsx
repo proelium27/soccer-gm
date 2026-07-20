@@ -95,14 +95,22 @@ export function Manual() {
             any existing save does the same thing later.
           </p>
           <p>
-            If you'd rather bring in a whole set of real club names at once, the Leagues screen has
-            "Export Names" and "Import Names" on each save. Export hands you a plain text file listing
-            every club, grouped by league, that you (or an AI you ask) can edit and load back in with
-            "Import Names" to rename clubs in bulk. It's the same edit as Customize Teams, just done
-            from a file instead of one club at a time. The file matches clubs to your existing leagues
-            by slot, so it's the easiest way to turn the fictional default world into real teams. You
-            can list only the leagues you care about and leave the rest alone. (Bringing in real
-            <em>players</em> this way is coming next.)
+            If you'd rather bring in real teams in bulk, the Leagues screen has "Export Teams" and
+            "Import Teams" on each save. Export hands you a plain text (JSON) file listing every club,
+            grouped by league; edit it however you like (or ask an AI to fill in a real league) and
+            load it back with "Import Teams". The file matches clubs to your existing leagues by slot,
+            so it's the easiest way to turn the fictional default world into real ones, and you can
+            list only the leagues you care about and leave the rest alone.
+          </p>
+          <p>
+            A club entry can also carry a <em>players</em> list to bring in a real squad, not just a
+            name. Each player needs a name, position, and age, plus either an <em>overall</em> (the
+            game builds position-appropriate ratings to match it) or an exact <em>ratings</em> block
+            if you want full control; nationality, height, and potential are optional. You don't have
+            to list a full 25 — whatever you leave short gets topped up with lower-rated reserves so
+            the squad is always legal to field. Importing a squad replaces that club's existing
+            players, so it's best done on a fresh save. Leave the players list off a club and only its
+            name and colors change, exactly like Customize Teams.
           </p>
           <p>
             England's 20 Division 1 clubs have real crest art that shows up wherever the club's

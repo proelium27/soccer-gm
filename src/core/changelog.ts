@@ -23,12 +23,12 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
-    title: "Import and export team names",
+    title: "Import real teams and players from a file",
     items: [
-      "A lot of you asked to bring real teams into the game. This is the first step: the Leagues screen now has \"Export Names\" and \"Import Names\" on every save.",
-      "Export Names downloads a plain text (JSON) file listing every club in your world, grouped by league. Edit the names, abbreviations, and colors however you like, or hand the file to an AI and ask it to fill in a real league, then load it back with Import Names to rename clubs in bulk.",
-      "It only touches names, abbreviations, and colors, the same thing Customize Teams does, just from a file instead of one club at a time. You can include only the leagues you care about and leave the rest of the world as it is.",
-      "Bringing in real players this way is the next step.",
+      "A lot of you asked to bring real teams into the game. You can now do it: the Leagues screen has \"Export Teams\" and \"Import Teams\" on every save.",
+      "Export Teams downloads a plain text (JSON) file listing every club in your world, grouped by league. Edit it however you like, or hand it to an AI and ask it to fill in a real league, then load it back with Import Teams. It matches clubs to your leagues by slot, so it's the easiest way to turn the fictional default world into real ones.",
+      "Rename in bulk: change a club's name, abbreviation, and colors from the file instead of one at a time (same as Customize Teams). Include only the leagues you care about and leave the rest alone.",
+      "Bring in real squads: a club can also carry a list of players. Give each one a name, position, and age, plus either an overall (the game builds ratings to match) or exact ratings for full control. List as many or as few as you want, whatever you leave short is topped up with reserves so the team is always playable. Importing a squad replaces that club's players, so it's best done on a fresh save.",
     ],
   },
   {

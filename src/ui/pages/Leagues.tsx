@@ -3,11 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { listLeagues, deleteLeague, loadLeague } from "../../db/leagueDb.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
-import {
-  buildRosterFile,
-  parseRosterFile,
-  rosterFileToEdits,
-} from "../../core/teams/rosterFile.js";
+import { buildRosterFile, parseRosterFile } from "../../core/teams/rosterFile.js";
 
 interface LeagueSummary {
   lid: number;
@@ -46,7 +42,7 @@ export function Leagues() {
   const [status, setStatus] = useState<StatusMsg | null>(null);
   const importLidRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { loadLeagueAction, customizeTeamsAction } = useLeague();
+  const { loadLeagueAction, customizeTeamsAction, importRosterAction } = useLeague();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -106,33 +102,37 @@ export function Leagues() {
     e.target.value = ""; // allow re-selecting the same file later
     if (!file || lid === null) return;
 
-    let league, edits, warnings;
+    let parsed;
     try {
-      league = await loadLeague(lid);
-      if (!league) throw new Error("Could not load that league.");
-      const parsed = parseRosterFile(await file.text());
-      ({ edits, warnings } = rosterFileToEdits(league, parsed));
+      parsed = parseRosterFile(await file.text());
     } catch (err) {
       setStatus({ kind: "err", text: err instanceof Error ? err.message : String(err) });
       return;
     }
 
-    if (edits.length === 0) {
+    const summary = await importRosterAction(lid, parsed);
+    refresh();
+
+    if (summary.clubsRenamed === 0 && summary.squadsReplaced === 0) {
       setStatus({
         kind: "warn",
-        text: warnings.length
-          ? `Nothing applied. ${warnings.join(" ")}`
+        text: summary.warnings.length
+          ? `Nothing applied. ${summary.warnings.join(" ")}`
           : "The file didn't match any teams in this save, so nothing changed.",
       });
       return;
     }
 
-    await customizeTeamsAction(lid, edits);
-    refresh();
-    const applied = `Imported ${edits.length} team ${edits.length === 1 ? "name" : "names"}.`;
+    const parts = [`Imported ${summary.clubsRenamed} team ${summary.clubsRenamed === 1 ? "name" : "names"}`];
+    if (summary.squadsReplaced > 0) {
+      parts.push(
+        `replaced ${summary.squadsReplaced} squad${summary.squadsReplaced === 1 ? "" : "s"} (${summary.playersAdded} players)`,
+      );
+    }
+    const applied = `${parts.join(" and ")}.`;
     setStatus(
-      warnings.length
-        ? { kind: "warn", text: `${applied} ${warnings.join(" ")}` }
+      summary.warnings.length
+        ? { kind: "warn", text: `${applied} ${summary.warnings.join(" ")}` }
         : { kind: "ok", text: applied },
     );
   }
@@ -229,17 +229,17 @@ export function Leagues() {
                   type="button"
                   className="btn btn-outline-secondary btn-sm"
                   onClick={() => triggerImport(l.lid)}
-                  title="Overlay real club names & colors from a roster file"
+                  title="Overlay real club names, colors, and (optionally) squads from a roster file"
                 >
-                  Import Names
+                  Import Teams
                 </button>
                 <button
                   type="button"
                   className="btn btn-outline-secondary btn-sm"
                   onClick={() => handleExportNames(l.lid)}
-                  title="Download this save's clubs as an editable roster file"
+                  title="Download this save's clubs as an editable roster template"
                 >
-                  Export Names
+                  Export Teams
                 </button>
                 <button
                   type="button"
