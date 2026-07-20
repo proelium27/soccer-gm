@@ -132,9 +132,14 @@ export function enforceDivision2Ceiling(
         return (posCounts.get(pos) ?? 0) - 1 >= Math.ceil(ROSTER_COMPOSITION[pos] / 2);
       };
 
+      // Never release a loaned-in player to make room: he's owned by his
+      // parent and must leave only via processLoanReturns, or the live loan is
+      // orphaned into a duplicate (same reasoning as the sweep's own onLoanPids
+      // skip above). Releasable = on the buyer's roster and not on loan.
+      const releasable = buyerRoster.filter((pid) => !onLoanPids.has(pid));
       let weakestPid: number | null = null;
       let weakestOvr = Infinity;
-      for (const pid of buyerRoster) {
+      for (const pid of releasable) {
         if (!keepsFloor(pid)) continue;
         const ovr = playerByPid.get(pid)!.ovr;
         if (ovr < weakestOvr) {
@@ -144,10 +149,9 @@ export function enforceDivision2Ceiling(
       }
       if (weakestPid === null) {
         // No release keeps every position above its floor — fall back to
-        // the true weakest overall rather than block the guaranteed move.
-        weakestPid = buyerRoster[0];
-        weakestOvr = playerByPid.get(weakestPid)!.ovr;
-        for (const pid of buyerRoster.slice(1)) {
+        // the true weakest overall (still never a loaned-in player) rather
+        // than block the guaranteed move.
+        for (const pid of releasable) {
           const ovr = playerByPid.get(pid)!.ovr;
           if (ovr < weakestOvr) {
             weakestOvr = ovr;

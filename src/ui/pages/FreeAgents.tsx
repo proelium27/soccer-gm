@@ -24,7 +24,7 @@ export function FreeAgents() {
     return <p className="p-3">Loading...</p>;
   }
 
-  const faPids = freeAgentPids(league.teams, league.players);
+  const faPids = freeAgentPids(league.teams, league.players, league.activeLoans);
   const availablePlayers: Player[] = league.players.filter(
     (p) => faPids.has(p.pid) && league.season - p.born > PROSPECT_AGE_MAX,
   );

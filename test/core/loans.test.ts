@@ -5,6 +5,8 @@ import {
   runAILoanMarket,
 } from "../../src/core/loans.js";
 import { createLeagueState, type LeagueStore } from "../../src/core/leagueState.js";
+import { trimRosterSurplus, freeAgentPids } from "../../src/core/freeAgency.js";
+import { makeTransferOffer } from "../../src/core/transfers/negotiation.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { mulberry32 } from "../../src/engine/rng.js";
@@ -234,6 +236,80 @@ describe("no phantom players (loan + market/sweep interaction)", () => {
     // And the loaned player came home to exactly one club (his parent).
     const homes = league.teams.filter((t) => t.roster.includes(pid));
     expect(homes.length).toBe(1);
+  });
+});
+
+describe("orphaned-loan duplication (trim / free-agency / user buy)", () => {
+  // Setup: loan A's lowest-ovr outfield player to loanee B so B is now over
+  // its target complement at that position — the exact case trimRosterSurplus
+  // would prune. He's owned by A (the parent), so he must never be pruned off
+  // B: doing so orphans the ActiveLoan and lets him be re-signed as a "free
+  // agent" while processLoanReturns later returns a copy to A — the same pid
+  // on two rosters.
+  function loanOutSurplusPlayer(league: LeagueStore) {
+    const userTid = league.meta.userTid;
+    const playerMap = new Map(league.players.map((p) => [p.pid, p]));
+    const a = league.teams.find((t) => t.tid !== userTid)!;
+    const b = league.teams.find((t) => t.tid !== userTid && t.tid !== a.tid)!;
+    const cand = a.roster
+      .map((pid) => playerMap.get(pid)!)
+      .filter((p) => p.pos !== "GK")
+      .sort((x, y) => x.ovr - y.ovr)[0];
+    const loaned = executeLoan(league, cand.pid, a.tid, b.tid, 2, 0, league.season, "summer");
+    return { league: loaned, pid: cand.pid, parentTid: a.tid, loaneeTid: b.tid };
+  }
+
+  it("trimRosterSurplus never prunes a loaned-in player off the loanee roster", () => {
+    const { league, pid, loaneeTid } = loanOutSurplusPlayer(windowLeague());
+    const trimmed = trimRosterSurplus(league.teams, league.players, league.meta.userTid, league.activeLoans);
+    expect(trimmed.find((t) => t.tid === loaneeTid)!.roster).toContain(pid);
+  });
+
+  it("a loaned player is never counted as a free agent, even if a roster no longer lists him", () => {
+    const { league, pid, loaneeTid } = loanOutSurplusPlayer(windowLeague());
+    // Simulate an orphaning path (loanee somehow drops him) to prove the
+    // keystone guard: ownership is tracked by the loan, not roster membership.
+    const stripped = league.teams.map((t) =>
+      t.tid === loaneeTid ? { ...t, roster: t.roster.filter((p) => p !== pid) } : t,
+    );
+    expect(freeAgentPids(stripped, league.players, league.activeLoans).has(pid)).toBe(false);
+  });
+
+  it("the user cannot buy a player who is out on loan (owned by another club)", () => {
+    const league = windowLeague();
+    const userTid = league.meta.userTid;
+    const playerMap = new Map(league.players.map((p) => [p.pid, p]));
+    // Loan a strong player from A onto B; the user then tries to buy him from B.
+    const a = league.teams.find((t) => t.tid !== userTid)!;
+    const b = league.teams.find((t) => t.tid !== userTid && t.tid !== a.tid)!;
+    const pid = a.roster
+      .map((pid) => playerMap.get(pid)!)
+      .filter((p) => p.pos !== "GK")
+      .sort((x, y) => x.ovr - y.ovr)[0].pid;
+    const loaned = executeLoan(league, pid, a.tid, b.tid, 1, 0, league.season, "summer");
+    // A small, affordable offer: without the on-loan guard this would still
+    // open a (collapsed/countered) negotiation, mutating the league. The guard
+    // must short-circuit before any of that, leaving the league object untouched.
+    const after = makeTransferOffer(loaned, pid, 1);
+    expect(after).toBe(loaned);
+  });
+
+  it("processLoanReturns can never place the same pid on a roster twice", () => {
+    const league = windowLeague();
+    const [a, b] = [league.teams[0], league.teams[1]];
+    const pid = a.roster[0];
+    // Pathological input: pid already on parent AND on loanee, loan due.
+    const teams = league.teams.map((t) => {
+      if (t.tid === b.tid) return { ...t, roster: [...t.roster, pid] };
+      return t;
+    });
+    const activeLoans = [{
+      pid, parentTid: a.tid, loaneeTid: b.tid, startSeason: league.season,
+      seasons: 1, returnSeason: league.season + 1, fee: 0,
+    }];
+    const result = processLoanReturns(teams, activeLoans, [], league.season + 1);
+    const parent = result.teams.find((t) => t.tid === a.tid)!;
+    expect(parent.roster.filter((p) => p === pid).length).toBe(1);
   });
 });
 

@@ -128,13 +128,18 @@ export function processLoanReturns(
 
   const dueByPid = new Map(due.map((l) => [l.pid, l]));
   const updatedTeams = teams.map((t) => {
-    const arriving = due.filter((l) => l.parentTid === t.tid).map((l) => l.pid);
     const departing = new Set(due.filter((l) => l.loaneeTid === t.tid).map((l) => l.pid));
+    // Only bring home pids the parent isn't already carrying — a returning
+    // player must land on his parent exactly once, never appended blindly, so
+    // a loan left in an inconsistent state can't be materialized into a
+    // duplicate here (defense-in-depth behind the no-orphaned-loan guards).
+    const kept = t.roster.filter((pid) => !departing.has(pid));
+    const keptSet = new Set(kept);
+    const arriving = due
+      .filter((l) => l.parentTid === t.tid && !keptSet.has(l.pid))
+      .map((l) => l.pid);
     if (arriving.length === 0 && departing.size === 0) return t;
-    return {
-      ...t,
-      roster: [...t.roster.filter((pid) => !departing.has(pid)), ...arriving],
-    };
+    return { ...t, roster: [...kept, ...arriving] };
   });
 
   const returnTransfers: CompletedTransfer[] = due.map((l) => ({
