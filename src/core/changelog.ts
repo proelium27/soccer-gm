@@ -23,6 +23,21 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
+    title: "God Mode: a sandbox for building your dream league",
+    items: [
+      "A lot of you asked for a Basketball GM-style \"God Mode\" — a sandbox where you can override the game instead of just playing it straight. It's here, and it's completely optional.",
+      "Turn it on (or off) any time from the \"God Mode\" button in the top bar. It's per save, and there's no penalty — flip it on to tinker, flip it off to go back to a normal career. When it's on, a \"God Mode\" section appears in the sidebar and edit controls light up around the game.",
+      "Edit any player: open any player's profile (yours or a rival's) and hit Edit. You can change every one of his 14 ratings — his overall updates live as you do — plus his potential, name, nationality, age, position, height, and his contract wage and length. You can also clear an injury outright.",
+      "Move players wherever you want: from a player's profile, send him to any club instantly, with no transfer fee, no budget check, and no roster limit — or release him to free agency in one click.",
+      "Create players from scratch: the God Mode page has a Create Player tool where you build a brand-new player — every rating, position, age, potential and contract — and drop him straight onto any club or leave him a free agent.",
+      "Rebuild any club's roster: pick any club on the God Mode page and add, move, or release its players directly, so you can assemble the exact squads you want across the whole world.",
+      "Set club finances and identity: give any club whatever budget and hype you like, and rename or recolor any club.",
+      "See true potential: while God Mode is on, the scouting fog is lifted — every player's exact potential is shown everywhere, instead of an estimated range.",
+      "A few things it deliberately won't do: it can't add or delete whole clubs, erase a player from history (releasing him is how you remove him), or force a match result or change the standings. Everything else keeps simulating normally around your edits.",
+    ],
+  },
+  {
+    date: "2026-07-20",
     title: "See your Starting XI's stats at a glance",
     items: [
       "A few of you pointed out that you could see season stats for your bench players but not for anyone in your Starting XI. Thanks for flagging it!",
