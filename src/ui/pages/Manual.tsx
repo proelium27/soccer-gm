@@ -132,8 +132,8 @@ export function Manual() {
           <p>Every screen in the game and what it's for:</p>
           <ul>
             <li><strong>Dashboard</strong>. Your current W/D/L record and next fixture front and center, with your division's standings on the left and the latest news headlines on the right. Below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim buttons.</li>
-            <li><strong>Standings</strong>. The league table, plus each club's current OVR/POT. A season dropdown lets you pull up any past season's final table next to the current one. The champion's row is highlighted, and the top-four <a href="#cup">Continental Cup</a> qualification places are shaded.</li>
-            <li><strong>Continental Cup</strong>. The live knockout bracket for the current season, plus past winners via a season dropdown. More in <a href="#cup">The Continental Cup</a>.</li>
+            <li><strong>Standings</strong>. The league table, plus each club's current OVR/POT. A season dropdown lets you pull up any past season's final table next to the current one. The champion's row is highlighted, and the <a href="#cup">Continental Cup</a> qualification places are shaded.</li>
+            <li><strong>Continental Cup</strong>. The live league-phase table and knockout bracket for the current season, plus past winners via a season dropdown. More in <a href="#cup">The Continental Cup</a>.</li>
             <li><strong>Power Rankings</strong>. Every club in the world ranked by a blended Power score: squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column) plus a current-season form bonus or penalty. Form isn't just your record. Beating a strong side counts for more than beating a weak one (and losing to a weak side hurts more than losing to a strong one), and goal difference factors in too, so a club can rank above or below its raw OVR depending on how it's actually playing. Record, goal difference, OVR, and the blended Power score all sit side by side, with a badge showing each club's competition and its rank within it. Click a team to expand its full roster in place. The rankings also get snapshotted every 5 matchdays (plus once after the final matchday), and a dropdown lets you browse any past snapshot from any season, with arrows showing how far each club rose or fell since the last one. Historical views can't expand rosters, since past squads aren't stored, and snapshots only start piling up from the point this feature shipped.</li>
             <li><strong>Schedule</strong>. Every matchday's fixtures and results. Click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong>. A Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, passes, crosses, fouls, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since).</li>
@@ -241,21 +241,37 @@ export function Manual() {
 
         <Section id="cup" title="The Continental Cup">
           <p>
-            The Continental Cup is a 16-team knockout played alongside the league season.
+            The Continental Cup is a 20-club competition played alongside the league season.
             Qualification is purely about <strong>league position</strong>, not squad quality. The
             top four clubs in each of the four strongest top-flight leagues (England, Spain, Italy and
-            Germany) qualify, and the 14 strongest of them go straight into the Round of 16. The
-            weaker leagues, <strong>France</strong> and <strong>Portugal</strong>, send only their
-            champion, and those two have to win a play-in round (on matchday 4) against the two
-            weakest big-four qualifiers for the last two bracket places. So a weak-league champion has
-            to earn its way into the main draw. On the <a href="#pages">Standings</a> page the
-            qualifying places are shaded as the qualification zone.
+            Germany) get in, plus the top two from each of the weaker leagues,{" "}
+            <strong>France</strong> and <strong>Portugal</strong>. That's 4×4 + 2×2 = 20 clubs. On
+            the <a href="#pages">Standings</a> page the qualifying places are shaded as the
+            qualification zone (top four in a strong league, top two in a weak one).
+          </p>
+          <p>
+            It opens with a <strong>league phase</strong>: all 20 clubs sit in one combined table and
+            each plays <strong>six games</strong> against six different opponents. The draw isn't
+            random. The field is split into a stronger half and a weaker half, and everyone plays
+            three from each half, so no club draws six giants or six minnows. You never play a club
+            from your own league. Home and away are evenly split, and you play once per league-phase
+            round (on matchdays 3, 7, 11, 15, 19 and 23).
+          </p>
+          <p>
+            When the six rounds are done, the table splits three ways. The <strong>top four</strong>{" "}
+            go straight to the quarter-finals. Clubs ranked <strong>5th to 12th</strong> drop into a
+            single-leg <strong>playoff round</strong> (matchday 27) and the four winners take the last
+            four quarter-final places. Clubs finishing <strong>13th to 20th</strong> are knocked out.
+            From there it's a straight knockout: quarter-finals, semi-finals and final, on matchdays
+            31, 34 and 37.
           </p>
           <p className="text-muted small">
-            One thing to keep in mind if you're managing in France or Portugal: don't expect a
-            Continental Cup place for finishing mid-table, and your club goes into every tie as an
-            underdog. The cup reads a weak-league side as genuinely weaker than a big-four side with
-            the same league position, not as an equal.
+            This is deliberately a fairer road in for France and Portugal than a one-off qualifier
+            would be: their clubs get in with more places, are guaranteed six games, and only need a
+            mid-table league-phase finish to reach the playoff. That said, don't expect miracles.
+            The cup reads a weak-league side as genuinely weaker than a big-four side with the same
+            league position, not as an equal, so those clubs go in as underdogs and usually have to
+            scrap for a playoff spot.
           </p>
           <p>
             Since qualification comes off a finished table, the cup runs a season behind. The first
@@ -263,19 +279,17 @@ export function Manual() {
             one's final tables. Season one has no cup.
           </p>
           <p>
-            It's a single-leg bracket: the play-in on matchday 4 (when there is one), then four main
-            rounds (Round of 16, Quarter-finals, Semi-finals, Final), played on matchdays 8, 16, 26
-            and 34. The draw is seeded by finishing position, so the big-four league champions are the
-            top seeds and stay apart until late. A tie that's level after 90 minutes goes to extra
-            time, then a penalty shootout if it's still level, so every tie ends with a winner. Rounds
-            play automatically as the season reaches them, and the <strong>Continental Cup</strong>{" "}
-            page shows the live bracket with your club highlighted.
+            Playoff and knockout ties are single-leg: level after 90 minutes goes to extra time, then
+            a penalty shootout if it's still level, so every tie ends with a winner (league-phase
+            games can just be draws). The league phase and bracket play automatically as the season
+            reaches them, and the <strong>Continental Cup</strong> page shows the live table and
+            bracket with your club highlighted.
           </p>
           <p>
-            Prize money is real and it's paid as you advance. Every entrant banks a participation
-            fee, and each round you win pays more than the last. Going all the way is worth roughly
-            £48M in total to the champion and about £24M to the runner-up, which is enough to reshape
-            a transfer budget on top of your normal league finances.
+            Prize money is real and it's paid as you go. Every club banks a participation fee for
+            reaching the league phase, winning a playoff tie pays more, and each knockout round you
+            win pays more than the last. Going all the way is worth a serious chunk on top of your
+            normal league finances, enough to reshape a transfer budget.
           </p>
           <p>
             Cup matches are their own thing. Goals, assists and appearances there are tracked{" "}

@@ -34,6 +34,17 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
+    title: "Reworked the Continental Cup into a Champions-League-style league phase",
+    items: [
+      "The old cup was a straight 16-team knockout where France and Portugal barely got a look in (their champion had to survive a play-in just to reach the round of 16). I never loved how little those two leagues got to be part of it, so I rebuilt the whole thing to look more like the modern Champions League.",
+      "It's now 20 clubs. The big four still send their top four, but France and Portugal each send their top two now instead of just the champion. Everyone starts in one big league phase and plays six games, and the draw is balanced with pots so nobody randomly gets six giants or six easy games (and you never draw a club from your own league). After six rounds the table splits: top four go straight to the quarter-finals, 5th through 12th play a one-off playoff for the last four spots, and 13th through 20th are out. Then it's quarter-finals, semis and final like before.",
+      "The point of all this is to give the weaker leagues a real, fairer way in: more of their clubs qualify, everyone's guaranteed six games, and you only need a mid-table league-phase finish to reach the playoff. They're still underdogs (the cup treats a weak-league side as genuinely weaker, that hasn't changed), but at least they get to properly take part now.",
+      "The Continental Cup page shows the live league-phase table with the cut lines shaded, then the playoff and knockout bracket below it. Prize money still pays as you go, and if your club reaches the final the sim still stops right before it so you can play it deliberately.",
+    ],
+    list: true,
+  },
+  {
+    date: "2026-07-20",
     title: "Stopped the free-agent flip, and made free agents harder to grab",
     items: [
       "Someone on Reddit pointed out you could sign a free agent for nothing and then immediately sell him for a big transfer fee, which is a pretty broken way to print money. So now when you sign a free agent onto your senior team, you're committed to him for a season before you can sell him. No club will bid on him until then, and the Roster page tells you he's not sellable yet instead of showing the List for Transfer button. You can still release him for free whenever you want, you just can't cash him in right away.",

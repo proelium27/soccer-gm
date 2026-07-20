@@ -1230,32 +1230,74 @@ export const CUP_NAME = "Continental Cup";
 /**
  * Cup slots per tier-1 league, by league strength. A "strong" league (a big-
  * four league — countryStrengthOffset 0) sends its top CUP_STRONG_LEAGUE_SLOTS;
- * a "weak" league (France/Portugal — offset > 0) sends only its champion
- * (CUP_WEAK_LEAGUE_SLOTS). With 4 strong × 4 + 2 weak × 1 = 18 qualifiers, the
- * two weak champions plus the two weakest strong qualifiers contest a
- * preliminary play-in round for the last two of the 16 bracket places (the
- * other 14 strong qualifiers get a bye) — so a weak-league champion has to win
- * its way into the main bracket. CUP_TEAMS_PER_LEAGUE is kept as the strong
+ * a "weak" league (France/Portugal — offset > 0) sends its top
+ * CUP_WEAK_LEAGUE_SLOTS. With 4 strong × 4 + 2 weak × 2 = 20 qualifiers, the
+ * cup opens with a Swiss-style league phase (see CUP_LEAGUE_PHASE_* below)
+ * rather than a straight bracket. CUP_TEAMS_PER_LEAGUE is kept as the strong
  * default for any code/tests that predate the weak-league split.
  */
 export const CUP_STRONG_LEAGUE_SLOTS = 4;
-export const CUP_WEAK_LEAGUE_SLOTS = 1;
+export const CUP_WEAK_LEAGUE_SLOTS = 2;
 export const CUP_TEAMS_PER_LEAGUE = CUP_STRONG_LEAGUE_SLOTS;
 
-/** League matchday the preliminary play-in round is played on (before R16's matchday). */
+/* ── Swiss league phase ──────────────────────────────────────────────────────
+ * The modern-UCL-style opening stage: all CUP_LEAGUE_PHASE_SIZE qualifiers sit
+ * in one combined table and each plays CUP_LEAGUE_PHASE_GAMES matches against
+ * different opponents (drawn via strength pots — see drawLeaguePhase). The final
+ * table then splits three ways: the top CUP_LP_DIRECT_QF go straight to the
+ * quarter-finals, the next CUP_LP_PLAYOFF_TEAMS contest a single-leg playoff for
+ * the other QF places, and the rest are eliminated. */
+export const CUP_LEAGUE_PHASE_SIZE = 20;
+export const CUP_LEAGUE_PHASE_GAMES = 6;
+/**
+ * Number of strength pots the league-phase field is split into for the draw.
+ * Each club plays CUP_LEAGUE_PHASE_GAMES / CUP_LEAGUE_PHASE_POTS opponents from
+ * each pot, guaranteeing a balanced spread of tough and winnable games. Must
+ * divide the field evenly (20 / 2 = 10 per pot) and divide the game count
+ * evenly (6 / 2 = 3 per pot) — the only clean split for a 20-team, 6-game phase.
+ */
+export const CUP_LEAGUE_PHASE_POTS = 2;
+
+/** League matchdays the six league-phase rounds are played on (before the knockout). */
+export const CUP_LEAGUE_PHASE_MATCHDAYS = [3, 7, 11, 15, 19, 23] as const;
+
+/** Top N of the league-phase table skip the playoff and go straight to the quarter-finals. */
+export const CUP_LP_DIRECT_QF = 4;
+/** League-phase ranks CUP_LP_DIRECT_QF+1 … +CUP_LP_PLAYOFF_TEAMS contest the single-leg playoff. */
+export const CUP_LP_PLAYOFF_TEAMS = 8; // ranks 5–12 → four single-leg ties → four QF places
+/** Size of the knockout bracket the league phase feeds (quarter-finals onward). */
+export const CUP_KO_SIZE = 8;
+
+/** League matchday the single-leg playoff round is played on (before the quarter-finals). */
+export const CUP_PLAYOFF_MATCHDAY = 27;
+
+/** Prize for winning a playoff tie and reaching the quarter-finals. */
+export const CUP_PRIZE_WIN_PLAYOFF = 3_000_000;
+
+/**
+ * Swiss-cup knockout matchdays, indexed by knockout round
+ * (0 = Quarter-final, 1 = Semi-final, 2 = Final). Spread across the run-in.
+ */
+export const CUP_KO_ROUND_MATCHDAYS = [31, 34, 37] as const;
+
+/* ── Legacy straight-bracket cup (pre-Swiss saves only) ───────────────────────
+ * Kept so a save that is mid-season with an old play-in/16-team cup finishes
+ * cleanly. New cups built at the offseason use the Swiss format above. */
+
+/** Legacy: league matchday the preliminary play-in round is played on. */
 export const CUP_PLAYIN_MATCHDAY = 4;
 
-/** Prize for winning a play-in tie and reaching the main bracket. */
+/** Prize for winning a legacy play-in tie and reaching the main bracket. */
 export const CUP_PRIZE_WIN_PLAYIN = 1_500_000;
 
 /**
- * League matchday each knockout round is played on, indexed by round
+ * Legacy: league matchday each knockout round is played on, indexed by round
  * (0 = Round of 16, 1 = Quarter-final, 2 = Semi-final, 3 = Final). Spread
  * across the 38-matchday season so rounds don't crowd the run-in.
  */
 export const CUP_ROUND_MATCHDAYS = [8, 16, 26, 34] as const;
 
-/** Number of knockout rounds (R16 → QF → SF → Final). */
+/** Legacy number of knockout rounds (R16 → QF → SF → Final). */
 export const CUP_ROUNDS = CUP_ROUND_MATCHDAYS.length;
 
 /** Round index of the final — the round the user's sim halts before if their club is a finalist. */
@@ -1273,9 +1315,18 @@ export const CUP_PRIZE_WIN_SF = 8_000_000; // advance to the final
 export const CUP_PRIZE_WIN_FINAL = 30_000_000; // lift the trophy
 export const CUP_PRIZE_RUNNER_UP = 6_000_000; // lose the final
 
-/** Per-round prize for winning a tie in that round, indexed like CUP_ROUND_MATCHDAYS. */
+/** Legacy per-round prize for winning a tie in that round, indexed like CUP_ROUND_MATCHDAYS. */
 export const CUP_PRIZE_WIN_BY_ROUND = [
   CUP_PRIZE_WIN_R16, CUP_PRIZE_WIN_QF, CUP_PRIZE_WIN_SF, CUP_PRIZE_WIN_FINAL,
+] as const;
+
+/**
+ * Swiss-cup per-win prize, indexed by knockout round (0 = QF, 1 = SF, 2 = Final).
+ * The Swiss knockout starts at the quarter-finals, so it reuses the QF/SF/Final
+ * tiers; league-phase participation + playoff prizes are collected before it.
+ */
+export const CUP_KO_PRIZE_WIN_BY_ROUND = [
+  CUP_PRIZE_WIN_QF, CUP_PRIZE_WIN_SF, CUP_PRIZE_WIN_FINAL,
 ] as const;
 
 /**

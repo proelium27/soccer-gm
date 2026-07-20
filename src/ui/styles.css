@@ -1297,6 +1297,45 @@ a:hover {
   vertical-align: -1px;
   margin-right: 0.15rem;
 }
+/* Swiss league-phase table: the three qualification zones shaded down the
+   standings, and a legend swatch for each. Reuses the cup/positive/negative
+   theme washes so it reads the same in light and dark. */
+.cup-lp-table {
+  max-width: 640px;
+}
+.cup-lp-direct > td {
+  box-shadow: inset 0 0 0 9999px var(--sg-green-wash);
+}
+.cup-lp-playoff > td {
+  box-shadow: inset 0 0 0 9999px var(--sg-cup-wash);
+}
+.cup-lp-out > td {
+  color: var(--sg-text-muted);
+}
+.cup-lp-user > td:first-child {
+  border-left: 3px solid var(--sg-user);
+}
+.cup-lp-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-top: 0.35rem;
+}
+.cup-lp-key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.cup-lp-swatch {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  border-radius: 2px;
+  border: 1px solid var(--sg-border);
+}
+.cup-lp-swatch.cup-lp-direct { background: var(--sg-green-wash); }
+.cup-lp-swatch.cup-lp-playoff { background: var(--sg-cup-wash); }
+.cup-lp-swatch.cup-lp-out { background: transparent; }
 /* Scouting fog-of-war: a potential (POT) estimate band shown in place of the
    exact number until the player is fully scouted (see PotDisplay.tsx). Rendered
    as plain text matching the OVR value; the hover tooltip still explains it's an
