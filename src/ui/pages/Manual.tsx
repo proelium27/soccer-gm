@@ -29,6 +29,7 @@ const SECTIONS: [id: string, title: string][] = [
   ["youth", "The Youth Academy"],
   ["ai", "How AI Clubs Think"],
   ["strategy", "Strategy"],
+  ["godmode", "God Mode"],
   ["faq", "FAQ & Known Quirks"],
 ];
 
@@ -712,6 +713,33 @@ export function Manual() {
             <li><strong>Potential is a forecast, not a fact.</strong> Most players fall short of it. Paying a big potential premium is a real gamble — that's the game working as intended.</li>
             <li><strong>Deadline day is leverage.</strong> Asking prices are fixed for the whole window, so there's no discount for waiting — but "Sim to Transfer Deadline" guarantees a last look at the market (and at any incoming offers) before the window shuts.</li>
           </ul>
+        </Section>
+
+        <Section id="godmode" title="God Mode">
+          <p>
+            God Mode is an optional sandbox. It's a per-save switch in the top bar — turn it on
+            any time, turn it off any time; nothing is penalized or locked. While it's on, the
+            usual rules that keep the world realistic simply don't apply to you: your edits ignore
+            transfer fees, budgets, the 30-man roster cap, and the depth-floor that normally stops
+            you gutting a squad. It's for building a dream league, testing an idea, or fixing
+            something the sim did that you'd rather it hadn't — not for a straight, honest career.
+          </p>
+          <p>What it unlocks while it's on:</p>
+          <ul>
+            <li><strong>Edit any player.</strong> Open any player's profile and hit <em>Edit</em>: change every one of his 14 ratings (OVR recomputes as you do), his potential, name, nationality, age, position, height, and his contract wage and length. You can also clear an injury outright.</li>
+            <li><strong>Move players freely.</strong> From a player's profile, send him to any club instantly — no fee, no budget check, no cap — or release him to free agency.</li>
+            <li><strong>Create players.</strong> The <em>God Mode</em> page (it appears in the sidebar once the switch is on) has a Create Player tool: build a player from scratch and drop him onto any club or leave him a free agent.</li>
+            <li><strong>Build any club's roster.</strong> The same page lets you pick any club and add, move, or release its players directly.</li>
+            <li><strong>Set club finances and identity.</strong> Set any club's budget and hype to whatever you like, and rename/recolor any club.</li>
+            <li><strong>See true potential.</strong> The scouting fog-of-war is lifted while God Mode is on — every player's exact potential is shown everywhere, not an estimate.</li>
+          </ul>
+          <p>
+            What it deliberately does <em>not</em> do: it can't add or delete whole clubs (the world
+            is a fixed 20-per-league shape the schedule depends on), it can't erase a player from
+            history (releasing him to free agency is the way to get rid of him), and it can't force
+            a match result or rewrite the standings. Everything else about the sim keeps running
+            normally around your edits.
+          </p>
         </Section>
 
         <Section id="faq" title="FAQ & Known Quirks">
