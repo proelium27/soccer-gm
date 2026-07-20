@@ -3,7 +3,7 @@ import { useLeague } from "../context/LeagueContext.js";
 import { potentialFog } from "../../core/scouting/potentialFog.js";
 
 const FOG_TITLE =
-  "Scouting estimate — sharpens with your scouting spend and how long the player has been on your senior roster.";
+  "Scouting estimate. Sharpens with your scouting spend and how long the player has been on your senior roster.";
 
 /**
  * Renders a player's potential the way the *user* perceives it: an exact

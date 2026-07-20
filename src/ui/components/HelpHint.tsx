@@ -55,9 +55,9 @@ export function HelpHint({
 export function PotHelp() {
   return (
     <HelpHint label="What is potential?">
-      Potential is our scouts' estimate of how good a player could become. It shows as a range
-      until he's been scouted enough — spending more on scouting (and keeping him on your roster
-      longer) narrows the range toward his true ceiling and reveals the exact number sooner.
+      Potential is basically our scouts' guess at how good a player could get. It shows up as a
+      range until you've scouted him enough. Spend more on scouting (and keep him around longer)
+      and the range tightens toward his real ceiling, so you'll see the exact number sooner.
     </HelpHint>
   );
 }
