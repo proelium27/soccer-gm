@@ -511,16 +511,11 @@ export const GENERATIONAL_BIAS_MIN_Z = 1.5;
  * ovr — so on average a player exceeds their listed potential about
  * (1 - POTENTIAL_SIM_PERCENTILE) of the time, matching "most players never
  * reach their potential, but some do and some exceed it."
- *
- * Set to 0.90 (2026-07-20) as a deliberate difficulty/texture lever: a shown
- * potential is a near-best-case forecast, so ~9 in 10 players fall short of it
- * and betting on a prospect is a real gamble. Pairs with the "priceless star"
- * market gate below — you can't reliably buy OR grow your way to a champion.
  */
 export const POTENTIAL_SIM_TRIALS = 16;
 /** Simulated trajectories run forward (in seasons) up to this age. */
 export const POTENTIAL_SIM_MAX_AGE = 40;
-export const POTENTIAL_SIM_PERCENTILE = 0.90;
+export const POTENTIAL_SIM_PERCENTILE = 0.75;
 
 /** Retirement: no chance before this age; probability climbs per year after. */
 export const RETIREMENT_START_AGE = 33;

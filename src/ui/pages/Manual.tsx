@@ -291,10 +291,9 @@ export function Manual() {
           </ul>
           <p>
             <strong>Potential is a scout's guess, not a promise.</strong> The game simulates a
-            player's future career a bunch of times and reports the 90th percentile of those peaks,
-            so most players never quite reach their listed potential &mdash; only about one in ten
-            meets or beats it. Betting on a prospect is a real gamble, and a homegrown kid hitting
-            his ceiling is the exception, not the rule. And here's the important bit: potential has <em>zero</em> effect
+            player's future career a bunch of times and reports the 75th percentile of those peaks,
+            so roughly three players in four never quite reach their listed potential, and one in
+            four meets or beats it. And here's the important bit: potential has <em>zero</em> effect
             on how a player actually develops. It's a forecast of the development model, not an input
             to it. It also gets re-estimated as the player ages, so it drifts toward his current OVR
             over time.

@@ -118,7 +118,6 @@ Each entry: what it is / where it lives / gotchas.
 **Scouting fog-of-war on potential** (`core/scouting/potentialFog.ts`)
 - Fogs **POT only** (OVR/attributes stay exact) as a low-high range, narrowed by scouting spend + ownership tenure, clearing to exact over ~2-3 seasons. `StoredTeam.scoutingObserved` (pid→first-seen season, user only, reconciled at league creation + each offseason). `<PotDisplay>` replaces every raw potential render; AI clubs unaffected (they have their own `perceivedValueToClub` noise). Team-level aggregates stay exact.
 - **Scouting spend is locked per season** — `StoredTeam.nextScoutingSpend` (editable only in offseason) becomes the committed `scoutingSpend` at rollover, closing a peek-then-lower exploit.
-- **Potential is a best-case forecast** — `estimatePotential` reports the `POTENTIAL_SIM_PERCENTILE` (0.90) of simulated career peaks, so a shown potential is deliberately optimistic: most players fall short and only ~1 in 10 meets/beats it. Pure texture/difficulty (potential is never a growth input), pairs with the "priceless star" market gate so you can't reliably *buy or grow* your way to a champion.
 
 **OVR history chart** (`ui/components/OvrHistoryChart.tsx`)
 - Per-player career OVR area chart on Player Profile, colored by the club each season, crests at transfers. `RatingsSnapshot.academy` stores the academy/senior flag *going forward* (irreconstructable for old saves → `false`). Academy shows only in the hover tooltip label.
