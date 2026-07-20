@@ -114,11 +114,12 @@ export function Manual() {
           </p>
           <p>
             Writing all that JSON by hand is tedious, so the easiest route is to let an AI build it.
-            The "Copy AI Prompt" button on each save copies a ready-made prompt to your clipboard,
-            already filled in with your world's exact league names and sizes. Paste it into ChatGPT or
-            Claude, tell it which leagues you want and how real to make them, save its reply as a
-            <code>.json</code> file, and load it with Import Teams. (If your browser blocks clipboard
-            access, the button downloads the prompt as a text file instead.)
+            The "Copy AI Prompt" button in the top bar (once you're in a save) copies a ready-made
+            prompt to your clipboard, already filled in with your world's exact league names and sizes.
+            Paste it into ChatGPT or Claude, tell it which leagues you want and how real to make them,
+            save its reply as a <code>.json</code> file, and load it with Import Teams back on the
+            Leagues screen. (If your browser blocks clipboard access, the button downloads the prompt as
+            a text file instead.)
           </p>
           <p>
             England's 20 Division 1 clubs have real crest art that shows up wherever the club's

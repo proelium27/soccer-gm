@@ -23,6 +23,13 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
+    title: "\"Copy AI Prompt\" moved to the top bar",
+    items: [
+      "The \"Copy AI Prompt\" button (for the Import Teams feature) now lives in the top bar while you're in a save, instead of on each save's row on the Leagues screen. Export Teams and Import Teams stay on the Leagues screen.",
+    ],
+  },
+  {
+    date: "2026-07-20",
     title: "Finishing skill now decides who scores",
     items: [
       "A shot going in used to depend only on how good your team was overall, not on who was taking it, so a brilliant finisher stuck on a weak side didn't score any more than his teammates would have.",
