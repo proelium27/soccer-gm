@@ -4,6 +4,7 @@ import { listLeagues, deleteLeague, loadLeague } from "../../db/leagueDb.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 import { buildRosterFile, parseRosterFile } from "../../core/teams/rosterFile.js";
+import { buildImportPromptText } from "../../core/teams/rosterAiPrompt.js";
 
 interface LeagueSummary {
   lid: number;
@@ -88,6 +89,33 @@ export function Leagues() {
     if (!league) return;
     const slug = league.meta.name.trim().replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "league";
     downloadJSON(`soccer-gm-teams-${slug}.json`, buildRosterFile(league));
+  }
+
+  async function handleCopyPrompt(lid: number) {
+    setStatus(null);
+    const league = await loadLeague(lid);
+    if (!league) return;
+    const prompt = buildImportPromptText(league);
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setStatus({
+        kind: "ok",
+        text: "Copied an AI prompt to your clipboard. Paste it into ChatGPT/Claude, ask for the leagues you want, save its reply as a .json file, then use Import Teams.",
+      });
+    } catch {
+      // Clipboard can be blocked (permissions/insecure context); fall back to a download.
+      const blob = new Blob([prompt], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "soccer-gm-ai-prompt.txt";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setStatus({ kind: "warn", text: "Couldn't copy to the clipboard, so I downloaded the AI prompt as a text file instead." });
+    }
   }
 
   function triggerImport(lid: number) {
@@ -240,6 +268,14 @@ export function Leagues() {
                   title="Download this save's clubs as an editable roster template"
                 >
                   Export Teams
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={() => handleCopyPrompt(l.lid)}
+                  title="Copy a paste-ready prompt that teaches an AI this save's import format"
+                >
+                  Copy AI Prompt
                 </button>
                 <button
                   type="button"
