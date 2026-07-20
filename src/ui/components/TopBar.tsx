@@ -134,7 +134,7 @@ export function TopBar({ onToggleNav }: TopBarProps) {
             disabled={!league}
             title="Copy a paste-ready prompt that teaches an AI this save's team-import format"
           >
-            {promptCopied ? "Copied!" : "Copy AI Prompt"}
+            {promptCopied ? "Copied!" : "Copy AI Prompt to Customize"}
           </button>
           <button
             className={`btn btn-sm ${league?.godMode ? "btn-warning" : "btn-outline-light"}`}
@@ -171,7 +171,7 @@ export function TopBar({ onToggleNav }: TopBarProps) {
           </li>
           <li>
             <button className="dropdown-item" onClick={handleCopyPrompt} disabled={!league}>
-              {promptCopied ? "Copied AI Prompt!" : "Copy AI Prompt"}
+              {promptCopied ? "Copied AI Prompt!" : "Copy AI Prompt to Customize"}
             </button>
           </li>
           <li>

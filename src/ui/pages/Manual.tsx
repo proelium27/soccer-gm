@@ -114,7 +114,7 @@ export function Manual() {
           </p>
           <p>
             Writing all that JSON by hand is tedious, so the easiest route is to let an AI build it.
-            The "Copy AI Prompt" button in the top bar (once you're in a save) copies a ready-made
+            The "Copy AI Prompt to Customize" button in the top bar (once you're in a save) copies a ready-made
             prompt to your clipboard, already filled in with your world's exact league names and sizes.
             Paste it into ChatGPT or Claude, tell it which leagues you want and how real to make them,
             save its reply as a <code>.json</code> file, and load it with Import Teams back on the

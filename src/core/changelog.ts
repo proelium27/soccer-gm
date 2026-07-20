@@ -23,9 +23,9 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
-    title: "\"Copy AI Prompt\" moved to the top bar",
+    title: "\"Copy AI Prompt to Customize\" moved to the top bar",
     items: [
-      "The \"Copy AI Prompt\" button (for the Import Teams feature) now lives in the top bar while you're in a save, instead of on each save's row on the Leagues screen. Export Teams and Import Teams stay on the Leagues screen.",
+      "The button that copies an AI prompt for importing real teams (now labeled \"Copy AI Prompt to Customize\") lives in the top bar while you're in a save, instead of on each save's row on the Leagues screen. Export Teams and Import Teams stay on the Leagues screen.",
     ],
   },
   {
@@ -46,7 +46,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Export Teams downloads a plain text (JSON) file listing every club in your world, grouped by league. Edit it however you like, or hand it to an AI and ask it to fill in a real league, then load it back with Import Teams. It matches clubs to your leagues by slot, so it's the easiest way to turn the fictional default world into real ones.",
       "Rename in bulk: change a club's name, abbreviation, and colors from the file instead of one at a time (same as Customize Teams). Include only the leagues you care about and leave the rest alone.",
       "Bring in real squads: a club can also carry a list of players. Give each one a name, position, and age, plus either an overall (the game builds ratings to match) or exact ratings for full control. List as many or as few as you want, whatever you leave short is topped up with reserves so the team is always playable. Importing a squad replaces that club's players, so it's best done on a fresh save.",
-      "Don't want to write JSON by hand? Hit \"Copy AI Prompt\" and it copies a ready-made prompt, already filled in with your world's league names and sizes, that teaches ChatGPT or Claude exactly how to build the file. Paste it, ask for the leagues you want, and save the reply.",
+      "Don't want to write JSON by hand? Hit \"Copy AI Prompt to Customize\" and it copies a ready-made prompt, already filled in with your world's league names and sizes, that teaches ChatGPT or Claude exactly how to build the file. Paste it, ask for the leagues you want, and save the reply.",
     ],
   },
   {
