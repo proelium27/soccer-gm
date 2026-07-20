@@ -174,7 +174,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //    later, in the transfer market step), skipping the user's club.
   const signingOrder = [...standings].sort((a, b) => a.points - b.points).map((s) => s.tid);
   ({ teams, players } = runAIFreeAgency(
-    teams, players, nextSeason, rng, league.meta.userTid, signingOrder,
+    teams, players, nextSeason, rng, league.meta.userTid, signingOrder, activeLoans,
   ));
 
   // 5. Youth intake for every club, anchored to each club's fixed
@@ -225,10 +225,12 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   });
 
   // 5.5. Emergency call-up for the user's own roster.
-  ({ teams, players } = ensureUserRosterSafety(teams, players, league.meta.userTid, nextSeason));
+  ({ teams, players } = ensureUserRosterSafety(teams, players, league.meta.userTid, nextSeason, activeLoans));
 
-  // 6. Trim AI squads back down to target composition.
-  teams = trimRosterSurplus(teams, players, league.meta.userTid);
+  // 6. Trim AI squads back down to target composition. Loaned-in players are
+  //    left in place (owned by their parent — see trimRosterSurplus) so
+  //    trimming can't orphan a live loan into a duplicate.
+  teams = trimRosterSurplus(teams, players, league.meta.userTid, activeLoans);
 
   // 6.4. AI<->AI transfer market (summer window, cross-division by design —
   //      no division filtering here, see design doc).

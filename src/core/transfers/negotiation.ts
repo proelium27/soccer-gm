@@ -256,6 +256,11 @@ export function makeTransferOffer(
   const seller = league.teams.find((t) => t.tid !== userTid && t.roster.includes(pid));
   const player = league.players.find((p) => p.pid === pid);
   if (!user || !seller || !player) return league;
+  // A player out on loan physically sits on the loanee's roster but is owned
+  // by his parent — the loanee can't sell what it doesn't own, or the live
+  // loan would be orphaned and processLoanReturns would later duplicate the
+  // pid onto the parent's roster too.
+  if (league.activeLoans.some((l) => l.pid === pid)) return league;
 
   const offer = Math.round(amount);
   // The offer must be affordable together with any mid-season wage charge,
@@ -321,6 +326,9 @@ export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStor
   const seller = league.teams.find((t) => t.tid === negotiation.sellerTid);
   const player = league.players.find((p) => p.pid === pid);
   if (!user || !seller || !player) return league;
+  // A player who went out on loan since the counter was made is no longer the
+  // seller's to sell (see makeTransferOffer).
+  if (league.activeLoans.some((l) => l.pid === pid)) return league;
   const wageCharge = acquisitionWageCharge(league, player);
   if (negotiation.counter + wageCharge > user.budget) return league;
   if (!hasRosterRoom(user)) return league;

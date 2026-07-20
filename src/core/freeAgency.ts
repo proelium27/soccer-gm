@@ -1,6 +1,7 @@
 import type { Player, Position } from "./players/types.js";
 import { POSITIONS } from "./players/types.js";
 import type { StoredTeam } from "./teams/clubs.js";
+import type { ActiveLoan } from "./loans.js";
 import {
   ROSTER_COMPOSITION, ROSTER_CAP, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
   ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR, PROSPECT_AGE_MAX,
@@ -9,11 +10,25 @@ import {
   contractTerms, extendContract, seasonSalaryForOvr, extendAcademyContract, academyContractTerms,
 } from "./contracts.js";
 
-/** Pids not currently on any team's roster or academy pool. */
-export function freeAgentPids(teams: StoredTeam[], players: Player[]): Set<number> {
+/**
+ * Pids not currently on any team's roster or academy pool — the signable free
+ * agents. A player out on loan is *never* a free agent: he's owned by his
+ * parent club and physically on the loanee's roster, so passing `activeLoans`
+ * keeps him out of the pool even in the pathological case where some path has
+ * dropped him off the loanee roster while the loan is still live (which would
+ * otherwise let a club re-sign him, then processLoanReturns hand a second copy
+ * back to his parent — the same pid on two rosters). Ownership is tracked by
+ * the loan, not by roster membership.
+ */
+export function freeAgentPids(
+  teams: StoredTeam[],
+  players: Player[],
+  activeLoans: ActiveLoan[] = [],
+): Set<number> {
   const rostered = new Set(teams.flatMap((t) => [...t.roster, ...t.academyRoster]));
+  const onLoan = new Set(activeLoans.map((l) => l.pid));
   return new Set(
-    players.map((p) => p.pid).filter((pid) => !rostered.has(pid)),
+    players.map((p) => p.pid).filter((pid) => !rostered.has(pid) && !onLoan.has(pid)),
   );
 }
 
@@ -67,11 +82,12 @@ export function runAIFreeAgency(
   rng: () => number,
   userTid: number,
   signingOrderTids: number[],
+  activeLoans: ActiveLoan[] = [],
 ): { teams: StoredTeam[]; players: Player[] } {
   const playerMap = new Map(players.map((p) => [p.pid, { ...p }]));
   const teamMap = new Map(teams.map((t) => [t.tid, { ...t, roster: [...t.roster] }]));
 
-  let pool = [...freeAgentPids(teams, players)];
+  let pool = [...freeAgentPids(teams, players, activeLoans)];
 
   const sign = (team: StoredTeam & { roster: number[] }, signing: Player): void => {
     const length = CONTRACT_LENGTH_MIN
@@ -117,19 +133,29 @@ export function runAIFreeAgency(
  * accumulates every season with nothing offsetting it except the occasional
  * retirement/contract expiry, and rosters balloon indefinitely. Skips
  * `userTid` so the user manages their own squad size manually.
+ *
+ * A loaned-in player (physically on the loanee's roster but owned by his
+ * parent) is never trimmed: he leaves only via processLoanReturns at loan
+ * end. Pruning him here would orphan the still-live ActiveLoan — he'd become
+ * a "free agent" a club could re-sign while the loan later hands a copy back
+ * to his parent, duplicating the pid across two rosters. He's also excluded
+ * from the position's kept-count so he can't displace a genuine squad member.
  */
 export function trimRosterSurplus(
   teams: StoredTeam[],
   players: Player[],
   userTid: number,
+  activeLoans: ActiveLoan[] = [],
 ): StoredTeam[] {
   const playerMap = new Map(players.map((p) => [p.pid, p]));
+  const onLoan = new Set(activeLoans.map((l) => l.pid));
 
   return teams.map((t) => {
     if (t.tid === userTid) return t;
 
     const byPos = new Map<Position, Player[]>();
     for (const pid of t.roster) {
+      if (onLoan.has(pid)) continue;
       const p = playerMap.get(pid);
       if (!p) continue;
       const list = byPos.get(p.pos) ?? [];
@@ -143,7 +169,7 @@ export function trimRosterSurplus(
       for (const p of squad.slice(0, ROSTER_COMPOSITION[pos])) kept.add(p.pid);
     }
 
-    return { ...t, roster: t.roster.filter((pid) => kept.has(pid)) };
+    return { ...t, roster: t.roster.filter((pid) => kept.has(pid) || onLoan.has(pid)) };
   });
 }
 
@@ -202,8 +228,9 @@ export function signFreeAgent(
   pid: number,
   season: number,
   phase: "regular" | "offseason",
+  activeLoans: ActiveLoan[] = [],
 ): { teams: StoredTeam[]; players: Player[] } {
-  if (!freeAgentPids(teams, players).has(pid)) {
+  if (!freeAgentPids(teams, players, activeLoans).has(pid)) {
     return { teams, players };
   }
   const team = teams.find((t) => t.tid === tid);
@@ -246,8 +273,9 @@ export function signToAcademy(
   pid: number,
   season: number,
   phase: "regular" | "offseason",
+  activeLoans: ActiveLoan[] = [],
 ): { teams: StoredTeam[]; players: Player[] } {
-  if (!freeAgentPids(teams, players).has(pid)) {
+  if (!freeAgentPids(teams, players, activeLoans).has(pid)) {
     return { teams, players };
   }
   const player = players.find((p) => p.pid === pid);
@@ -347,6 +375,7 @@ export function ensureUserRosterSafety(
   players: Player[],
   userTid: number,
   season: number,
+  activeLoans: ActiveLoan[] = [],
 ): { teams: StoredTeam[]; players: Player[] } {
   const team = teams.find((t) => t.tid === userTid);
   if (!team) return { teams, players };
@@ -374,7 +403,7 @@ export function ensureUserRosterSafety(
     } else {
       // The academy has no GK either — last resort, sign the best available
       // free-agent GK so the team can't end up call-up-"safe" but GK-less.
-      const faGk = [...freeAgentPids(teams, players)]
+      const faGk = [...freeAgentPids(teams, players, activeLoans)]
         .map((fpid) => playerMap.get(fpid))
         .filter((p): p is Player => p != null && p.pos === "GK")
         .sort((a, b) => b.ovr - a.ovr)[0];

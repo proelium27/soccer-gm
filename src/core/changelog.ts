@@ -23,6 +23,15 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
+    title: "Fixed players showing up on two teams at once",
+    items: [
+      "I tracked down a bug where a player could end up on two different rosters at the same time, or show up twice. It came from loans: if a club you'd loaned a player to trimmed him from their squad, the loan lost track of him and he could get signed somewhere else while still being owed back to you, so when the loan ended you'd get a duplicate.",
+      "Loaned players now stay put on the club they're loaned to for the whole loan, they can never be released or trimmed out from under the deal, and a player who's out on loan can't be signed as a free agent or bought from the club that's only borrowing him.",
+      "This also fixes a related issue where an accepted transfer sometimes wouldn't actually go through: a phantom duplicate on your roster was quietly counting against your squad limit, so the game thought you were full when you weren't.",
+    ],
+  },
+  {
+    date: "2026-07-20",
     title: "You can't just buy your way to the top anymore",
     items: [
       "A common bit of feedback: winning the league gets too easy once you have money to spend. So building a champion is now genuinely harder.",
