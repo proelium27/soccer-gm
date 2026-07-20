@@ -19,6 +19,10 @@ import {
 } from "../../core/loans.js";
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { applyTeamIdentities, type TeamIdentityEdit } from "../../core/teams/customize.js";
+import {
+  movePlayerToClub, detachPlayer, applyPlayerEdit, createCustomPlayer, setClubFinances,
+  type PlayerEdit, type NewPlayerSpec,
+} from "../../core/godMode.js";
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
 import { teamSlots, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { SimOverlay } from "../components/SimOverlay.js";
@@ -53,6 +57,13 @@ interface LeagueContextValue {
   setTransferListedAction: (pid: number, listed: boolean) => Promise<void>;
   setLineupAction: (starters: number[]) => Promise<void>;
   setFormationAction: (formation: FormationId) => Promise<void>;
+  // God Mode sandbox actions (no-ops in the UI unless league.godMode is true).
+  setGodModeAction: (on: boolean) => Promise<void>;
+  movePlayerToClubAction: (pid: number, tid: number) => Promise<void>;
+  releasePlayerGodModeAction: (pid: number) => Promise<void>;
+  editPlayerAction: (pid: number, edit: PlayerEdit) => Promise<void>;
+  createPlayerAction: (spec: NewPlayerSpec) => Promise<void>;
+  setClubFinancesAction: (tid: number, budget: number, hype: number) => Promise<void>;
   simming: boolean;
   saveToDb: () => Promise<void>;
   exportJSON: () => void;
@@ -375,6 +386,42 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     };
   }), [mutate]);
 
+  // --- God Mode sandbox actions ---
+  // All routed through `mutate` like every other action, so they serialize and
+  // can't lose a write. They bypass the realism guardrails on purpose; the UI
+  // only exposes them when league.godMode is true.
+  const setGodModeAction = useCallback(
+    (on: boolean) => mutate((l) => ({ ...l, godMode: on })),
+    [mutate],
+  );
+
+  const movePlayerToClubAction = useCallback(
+    (pid: number, tid: number) => mutate((l) => movePlayerToClub(l, pid, tid)),
+    [mutate],
+  );
+
+  const releasePlayerGodModeAction = useCallback(
+    (pid: number) => mutate((l) => detachPlayer(l, pid)),
+    [mutate],
+  );
+
+  const editPlayerAction = useCallback(
+    (pid: number, edit: PlayerEdit) =>
+      mutate((l) => ({ ...l, players: applyPlayerEdit(l.players, pid, l.season, edit) })),
+    [mutate],
+  );
+
+  const createPlayerAction = useCallback(
+    (spec: NewPlayerSpec) => mutate((l) => createCustomPlayer(l, spec).league),
+    [mutate],
+  );
+
+  const setClubFinancesAction = useCallback(
+    (tid: number, budget: number, hype: number) =>
+      mutate((l) => ({ ...l, teams: setClubFinances(l.teams, tid, budget, hype) })),
+    [mutate],
+  );
+
   // Scouting spend is only adjustable during the offseason phase, and it edits
   // nextScoutingSpend (the level that locks in for the coming season), never the
   // current season's committed scoutingSpend. This is what prevents the peek
@@ -435,6 +482,12 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       setTransferListedAction,
       setLineupAction,
       setFormationAction,
+      setGodModeAction,
+      movePlayerToClubAction,
+      releasePlayerGodModeAction,
+      editPlayerAction,
+      createPlayerAction,
+      setClubFinancesAction,
       simming: simming || simOverlayOpen || busy,
       saveToDb,
       exportJSON: doExport,
