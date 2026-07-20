@@ -416,6 +416,22 @@ export function Roster() {
             selectedPid={selectedPid}
             onTapToMove={handleTapToMove}
           />
+          <RosterTable
+            players={xi}
+            season={league.season}
+            hasStats={hasStats}
+            onRelease={releasePlayerAction}
+            onExtend={extendContractAction}
+            releasablePids={releasablePids}
+            refusingPids={refusingPids}
+            transferListedPids={transferListedPids}
+            onToggleTransferListed={setTransferListedAction}
+            dragOverPid={dragOverPid}
+            setDragOverPid={setDragOverPid}
+            onSwap={handleSwap}
+            selectedPid={selectedPid}
+            onTapToMove={handleTapToMove}
+          />
           <h6 className="mt-4">Bench</h6>
           {bench.length === 0 ? (
             <p>No other players.</p>

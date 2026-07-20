@@ -112,7 +112,7 @@ export function Manual() {
             <li><strong>Club History</strong> — a per-club honours page (yours by default, with a dropdown for any club in the world): a trophy case (league titles, second-tier titles, Continental Cups, promotions and relegations), individual honours won by the club's players (Player of the Season, Golden Boot, Team of the Season selections), franchise records (best finish, most points and wins in a season, all-time record), and a season-by-season table of every completed season (each season's note also shows how far the club got in that year's Continental Cup).</li>
             <li><strong>Season Preview</strong> — a snapshot of how the offseason shook out: the league's top 10 highest-rated players, top 10 highest-rated teams (both by OVR), and the top 10 biggest transfers completed during the summer window, ranked by fee. Opens automatically the moment you advance past a season, with a link through to Awards.</li>
             <li><strong>News Feed</strong> — every completed transfer in the league (AI-to-AI deals included) plus player accomplishments — hat-tricks, a standout performance each matchday, and goal milestones every 10 (season and career) — interleaved into one timeline per season, with club and season filters. Your club's items are highlighted.</li>
-            <li><strong>Roster</strong> — your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay) plus a bench table with ratings, ages, contracts, season stats (goalkeepers additionally show goals against and xG against). Drag a bench player onto a pitch slot to swap them into the XI, extend contracts, or release players.</li>
+            <li><strong>Roster</strong> — your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay), a stats table for the XI, and a bench table — both with ratings, ages, contracts, and season stats (goalkeepers additionally show goals against and xG against). Drag a bench player onto a pitch slot to swap them into the XI, extend contracts, or release players.</li>
             <li><strong>Transfers</strong> — recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
             <li><strong>Incoming Offers</strong> — AI clubs bidding for <em>your</em> players. Accept, reject, or counter to squeeze the fee upward.</li>
             <li><strong>Loans</strong> — list your own players for a fixed-length loan, review AI clubs' incoming loan offers, and track who's currently out on loan.</li>
@@ -419,9 +419,12 @@ export function Manual() {
             whichever of the nine shapes lets it field its own strongest eleven, re-evaluated at the
             end of each transfer window as its squad changes. On
             the Roster page, your Starting XI is shown on a pitch, one chip per slot; drag a bench
-            player from the table below the pitch onto a slot to swap them in — the outgoing
+            player from the bench table onto a slot to swap them in — the outgoing
             starter drops to the bench automatically. Click a chip to extend or release that
-            player. A <strong>Depth Chart</strong> toggle above the pitch shows each starter's
+            player. Below the pitch is a <strong>stats table for your Starting XI</strong> — the same
+            columns the bench table shows (appearances, minutes, goals, assists, tackles, rating,
+            and so on) — so you can read every starter's season at a glance without pulling them off
+            the pitch. A <strong>Depth Chart</strong> toggle above the pitch shows each starter's
             current best-fit backup from the bench alongside their chip. Each chip also shows a
             small ▲/▼ badge next to a starter's OVR when it changed from the previous season —
             green for growth, red for decline — so you can spot who's developing or fading without
