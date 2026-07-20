@@ -45,7 +45,7 @@ function windowBanner(league: LeagueStore): React.ReactNode {
         : `closes after matchday ${ws.closesAfterMatchday}`;
     return (
       <div className="alert alert-success mb-3">
-        <strong>{label} transfer window is open</strong> — {until}.
+        <strong>{label} transfer window is open</strong>. {until}.
       </div>
     );
   }
@@ -306,7 +306,7 @@ export function Transfers() {
             {targets.length === 0 ? (
               <p className="mb-0">
                 {hasFilters
-                  ? "No available targets match these filters — try widening them or hit Refresh."
+                  ? "No available targets match these filters. Try widening them or hit Refresh."
                   : "No suitable targets found."}
               </p>
             ) : (
@@ -323,8 +323,8 @@ export function Transfers() {
                     <th className="text-end">
                       Scout value
                       <HelpHint>
-                        Our scouts' estimate of this player's transfer value — an estimate, not the
-                        exact asking price. Higher scouting spend makes it more accurate (it can be
+                        Our scouts' estimate of this player's transfer value. It's an estimate, not
+                        the exact asking price. More scouting spend makes it more accurate (it can be
                         off by up to &plusmn;35% at &pound;0 spend, down to about &plusmn;5% at the max).
                       </HelpHint>
                     </th>

@@ -111,7 +111,7 @@ export function Awards() {
     return (
       <div className="container-fluid p-3">
         <h4>Awards</h4>
-        <p>No season has been completed yet — awards appear once you advance past your first season.</p>
+        <p>No season's been completed yet. Awards show up once you advance past your first season.</p>
       </div>
     );
   }
@@ -137,7 +137,7 @@ export function Awards() {
         Awards
         <HelpHint>
           End-of-season honours: Player of the Season, the Golden Boot for the top scorer, and a
-          Team of the Season best XI. Use the dropdown to browse past seasons.
+          Team of the Season best XI. Use the dropdown to look back at past seasons.
         </HelpHint>
       </h4>
       <div className="mb-3">

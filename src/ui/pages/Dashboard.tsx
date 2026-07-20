@@ -381,7 +381,7 @@ export function Dashboard() {
                         )}
                         <HelpHint>
                           {isOffseason
-                            ? "Higher scouting spend sharpens everything you see all season: transfer valuations for targets and for your own players become far more accurate, and players' potential (POT) is revealed as an exact number sooner instead of a wide range."
+                            ? "More scouting spend sharpens everything you see all season. Transfer valuations for targets and for your own players get way more accurate, and players' potential (POT) shows as an exact number sooner instead of a wide range."
                             : "Wait until the offseason to set your scouting budget."}
                         </HelpHint>
                       </label>

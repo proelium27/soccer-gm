@@ -138,7 +138,7 @@ export function ClubHistory() {
       </div>
 
       {history.seasonsPlayed === 0 ? (
-        <p>No season has been completed yet — a club's history appears once you advance past your first season.</p>
+        <p>No season's been completed yet. A club's history shows up once you advance past your first season.</p>
       ) : (
         <>
           <h5 className="d-flex align-items-center gap-2">

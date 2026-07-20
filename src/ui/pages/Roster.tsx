@@ -330,10 +330,10 @@ export function Roster() {
           &middot; {teamRating.ovr} OVR / {teamRating.pot} POT
         </small>
         <HelpHint>
-          Your squad. Choose your formation, then drag players between the pitch and the bench to
-          set your Starting XI (or, on touch devices, tap a player's &#8942;&#8942; handle to pick
-          them up, then tap another player's handle to swap); click a player to extend or release
-          him. Team OVR/POT and your bench update as you go. The cap is {ROSTER_CAP} players.
+          Your squad. Pick your formation, then drag players between the pitch and the bench to set
+          your Starting XI (or, on touch devices, tap a player's &#8942;&#8942; handle to pick him
+          up, then tap another player's handle to swap). Click a player to extend or release him.
+          Team OVR/POT and your bench update as you go. The cap is {ROSTER_CAP} players.
         </HelpHint>
       </h4>
       {players.length === 0 ? (
@@ -341,14 +341,14 @@ export function Roster() {
       ) : (
         <>
           <p className="text-muted small mb-1">
-            Drag a bench player onto a pitch slot to swap them into the Starting XI — or tap a
-            player's &#8942;&#8942; handle to pick them up, then tap another player's handle to
+            Drag a bench player onto a pitch slot to swap him into the Starting XI, or tap a
+            player's &#8942;&#8942; handle to pick him up, then tap another player's handle to
             swap.
           </p>
           {selectedPid !== null && (
             <div className="alert alert-info py-1 px-2 small d-flex justify-content-between align-items-center mb-2">
               <span>
-                Moving <strong>{playerMap.get(selectedPid)?.name ?? "player"}</strong> — tap
+                Moving <strong>{playerMap.get(selectedPid)?.name ?? "player"}</strong>. Tap
                 another player's &#8942;&#8942; handle to swap, or tap it again to cancel.
               </span>
               <button
