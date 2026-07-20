@@ -107,11 +107,56 @@ export const PROMOTION_RELEGATION_COUNT = 3;
  */
 export const ACADEMY_BASE_CONVERGENCE_SEASONS = 3;
 
-/** Center strength each tier's academyBase converges toward after a swap. */
-export const ACADEMY_BASE_CENTER_BY_TIER: Record<1 | 2, number> = {
-  1: LEAGUE_BASE,
-  2: LEAGUE_BASE - DIVISION_2_OFFSET,
+/**
+ * Per-country strength handicap, subtracted from every team's generation-time
+ * strength target (on top of any tier offset) so some countries field weaker
+ * leagues than others. The big-four leagues (England/Spain/Italy/Germany) are
+ * equal siblings at 0; France and Portugal are deliberately weaker, with
+ * Portugal weakest — anchored on the real UEFA coefficient / EA FC ordering
+ * (England ≫ the pack ≫ France > Portugal). Because match composites are
+ * z-normalized *within* each competition, this handicap is invisible in a
+ * country's own domestic matches (someone still wins Ligue 1) and only bites
+ * where leagues meet: transfer valuations (weaker players are cheaper, so they
+ * drain upward to richer/stronger leagues) and the Continental Cup (once its
+ * composites are normalized against a shared baseline — see simThrough/simCup).
+ *
+ * Starting values; tune via scripts/divisionAudit.ts — the exact magnitudes
+ * matter less than the ordering, and both are wired to be adjusted from here.
+ * An unlisted country (the big four) defaults to 0 via countryStrengthOffset().
+ */
+export const COUNTRY_STRENGTH_OFFSET: Record<string, number> = {
+  France: 5,
+  Portugal: 10,
 };
+export function countryStrengthOffset(country: string): number {
+  return COUNTRY_STRENGTH_OFFSET[country] ?? 0;
+}
+
+/**
+ * Per-country money scale, multiplied into a competition's finance scale on top
+ * of the tier scale (see financeScale in finance/budget.ts). A weaker league is
+ * also a poorer one — France and Portugal can't out-bid the big four, which is
+ * what turns them into selling leagues that feed talent upward. Kept above the
+ * clubs' (lower, because OVR-driven and OVR is lower here) wage bills so the
+ * "no AI club runs a deficit" invariant still holds — verify via the audit.
+ * Unlisted countries default to 1 via countryBudgetScale().
+ */
+export const COUNTRY_BUDGET_SCALE: Record<string, number> = {
+  France: 0.7,
+  Portugal: 0.5,
+};
+export function countryBudgetScale(country: string): number {
+  return COUNTRY_BUDGET_SCALE[country] ?? 1;
+}
+
+/**
+ * Center strength a club's academyBase converges toward after a promotion/
+ * relegation swap — its new tier's band within its own country, so a promoted
+ * French club rises toward French D1's (handicapped) level, not England's.
+ */
+export function academyBaseCenter(country: string, tier: 1 | 2): number {
+  return LEAGUE_BASE - countryStrengthOffset(country) - (tier === 2 ? DIVISION_2_OFFSET : 0);
+}
 
 /**
  * Composite normalization coefficient: normalized = 0.5 + NORMALIZE_K * z.
@@ -1176,8 +1221,26 @@ export const NEWS_GOAL_MILESTONE_STEP = 10;
 
 export const CUP_NAME = "Continental Cup";
 
-/** Top-N of each tier-1 table qualify. 4 tier-1 leagues × 4 = a 16-team bracket (a clean power of 2 — no byes). */
-export const CUP_TEAMS_PER_LEAGUE = 4;
+/**
+ * Cup slots per tier-1 league, by league strength. A "strong" league (a big-
+ * four league — countryStrengthOffset 0) sends its top CUP_STRONG_LEAGUE_SLOTS;
+ * a "weak" league (France/Portugal — offset > 0) sends only its champion
+ * (CUP_WEAK_LEAGUE_SLOTS). With 4 strong × 4 + 2 weak × 1 = 18 qualifiers, the
+ * two weak champions plus the two weakest strong qualifiers contest a
+ * preliminary play-in round for the last two of the 16 bracket places (the
+ * other 14 strong qualifiers get a bye) — so a weak-league champion has to win
+ * its way into the main bracket. CUP_TEAMS_PER_LEAGUE is kept as the strong
+ * default for any code/tests that predate the weak-league split.
+ */
+export const CUP_STRONG_LEAGUE_SLOTS = 4;
+export const CUP_WEAK_LEAGUE_SLOTS = 1;
+export const CUP_TEAMS_PER_LEAGUE = CUP_STRONG_LEAGUE_SLOTS;
+
+/** League matchday the preliminary play-in round is played on (before R16's matchday). */
+export const CUP_PLAYIN_MATCHDAY = 4;
+
+/** Prize for winning a play-in tie and reaching the main bracket. */
+export const CUP_PRIZE_WIN_PLAYIN = 1_500_000;
 
 /**
  * League matchday each knockout round is played on, indexed by round

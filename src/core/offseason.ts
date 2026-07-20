@@ -21,10 +21,10 @@ import { buildCupState } from "./cup/cup.js";
 import { computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence } from "./promotion.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
-import { settleSeasonEnd, chargeSeasonStart, wageBill } from "./finance/budget.js";
+import { settleSeasonEnd, chargeSeasonStart, wageBill, financeScale } from "./finance/budget.js";
 import { academyContractTerms } from "./contracts.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
-import { tierOf, competitionOf } from "./competitions.js";
+import { competitionOf } from "./competitions.js";
 import { hashInts } from "../engine/rng.js";
 
 /** Awards for the season that just ended, computed separately per competition from players' current club membership. */
@@ -124,7 +124,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const teamStats = computeTeamSeasonStats(teams.map((t) => t.tid), league.played);
 
   const settle = (rows: StandingsRow[], compId: number): void => {
-    const tier = tierOf(league.competitions, compId);
+    const scale = financeScale(league.competitions, compId);
     const defaultRank = rows.length;
     const rankByTid = new Map(rows.map((row, i) => [row.tid, i + 1]));
     const rowByTid = new Map(rows.map((row) => [row.tid, row]));
@@ -132,7 +132,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       if (t.compId !== compId) return t;
       const rank = rankByTid.get(t.tid) ?? defaultRank;
       const row = rowByTid.get(t.tid);
-      const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, tier);
+      const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, scale);
       const hype = row ? updateHype(t.hype, row, rank) : t.hype;
       // The scouting spend the club committed to during the offseason window
       // (nextScoutingSpend) now locks in for the coming season. AI teams never
@@ -273,7 +273,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   teams = teams.map((t) => ({
     ...t,
     budget: chargeSeasonStart(
-      t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), tierOf(league.competitions, t.compId), t.hype,
+      t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), financeScale(league.competitions, t.compId), t.hype,
     ),
   }));
 

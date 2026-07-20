@@ -32,16 +32,16 @@ describe("competitions", () => {
 describe("worldCompetitions", () => {
   const comps = worldCompetitions();
 
-  it("has 8 entries: 4 countries x 2 tiers", () => {
-    expect(comps).toHaveLength(8);
+  it("has 12 entries: 6 countries x 2 tiers", () => {
+    expect(comps).toHaveLength(12);
   });
 
   it("starts with England, matching englandCompetitions() exactly", () => {
     expect(comps.slice(0, 2)).toEqual(englandCompetitions());
   });
 
-  it("has Spain, Italy, and Germany each with one tier-1 and one tier-2 competition", () => {
-    for (const country of ["Spain", "Italy", "Germany"]) {
+  it("has Spain, Italy, Germany, France, and Portugal each with one tier-1 and one tier-2 competition", () => {
+    for (const country of ["Spain", "Italy", "Germany", "France", "Portugal"]) {
       const group = comps.filter((c) => c.country === country);
       expect(group).toHaveLength(2);
       expect(group.map((c) => c.tier).sort()).toEqual([1, 2]);
@@ -53,7 +53,7 @@ describe("worldCompetitions", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("partnerOf works across all 4 countries", () => {
+  it("partnerOf works across all 6 countries", () => {
     for (const comp of comps) {
       const partner = partnerOf(comps, comp.id);
       expect(partner.country).toBe(comp.country);
@@ -63,7 +63,7 @@ describe("worldCompetitions", () => {
 
   it("tier1Pairs returns one pair per country, in table order", () => {
     const pairs = tier1Pairs(comps);
-    expect(pairs.map((p) => p.d1.country)).toEqual(["England", "Spain", "Italy", "Germany"]);
+    expect(pairs.map((p) => p.d1.country)).toEqual(["England", "Spain", "Italy", "Germany", "France", "Portugal"]);
     for (const pair of pairs) {
       expect(pair.d1.tier).toBe(1);
       expect(pair.d2.tier).toBe(2);
@@ -73,13 +73,15 @@ describe("worldCompetitions", () => {
 });
 
 describe("countryClubRanges", () => {
-  it("splits the world into 4 contiguous 40-wide ranges, in table order", () => {
+  it("splits the world into 6 contiguous 40-wide ranges, in table order", () => {
     const ranges = countryClubRanges(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2);
     expect(ranges).toEqual([
       { country: "England", start: 0, end: 40 },
       { country: "Spain", start: 40, end: 80 },
       { country: "Italy", start: 80, end: 120 },
       { country: "Germany", start: 120, end: 160 },
+      { country: "France", start: 160, end: 200 },
+      { country: "Portugal", start: 200, end: 240 },
     ]);
   });
 
@@ -88,6 +90,6 @@ describe("countryClubRanges", () => {
     // layout by hand — a regression guard, same spirit as clubs.test.ts's
     // CLUBS/tid regression test.
     const ranges = countryClubRanges(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2);
-    expect(ranges.reduce((sum, r) => sum + (r.end - r.start), 0)).toBe(160);
+    expect(ranges.reduce((sum, r) => sum + (r.end - r.start), 0)).toBe(240);
   });
 });

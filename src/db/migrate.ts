@@ -8,8 +8,8 @@ import {
   HYPE_INITIAL, SCOUTING_SPEND_DEFAULT,
   NUM_TEAMS,
 } from "../core/constants.js";
-import { chargeSeasonStart, wageBill } from "../core/finance/budget.js";
-import { englandCompetitions, tierOf } from "../core/competitions.js";
+import { chargeSeasonStart, wageBill, financeScale } from "../core/finance/budget.js";
+import { englandCompetitions } from "../core/competitions.js";
 
 /**
  * A team as it may exist in a save written before M6 added the finance
@@ -191,7 +191,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
         name: t.name ?? CLUBS[t.tid]?.name,
         abbrev: t.abbrev ?? CLUBS[t.tid]?.abbrev,
         colors: t.colors ?? CLUBS[t.tid]?.colors,
-        budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), tierOf(competitions, compId), t.hype ?? HYPE_INITIAL),
+        budget: t.budget ?? chargeSeasonStart(0, wageBill(t.roster, salaryMap), financeScale(competitions, compId), t.hype ?? HYPE_INITIAL),
         hype: t.hype ?? HYPE_INITIAL,
         scoutingSpend: t.scoutingSpend ?? SCOUTING_SPEND_DEFAULT,
         // nextScoutingSpend (added with the season-lock, 2026-07-18): old saves
@@ -281,9 +281,11 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     loanRejections: anyVersion.loanRejections ?? [],
     // Pre-cup saves have no Continental Cup; they start with none and get one
     // seeded at their next offseason from that season's final tables (so an
-    // existing save picks the cup up from the following season onward).
-    cup: anyVersion.cup ?? null,
-    cupHistory: anyVersion.cupHistory ?? [],
+    // existing save picks the cup up from the following season onward). A cup
+    // saved before the weak-league play-in has no `playIn` field; backfill it
+    // to null (no play-in) so playInPending() doesn't freeze an in-progress cup.
+    cup: anyVersion.cup ? { ...anyVersion.cup, playIn: anyVersion.cup.playIn ?? null } : null,
+    cupHistory: (anyVersion.cupHistory ?? []).map((c) => ({ ...c, playIn: c.playIn ?? null })),
     // Pre-feature saves start with no power-rankings history; snapshots can't
     // be reconstructed retroactively (past rosters/matches are gone), so they
     // simply accrue from the next simmed matchdays onward.

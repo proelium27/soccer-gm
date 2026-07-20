@@ -31,7 +31,7 @@ describe("simOffseason", () => {
     expect(next.season).toBe(league.season + 1);
     expect(next.phase).toBe("regular");
     expect(next.played).toEqual([]);
-    expect(next.schedule).toHaveLength(3040);
+    expect(next.schedule).toHaveLength(4560);
   });
 
   it("every team stays at or above the roster safety floor after progression/retirement/FA/youth", () => {
@@ -47,7 +47,7 @@ describe("simOffseason", () => {
     for (const team of next.teams) {
       expect(team.roster.length).toBeGreaterThanOrEqual(ROSTER_SAFETY_FLOOR);
     }
-    expect(next.teams).toHaveLength(4 * (NUM_TEAMS + NUM_TEAMS_D2));
+    expect(next.teams).toHaveLength(6 * (NUM_TEAMS + NUM_TEAMS_D2));
   });
 
   it("swaps 3 up / 3 down between divisions and records pre-swap compsByTid", () => {
@@ -141,7 +141,7 @@ describe("simOffseason", () => {
     const budgetsBefore = new Map(league.teams.map((t) => [t.tid, t.budget]));
     const next = simOffseason(league, rng);
 
-    expect(next.teams).toHaveLength(4 * (NUM_TEAMS + NUM_TEAMS_D2));
+    expect(next.teams).toHaveLength(6 * (NUM_TEAMS + NUM_TEAMS_D2));
     for (const team of next.teams) {
       // Budget moved (performance money in at season end, base in and wages
       // out at the new season's start).

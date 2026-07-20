@@ -37,8 +37,11 @@ describe("seasonRevenue", () => {
 
 describe("division-scaled finances", () => {
   it("scales base and prize money down for Division 2", () => {
+    // The finance functions now take a combined money scale (country × tier),
+    // not a bare tier: 1 == a big-four tier-1 league, DIVISION_2_BUDGET_SCALE
+    // == that country's tier-2. (Per-country scales are exercised elsewhere.)
     const d1 = seasonRevenue(1, 0, 1);
-    const d2 = seasonRevenue(1, 0, 2);
+    const d2 = seasonRevenue(1, 0, DIVISION_2_BUDGET_SCALE);
     expect(d2.base).toBeCloseTo(BASE_SEASON_BUDGET * DIVISION_2_BUDGET_SCALE, 5);
     expect(d2.successPayout).toBeCloseTo(PRIZE_CHAMPION * DIVISION_2_BUDGET_SCALE, 5);
     expect(d1.base).toBe(BASE_SEASON_BUDGET);
@@ -47,7 +50,7 @@ describe("division-scaled finances", () => {
 
   it("chargeSeasonStart scales the base allocation by division", () => {
     const d1Budget = chargeSeasonStart(0, 0, 1, 50);
-    const d2Budget = chargeSeasonStart(0, 0, 2, 50);
+    const d2Budget = chargeSeasonStart(0, 0, DIVISION_2_BUDGET_SCALE, 50);
     expect(d2Budget).toBeCloseTo(BASE_SEASON_BUDGET * DIVISION_2_BUDGET_SCALE, 5);
     expect(d1Budget).toBe(BASE_SEASON_BUDGET);
   });
@@ -55,13 +58,13 @@ describe("division-scaled finances", () => {
   it("caps a maximally famous Division 2 club at MAX_BUDGET * DIVISION_2_BUDGET_SCALE, not the shared MAX_BUDGET", () => {
     // At full hype the cap reaches MAX_BUDGET (tier 1) / MAX_BUDGET*scale (tier 2).
     const hugeD1 = chargeSeasonStart(MAX_BUDGET, 0, 1, HYPE_MAX);
-    const hugeD2 = chargeSeasonStart(MAX_BUDGET, 0, 2, HYPE_MAX);
+    const hugeD2 = chargeSeasonStart(MAX_BUDGET, 0, DIVISION_2_BUDGET_SCALE, HYPE_MAX);
     expect(hugeD1).toBe(MAX_BUDGET);
     expect(hugeD2).toBe(MAX_BUDGET * DIVISION_2_BUDGET_SCALE);
   });
 
   it("settleSeasonEnd also caps Division 2 at the scaled ceiling", () => {
-    const result = settleSeasonEnd(MAX_BUDGET, 1, 100, 0, 2);
+    const result = settleSeasonEnd(MAX_BUDGET, 1, 100, 0, DIVISION_2_BUDGET_SCALE);
     expect(result).toBe(MAX_BUDGET * DIVISION_2_BUDGET_SCALE);
   });
 });
@@ -81,7 +84,7 @@ describe("budgetCap (hype-scaled savings ceiling)", () => {
 
   it("scales the whole cap down for tier 2 at every hype level", () => {
     for (const h of [0, 50, HYPE_MAX]) {
-      expect(budgetCap(2, h)).toBeCloseTo(budgetCap(1, h) * DIVISION_2_BUDGET_SCALE, 5);
+      expect(budgetCap(DIVISION_2_BUDGET_SCALE, h)).toBeCloseTo(budgetCap(1, h) * DIVISION_2_BUDGET_SCALE, 5);
     }
   });
 

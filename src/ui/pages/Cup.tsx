@@ -4,7 +4,7 @@ import { useLeague } from "../context/LeagueContext.js";
 import { HelpHint } from "../components/HelpHint.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { seasonYear } from "../format.js";
-import type { CupState, CupTie } from "../../core/cup/types.js";
+import type { CupState, CupTie, CupPlayIn } from "../../core/cup/types.js";
 import {
   matchupsForRound, cupRoundName, cupFinalists, isCupComplete, worldHasCup,
 } from "../../core/cup/cup.js";
@@ -25,6 +25,16 @@ function roundSlots(cup: CupState, round: number): Slot[] {
   return Array.from({ length: tieCount }, () => ({ kind: "tbd" as const }));
 }
 
+/** The play-in's two ties: completed if played, else the pending pairings from its participants. */
+function playInSlots(playIn: CupPlayIn): Slot[] {
+  if (playIn.ties.length > 0) return playIn.ties.map((tie) => ({ kind: "played" as const, tie }));
+  const slots: Slot[] = [];
+  for (let i = 0; i + 1 < playIn.teams.length; i += 2) {
+    slots.push({ kind: "pending", home: playIn.teams[i], away: playIn.teams[i + 1] });
+  }
+  return slots;
+}
+
 export function Cup() {
   const { league } = useLeague();
   const [seasonSel, setSeasonSel] = useState<number | "current">("current");
@@ -41,9 +51,10 @@ export function Cup() {
         <h4>Continental Cup</h4>
         {worldHasCup(league.competitions) ? (
           <p className="text-muted">
-            The Continental Cup is a 16-team knockout between the top four clubs of each top-flight
-            league. It kicks off next season, and qualification is decided by this season&apos;s
-            final league tables.
+            The Continental Cup is a 16-team knockout. The top four clubs of each of the four
+            strongest top-flight leagues qualify, and the champions of the weaker leagues have to
+            win a play-in round first to get in. It kicks off next season, and qualification is
+            decided by this season&apos;s final league tables.
           </p>
         ) : (
           <p className="text-muted">
@@ -71,6 +82,37 @@ export function Cup() {
       <span className="cup-team-name">{teamName(tid)}</span>
     </span>
   );
+
+  const renderTie = (slot: Slot) => {
+    if (slot.kind === "tbd") return <div className="cup-tie-tbd">To be decided</div>;
+    if (slot.kind === "pending") {
+      return (
+        <>
+          <div className="cup-tie-row">{teamCell(slot.home, false)}</div>
+          <div className="cup-tie-row">{teamCell(slot.away, false)}</div>
+        </>
+      );
+    }
+    return (
+      <>
+        <div className="cup-tie-row">
+          {teamCell(slot.tie.home, slot.tie.winner === slot.tie.home)}
+          <span className="cup-tie-score">{slot.tie.homeGoals}</span>
+        </div>
+        <div className="cup-tie-row">
+          {teamCell(slot.tie.away, slot.tie.winner === slot.tie.away)}
+          <span className="cup-tie-score">{slot.tie.awayGoals}</span>
+        </div>
+        {(slot.tie.wentToExtraTime || slot.tie.wentToPens) && (
+          <div className="cup-tie-note">
+            {slot.tie.wentToPens
+              ? `${slot.tie.homePens}–${slot.tie.awayPens} on pens`
+              : "after extra time"}
+          </div>
+        )}
+      </>
+    );
+  };
 
   const finalists = cup ? cupFinalists(cup) : [];
   const userIsFinalist = finalists.includes(userTid);
@@ -119,38 +161,19 @@ export function Cup() {
           ) : null}
 
           <div className="cup-bracket">
+            {cup.playIn && (
+              <div className="cup-round" key="playin">
+                <div className="cup-round-title">{cupRoundName(-1)}</div>
+                {playInSlots(cup.playIn).map((slot, i) => (
+                  <div className="cup-tie" key={i}>{renderTie(slot)}</div>
+                ))}
+              </div>
+            )}
             {Array.from({ length: CUP_ROUNDS }, (_, round) => (
               <div className="cup-round" key={round}>
                 <div className="cup-round-title">{cupRoundName(round)}</div>
                 {roundSlots(cup, round).map((slot, i) => (
-                  <div className="cup-tie" key={i}>
-                    {slot.kind === "tbd" ? (
-                      <div className="cup-tie-tbd">To be decided</div>
-                    ) : slot.kind === "pending" ? (
-                      <>
-                        <div className="cup-tie-row">{teamCell(slot.home, false)}</div>
-                        <div className="cup-tie-row">{teamCell(slot.away, false)}</div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="cup-tie-row">
-                          {teamCell(slot.tie.home, slot.tie.winner === slot.tie.home)}
-                          <span className="cup-tie-score">{slot.tie.homeGoals}</span>
-                        </div>
-                        <div className="cup-tie-row">
-                          {teamCell(slot.tie.away, slot.tie.winner === slot.tie.away)}
-                          <span className="cup-tie-score">{slot.tie.awayGoals}</span>
-                        </div>
-                        {(slot.tie.wentToExtraTime || slot.tie.wentToPens) && (
-                          <div className="cup-tie-note">
-                            {slot.tie.wentToPens
-                              ? `${slot.tie.homePens}–${slot.tie.awayPens} on pens`
-                              : "after extra time"}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
+                  <div className="cup-tie" key={i}>{renderTie(slot)}</div>
                 ))}
               </div>
             ))}

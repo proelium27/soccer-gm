@@ -4,9 +4,8 @@ import type { FormationId } from "../lineup/formations.js";
 import { chooseBestFormation } from "../lineup/formations.js";
 import type { Player } from "../players/types.js";
 import { HYPE_INITIAL, SCOUTING_SPEND_DEFAULT } from "../constants.js";
-import { chargeSeasonStart, wageBill } from "../finance/budget.js";
+import { chargeSeasonStart, wageBill, financeScale } from "../finance/budget.js";
 import { clampScoutingSpend } from "../finance/scouting.js";
-import { tierOf } from "../competitions.js";
 
 export interface ClubIdentity {
   name: string;
@@ -194,6 +193,95 @@ export const CLUBS: ClubIdentity[] = [
   { name: "Darmstadt Lilien",    abbrev: "DAR", colors: ["#1b2631", "#5dade2"] },
   { name: "Magdeburg Ottonen",   abbrev: "MAG", colors: ["#0b5345", "#f7dc6f"] },
   { name: "Chemnitz Spinner",    abbrev: "CHE", colors: ["#4a235a", "#f8c471"] },
+  // French clubs (tids 160-199): real French cities/towns with invented,
+  // evocative suffixes (Griffons/Corsaires/Aiglons/etc.), same fictional
+  // styling as the sets above — deliberately not real Ligue 1/2 club names.
+  // ASCII-only (no accents). France is a deliberately weaker league (see
+  // COUNTRY_STRENGTH_OFFSET in constants.ts).
+  { name: "Lyon Griffons",       abbrev: "LYO", colors: ["#2874a6", "#e74c3c"] },
+  { name: "Marseille Corsaires", abbrev: "MSL", colors: ["#5dade2", "#ffffff"] },
+  { name: "Lille Dragons",       abbrev: "LIL", colors: ["#c0392b", "#1a1a1a"] },
+  { name: "Nice Aiglons",        abbrev: "NCE", colors: ["#1a1a1a", "#e74c3c"] },
+  { name: "Rennes Hermines",     abbrev: "REN", colors: ["#e74c3c", "#1a1a1a"] },
+  { name: "Nantes Canaris",      abbrev: "NTS", colors: ["#f4d03f", "#196f3d"] },
+  { name: "Montpellier Pailladins", abbrev: "MTP", colors: ["#2980b9", "#f39c12"] },
+  { name: "Strasbourg Cigognes", abbrev: "STR", colors: ["#2e86c1", "#ffffff"] },
+  { name: "Bordeaux Mariniers",  abbrev: "BDX", colors: ["#7b241c", "#154360"] },
+  { name: "Toulouse Violets",    abbrev: "TLS", colors: ["#6c3483", "#ffffff"] },
+  { name: "Reims Sacres",        abbrev: "RMS", colors: ["#943126", "#ffffff"] },
+  { name: "Angers Ardoisiers",   abbrev: "ANG", colors: ["#1b2631", "#f0f3f4"] },
+  { name: "Brest Goelands",      abbrev: "BST", colors: ["#e74c3c", "#154360"] },
+  { name: "Lorient Merlus",      abbrev: "LOR", colors: ["#f39c12", "#1a1a1a"] },
+  { name: "Metz Grenats",        abbrev: "MTZ", colors: ["#7b241c", "#f4d03f"] },
+  { name: "Nancy Lorrains",      abbrev: "NCY", colors: ["#e74c3c", "#154360"] },
+  { name: "Dijon Ducs",          abbrev: "DIJ", colors: ["#a04000", "#f5b041"] },
+  { name: "Caen Vikings",        abbrev: "CAE", colors: ["#1a5276", "#e74c3c"] },
+  { name: "Amiens Licornes",     abbrev: "AMI", colors: ["#196f3d", "#ffffff"] },
+  { name: "Troyes Aubois",       abbrev: "TRO", colors: ["#2874a6", "#ffffff"] },
+  { name: "Le Havre Quais",      abbrev: "LEH", colors: ["#154360", "#5dade2"] },
+  { name: "Clermont Volcans",    abbrev: "CLF", colors: ["#7b241c", "#1a1a1a"] },
+  { name: "Grenoble Alpins",     abbrev: "GBL", colors: ["#2e86c1", "#f0f3f4"] },
+  { name: "Valenciennes Mineurs", abbrev: "VLN", colors: ["#e74c3c", "#ffffff"] },
+  { name: "Rouen Diables",       abbrev: "ROU", colors: ["#c0392b", "#1a1a1a"] },
+  { name: "Tours Ligeriens",     abbrev: "TRS", colors: ["#2980b9", "#f4d03f"] },
+  { name: "Orleans Johannique",  abbrev: "ORL", colors: ["#943126", "#f5b041"] },
+  { name: "Nimes Crocos",        abbrev: "NIM", colors: ["#196f3d", "#e74c3c"] },
+  { name: "Avignon Papes",       abbrev: "AVI", colors: ["#6c3483", "#f4d03f"] },
+  { name: "Perpignan Catalans",  abbrev: "PRP", colors: ["#c0392b", "#f4d03f"] },
+  { name: "Bayonne Corsaires",   abbrev: "BYN", colors: ["#1b2631", "#e74c3c"] },
+  { name: "Pau Bearnais",        abbrev: "PAU", colors: ["#e74c3c", "#154360"] },
+  { name: "Ajaccio Insulaires",  abbrev: "AJA", colors: ["#1a5276", "#f0f3f4"] },
+  { name: "Bastia Lions",        abbrev: "BAS", colors: ["#1a1a1a", "#5dade2"] },
+  { name: "Auxerre Bourguignons", abbrev: "AUX", colors: ["#2874a6", "#ffffff"] },
+  { name: "Sochaux Lionceaux",   abbrev: "SOC", colors: ["#f39c12", "#154360"] },
+  { name: "Guingamp Rouges",     abbrev: "GGP", colors: ["#c0392b", "#1a1a1a"] },
+  { name: "Niort Chamois",       abbrev: "NIO", colors: ["#196f3d", "#f0f3f4"] },
+  { name: "Laval Tangos",        abbrev: "LVL", colors: ["#f39c12", "#e74c3c"] },
+  { name: "Sedan Sangliers",     abbrev: "SDN", colors: ["#7b241c", "#f4d03f"] },
+  // Portuguese clubs (tids 200-239): real Portuguese cities/towns with invented
+  // suffixes (Navegadores/Corsarios/Caravelas/etc.), same fictional styling.
+  // ASCII-only (no accents); deliberately avoids the real big-three nicknames.
+  // Portugal is the weakest league in the world (see COUNTRY_STRENGTH_OFFSET).
+  { name: "Lisboa Navegadores",  abbrev: "LSB", colors: ["#c0392b", "#196f3d"] },
+  { name: "Porto Corsarios",     abbrev: "PRT", colors: ["#154360", "#ffffff"] },
+  { name: "Braga Arcebispos",    abbrev: "BRG", colors: ["#7b241c", "#ffffff"] },
+  { name: "Guimaraes Condes",    abbrev: "GUI", colors: ["#196f3d", "#f4d03f"] },
+  { name: "Coimbra Estudantes",  abbrev: "CBA", colors: ["#1a1a1a", "#f0f3f4"] },
+  { name: "Setubal Sadinos",     abbrev: "STB", colors: ["#2874a6", "#f4d03f"] },
+  { name: "Faro Algarvios",      abbrev: "FAR", colors: ["#f39c12", "#1a5276"] },
+  { name: "Aveiro Moliceiros",   abbrev: "AVR", colors: ["#5dade2", "#e74c3c"] },
+  { name: "Funchal Insulares",   abbrev: "FNC", colors: ["#f4d03f", "#c0392b"] },
+  { name: "Leiria Pinhal",       abbrev: "LEI", colors: ["#196f3d", "#1a1a1a"] },
+  { name: "Viseu Beiroes",       abbrev: "VIS", colors: ["#6c3483", "#ffffff"] },
+  { name: "Evora Alentejanos",   abbrev: "EVO", colors: ["#a04000", "#f5b041"] },
+  { name: "Portimao Gaivotas",   abbrev: "PTM", colors: ["#2e86c1", "#f0f3f4"] },
+  { name: "Chaves Flavienses",   abbrev: "CHV", colors: ["#c0392b", "#154360"] },
+  { name: "Famalicao Teceloes",  abbrev: "FML", colors: ["#1a5276", "#ffffff"] },
+  { name: "Barcelos Galos",      abbrev: "BCL", colors: ["#f39c12", "#c0392b"] },
+  { name: "Tondela Serranos",    abbrev: "TND", colors: ["#196f3d", "#f4d03f"] },
+  { name: "Moreira Conegos",     abbrev: "MOR", colors: ["#154360", "#e74c3c"] },
+  { name: "Estoril Canarinhos",  abbrev: "EST", colors: ["#f4d03f", "#2874a6"] },
+  { name: "Cascais Corsarios",   abbrev: "CSC", colors: ["#1a1a1a", "#5dade2"] },
+  { name: "Almada Ribeirinhos",  abbrev: "ALD", colors: ["#7b241c", "#f0f3f4"] },
+  { name: "Loule Mouros",        abbrev: "LLE", colors: ["#a04000", "#1a1a1a"] },
+  { name: "Guarda Sentinelas",   abbrev: "GDA", colors: ["#2c3e50", "#f5b041"] },
+  { name: "Covilha Serranos",    abbrev: "COV", colors: ["#1b4f72", "#ecf0f1"] },
+  { name: "Viana Navegantes",    abbrev: "VNA", colors: ["#2980b9", "#f4d03f"] },
+  { name: "Vila Real Duriense",  abbrev: "VRL", colors: ["#7b241c", "#f39c12"] },
+  { name: "Santarem Ribatejanos", abbrev: "SNT", colors: ["#196f3d", "#ffffff"] },
+  { name: "Beja Planicie",       abbrev: "BEJ", colors: ["#b7950b", "#1a1a1a"] },
+  { name: "Portalegre Alto",     abbrev: "PTL", colors: ["#6c3483", "#f4d03f"] },
+  { name: "Lamego Vinhateiros",  abbrev: "LMG", colors: ["#7b241c", "#f5b7b1"] },
+  { name: "Espinho Tigres",      abbrev: "ESP", colors: ["#f39c12", "#1a1a1a"] },
+  { name: "Matosinhos Conserveiros", abbrev: "MTS", colors: ["#154360", "#5dade2"] },
+  { name: "Gondomar Ourives",    abbrev: "GDM", colors: ["#b7950b", "#ffffff"] },
+  { name: "Maia Falcoes",        abbrev: "MAI", colors: ["#1a5276", "#e74c3c"] },
+  { name: "Penafiel Rios",       abbrev: "PEN", colors: ["#2874a6", "#ffffff"] },
+  { name: "Fafe Montanheses",    abbrev: "FAF", colors: ["#196f3d", "#f0f3f4"] },
+  { name: "Vizela Termas",       abbrev: "VZL", colors: ["#0e6251", "#f8c471"] },
+  { name: "Trofa Fabris",        abbrev: "TRF", colors: ["#4a235a", "#f7dc6f"] },
+  { name: "Amadora Estrelas",    abbrev: "AMD", colors: ["#1b2631", "#f4d03f"] },
+  { name: "Nazare Pescadores",   abbrev: "NZR", colors: ["#2e86c1", "#ffffff"] },
 ];
 
 export interface StoredTeam {
@@ -283,7 +371,7 @@ export function assignIdentities(league: League, competitions: Competition[]): S
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   return league.teams.map((t) => {
     const club = CLUBS[t.tid];
-    const budget = chargeSeasonStart(0, wageBill(t.roster, salaryMap), tierOf(competitions, t.compId), HYPE_INITIAL);
+    const budget = chargeSeasonStart(0, wageBill(t.roster, salaryMap), financeScale(competitions, t.compId), HYPE_INITIAL);
     return {
       tid: t.tid,
       name: club.name,

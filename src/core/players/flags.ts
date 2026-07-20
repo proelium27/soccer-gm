@@ -75,6 +75,9 @@ const FLAGS: Record<string, string> = {
   Tanzania: "🇹🇿",
   "South Africa": "🇿🇦",
   Kosovo: "🇽🇰",
+  Greece: "🇬🇷",
+  "Cape Verde": "🇨🇻",
+  "Guinea-Bissau": "🇬🇼",
 };
 
 /** Emoji flag for a nationality string, or a placeholder flag if unknown. */

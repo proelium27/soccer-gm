@@ -96,8 +96,8 @@ export function Manual() {
           </p>
           <p>
             England's 20 Division 1 clubs have real crest art that shows up wherever the club's
-            name does. Every other club (Division 2 England, Spain, Italy, Germany) just shows a
-            two-color swatch until it gets a crest of its own.
+            name does. Every other club (Division 2 England, plus Spain, Italy, Germany, France and
+            Portugal) just shows a two-color swatch until it gets a crest of its own.
           </p>
         </Section>
 
@@ -171,17 +171,23 @@ export function Manual() {
 
         <Section id="world" title="The World">
           <p>
-            A new save drops you into one shared world: four countries (<strong>England</strong>,{" "}
-            <strong>Spain</strong>, <strong>Italy</strong>, and <strong>Germany</strong>), each with
-            its own two-division pyramid (Division 1 and Division 2, 20 clubs apiece), for 8 leagues
-            and 160 clubs total. You pick any club in any country and division when you start.
+            A new save drops you into one shared world: six countries (<strong>England</strong>,{" "}
+            <strong>Spain</strong>, <strong>Italy</strong>, <strong>Germany</strong>,{" "}
+            <strong>France</strong> and <strong>Portugal</strong>), each with its own two-division
+            pyramid (Division 1 and Division 2, 20 clubs apiece), for 12 leagues and 240 clubs total.
+            You pick any club in any country and division when you start.
           </p>
           <p>
-            Every country is built to the same strength and budget bands, so there's no "flagship
-            league" that's richer or stronger than the others. Division 2 in any country generates
-            weaker than its own Division 1, exactly like the real second division always has, and
-            that gap is kept real and structural across a whole dynasty (see the ceiling mechanism
-            below), not just at the start.
+            The big four (England, Spain, Italy and Germany) are all built to the same strength and
+            budget bands, so none of them is a flagship league above the others.{" "}
+            <strong>France</strong> and especially <strong>Portugal</strong> are deliberately weaker
+            and poorer: their clubs generate at lower OVR, and they earn and can bank less money. You
+            won't feel it inside their own matches (someone still wins Ligue 1), but it shows up
+            wherever leagues meet. Their players are cheaper, so the big four steadily buy up their
+            best talent, and they go into every Continental Cup tie at a real disadvantage. Division 2
+            in any country generates weaker than its own Division 1, exactly like the real second
+            division always has, and that gap is kept real and structural across a whole dynasty (see
+            the ceiling mechanism below), not just at the start.
           </p>
           <p>
             <strong>One global transfer market.</strong> The AI transfer market, free agency,
@@ -195,9 +201,9 @@ export function Manual() {
           </p>
           <p>
             Promotion and relegation (3 up, 3 down) runs on its own within each country at the end
-            of every season, so a rough season in Spain's top flight doesn't touch England's,
-            Italy's, or Germany's tables. Standings, Awards, and Stat Leaders each have a competition
-            dropdown, grouped by country, so you can browse any of the 8 leagues. It defaults to
+            of every season, so a rough season in Spain's top flight doesn't touch any other
+            country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
+            grouped by country, so you can browse any of the 12 leagues. It defaults to
             whichever one your own club is currently in.
           </p>
           <p className="text-muted small">
@@ -208,12 +214,21 @@ export function Manual() {
 
         <Section id="cup" title="The Continental Cup">
           <p>
-            The Continental Cup is a 16-team knockout played alongside the league season. The top
-            four clubs in each of the four top-flight leagues (England, Spain, Italy and Germany)
-            qualify, so 4 × 4 = 16. Qualification is purely about <strong>league position</strong>,
-            not squad quality. Finish in your league's top four and you're in, however good or bad
-            your OVR. On the <a href="#pages">Standings</a> page those top-four places are shaded as
-            the qualification zone.
+            The Continental Cup is a 16-team knockout played alongside the league season.
+            Qualification is purely about <strong>league position</strong>, not squad quality. The
+            top four clubs in each of the four strongest top-flight leagues (England, Spain, Italy and
+            Germany) qualify, and the 14 strongest of them go straight into the Round of 16. The
+            weaker leagues, <strong>France</strong> and <strong>Portugal</strong>, send only their
+            champion, and those two have to win a play-in round (on matchday 4) against the two
+            weakest big-four qualifiers for the last two bracket places. So a weak-league champion has
+            to earn its way into the main draw. On the <a href="#pages">Standings</a> page the
+            qualifying places are shaded as the qualification zone.
+          </p>
+          <p className="text-muted small">
+            One thing to keep in mind if you're managing in France or Portugal: don't expect a
+            Continental Cup place for finishing mid-table, and your club goes into every tie as an
+            underdog. The cup reads a weak-league side as genuinely weaker than a big-four side with
+            the same league position, not as an equal.
           </p>
           <p>
             Since qualification comes off a finished table, the cup runs a season behind. The first
@@ -221,13 +236,13 @@ export function Manual() {
             one's final tables. Season one has no cup.
           </p>
           <p>
-            It's a single-leg bracket over four rounds (Round of 16, Quarter-finals, Semi-finals,
-            Final), played on matchdays 8, 16, 26 and 34. The draw is seeded by finishing position,
-            so the four league champions are the top seeds and stay apart until late. A tie that's
-            level after 90 minutes goes to extra time, then a penalty shootout if it's still level,
-            so every tie ends with a winner. Rounds play automatically as the season reaches them,
-            and the <strong>Continental Cup</strong> page shows the live bracket with your club
-            highlighted.
+            It's a single-leg bracket: the play-in on matchday 4 (when there is one), then four main
+            rounds (Round of 16, Quarter-finals, Semi-finals, Final), played on matchdays 8, 16, 26
+            and 34. The draw is seeded by finishing position, so the big-four league champions are the
+            top seeds and stay apart until late. A tie that's level after 90 minutes goes to extra
+            time, then a penalty shootout if it's still level, so every tie ends with a winner. Rounds
+            play automatically as the season reaches them, and the <strong>Continental Cup</strong>{" "}
+            page shows the live bracket with your club highlighted.
           </p>
           <p>
             Prize money is real and it's paid as you advance. Every entrant banks a participation
