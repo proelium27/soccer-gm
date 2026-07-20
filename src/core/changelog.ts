@@ -34,6 +34,13 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
+    title: "Crests for a bunch of Spanish clubs",
+    items: [
+      "Up till now England was the only country with real crest art, and everyone else just got the two-color swatch. I made a set of crests for 18 of Spain's clubs (the back half of both Spanish divisions, Sabadell Guardianes through Leon CF), so they now show up wherever the club's name does instead of the plain swatch. The rest of Spain and the other countries are still on swatches for now, I'll keep chipping away at them.",
+    ],
+  },
+  {
+    date: "2026-07-20",
     title: "Stopped the free-agent flip, and made free agents harder to grab",
     items: [
       "Someone on Reddit pointed out you could sign a free agent for nothing and then immediately sell him for a big transfer fee, which is a pretty broken way to print money. So now when you sign a free agent onto your senior team, you're committed to him for a season before you can sell him. No club will bid on him until then, and the Roster page tells you he's not sellable yet instead of showing the List for Transfer button. You can still release him for free whenever you want, you just can't cash him in right away.",
