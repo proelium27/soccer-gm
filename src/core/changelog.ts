@@ -6,8 +6,12 @@
  * Keeping it in sync (same bar as the Manual — see CLAUDE.md):
  * - When a player-visible feature ships, changes, or is removed, PREPEND an
  *   entry here in the same PR. Newest entry goes first (top of the array).
- * - Write in plain, player-facing language (second person, like the Manual) —
- *   this is what players read, not a commit log. Don't quote hidden values.
+ * - Write in the dev's own FIRST-PERSON voice: casual, personal, and honest,
+ *   like you're talking straight to players ("Me and a few people noticed X,
+ *   so I did Y"). It's fine to share the reasoning behind a change and to be
+ *   specific about how it works (even quoting a number) if that helps players
+ *   understand it — this is what players read, not a commit log. Match the
+ *   tone of the existing entries.
  * - Group a batch of related changes shipped together under one dated entry.
  *
  * `date` is an ISO date string (YYYY-MM-DD); the page formats it for display.
@@ -23,11 +27,10 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
-    title: "You can't just buy the title anymore",
+    title: "Fixed how easy it is to get good off the transfer market",
     items: [
-      "A bunch of you said the game gets too easy once you've got money to throw around. Fair enough, so I made it harder to win.",
-      "The best players in the world basically aren't for sale now. They cost way more than any club can pay, yours included. You can still put a good squad together in the transfer market, but the guys who actually win you titles? You're not buying those. You develop them yourself, or bring them up through your academy.",
-      "So money gets you a good team, not a great one. Winning the league takes some patience now, and a bit of luck with who you bring through.",
+      "Me and a few people noticed that this game was a little too easy. I personally led a bad D2 team to a D1 championship in like 10 seasons. So I essentially just raised AI's asking price for their star players. Now it is quite hard to buy a player who is over 76 OVR.",
+      "I'm trying to find a balance between making the game too easy and making the game too hard, because neither are fun to play.",
     ],
   },
   {
