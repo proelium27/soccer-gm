@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, type ReactNode } from "react";
 import type { LeagueStore } from "../../core/leagueState.js";
 import type { SimThrough } from "../../worker/protocol.js";
 import { useSimWorker, type SimProgress } from "../useSimWorker.js";
@@ -452,47 +452,69 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     commitLeague({ ...imported, lid });
   }, [commitLeague]);
 
+  // Memoize the context value so its identity only changes when something a
+  // consumer actually reads changes. Without this, the provider re-renders on
+  // every rapidly-changing bit of transient state it holds — most importantly
+  // the per-matchday `animQueue` push during a sim — and each re-render would
+  // rebuild this object, forcing every `useLeague()` consumer (all 23 pages,
+  // the sidebar, etc.) to re-render dozens of times per sim. `animQueue` and
+  // `animDone` are deliberately NOT read here (they go straight to SimOverlay),
+  // so progress ticks no longer touch this value's identity.
+  const value = useMemo<LeagueContextValue>(() => ({
+    league,
+    loadingActiveLeague,
+    setLeague,
+    loadLeagueAction,
+    switchLeagueAction,
+    customizeTeamsAction,
+    simAction,
+    offseasonAction,
+    signFreeAgentAction,
+    releasePlayerAction,
+    signToAcademyAction,
+    promoteFromAcademyAction,
+    releaseAcademyPlayerAction,
+    extendAcademyContractAction,
+    setScoutingSpendAction,
+    makeOfferAction,
+    acceptCounterAction,
+    acceptInboundOfferAction,
+    rejectInboundOfferAction,
+    counterInboundOfferAction,
+    extendContractAction,
+    listPlayerForLoanAction,
+    unlistPlayerForLoanAction,
+    acceptLoanOfferAction,
+    rejectLoanOfferAction,
+    setTransferListedAction,
+    setLineupAction,
+    setFormationAction,
+    setGodModeAction,
+    movePlayerToClubAction,
+    releasePlayerGodModeAction,
+    editPlayerAction,
+    createPlayerAction,
+    setClubFinancesAction,
+    simming: simming || simOverlayOpen || busy,
+    saveToDb,
+    exportJSON: doExport,
+    importJSON: doImport,
+  }), [
+    league, loadingActiveLeague, setLeague, loadLeagueAction, switchLeagueAction,
+    customizeTeamsAction, simAction, offseasonAction, signFreeAgentAction,
+    releasePlayerAction, signToAcademyAction, promoteFromAcademyAction,
+    releaseAcademyPlayerAction, extendAcademyContractAction, setScoutingSpendAction,
+    makeOfferAction, acceptCounterAction, acceptInboundOfferAction,
+    rejectInboundOfferAction, counterInboundOfferAction, extendContractAction,
+    listPlayerForLoanAction, unlistPlayerForLoanAction, acceptLoanOfferAction,
+    rejectLoanOfferAction, setTransferListedAction, setLineupAction, setFormationAction,
+    setGodModeAction, movePlayerToClubAction, releasePlayerGodModeAction,
+    editPlayerAction, createPlayerAction, setClubFinancesAction,
+    simming, simOverlayOpen, busy, saveToDb, doExport, doImport,
+  ]);
+
   return (
-    <Ctx.Provider value={{
-      league,
-      loadingActiveLeague,
-      setLeague,
-      loadLeagueAction,
-      switchLeagueAction,
-      customizeTeamsAction,
-      simAction,
-      offseasonAction,
-      signFreeAgentAction,
-      releasePlayerAction,
-      signToAcademyAction,
-      promoteFromAcademyAction,
-      releaseAcademyPlayerAction,
-      extendAcademyContractAction,
-      setScoutingSpendAction,
-      makeOfferAction,
-      acceptCounterAction,
-      acceptInboundOfferAction,
-      rejectInboundOfferAction,
-      counterInboundOfferAction,
-      extendContractAction,
-      listPlayerForLoanAction,
-      unlistPlayerForLoanAction,
-      acceptLoanOfferAction,
-      rejectLoanOfferAction,
-      setTransferListedAction,
-      setLineupAction,
-      setFormationAction,
-      setGodModeAction,
-      movePlayerToClubAction,
-      releasePlayerGodModeAction,
-      editPlayerAction,
-      createPlayerAction,
-      setClubFinancesAction,
-      simming: simming || simOverlayOpen || busy,
-      saveToDb,
-      exportJSON: doExport,
-      importJSON: doImport,
-    }}>
+    <Ctx.Provider value={value}>
       {children}
       <SimOverlay
         open={simOverlayOpen}

@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import type { LeagueStore } from "../../core/leagueState.js";
+import type { StoredTeam } from "../../core/teams/clubs.js";
 import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
@@ -69,11 +71,7 @@ function StatLeaderList({ title, rows, decimals }: { title: string; rows: StatLe
 }
 
 export function Dashboard() {
-  const { league, simAction, offseasonAction, setScoutingSpendAction, simming } = useLeague();
-  const navigate = useNavigate();
-  // Slider position while dragging; persisted (and clamped) only on release
-  // so we don't write to IndexedDB on every drag tick.
-  const [scoutingDraft, setScoutingDraft] = useState<number | null>(null);
+  const { league } = useLeague();
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -84,6 +82,22 @@ export function Dashboard() {
     return <p className="p-3">Team not found.</p>;
   }
 
+  return <DashboardBody league={league} userTeam={userTeam} />;
+}
+
+// The rendered body lives in its own component so its hooks run unconditionally
+// (after the null-guards above). Every expensive derivation is memoized on the
+// specific league slice it reads, so a re-render that doesn't touch that slice
+// — most importantly dragging the scouting slider, which only changes local
+// draft state — skips recomputing standings, the news timeline, the lookup
+// maps, the wage bill, and the stat-leader scans over the whole player pool.
+function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: StoredTeam }) {
+  const { simAction, offseasonAction, setScoutingSpendAction, simming } = useLeague();
+  const navigate = useNavigate();
+  // Slider position while dragging; persisted (and clamped) only on release
+  // so we don't write to IndexedDB on every drag tick.
+  const [scoutingDraft, setScoutingDraft] = useState<number | null>(null);
+
   const commitScoutingDraft = async () => {
     if (scoutingDraft === null) return;
     // Persist first, then drop the draft, so the slider never flashes the
@@ -93,28 +107,28 @@ export function Dashboard() {
   };
 
   // Compute standings (user's own division) and find user's row
-  const divisionTids = league.teams.filter((t) => t.compId === userTeam.compId).map((t) => t.tid);
-  const standings = computeStandings(
-    divisionTids,
-    league.played.filter((m) => {
-      const home = league.teams.find((t) => t.tid === m.home);
-      return home?.compId === userTeam.compId;
-    }),
-  );
-  const userRow = standings.find((r) => r.tid === league.meta.userTid);
-  const leaguePosition = standings.findIndex((r) => r.tid === league.meta.userTid) + 1;
-
-  const standingsTop: StandingsRow[] = standings.slice(0, STANDINGS_TOP_N);
-  const userInTop = standingsTop.some((r) => r.tid === league.meta.userTid);
+  const { userRow, leaguePosition, standingsTop, userInTop } = useMemo(() => {
+    const divisionTids = league.teams.filter((t) => t.compId === userTeam.compId).map((t) => t.tid);
+    const standings = computeStandings(
+      divisionTids,
+      league.played.filter((m) => {
+        const home = league.teams.find((t) => t.tid === m.home);
+        return home?.compId === userTeam.compId;
+      }),
+    );
+    const userRow = standings.find((r) => r.tid === league.meta.userTid);
+    const leaguePosition = standings.findIndex((r) => r.tid === league.meta.userTid) + 1;
+    const standingsTop: StandingsRow[] = standings.slice(0, STANDINGS_TOP_N);
+    const userInTop = standingsTop.some((r) => r.tid === league.meta.userTid);
+    return { userRow, leaguePosition, standingsTop, userInTop };
+  }, [league.teams, league.played, league.meta.userTid, userTeam.compId]);
 
   // Next match: lowest matchday in schedule, find user's fixture
-  let nextMatchInfo: React.ReactNode;
-  if (league.schedule.length === 0) {
-    nextMatchInfo = <span>Season Complete</span>;
-  } else {
-    const minMatchday = Math.min(
-      ...league.schedule.map((g) => g.matchday),
-    );
+  const nextMatchInfo = useMemo<React.ReactNode>(() => {
+    if (league.schedule.length === 0) {
+      return <span>Season Complete</span>;
+    }
+    const minMatchday = Math.min(...league.schedule.map((g) => g.matchday));
     const userFixture = league.schedule.find(
       (g) =>
         g.matchday === minMatchday &&
@@ -124,24 +138,25 @@ export function Dashboard() {
       const isHome = userFixture.home === league.meta.userTid;
       const opponentTid = isHome ? userFixture.away : userFixture.home;
       const opponent = league.teams.find((t) => t.tid === opponentTid);
-      nextMatchInfo = (
+      return (
         <span>
-          {isHome ? "vs" : "@"} {opponent?.name ?? "Unknown"} (Matchday{" "}
-          {minMatchday})
+          {isHome ? "vs" : "@"} {opponent?.name ?? "Unknown"} (Matchday {minMatchday})
         </span>
       );
-    } else {
-      nextMatchInfo = <span>Bye (Matchday {minMatchday})</span>;
     }
-  }
+    return <span>Bye (Matchday {minMatchday})</span>;
+  }, [league.schedule, league.teams, league.meta.userTid]);
 
   // News headlines: most recent items from the current season's timeline.
-  const currentSeasonTransfers = league.transfers.filter((t) => t.season === league.season);
-  const currentSeasonEvents = league.newsEvents.filter((e) => e.season === league.season);
-  const newsTimeline = buildSeasonTimeline(currentSeasonTransfers, currentSeasonEvents);
-  const newsHeadlines = [...newsTimeline].slice(-NEWS_TOP_N).reverse();
-  const teamByTid = new Map(league.teams.map((t) => [t.tid, t]));
-  const playerByPid = new Map(league.players.map((p) => [p.pid, p]));
+  const newsHeadlines = useMemo(() => {
+    const currentSeasonTransfers = league.transfers.filter((t) => t.season === league.season);
+    const currentSeasonEvents = league.newsEvents.filter((e) => e.season === league.season);
+    const newsTimeline = buildSeasonTimeline(currentSeasonTransfers, currentSeasonEvents);
+    return [...newsTimeline].slice(-NEWS_TOP_N).reverse();
+  }, [league.transfers, league.newsEvents, league.season]);
+
+  const teamByTid = useMemo(() => new Map(league.teams.map((t) => [t.tid, t])), [league.teams]);
+  const playerByPid = useMemo(() => new Map(league.players.map((p) => [p.pid, p])), [league.players]);
 
   const playerLink = (player: Player | undefined): React.ReactNode =>
     player ? <Link to={`/player/${player.pid}`}>{player.name}</Link> : "A player";
@@ -179,12 +194,36 @@ export function Dashboard() {
   };
 
   // Stat leaders: league-wide (user's division) vs. the user's own team only.
-  const leaguePidPool = new Set<number>();
-  for (const t of league.teams) {
-    if (t.compId !== userTeam.compId) continue;
-    for (const pid of t.roster) leaguePidPool.add(pid);
-  }
-  const teamPidPool = new Set(userTeam.roster);
+  const leaguePidPool = useMemo(() => {
+    const pool = new Set<number>();
+    for (const t of league.teams) {
+      if (t.compId !== userTeam.compId) continue;
+      for (const pid of t.roster) pool.add(pid);
+    }
+    return pool;
+  }, [league.teams, userTeam.compId]);
+  const teamPidPool = useMemo(() => new Set(userTeam.roster), [userTeam.roster]);
+
+  // Pre-scan the stat leaders once per pool (each is an O(players) sweep). Index
+  // aligns with LEADER_STAT_KEYS so the JSX below just reads the ith result.
+  const leagueLeaders = useMemo(
+    () => LEADER_STAT_KEYS.map(({ key }) => topByStat(league.players, leaguePidPool, league.season, key)),
+    [league.players, leaguePidPool, league.season],
+  );
+  const teamLeaders = useMemo(
+    () => LEADER_STAT_KEYS.map(({ key }) => topByStat(league.players, teamPidPool, league.season, key)),
+    [league.players, teamPidPool, league.season],
+  );
+
+  // Season wage bill: senior roster + academy, priced from every player's
+  // salary. Memoized so the O(players) salary map isn't rebuilt each render.
+  const seasonWageBill = useMemo(
+    () => wageBill(
+      [...userTeam.roster, ...userTeam.academyRoster],
+      new Map(league.players.map((p) => [p.pid, p.contract.salary])),
+    ),
+    [userTeam.roster, userTeam.academyRoster, league.players],
+  );
 
   const disableSim = simming || league.phase === "offseason";
   // Once the user is standing on deadline day (or past it), "sim to the
@@ -346,14 +385,7 @@ export function Dashboard() {
                 </p>
                 <p className="card-text mb-2">
                   Season wage bill:{" "}
-                  <strong>
-                    {currency.format(
-                      wageBill(
-                        [...userTeam.roster, ...userTeam.academyRoster],
-                        new Map(league.players.map((p) => [p.pid, p.contract.salary])),
-                      ),
-                    )}
-                  </strong>{" "}
+                  <strong>{currency.format(seasonWageBill)}</strong>{" "}
                   &middot; paid up front each season
                 </p>
                 <p className="card-text mb-2">
@@ -432,23 +464,23 @@ export function Dashboard() {
           <div className="row">
             <div className="col-md-6">
               <div className="text-muted small text-uppercase mb-1">League-wide</div>
-              {LEADER_STAT_KEYS.map(({ key, label }) => (
+              {LEADER_STAT_KEYS.map(({ key, label }, i) => (
                 <StatLeaderList
                   key={key}
                   title={label}
                   decimals={key === "avgRating"}
-                  rows={topByStat(league.players, leaguePidPool, league.season, key)}
+                  rows={leagueLeaders[i]}
                 />
               ))}
             </div>
             <div className="col-md-6">
               <div className="text-muted small text-uppercase mb-1">{userTeam.name}</div>
-              {LEADER_STAT_KEYS.map(({ key, label }) => (
+              {LEADER_STAT_KEYS.map(({ key, label }, i) => (
                 <StatLeaderList
                   key={key}
                   title={label}
                   decimals={key === "avgRating"}
-                  rows={topByStat(league.players, teamPidPool, league.season, key)}
+                  rows={teamLeaders[i]}
                 />
               ))}
             </div>
