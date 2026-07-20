@@ -23,6 +23,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
+    title: "See your Starting XI's stats at a glance",
+    items: [
+      "A few of you pointed out that you could see season stats for your bench players but not for anyone in your Starting XI. Thanks for flagging it!",
+      "The Roster page now shows a stats table for your Starting XI, right below the pitch, with the same columns as the bench table (appearances, minutes, goals, assists, tackles, rating and more), so you can read every starter's season without moving him off the pitch.",
+    ],
+  },
+  {
+    date: "2026-07-20",
     title: "Easier lineup swaps on mobile",
     items: [
       "We saw a lot of players struggling to move players in and out of the Starting XI on mobile, since drag-and-drop doesn't work well on phones.",
