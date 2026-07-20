@@ -36,7 +36,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-07-20",
     title: "Crests for a bunch of Spanish clubs",
     items: [
-      "Up till now England was the only country with real crest art, and everyone else just got the two-color swatch. I made a set of crests for 18 of Spain's clubs (the back half of both Spanish divisions, Sabadell Guardianes through Leon CF), so they now show up wherever the club's name does instead of the plain swatch. The rest of Spain and the other countries are still on swatches for now, I'll keep chipping away at them.",
+      "Up till now England was the only country with real crest art, and everyone else just got the two-color swatch. I made crests for 32 of Spain's clubs, so they now show up wherever the club's name does instead of the plain swatch. That's most of both Spanish divisions. A few of the biggest names (Madrid, Barcelona Halcones, Valencia) and a handful of others are still on swatches for now, and so are Italy, Germany, France and Portugal. I'll keep chipping away at them.",
     ],
   },
   {
