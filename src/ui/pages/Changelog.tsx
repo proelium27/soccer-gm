@@ -37,11 +37,19 @@ export function Changelog() {
                 <h5 className="mb-0">{entry.title}</h5>
                 <span className="small text-muted">{formatDate(entry.date)}</span>
               </div>
-              <ul className="mb-0">
-                {entry.items.map((item, j) => (
-                  <li key={j}>{item}</li>
-                ))}
-              </ul>
+              {entry.list ? (
+                <ul className="mb-0">
+                  {entry.items.map((item, j) => (
+                    <li key={j}>{item}</li>
+                  ))}
+                </ul>
+              ) : (
+                entry.items.map((item, j) => (
+                  <p key={j} className={j === entry.items.length - 1 ? "mb-0" : "mb-2"}>
+                    {item}
+                  </p>
+                ))
+              )}
             </div>
           </div>
         ))}
