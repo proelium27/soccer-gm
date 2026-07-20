@@ -47,9 +47,9 @@ export function Loans() {
       <h4>
         Loans
         <HelpHint>
-          Send a player to another club for 1–3 seasons to get him minutes he isn't getting with
-          you — and minutes drive development. List a player, then accept or reject the flat-fee
-          loan offers that come in; he returns automatically when the loan ends.
+          Send a player to another club for 1&ndash;3 seasons to get him minutes he isn't getting
+          with you, and minutes drive development. List a player, then accept or reject the flat-fee
+          loan offers that come in. He comes back on his own when the loan ends.
         </HelpHint>
       </h4>
 

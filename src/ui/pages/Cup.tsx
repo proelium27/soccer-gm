@@ -52,13 +52,13 @@ export function Cup() {
         {worldHasCup(league.competitions) ? (
           <p className="text-muted">
             The Continental Cup is a 16-team knockout. The top four clubs of each of the four
-            strongest top-flight leagues qualify; the champions of the weaker leagues must win a
-            preliminary play-in to reach the bracket. It begins next season — qualification is
+            strongest top-flight leagues qualify, and the champions of the weaker leagues have to
+            win a play-in round first to get in. It kicks off next season, and qualification is
             decided by this season&apos;s final league tables.
           </p>
         ) : (
           <p className="text-muted">
-            The Continental Cup isn&apos;t contested in this league — it needs four top-flight
+            The Continental Cup isn&apos;t contested in this league. It needs four top-flight
             leagues to fill its 16-team bracket.
           </p>
         )}
@@ -124,8 +124,8 @@ export function Cup() {
         Continental Cup
         <HelpHint>
           A 16-team knockout played alongside the league, contested by the top four clubs of each
-          top-flight league. Rounds fire on set matchdays; the live bracket and past winners are
-          shown here. If your club reaches the final, the sim pauses so you can play it.
+          top-flight league. Rounds fire on set matchdays, and the live bracket and past winners
+          show up here. If your club reaches the final, the sim pauses so you can play it.
         </HelpHint>
       </h4>
       <div className="mb-3">

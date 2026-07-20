@@ -15,6 +15,7 @@ import { competitionOf } from "../../core/competitions.js";
 import { worldHasCup } from "../../core/cup/cup.js";
 import { cupStatsBySeasonForPlayer } from "../../core/cup/cupStats.js";
 import { formatWeeklyWage, seasonYear, transferFeeLabel } from "../format.js";
+import { PlayerEditModal } from "../components/PlayerEditModal.js";
 
 /** One career-honor badge, e.g. "3x Golden Boot" — omits the count for a single win. */
 function AwardPill({ label, seasons, icon }: { label: string; seasons: number[]; icon?: ReactNode }) {
@@ -57,8 +58,9 @@ function teamForSeason(
 
 export function PlayerProfile() {
   const { pid } = useParams<{ pid: string }>();
-  const { league } = useLeague();
+  const { league, movePlayerToClubAction, releasePlayerGodModeAction } = useLeague();
   const [statsTab, setStatsTab] = useState<"league" | "cup">("league");
+  const [editing, setEditing] = useState(false);
 
   if (!league || pid === undefined) {
     return <p className="p-3">Loading...</p>;
@@ -151,6 +153,44 @@ export function PlayerProfile() {
           </>
         )}
       </p>
+
+      {league.godMode && (
+        <div className="gm-panel">
+          <div className="gm-panel-title">God Mode</div>
+          <div className="d-flex flex-wrap align-items-center gap-2">
+            <button className="btn btn-sm btn-warning" onClick={() => setEditing(true)}>Edit Player</button>
+            <div className="d-flex align-items-center gap-1">
+              <label className="small text-muted m-0">Move to</label>
+              <select
+                className="form-select form-select-sm"
+                style={{ width: "auto" }}
+                value=""
+                onChange={(e) => {
+                  const tid = Number(e.target.value);
+                  if (!Number.isNaN(tid)) movePlayerToClubAction(player.pid, tid);
+                }}
+              >
+                <option value="">Select club…</option>
+                {[...league.teams]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((t) => (
+                    <option key={t.tid} value={t.tid} disabled={team?.tid === t.tid}>
+                      {t.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <button
+              className="btn btn-sm btn-outline-danger"
+              onClick={() => releasePlayerGodModeAction(player.pid)}
+            >
+              Release to free agency
+            </button>
+          </div>
+        </div>
+      )}
+
+      {editing && <PlayerEditModal player={player} onClose={() => setEditing(false)} />}
 
       <div className="row g-3">
         <div className="col-lg-5">

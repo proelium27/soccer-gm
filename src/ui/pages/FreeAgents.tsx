@@ -45,7 +45,7 @@ export function FreeAgents() {
         Free Agents
         <HelpHint>
           Unsigned players you can add on a free transfer (no fee), at a wage based on their
-          rating. Released veterans end up here; younger prospects live on the Incoming Talent
+          rating. Released veterans end up here. Younger prospects live on the Incoming Talent
           page.
         </HelpHint>
       </h4>

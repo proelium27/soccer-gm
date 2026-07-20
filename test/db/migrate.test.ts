@@ -38,6 +38,7 @@ function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed =
     cup: null,
     cupHistory: [],
     powerRankingHistory: [],
+    godMode: false,
   };
 }
 
@@ -92,6 +93,13 @@ describe("migrateLeague", () => {
     const { powerRankingHistory: _prh, ...withoutHistory } = league;
     const migrated = migrateLeague(withoutHistory as unknown as LeagueStore);
     expect(migrated.powerRankingHistory).toEqual([]);
+  });
+
+  it("backfills godMode to false for a save without it", () => {
+    const league = makeLeague(0, 1);
+    const { godMode: _gm, ...withoutGodMode } = league;
+    const migrated = migrateLeague(withoutGodMode as unknown as LeagueStore);
+    expect(migrated.godMode).toBe(false);
   });
 
   it("leaves an existing powerRankingHistory untouched", () => {

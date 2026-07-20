@@ -170,9 +170,9 @@ export function PowerRankings() {
               Power
               <HelpHint>
                 Power blends a club's squad strength (its starting XI plus a depth-weighted bench)
-                with current-season form — beating a strong side counts for more than beating a
-                weak one, and goal difference factors in — so a club can rank above or below its
-                raw OVR depending on how it's actually playing.
+                with current-season form. Beating a strong side counts for more than beating a weak
+                one, and goal difference factors in too, so a club can rank above or below its raw
+                OVR depending on how it's actually playing.
               </HelpHint>
             </th>
             <th className="text-end">POT <PotHelp /></th>

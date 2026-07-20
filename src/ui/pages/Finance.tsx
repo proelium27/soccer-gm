@@ -117,17 +117,17 @@ export function Finance() {
             onBlur={commitScoutingDraft}
           />
           <p className="card-text text-muted mb-0">
-            Set once per year, in the offseason, and locked for the whole season it applies to —
-            deducted at that season's end. This is why it can only be changed here between seasons:
+            Set once per year, in the offseason, and locked for the whole season it covers,
+            deducted at that season's end. That's why you can only change it here between seasons:
             you commit (and pay) before you get the sharper view, so you can't crank it up to peek
-            and turn it back down. Two effects. First, every value you see on a transfer
-            target — Recommended Transfers, negotiation offers, offers for your own players — is
-            a perceived value, not the true one: noisy (&plusmn;35%) at $0 spend, nearly exact
-            (&plusmn;5%) at the $20M max. Second, potential (POT) is shown as an estimate band
-            rather than an exact number: more scouting narrows the band and reveals a player's
-            true ceiling sooner. Players on your senior roster also sharpen on their own over
-            2&ndash;3 seasons; prospects, free agents, and rival clubs' players stay fogged until
-            you scout or sign them. Defaults to $5M each season.
+            and turn it straight back down. It does two things. First, every value you see on a
+            transfer target (Recommended Transfers, negotiation offers, offers for your own players)
+            is a perceived value, not the real one: noisy (&plusmn;35%) at $0 spend, nearly exact
+            (&plusmn;5%) at the $20M max. Second, potential (POT) shows as an estimate band rather
+            than an exact number, and more scouting tightens the band and reveals a player's true
+            ceiling sooner. Players on your senior roster also sharpen on their own over 2&ndash;3
+            seasons, while prospects, free agents, and rival clubs' players stay fogged until you
+            scout or sign them. Starts at $5M each season.
           </p>
         </div>
       </div>
@@ -151,7 +151,7 @@ export function Finance() {
                   Hype revenue
                   <HelpHint>
                     Hype is your club's fame (0&ndash;100), earned by winning and by big results.
-                    It drives a ticket-and-merchandise revenue stream paid at season end — the
+                    It drives a ticket-and-merchandise revenue stream paid at season end, so the
                     more hype you carry, the more money it brings in.
                   </HelpHint>
                 </td>
