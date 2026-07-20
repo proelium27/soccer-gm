@@ -10,6 +10,16 @@ export const BLOCK_BASE = 0.28; // shot gets blocked
 export const ONTARGET_BASE = 0.47; // unblocked shot is on target
 export const SAVE_BASE = 0.68; // on-target shot is saved (else goal)
 
+// simMatchDetailed only: how much the individual finisher's own skill shifts a
+// shot's conversion, relative to his TEAM's average finisher (shooting for
+// open-play shots, heading for corner headers). Centered on the team average,
+// so this redistributes a team's goals toward its best finishers without
+// changing league-wide scoring — a standout finisher on a weak side scores
+// well above his team's baseline; a poor finisher on a strong side underscores.
+// Applied to onTargetP/saveP in resolveShot, never to xG (so goals-vs-xG still
+// reveals finishing skill). The fast composite-only simMatch is unaffected.
+export const SHOOTER_FINISH_WEIGHT = 0.3;
+
 export const TURNOVER_BASE = 0.14; // per-tick prob possession changes hands
 // Of every turnover (see TURNOVER_BASE above), the share credited as a
 // stat-worthy defensive action at all vs. no credit (a real match has plenty

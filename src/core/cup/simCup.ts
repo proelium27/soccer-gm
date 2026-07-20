@@ -2,7 +2,7 @@ import type { Composites } from "../../engine/composites.js";
 import type { MatchPlayer, PlayerMatchLine, BoxScore } from "../../engine/attribution.js";
 import type { TeamMatchData } from "../league/composites.js";
 import type { CupState, CupTie } from "./types.js";
-import { simMatchDetailed, resolveShot } from "../../engine/matchSim.js";
+import { simMatchDetailed, resolveShot, finisherAdj } from "../../engine/matchSim.js";
 import { pickShooter, pickAssister, emptyLine } from "../../engine/attribution.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
 import { completedRounds, matchupsForRound, applyPlayIn } from "./cup.js";
@@ -54,8 +54,8 @@ function playExtraTime(
     let goals = 0;
     const gk = defXI.find((p) => p.pos === "GK");
     for (let i = 0; i < CUP_ET_CHANCES_PER_SIDE; i++) {
-      const shot = resolveShot(rng, offComp, defComp);
       const shooter = pickShooter(rng, attackers);
+      const shot = resolveShot(rng, offComp, defComp, finisherAdj(shooter, attackers, "shooting"));
       const line = lineFor(offLines, shooter.pid);
       line.shots++;
       line.xg += shot.xg;
