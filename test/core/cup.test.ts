@@ -3,23 +3,38 @@ import type { Composites } from "../../src/engine/composites.js";
 import type { MatchPlayer } from "../../src/engine/attribution.js";
 import type { TeamMatchData } from "../../src/core/league/composites.js";
 import type { StandingsRow } from "../../src/core/standings.js";
+import type { Competition } from "../../src/core/competitions.js";
 import { worldCompetitions, englandCompetitions } from "../../src/core/competitions.js";
 import {
-  seedOrder, qualifyCupTeams, buildCupState, matchupsForRound,
+  seedOrder, qualifyCupTeams, buildCupState, matchupsForRound, cupPlan, playInDue,
   completedRounds, dueCupRound, cupRoundName, cupFinalists, isCupComplete,
 } from "../../src/core/cup/cup.js";
-import { playCupRound, resolveCupTie } from "../../src/core/cup/simCup.js";
+import { playCupRound, playPlayIn, resolveCupTie } from "../../src/core/cup/simCup.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import {
-  CUP_ROUND_MATCHDAYS, CUP_PRIZE_PARTICIPATION, CUP_PRIZE_WIN_R16, CUP_PRIZE_WIN_QF,
-  CUP_PRIZE_WIN_SF, CUP_PRIZE_WIN_FINAL, CUP_PRIZE_RUNNER_UP, CUP_TEAMS_PER_LEAGUE,
+  CUP_ROUND_MATCHDAYS, CUP_PLAYIN_MATCHDAY, CUP_PRIZE_PARTICIPATION, CUP_PRIZE_WIN_PLAYIN,
+  CUP_PRIZE_WIN_R16, CUP_PRIZE_WIN_QF, CUP_PRIZE_WIN_SF, CUP_PRIZE_WIN_FINAL, CUP_PRIZE_RUNNER_UP,
 } from "../../src/core/constants.js";
+
+/** The four big-four leagues only (no weak leagues → no play-in, a clean 16-team bracket). */
+const strongComps: Competition[] = worldCompetitions().filter((c) =>
+  ["England", "Spain", "Italy", "Germany"].includes(c.country));
 
 /** A synthetic tier-1 table where tid order == finishing order, with points/gd spaced by rank. */
 function fakeTable(tids: number[]): StandingsRow[] {
   return tids.map((tid, i) => ({
     tid, played: 38, won: 0, drawn: 0, lost: 0, gf: 100 - i, ga: 0, gd: 100 - i, points: 100 - i,
   }));
+}
+
+/** Give each tier-1 league in `comps` a distinct tid block (league index li → tids li*100 + rank). */
+function tablesFor(comps: Competition[], clubsPerLeague = 4): Map<number, StandingsRow[]> {
+  const tables = new Map<number, StandingsRow[]>();
+  comps.filter((c) => c.tier === 1).forEach((c, li) => {
+    tables.set(c.id, fakeTable(Array.from({ length: clubsPerLeague }, (_, r) => li * 100 + r)));
+  });
+  comps.filter((c) => c.tier === 2).forEach((c) => tables.set(c.id, fakeTable([9000 + c.id])));
+  return tables;
 }
 
 /** Minimal but valid TeamMatchData: 11 players (1 GK + 10 outfield), composites scaled by `strength` (0..1). */
@@ -52,7 +67,6 @@ describe("seedOrder", () => {
       const order = seedOrder(n);
       expect(order).toHaveLength(n);
       expect(new Set(order).size).toBe(n); // a permutation of 1..n
-      // seed 1 and seed 2 must be in different halves of the bracket
       const half1 = order.slice(0, n / 2);
       expect(half1).toContain(1);
       expect(half1).not.toContain(2);
@@ -60,47 +74,61 @@ describe("seedOrder", () => {
   });
 });
 
+describe("cupPlan", () => {
+  it("splits the real world into 4 strong + 2 weak tier-1 leagues, 18 qualifiers, a 2-tie play-in", () => {
+    const plan = cupPlan(worldCompetitions())!;
+    expect(plan.strong.map((c) => c.country)).toEqual(["England", "Spain", "Italy", "Germany"]);
+    expect(plan.weak.map((c) => c.country)).toEqual(["France", "Portugal"]);
+    expect(plan.total).toBe(18);
+    expect(plan.playInTies).toBe(2);
+  });
+  it("has no play-in for a 4-strong-league world, and no cup at all for England-only", () => {
+    expect(cupPlan(strongComps)!.playInTies).toBe(0);
+    expect(cupPlan(englandCompetitions())).toBeNull();
+  });
+});
+
 describe("qualifyCupTeams", () => {
-  it("takes the top N of each tier-1 table and seeds champions above runners-up", () => {
+  it("takes the top 4 of each strong league and each weak league's champion", () => {
     const comps = worldCompetitions();
-    const tier1 = comps.filter((c) => c.tier === 1);
-    const tables = new Map<number, StandingsRow[]>();
-    // Give each tier-1 league a distinct tid block; league A's clubs have the most points.
-    tier1.forEach((c, li) => {
-      tables.set(c.id, fakeTable([0, 1, 2, 3, 4].map((r) => li * 100 + r)));
-    });
-    // Tier-2 tables present but ignored.
-    comps.filter((c) => c.tier === 2).forEach((c) => tables.set(c.id, fakeTable([9000 + c.id])));
-
-    const { seededTids, seedByTid } = qualifyCupTeams(comps, tables);
-    expect(seededTids).toHaveLength(tier1.length * CUP_TEAMS_PER_LEAGUE);
-
-    // Seed 1 is the champion (rank 1) of the strongest-pointed league (li=0 → tid 0).
-    expect(seededTids[0]).toBe(0);
-    // The first `tier1.length` seeds are all rank-1 champions (tid % 100 === 0).
-    for (let i = 0; i < tier1.length; i++) expect(seededTids[i] % 100).toBe(0);
-    // The next block are all runners-up (tid % 100 === 1).
-    for (let i = tier1.length; i < tier1.length * 2; i++) expect(seededTids[i] % 100).toBe(1);
+    const { strongSeeded, weakChampions } = qualifyCupTeams(comps, tablesFor(comps));
+    expect(strongSeeded).toHaveLength(16); // 4 strong leagues x 4
+    expect(weakChampions).toHaveLength(2); // France + Portugal champions
+    // Seed 1 is the champion of the strongest-pointed strong league (li=0 → tid 0).
+    expect(strongSeeded[0]).toBe(0);
+    // The first four strong seeds are all rank-1 champions (tid % 100 === 0).
+    for (let i = 0; i < 4; i++) expect(strongSeeded[i] % 100).toBe(0);
     // No tier-2 club qualified.
-    expect(seededTids.every((t) => t < 9000)).toBe(true);
-    expect(seedByTid[0]).toBe(1);
+    expect(strongSeeded.every((t) => t < 9000)).toBe(true);
   });
 });
 
 describe("buildCupState", () => {
-  const comps = worldCompetitions();
-  const tier1 = comps.filter((c) => c.tier === 1);
-  const tables = new Map<number, StandingsRow[]>();
-  tier1.forEach((c, li) => tables.set(c.id, fakeTable([0, 1, 2, 3].map((r) => li * 100 + r))));
-
-  it("builds a 16-team bracket for a 4-league world", () => {
-    const cup = buildCupState(comps, tables, 2)!;
-    expect(cup).not.toBeNull();
+  it("builds a straight 16-team bracket (no play-in) for a 4-strong-league world", () => {
+    const cup = buildCupState(strongComps, tablesFor(strongComps), 2)!;
+    expect(cup.playIn).toBeNull();
     expect(cup.teams).toHaveLength(16);
     expect(new Set(cup.teams).size).toBe(16);
-    expect(cup.season).toBe(2);
+    expect(cup.teams).not.toContain(-1);
     expect(cup.ties).toHaveLength(0);
     expect(cup.championTid).toBeNull();
+  });
+
+  it("builds 14 byes + a 2-tie play-in for the real (weak-league) world", () => {
+    const comps = worldCompetitions();
+    const cup = buildCupState(comps, tablesFor(comps), 2)!;
+    expect(cup.playIn).not.toBeNull();
+    expect(cup.teams).toHaveLength(16);
+    // Two bracket slots are pending (-1) until the play-in resolves; 14 real byes.
+    expect(cup.teams.filter((t) => t === -1)).toHaveLength(2);
+    expect(cup.teams.filter((t) => t >= 0)).toHaveLength(14);
+    // The play-in has 4 participants (2 weakest strong + 2 weak champions) and 2 slots.
+    expect(cup.playIn!.teams).toHaveLength(4);
+    expect(cup.playIn!.slots).toHaveLength(2);
+    expect(cup.playIn!.matchday).toBe(CUP_PLAYIN_MATCHDAY);
+    // The two weak-league champions are among the play-in teams.
+    const weakChampions = cup.playIn!.teams.filter((t) => t >= 400); // France(li 4)=400, Portugal(li 5)=500
+    expect(weakChampions).toHaveLength(2);
   });
 
   it("returns null for an England-only (single tier-1 league) world", () => {
@@ -112,12 +140,43 @@ describe("buildCupState", () => {
   });
 });
 
-describe("bracket navigation", () => {
+describe("play-in round", () => {
   const comps = worldCompetitions();
-  const tier1 = comps.filter((c) => c.tier === 1);
-  const tables = new Map<number, StandingsRow[]>();
-  tier1.forEach((c, li) => tables.set(c.id, fakeTable([0, 1, 2, 3].map((r) => li * 100 + r))));
-  const cup = buildCupState(comps, tables, 2)!;
+
+  it("is due on its matchday, and R16 waits until it fills the bracket", () => {
+    const cup = buildCupState(comps, tablesFor(comps), 2)!;
+    expect(playInDue(cup, CUP_PLAYIN_MATCHDAY - 1)).toBe(false);
+    expect(playInDue(cup, CUP_PLAYIN_MATCHDAY)).toBe(true);
+    // While the play-in is pending, no knockout round is due even at R16's matchday.
+    expect(dueCupRound(cup, CUP_ROUND_MATCHDAYS[0])).toBeNull();
+  });
+
+  it("resolves two ties, fills the bracket, credits participation to all 18 and a win bonus to the 2 winners", () => {
+    const cup = buildCupState(comps, tablesFor(comps), 2)!;
+    const matchData = new Map<number, TeamMatchData>();
+    for (const tid of [...cup.teams.filter((t) => t >= 0), ...cup.playIn!.teams]) {
+      matchData.set(tid, fakeMatchData(tid, 0.5));
+    }
+    const { cup: after, prizes } = playPlayIn(cup, matchData, 0);
+    expect(after.playIn!.ties).toHaveLength(2);
+    // Both pending slots are now filled with real tids (the two play-in winners).
+    expect(after.teams.filter((t) => t === -1)).toHaveLength(0);
+    expect(new Set(after.teams).size).toBe(16);
+    // Now the round of 16 is due at its matchday.
+    expect(dueCupRound(after, CUP_ROUND_MATCHDAYS[0])).toBe(0);
+    // Every play-in participant got the participation fee; each winner also got the play-in win bonus.
+    for (const tid of cup.playIn!.teams) {
+      expect(prizes.get(tid)! >= CUP_PRIZE_PARTICIPATION).toBe(true);
+    }
+    const winners = after.playIn!.ties.map((t) => t.winner);
+    for (const w of winners) {
+      expect(prizes.get(w)).toBe(CUP_PRIZE_PARTICIPATION + CUP_PRIZE_WIN_PLAYIN);
+    }
+  });
+});
+
+describe("bracket navigation", () => {
+  const cup = buildCupState(strongComps, tablesFor(strongComps), 2)!;
 
   it("pairs the round of 16 as adjacent bracket slots", () => {
     const pairs = matchupsForRound(cup, 0);
@@ -127,6 +186,7 @@ describe("bracket navigation", () => {
   });
 
   it("names rounds", () => {
+    expect(cupRoundName(-1)).toBe("Play-in Round");
     expect(cupRoundName(0)).toBe("Round of 16");
     expect(cupRoundName(1)).toBe("Quarter-finals");
     expect(cupRoundName(2)).toBe("Semi-finals");
@@ -148,7 +208,6 @@ describe("resolveCupTie", () => {
       const tie = resolveCupTie(rng, 1, 2, a, b, 0, 8);
       expect([1, 2]).toContain(tie.winner);
       if (tie.homeGoals === tie.awayGoals) {
-        // A level tie must have gone to a shootout with a decisive pen score.
         expect(tie.wentToPens).toBe(true);
         expect(tie.homePens).not.toBe(tie.awayPens);
       }
@@ -156,15 +215,9 @@ describe("resolveCupTie", () => {
   });
 });
 
-describe("playCupRound (full bracket)", () => {
-  const comps = worldCompetitions();
-  const tier1 = comps.filter((c) => c.tier === 1);
-  const tables = new Map<number, StandingsRow[]>();
-  tier1.forEach((c, li) => tables.set(c.id, fakeTable([0, 1, 2, 3].map((r) => li * 100 + r))));
-
+describe("playCupRound (full 16-team bracket, no play-in)", () => {
   it("plays four rounds down to a single champion, crediting prize money correctly", () => {
-    let cup = buildCupState(comps, tables, 2)!;
-    // Strength decreasing with seed so results are deterministic-ish but every team is playable.
+    let cup = buildCupState(strongComps, tablesFor(strongComps), 2)!;
     const matchData = new Map<number, TeamMatchData>();
     cup.teams.forEach((tid) => matchData.set(tid, fakeMatchData(tid, 0.4 + (cup.seeds[tid] <= 4 ? 0.2 : 0))));
 
@@ -190,19 +243,15 @@ describe("playCupRound (full bracket)", () => {
     expect(finalists).toContain(champion);
     const runnerUp = finalists.find((t) => t !== champion)!;
 
-    // Every one of the 16 got the participation fee.
     for (const tid of cup.teams) {
       expect(totalPrizes.get(tid)! >= CUP_PRIZE_PARTICIPATION).toBe(true);
     }
-    // Champion: participation + all four round wins.
     expect(totalPrizes.get(champion)).toBe(
       CUP_PRIZE_PARTICIPATION + CUP_PRIZE_WIN_R16 + CUP_PRIZE_WIN_QF + CUP_PRIZE_WIN_SF + CUP_PRIZE_WIN_FINAL,
     );
-    // Runner-up: participation + three wins + the runner-up bonus.
     expect(totalPrizes.get(runnerUp)).toBe(
       CUP_PRIZE_PARTICIPATION + CUP_PRIZE_WIN_R16 + CUP_PRIZE_WIN_QF + CUP_PRIZE_WIN_SF + CUP_PRIZE_RUNNER_UP,
     );
-    // Total pot is conserved: sum of every club's credited prizes.
     const pot =
       16 * CUP_PRIZE_PARTICIPATION +
       8 * CUP_PRIZE_WIN_R16 +

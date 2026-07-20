@@ -1221,8 +1221,26 @@ export const NEWS_GOAL_MILESTONE_STEP = 10;
 
 export const CUP_NAME = "Continental Cup";
 
-/** Top-N of each tier-1 table qualify. 4 tier-1 leagues × 4 = a 16-team bracket (a clean power of 2 — no byes). */
-export const CUP_TEAMS_PER_LEAGUE = 4;
+/**
+ * Cup slots per tier-1 league, by league strength. A "strong" league (a big-
+ * four league — countryStrengthOffset 0) sends its top CUP_STRONG_LEAGUE_SLOTS;
+ * a "weak" league (France/Portugal — offset > 0) sends only its champion
+ * (CUP_WEAK_LEAGUE_SLOTS). With 4 strong × 4 + 2 weak × 1 = 18 qualifiers, the
+ * two weak champions plus the two weakest strong qualifiers contest a
+ * preliminary play-in round for the last two of the 16 bracket places (the
+ * other 14 strong qualifiers get a bye) — so a weak-league champion has to win
+ * its way into the main bracket. CUP_TEAMS_PER_LEAGUE is kept as the strong
+ * default for any code/tests that predate the weak-league split.
+ */
+export const CUP_STRONG_LEAGUE_SLOTS = 4;
+export const CUP_WEAK_LEAGUE_SLOTS = 1;
+export const CUP_TEAMS_PER_LEAGUE = CUP_STRONG_LEAGUE_SLOTS;
+
+/** League matchday the preliminary play-in round is played on (before R16's matchday). */
+export const CUP_PLAYIN_MATCHDAY = 4;
+
+/** Prize for winning a play-in tie and reaching the main bracket. */
+export const CUP_PRIZE_WIN_PLAYIN = 1_500_000;
 
 /**
  * League matchday each knockout round is played on, indexed by round

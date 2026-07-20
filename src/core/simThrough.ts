@@ -23,8 +23,8 @@ import type { NewsEvent } from "./newsEvents.js";
 import { computePowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { CupState, CupTie } from "./cup/types.js";
-import { dueCupRound, cupFinalists } from "./cup/cup.js";
-import { playCupRound } from "./cup/simCup.js";
+import { dueCupRound, cupFinalists, playInDue } from "./cup/cup.js";
+import { playCupRound, playPlayIn } from "./cup/simCup.js";
 import { clampBudget, financeScale } from "./finance/budget.js";
 import { CUP_FINAL_ROUND, POWER_SNAPSHOT_INTERVAL } from "./constants.js";
 
@@ -227,47 +227,67 @@ export function simThrough(
     // Recomputed every matchday (not once for the whole batch) so that
     // injuries picked up on one matchday correctly sideline a player, and
     // recoveries bring them back, for the next.
+    // Historic team seasons: a rare hidden season-long form swing shifts a
+    // club's composites all season (dream season up, season from hell down) —
+    // wrapped around recompute too so subs/red cards don't wash it out, and
+    // shared with cup ties. See teamSeasonForm.ts.
+    const withSeasonForm = (tid: number, d: TeamMatchData): TeamMatchData => {
+      const formDelta = teamSeasonFormDelta(league.lid, league.season, tid);
+      return formDelta === 0 ? d : {
+        ...d,
+        composites: applySeasonForm(d.composites, formDelta),
+        recompute: (onPitch) => applySeasonForm(d.recompute(onPitch), formDelta),
+      };
+    };
+
     const matchData = new Map<number, TeamMatchData>();
     for (const comp of league.competitions) {
       const compTeams = currentTeams.filter((t) => t.compId === comp.id);
       const compMatchData = leagueMatchData({ teams: toLeagueTeams(compTeams), players: currentPlayers });
-      compTeams.forEach((t, i) => {
-        // Historic team seasons: a rare hidden season-long form swing shifts
-        // this club's composites all season (dream season up, season from
-        // hell down) — wrapped around recompute too so substitutions/red
-        // cards don't wash it out, and shared with cup ties via this same
-        // map. See teamSeasonForm.ts.
-        const formDelta = teamSeasonFormDelta(league.lid, league.season, t.tid);
-        const d = compMatchData[i];
-        matchData.set(t.tid, formDelta === 0 ? d : {
-          ...d,
-          composites: applySeasonForm(d.composites, formDelta),
-          recompute: (onPitch) => applySeasonForm(d.recompute(onPitch), formDelta),
-        });
-      });
+      compTeams.forEach((t, i) => matchData.set(t.tid, withSeasonForm(t.tid, compMatchData[i])));
     }
 
-    // Continental Cup: if a knockout round is due on this matchday, play it in
-    // full using the composites just built for every club, then credit each
-    // club's prize money to its budget (clamped like any other income). Cup
-    // matches use their own seeded rng (inside playCupRound), so they don't
-    // perturb the league match stream. Cup stats are kept out of SeasonStats
-    // by design — they live only on the tie's box score.
+    // Continental Cup composites use a SHARED normalization baseline across all
+    // the cup's participants, not each team's own league — otherwise the
+    // per-competition z-scoring above would erase the cross-league strength gap
+    // and a weak-league club would play a big-four club as an equal. Built only
+    // on a matchday a cup round (or the play-in) is actually due.
+    const cupActive = cup && (playInDue(cup, matchday) || dueCupRound(cup, matchday) !== null);
+    let cupMatchData: Map<number, TeamMatchData> | null = null;
+    if (cup && cupActive) {
+      const cupTids = new Set<number>([...cup.teams.filter((t) => t >= 0), ...(cup.playIn?.teams ?? [])]);
+      const cupTeams = currentTeams.filter((t) => cupTids.has(t.tid));
+      const cupData = leagueMatchData({ teams: toLeagueTeams(cupTeams), players: currentPlayers });
+      cupMatchData = new Map();
+      cupTeams.forEach((t, i) => cupMatchData!.set(t.tid, withSeasonForm(t.tid, cupData[i])));
+    }
+
+    // Play the play-in (once, on its matchday, before R16) then any due knockout
+    // round, crediting prize money to budgets (clamped like any other income).
+    // Cup matches use their own seeded rng, so they don't perturb the league
+    // stream; cup stats stay out of SeasonStats (they live on the tie box score).
     let mdCupTies: CupTie[] = [];
-    if (cup && dueCupRound(cup, matchday) !== null) {
-      const priorTieCount = cup.ties.length;
-      const { cup: advanced, prizes } = playCupRound(cup, matchData, league.lid);
-      cup = advanced;
-      // The ties added by this round — surfaced to the sim-progress callback so
-      // the simming overlay can show cup games alongside the league fixtures.
-      mdCupTies = advanced.ties.slice(priorTieCount);
-      if (prizes.size > 0) {
-        currentTeams = currentTeams.map((t) => {
-          const prize = prizes.get(t.tid);
-          return prize
-            ? { ...t, budget: clampBudget(t.budget + prize, financeScale(league.competitions, t.compId), t.hype) }
-            : t;
-        });
+    const creditPrizes = (prizes: Map<number, number>): void => {
+      if (prizes.size === 0) return;
+      currentTeams = currentTeams.map((t) => {
+        const prize = prizes.get(t.tid);
+        return prize
+          ? { ...t, budget: clampBudget(t.budget + prize, financeScale(league.competitions, t.compId), t.hype) }
+          : t;
+      });
+    };
+    if (cup && cupMatchData) {
+      if (playInDue(cup, matchday)) {
+        const { cup: advanced, prizes } = playPlayIn(cup, cupMatchData, league.lid);
+        cup = advanced;
+        mdCupTies = advanced.playIn?.ties ?? [];
+        creditPrizes(prizes);
+      } else if (dueCupRound(cup, matchday) !== null) {
+        const priorTieCount = cup.ties.length;
+        const { cup: advanced, prizes } = playCupRound(cup, cupMatchData, league.lid);
+        cup = advanced;
+        mdCupTies = advanced.ties.slice(priorTieCount);
+        creditPrizes(prizes);
       }
     }
 

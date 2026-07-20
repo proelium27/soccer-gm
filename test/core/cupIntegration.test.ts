@@ -42,8 +42,14 @@ describe("Continental Cup — season lifecycle", () => {
     expect(league2.cup).not.toBeNull();
     expect(league2.cup!.teams).toHaveLength(16);
     expect(league2.cup!.season).toBe(2);
-    // No cup team is a tier-2 club.
-    for (const tid of league2.cup!.teams) {
+    // The real world (6 tier-1 leagues) fields a play-in: 14 byes + 2 pending
+    // (-1) slots the play-in fills, plus 4 play-in participants.
+    expect(league2.cup!.playIn).not.toBeNull();
+    expect(league2.cup!.playIn!.teams).toHaveLength(4);
+    expect(league2.cup!.teams.filter((t) => t === -1)).toHaveLength(2);
+    // No real cup team (bye or play-in participant) is a tier-2 club.
+    const preTids = [...league2.cup!.teams.filter((t) => t >= 0), ...league2.cup!.playIn!.teams];
+    for (const tid of preTids) {
       expect(tierOf(league2.competitions, league2.teams.find((t) => t.tid === tid)!.compId)).toBe(1);
     }
 
@@ -51,7 +57,10 @@ describe("Continental Cup — season lifecycle", () => {
     expect(played.phase).toBe("offseason");
     expect(isCupComplete(played.cup!)).toBe(true);
     expect(played.cup!.championTid).not.toBeNull();
-    expect(played.cup!.ties).toHaveLength(15); // 8 + 4 + 2 + 1
+    // The play-in filled both pending slots, and its 2 ties are recorded separately.
+    expect(played.cup!.teams.filter((t) => t === -1)).toHaveLength(0);
+    expect(played.cup!.playIn!.ties).toHaveLength(2);
+    expect(played.cup!.ties).toHaveLength(15); // R16 8 + QF 4 + SF 2 + F 1 (play-in ties are separate)
 
     // The champion is one of the two finalists (semi-final winners).
     const finalWinners = played.cup!.ties.filter((t) => t.round === 2).map((t) => t.winner);
@@ -77,6 +86,7 @@ describe("Continental Cup — season lifecycle", () => {
       name: "Continental Cup",
       teams: [userTid, ...others],
       seeds: {},
+      playIn: null,
       ties: [
         stubTie(0, userTid, others[0], userTid),
         stubTie(1, userTid, others[1], userTid),

@@ -5,12 +5,15 @@ import type { CupState, CupTie } from "./types.js";
 import { simMatchDetailed, resolveShot } from "../../engine/matchSim.js";
 import { pickShooter, pickAssister, emptyLine } from "../../engine/attribution.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
-import { completedRounds, matchupsForRound } from "./cup.js";
+import { completedRounds, matchupsForRound, applyPlayIn } from "./cup.js";
 import {
   CUP_ET_CHANCES_PER_SIDE, CUP_PEN_BEST_OF, CUP_PEN_BASE_CONVERSION,
   CUP_FINAL_ROUND, CUP_ROUND_MATCHDAYS, CUP_PRIZE_WIN_BY_ROUND,
-  CUP_PRIZE_PARTICIPATION, CUP_PRIZE_RUNNER_UP,
+  CUP_PRIZE_PARTICIPATION, CUP_PRIZE_RUNNER_UP, CUP_PRIZE_WIN_PLAYIN,
 } from "../constants.js";
+
+/** Play-in ties are tagged with this round index (they live in cup.playIn.ties, not cup.ties). */
+const PLAYIN_ROUND = -1;
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, x));
@@ -172,9 +175,11 @@ export function playCupRound(
   };
 
   // Everyone in the bracket earns the participation fee, credited once as the
-  // first round is played.
+  // first round is played — but the two play-in winners already collected it in
+  // the play-in, so credit only the byes here (all 16 when there's no play-in).
   if (round === 0) {
-    for (const tid of cup.teams) addPrize(tid, CUP_PRIZE_PARTICIPATION);
+    const playInTeams = new Set(cup.playIn?.teams ?? []);
+    for (const tid of cup.teams) if (!playInTeams.has(tid)) addPrize(tid, CUP_PRIZE_PARTICIPATION);
   }
 
   const newTies: CupTie[] = [];
@@ -194,4 +199,39 @@ export function playCupRound(
   }
 
   return { cup: { ...cup, ties: [...cup.ties, ...newTies], championTid }, prizes };
+}
+
+/**
+ * Play the preliminary play-in round in full: each tie (a weakest big-four
+ * qualifier vs a weak-league champion) is resolved, its winner written into the
+ * bracket's pending slot. Every play-in club earns the participation fee here
+ * (so the byes get it at R16 instead — see playCupRound), and each winner earns
+ * a play-in win bonus. Uses its own seeded rng, like every other cup round.
+ */
+export function playPlayIn(
+  cup: CupState,
+  matchData: Map<number, TeamMatchData>,
+  lid: number,
+): { cup: CupState; prizes: Map<number, number> } {
+  const pi = cup.playIn;
+  if (!pi) return { cup, prizes: new Map() };
+  const rng = mulberry32(hashInts(lid, cup.season, PLAYIN_ROUND, 30));
+  const prizes = new Map<number, number>();
+  const addPrize = (tid: number, amount: number): void => {
+    prizes.set(tid, (prizes.get(tid) ?? 0) + amount);
+  };
+  for (const tid of pi.teams) addPrize(tid, CUP_PRIZE_PARTICIPATION);
+
+  const ties: CupTie[] = [];
+  for (let i = 0; i + 1 < pi.teams.length; i += 2) {
+    const home = pi.teams[i];
+    const away = pi.teams[i + 1];
+    const hd = matchData.get(home);
+    const ad = matchData.get(away);
+    if (!hd || !ad) continue; // defensive: a qualifier should always be in matchData
+    const tie = resolveCupTie(rng, home, away, hd, ad, PLAYIN_ROUND, pi.matchday);
+    ties.push(tie);
+    addPrize(tie.winner, CUP_PRIZE_WIN_PLAYIN);
+  }
+  return { cup: applyPlayIn(cup, ties), prizes };
 }
