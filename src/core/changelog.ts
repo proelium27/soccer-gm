@@ -6,52 +6,60 @@
  * Keeping it in sync (same bar as the Manual — see CLAUDE.md):
  * - When a player-visible feature ships, changes, or is removed, PREPEND an
  *   entry here in the same PR. Newest entry goes first (top of the array).
- * - Write in plain, player-facing language (second person, like the Manual) —
- *   this is what players read, not a commit log. Don't quote hidden values.
+ * - Write in the dev's own FIRST-PERSON voice: casual, personal, and honest,
+ *   like you're talking straight to players ("Me and a few people noticed X,
+ *   so I did Y"). It's fine to share the reasoning behind a change and to be
+ *   specific about how it works (even quoting a number) if that helps players
+ *   understand it — this is what players read, not a commit log. Match the
+ *   tone of the existing entries.
  * - Group a batch of related changes shipped together under one dated entry.
+ * - Formatting: entries render as prose paragraphs (one per `items` string) by
+ *   default — most entries should read as a short first-person note, NOT a
+ *   bulleted list. Only set `list: true` when the post genuinely enumerates a
+ *   bunch of distinct features (e.g. God Mode, Import Teams); then `items`
+ *   render as bullets.
  *
  * `date` is an ISO date string (YYYY-MM-DD); the page formats it for display.
  */
 export interface ChangelogEntry {
   date: string;
   title: string;
-  /** One bullet per change, in plain player-facing language. */
+  /** Each string is one paragraph (default) or one bullet (when `list` is true). */
   items: string[];
+  /** Render `items` as a bulleted list instead of prose paragraphs — only for feature enumerations. */
+  list?: boolean;
 }
 
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
-    title: "You can't just buy your way to the top anymore",
+    title: "Fixed how easy it is to get good off the transfer market",
     items: [
-      "A common bit of feedback: winning the league gets too easy once you have money to spend. So building a champion is now genuinely harder.",
-      "The very best players can't be bought. The league's genuine elite are now priced so high that no club can afford them, yours included. You can still buy a solid, competitive squad, but the difference-makers who actually win titles aren't for sale at any price. To get one, you have to develop him yourself or bring him through your academy.",
-      "The upshot: money buys you a good team, not a great one. Winning the top flight now takes patience and a bit of luck in who you develop, not just a fat transfer budget.",
+      "Me and a few people noticed that this game was a little too easy. I personally led a bad D2 team to a D1 championship in like 10 seasons. So I essentially just raised AI's asking price for their star players. Now it is quite hard to buy a player who is over 76 OVR.",
+      "I'm trying to find a balance between making the game too easy and making the game too hard, because neither are fun to play.",
     ],
   },
   {
     date: "2026-07-20",
-    title: "\"Copy AI Prompt to Customize\" moved to the top bar",
+    title: "Moved the \"Copy AI Prompt to Customize\" button",
     items: [
-      "The button that copies an AI prompt for importing real teams (now labeled \"Copy AI Prompt to Customize\") lives in the top bar while you're in a save, instead of on each save's row on the Leagues screen. Export Teams and Import Teams stay on the Leagues screen.",
+      "I moved the \"Copy AI Prompt to Customize\" button (the one that helps you import real teams) up into the top bar while you're in a save, instead of tucking it away on each save's row on the Leagues screen. Export Teams and Import Teams are still on the Leagues screen.",
     ],
   },
   {
     date: "2026-07-20",
-    title: "Finishing skill now decides who scores",
+    title: "Individual player finishing now plays a bigger part in the engine",
     items: [
-      "A shot going in used to depend only on how good your team was overall, not on who was taking it, so a brilliant finisher stuck on a weak side didn't score any more than his teammates would have.",
-      "Now the individual finisher matters. Whether a shot goes in leans on the specific player taking it, measured against his own teammates, so a clear standout will bury chances the rest of the side would waste and pile up goals even on a struggling team. Corners work the same way off a player's heading.",
-      "It's a redistribution, not a goal fountain: your best finishers score more than their share, weaker ones score less, and the league's overall scoring is unchanged. One knock-on effect is that a season's top scorer can now push into the mid-30s, like real-world Golden Boot winners.",
-      "Expected goals (xG) is unchanged and still team-blind, which means beating your xG is now exactly what a great finisher looks like.",
+      "Previously, the engine was calculating shot conversion percentage based on a composite of all the attackers' stats on average. Now the stat of the person taking the shot matters individually.",
     ],
   },
   {
     date: "2026-07-20",
     title: "Import real teams and players from a file",
+    list: true,
     items: [
-      "A lot of you asked to bring real teams into the game. You can now do it: the Leagues screen has \"Export Teams\" and \"Import Teams\" on every save.",
+      "A lot of you asked to bring real teams into the game, so now you can. Every save on the Leagues screen has \"Export Teams\" and \"Import Teams\".",
       "Export Teams downloads a plain text (JSON) file listing every club in your world, grouped by league. Edit it however you like, or hand it to an AI and ask it to fill in a real league, then load it back with Import Teams. It matches clubs to your leagues by slot, so it's the easiest way to turn the fictional default world into real ones.",
       "Rename in bulk: change a club's name, abbreviation, and colors from the file instead of one at a time (same as Customize Teams). Include only the leagues you care about and leave the rest alone.",
       "Bring in real squads: a club can also carry a list of players. Give each one a name, position, and age, plus either an overall (the game builds ratings to match) or exact ratings for full control. List as many or as few as you want, whatever you leave short is topped up with reserves so the team is always playable. Importing a squad replaces that club's players, so it's best done on a fresh save.",
@@ -61,6 +69,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-20",
     title: "God Mode: a sandbox for building your dream league",
+    list: true,
     items: [
       "A lot of you asked for a Basketball GM-style \"God Mode,\" a sandbox where you can override the game instead of just playing it straight. It's here, and it's completely optional.",
       "Turn it on (or off) any time from the \"God Mode\" button in the top bar. It's per save, and there's no penalty. Flip it on to tinker, flip it off to go back to a normal career. When it's on, a \"God Mode\" section shows up in the sidebar and edit controls light up around the game.",
@@ -77,25 +86,22 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-07-20",
     title: "Two new leagues: France and Portugal",
     items: [
-      "A lot of you have been asking for more leagues, so France and Portugal are in the game now, each with their own two-division setup. That brings the world up to six countries and 240 clubs.",
-      "They're both meant to be weaker than the four leagues you already know, and Portugal is the weakest of the bunch. Their clubs have smaller budgets, so they tend to sell their best players off to the richer leagues instead of buying.",
-      "They play in the Continental Cup too, but only each country's champion gets in, and even then it has to win a play-in round first just to reach the main 16-team bracket.",
+      "A lot of you asked for more leagues, so I added France and Portugal, each with their own two divisions. That brings the world up to six countries and 240 clubs.",
+      "I made both of them weaker than the four leagues you already know, with Portugal the weakest, and gave their clubs smaller budgets. So they mostly sell their best players off to the richer leagues instead of buying. They're in the Continental Cup too, but only each country's champion gets in, and even then it has to win a play-in round first to reach the main 16-team bracket.",
     ],
   },
   {
     date: "2026-07-20",
     title: "See your Starting XI's stats at a glance",
     items: [
-      "A few of you pointed out that you could see season stats for your bench players but not for anyone in your Starting XI. Thanks for flagging it!",
-      "The Roster page now shows a stats table for your Starting XI, right below the pitch, with the same columns as the bench table (appearances, minutes, goals, assists, tackles, rating and more), so you can read every starter's season without moving him off the pitch.",
+      "A few of you pointed out that you could see season stats for your bench players but not for anyone in your Starting XI. Good catch. So I added a stats table for the Starting XI right below the pitch on the Roster page, with the same columns as the bench table (appearances, minutes, goals, assists, tackles, rating and more). Now you can read every starter's season without pulling him off the pitch.",
     ],
   },
   {
     date: "2026-07-20",
     title: "Easier lineup swaps on mobile",
     items: [
-      "We saw a lot of players struggling to move players in and out of the Starting XI on mobile, since drag-and-drop doesn't work well on phones.",
-      "Now you can just tap the four dots on the left side of a player, then tap a spot in the Starting XI (or another player) to swap them in. Drag-and-drop still works too if you're on a computer.",
+      "I saw a lot of you struggling to move players in and out of the Starting XI on mobile, since drag-and-drop doesn't really work on phones. So now you can just tap the four dots on the left side of a player, then tap a spot in the Starting XI (or another player) to swap them in. Drag-and-drop still works if you're on a computer.",
     ],
   },
 ];
