@@ -25,8 +25,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-07-20",
     title: "See your Starting XI's stats at a glance",
     items: [
-      "The Roster page now shows a stats table for your Starting XI, right below the pitch — the same columns as the bench table (appearances, minutes, goals, assists, tackles, rating and more).",
-      "Before this you could only see season stats for your bench players; now you can read every starter's season without moving him off the pitch.",
+      "A few of you pointed out that you could see season stats for your bench players but not for anyone in your Starting XI — thanks for flagging it!",
+      "The Roster page now shows a stats table for your Starting XI, right below the pitch — the same columns as the bench table (appearances, minutes, goals, assists, tackles, rating and more), so you can read every starter's season without moving him off the pitch.",
     ],
   },
   {
