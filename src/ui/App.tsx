@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LeagueProvider } from "./context/LeagueContext.js";
 import { SportNameProvider } from "./sportName.js";
 import { Layout } from "./components/Layout.js";
+import { AnnouncementBanner } from "./components/AnnouncementBanner.js";
 import { Leagues } from "./pages/Leagues.js";
 import { NewLeague } from "./pages/NewLeague.js";
 import { Dashboard } from "./pages/Dashboard.js";
@@ -37,6 +38,7 @@ export function App() {
     <BrowserRouter>
       <SportNameProvider>
       <LeagueProvider>
+        <AnnouncementBanner />
         <Routes>
           <Route path="/leagues" element={<Leagues />} />
           <Route path="/new-league" element={<NewLeague />} />

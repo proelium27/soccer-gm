@@ -146,6 +146,57 @@ a:hover {
 }
 
 /* =========================================================================
+   Announcement banner — one-time, dismissible "what's new" strip pinned to the
+   very top of every screen (rendered above the router, so it also shows on the
+   Leagues picker). Bright green band so it reads as a positive notice.
+   ========================================================================= */
+.announcement-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.5rem 2.5rem 0.5rem 1rem;
+  background-color: var(--sg-green);
+  color: var(--sg-on-green);
+  font-size: var(--sg-text-sm);
+  text-align: center;
+  position: relative;
+  z-index: 1040; /* above the sticky top bar (1030) */
+}
+.announcement-banner-text strong {
+  font-weight: 700;
+}
+.announcement-banner-link {
+  color: var(--sg-on-green);
+  font-weight: 700;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.announcement-banner-link:hover {
+  color: var(--sg-on-green);
+}
+.announcement-banner-close {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--sg-on-green);
+  cursor: pointer;
+}
+.announcement-banner-close:hover {
+  background: rgb(0 0 0 / 0.12);
+}
+
+/* =========================================================================
    Top bar — deep pitch-green band. This is where green earns real surface.
    ========================================================================= */
 .app-topbar {
