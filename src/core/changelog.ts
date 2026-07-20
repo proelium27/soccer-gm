@@ -42,12 +42,9 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: "2026-07-20",
-    title: "Finishing skill now decides who scores",
+    title: "Individual player finishing now plays a bigger part in the engine",
     items: [
-      "A shot going in used to depend only on how good your team was overall, not on who was taking it, so a brilliant finisher stuck on a weak side didn't score any more than his teammates would have.",
-      "Now the individual finisher matters. Whether a shot goes in leans on the specific player taking it, measured against his own teammates, so a clear standout will bury chances the rest of the side would waste and pile up goals even on a struggling team. Corners work the same way off a player's heading.",
-      "It's a redistribution, not a goal fountain: your best finishers score more than their share, weaker ones score less, and the league's overall scoring is unchanged. One knock-on effect is that a season's top scorer can now push into the mid-30s, like real-world Golden Boot winners.",
-      "Expected goals (xG) is unchanged and still team-blind, which means beating your xG is now exactly what a great finisher looks like.",
+      "Previously, the engine was calculating shot conversion percentage based on a composite of all the attackers' stats on average. Now the stat of the person taking the shot matters individually.",
     ],
   },
   {
