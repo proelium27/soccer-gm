@@ -1340,3 +1340,19 @@ export const CUP_ET_CHANCES_PER_SIDE = 6;
 export const CUP_PEN_BEST_OF = 5;
 /** Base per-kick conversion probability, nudged by taker finishing vs keeper. */
 export const CUP_PEN_BASE_CONVERSION = 0.75;
+
+/**
+ * Match Rating (average) leaderboard qualifier. An average over one or two
+ * games is noise — a single standout cameo would otherwise top the chart — so
+ * a player must have appeared in at least this fraction of the games *played so
+ * far* to show up. Scaling to games-played (not a flat count) keeps the board
+ * honest ten games into a season as well as at the end of a full 38-match one.
+ * Counting/total stats (goals, assists, etc.) have no such gate.
+ */
+export const RATING_LEADER_QUALIFY_FRACTION = 1 / 2;
+/**
+ * Flat appearance floor for the *career-aggregate* Match Rating board (the
+ * "All Seasons → Career" scope), which spans many seasons and has no single
+ * games-played denominator to take a fraction of.
+ */
+export const RATING_LEADER_MIN_CAREER_APPEARANCES = 10;
