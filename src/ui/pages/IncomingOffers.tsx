@@ -163,6 +163,18 @@ export function IncomingOffers() {
     (n) => !listedPids.has(n.pid) && n.status === "open",
   );
 
+  // Accepting an offer sells the player and drops him off the roster, so his
+  // candidate row would just vanish. Keep it in place (showing "Sold to <club>")
+  // for the rest of the window instead.
+  const soldRows = negotiations.flatMap((n) => {
+    if (n.status !== "accepted" || listedPids.has(n.pid)) return [];
+    const player = league.players.find((pl) => pl.pid === n.pid);
+    return player
+      ? [{ player, buyerTid: n.buyerTid, openingOffer: n.offers.at(-1) ?? 0 }]
+      : [];
+  });
+  const displayCandidates = [...soldRows, ...candidates];
+
   // An accepted offer sells the player and drops him off the roster, so he
   // falls out of both `candidates` and `orphaned` with no other confirmation
   // on this page — surface completed sales explicitly instead.
@@ -192,11 +204,11 @@ export function IncomingOffers() {
         </p>
       )}
 
-      {ws.open && candidates.length === 0 && orphaned.length === 0 && (
+      {ws.open && displayCandidates.length === 0 && orphaned.length === 0 && (
         <p className="text-muted">No offers for your players right now.</p>
       )}
 
-      {candidates.length > 0 && (
+      {displayCandidates.length > 0 && (
         <table className="table table-striped table-sm align-middle">
           <thead>
             <tr>
@@ -210,7 +222,7 @@ export function IncomingOffers() {
             </tr>
           </thead>
           <tbody>
-            {candidates.map((c) => {
+            {displayCandidates.map((c) => {
               const p = c.player;
               const negotiation = negotiationByPid.get(p.pid);
               const buyerTid = negotiation?.buyerTid ?? c.buyerTid;

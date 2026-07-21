@@ -11,7 +11,6 @@ import "@fontsource/ibm-plex-mono/600.css";
 import "./styles.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Analytics } from "@vercel/analytics/react";
 import posthog from "posthog-js";
 import { App } from "./App.js";
 
@@ -23,6 +22,5 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
-    <Analytics />
   </StrictMode>,
 );
