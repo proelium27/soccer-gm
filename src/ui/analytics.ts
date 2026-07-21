@@ -1,12 +1,11 @@
-import { track } from "@vercel/analytics";
 import posthog from "posthog-js";
 
-// Custom gameplay events reported to Vercel Web Analytics.
+// Custom gameplay events reported to PostHog.
 //
 // The whole game runs client-side (state lives in IndexedDB and never reaches a
-// server), so these track() calls are our ONLY window into what players
-// actually do. `<Analytics />` in main.tsx already reports page views for free;
-// this adds the in-game actions page views can't see.
+// server), so these capture() calls are our ONLY window into what players
+// actually do. PostHog already reports page views for free; this adds the
+// in-game actions page views can't see.
 //
 // Two rules keep the dashboard useful and privacy-clean:
 //   1. Keep the event set small and stable — a handful of meaningful moments,
@@ -52,18 +51,12 @@ export interface GameEvents {
 /**
  * Report a gameplay event. Typed so a call can't send the wrong props, and
  * wrapped so analytics can never throw into gameplay — a tracking failure
- * should be invisible to the player. In dev, Vercel's track() just logs to the
- * console instead of sending anything.
+ * should be invisible to the player.
  */
 export function trackEvent<K extends keyof GameEvents>(
   name: K,
   ...props: GameEvents[K] extends Record<string, never> ? [] : [GameEvents[K]]
 ): void {
-  try {
-    track(name, props[0]);
-  } catch {
-    // Analytics must never break the game.
-  }
   try {
     posthog.capture(name, props[0]);
   } catch {
