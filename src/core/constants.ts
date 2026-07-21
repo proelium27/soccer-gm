@@ -620,7 +620,7 @@ export const PROSPECT_AGE_MAX = 21;
  * long-run compounding independently of this value, so raising it doesn't
  * reopen the accumulation problem the 2026-07-13 cut was solving.
  *
- * Cut 110M → 85M on 2026-07-21 per user direction, to reduce AI cash-hoarding:
+ * Cut 110M → 88M on 2026-07-21 per user direction, to reduce AI cash-hoarding:
  * a 15-season dynasty audit found AI clubs sitting on ~$110M median with 90%+
  * banking a >$50M war chest, because the base inflow so far outruns wages that
  * the surplus compounds every season (the AI-to-AI market can't drain it — see
@@ -628,12 +628,19 @@ export const PROSPECT_AGE_MAX = 21;
  * and D2 both, via the shared tier/country scale, and the user's own club too —
  * a small difficulty bump). Wages are intentionally left UNCHANGED (lowering
  * them would shrink the wage sink and increase hoarding, the opposite of the
- * goal). The worst-case AI wage bill (WAGE_SAFE_SQUAD ≈ $75M) still nets +$10M/
- * season at 85M, and the empirical solvency buffer (lowest AI budget ever
- * observed at 110M was ~$20M over 15 seasons) mostly absorbs the $25M cut —
- * re-audited for zero deficits after the change. MAX_BUDGET is untouched.
+ * goal).
+ *
+ * The floor is hard: the WAGE_SAFE_SQUAD invariant test requires base to strictly
+ * exceed the *worst-case* AI wage bill — the strongest AI-reachable squad at the
+ * top of the ±WAGE_VARIATION band — which is ≈ $85.92M (a first pass to 85M dipped
+ * $0.9M below it and CI's budget.test.ts caught it, even though 15/12-season
+ * empirical audits never hit that tail). So 88M is the deepest sensible cut that
+ * keeps "AI deficits never exist," clearing the worst case by ~$2M. Empirically
+ * (audited at the slightly lower 85M) it drops the median AI hoard to ~$92-95M
+ * (from ~$110M) with zero deficits over two seeds; 88M lands marginally above
+ * that. MAX_BUDGET is untouched.
  */
-export const BASE_SEASON_BUDGET = 85_000_000;
+export const BASE_SEASON_BUDGET = 88_000_000;
 /**
  * Hard ceiling on a club's running budget balance, added 2026-07-13: since
  * budget compounds season over season by design (never resets to the base
