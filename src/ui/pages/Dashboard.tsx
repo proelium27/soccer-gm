@@ -95,7 +95,7 @@ export function Dashboard() {
 // draft state — skips recomputing standings, the news timeline, the lookup
 // maps, the wage bill, and the stat-leader scans over the whole player pool.
 function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: StoredTeam }) {
-  const { simAction, offseasonAction, setScoutingSpendAction, simming } = useLeague();
+  const { simAction, setScoutingSpendAction, simming } = useLeague();
   const navigate = useNavigate();
   // Slider position while dragging; persisted (and clamped) only on release
   // so we don't write to IndexedDB on every drag tick.
@@ -318,14 +318,15 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
           <div className="card-body">
             <h5 className="card-title">Offseason</h5>
             <p className="card-text">
-              {seasonYear(league.season)} is complete. Advancing will run player
-              progression, retirements, AI free agency, and youth intake, then
-              start {seasonYear(league.season + 1)}.
+              {seasonYear(league.season)} is complete. First you'll set your
+              scouting budget for the new season, then advancing runs player
+              progression, retirements, AI free agency, and youth intake, and
+              starts {seasonYear(league.season + 1)}.
             </p>
             <button
               className="btn btn-success"
               disabled={simming}
-              onClick={() => offseasonAction().then(() => navigate("/season-preview"))}
+              onClick={() => navigate("/set-scouting")}
             >
               Advance to {seasonYear(league.season + 1)}
             </button>
