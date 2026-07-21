@@ -674,7 +674,7 @@ export function Manual() {
 
         <Section id="finance" title="Finance">
           <p>
-            Every club starts each season with the same base allocation (<strong>$110M</strong>),
+            Every club starts each season with the same base allocation (<strong>$88M</strong>),
             and the squad's <strong>entire season wage bill is paid up front</strong> at the season
             start. Whatever's left is genuinely yours to spend, on transfer fees, mid-season
             signings, and scouting. A mid-season pickup (transfer buy or free-agent signing) charges
@@ -786,10 +786,16 @@ export function Manual() {
             difference between the two valuations). Everything you'd expect falls out of that one
             rule with no special cases. Surplus players get dumped, aging stars get sold at peak the
             moment their keep-value dips below their market price, and needy clubs overpay for scarce
-            positions. Guardrails keep it sane: clubs won't auction off irreplaceable core players,
+            positions. And a club that's sitting on cash with a real hole in its squad (short of
+            bodies at a position, or a clear weak spot in its best XI) won't hold out for a bargain
+            the way it does for a luxury buy. It'll pay a fair price to fill that hole and dig a bit
+            deeper into its budget to get it done, so rivals patch their gaps instead of hoarding
+            money. Guardrails keep it sane: clubs won't auction off irreplaceable core players,
             cap themselves at 3 buys and 3 sells per window, always respect the depth floor and
-            roster cap, and hold back a cash reserve instead of spending to zero. Expect roughly a
-            hundred AI transfers league-wide per season, and you can watch them in the News Feed.
+            roster cap, and hold back a cash reserve instead of spending to zero (so even a
+            gap-filling club never bankrupts itself, and the genuine superstars stay unbuyable at any
+            price). Expect roughly a hundred AI transfers league-wide per season, and you can watch
+            them in the News Feed.
           </p>
           <p>
             <strong>Contract renewals.</strong> Before contracts expire each offseason, every AI club
