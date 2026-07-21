@@ -14,6 +14,7 @@ import { simMatchDetailed } from "../engine/matchSim.js";
 import { emptySeasonStats } from "./players/types.js";
 import { applyInjuries } from "./injuries.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
+import { protectedStarPids, lastCompletedSeason } from "./transfers/protectedStars.js";
 import { runAILoanMarket } from "./loans.js";
 import { hashInts } from "../engine/rng.js";
 import type { StoredTeam } from "./teams/clubs.js";
@@ -207,6 +208,10 @@ export function simThrough(
         currentTeams, currentPlayers, activeLoans, transfers, league.season,
         [...league.played, ...newResults], "winter", "regular",
         league.meta.userTid, hashInts(league.lid, league.season, 8), league.competitions,
+        protectedStarPids(
+          lastCompletedSeason(league), currentTeams, currentPlayers,
+          league.competitions, league.meta.userTid,
+        ),
       );
       currentTeams = market.teams;
       transfers = market.transfers;

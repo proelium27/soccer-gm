@@ -541,13 +541,17 @@ export function Manual() {
             pricier to pry loose).
           </p>
           <p>
-            <strong>The very best players can't be bought.</strong> Above a certain OVR &mdash;
-            roughly the top of any league &mdash; value climbs so steeply that the game's genuine
-            elite are priced clean out of every club's budget. You can buy a solid, competitive
-            squad, but the difference-makers who actually win titles aren't for sale at any price:
-            you have to develop them yourself (and, per the note on potential above, that's a
-            gamble) or hope one comes through your own academy. Money buys you a good team; it can't
-            buy you a great one.
+            <strong>Values are capped, and the very best players aren't for sale.</strong> No
+            player's value ever runs past $350M, so you'll never see a fantasy price tag. Instead,
+            the genuine elite are simply taken off the market the way a top club would never sell
+            its star at any price: if a player was one of the best in the world last season &mdash;
+            either a top-of-the-league OVR, or he won Player of the Season, the Golden Boot, or a
+            Team of the Season place &mdash; and his club finished in the top four of a top-flight
+            league, he's not for sale to anyone. He won't appear in your recommended targets and any
+            offer you make is ignored. You can still buy a solid, competitive squad, but the
+            difference-makers who actually win titles you have to develop yourself (a gamble, per the
+            note on potential above) or catch at a club that had a down year. Money buys you a good
+            team; it can't buy you a great one.
           </p>
           <p>
             <strong>Buying.</strong> The Transfers page recommends 5&ndash;10 for-sale players near

@@ -16,7 +16,7 @@ function runOnFresh(seed: number) {
   const result = runAITransferMarket(
     league.teams, league.players, league.activeLoans, league.transfers,
     league.season + 1, league.played, "summer", "offseason", USER_TID, 12345,
-    league.competitions,
+    league.competitions, new Set(),
   );
   return { league, result };
 }
@@ -78,7 +78,7 @@ describe("runAITransferMarket", () => {
     const args = [
       league.teams, league.players, league.activeLoans, league.transfers,
       league.season + 1, league.played, "summer", "offseason", USER_TID, 999,
-      league.competitions,
+      league.competitions, new Set<number>(),
     ] as const;
     const a = runAITransferMarket(...args);
     const b = runAITransferMarket(...args);
@@ -123,7 +123,7 @@ describe("runAITransferMarket", () => {
     const control = runAITransferMarket(
       league.teams, league.players, league.activeLoans, league.transfers,
       league.season + 1, league.played, "summer", "offseason", USER_TID, 12345,
-      league.competitions,
+      league.competitions, new Set(),
     );
     // The fresh-league market moves players, so there's a real deal to guard.
     expect(control.transfers.length).toBeGreaterThan(0);
@@ -138,7 +138,7 @@ describe("runAITransferMarket", () => {
     const guarded = runAITransferMarket(
       league.teams, league.players, activeLoans, league.transfers,
       league.season + 1, league.played, "summer", "offseason", USER_TID, 12345,
-      league.competitions,
+      league.competitions, new Set(),
     );
     expect(guarded.transfers.some((t) => t.pid === victim.pid)).toBe(false);
   });
@@ -205,7 +205,7 @@ describe("runAITransferMarket", () => {
 
     const result = runAITransferMarket(
       teams, players, [], [], league.season, [], "winter", "regular", USER_TID, 42,
-      league.competitions,
+      league.competitions, new Set(),
     );
 
     const boughtStriker = result.transfers.some(

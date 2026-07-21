@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../../src/engine/rng.js";
 import { trueTransferValue, perceivedTransferValue } from "../../../src/core/finance/valuation.js";
 import type { Player, PlayerRatings } from "../../../src/core/players/types.js";
-import { SCOUTING_SPEND_MAX } from "../../../src/core/constants.js";
+import { SCOUTING_SPEND_MAX, MAX_TRANSFER_VALUE } from "../../../src/core/constants.js";
 
 const RATINGS: PlayerRatings = {
   speed: 50, strength: 50, stamina: 50, jumping: 50,
@@ -53,22 +53,33 @@ describe("trueTransferValue", () => {
     expect(trueTransferValue(longDeal, 2026)).toBeGreaterThan(trueTransferValue(shortDeal, 2026));
   });
 
-  it("applies a steep 'priceless star' premium above the elite threshold", () => {
+  it("applies a steep elite premium above the threshold, capped at the value ceiling", () => {
     // At/below the elite threshold (VALUATION_ELITE_THRESHOLD, currently 76) the
-    // premium is zero; above it, value climbs far faster than the base curve so
-    // the league's genuine best players are priced out of any club's budget —
-    // you develop them, you don't buy them (see VALUATION_ELITE_* in constants.js).
+    // premium is zero; above it, value climbs far faster than the base curve.
+    // But it no longer runs off to infinity — the final value is clamped at
+    // MAX_TRANSFER_VALUE so quoted fees stay believable. "You can't buy the
+    // very best" is enforced by the not-for-sale gate (protectedStars.ts), not
+    // by an unpayable price (see VALUATION_ELITE_* / MAX_TRANSFER_VALUE).
     const prime = { born: 2026 - 26, contract: { salary: 1000, expiresSeason: 2027 } };
     const at76 = trueTransferValue(makePlayer({ ovr: 76, potential: 76, ...prime }), 2026);
     const at78 = trueTransferValue(makePlayer({ ovr: 78, potential: 78, ...prime }), 2026);
     const at80 = trueTransferValue(makePlayer({ ovr: 80, potential: 80, ...prime }), 2026);
     const at82 = trueTransferValue(makePlayer({ ovr: 82, potential: 82, ...prime }), 2026);
-    // Just above the threshold the premium already bites; by ovr 80 the player
-    // has cleared the $400M budget cap and is effectively unbuyable.
+    // Just above the threshold the premium already bites hard.
     expect(at78).toBeGreaterThan(at76 * 1.5); // a 2-point step above the knee lifts value sharply
-    expect(at80).toBeGreaterThan(400_000_000);
-    // Super-linear: each 2-point step near the top outweighs the last.
-    expect(at82 - at80).toBeGreaterThan(at80 - at78);
+    // By ovr 80 the premium has driven value up to the ceiling and it stays
+    // there — no player's value ever exceeds MAX_TRANSFER_VALUE.
+    expect(at78).toBeLessThanOrEqual(MAX_TRANSFER_VALUE);
+    expect(at80).toBe(MAX_TRANSFER_VALUE);
+    expect(at82).toBe(MAX_TRANSFER_VALUE);
+  });
+
+  it("never exceeds the value ceiling, even for an extreme player", () => {
+    const monster = makePlayer({
+      ovr: 99, potential: 99, born: 2026 - 19,
+      contract: { salary: 1000, expiresSeason: 2046 },
+    });
+    expect(trueTransferValue(monster, 2026)).toBe(MAX_TRANSFER_VALUE);
   });
 });
 
