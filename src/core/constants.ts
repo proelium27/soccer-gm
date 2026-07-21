@@ -167,6 +167,21 @@ export function academyBaseCenter(country: string, tier: 1 | 2): number {
 export const NORMALIZE_K = 0.08;
 
 /**
+ * Star concentration for the attack/control/defense composite rollups
+ * (2026-07-21). `rollupComposites` position-weights each phase (who drives it
+ * counts most), then blends the weighted mean toward the group's single best
+ * player: `dial = (1 - c) * weightedMean + c * peak`. This lets an elite
+ * individual resist being averaged down by weak teammates, so a standout in a
+ * key position genuinely carries a thin squad instead of being diluted to the
+ * roster mean. 0 = pure weighted mean (no star effect); 1 = the group's best
+ * player alone sets the dial. `finishing` is deliberately left on its own
+ * shot-share weighting (no peak blend). Higher values swing more of a team's
+ * strength onto one player — dynasty-audit title churn before raising it, as
+ * the blend interacts with league z-normalization spread.
+ */
+export const COMPOSITE_STAR_CONCENTRATION = 0.3;
+
+/**
  * Historic team seasons ("extremism", 2026-07-19, user ask): each club, each
  * season, has a small chance of a hidden season-long form swing — a dream
  * season (+TEAM_SEASON_FORM_DELTA on every normalized composite) or a season
@@ -1395,3 +1410,19 @@ export const CUP_ET_CHANCES_PER_SIDE = 6;
 export const CUP_PEN_BEST_OF = 5;
 /** Base per-kick conversion probability, nudged by taker finishing vs keeper. */
 export const CUP_PEN_BASE_CONVERSION = 0.75;
+
+/**
+ * Match Rating (average) leaderboard qualifier. An average over one or two
+ * games is noise — a single standout cameo would otherwise top the chart — so
+ * a player must have appeared in at least this fraction of the games *played so
+ * far* to show up. Scaling to games-played (not a flat count) keeps the board
+ * honest ten games into a season as well as at the end of a full 38-match one.
+ * Counting/total stats (goals, assists, etc.) have no such gate.
+ */
+export const RATING_LEADER_QUALIFY_FRACTION = 1 / 2;
+/**
+ * Flat appearance floor for the *career-aggregate* Match Rating board (the
+ * "All Seasons → Career" scope), which spans many seasons and has no single
+ * games-played denominator to take a fraction of.
+ */
+export const RATING_LEADER_MIN_CAREER_APPEARANCES = 10;

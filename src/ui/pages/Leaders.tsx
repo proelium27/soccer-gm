@@ -8,6 +8,10 @@ import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { seasonYear } from "../format.js";
+import {
+  RATING_LEADER_QUALIFY_FRACTION,
+  RATING_LEADER_MIN_CAREER_APPEARANCES,
+} from "../../core/constants.js";
 
 type StatKey =
   | "goals"
@@ -158,13 +162,30 @@ function PlayerLeaders({ compId }: { compId: number }) {
   // many seasons and has no single "correct" historical team to show).
   const teamByPid = new Map<number, string>();
   const tidByPid = new Map<number, number>();
+  const compTids = new Set<number>();
   for (const team of league.teams) {
     if (team.compId !== compId) continue;
+    compTids.add(team.tid);
     for (const pid of team.roster) {
       teamByPid.set(pid, team.name);
       tidByPid.set(pid, team.tid);
     }
   }
+
+  // How many games this competition has played in a given season — the
+  // denominator the Match Rating qualifier takes a fraction of. The current
+  // season is in progress (count distinct matchdays played so far); any earlier
+  // season is complete, so it's the full double round-robin.
+  const currentMatchdaysPlayed = (() => {
+    const mds = new Set<number>();
+    for (const m of league.played) {
+      if (compTids.has(m.home) || compTids.has(m.away)) mds.add(m.matchday);
+    }
+    return mds.size;
+  })();
+  const fullSeasonMatches = Math.max(0, 2 * (compTids.size - 1));
+  const matchesPlayedInSeason = (s: number): number =>
+    s === league.season ? currentMatchdaysPlayed : fullSeasonMatches;
 
   // A specific season's stat line carries the team the player was actually
   // on that season (SeasonStats.tid); this map resolves any tid to its
@@ -238,8 +259,27 @@ function PlayerLeaders({ compId }: { compId: number }) {
       });
     }
   }
-  rows.sort((a, b) => b.stats[stat] - a.stats[stat]);
-  const top = rows.slice(0, 30);
+  // Match Rating is an average, so a player with only a game or two of data
+  // would otherwise sit atop the chart on a single hot cameo. Require him to
+  // have appeared in a fraction of the games played *so far* — scaling to
+  // games-played keeps the board honest ten games in as well as at season's
+  // end (counting stats like goals are unaffected).
+  const appsToQualify = (s: number): number =>
+    Math.max(1, Math.ceil(RATING_LEADER_QUALIFY_FRACTION * matchesPlayedInSeason(s)));
+  let ratingQualifies: (row: LeaderRow) => boolean;
+  if (season !== "all") {
+    const threshold = appsToQualify(season);
+    ratingQualifies = (r) => r.stats.appearances >= threshold;
+  } else if (scope === "career") {
+    // Career aggregate spans many seasons — use a flat cumulative floor.
+    ratingQualifies = (r) => r.stats.appearances >= RATING_LEADER_MIN_CAREER_APPEARANCES;
+  } else {
+    // Single best season: each row carries its own season (row.season).
+    ratingQualifies = (r) => r.stats.appearances >= appsToQualify(r.season ?? league.season);
+  }
+  const qualified = stat === "avgRating" ? rows.filter(ratingQualifies) : rows;
+  qualified.sort((a, b) => b.stats[stat] - a.stats[stat]);
+  const top = qualified.slice(0, 30);
   const showSeasonColumn = season === "all" && scope === "single";
 
   return (

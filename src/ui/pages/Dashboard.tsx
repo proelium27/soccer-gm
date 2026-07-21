@@ -7,7 +7,7 @@ import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
 import { TRANSFER_DEADLINE_MATCHDAY } from "../../core/calendar.js";
-import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
+import { SCOUTING_SPEND_MAX, RATING_LEADER_QUALIFY_FRACTION } from "../../core/constants.js";
 import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
@@ -36,14 +36,17 @@ function topByStat(
   pidPool: Set<number>,
   season: number,
   key: keyof SeasonStats,
+  ratingMinApps: number,
 ): StatLeaderRow[] {
   const rows: StatLeaderRow[] = [];
   for (const p of players) {
     if (!pidPool.has(p.pid)) continue;
     const ss = p.stats.find((s) => s.season === season);
-    if (ss && Number(ss[key]) > 0) {
-      rows.push({ player: p, value: Number(ss[key]) });
-    }
+    if (!ss || Number(ss[key]) <= 0) continue;
+    // Match Rating is an average: a one-off cameo shouldn't top the board. The
+    // threshold scales with how many games have been played (see caller).
+    if (key === "avgRating" && ss.appearances < ratingMinApps) continue;
+    rows.push({ player: p, value: Number(ss[key]) });
   }
   rows.sort((a, b) => b.value - a.value);
   return rows.slice(0, LEADERS_PER_STAT);
@@ -204,15 +207,29 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
   }, [league.teams, userTeam.compId]);
   const teamPidPool = useMemo(() => new Set(userTeam.roster), [userTeam.roster]);
 
+  // The Match Rating board needs a player to have appeared in a fraction of the
+  // games played *so far* — count the matchdays this division has completed and
+  // take that fraction, so a hot cameo can't top the board ten games in.
+  const ratingMinApps = useMemo(() => {
+    const compTids = new Set(
+      league.teams.filter((t) => t.compId === userTeam.compId).map((t) => t.tid),
+    );
+    const mds = new Set<number>();
+    for (const m of league.played) {
+      if (compTids.has(m.home) || compTids.has(m.away)) mds.add(m.matchday);
+    }
+    return Math.max(1, Math.ceil(RATING_LEADER_QUALIFY_FRACTION * mds.size));
+  }, [league.teams, league.played, userTeam.compId]);
+
   // Pre-scan the stat leaders once per pool (each is an O(players) sweep). Index
   // aligns with LEADER_STAT_KEYS so the JSX below just reads the ith result.
   const leagueLeaders = useMemo(
-    () => LEADER_STAT_KEYS.map(({ key }) => topByStat(league.players, leaguePidPool, league.season, key)),
-    [league.players, leaguePidPool, league.season],
+    () => LEADER_STAT_KEYS.map(({ key }) => topByStat(league.players, leaguePidPool, league.season, key, ratingMinApps)),
+    [league.players, leaguePidPool, league.season, ratingMinApps],
   );
   const teamLeaders = useMemo(
-    () => LEADER_STAT_KEYS.map(({ key }) => topByStat(league.players, teamPidPool, league.season, key)),
-    [league.players, teamPidPool, league.season],
+    () => LEADER_STAT_KEYS.map(({ key }) => topByStat(league.players, teamPidPool, league.season, key, ratingMinApps)),
+    [league.players, teamPidPool, league.season, ratingMinApps],
   );
 
   // Season wage bill: senior roster + academy, priced from every player's
