@@ -8,6 +8,7 @@ import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { seasonYear } from "../format.js";
+import { RATING_LEADER_MIN_APPEARANCES } from "../../core/constants.js";
 
 type StatKey =
   | "goals"
@@ -238,8 +239,15 @@ function PlayerLeaders({ compId }: { compId: number }) {
       });
     }
   }
-  rows.sort((a, b) => b.stats[stat] - a.stats[stat]);
-  const top = rows.slice(0, 30);
+  // Match Rating is an average, so a player with only a game or two of data
+  // would otherwise sit atop the chart on a single hot cameo. Require a
+  // minimum number of appearances to qualify (counting stats are unaffected).
+  const qualified =
+    stat === "avgRating"
+      ? rows.filter((r) => r.stats.appearances >= RATING_LEADER_MIN_APPEARANCES)
+      : rows;
+  qualified.sort((a, b) => b.stats[stat] - a.stats[stat]);
+  const top = qualified.slice(0, 30);
   const showSeasonColumn = season === "all" && scope === "single";
 
   return (

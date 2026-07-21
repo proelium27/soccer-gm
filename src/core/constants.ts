@@ -1340,3 +1340,12 @@ export const CUP_ET_CHANCES_PER_SIDE = 6;
 export const CUP_PEN_BEST_OF = 5;
 /** Base per-kick conversion probability, nudged by taker finishing vs keeper. */
 export const CUP_PEN_BASE_CONVERSION = 0.75;
+
+/**
+ * Minimum appearances a player needs before he qualifies for the Match Rating
+ * (average) leaderboards. An average over one or two games is noise — a single
+ * standout cameo would otherwise top the chart — so we hide anyone below this.
+ * Counting/total stats (goals, assists, etc.) have no such gate. A full league
+ * season is 38 matches, so this is roughly a quarter-season of games.
+ */
+export const RATING_LEADER_MIN_APPEARANCES = 10;

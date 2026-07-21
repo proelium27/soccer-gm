@@ -7,7 +7,7 @@ import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
 import { TRANSFER_DEADLINE_MATCHDAY } from "../../core/calendar.js";
-import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
+import { SCOUTING_SPEND_MAX, RATING_LEADER_MIN_APPEARANCES } from "../../core/constants.js";
 import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
@@ -41,9 +41,10 @@ function topByStat(
   for (const p of players) {
     if (!pidPool.has(p.pid)) continue;
     const ss = p.stats.find((s) => s.season === season);
-    if (ss && Number(ss[key]) > 0) {
-      rows.push({ player: p, value: Number(ss[key]) });
-    }
+    if (!ss || Number(ss[key]) <= 0) continue;
+    // Match Rating is an average: a one-off cameo shouldn't top the board.
+    if (key === "avgRating" && ss.appearances < RATING_LEADER_MIN_APPEARANCES) continue;
+    rows.push({ player: p, value: Number(ss[key]) });
   }
   rows.sort((a, b) => b.value - a.value);
   return rows.slice(0, LEADERS_PER_STAT);
