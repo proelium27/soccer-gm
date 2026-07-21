@@ -33,10 +33,10 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    date: "2026-07-20",
-    title: "Crests for a bunch of Spanish clubs",
+    date: "2026-07-21",
+    title: "Crests for every Spanish club",
     items: [
-      "Up till now England was the only country with real crest art, and everyone else just got the two-color swatch. I made crests for 32 of Spain's clubs, so they now show up wherever the club's name does instead of the plain swatch. That's most of both Spanish divisions. A few of the biggest names (Madrid, Barcelona Halcones, Valencia) and a handful of others are still on swatches for now, and so are Italy, Germany, France and Portugal. I'll keep chipping away at them.",
+      "Up till now England was the only country with real crest art, and everyone else just got the two-color swatch. I made crests for all 40 of Spain's clubs, both divisions, so they now show up wherever the club's name does instead of the plain swatch. That includes the big names I hadn't gotten to yet (Madrid, Barcelona Halcones, Valencia) and finishes off the last stragglers, so Spain's completely done now. Italy, Germany, France and Portugal are still on swatches, but I'll keep chipping away at them.",
     ],
   },
   {
