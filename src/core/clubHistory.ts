@@ -1,8 +1,7 @@
 import type { LeagueStore } from "./leagueState.js";
 import type { StandingsRow } from "./standings.js";
 import { tierOf } from "./competitions.js";
-import { clubCupRun } from "./cup/cup.js";
-import { CUP_FINAL_ROUND } from "./constants.js";
+import { cupRunSummary } from "./cup/cup.js";
 
 /** One completed season from a single club's perspective. */
 export interface ClubSeasonRecord {
@@ -27,13 +26,11 @@ export interface ClubSeasonRecord {
   /** This club's players selected in the season's Team of the Season. */
   teamOfSeasonPids: number[];
   /**
-   * The club's Continental Cup run this season: the furthest round reached and
-   * whether it won that round (so `round === CUP_FINAL_ROUND && wonRound` is a
-   * cup win, `round === CUP_FINAL_ROUND && !wonRound` a runner-up, and any other
-   * round the stage it was eliminated at). Null if it didn't qualify or the
-   * world fields no cup.
+   * The club's Continental Cup run this season: a short stage label plus
+   * champion / runner-up flags (format-aware for Swiss and legacy cups). Null if
+   * it didn't take part or the world fields no cup.
    */
-  cupRun: { round: number; wonRound: boolean } | null;
+  cupRun: { note: string; isChampion: boolean; isRunnerUp: boolean } | null;
 }
 
 /** An individual honour won by one of the club's players in a given season. */
@@ -131,7 +128,7 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
       : [];
 
     const cup = cupBySeason.get(entry.season);
-    const cupRun = cup ? clubCupRun(cup, tid) : null;
+    const cupRun = cup ? cupRunSummary(cup, tid) : null;
 
     return {
       season: entry.season,
@@ -196,10 +193,10 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
     promotions: newest.filter((r) => r.promoted).map((r) => r.season),
     relegations: newest.filter((r) => r.relegated).map((r) => r.season),
     cupTitles: newest
-      .filter((r) => r.cupRun?.round === CUP_FINAL_ROUND && r.cupRun.wonRound)
+      .filter((r) => r.cupRun?.isChampion)
       .map((r) => r.season),
     cupFinals: newest
-      .filter((r) => r.cupRun?.round === CUP_FINAL_ROUND && !r.cupRun.wonRound)
+      .filter((r) => r.cupRun?.isRunnerUp)
       .map((r) => r.season),
     playerOfSeason: newest
       .filter((r) => r.playerOfSeasonPid !== null)

@@ -286,11 +286,18 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     loanRejections: anyVersion.loanRejections ?? [],
     // Pre-cup saves have no Continental Cup; they start with none and get one
     // seeded at their next offseason from that season's final tables (so an
-    // existing save picks the cup up from the following season onward). A cup
-    // saved before the weak-league play-in has no `playIn` field; backfill it
-    // to null (no play-in) so playInPending() doesn't freeze an in-progress cup.
-    cup: anyVersion.cup ? { ...anyVersion.cup, playIn: anyVersion.cup.playIn ?? null } : null,
-    cupHistory: (anyVersion.cupHistory ?? []).map((c) => ({ ...c, playIn: c.playIn ?? null })),
+    // existing save picks the cup up from the following season onward). Backfill
+    // the optional stage fields so old cups typecheck and their format is read
+    // correctly: a cup with no `leaguePhase` is a legacy straight bracket (its
+    // retained code finishes it), and `playIn`/`playoff` default to null. An
+    // in-progress legacy cup keeps finishing under the old format; the next
+    // offseason builds a Swiss cup.
+    cup: anyVersion.cup
+      ? { ...anyVersion.cup, leaguePhase: anyVersion.cup.leaguePhase ?? null, playoff: anyVersion.cup.playoff ?? null, playIn: anyVersion.cup.playIn ?? null }
+      : null,
+    cupHistory: (anyVersion.cupHistory ?? []).map((c) => ({
+      ...c, leaguePhase: c.leaguePhase ?? null, playoff: c.playoff ?? null, playIn: c.playIn ?? null,
+    })),
     // Pre-feature saves start with no power-rankings history; snapshots can't
     // be reconstructed retroactively (past rosters/matches are gone), so they
     // simply accrue from the next simmed matchdays onward.

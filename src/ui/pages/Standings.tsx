@@ -5,8 +5,7 @@ import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { teamSlots } from "../../core/lineup/formations.js";
 import { tierOf } from "../../core/competitions.js";
-import { worldHasCup } from "../../core/cup/cup.js";
-import { CUP_TEAMS_PER_LEAGUE } from "../../core/constants.js";
+import { worldHasCup, cupSlotsForCompetition } from "../../core/cup/cup.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { seasonYear } from "../format.js";
@@ -32,9 +31,12 @@ export function Standings() {
   const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
   const compId = compIdOverride ?? userTeam?.compId ?? league.competitions[0].id;
   const isTier1 = tierOf(league.competitions, compId) === 1;
-  // The top CUP_TEAMS_PER_LEAGUE of each tier-1 table qualify for the
-  // Continental Cup — only mark the zone in worlds that actually field one.
-  const showCupZone = isTier1 && worldHasCup(league.competitions);
+  // Each tier-1 table's top clubs qualify for the Continental Cup — four for a
+  // strong league, two for a weak one. Only mark the zone in worlds that field a
+  // cup.
+  const comp = league.competitions.find((c) => c.id === compId);
+  const showCupZone = isTier1 && !!comp && worldHasCup(league.competitions);
+  const cupSlots = comp ? cupSlotsForCompetition(comp) : 0;
 
   const seasonOptions = [...league.seasonHistory.map((h) => h.season)].sort((a, b) => b - a);
 
@@ -64,7 +66,7 @@ export function Standings() {
     <div className="container-fluid p-3">
       <h4>
         Standings
-        <HelpHint>The top four spots qualify for the Continental Cup.</HelpHint>
+        <HelpHint>The top clubs of each top-flight league qualify for the Continental Cup.</HelpHint>
       </h4>
       <div className="mb-3">
         <select
@@ -110,8 +112,8 @@ export function Standings() {
               const team = league.teams.find((t) => t.tid === row.tid);
               const isUser = row.tid === league.meta.userTid;
               const isChampion = row.tid === championTid;
-              const isCupSpot = showCupZone && i < CUP_TEAMS_PER_LEAGUE;
-              const isCupCut = showCupZone && i === CUP_TEAMS_PER_LEAGUE - 1;
+              const isCupSpot = showCupZone && i < cupSlots;
+              const isCupCut = showCupZone && i === cupSlots - 1;
               const rowClass = [
                 isCupSpot && "cup-qualification",
                 isCupCut && "cup-qualification-cut",
@@ -157,7 +159,7 @@ export function Standings() {
         </table>
         {showCupZone && (
           <p className="text-muted small mt-1 mb-0">
-            <span className="cup-zone-key" /> Top {CUP_TEAMS_PER_LEAGUE} qualify for the Continental Cup.
+            <span className="cup-zone-key" /> Top {cupSlots} qualify for the Continental Cup.
           </p>
         )}
         </>
