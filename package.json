@@ -26,7 +26,6 @@
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/ibm-plex-sans": "^5.2.8",
-    "@vercel/analytics": "^2.0.1",
     "bootstrap": "^5.3.8",
     "csstype": "^3.2.3",
     "idb": "^8.0.3",
