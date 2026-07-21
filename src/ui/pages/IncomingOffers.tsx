@@ -8,7 +8,6 @@ import {
   inboundOfferCandidates, currentInboundOffers, type InboundOffer,
 } from "../../core/transfers/inboundOffers.js";
 import { scoutCommentary, type ScoutCommentary } from "../../core/transfers/scoutCommentary.js";
-import { deriveLeagueContexts } from "../../core/ai/clubContext.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
 import { currency, formatWeeklyWage, talksCollapsedMessage } from "../format.js";
 import { Flag } from "../components/Flag.js";
@@ -143,14 +142,9 @@ export function IncomingOffers() {
   const teamName = (tid: number) =>
     league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
 
-  const userCtx = deriveLeagueContexts({
-    teams: league.teams, players: league.players, season: league.season, played: league.played,
-    competitions: league.competitions,
-  }).get(userTeam.tid);
-
   const commentaryFor = (p: Player, offerFee: number): ScoutCommentary | null =>
-    userCtx && ws.open
-      ? scoutCommentary(p, offerFee, userCtx, userTeam.scoutingSpend, league.lid, ws.season, ws.window)
+    ws.open
+      ? scoutCommentary(p, offerFee, userTeam.scoutingSpend, league.lid, ws.season, ws.window)
       : null;
 
   const negotiations = currentInboundOffers(league);

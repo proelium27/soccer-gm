@@ -570,9 +570,10 @@ export function Manual() {
             when buying, just mirrored, and walks away from greedy counters the same way a seller
             would. Sold players show up in a "Sold This Window" section so deals never vanish on you.
             Each offer comes with a one-line scout take: a straight "take it," a suggested counter
-            price, or a dismissive "not worth discussing," based on your scout's read of the offer
-            against what the player's worth to your club. Like Recommended Transfers, how sharp that
-            read is depends on your scouting spend (<a href="#finance">Finance</a>).
+            price, or a dismissive "not worth discussing," based on how the offer stacks up against
+            the player's open-market value. Like Recommended Transfers, how sharp that read is
+            depends on your scouting spend (<a href="#finance">Finance</a>) &mdash; a thin scouting
+            budget gives you a fuzzier, less reliable take.
           </p>
           <p>
             <strong>List for Transfer.</strong> AI clubs already scout your whole roster on their
