@@ -691,6 +691,9 @@ export function Manual() {
             <strong>Scouting</strong> is one slider, $0&ndash;20M per season, starting at $5M. You
             set it <em>once a year, in the offseason</em>, and it's locked for the whole season it
             covers (deducted at that season's end), and during the season the slider is disabled.
+            You can't skip the decision either: when you advance to a new season the game stops you
+            on a Set Scouting Budget screen first, so every year you actively choose the number
+            before the games start.
             That's on purpose: you commit to the spend, and pay for it, before you get the sharper
             view, so you can't crank it up to peek at a player and turn it straight back down. It
             buys accuracy, not players. Every value you see on a transfer target (Recommended

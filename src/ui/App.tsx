@@ -25,6 +25,7 @@ import { NewsFeed } from "./pages/NewsFeed.js";
 import { Awards } from "./pages/Awards.js";
 import { ClubHistory } from "./pages/ClubHistory.js";
 import { SeasonPreview } from "./pages/SeasonPreview.js";
+import { SetScouting } from "./pages/SetScouting.js";
 import { Manual } from "./pages/Manual.js";
 import { Changelog } from "./pages/Changelog.js";
 import { PlayerProfile } from "./pages/PlayerProfile.js";
@@ -52,6 +53,7 @@ export function App() {
             <Route path="/awards" element={<Awards />} />
             <Route path="/history" element={<ClubHistory />} />
             <Route path="/season-preview" element={<SeasonPreview />} />
+            <Route path="/set-scouting" element={<SetScouting />} />
             <Route path="/box-score/:matchIndex" element={<BoxScore />} />
             <Route path="/roster" element={<Roster />} />
             <Route path="/leaders" element={<Leaders />} />
