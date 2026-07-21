@@ -754,27 +754,56 @@ export const VALUATION_CONTRACT_YEAR_BONUS = 0.08;
 export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
 
 /**
- * Elite "priceless star" premium. The base curve above is deliberately flat at
- * the top, which let clubs buy even the league's very best players. This adds a
- * steep premium for every OVR point above VALUATION_ELITE_THRESHOLD so the best
- * players' asking prices rocket past any club's MAX_BUDGET, making them
- * effectively unsellable. Added to the base before the age/potential/contract
+ * Elite "star" premium. The base curve above is deliberately flat at the top,
+ * so without this a club could buy even the league's very best players at a
+ * pedestrian price. This adds a steep premium for every OVR point above
+ * VALUATION_ELITE_THRESHOLD, added to the base before the age/potential/contract
  * multipliers. Bonus = COEFF × max(0, ovr − THRESHOLD)^EXPONENT.
  *
- * Retuned 2026-07-20 as a **difficulty lever**: originally the threshold sat at
- * 85 so only literal 90+ generational talents were priceless, but in a normal
- * (deflated) league the players that actually win titles are only ~72-78, so a
- * club could still just *buy* a championship squad. Lowering the threshold to
- * 76 (≈ the genuine top of a league) prices the real difference-makers out of
- * every budget — you develop champions, you don't buy them. Note a global
- * player-quality nerf can NOT substitute for this: match composites z-normalize
- * league-wide quality away (measured: it left title-win rates unchanged),
- * whereas gating the market bites. Tuned so ≤76 stays freely payable, 78 is
- * pricey (~2x a 76), and 80+ clears the ~$400M cap into "priceless".
+ * The threshold of 76 (≈ the genuine top of a league) makes the real
+ * difference-makers expensive: ≤76 stays freely payable, 78 is pricey (~2x a
+ * 76), and 80+ climbs into the top bracket. Note a global player-quality nerf
+ * can NOT substitute for pricing the market this way — match composites
+ * z-normalize league-wide quality away (measured: it left title-win rates
+ * unchanged), whereas making elite talent expensive bites.
+ *
+ * The premium no longer runs off to infinity: the final value is clamped at
+ * MAX_TRANSFER_VALUE so no asking price is ever absurd. "You can't buy a
+ * champion" is now enforced *directly and realistically* rather than through a
+ * fake billion-dollar price tag — the genuinely elite players on genuinely
+ * successful clubs are simply not for sale (see protectedStars.ts / the
+ * PROTECTED_STAR_* constants below), the way a top club would never sell its
+ * best player at any price.
  */
 export const VALUATION_ELITE_THRESHOLD = 76;
 export const VALUATION_ELITE_COEFF = 11_000_000;
 export const VALUATION_ELITE_EXPONENT = 2.5;
+
+/**
+ * Hard ceiling on any player's transfer value / asking price (trueTransferValue,
+ * reservation prices, scouted valuations, and negotiation counters all clamp to
+ * it). Keeps quoted fees believable — no club ever asks a fantasy number.
+ * Sits above the ~$400M top-club budget cap only slightly below it, so a
+ * maximally rich club *can* in principle afford the priciest for-sale player;
+ * "unbuyable" is expressed by the not-for-sale gate, not by an unpayable price.
+ */
+export const MAX_TRANSFER_VALUE = 350_000_000;
+
+/**
+ * "Protected star" not-for-sale gate (see core/transfers/protectedStars.ts).
+ * An AI club's player is withheld from the market entirely — no asking price at
+ * all — when he was one of the best in the world last season AND his club had a
+ * big season, mirroring how a top club simply won't sell its star at any price.
+ *
+ * - PROTECTED_STAR_OVR: an OVR at/above this counts as "best in the world"
+ *   on its own (an individual honor last season — POTY / Golden Boot / Team of
+ *   the Season — also qualifies, regardless of rating).
+ * - PROTECTED_STAR_TOP_FINISH: "big season" = finishing this many places or
+ *   better in a tier-1 league last season (a strong second-division finish
+ *   doesn't take a player off the market).
+ */
+export const PROTECTED_STAR_OVR = 80;
+export const PROTECTED_STAR_TOP_FINISH = 4;
 
 /**
  * Age's effect on transfer value, as a straight multiplier — [age,

@@ -7,6 +7,7 @@ import {
   VALUATION_POTENTIAL_PCT_PER_POINT, VALUATION_POTENTIAL_WEIGHT_PEAK_AGE,
   VALUATION_POTENTIAL_WEIGHT_ZERO_AGE,
   VALUATION_ELITE_THRESHOLD, VALUATION_ELITE_COEFF, VALUATION_ELITE_EXPONENT,
+  MAX_TRANSFER_VALUE,
 } from "../constants.js";
 
 /** Piecewise-linear interpolation over sorted [x, y] control points, clamped at the ends. */
@@ -70,7 +71,11 @@ export function trueTransferValue(player: Player, season: number): number {
     VALUATION_CONTRACT_YEAR_BONUS * yearsRemaining,
   );
 
-  return base * potentialMultiplier * ageMultiplier * contractMultiplier;
+  // Clamp to a believable ceiling — quoted fees never run off into fantasy
+  // numbers. "You can't buy the very best" is enforced by the not-for-sale
+  // gate (see protectedStars.ts), not by an unpayable price.
+  const value = base * potentialMultiplier * ageMultiplier * contractMultiplier;
+  return Math.min(value, MAX_TRANSFER_VALUE);
 }
 
 /**
@@ -87,5 +92,7 @@ export function perceivedTransferValue(
   const trueValue = trueTransferValue(player, season);
   const noiseSd = scoutingNoiseSd(scoutingSpend);
   const noisy = trueValue * (1 + gaussian(rng) * noiseSd);
-  return Math.max(0, Math.round(noisy));
+  // Keep the quoted figure within the same believable ceiling as the true
+  // value — positive scouting noise must not push an asking price past it.
+  return Math.max(0, Math.min(MAX_TRANSFER_VALUE, Math.round(noisy)));
 }

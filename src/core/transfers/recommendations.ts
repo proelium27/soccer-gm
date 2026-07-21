@@ -7,6 +7,7 @@ import { resolveXI } from "../lineup/resolveXI.js";
 import { teamSlots } from "../lineup/formations.js";
 import { mulberry32, gaussian } from "../../engine/rng.js";
 import { wouldRefuseExtension } from "../ai/breakoutRefusal.js";
+import { protectedStarPids, lastCompletedSeason } from "./protectedStars.js";
 import {
   RECOMMENDED_TRANSFERS_MIN, RECOMMENDED_TRANSFERS_MAX,
   RECOMMENDED_OVR_BELOW, RECOMMENDED_OVR_ABOVE, RECOMMENDED_BAND_WIDEN,
@@ -81,12 +82,19 @@ export function recommendedTransfers(
       ? reference.reduce((s, p) => s + p.ovr, 0) / reference.length
       : 50;
 
+  // Top clubs' stars from a big season aren't for sale, so they never show up
+  // as recommended targets (see protectedStars.ts).
+  const protectedPids = protectedStarPids(
+    lastCompletedSeason(league), league.teams, league.players, league.competitions, user.tid,
+  );
+
   const candidates: TransferTarget[] = [];
   for (const team of league.teams) {
     if (team.tid === user.tid) continue;
     for (const pid of team.roster) {
       const player = playerMap.get(pid);
       if (!player) continue;
+      if (protectedPids.has(pid)) continue;
       if (!isForSale(team, playerMap, pid) && !wouldRefuseExtension(player, team, league.competitions)) continue;
       if (departsAtRollover(league, player)) continue;
       // Hard user constraints — these narrow *which* players the search

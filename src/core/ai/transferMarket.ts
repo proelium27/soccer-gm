@@ -65,6 +65,9 @@ interface Candidate {
  * @param phase   "regular" charges the buyer the player's season wage on top
  *                of the fee (mid-season signings are paid up front); in the
  *                offseason the upcoming season-start charge covers wages.
+ * @param protectedPids  pids that are off the market entirely this window — a
+ *                top club's stars from a big season, never sold at any price
+ *                (see core/transfers/protectedStars.ts).
  */
 export function runAITransferMarket(
   teams: StoredTeam[],
@@ -78,6 +81,7 @@ export function runAITransferMarket(
   userTid: number,
   seed: number,
   competitions: Competition[],
+  protectedPids: Set<number>,
 ): AITransferResult {
   const contexts = deriveLeagueContexts({ teams, players, season, played, competitions });
   const playerMap = new Map(players.map((p) => [p.pid, p]));
@@ -101,6 +105,9 @@ export function runAITransferMarket(
 
     for (const pid of seller.roster) {
       if (onLoanPids.has(pid)) continue;
+      // A top club's star from a big season isn't for sale to anyone, AI clubs
+      // included — his club simply won't part with him (see protectedStars.ts).
+      if (protectedPids.has(pid)) continue;
       const player = playerMap.get(pid);
       if (!player) continue;
 

@@ -11,6 +11,7 @@ import {
   releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
 } from "./freeAgency.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
+import { protectedStarPids } from "./transfers/protectedStars.js";
 import { runAIContractRenewals } from "./ai/renewals.js";
 import { enforceDivision2Ceiling } from "./ai/divisionCeiling.js";
 import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
@@ -235,9 +236,16 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   // 6.4. AI<->AI transfer market (summer window, cross-division by design —
   //      no division filtering here, see design doc).
   const marketSeed = hashInts(league.lid, nextSeason, 7);
+  // The season that just ended isn't in seasonHistory yet (that entry is
+  // appended below), so protect stars off its freshly-computed standings/awards.
+  const justEndedRecord = { table: standings, awards, compsByTid };
+  const summerProtectedPids = protectedStarPids(
+    justEndedRecord, teams, players, league.competitions, league.meta.userTid,
+  );
   const summerMarket = runAITransferMarket(
     teams, players, activeLoans, ceilingTransfers, nextSeason, league.played,
     "summer", "offseason", league.meta.userTid, marketSeed, league.competitions,
+    summerProtectedPids,
   );
   teams = summerMarket.teams;
 

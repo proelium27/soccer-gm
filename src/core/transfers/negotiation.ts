@@ -9,8 +9,9 @@ import { clampBudget, financeScale } from "../finance/budget.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { keepsDepthFloor } from "../freeAgency.js";
 import { wouldRefuseExtension } from "../ai/breakoutRefusal.js";
+import { isProtectedStar, lastCompletedSeason } from "./protectedStars.js";
 import {
-  ROSTER_CAP,
+  ROSTER_CAP, MAX_TRANSFER_VALUE,
   RESERVATION_FACTOR_MIN, RESERVATION_FACTOR_MAX,
   NEGOTIATION_LOWBALL_FACTOR, NEGOTIATION_MAX_ROUNDS,
   COUNTER_PADDING_START, COUNTER_PADDING_DECAY,
@@ -124,7 +125,9 @@ export function reservationPrice(
   const rng = mulberry32(windowSeed(lid, season, window, player.pid, 1));
   const factor =
     RESERVATION_FACTOR_MIN + rng() * (RESERVATION_FACTOR_MAX - RESERVATION_FACTOR_MIN);
-  return Math.round(trueTransferValue(player, season) * factor);
+  // Clamp to the same believable ceiling as the value itself — the reservation
+  // factor must not push a headline asking price past MAX_TRANSFER_VALUE.
+  return Math.min(MAX_TRANSFER_VALUE, Math.round(trueTransferValue(player, season) * factor));
 }
 
 /**
@@ -164,7 +167,10 @@ export function respondToOffer(
   if (bestPrior !== null && offer <= bestPrior) return { kind: "collapsed" };
   if (priorOffers.length + 1 >= NEGOTIATION_MAX_ROUNDS) return { kind: "collapsed" };
   const padding = COUNTER_PADDING_START * COUNTER_PADDING_DECAY ** priorOffers.length;
-  return { kind: "countered", counter: Math.round(reservation * (1 + padding)) };
+  // Never counter above the believable ceiling (the padding sits on top of an
+  // already-clamped reservation, so cap the result too).
+  const counter = Math.min(MAX_TRANSFER_VALUE, Math.round(reservation * (1 + padding)));
+  return { kind: "countered", counter };
 }
 
 /**
@@ -271,6 +277,8 @@ export function makeTransferOffer(
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   if (!isForSaleOrRefusing(seller, playerMap, pid, league.competitions)) return league;
+  // A top club's star from a big season simply isn't for sale (see protectedStars.ts).
+  if (isProtectedStar(lastCompletedSeason(league), league.competitions, seller.tid, player)) return league;
   if (departsAtRollover(league, player)) return league;
 
   const existing = league.negotiations.find(
@@ -335,6 +343,8 @@ export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStor
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   if (!isForSaleOrRefusing(seller, playerMap, pid, league.competitions)) return league;
+  // A top club's star from a big season simply isn't for sale (see protectedStars.ts).
+  if (isProtectedStar(lastCompletedSeason(league), league.competitions, seller.tid, player)) return league;
   if (departsAtRollover(league, player)) return league;
 
   const accepted: TransferNegotiation = { ...negotiation, status: "accepted" };
