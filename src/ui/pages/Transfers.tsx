@@ -76,7 +76,7 @@ function NegotiationControls({
   const [draft, setDraft] = useState(() => String(suggested));
 
   if (negotiation?.status === "accepted") {
-    return <span className="text-success">Transfer agreed</span>;
+    return <span className="text-success">Transferred</span>;
   }
   if (negotiation?.status === "collapsed") {
     return <span className="text-danger">{talksCollapsedMessage(pid)}</span>;
@@ -194,6 +194,18 @@ export function Transfers() {
     (n) => !listedPids.has(n.pid) && n.status !== "accepted",
   );
 
+  // A completed buy moves the player onto your roster, so he drops out of the
+  // recommended scan and his row would just vanish. Keep it in place (with a
+  // "Transferred" badge) for the rest of the window's talks instead.
+  const boughtRows = negotiations.flatMap((n) => {
+    if (n.status !== "accepted" || listedPids.has(n.pid)) return [];
+    const player = playerMap.get(n.pid);
+    return player
+      ? [{ player, sellerTid: n.sellerTid, scoutedValue: n.offers.at(-1) ?? 0 }]
+      : [];
+  });
+  const displayTargets = [...boughtRows, ...targets];
+
   const windowTransfers = league.transfers.filter(
     (t) => ws.open && t.season === ws.season && t.window === ws.window,
   );
@@ -303,7 +315,7 @@ export function Transfers() {
                 Clear filters
               </button>
             </div>
-            {targets.length === 0 ? (
+            {displayTargets.length === 0 ? (
               <p className="mb-0">
                 {hasFilters
                   ? "No available targets match these filters. Try widening them or hit Refresh."
@@ -332,7 +344,7 @@ export function Transfers() {
                   </tr>
                 </thead>
                 <tbody>
-                  {targets.map(({ player: p, sellerTid, scoutedValue }) => (
+                  {displayTargets.map(({ player: p, sellerTid, scoutedValue }) => (
                     <tr key={p.pid}>
                       <td>
                         <PlayerRatingsTooltip player={p}>
