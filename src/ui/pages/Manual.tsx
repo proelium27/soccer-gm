@@ -416,6 +416,17 @@ export function Manual() {
             back at minute 20 genuinely hurts for the other 70.
           </p>
           <p>
+            <strong>Stars carry their phase.</strong> When your side's strength is rolled up for a
+            match, the players who actually drive each part of the game count for the most, and a
+            genuine standout isn't dragged all the way down to his teammates' level. Your attack
+            leans hardest on your strikers and wingers, possession on your central midfielders, and
+            your defense on your center backs, so a world-class player in the right spot lifts that
+            part of your game noticeably even if the rest of that unit is ordinary. The flip side:
+            buying a great player in the wrong position, or padding your OVR with squad filler, moves
+            the needle far less than the raw rating suggests. This is why a smart, positionally
+            balanced XI can outperform a higher-OVR one that's stacked in the wrong places.
+          </p>
+          <p>
             <strong>Finishing is individual.</strong> How many chances your team creates comes from
             the whole XI's strength, but whether a given shot goes in also leans on the specific
             player taking it, measured against his own teammates. A striker who's a clear cut above

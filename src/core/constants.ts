@@ -167,6 +167,21 @@ export function academyBaseCenter(country: string, tier: 1 | 2): number {
 export const NORMALIZE_K = 0.08;
 
 /**
+ * Star concentration for the attack/control/defense composite rollups
+ * (2026-07-21). `rollupComposites` position-weights each phase (who drives it
+ * counts most), then blends the weighted mean toward the group's single best
+ * player: `dial = (1 - c) * weightedMean + c * peak`. This lets an elite
+ * individual resist being averaged down by weak teammates, so a standout in a
+ * key position genuinely carries a thin squad instead of being diluted to the
+ * roster mean. 0 = pure weighted mean (no star effect); 1 = the group's best
+ * player alone sets the dial. `finishing` is deliberately left on its own
+ * shot-share weighting (no peak blend). Higher values swing more of a team's
+ * strength onto one player — dynasty-audit title churn before raising it, as
+ * the blend interacts with league z-normalization spread.
+ */
+export const COMPOSITE_STAR_CONCENTRATION = 0.3;
+
+/**
  * Historic team seasons ("extremism", 2026-07-19, user ask): each club, each
  * season, has a small chance of a hidden season-long form swing — a dream
  * season (+TEAM_SEASON_FORM_DELTA on every normalized composite) or a season
