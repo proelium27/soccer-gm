@@ -604,8 +604,21 @@ export const PROSPECT_AGE_MAX = 21;
  * below was benchmarked against). MAX_BUDGET's existing cap already bounds
  * long-run compounding independently of this value, so raising it doesn't
  * reopen the accumulation problem the 2026-07-13 cut was solving.
+ *
+ * Cut 110M → 85M on 2026-07-21 per user direction, to reduce AI cash-hoarding:
+ * a 15-season dynasty audit found AI clubs sitting on ~$110M median with 90%+
+ * banking a >$50M war chest, because the base inflow so far outruns wages that
+ * the surplus compounds every season (the AI-to-AI market can't drain it — see
+ * the AI_NEED_BUY note). This is a deliberate, across-the-board tightening (D1
+ * and D2 both, via the shared tier/country scale, and the user's own club too —
+ * a small difficulty bump). Wages are intentionally left UNCHANGED (lowering
+ * them would shrink the wage sink and increase hoarding, the opposite of the
+ * goal). The worst-case AI wage bill (WAGE_SAFE_SQUAD ≈ $75M) still nets +$10M/
+ * season at 85M, and the empirical solvency buffer (lowest AI budget ever
+ * observed at 110M was ~$20M over 15 seasons) mostly absorbs the $25M cut —
+ * re-audited for zero deficits after the change. MAX_BUDGET is untouched.
  */
-export const BASE_SEASON_BUDGET = 110_000_000;
+export const BASE_SEASON_BUDGET = 85_000_000;
 /**
  * Hard ceiling on a club's running budget balance, added 2026-07-13: since
  * budget compounds season over season by design (never resets to the base
