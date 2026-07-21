@@ -178,25 +178,31 @@ export function Cup() {
             {cup.playoff && (
               <div className="cup-round" key="playoff">
                 <div className="cup-round-title">{cupRoundName(-1)}</div>
-                {prelimSlots(cup.playoff).map((slot, i) => (
-                  <div className="cup-tie" key={i}>{renderTie(slot)}</div>
-                ))}
+                <div className="cup-round-body">
+                  {prelimSlots(cup.playoff).map((slot, i) => (
+                    <div className="cup-tie" key={i}>{renderTie(slot)}</div>
+                  ))}
+                </div>
               </div>
             )}
             {cup.playIn && (
               <div className="cup-round" key="playin">
                 <div className="cup-round-title">Play-in Round</div>
-                {prelimSlots(cup.playIn).map((slot, i) => (
-                  <div className="cup-tie" key={i}>{renderTie(slot)}</div>
-                ))}
+                <div className="cup-round-body">
+                  {prelimSlots(cup.playIn).map((slot, i) => (
+                    <div className="cup-tie" key={i}>{renderTie(slot)}</div>
+                  ))}
+                </div>
               </div>
             )}
             {Array.from({ length: koRoundsOf(cup) }, (_, round) => (
               <div className="cup-round" key={round}>
                 <div className="cup-round-title">{cupRoundName(round, koRoundsOf(cup))}</div>
-                {roundSlots(cup, round).map((slot, i) => (
-                  <div className="cup-tie" key={i}>{renderTie(slot)}</div>
-                ))}
+                <div className="cup-round-body">
+                  {roundSlots(cup, round).map((slot, i) => (
+                    <div className="cup-tie" key={i}>{renderTie(slot)}</div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
