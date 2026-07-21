@@ -33,14 +33,6 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    date: "2026-07-21",
-    title: "Star players now carry their part of the game more",
-    items: [
-      "Someone (okay, me) kept noticing that you could shuffle your roster, watch your team OVR tick up, and then somehow play worse. A big part of that was how I rolled a squad up into match strength: I basically averaged everyone in a unit together, so a truly elite player got dragged down to his teammates' level, and a random high-rated guy in the wrong position counted just as much as someone actually built for the role.",
-      "So I changed two things. First, the players who actually drive each phase now count for the most: attack leans on your strikers and wingers, possession on your central midfielders, defense on your center backs. Second, a genuine standout resists being averaged down. Put a world-class center back in your back line and he lifts your whole defense, even if the guys around him are just okay. The trade-off is that padding your OVR with filler, or buying a great player and playing him out of position, does a lot less than the OVR number makes it look. A balanced XI beats a lopsided higher-OVR one now. (Finishing already worked like this per-shot; this extends the same idea to the rest of the pitch.)",
-    ],
-  },
-  {
     date: "2026-07-20",
     title: "Reworked the Continental Cup into a Champions-League-style league phase",
     items: [
