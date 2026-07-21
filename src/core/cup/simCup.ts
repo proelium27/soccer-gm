@@ -5,15 +5,23 @@ import type { CupState, CupTie } from "./types.js";
 import { simMatchDetailed, resolveShot, finisherAdj } from "../../engine/matchSim.js";
 import { pickShooter, pickAssister, emptyLine } from "../../engine/attribution.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
-import { completedRounds, matchupsForRound, applyPlayIn } from "./cup.js";
+import {
+  completedRounds, matchupsForRound, applyPlayIn, applyPlayoff,
+  isSwissCup, koRoundMatchdays, koPrizeByRound, koFinalRound, seedKnockoutFromLeaguePhase,
+} from "./cup.js";
 import {
   CUP_ET_CHANCES_PER_SIDE, CUP_PEN_BEST_OF, CUP_PEN_BASE_CONVERSION,
-  CUP_FINAL_ROUND, CUP_ROUND_MATCHDAYS, CUP_PRIZE_WIN_BY_ROUND,
-  CUP_PRIZE_PARTICIPATION, CUP_PRIZE_RUNNER_UP, CUP_PRIZE_WIN_PLAYIN,
+  CUP_PRIZE_PARTICIPATION, CUP_PRIZE_RUNNER_UP, CUP_PRIZE_WIN_PLAYIN, CUP_PRIZE_WIN_PLAYOFF,
 } from "../constants.js";
 
 /** Play-in ties are tagged with this round index (they live in cup.playIn.ties, not cup.ties). */
 const PLAYIN_ROUND = -1;
+/** Playoff ties are tagged with this round index (they live in cup.playoff.ties, not cup.ties). */
+const PLAYOFF_ROUND = -1;
+/** rng-stream offset for league-phase rounds, kept clear of the knockout rounds' own streams. */
+const LEAGUE_PHASE_STREAM = 100;
+/** rng-stream offset for the playoff round. */
+const PLAYOFF_STREAM = 50;
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, x));
@@ -167,17 +175,19 @@ export function playCupRound(
   const round = completedRounds(cup);
   const rng = mulberry32(hashInts(lid, cup.season, round, 30));
   const matchups = matchupsForRound(cup, round);
-  const matchday = CUP_ROUND_MATCHDAYS[round];
+  const matchday = koRoundMatchdays(cup)[round];
+  const finalRound = koFinalRound(cup);
+  const winPrize = koPrizeByRound(cup);
 
   const prizes = new Map<number, number>();
   const addPrize = (tid: number, amount: number): void => {
     prizes.set(tid, (prizes.get(tid) ?? 0) + amount);
   };
 
-  // Everyone in the bracket earns the participation fee, credited once as the
-  // first round is played — but the two play-in winners already collected it in
-  // the play-in, so credit only the byes here (all 16 when there's no play-in).
-  if (round === 0) {
+  // Legacy cups credit the participation fee once as the first bracket round is
+  // played (the two play-in winners already collected it in the play-in). Swiss
+  // cups pay participation during the league phase, so nothing to credit here.
+  if (round === 0 && !isSwissCup(cup)) {
     const playInTeams = new Set(cup.playIn?.teams ?? []);
     for (const tid of cup.teams) if (!playInTeams.has(tid)) addPrize(tid, CUP_PRIZE_PARTICIPATION);
   }
@@ -190,8 +200,8 @@ export function playCupRound(
     if (!hd || !ad) continue; // defensive: a qualifier should always be in matchData
     const tie = resolveCupTie(rng, home, away, hd, ad, round, matchday);
     newTies.push(tie);
-    addPrize(tie.winner, CUP_PRIZE_WIN_BY_ROUND[round]);
-    if (round === CUP_FINAL_ROUND) {
+    addPrize(tie.winner, winPrize[round]);
+    if (round === finalRound) {
       championTid = tie.winner;
       const runnerUp = tie.winner === home ? away : home;
       addPrize(runnerUp, CUP_PRIZE_RUNNER_UP);
@@ -199,6 +209,80 @@ export function playCupRound(
   }
 
   return { cup: { ...cup, ties: [...cup.ties, ...newTies], championTid }, prizes };
+}
+
+/**
+ * Play the Swiss league-phase matches due on `matchday` in full: each is a 90'
+ * game (no extra time — it may end level) resolved on the round's own seeded rng
+ * and written back into the league phase with its box score. On the first
+ * league-phase matchday every qualifier collects the participation fee. Once the
+ * final matchday completes the league phase, the knockout bracket + playoff are
+ * seeded from the table (see seedKnockoutFromLeaguePhase).
+ */
+export function playLeaguePhaseRound(
+  cup: CupState,
+  matchData: Map<number, TeamMatchData>,
+  lid: number,
+  matchday: number,
+): { cup: CupState; prizes: Map<number, number> } {
+  const lp = cup.leaguePhase;
+  const prizes = new Map<number, number>();
+  if (!lp) return { cup, prizes };
+  const addPrize = (tid: number, amount: number): void => {
+    prizes.set(tid, (prizes.get(tid) ?? 0) + amount);
+  };
+
+  const round = lp.matches.find((m) => m.matchday === matchday)?.round ?? 0;
+  const rng = mulberry32(hashInts(lid, cup.season, LEAGUE_PHASE_STREAM + round, 30));
+
+  if (round === 0) for (const tid of lp.teams) addPrize(tid, CUP_PRIZE_PARTICIPATION);
+
+  const matches = lp.matches.map((m) => {
+    if (m.played || m.matchday !== matchday) return m;
+    const hd = matchData.get(m.home);
+    const ad = matchData.get(m.away);
+    if (!hd || !ad) return m; // defensive: a qualifier should always be in matchData
+    const result = simMatchDetailed(rng, hd.composites, ad.composites, hd.xi, ad.xi, hd.bench, ad.bench, {
+      recompute: { home: hd.recompute, away: ad.recompute },
+    });
+    return { ...m, played: true, homeGoals: result.home, awayGoals: result.away, boxScore: result.boxScore };
+  });
+
+  const advanced = seedKnockoutFromLeaguePhase({ ...cup, leaguePhase: { ...lp, matches } });
+  return { cup: advanced, prizes };
+}
+
+/**
+ * Play the Swiss single-leg playoff round in full: each tie (a higher league-
+ * phase finisher vs a lower one) is resolved with the same 90'→extra-time→
+ * shootout cascade as any knockout tie, its winner written into the quarter-
+ * final bracket. Each winner earns a playoff prize. Uses its own seeded rng.
+ */
+export function playPlayoff(
+  cup: CupState,
+  matchData: Map<number, TeamMatchData>,
+  lid: number,
+): { cup: CupState; prizes: Map<number, number> } {
+  const po = cup.playoff;
+  if (!po) return { cup, prizes: new Map() };
+  const rng = mulberry32(hashInts(lid, cup.season, PLAYOFF_STREAM, 30));
+  const prizes = new Map<number, number>();
+  const addPrize = (tid: number, amount: number): void => {
+    prizes.set(tid, (prizes.get(tid) ?? 0) + amount);
+  };
+
+  const ties: CupTie[] = [];
+  for (let i = 0; i + 1 < po.teams.length; i += 2) {
+    const home = po.teams[i];
+    const away = po.teams[i + 1];
+    const hd = matchData.get(home);
+    const ad = matchData.get(away);
+    if (!hd || !ad) continue; // defensive
+    const tie = resolveCupTie(rng, home, away, hd, ad, PLAYOFF_ROUND, po.matchday);
+    ties.push(tie);
+    addPrize(tie.winner, CUP_PRIZE_WIN_PLAYOFF);
+  }
+  return { cup: applyPlayoff(cup, ties), prizes };
 }
 
 /**

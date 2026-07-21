@@ -6,7 +6,7 @@ import type { TransferWindowKind } from "../transfers/window.js";
 import type { Competition } from "../competitions.js";
 import type { ActiveLoan } from "../loans.js";
 import { deriveLeagueContexts } from "./clubContext.js";
-import { valueToClub, perceivedValueToClub } from "./evaluate.js";
+import { valueToClub, perceivedValueToClub, hasPositionalGap } from "./evaluate.js";
 import { trueTransferValue } from "../finance/valuation.js";
 import { clampBudget, financeScale } from "../finance/budget.js";
 import { tierOf } from "../competitions.js";
@@ -18,6 +18,7 @@ import {
   AI_MARKET_FEE_SHARE, AI_MARKET_FEE_FLOOR_FRACTION,
   AI_MARKET_MAX_BUYS, AI_MARKET_MAX_SELLS,
   AI_MARKET_RESERVE_FRACTION_MIN, AI_MARKET_RESERVE_FRACTION_MAX,
+  AI_NEED_BUY_MIN_SURPLUS, AI_NEED_BUY_RESERVE_RELIEF,
   DIVISION_2_REFUSAL_OVR_THRESHOLD,
 } from "../constants.js";
 
@@ -39,6 +40,8 @@ interface Candidate {
   market: number;
   /** buyerValue − reservation: how much more useful he is to the buyer. */
   surplus: number;
+  /** Buyer has a real positional gap here → relaxed surplus bar + deeper reserve draw. */
+  needBuy: boolean;
 }
 
 /**
@@ -65,6 +68,9 @@ interface Candidate {
  * @param phase   "regular" charges the buyer the player's season wage on top
  *                of the fee (mid-season signings are paid up front); in the
  *                offseason the upcoming season-start charge covers wages.
+ * @param protectedPids  pids that are off the market entirely this window — a
+ *                top club's stars from a big season, never sold at any price
+ *                (see core/transfers/protectedStars.ts).
  */
 export function runAITransferMarket(
   teams: StoredTeam[],
@@ -78,6 +84,7 @@ export function runAITransferMarket(
   userTid: number,
   seed: number,
   competitions: Competition[],
+  protectedPids: Set<number>,
 ): AITransferResult {
   const contexts = deriveLeagueContexts({ teams, players, season, played, competitions });
   const playerMap = new Map(players.map((p) => [p.pid, p]));
@@ -101,6 +108,9 @@ export function runAITransferMarket(
 
     for (const pid of seller.roster) {
       if (onLoanPids.has(pid)) continue;
+      // A top club's star from a big season isn't for sale to anyone, AI clubs
+      // included — his club simply won't part with him (see protectedStars.ts).
+      if (protectedPids.has(pid)) continue;
       const player = playerMap.get(pid);
       if (!player) continue;
 
@@ -134,7 +144,13 @@ export function runAITransferMarket(
           tierByTid.get(buyer.tid) === 2 &&
           player.ovr >= DIVISION_2_REFUSAL_OVR_THRESHOLD
         ) continue;
-        if (jittered < reservation * (1 + AI_MARKET_MIN_SURPLUS)) continue;
+        // A club filling a genuine positional gap doesn't hold out for the usual
+        // bargain margin — it'll pay a fair price (down to the seller's full
+        // reservation) to address a real hole. Everything else about the deal
+        // (availability, fee floor, affordability, reserve) still applies.
+        const needBuy = hasPositionalGap(player, buyerCtx);
+        const minSurplus = needBuy ? AI_NEED_BUY_MIN_SURPLUS : AI_MARKET_MIN_SURPLUS;
+        if (jittered < reservation * (1 + minSurplus)) continue;
 
         candidates.push({
           pid,
@@ -144,6 +160,7 @@ export function runAITransferMarket(
           buyerValue: jittered,
           market,
           surplus: jittered - reservation,
+          needBuy,
         });
       }
     }
@@ -204,11 +221,16 @@ export function runAITransferMarket(
     // A club spends only the surplus above its cash reserve (never its whole
     // budget), and covers any mid-season wage charge on top. The reserve
     // fraction rises with frugality — cautious/poorer clubs hold more back.
-    // Measured against the live budget, so selling first frees up spend.
+    // Measured against the live budget, so selling first frees up spend. A need
+    // buy frees up part of that frugality premium (AI_NEED_BUY_RESERVE_RELIEF) —
+    // a club filling a real hole digs deeper into its cash — but never below the
+    // MIN reserve, so no club empties its vault or risks a deficit.
     const frugality = contexts.get(c.buyerTid)?.frugality ?? 0.5;
+    const frugalityPremium =
+      frugality * (AI_MARKET_RESERVE_FRACTION_MAX - AI_MARKET_RESERVE_FRACTION_MIN);
     const reserveFraction =
       AI_MARKET_RESERVE_FRACTION_MIN +
-      frugality * (AI_MARKET_RESERVE_FRACTION_MAX - AI_MARKET_RESERVE_FRACTION_MIN);
+      frugalityPremium * (c.needBuy ? 1 - AI_NEED_BUY_RESERVE_RELIEF : 1);
     const spendable = (budget.get(c.buyerTid) ?? 0) * (1 - reserveFraction);
 
     // A fee squeezed down to the seller's reservation is still an acceptable

@@ -3,7 +3,9 @@ on:
   push:
   pull_request:
 jobs:
-  test:
+  # Typecheck runs in its own job so it starts in parallel with the tests
+  # instead of gating them.
+  typecheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -13,4 +15,23 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
+
+  # The suite is dominated by a few full-world multi-season sim tests
+  # (test/validation/*), so wall-clock is bounded by the slowest single file,
+  # not the total. GitHub runners are only 2 cores, so one machine can't
+  # overlap those heavy files. Sharding fans the files out across several
+  # runners that each work a slice in parallel via `vitest --shard`.
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run --shard=${{ matrix.shard }}/6

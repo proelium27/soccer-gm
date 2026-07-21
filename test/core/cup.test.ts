@@ -4,19 +4,25 @@ import type { MatchPlayer } from "../../src/engine/attribution.js";
 import type { TeamMatchData } from "../../src/core/league/composites.js";
 import type { StandingsRow } from "../../src/core/standings.js";
 import type { Competition } from "../../src/core/competitions.js";
+import type { CupState } from "../../src/core/cup/types.js";
 import { worldCompetitions, englandCompetitions } from "../../src/core/competitions.js";
 import {
-  seedOrder, qualifyCupTeams, buildCupState, matchupsForRound, cupPlan, playInDue,
+  seedOrder, qualifyCupTeams, buildCupState, matchupsForRound, cupPlan,
   completedRounds, dueCupRound, cupRoundName, cupFinalists, isCupComplete,
+  playoffDue, koFinalRound,
 } from "../../src/core/cup/cup.js";
-import { playCupRound, playPlayIn, resolveCupTie } from "../../src/core/cup/simCup.js";
+import { leaguePhaseComplete } from "../../src/core/cup/leaguePhase.js";
+import { playCupRound, playPlayoff, playLeaguePhaseRound, resolveCupTie } from "../../src/core/cup/simCup.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import {
-  CUP_ROUND_MATCHDAYS, CUP_PLAYIN_MATCHDAY, CUP_PRIZE_PARTICIPATION, CUP_PRIZE_WIN_PLAYIN,
-  CUP_PRIZE_WIN_R16, CUP_PRIZE_WIN_QF, CUP_PRIZE_WIN_SF, CUP_PRIZE_WIN_FINAL, CUP_PRIZE_RUNNER_UP,
+  CUP_LEAGUE_PHASE_MATCHDAYS, CUP_KO_ROUND_MATCHDAYS, CUP_PLAYOFF_MATCHDAY,
+  CUP_LEAGUE_PHASE_SIZE, CUP_LEAGUE_PHASE_GAMES, CUP_KO_SIZE,
+  CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS,
+  CUP_PRIZE_PARTICIPATION, CUP_PRIZE_WIN_PLAYOFF, CUP_PRIZE_WIN_QF, CUP_PRIZE_WIN_SF,
+  CUP_PRIZE_WIN_FINAL, CUP_PRIZE_RUNNER_UP,
 } from "../../src/core/constants.js";
 
-/** The four big-four leagues only (no weak leagues → no play-in, a clean 16-team bracket). */
+/** The four big-four leagues only (16 qualifiers → still a valid Swiss field, no weak leagues). */
 const strongComps: Competition[] = worldCompetitions().filter((c) =>
   ["England", "Spain", "Italy", "Germany"].includes(c.country));
 
@@ -58,15 +64,24 @@ function fakeMatchData(tid: number, strength: number): TeamMatchData {
   return { composites, xi, bench: [], recompute: () => composites };
 }
 
+/** Match data for every club that appears anywhere in a cup (league-phase field covers them all). */
+function matchDataFor(cup: CupState): Map<number, TeamMatchData> {
+  const md = new Map<number, TeamMatchData>();
+  for (const tid of cup.leaguePhase!.teams) {
+    md.set(tid, fakeMatchData(tid, 0.35 + (cup.seeds[tid] <= 6 ? 0.25 : 0)));
+  }
+  return md;
+}
+
 describe("seedOrder", () => {
-  it("produces the standard 16-team bracket order", () => {
-    expect(seedOrder(16)).toEqual([1, 16, 8, 9, 4, 13, 5, 12, 2, 15, 7, 10, 3, 14, 6, 11]);
+  it("produces the standard 8-team bracket order", () => {
+    expect(seedOrder(8)).toEqual([1, 8, 4, 5, 2, 7, 3, 6]);
   });
   it("keeps the top two seeds on opposite halves for any power-of-2 size", () => {
     for (const n of [2, 4, 8, 16]) {
       const order = seedOrder(n);
       expect(order).toHaveLength(n);
-      expect(new Set(order).size).toBe(n); // a permutation of 1..n
+      expect(new Set(order).size).toBe(n);
       const half1 = order.slice(0, n / 2);
       expect(half1).toContain(1);
       expect(half1).not.toContain(2);
@@ -75,60 +90,48 @@ describe("seedOrder", () => {
 });
 
 describe("cupPlan", () => {
-  it("splits the real world into 4 strong + 2 weak tier-1 leagues, 18 qualifiers, a 2-tie play-in", () => {
+  it("splits the real world into 4 strong + 2 weak tier-1 leagues, 20 qualifiers", () => {
     const plan = cupPlan(worldCompetitions())!;
     expect(plan.strong.map((c) => c.country)).toEqual(["England", "Spain", "Italy", "Germany"]);
     expect(plan.weak.map((c) => c.country)).toEqual(["France", "Portugal"]);
-    expect(plan.total).toBe(18);
-    expect(plan.playInTies).toBe(2);
+    expect(plan.total).toBe(CUP_LEAGUE_PHASE_SIZE); // 4*4 + 2*2 = 20
   });
-  it("has no play-in for a 4-strong-league world, and no cup at all for England-only", () => {
-    expect(cupPlan(strongComps)!.playInTies).toBe(0);
+  it("still fields a cup for a 4-strong-league world (16), but not for England-only", () => {
+    expect(cupPlan(strongComps)!.total).toBe(16);
     expect(cupPlan(englandCompetitions())).toBeNull();
   });
 });
 
 describe("qualifyCupTeams", () => {
-  it("takes the top 4 of each strong league and each weak league's champion", () => {
+  it("takes the top 4 of each strong league and the top 2 of each weak league, seeded by table", () => {
     const comps = worldCompetitions();
-    const { strongSeeded, weakChampions } = qualifyCupTeams(comps, tablesFor(comps));
-    expect(strongSeeded).toHaveLength(16); // 4 strong leagues x 4
-    expect(weakChampions).toHaveLength(2); // France + Portugal champions
-    // Seed 1 is the champion of the strongest-pointed strong league (li=0 → tid 0).
-    expect(strongSeeded[0]).toBe(0);
-    // The first four strong seeds are all rank-1 champions (tid % 100 === 0).
-    for (let i = 0; i < 4; i++) expect(strongSeeded[i] % 100).toBe(0);
+    const { field, compOf } = qualifyCupTeams(comps, tablesFor(comps));
+    expect(field).toHaveLength(CUP_LEAGUE_PHASE_SIZE);
+    expect(new Set(field).size).toBe(CUP_LEAGUE_PHASE_SIZE);
+    // The first six seeds are champions (rank 1, tid % 100 === 0), ordered by tid.
+    for (let i = 0; i < 6; i++) expect(field[i] % 100).toBe(0);
+    // Every qualifier has a competition mapping for the draw's same-league rule.
+    for (const tid of field) expect(compOf.has(tid)).toBe(true);
     // No tier-2 club qualified.
-    expect(strongSeeded.every((t) => t < 9000)).toBe(true);
+    expect(field.every((t) => t < 9000)).toBe(true);
   });
 });
 
-describe("buildCupState", () => {
-  it("builds a straight 16-team bracket (no play-in) for a 4-strong-league world", () => {
-    const cup = buildCupState(strongComps, tablesFor(strongComps), 2)!;
-    expect(cup.playIn).toBeNull();
-    expect(cup.teams).toHaveLength(16);
-    expect(new Set(cup.teams).size).toBe(16);
-    expect(cup.teams).not.toContain(-1);
-    expect(cup.ties).toHaveLength(0);
-    expect(cup.championTid).toBeNull();
-  });
-
-  it("builds 14 byes + a 2-tie play-in for the real (weak-league) world", () => {
+describe("buildCupState (Swiss)", () => {
+  it("draws a league phase and leaves the knockout bracket empty until it resolves", () => {
     const comps = worldCompetitions();
     const cup = buildCupState(comps, tablesFor(comps), 2)!;
-    expect(cup.playIn).not.toBeNull();
-    expect(cup.teams).toHaveLength(16);
-    // Two bracket slots are pending (-1) until the play-in resolves; 14 real byes.
-    expect(cup.teams.filter((t) => t === -1)).toHaveLength(2);
-    expect(cup.teams.filter((t) => t >= 0)).toHaveLength(14);
-    // The play-in has 4 participants (2 weakest strong + 2 weak champions) and 2 slots.
-    expect(cup.playIn!.teams).toHaveLength(4);
-    expect(cup.playIn!.slots).toHaveLength(2);
-    expect(cup.playIn!.matchday).toBe(CUP_PLAYIN_MATCHDAY);
-    // The two weak-league champions are among the play-in teams.
-    const weakChampions = cup.playIn!.teams.filter((t) => t >= 400); // France(li 4)=400, Portugal(li 5)=500
-    expect(weakChampions).toHaveLength(2);
+    expect(cup.leaguePhase).not.toBeNull();
+    expect(cup.leaguePhase!.teams).toHaveLength(CUP_LEAGUE_PHASE_SIZE);
+    expect(cup.leaguePhase!.matches).toHaveLength((CUP_LEAGUE_PHASE_SIZE * CUP_LEAGUE_PHASE_GAMES) / 2);
+    expect(cup.leaguePhase!.matches.every((m) => !m.played)).toBe(true);
+    expect(cup.teams).toHaveLength(CUP_KO_SIZE);
+    expect(cup.teams.every((t) => t === -1)).toBe(true); // bracket not seeded yet
+    expect(cup.playoff).toBeNull();
+    expect(cup.playIn).toBeNull();
+    expect(cup.championTid).toBeNull();
+    // No knockout round is due while the league phase is unplayed.
+    expect(dueCupRound(cup, CUP_KO_ROUND_MATCHDAYS[0])).toBeNull();
   });
 
   it("returns null for an England-only (single tier-1 league) world", () => {
@@ -140,62 +143,13 @@ describe("buildCupState", () => {
   });
 });
 
-describe("play-in round", () => {
-  const comps = worldCompetitions();
-
-  it("is due on its matchday, and R16 waits until it fills the bracket", () => {
-    const cup = buildCupState(comps, tablesFor(comps), 2)!;
-    expect(playInDue(cup, CUP_PLAYIN_MATCHDAY - 1)).toBe(false);
-    expect(playInDue(cup, CUP_PLAYIN_MATCHDAY)).toBe(true);
-    // While the play-in is pending, no knockout round is due even at R16's matchday.
-    expect(dueCupRound(cup, CUP_ROUND_MATCHDAYS[0])).toBeNull();
-  });
-
-  it("resolves two ties, fills the bracket, credits participation to all 18 and a win bonus to the 2 winners", () => {
-    const cup = buildCupState(comps, tablesFor(comps), 2)!;
-    const matchData = new Map<number, TeamMatchData>();
-    for (const tid of [...cup.teams.filter((t) => t >= 0), ...cup.playIn!.teams]) {
-      matchData.set(tid, fakeMatchData(tid, 0.5));
-    }
-    const { cup: after, prizes } = playPlayIn(cup, matchData, 0);
-    expect(after.playIn!.ties).toHaveLength(2);
-    // Both pending slots are now filled with real tids (the two play-in winners).
-    expect(after.teams.filter((t) => t === -1)).toHaveLength(0);
-    expect(new Set(after.teams).size).toBe(16);
-    // Now the round of 16 is due at its matchday.
-    expect(dueCupRound(after, CUP_ROUND_MATCHDAYS[0])).toBe(0);
-    // Every play-in participant got the participation fee; each winner also got the play-in win bonus.
-    for (const tid of cup.playIn!.teams) {
-      expect(prizes.get(tid)! >= CUP_PRIZE_PARTICIPATION).toBe(true);
-    }
-    const winners = after.playIn!.ties.map((t) => t.winner);
-    for (const w of winners) {
-      expect(prizes.get(w)).toBe(CUP_PRIZE_PARTICIPATION + CUP_PRIZE_WIN_PLAYIN);
-    }
-  });
-});
-
-describe("bracket navigation", () => {
-  const cup = buildCupState(strongComps, tablesFor(strongComps), 2)!;
-
-  it("pairs the round of 16 as adjacent bracket slots", () => {
-    const pairs = matchupsForRound(cup, 0);
-    expect(pairs).toHaveLength(8);
-    expect(pairs[0]).toEqual([cup.teams[0], cup.teams[1]]);
-    expect(pairs[7]).toEqual([cup.teams[14], cup.teams[15]]);
-  });
-
-  it("names rounds", () => {
-    expect(cupRoundName(-1)).toBe("Play-in Round");
-    expect(cupRoundName(0)).toBe("Round of 16");
-    expect(cupRoundName(1)).toBe("Quarter-finals");
-    expect(cupRoundName(2)).toBe("Semi-finals");
-    expect(cupRoundName(3)).toBe("Final");
-  });
-
-  it("reports the due round only once its matchday arrives", () => {
-    expect(dueCupRound(cup, CUP_ROUND_MATCHDAYS[0] - 1)).toBeNull();
-    expect(dueCupRound(cup, CUP_ROUND_MATCHDAYS[0])).toBe(0);
+describe("cupRoundName (Swiss knockout)", () => {
+  it("names the three knockout rounds and the earlier stages", () => {
+    expect(cupRoundName(-2)).toBe("League Phase");
+    expect(cupRoundName(-1)).toBe("Playoff Round");
+    expect(cupRoundName(0)).toBe("Quarter-finals");
+    expect(cupRoundName(1)).toBe("Semi-finals");
+    expect(cupRoundName(2)).toBe("Final");
   });
 });
 
@@ -203,9 +157,7 @@ describe("resolveCupTie", () => {
   it("always produces a winner (no draws in a knockout tie)", () => {
     const rng = mulberry32(42);
     for (let i = 0; i < 50; i++) {
-      const a = fakeMatchData(1, 0.5);
-      const b = fakeMatchData(2, 0.5);
-      const tie = resolveCupTie(rng, 1, 2, a, b, 0, 8);
+      const tie = resolveCupTie(rng, 1, 2, fakeMatchData(1, 0.5), fakeMatchData(2, 0.5), 0, 8);
       expect([1, 2]).toContain(tie.winner);
       if (tie.homeGoals === tie.awayGoals) {
         expect(tie.wentToPens).toBe(true);
@@ -215,18 +167,42 @@ describe("resolveCupTie", () => {
   });
 });
 
-describe("playCupRound (full 16-team bracket, no play-in)", () => {
-  it("plays four rounds down to a single champion, crediting prize money correctly", () => {
-    let cup = buildCupState(strongComps, tablesFor(strongComps), 2)!;
-    const matchData = new Map<number, TeamMatchData>();
-    cup.teams.forEach((tid) => matchData.set(tid, fakeMatchData(tid, 0.4 + (cup.seeds[tid] <= 4 ? 0.2 : 0))));
+describe("full Swiss cup: league phase → playoff → knockout", () => {
+  it("plays out to a single champion and credits every prize tier correctly", () => {
+    const comps = worldCompetitions();
+    let cup = buildCupState(comps, tablesFor(comps), 2)!;
+    const matchData = matchDataFor(cup);
 
     const totalPrizes = new Map<number, number>();
     const addAll = (prizes: Map<number, number>) => {
       for (const [tid, amt] of prizes) totalPrizes.set(tid, (totalPrizes.get(tid) ?? 0) + amt);
     };
 
-    for (let r = 0; r < 4; r++) {
+    // Six league-phase matchdays.
+    for (const md of CUP_LEAGUE_PHASE_MATCHDAYS) {
+      const { cup: next, prizes } = playLeaguePhaseRound(cup, matchData, 0, md);
+      cup = next;
+      addAll(prizes);
+    }
+    expect(leaguePhaseComplete(cup.leaguePhase!)).toBe(true);
+    // The knockout bracket is now seeded: four direct entrants + four -1 playoff slots.
+    expect(cup.teams.filter((t) => t >= 0)).toHaveLength(CUP_LP_DIRECT_QF);
+    expect(cup.teams.filter((t) => t === -1)).toHaveLength(CUP_KO_SIZE - CUP_LP_DIRECT_QF);
+    expect(cup.playoff!.teams).toHaveLength(CUP_LP_PLAYOFF_TEAMS);
+    expect(playoffDue(cup, CUP_PLAYOFF_MATCHDAY)).toBe(true);
+    // Knockout still can't start — playoff pending.
+    expect(dueCupRound(cup, CUP_KO_ROUND_MATCHDAYS[0])).toBeNull();
+
+    // Playoff round fills the bracket.
+    const po = playPlayoff(cup, matchData, 0);
+    cup = po.cup;
+    addAll(po.prizes);
+    expect(cup.playoff!.ties).toHaveLength(CUP_LP_PLAYOFF_TEAMS / 2);
+    expect(cup.teams.every((t) => t >= 0)).toBe(true);
+    expect(dueCupRound(cup, CUP_KO_ROUND_MATCHDAYS[0])).toBe(0);
+
+    // Three knockout rounds: QF → SF → Final.
+    for (let r = 0; r < CUP_KO_ROUND_MATCHDAYS.length; r++) {
       expect(completedRounds(cup)).toBe(r);
       const { cup: next, prizes } = playCupRound(cup, matchData, 0);
       cup = next;
@@ -234,32 +210,37 @@ describe("playCupRound (full 16-team bracket, no play-in)", () => {
     }
 
     expect(isCupComplete(cup)).toBe(true);
-    expect(cup.championTid).not.toBeNull();
-    expect(cup.ties).toHaveLength(15); // 8 + 4 + 2 + 1
-    expect(completedRounds(cup)).toBe(4);
-
+    expect(koFinalRound(cup)).toBe(2);
+    expect(cup.ties).toHaveLength(4 + 2 + 1); // QF + SF + Final
     const champion = cup.championTid!;
-    const finalists = cupFinalists(cup);
-    expect(finalists).toContain(champion);
-    const runnerUp = finalists.find((t) => t !== champion)!;
+    expect(cupFinalists(cup)).toContain(champion);
 
-    for (const tid of cup.teams) {
-      expect(totalPrizes.get(tid)! >= CUP_PRIZE_PARTICIPATION).toBe(true);
-    }
-    expect(totalPrizes.get(champion)).toBe(
-      CUP_PRIZE_PARTICIPATION + CUP_PRIZE_WIN_R16 + CUP_PRIZE_WIN_QF + CUP_PRIZE_WIN_SF + CUP_PRIZE_WIN_FINAL,
-    );
-    expect(totalPrizes.get(runnerUp)).toBe(
-      CUP_PRIZE_PARTICIPATION + CUP_PRIZE_WIN_R16 + CUP_PRIZE_WIN_QF + CUP_PRIZE_WIN_SF + CUP_PRIZE_RUNNER_UP,
-    );
+    // Prize pot: participation for all 20, four playoff wins, and the knockout tiers.
     const pot =
-      16 * CUP_PRIZE_PARTICIPATION +
-      8 * CUP_PRIZE_WIN_R16 +
+      CUP_LEAGUE_PHASE_SIZE * CUP_PRIZE_PARTICIPATION +
+      (CUP_LP_PLAYOFF_TEAMS / 2) * CUP_PRIZE_WIN_PLAYOFF +
       4 * CUP_PRIZE_WIN_QF +
       2 * CUP_PRIZE_WIN_SF +
       1 * CUP_PRIZE_WIN_FINAL +
       1 * CUP_PRIZE_RUNNER_UP;
     const credited = [...totalPrizes.values()].reduce((s, v) => s + v, 0);
     expect(credited).toBe(pot);
+    // Every qualifier earned at least the participation fee.
+    for (const tid of cup.leaguePhase!.teams) {
+      expect(totalPrizes.get(tid)! >= CUP_PRIZE_PARTICIPATION).toBe(true);
+    }
+  });
+});
+
+describe("bracket navigation", () => {
+  it("pairs the quarter-finals as adjacent bracket slots once seeded", () => {
+    const comps = worldCompetitions();
+    let cup = buildCupState(comps, tablesFor(comps), 2)!;
+    const matchData = matchDataFor(cup);
+    for (const md of CUP_LEAGUE_PHASE_MATCHDAYS) cup = playLeaguePhaseRound(cup, matchData, 0, md).cup;
+    cup = playPlayoff(cup, matchData, 0).cup;
+    const pairs = matchupsForRound(cup, 0);
+    expect(pairs).toHaveLength(CUP_KO_SIZE / 2);
+    expect(pairs[0]).toEqual([cup.teams[0], cup.teams[1]]);
   });
 });

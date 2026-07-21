@@ -40,6 +40,62 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    date: "2026-07-21",
+    title: "Fixed the scout always saying \"take it\" on incoming offers",
+    items: [
+      "Someone pointed out that the scout's one-line take on Incoming Offers said \"that's a great deal, take it!\" on basically every offer, which made it useless. Turned out I was comparing the offer to what the player's worth to your own club, but the buyers only ever make an offer that already clears that number, so of course it always looked like a great deal.",
+      "Now the scout weighs the offer against the player's open-market value instead, so the take actually varies: a genuinely big offer gets a \"take it,\" a middling one gets a suggested counter price, and a lowball gets brushed off. Same as before, how reliable the read is still tracks your scouting spend, so a stingy scouting budget gives you a fuzzier take.",
+    ],
+  },
+  {
+    date: "2026-07-21",
+    title: "You have to set your scouting budget every season now",
+    items: [
+      "Scouting is one of the most important sliders in the game and I had a feeling a lot of people were just never touching it, coasting on whatever they set once (or the default) forever. It shapes how accurate every transfer value and potential read is all year, so ignoring it is a real handicap.",
+      "So now when you advance to a new season, instead of jumping straight into it, the game stops you on a Set Scouting Budget screen. It lays out what the money actually buys you, you pick your number for the year, and then it kicks off the season. You can't skip it, so at least once a year you're consciously deciding how much to spend. It's the same budget it always was, just no longer easy to forget about.",
+    ],
+  },
+  {
+    date: "2026-07-21",
+    title: "Finance rework",
+    items: [
+      "A lot of AI clubs were just sitting on piles of cash and never buying anyone, which isn't how a real manager thinks. The reason was the market only ever did a deal if the player was a straight up bargain for the buyer, so decent-but-fairly-priced players never moved.",
+      "So now if a club has real money to spend and an actual gap on its roster (either it's short of bodies at a position, or its best guy there is a clear weak spot), it'll pay a fair price to fill that hole instead of holding out for a steal. It'll also dig a bit deeper into its cash to get the deal done. It still keeps a reserve so nobody bankrupts themselves.",
+      "While I was in there I also tightened the money supply. Clubs were swimming in cash because the base allocation every club gets each season was way more than they could ever spend, so it just piled up. I cut that base allocation from $110M to $88M across the board (second division too, scaled the same way).",
+    ],
+  },
+  {
+    date: "2026-07-21",
+    title: "Cleaned up the Match Rating leaderboard",
+    items: [
+      "The Match Rating leaderboard was getting cluttered with guys who only played a game or two. Match Rating is an average, so if someone came off the bench once and had a blinder, his one great score would rocket him to the top of the chart above players who'd been great all season. That's silly, so now you need to have played at least half of the games so far to show up on the Match Rating boards (both the full Stat Leaders page and the little leaders box on the Dashboard).",
+    ],
+  },
+  {
+    date: "2026-07-21",
+    title: "Transfer rows stick around after a deal closes",
+    items: [
+      "Small annoyance I kept hitting: when you bought a player on the Transfers page, or accepted an offer for one of yours on Incoming Offers, the row would just blink out of the list and you'd be left wondering if it actually went through. Now the row stays put and turns into a little \"Transferred\" (or \"Sold to <club>\") tag for the rest of the window, so you get a clear confirmation instead of a disappearing act. The window summary lists are still down at the bottom too.",
+    ],
+  },
+  {
+    date: "2026-07-20",
+    title: "The best players just aren't for sale anymore",
+    items: [
+      "When I made star players hard to buy a couple days ago, I did it by cranking their asking price into the billions so no club could ever afford them. It worked, but it was ugly. Seeing a guy valued at 900 million just looks broken, and it's not how football actually works. Man City would never sell Haaland, and it's not because you can't scrape together the cash, it's because he's simply not for sale.",
+      "So I redid it properly. Transfer values are now capped at 350 million, so you'll never see a silly fantasy number again. Instead, the genuinely elite players on the genuinely good clubs are just taken off the market. Specifically: if a player was one of the best in the world last season (either a really high rating, or he won Player of the Season, the Golden Boot, or made the Team of the Season) and his club finished in the top four of a top-flight league, he's not for sale to anyone, you or the AI. He won't show up in your recommended targets and any offer you make gets ignored.",
+      "The upshot is the same as before, you still can't just buy a title-winning squad, but now the reason makes sense and the numbers you see are believable. If you want those players, you develop them or you catch one at a club that had a down year.",
+    ],
+  },
+  {
+    date: "2026-07-20",
+    title: "Reworked the Continental Cup into a Champions-League-style league phase",
+    items: [
+      "Before the cup was a straight sixteen team knockout, but France and Portugal only got 1 team each and they had to play in a play-in game. This kinda sucked so I rebuilt the whole thing. It is now modeled like the modern Champions League with the league format.",
+      "It's now 20 clubs. The big four still send their top four, but France and Portugal each send their top two now instead of just the champion. Everyone starts in one big league phase and plays six games, and the draw is balanced with pots so nobody randomly gets six giants or six easy games (and you never draw a club from your own league). After six rounds the table splits: top four go straight to the quarter-finals, 5th through 12th play a one-off playoff for the last four spots, and 13th through 20th are out. Then it's quarter-finals, semis and final like before.",
+    ],
+  },
+  {
     date: "2026-07-20",
     title: "Stopped the free-agent flip, and made free agents harder to grab",
     items: [

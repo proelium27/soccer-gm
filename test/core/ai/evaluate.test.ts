@@ -6,10 +6,11 @@ import { POSITIONS } from "../../../src/core/players/types.js";
 import type { ClubContext, StrategicDirection } from "../../../src/core/ai/clubContext.js";
 import {
   evaluatePlayerForClub, valueToClub, scoutNoiseFraction, perceivedValueToClub,
+  hasPositionalGap,
 } from "../../../src/core/ai/evaluate.js";
 import {
   ROSTER_COMPOSITION, AI_NEED_MIN, AI_NEED_MAX,
-  AI_SCOUT_NOISE_MIN, AI_SCOUT_NOISE_MAX,
+  AI_SCOUT_NOISE_MIN, AI_SCOUT_NOISE_MAX, AI_NEED_BUY_WEAK_STARTER_GAP,
 } from "../../../src/core/constants.js";
 
 const SEASON = 10;
@@ -132,6 +133,45 @@ describe("scoutNoiseFraction / perceivedValueToClub", () => {
     const richSwing = Math.abs(perceivedValueToClub(player, rich, () => 1) - valueToClub(player, rich));
     const poorSwing = Math.abs(perceivedValueToClub(player, poor, () => 1) - valueToClub(player, poor));
     expect(poorSwing).toBeGreaterThan(richSwing);
+  });
+});
+
+describe("hasPositionalGap", () => {
+  // A club that is at target depth everywhere and strong at every position.
+  const noGap = ctx({
+    squadStrength: 72,
+    posBestOvr: Object.fromEntries(POSITIONS.map((p) => [p, 74])) as Record<Position, number>,
+  });
+
+  it("is false when the club is at target depth and has a solid incumbent", () => {
+    expect(hasPositionalGap(samplePlayer({ pos: "ST", ovr: 80 }), noGap)).toBe(false);
+  });
+
+  it("is true when the club is understaffed at the position (needs bodies)", () => {
+    const thin = ctx({
+      ...noGap,
+      posDepth: { ...ROSTER_COMPOSITION, ST: ROSTER_COMPOSITION.ST - 1 } as Record<Position, number>,
+    });
+    // Even a merely-decent player counts — a short position needs a body.
+    expect(hasPositionalGap(samplePlayer({ pos: "ST", ovr: 68 }), thin)).toBe(true);
+  });
+
+  it("is true for a weak startable hole the player would upgrade", () => {
+    const weak = ctx({
+      squadStrength: 72,
+      posBestOvr: { ...noGap.posBestOvr, ST: 72 - AI_NEED_BUY_WEAK_STARTER_GAP - 2 },
+    });
+    // Player beats the weak incumbent → a real upgrade to a soft spot.
+    expect(hasPositionalGap(samplePlayer({ pos: "ST", ovr: 74 }), weak)).toBe(true);
+  });
+
+  it("is false at a weak spot when the player would not upgrade the incumbent", () => {
+    const weak = ctx({
+      squadStrength: 72,
+      posBestOvr: { ...noGap.posBestOvr, ST: 72 - AI_NEED_BUY_WEAK_STARTER_GAP - 2 },
+    });
+    const incumbent = weak.posBestOvr.ST;
+    expect(hasPositionalGap(samplePlayer({ pos: "ST", ovr: incumbent - 1 }), weak)).toBe(false);
   });
 });
 

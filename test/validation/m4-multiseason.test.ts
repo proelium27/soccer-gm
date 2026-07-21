@@ -55,21 +55,10 @@ describe("M4 — multi-season stability", () => {
     }
   });
 
-  it("league runs 5 seasons without pid collisions or orphaned rosters", () => {
-    const rng = mulberry32(99);
-    let league = createLeagueState(0, rng);
-
-    for (let s = 0; s < SEASONS; s++) {
-      league = simThrough(league, "season", rng);
-      league = simOffseason(league, rng);
-    }
-
-    const pids = league.players.map((p) => p.pid);
-    expect(new Set(pids).size).toBe(pids.length);
-
-    const playerSet = new Set(pids);
-    for (const t of league.teams) {
-      for (const pid of t.roster) expect(playerSet.has(pid)).toBe(true);
-    }
-  });
+  // NOTE: the second multi-season gate (pid-collision / orphaned-roster
+  // integrity) lives in m4-multiseason-integrity.test.ts. Each of these
+  // gates sims the full 240-club world over 5 seasons (~2min each), so they
+  // are split into separate files: vitest runs files in parallel, and in CI
+  // vitest --shard spreads them across separate runners. Keeping both in one
+  // file made it the ~4-min long pole that pinned the whole suite.
 });

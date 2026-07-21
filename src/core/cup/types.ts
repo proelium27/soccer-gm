@@ -6,9 +6,9 @@ import type { BoxScore } from "../../engine/attribution.js";
  * (shootout kicks are NOT counted as goals, matching real-football convention).
  */
 export interface CupTie {
-  /** 0 = Round of 16, 1 = Quarter-final, 2 = Semi-final, 3 = Final. */
+  /** Knockout round index. Swiss cup: 0 = QF, 1 = SF, 2 = Final. Legacy cup: 0 = R16 … 3 = Final. */
   round: number;
-  /** League matchday this tie was played on (see CUP_ROUND_MATCHDAYS). */
+  /** League matchday this tie was played on (see CUP_KO_ROUND_MATCHDAYS / CUP_ROUND_MATCHDAYS). */
   matchday: number;
   home: number; // tid
   away: number; // tid
@@ -23,13 +23,58 @@ export interface CupTie {
 }
 
 /**
- * A preliminary play-in round: the two weak-league (France/Portugal) champions
- * and the two weakest big-four qualifiers fight for the last two bracket places.
- * `teams` holds the four participants in tie order — (teams[0] vs teams[1])
- * feeds bracket slot `slots[0]`, (teams[2] vs teams[3]) feeds `slots[1]`, where
- * each slot is an index into CupState.teams. `ties` is empty until the round is
- * played (on CUP_PLAYIN_MATCHDAY), then holds the two completed ties whose
- * winners have been written into CupState.teams at `slots`.
+ * One league-phase match. Unlike a knockout tie it is 90' only and may end
+ * level (no extra time / shootout, no winner), so it carries just the scoreline
+ * and box score. `played` flips true and the goals/boxScore fill once its
+ * matchday has been simulated.
+ */
+export interface LeaguePhaseMatch {
+  /** 0-based league-phase round (which of the CUP_LEAGUE_PHASE_GAMES rounds). */
+  round: number;
+  /** League matchday this match is played on (see CUP_LEAGUE_PHASE_MATCHDAYS). */
+  matchday: number;
+  home: number; // tid
+  away: number; // tid
+  played: boolean;
+  homeGoals: number; // -1 until played
+  awayGoals: number; // -1 until played
+  boxScore: BoxScore | null;
+}
+
+/**
+ * The Swiss-style opening stage: all CUP_LEAGUE_PHASE_SIZE qualifiers in one
+ * combined table, each playing CUP_LEAGUE_PHASE_GAMES matches (drawn via
+ * strength pots). The standings are derived on demand from the played matches
+ * (see leaguePhaseTable) — nothing is stored beyond the fixtures themselves.
+ * Once every match is played the table is split (top CUP_LP_DIRECT_QF straight
+ * to the quarter-finals, next CUP_LP_PLAYOFF_TEAMS into the playoff, the rest
+ * out) and the results seed CupState.playoff and CupState.teams.
+ */
+export interface CupLeaguePhase {
+  teams: number[]; // CUP_LEAGUE_PHASE_SIZE tids
+  matches: LeaguePhaseMatch[]; // CUP_LEAGUE_PHASE_SIZE * CUP_LEAGUE_PHASE_GAMES / 2 matches
+}
+
+/**
+ * The Swiss cup's single-leg playoff round: league-phase ranks 5..12 fight for
+ * the four quarter-final places the top four didn't already claim. `teams` holds
+ * the eight participants in tie order — (teams[0] vs teams[1]) feeds bracket
+ * slot `slots[0]`, and so on — where each slot is an index into CupState.teams.
+ * `ties` is empty until the round is played (on CUP_PLAYOFF_MATCHDAY), then
+ * holds the four completed ties whose winners have filled CupState.teams.
+ */
+export interface CupPlayoff {
+  teams: number[]; // 8 tids, tie order
+  slots: number[]; // 4 CupState.teams indices the four winners fill
+  matchday: number;
+  ties: CupTie[]; // 4 once played
+}
+
+/**
+ * A legacy preliminary play-in round (pre-Swiss saves only): the two weak-league
+ * champions and the two weakest big-four qualifiers fight for the last two of
+ * the old 16-team bracket's places. See CupPlayoff for the field layout — same
+ * slots/teams/ties shape, two ties instead of four.
  */
 export interface CupPlayIn {
   teams: number[]; // 4 tids, tie order
@@ -39,22 +84,33 @@ export interface CupPlayIn {
 }
 
 /**
- * One season's Continental Cup. `teams` is the 16 qualifiers in *bracket
- * order* — round-of-16 pairings are (teams[0] vs teams[1]), (teams[2] vs
- * teams[3]), … — so no seed math is needed at play time; later rounds pair up
- * the previous round's winners in the same order. When there's a play-in, two
- * of the 16 slots start as -1 and are filled by the play-in winners before R16.
- * `ties` accumulates every completed knockout tie (a full round is played
- * atomically). `seeds` records each club's seed for display.
+ * One season's Continental Cup.
+ *
+ * A **Swiss cup** (`leaguePhase !== null`, all new saves) opens with the league
+ * phase; once it and the playoff resolve, `teams` holds the eight quarter-final
+ * qualifiers in *bracket order* — QF pairings are (teams[0] vs teams[1]),
+ * (teams[2] vs teams[3]), … — and `ties` accumulates the QF/SF/Final ties. The
+ * four playoff slots in `teams` start as -1 and are filled by the playoff
+ * winners; the top four seeds take the other four bracket places directly.
+ *
+ * A **legacy cup** (`leaguePhase === null`, old mid-season saves) is the old
+ * straight 16-team bracket, optionally fed by `playIn`. `teams` holds 16 in
+ * bracket order.
+ *
+ * `seeds` records each club's league-phase / bracket seed for display.
  */
 export interface CupState {
   /** The season this cup is played during (qualifiers came from season − 1's tables). */
   season: number;
   name: string;
-  teams: number[]; // 16 tids, bracket order (-1 in a play-in slot until filled)
+  teams: number[]; // knockout bracket order: 8 (Swiss) or 16 (legacy); -1 in a slot pending a result
   /** tid → 1-based seed (1 = top seed), for display. */
   seeds: Record<number, number>;
-  /** The preliminary play-in, or null when the world fields an exact 16-team bracket. */
+  /** The Swiss opening league phase, or null for a legacy straight-bracket cup. */
+  leaguePhase: CupLeaguePhase | null;
+  /** The Swiss single-leg playoff, or null (legacy cup, or not yet seeded). */
+  playoff: CupPlayoff | null;
+  /** The legacy preliminary play-in, or null (Swiss cup, or exact-16 legacy bracket). */
   playIn: CupPlayIn | null;
   ties: CupTie[];
   championTid: number | null;

@@ -147,9 +147,9 @@ describe("computeClubHistory", () => {
     expect(h.cupTitles).toEqual([1]);
     expect(h.cupFinals).toEqual([2]);
     // Per-season cup runs, newest first (seasons 3, 2, 1).
-    expect(h.seasons[0].cupRun).toEqual({ round: CUP_FINAL_ROUND - 1, wonRound: false });
-    expect(h.seasons[1].cupRun).toEqual({ round: CUP_FINAL_ROUND, wonRound: false });
-    expect(h.seasons[2].cupRun).toEqual({ round: CUP_FINAL_ROUND, wonRound: true });
+    expect(h.seasons[0].cupRun).toEqual({ note: "Semi-finals", isChampion: false, isRunnerUp: false });
+    expect(h.seasons[1].cupRun).toEqual({ note: "Runners-up", isChampion: false, isRunnerUp: true });
+    expect(h.seasons[2].cupRun).toEqual({ note: "Winners", isChampion: true, isRunnerUp: false });
   });
 
   it("leaves cup runs null when the club didn't qualify or no cup ran", () => {

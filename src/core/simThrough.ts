@@ -14,6 +14,7 @@ import { simMatchDetailed } from "../engine/matchSim.js";
 import { emptySeasonStats } from "./players/types.js";
 import { applyInjuries } from "./injuries.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
+import { protectedStarPids, lastCompletedSeason } from "./transfers/protectedStars.js";
 import { runAILoanMarket } from "./loans.js";
 import { hashInts } from "../engine/rng.js";
 import type { StoredTeam } from "./teams/clubs.js";
@@ -23,10 +24,11 @@ import type { NewsEvent } from "./newsEvents.js";
 import { computePowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { CupState, CupTie } from "./cup/types.js";
-import { dueCupRound, cupFinalists, playInDue } from "./cup/cup.js";
-import { playCupRound, playPlayIn } from "./cup/simCup.js";
+import { dueCupRound, cupFinalists, playInDue, playoffDue, koFinalRound } from "./cup/cup.js";
+import { leaguePhaseDue } from "./cup/leaguePhase.js";
+import { playCupRound, playPlayIn, playLeaguePhaseRound, playPlayoff } from "./cup/simCup.js";
 import { clampBudget, financeScale } from "./finance/budget.js";
-import { CUP_FINAL_ROUND, POWER_SNAPSHOT_INTERVAL } from "./constants.js";
+import { POWER_SNAPSHOT_INTERVAL } from "./constants.js";
 
 function accumulateStats(
   players: Player[],
@@ -186,7 +188,7 @@ export function simThrough(
     if (
       cup &&
       matchday > currentMatchday &&
-      dueCupRound(cup, matchday) === CUP_FINAL_ROUND &&
+      dueCupRound(cup, matchday) === koFinalRound(cup) &&
       cupFinalists(cup).includes(league.meta.userTid)
     ) {
       stoppedBeforeMatchday = matchday;
@@ -206,6 +208,10 @@ export function simThrough(
         currentTeams, currentPlayers, activeLoans, transfers, league.season,
         [...league.played, ...newResults], "winter", "regular",
         league.meta.userTid, hashInts(league.lid, league.season, 8), league.competitions,
+        protectedStarPids(
+          lastCompletedSeason(league), currentTeams, currentPlayers,
+          league.competitions, league.meta.userTid,
+        ),
       );
       currentTeams = market.teams;
       transfers = market.transfers;
@@ -255,11 +261,22 @@ export function simThrough(
     // the cup's participants, not each team's own league — otherwise the
     // per-competition z-scoring above would erase the cross-league strength gap
     // and a weak-league club would play a big-four club as an equal. Built only
-    // on a matchday a cup round (or the play-in) is actually due.
-    const cupActive = cup && (playInDue(cup, matchday) || dueCupRound(cup, matchday) !== null);
+    // on a matchday a cup stage (league phase, playoff, play-in, or knockout) is
+    // actually due.
+    const cupLeaguePhaseDue = cup?.leaguePhase ? leaguePhaseDue(cup.leaguePhase, matchday) : false;
+    const cupActive = cup && (
+      cupLeaguePhaseDue || playoffDue(cup, matchday) || playInDue(cup, matchday) || dueCupRound(cup, matchday) !== null
+    );
     let cupMatchData: Map<number, TeamMatchData> | null = null;
     if (cup && cupActive) {
-      const cupTids = new Set<number>([...cup.teams.filter((t) => t >= 0), ...(cup.playIn?.teams ?? [])]);
+      // Pool every club that could feature this cup: the whole league-phase
+      // field (Swiss), the knockout bracket, and any playoff / play-in entrants.
+      const cupTids = new Set<number>([
+        ...(cup.leaguePhase?.teams ?? []),
+        ...cup.teams.filter((t) => t >= 0),
+        ...(cup.playoff?.teams ?? []),
+        ...(cup.playIn?.teams ?? []),
+      ]);
       const cupTeams = currentTeams.filter((t) => cupTids.has(t.tid));
       const cupData = leagueMatchData({ teams: toLeagueTeams(cupTeams), players: currentPlayers });
       cupMatchData = new Map();
@@ -281,7 +298,18 @@ export function simThrough(
       });
     };
     if (cup && cupMatchData) {
-      if (playInDue(cup, matchday)) {
+      if (cupLeaguePhaseDue) {
+        // Swiss league-phase matchday: play its matches (not knockout ties, so
+        // the ticker shows no cup ties here) and seed the bracket when it ends.
+        const { cup: advanced, prizes } = playLeaguePhaseRound(cup, cupMatchData, league.lid, matchday);
+        cup = advanced;
+        creditPrizes(prizes);
+      } else if (playoffDue(cup, matchday)) {
+        const { cup: advanced, prizes } = playPlayoff(cup, cupMatchData, league.lid);
+        cup = advanced;
+        mdCupTies = advanced.playoff?.ties ?? [];
+        creditPrizes(prizes);
+      } else if (playInDue(cup, matchday)) {
         const { cup: advanced, prizes } = playPlayIn(cup, cupMatchData, league.lid);
         cup = advanced;
         mdCupTies = advanced.playIn?.ties ?? [];

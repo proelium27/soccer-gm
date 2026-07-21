@@ -4,8 +4,7 @@ import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeClubHistory, type ClubIndividualHonour, type ClubSeasonRecord } from "../../core/clubHistory.js";
 import { competitionOf, countriesOf } from "../../core/competitions.js";
-import { worldHasCup, cupRoundName } from "../../core/cup/cup.js";
-import { CUP_FINAL_ROUND } from "../../core/constants.js";
+import { worldHasCup } from "../../core/cup/cup.js";
 import type { Player } from "../../core/players/types.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
@@ -23,8 +22,7 @@ function TrophyIcon({ size = 18 }: { size?: number }) {
 /** Short label for a club's Continental Cup run in one season, e.g. "Cup Winners". */
 function cupRunNote(cupRun: ClubSeasonRecord["cupRun"]): string | null {
   if (!cupRun) return null;
-  if (cupRun.round === CUP_FINAL_ROUND) return cupRun.wonRound ? "Cup Winners" : "Cup Runners-up";
-  return `Cup ${cupRoundName(cupRun.round)}`;
+  return `Cup ${cupRun.note}`;
 }
 
 function StatCard({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {

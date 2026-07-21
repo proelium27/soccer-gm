@@ -167,6 +167,21 @@ export function academyBaseCenter(country: string, tier: 1 | 2): number {
 export const NORMALIZE_K = 0.08;
 
 /**
+ * Star concentration for the attack/control/defense composite rollups
+ * (2026-07-21). `rollupComposites` position-weights each phase (who drives it
+ * counts most), then blends the weighted mean toward the group's single best
+ * player: `dial = (1 - c) * weightedMean + c * peak`. This lets an elite
+ * individual resist being averaged down by weak teammates, so a standout in a
+ * key position genuinely carries a thin squad instead of being diluted to the
+ * roster mean. 0 = pure weighted mean (no star effect); 1 = the group's best
+ * player alone sets the dial. `finishing` is deliberately left on its own
+ * shot-share weighting (no peak blend). Higher values swing more of a team's
+ * strength onto one player — dynasty-audit title churn before raising it, as
+ * the blend interacts with league z-normalization spread.
+ */
+export const COMPOSITE_STAR_CONCENTRATION = 0.3;
+
+/**
  * Historic team seasons ("extremism", 2026-07-19, user ask): each club, each
  * season, has a small chance of a hidden season-long form swing — a dream
  * season (+TEAM_SEASON_FORM_DELTA on every normalized composite) or a season
@@ -604,8 +619,28 @@ export const PROSPECT_AGE_MAX = 21;
  * below was benchmarked against). MAX_BUDGET's existing cap already bounds
  * long-run compounding independently of this value, so raising it doesn't
  * reopen the accumulation problem the 2026-07-13 cut was solving.
+ *
+ * Cut 110M → 88M on 2026-07-21 per user direction, to reduce AI cash-hoarding:
+ * a 15-season dynasty audit found AI clubs sitting on ~$110M median with 90%+
+ * banking a >$50M war chest, because the base inflow so far outruns wages that
+ * the surplus compounds every season (the AI-to-AI market can't drain it — see
+ * the AI_NEED_BUY note). This is a deliberate, across-the-board tightening (D1
+ * and D2 both, via the shared tier/country scale, and the user's own club too —
+ * a small difficulty bump). Wages are intentionally left UNCHANGED (lowering
+ * them would shrink the wage sink and increase hoarding, the opposite of the
+ * goal).
+ *
+ * The floor is hard: the WAGE_SAFE_SQUAD invariant test requires base to strictly
+ * exceed the *worst-case* AI wage bill — the strongest AI-reachable squad at the
+ * top of the ±WAGE_VARIATION band — which is ≈ $85.92M (a first pass to 85M dipped
+ * $0.9M below it and CI's budget.test.ts caught it, even though 15/12-season
+ * empirical audits never hit that tail). So 88M is the deepest sensible cut that
+ * keeps "AI deficits never exist," clearing the worst case by ~$2M. Empirically
+ * (audited at the slightly lower 85M) it drops the median AI hoard to ~$92-95M
+ * (from ~$110M) with zero deficits over two seeds; 88M lands marginally above
+ * that. MAX_BUDGET is untouched.
  */
-export const BASE_SEASON_BUDGET = 110_000_000;
+export const BASE_SEASON_BUDGET = 88_000_000;
 /**
  * Hard ceiling on a club's running budget balance, added 2026-07-13: since
  * budget compounds season over season by design (never resets to the base
@@ -754,27 +789,56 @@ export const VALUATION_CONTRACT_YEAR_BONUS = 0.08;
 export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
 
 /**
- * Elite "priceless star" premium. The base curve above is deliberately flat at
- * the top, which let clubs buy even the league's very best players. This adds a
- * steep premium for every OVR point above VALUATION_ELITE_THRESHOLD so the best
- * players' asking prices rocket past any club's MAX_BUDGET, making them
- * effectively unsellable. Added to the base before the age/potential/contract
+ * Elite "star" premium. The base curve above is deliberately flat at the top,
+ * so without this a club could buy even the league's very best players at a
+ * pedestrian price. This adds a steep premium for every OVR point above
+ * VALUATION_ELITE_THRESHOLD, added to the base before the age/potential/contract
  * multipliers. Bonus = COEFF × max(0, ovr − THRESHOLD)^EXPONENT.
  *
- * Retuned 2026-07-20 as a **difficulty lever**: originally the threshold sat at
- * 85 so only literal 90+ generational talents were priceless, but in a normal
- * (deflated) league the players that actually win titles are only ~72-78, so a
- * club could still just *buy* a championship squad. Lowering the threshold to
- * 76 (≈ the genuine top of a league) prices the real difference-makers out of
- * every budget — you develop champions, you don't buy them. Note a global
- * player-quality nerf can NOT substitute for this: match composites z-normalize
- * league-wide quality away (measured: it left title-win rates unchanged),
- * whereas gating the market bites. Tuned so ≤76 stays freely payable, 78 is
- * pricey (~2x a 76), and 80+ clears the ~$400M cap into "priceless".
+ * The threshold of 76 (≈ the genuine top of a league) makes the real
+ * difference-makers expensive: ≤76 stays freely payable, 78 is pricey (~2x a
+ * 76), and 80+ climbs into the top bracket. Note a global player-quality nerf
+ * can NOT substitute for pricing the market this way — match composites
+ * z-normalize league-wide quality away (measured: it left title-win rates
+ * unchanged), whereas making elite talent expensive bites.
+ *
+ * The premium no longer runs off to infinity: the final value is clamped at
+ * MAX_TRANSFER_VALUE so no asking price is ever absurd. "You can't buy a
+ * champion" is now enforced *directly and realistically* rather than through a
+ * fake billion-dollar price tag — the genuinely elite players on genuinely
+ * successful clubs are simply not for sale (see protectedStars.ts / the
+ * PROTECTED_STAR_* constants below), the way a top club would never sell its
+ * best player at any price.
  */
 export const VALUATION_ELITE_THRESHOLD = 76;
 export const VALUATION_ELITE_COEFF = 11_000_000;
 export const VALUATION_ELITE_EXPONENT = 2.5;
+
+/**
+ * Hard ceiling on any player's transfer value / asking price (trueTransferValue,
+ * reservation prices, scouted valuations, and negotiation counters all clamp to
+ * it). Keeps quoted fees believable — no club ever asks a fantasy number.
+ * Sits above the ~$400M top-club budget cap only slightly below it, so a
+ * maximally rich club *can* in principle afford the priciest for-sale player;
+ * "unbuyable" is expressed by the not-for-sale gate, not by an unpayable price.
+ */
+export const MAX_TRANSFER_VALUE = 350_000_000;
+
+/**
+ * "Protected star" not-for-sale gate (see core/transfers/protectedStars.ts).
+ * An AI club's player is withheld from the market entirely — no asking price at
+ * all — when he was one of the best in the world last season AND his club had a
+ * big season, mirroring how a top club simply won't sell its star at any price.
+ *
+ * - PROTECTED_STAR_OVR: an OVR at/above this counts as "best in the world"
+ *   on its own (an individual honor last season — POTY / Golden Boot / Team of
+ *   the Season — also qualifies, regardless of rating).
+ * - PROTECTED_STAR_TOP_FINISH: "big season" = finishing this many places or
+ *   better in a tier-1 league last season (a strong second-division finish
+ *   doesn't take a player off the market).
+ */
+export const PROTECTED_STAR_OVR = 80;
+export const PROTECTED_STAR_TOP_FINISH = 4;
 
 /**
  * Age's effect on transfer value, as a straight multiplier — [age,
@@ -1017,6 +1081,48 @@ export const AI_MARKET_FEE_FLOOR_FRACTION = 0.5;
 export const AI_MARKET_MAX_BUYS = 3;
 export const AI_MARKET_MAX_SELLS = 3;
 
+/* ── "Need buy": cash-rich clubs fill real gaps without holding out for a bargain ──
+ *
+ * The AI_MARKET_MIN_SURPLUS gate above means a normal deal only fires when the
+ * player is a *bargain* for the buyer (worth 15% more to it than to the seller).
+ * That left clubs sitting on cash while a position went unaddressed, because the
+ * players who'd fill the hole are rarely a 15%-margin steal. A human GM with
+ * money and a hole just pays a fair price to fill it. So when a club has a
+ * genuine positional gap (below its ROSTER_COMPOSITION target there, or a weak
+ * startable hole this player would upgrade — see hasPositionalGap), the required
+ * surplus margin drops to AI_NEED_BUY_MIN_SURPLUS for that buyer/player pair, and
+ * it digs a bit deeper into its cash reserve. Everything else is untouched: the
+ * player must still be available (seller willing to sell), clear the fee floor,
+ * and fit the reserve — and elites stay unbuyable (the priceless-star premium is
+ * in valuation, not here), so this only routes affordable, already-for-sale
+ * squad players to the clubs that actually need them. Total league quality is
+ * conserved (a move, never a creation), so it can't reopen the inflation ratchet.
+ */
+
+/**
+ * Surplus margin a need buy must clear (vs AI_MARKET_MIN_SURPLUS for a normal
+ * deal). 0 = the buyer will pay the seller's full reservation with no discount —
+ * a fair price to fill a real hole, not a bargain. The fee floor and affordability
+ * checks still apply, so this never funds a genuinely bad or unaffordable deal.
+ */
+export const AI_NEED_BUY_MIN_SURPLUS = 0;
+
+/**
+ * How far below its own squad strength (in ovr) a club's best player at a
+ * position must be to count as a "startable hole" worth a need buy. A club whose
+ * best CB is this many points under its general level has a real weak spot there.
+ */
+export const AI_NEED_BUY_WEAK_STARTER_GAP = 3;
+
+/**
+ * How much of the frugality-driven part of a club's cash reserve a need buy
+ * frees up (0 = no relief, normal reserve; 1 = spend down to the MIN reserve like
+ * the richest clubs). A club filling a real gap digs deeper into its cash, but
+ * AI_MARKET_RESERVE_FRACTION_MIN is always kept back, so no club empties its vault
+ * or risks a deficit.
+ */
+export const AI_NEED_BUY_RESERVE_RELIEF = 0.5;
+
 /**
  * Cash reserve a club holds back from transfers — it spends only the surplus
  * above `reserveFraction × budget`, so it never blows its whole budget on
@@ -1230,32 +1336,74 @@ export const CUP_NAME = "Continental Cup";
 /**
  * Cup slots per tier-1 league, by league strength. A "strong" league (a big-
  * four league — countryStrengthOffset 0) sends its top CUP_STRONG_LEAGUE_SLOTS;
- * a "weak" league (France/Portugal — offset > 0) sends only its champion
- * (CUP_WEAK_LEAGUE_SLOTS). With 4 strong × 4 + 2 weak × 1 = 18 qualifiers, the
- * two weak champions plus the two weakest strong qualifiers contest a
- * preliminary play-in round for the last two of the 16 bracket places (the
- * other 14 strong qualifiers get a bye) — so a weak-league champion has to win
- * its way into the main bracket. CUP_TEAMS_PER_LEAGUE is kept as the strong
+ * a "weak" league (France/Portugal — offset > 0) sends its top
+ * CUP_WEAK_LEAGUE_SLOTS. With 4 strong × 4 + 2 weak × 2 = 20 qualifiers, the
+ * cup opens with a Swiss-style league phase (see CUP_LEAGUE_PHASE_* below)
+ * rather than a straight bracket. CUP_TEAMS_PER_LEAGUE is kept as the strong
  * default for any code/tests that predate the weak-league split.
  */
 export const CUP_STRONG_LEAGUE_SLOTS = 4;
-export const CUP_WEAK_LEAGUE_SLOTS = 1;
+export const CUP_WEAK_LEAGUE_SLOTS = 2;
 export const CUP_TEAMS_PER_LEAGUE = CUP_STRONG_LEAGUE_SLOTS;
 
-/** League matchday the preliminary play-in round is played on (before R16's matchday). */
+/* ── Swiss league phase ──────────────────────────────────────────────────────
+ * The modern-UCL-style opening stage: all CUP_LEAGUE_PHASE_SIZE qualifiers sit
+ * in one combined table and each plays CUP_LEAGUE_PHASE_GAMES matches against
+ * different opponents (drawn via strength pots — see drawLeaguePhase). The final
+ * table then splits three ways: the top CUP_LP_DIRECT_QF go straight to the
+ * quarter-finals, the next CUP_LP_PLAYOFF_TEAMS contest a single-leg playoff for
+ * the other QF places, and the rest are eliminated. */
+export const CUP_LEAGUE_PHASE_SIZE = 20;
+export const CUP_LEAGUE_PHASE_GAMES = 6;
+/**
+ * Number of strength pots the league-phase field is split into for the draw.
+ * Each club plays CUP_LEAGUE_PHASE_GAMES / CUP_LEAGUE_PHASE_POTS opponents from
+ * each pot, guaranteeing a balanced spread of tough and winnable games. Must
+ * divide the field evenly (20 / 2 = 10 per pot) and divide the game count
+ * evenly (6 / 2 = 3 per pot) — the only clean split for a 20-team, 6-game phase.
+ */
+export const CUP_LEAGUE_PHASE_POTS = 2;
+
+/** League matchdays the six league-phase rounds are played on (before the knockout). */
+export const CUP_LEAGUE_PHASE_MATCHDAYS = [3, 7, 11, 15, 19, 23] as const;
+
+/** Top N of the league-phase table skip the playoff and go straight to the quarter-finals. */
+export const CUP_LP_DIRECT_QF = 4;
+/** League-phase ranks CUP_LP_DIRECT_QF+1 … +CUP_LP_PLAYOFF_TEAMS contest the single-leg playoff. */
+export const CUP_LP_PLAYOFF_TEAMS = 8; // ranks 5–12 → four single-leg ties → four QF places
+/** Size of the knockout bracket the league phase feeds (quarter-finals onward). */
+export const CUP_KO_SIZE = 8;
+
+/** League matchday the single-leg playoff round is played on (before the quarter-finals). */
+export const CUP_PLAYOFF_MATCHDAY = 27;
+
+/** Prize for winning a playoff tie and reaching the quarter-finals. */
+export const CUP_PRIZE_WIN_PLAYOFF = 3_000_000;
+
+/**
+ * Swiss-cup knockout matchdays, indexed by knockout round
+ * (0 = Quarter-final, 1 = Semi-final, 2 = Final). Spread across the run-in.
+ */
+export const CUP_KO_ROUND_MATCHDAYS = [31, 34, 37] as const;
+
+/* ── Legacy straight-bracket cup (pre-Swiss saves only) ───────────────────────
+ * Kept so a save that is mid-season with an old play-in/16-team cup finishes
+ * cleanly. New cups built at the offseason use the Swiss format above. */
+
+/** Legacy: league matchday the preliminary play-in round is played on. */
 export const CUP_PLAYIN_MATCHDAY = 4;
 
-/** Prize for winning a play-in tie and reaching the main bracket. */
+/** Prize for winning a legacy play-in tie and reaching the main bracket. */
 export const CUP_PRIZE_WIN_PLAYIN = 1_500_000;
 
 /**
- * League matchday each knockout round is played on, indexed by round
+ * Legacy: league matchday each knockout round is played on, indexed by round
  * (0 = Round of 16, 1 = Quarter-final, 2 = Semi-final, 3 = Final). Spread
  * across the 38-matchday season so rounds don't crowd the run-in.
  */
 export const CUP_ROUND_MATCHDAYS = [8, 16, 26, 34] as const;
 
-/** Number of knockout rounds (R16 → QF → SF → Final). */
+/** Legacy number of knockout rounds (R16 → QF → SF → Final). */
 export const CUP_ROUNDS = CUP_ROUND_MATCHDAYS.length;
 
 /** Round index of the final — the round the user's sim halts before if their club is a finalist. */
@@ -1273,9 +1421,18 @@ export const CUP_PRIZE_WIN_SF = 8_000_000; // advance to the final
 export const CUP_PRIZE_WIN_FINAL = 30_000_000; // lift the trophy
 export const CUP_PRIZE_RUNNER_UP = 6_000_000; // lose the final
 
-/** Per-round prize for winning a tie in that round, indexed like CUP_ROUND_MATCHDAYS. */
+/** Legacy per-round prize for winning a tie in that round, indexed like CUP_ROUND_MATCHDAYS. */
 export const CUP_PRIZE_WIN_BY_ROUND = [
   CUP_PRIZE_WIN_R16, CUP_PRIZE_WIN_QF, CUP_PRIZE_WIN_SF, CUP_PRIZE_WIN_FINAL,
+] as const;
+
+/**
+ * Swiss-cup per-win prize, indexed by knockout round (0 = QF, 1 = SF, 2 = Final).
+ * The Swiss knockout starts at the quarter-finals, so it reuses the QF/SF/Final
+ * tiers; league-phase participation + playoff prizes are collected before it.
+ */
+export const CUP_KO_PRIZE_WIN_BY_ROUND = [
+  CUP_PRIZE_WIN_QF, CUP_PRIZE_WIN_SF, CUP_PRIZE_WIN_FINAL,
 ] as const;
 
 /**
@@ -1289,3 +1446,19 @@ export const CUP_ET_CHANCES_PER_SIDE = 6;
 export const CUP_PEN_BEST_OF = 5;
 /** Base per-kick conversion probability, nudged by taker finishing vs keeper. */
 export const CUP_PEN_BASE_CONVERSION = 0.75;
+
+/**
+ * Match Rating (average) leaderboard qualifier. An average over one or two
+ * games is noise — a single standout cameo would otherwise top the chart — so
+ * a player must have appeared in at least this fraction of the games *played so
+ * far* to show up. Scaling to games-played (not a flat count) keeps the board
+ * honest ten games into a season as well as at the end of a full 38-match one.
+ * Counting/total stats (goals, assists, etc.) have no such gate.
+ */
+export const RATING_LEADER_QUALIFY_FRACTION = 1 / 2;
+/**
+ * Flat appearance floor for the *career-aggregate* Match Rating board (the
+ * "All Seasons → Career" scope), which spans many seasons and has no single
+ * games-played denominator to take a fraction of.
+ */
+export const RATING_LEADER_MIN_CAREER_APPEARANCES = 10;
