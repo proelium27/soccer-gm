@@ -33,6 +33,14 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-07-21",
+    title: "AI clubs actually spend their money to fill holes now",
+    items: [
+      "Somebody pointed out that a lot of AI clubs just sit on piles of cash and never buy anyone, which isn't how a real manager thinks. The reason was the market only ever did a deal if the player was a straight up bargain for the buyer, so decent-but-fairly-priced players never moved.",
+      "So now if a club has real money to spend and an actual gap on its roster (either it's short of bodies at a position, or its best guy there is a clear weak spot), it'll pay a fair price to fill that hole instead of holding out for a steal. It'll also dig a bit deeper into its cash to get the deal done. It still keeps a reserve so nobody bankrupts themselves, and the genuine superstars are still basically unbuyable, so you can't just buy your way to a title. In practice you should see fewer rivals with a glaring hole in their squad, and more of the surplus players floating around actually finding a home.",
+    ],
+  },
+  {
     date: "2026-07-20",
     title: "Reworked the Continental Cup into a Champions-League-style league phase",
     items: [

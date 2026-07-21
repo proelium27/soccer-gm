@@ -1017,6 +1017,48 @@ export const AI_MARKET_FEE_FLOOR_FRACTION = 0.5;
 export const AI_MARKET_MAX_BUYS = 3;
 export const AI_MARKET_MAX_SELLS = 3;
 
+/* ── "Need buy": cash-rich clubs fill real gaps without holding out for a bargain ──
+ *
+ * The AI_MARKET_MIN_SURPLUS gate above means a normal deal only fires when the
+ * player is a *bargain* for the buyer (worth 15% more to it than to the seller).
+ * That left clubs sitting on cash while a position went unaddressed, because the
+ * players who'd fill the hole are rarely a 15%-margin steal. A human GM with
+ * money and a hole just pays a fair price to fill it. So when a club has a
+ * genuine positional gap (below its ROSTER_COMPOSITION target there, or a weak
+ * startable hole this player would upgrade — see hasPositionalGap), the required
+ * surplus margin drops to AI_NEED_BUY_MIN_SURPLUS for that buyer/player pair, and
+ * it digs a bit deeper into its cash reserve. Everything else is untouched: the
+ * player must still be available (seller willing to sell), clear the fee floor,
+ * and fit the reserve — and elites stay unbuyable (the priceless-star premium is
+ * in valuation, not here), so this only routes affordable, already-for-sale
+ * squad players to the clubs that actually need them. Total league quality is
+ * conserved (a move, never a creation), so it can't reopen the inflation ratchet.
+ */
+
+/**
+ * Surplus margin a need buy must clear (vs AI_MARKET_MIN_SURPLUS for a normal
+ * deal). 0 = the buyer will pay the seller's full reservation with no discount —
+ * a fair price to fill a real hole, not a bargain. The fee floor and affordability
+ * checks still apply, so this never funds a genuinely bad or unaffordable deal.
+ */
+export const AI_NEED_BUY_MIN_SURPLUS = 0;
+
+/**
+ * How far below its own squad strength (in ovr) a club's best player at a
+ * position must be to count as a "startable hole" worth a need buy. A club whose
+ * best CB is this many points under its general level has a real weak spot there.
+ */
+export const AI_NEED_BUY_WEAK_STARTER_GAP = 3;
+
+/**
+ * How much of the frugality-driven part of a club's cash reserve a need buy
+ * frees up (0 = no relief, normal reserve; 1 = spend down to the MIN reserve like
+ * the richest clubs). A club filling a real gap digs deeper into its cash, but
+ * AI_MARKET_RESERVE_FRACTION_MIN is always kept back, so no club empties its vault
+ * or risks a deficit.
+ */
+export const AI_NEED_BUY_RESERVE_RELIEF = 0.5;
+
 /**
  * Cash reserve a club holds back from transfers — it spends only the surplus
  * above `reserveFraction × budget`, so it never blows its whole budget on

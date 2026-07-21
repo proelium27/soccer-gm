@@ -8,6 +8,7 @@ import {
   AI_TIMELINE_STRENGTH, AI_PRIME_NEUTRAL, AI_YOUTH_NEUTRAL,
   AI_AFFORD_FREE_FRACTION, AI_AFFORD_SLOPE, AI_AFFORD_BUDGET_FLOOR,
   AI_SCOUT_NOISE_MIN, AI_SCOUT_NOISE_MAX,
+  AI_NEED_BUY_WEAK_STARTER_GAP,
 } from "../constants.js";
 
 /** Clamp x into [lo, hi]. */
@@ -122,6 +123,25 @@ export function evaluatePlayerForClub(player: Player, ctx: ClubContext): ClubVal
 /** Convenience: just the club-relative value (see evaluatePlayerForClub). */
 export function valueToClub(player: Player, ctx: ClubContext): number {
   return evaluatePlayerForClub(player, ctx).value;
+}
+
+/**
+ * Does this club have a genuine gap at the player's position? Either it's
+ * understaffed there (fewer bodies than ROSTER_COMPOSITION wants) or it has a
+ * weak startable hole this player would upgrade (its best at the position sits
+ * AI_NEED_BUY_WEAK_STARTER_GAP+ ovr below the club's own squad strength, and the
+ * player beats that incumbent). Drives the AI "need buy" path: a cash-rich club
+ * with a real hole pays a fair price to fill it instead of holding out for a
+ * bargain. Position quality/affordability are judged elsewhere — this only asks
+ * "is there a hole here?".
+ */
+export function hasPositionalGap(player: Player, ctx: ClubContext): boolean {
+  const pos = player.pos;
+  const understaffed = ctx.posDepth[pos] < ROSTER_COMPOSITION[pos];
+  const weakStarter =
+    ctx.posBestOvr[pos] < ctx.squadStrength - AI_NEED_BUY_WEAK_STARTER_GAP &&
+    player.ovr > ctx.posBestOvr[pos];
+  return understaffed || weakStarter;
 }
 
 /**
