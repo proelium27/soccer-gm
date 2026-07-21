@@ -122,9 +122,9 @@ export function Manual() {
             a text file instead.)
           </p>
           <p>
-            England's 20 Division 1 clubs have real crest art that shows up wherever the club's
-            name does. Every other club (Division 2 England, plus Spain, Italy, Germany, France and
-            Portugal) just shows a two-color swatch until it gets a crest of its own.
+            England's and Spain's clubs all have real crest art that shows up wherever the club's
+            name does. Every club without one yet (Italy, Germany, France and Portugal) just shows a
+            two-color swatch until it gets a crest of its own.
           </p>
         </Section>
 
