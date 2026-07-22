@@ -99,6 +99,7 @@ export function Cup() {
         </>
       );
     }
+    const legs = slot.tie.legs;
     return (
       <>
         <div className="cup-tie-row">
@@ -109,6 +110,11 @@ export function Cup() {
           {teamCell(slot.tie.away, slot.tie.winner === slot.tie.away)}
           <span className="cup-tie-score">{slot.tie.awayGoals}</span>
         </div>
+        {legs && legs.length === 2 && (
+          <div className="cup-tie-note">
+            agg over two legs · 1st {legs[0].homeGoals}–{legs[0].awayGoals} · 2nd {legs[1].awayGoals}–{legs[1].homeGoals}
+          </div>
+        )}
         {(slot.tie.wentToExtraTime || slot.tie.wentToPens) && (
           <div className="cup-tie-note">
             {slot.tie.wentToPens

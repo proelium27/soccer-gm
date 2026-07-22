@@ -179,6 +179,7 @@ export function buildCupState(
     playIn: null,
     ties: [],
     championTid: null,
+    twoLegged: true,
   };
 }
 

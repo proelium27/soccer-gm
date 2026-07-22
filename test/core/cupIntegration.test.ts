@@ -100,6 +100,7 @@ describe("Continental Cup — season lifecycle", () => {
         stubTie(1, others[2], others[3], others[2]),
       ],
       championTid: null,
+      twoLegged: true,
     };
 
     const result = simThrough(league2, "season", mulberry32(8));

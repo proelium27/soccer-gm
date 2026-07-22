@@ -265,6 +265,14 @@ export function Manual() {
             From there it's a straight knockout: quarter-finals, semi-finals and final, on matchdays
             31, 34 and 37.
           </p>
+          <p>
+            The <strong>quarter-finals and semi-finals are two-legged</strong>: each side hosts once
+            and the tie is decided on the <strong>aggregate</strong> (both clubs' goals across the two
+            games added up). Two matches instead of one, with home advantage cancelling out, let the
+            stronger squad's quality actually come through, so cup runs track how good you really are
+            far more than a single-game coin flip did. The <strong>final is a single match</strong> at
+            a neutral venue, and the league-phase <strong>playoff stays single-leg</strong> too.
+          </p>
           <p className="text-muted small">
             This is deliberately a fairer road in for France and Portugal than a one-off qualifier
             would be: their clubs get in with more places, are guaranteed six games, and only need a
@@ -279,11 +287,12 @@ export function Manual() {
             one's final tables. Season one has no cup.
           </p>
           <p>
-            Playoff and knockout ties are single-leg: level after 90 minutes goes to extra time, then
-            a penalty shootout if it's still level, so every tie ends with a winner (league-phase
-            games can just be draws). The league phase and bracket play automatically as the season
-            reaches them, and the <strong>Continental Cup</strong> page shows the live table and
-            bracket with your club highlighted.
+            A tie level after its full running time (90 minutes for single-leg ties, or level on
+            aggregate after both legs of a two-legged one) goes to extra time, then a penalty shootout
+            if it's still level, so every knockout tie ends with a winner (league-phase games can just
+            be draws). The league phase and bracket play automatically as the season reaches them, and
+            the <strong>Continental Cup</strong> page shows the live table and bracket with your club
+            highlighted; each two-legged tie lists both leg scores beneath it.
           </p>
           <p>
             Prize money is real and it's paid as you go. Every club banks a participation fee for

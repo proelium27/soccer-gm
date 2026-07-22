@@ -12,7 +12,7 @@ export interface CupTie {
   matchday: number;
   home: number; // tid
   away: number; // tid
-  homeGoals: number; // after extra time
+  homeGoals: number; // aggregate over both legs, incl. extra time (single-leg ties: just the one match)
   awayGoals: number;
   wentToExtraTime: boolean;
   wentToPens: boolean;
@@ -20,6 +20,14 @@ export interface CupTie {
   awayPens: number;
   winner: number; // tid
   boxScore: BoxScore;
+  /**
+   * Two-legged ties only (twoLegged cups' QF/SF): the two 90' leg scorelines,
+   * always from `home`'s perspective. legs[0] = first leg (`home` hosts),
+   * legs[1] = second leg (`away` hosts). Absent on single-leg ties (final,
+   * playoff, legacy cups, pre-two-leg saves). Extra-time / shootout goals are
+   * folded into homeGoals/awayGoals, not into the leg lines.
+   */
+  legs?: { homeGoals: number; awayGoals: number }[];
 }
 
 /**
@@ -114,4 +122,12 @@ export interface CupState {
   playIn: CupPlayIn | null;
   ties: CupTie[];
   championTid: number | null;
+  /**
+   * Whether the knockout ties (bar the final) are two-legged, home-and-away,
+   * decided on aggregate. True for all newly built cups; false for legacy /
+   * pre-two-leg saves and any cup already in progress when this shipped (they
+   * finish under the old single-leg rules). The final and the league-phase
+   * playoff are always single-leg regardless.
+   */
+  twoLegged: boolean;
 }
