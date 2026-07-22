@@ -169,6 +169,16 @@ export function PitchField({
                     $
                   </span>
                 )}
+                {p.injury && (
+                  <span
+                    className="pitch-chip-injury-flag"
+                    title={`Injured: ${p.injury.type}, out about ${p.injury.gamesRemaining} ${p.injury.gamesRemaining === 1 ? "match" : "matches"}. He'll sit out until he's fit.`}
+                  >
+                    <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden="true">
+                      <path d="M4 0h2v4h4v2H6v4H4V6H0V4h4z" fill="currentColor" />
+                    </svg>
+                  </span>
+                )}
                 <span className="pitch-chip-pos">{p.pos}</span>
                 <PlayerRatingsTooltip player={p}>
                   <span className="pitch-chip-name">{shortName(p.name)}</span>
@@ -207,6 +217,12 @@ export function PitchField({
                     ? "Final year"
                     : `Through ${seasonYear(p.contract.expiresSeason)}`}
                 </div>
+                {p.injury && (
+                  <div className="pitch-chip-actions-meta text-danger">
+                    Injured: {p.injury.type}, out about {p.injury.gamesRemaining}{" "}
+                    {p.injury.gamesRemaining === 1 ? "match" : "matches"}
+                  </div>
+                )}
                 <div className="d-flex flex-wrap gap-1 mt-2">
                   {canExtend(p, season) && (
                     refusingPids.has(p.pid) ? (

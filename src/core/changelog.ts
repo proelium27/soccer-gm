@@ -34,6 +34,13 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-22",
+    title: "You can finally see who's injured",
+    items: [
+      "Injuries have always been in the game, but they haven't been displayed in the UI. Now injured players show a little red cross next to their name; if you hover over it, you can see what the injury is and how long until they're expected back. Injuries are also now displayed in your dashboard.",
+    ],
+  },
+  {
+    date: "2026-07-22",
     title: "Subs",
     items: [
       "The in-match coach used to just sub off the most tired players but now the coach also decides who to sub off based on OVR and match performance.",
