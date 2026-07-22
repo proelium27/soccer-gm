@@ -24,9 +24,9 @@ import type { NewsEvent } from "./newsEvents.js";
 import { computePowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { CupState, CupTie } from "./cup/types.js";
-import { dueCupRound, cupFinalists, playInDue, playoffDue, koFinalRound } from "./cup/cup.js";
+import { dueCupRound, dueCupLeg, cupFinalists, playInDue, playoffDue, koFinalRound } from "./cup/cup.js";
 import { leaguePhaseDue } from "./cup/leaguePhase.js";
-import { playCupRound, playPlayIn, playLeaguePhaseRound, playPlayoff } from "./cup/simCup.js";
+import { playKnockoutLeg, playPlayIn, playLeaguePhaseRound, playPlayoff } from "./cup/simCup.js";
 import { clampBudget, financeScale } from "./finance/budget.js";
 import { POWER_SNAPSHOT_INTERVAL } from "./constants.js";
 
@@ -266,7 +266,7 @@ export function simThrough(
     // actually due.
     const cupLeaguePhaseDue = cup?.leaguePhase ? leaguePhaseDue(cup.leaguePhase, matchday) : false;
     const cupActive = cup && (
-      cupLeaguePhaseDue || playoffDue(cup, matchday) || playInDue(cup, matchday) || dueCupRound(cup, matchday) !== null
+      cupLeaguePhaseDue || playoffDue(cup, matchday) || playInDue(cup, matchday) || dueCupLeg(cup, matchday) !== null
     );
     let cupMatchData: Map<number, TeamMatchData> | null = null;
     if (cup && cupActive) {
@@ -315,10 +315,12 @@ export function simThrough(
         cup = advanced;
         mdCupTies = advanced.playIn?.ties ?? [];
         creditPrizes(prizes);
-      } else if (dueCupRound(cup, matchday) !== null) {
+      } else if (dueCupLeg(cup, matchday) !== null) {
         const priorTieCount = cup.ties.length;
-        const { cup: advanced, prizes } = playCupRound(cup, cupMatchData, league.lid);
+        const { cup: advanced, prizes } = playKnockoutLeg(cup, cupMatchData, league.lid, matchday);
         cup = advanced;
+        // First-leg matchdays finalize no ties (results held in koLegs); the
+        // aggregate tie surfaces on the second-leg matchday. slice() → [] then.
         mdCupTies = advanced.ties.slice(priorTieCount);
         creditPrizes(prizes);
       }

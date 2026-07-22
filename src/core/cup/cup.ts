@@ -5,7 +5,7 @@ import { hashInts } from "../../engine/rng.js";
 import {
   CUP_NAME, CUP_ROUNDS, CUP_ROUND_MATCHDAYS,
   CUP_STRONG_LEAGUE_SLOTS, CUP_WEAK_LEAGUE_SLOTS,
-  CUP_KO_SIZE, CUP_KO_ROUND_MATCHDAYS, CUP_KO_PRIZE_WIN_BY_ROUND, CUP_PRIZE_WIN_BY_ROUND,
+  CUP_KO_SIZE, CUP_KO_ROUND_MATCHDAYS, CUP_KO_LEG_MATCHDAYS, CUP_KO_PRIZE_WIN_BY_ROUND, CUP_PRIZE_WIN_BY_ROUND,
   CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS, CUP_PLAYOFF_MATCHDAY,
   countryStrengthOffset,
 } from "../constants.js";
@@ -34,9 +34,26 @@ export function koRoundsOf(cup: CupState): number {
   return isSwissCup(cup) ? CUP_KO_ROUND_MATCHDAYS.length : CUP_ROUNDS;
 }
 
-/** League matchdays for each knockout round, by cup format. */
+/** League matchdays for each knockout round, by cup format (the last/only leg of each round). */
 export function koRoundMatchdays(cup: CupState): readonly number[] {
   return isSwissCup(cup) ? CUP_KO_ROUND_MATCHDAYS : CUP_ROUND_MATCHDAYS;
+}
+
+/**
+ * The league matchday(s) each knockout round is played on, indexed by round
+ * then by leg. A two-legged Swiss cup's QF/SF have two matchdays each (leg 1,
+ * leg 2) and its final one; every other cup (single-leg Swiss, legacy) has one
+ * matchday per round. Whether a round is two-legged is read off the leg count
+ * here, so this table is the single source of truth for the knockout calendar.
+ */
+export function koLegMatchdays(cup: CupState): readonly (readonly number[])[] {
+  if (isSwissCup(cup) && cup.twoLegged) return CUP_KO_LEG_MATCHDAYS;
+  return koRoundMatchdays(cup).map((md) => [md]);
+}
+
+/** Whether knockout round `r` is played over two legs (only two-legged Swiss QF/SF). */
+export function isTwoLeggedRound(cup: CupState, round: number): boolean {
+  return koLegMatchdays(cup)[round]?.length === 2;
 }
 
 /** Per-win knockout prizes, by cup format. */
@@ -179,6 +196,8 @@ export function buildCupState(
     playIn: null,
     ties: [],
     championTid: null,
+    twoLegged: true,
+    koLegs: null,
   };
 }
 
@@ -282,12 +301,22 @@ export function cupFinalists(cup: CupState): number[] {
   return winnersOfRound(cup, koFinalRound(cup) - 1);
 }
 
+/** A knockout leg due to be played: which round, which leg (0/1), and whether the round is two-legged. */
+export interface DueLeg {
+  round: number;
+  leg: number; // 0 = first leg (or the only leg of a single-leg round), 1 = second leg
+  twoLeg: boolean;
+  matchday: number; // the leg's scheduled matchday
+}
+
 /**
- * The knockout round due to be played at `matchday`, or null if none is. For a
+ * The knockout leg due to be played at `matchday`, or null if none is. For a
  * Swiss cup the knockout can't start until the league phase and playoff have
- * filled the bracket; for a legacy cup, until the play-in has.
+ * filled the bracket; for a legacy cup, until the play-in has. Within a
+ * two-legged round the first leg comes due first; once it's played (its results
+ * held in `cup.koLegs`) the second leg comes due on its own later matchday.
  */
-export function dueCupRound(cup: CupState, matchday: number): number | null {
+export function dueCupLeg(cup: CupState, matchday: number): DueLeg | null {
   if (isCupComplete(cup)) return null;
   if (isSwissCup(cup)) {
     if (!cup.leaguePhase || !leaguePhaseComplete(cup.leaguePhase)) return null;
@@ -295,9 +324,23 @@ export function dueCupRound(cup: CupState, matchday: number): number | null {
   } else if (playInPending(cup)) {
     return null;
   }
-  const r = completedRounds(cup);
-  if (r >= koRoundsOf(cup)) return null;
-  return matchday >= koRoundMatchdays(cup)[r] ? r : null;
+  const round = completedRounds(cup);
+  if (round >= koRoundsOf(cup)) return null;
+  const legMds = koLegMatchdays(cup)[round];
+  const twoLeg = legMds.length === 2;
+  // First leg still outstanding? koLegs holds the current round's first legs.
+  const leg = twoLeg && cup.koLegs && cup.koLegs.length > 0 ? 1 : 0;
+  const md = legMds[leg];
+  return matchday >= md ? { round, leg, twoLeg, matchday: md } : null;
+}
+
+/**
+ * The knockout round due to be played at `matchday`, or null if none is — a
+ * thin wrapper over dueCupLeg for callers that only care about the round (the
+ * stop-before-final check, UI). See dueCupLeg for the full leg detail.
+ */
+export function dueCupRound(cup: CupState, matchday: number): number | null {
+  return dueCupLeg(cup, matchday)?.round ?? null;
 }
 
 /**

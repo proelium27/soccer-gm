@@ -12,13 +12,38 @@ export interface CupTie {
   matchday: number;
   home: number; // tid
   away: number; // tid
-  homeGoals: number; // after extra time
+  homeGoals: number; // aggregate over both legs, incl. extra time (single-leg ties: just the one match)
   awayGoals: number;
   wentToExtraTime: boolean;
   wentToPens: boolean;
   homePens: number;
   awayPens: number;
   winner: number; // tid
+  boxScore: BoxScore;
+  /**
+   * Two-legged ties only (twoLegged cups' QF/SF): the two 90' leg scorelines,
+   * always from `home`'s perspective. legs[0] = first leg (`home` hosts),
+   * legs[1] = second leg (`away` hosts). Absent on single-leg ties (final,
+   * playoff, legacy cups, pre-two-leg saves). Extra-time / shootout goals are
+   * folded into homeGoals/awayGoals, not into the leg lines.
+   */
+  legs?: { homeGoals: number; awayGoals: number }[];
+}
+
+/**
+ * A completed **first leg** of a two-legged knockout tie, held between the two
+ * legs' matchdays. The scoreline is 90' only (no extra time — it can end level;
+ * the aggregate decides the tie on the second leg), stored from the first-leg
+ * host's perspective (`home` hosted leg 1). Once the second leg is played the
+ * two are combined into a single aggregate `CupTie` (see resolveTwoLeggedTie)
+ * and `CupState.koLegs` is cleared.
+ */
+export interface KnockoutLeg {
+  round: number;
+  home: number; // tid — hosted leg 1
+  away: number; // tid — hosts leg 2
+  homeGoals: number; // leg-1 goals, `home`'s perspective
+  awayGoals: number;
   boxScore: BoxScore;
 }
 
@@ -114,4 +139,20 @@ export interface CupState {
   playIn: CupPlayIn | null;
   ties: CupTie[];
   championTid: number | null;
+  /**
+   * Whether the knockout ties (bar the final) are two-legged, home-and-away,
+   * decided on aggregate. True for all newly built cups; false for legacy /
+   * pre-two-leg saves and any cup already in progress when this shipped (they
+   * finish under the old single-leg rules). The final and the league-phase
+   * playoff are always single-leg regardless.
+   */
+  twoLegged: boolean;
+  /**
+   * Two-legged cups only: the completed **first legs** of the knockout round
+   * currently in progress, held until that round's second-leg matchday combines
+   * them into aggregate `ties`. Null whenever no first leg is outstanding (a
+   * single-leg cup, between rounds, or a round played atomically). Absent on
+   * old saves → treated as null.
+   */
+  koLegs: KnockoutLeg[] | null;
 }

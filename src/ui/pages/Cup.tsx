@@ -4,7 +4,7 @@ import { useLeague } from "../context/LeagueContext.js";
 import { HelpHint } from "../components/HelpHint.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { seasonYear } from "../format.js";
-import type { CupState, CupTie } from "../../core/cup/types.js";
+import type { CupState, CupTie, KnockoutLeg } from "../../core/cup/types.js";
 import {
   matchupsForRound, cupRoundName, cupFinalists, isCupComplete, worldHasCup,
   isSwissCup, koRoundsOf,
@@ -12,15 +12,19 @@ import {
 import { leaguePhaseTable } from "../../core/cup/leaguePhase.js";
 import { CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS } from "../../core/constants.js";
 
-/** One slot in a bracket column: a finished tie, a known-but-unplayed pairing, or a yet-undecided placeholder. */
+/** One slot in a bracket column: a finished tie, a two-legged tie with only its first leg played, a known-but-unplayed pairing, or a yet-undecided placeholder. */
 type Slot =
   | { kind: "played"; tie: CupTie }
+  | { kind: "firstLeg"; leg: KnockoutLeg }
   | { kind: "pending"; home: number; away: number }
   | { kind: "tbd" };
 
 function roundSlots(cup: CupState, round: number): Slot[] {
   const played = cup.ties.filter((t) => t.round === round);
   if (played.length > 0) return played.map((tie) => ({ kind: "played" as const, tie }));
+  // Two-legged round with its first leg played but the second leg still to come.
+  const firstLegs = (cup.koLegs ?? []).filter((l) => l.round === round);
+  if (firstLegs.length > 0) return firstLegs.map((leg) => ({ kind: "firstLeg" as const, leg }));
   const pairs = matchupsForRound(cup, round); // known only once the prior round is complete (round 0 always)
   if (pairs.length > 0 && pairs.every(([h, a]) => h >= 0 && a >= 0)) {
     return pairs.map(([home, away]) => ({ kind: "pending" as const, home, away }));
@@ -99,6 +103,22 @@ export function Cup() {
         </>
       );
     }
+    if (slot.kind === "firstLeg") {
+      return (
+        <>
+          <div className="cup-tie-row">
+            {teamCell(slot.leg.home, false)}
+            <span className="cup-tie-score">{slot.leg.homeGoals}</span>
+          </div>
+          <div className="cup-tie-row">
+            {teamCell(slot.leg.away, false)}
+            <span className="cup-tie-score">{slot.leg.awayGoals}</span>
+          </div>
+          <div className="cup-tie-note">first leg · second leg to play</div>
+        </>
+      );
+    }
+    const legs = slot.tie.legs;
     return (
       <>
         <div className="cup-tie-row">
@@ -109,6 +129,11 @@ export function Cup() {
           {teamCell(slot.tie.away, slot.tie.winner === slot.tie.away)}
           <span className="cup-tie-score">{slot.tie.awayGoals}</span>
         </div>
+        {legs && legs.length === 2 && (
+          <div className="cup-tie-note">
+            agg over two legs · 1st {legs[0].homeGoals}–{legs[0].awayGoals} · 2nd {legs[1].awayGoals}–{legs[1].homeGoals}
+          </div>
+        )}
         {(slot.tie.wentToExtraTime || slot.tie.wentToPens) && (
           <div className="cup-tie-note">
             {slot.tie.wentToPens

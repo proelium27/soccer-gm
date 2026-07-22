@@ -9,10 +9,10 @@ import { worldCompetitions, englandCompetitions } from "../../src/core/competiti
 import {
   seedOrder, qualifyCupTeams, buildCupState, matchupsForRound, cupPlan,
   completedRounds, dueCupRound, cupRoundName, cupFinalists, isCupComplete,
-  playoffDue, koFinalRound,
+  playoffDue, koFinalRound, koLegMatchdays,
 } from "../../src/core/cup/cup.js";
 import { leaguePhaseComplete } from "../../src/core/cup/leaguePhase.js";
-import { playCupRound, playPlayoff, playLeaguePhaseRound, resolveCupTie } from "../../src/core/cup/simCup.js";
+import { playKnockoutLeg, playPlayoff, playLeaguePhaseRound, resolveCupTie } from "../../src/core/cup/simCup.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import {
   CUP_LEAGUE_PHASE_MATCHDAYS, CUP_KO_ROUND_MATCHDAYS, CUP_PLAYOFF_MATCHDAY,
@@ -202,17 +202,34 @@ describe("full Swiss cup: league phase → playoff → knockout", () => {
     expect(cup.teams.every((t) => t >= 0)).toBe(true);
     expect(dueCupRound(cup, CUP_KO_ROUND_MATCHDAYS[0])).toBe(0);
 
-    // Three knockout rounds: QF → SF → Final.
-    for (let r = 0; r < CUP_KO_ROUND_MATCHDAYS.length; r++) {
-      expect(completedRounds(cup)).toBe(r);
-      const { cup: next, prizes } = playCupRound(cup, matchData, 0);
-      cup = next;
-      addAll(prizes);
-    }
+    // Three knockout rounds: QF → SF → Final. QF and SF are two-legged (leg 1
+    // then leg 2 on separate matchdays); the final is a single leg.
+    koLegMatchdays(cup).forEach((legMds, round) => {
+      expect(completedRounds(cup)).toBe(round);
+      for (const md of legMds) {
+        const { cup: next, prizes } = playKnockoutLeg(cup, matchData, 0, md);
+        cup = next;
+        addAll(prizes);
+      }
+    });
 
     expect(isCupComplete(cup)).toBe(true);
     expect(koFinalRound(cup)).toBe(2);
     expect(cup.ties).toHaveLength(4 + 2 + 1); // QF + SF + Final
+    expect(cup.koLegs).toBeNull(); // first-leg buffer cleared once the round finalized
+    // QF (round 0) and SF (round 1) are two-legged; each tie carries its two 90'
+    // legs and its aggregate is those legs summed plus any extra-time goals.
+    for (const t of cup.ties.filter((tie) => tie.round <= 1)) {
+      expect(t.legs).toHaveLength(2);
+      const legSum = t.legs![0].homeGoals + t.legs![1].homeGoals;
+      expect(t.homeGoals).toBeGreaterThanOrEqual(legSum); // extra time only adds
+      if (!t.wentToExtraTime) {
+        expect(t.homeGoals).toBe(legSum);
+        expect(t.awayGoals).toBe(t.legs![0].awayGoals + t.legs![1].awayGoals);
+      }
+    }
+    // The final (round 2) is a single leg — no per-leg breakdown.
+    expect(cup.ties.find((t) => t.round === 2)!.legs).toBeUndefined();
     const champion = cup.championTid!;
     expect(cupFinalists(cup)).toContain(champion);
 
@@ -243,5 +260,34 @@ describe("bracket navigation", () => {
     const pairs = matchupsForRound(cup, 0);
     expect(pairs).toHaveLength(CUP_KO_SIZE / 2);
     expect(pairs[0]).toEqual([cup.teams[0], cup.teams[1]]);
+  });
+});
+
+describe("two-legged knockout across separate matchdays", () => {
+  it("holds the first legs between matchdays, then finalizes on the second leg", () => {
+    const comps = worldCompetitions();
+    let cup = buildCupState(comps, tablesFor(comps), 2)!;
+    const matchData = matchDataFor(cup);
+    for (const md of CUP_LEAGUE_PHASE_MATCHDAYS) cup = playLeaguePhaseRound(cup, matchData, 0, md).cup;
+    cup = playPlayoff(cup, matchData, 0).cup;
+
+    const [qfLeg1Md, qfLeg2Md] = koLegMatchdays(cup)[0]; // quarter-final leg matchdays
+
+    // First-leg matchday: all four QF first legs are held, none finalized yet.
+    cup = playKnockoutLeg(cup, matchData, 0, qfLeg1Md).cup;
+    expect(cup.koLegs).toHaveLength(CUP_KO_SIZE / 2);
+    expect(cup.koLegs!.every((l) => l.round === 0)).toBe(true);
+    expect(cup.ties).toHaveLength(0);
+    expect(completedRounds(cup)).toBe(0); // round not complete until the second leg
+    // With the first leg played, nothing is due again until the second-leg
+    // matchday — the second leg comes due there, not before.
+    expect(dueCupRound(cup, qfLeg1Md)).toBeNull();
+    expect(dueCupRound(cup, qfLeg2Md)).toBe(0);
+
+    // Second-leg matchday: the four aggregate ties finalize and the buffer clears.
+    cup = playKnockoutLeg(cup, matchData, 0, qfLeg2Md).cup;
+    expect(cup.koLegs).toBeNull();
+    expect(cup.ties.filter((t) => t.round === 0)).toHaveLength(CUP_KO_SIZE / 2);
+    expect(completedRounds(cup)).toBe(1);
   });
 });
