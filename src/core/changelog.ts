@@ -34,10 +34,9 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-21",
-    title: "Wide tables scroll on their own on phones now",
+    title: "Optimized the tables around the game on mobile",
     items: [
-      "If you play on your phone, you've probably hit this: on pages with a big table (your Roster, Stat Leaders, Standings) some columns run off the right edge, and when you swiped sideways to reach them the whole page went with it — the header and the filter dropdowns slid away too. Annoying, and it made the Roster's Release / List for Transfer buttons a pain to get to.",
-      "Now each table scrolls by itself inside its own little window. Swipe the table and only the table moves; the page title and any filters above it stay put. Nothing changes on a normal desktop screen where everything already fits.",
+      "Optimized the tables around the game on mobile.",
     ],
   },
   {
