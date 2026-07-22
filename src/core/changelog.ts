@@ -37,7 +37,6 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: "Search for any player in the world",
     items: [
       "The recommended transfers list only ever showed you a handful of players near your own team's level, and a bunch of you wanted to just go find a specific guy and make a bid. So I added a \"Search all players\" panel right under the recommendations on the Transfers page. Type a name, or set filters like position, min overall, min potential, max age, or max value, and it'll pull up matching players from every club in the world (not just your league) and let you put in an offer right there.",
-      "Two honest caveats it'll tell you about: a club won't sell someone it actually needs for squad depth, and the genuine best players at clubs coming off a big season simply aren't for sale at any price. When that's the case the row just says so instead of letting you waste an offer. Everything else works exactly like the recommended list, so the fee you agree and the wages you take on are the same deal.",
     ],
   },
   {
