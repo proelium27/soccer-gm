@@ -83,6 +83,7 @@ Each entry: what it is / where it lives / gotchas.
 **Squad development**
 - **Youth Academy** (user's club only) — `StoredTeam.academyRoster`, flat stipend wages (`academyContractTerms`). Actions in `core/freeAgency.ts` (`signToAcademy`/`promoteFromAcademy`/`releaseAcademyPlayer`). `ensureUserRosterSafety` auto-promotes to `ROSTER_SAFETY_FLOOR` (18) each offseason so the user's unmanaged roster can't drop below 11 and crash the engine. `/academy`, `/incoming-talent` (youth prospects), `/free-agents` (older FAs). AI youth still goes straight to roster.
 - **Dynamic academy attraction** — recent within-division finishing rank shifts youth-intake quality (`core/players/academyForm.ts`). **Zero-sum by construction** (one club's + is another's −), so it can't reopen the inflation ratchet.
+- **Youth intake position mix** — `generateYouthIntake` draws each prospect's position weighted by `ROSTER_COMPOSITION` (not uniform), so the pipeline matches roster demand (CB/FB/CM 4 slots each get more prospects than DM/AM's 2). Single rng() draw via a precomputed CDF, so RNG-stream *count* is unchanged (only the mapped position moves) — but generation *values* shift, so this is not byte-identical to pre-weighting saves; `generateWorld` is untouched (it never runs youth intake). Note the low-slot positions (DM/AM, 2 each) still structurally leak their *good* surplus into free agency — a club can only house 2, so a prime 3rd gets trimmed — which is why the `/free-agents` list caps per-position on its unfiltered view (see Free agency).
 - **Team Rating** — `core/teams/teamRating.ts` (`computeTeamRating`), XI (equal weight) + geometrically-decayed bench, not a flat roster mean. OVR + POT. Shown on Standings (current only) and user's Roster header.
 
 **Free agency**
@@ -142,9 +143,8 @@ Each entry: what it is / where it lives / gotchas.
 From the 2026-07-11 bug hunt; each has more than one reasonable fix — discuss options first:
 1. **Winter-sale wage dodge** — season wages charged once at offseason settlement against the current holder, so selling a high earner in winter dodges his whole season bill. Pro-rate, charge-at-transfer, or accept+document.
 2. **Deficit at the 30-man cap** — the "no club runs a deficit" tuning was only proven for the 25-man composition; a stacked full user squad with a low finish can go negative. Retune, cap scouting relative to wages, or allow user deficits + add debt UI.
-3. **Youth intake position distribution** — `generateYouthIntake` draws positions uniformly while rosters need CB/FB/CM more; long dynasties drift short. Likely fix: weight by `ROSTER_COMPOSITION` (confirm the rng-consumption shift is acceptable).
 4. **Mid-season transfer stat attribution** — `SeasonStats` is one running total; Leaders/Roster credit the whole line to the *current* club. Per-stint stats (schema change) or a "joined mid-season" UI marker.
 
-(Item 5, Division-2 long-dynasty drift, is resolved — see `enforceDivision2Ceiling` above.)
+(Item 3, youth intake position distribution, is resolved — `generateYouthIntake` now weights the position draw by `ROSTER_COMPOSITION` instead of uniform, matching intake to actual roster demand. Item 5, Division-2 long-dynasty drift, is resolved — see `enforceDivision2Ceiling` above.)
 
 **Lower-severity leftovers** (no design input needed, not yet done): no general guard against fielding <11 when a roster drops below 11 healthy players (`selectXI` silently skips slots) — partially covered for the user's club by `ensureUserRosterSafety`; AI and other paths unguarded. `pickReplacement` would hand back an outfielder as a "GK replacement" if GKs could ever be subbed/injured/carded (currently unreachable).
