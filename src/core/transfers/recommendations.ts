@@ -1,7 +1,7 @@
 import type { Player } from "../players/types.js";
 import type { LeagueStore } from "../leagueState.js";
 import { transferWindowState } from "./window.js";
-import { departsAtRollover, isForSale, scoutedValue, windowSeed } from "./negotiation.js";
+import { departsAtRollover, isForSale, isForSaleOrRefusing, scoutedValue, windowSeed } from "./negotiation.js";
 import { scoutingNoiseSd } from "../finance/scouting.js";
 import { resolveXI } from "../lineup/resolveXI.js";
 import { teamSlots } from "../lineup/formations.js";
@@ -165,4 +165,107 @@ export function recommendedTransfers(
     }
   }
   return picked;
+}
+
+/** Filters for the free-form world player search (all null/""/undefined = "no constraint"). */
+export interface PlayerSearchFilters {
+  /** Case-insensitive substring match on the player's name. */
+  name?: string;
+  position?: string;
+  minOvr?: number | null;
+  minPot?: number | null;
+  maxAge?: number | null;
+  maxValue?: number | null;
+}
+
+export interface PlayerSearchResult extends TransferTarget {
+  /**
+   * Whether an offer would actually be entertained. False when the owning club
+   * won't sell (depth floor / protected star) — the same gates `makeTransferOffer`
+   * enforces, surfaced up front so the UI can explain instead of no-op'ing.
+   */
+  forSale: boolean;
+  /** Short reason a not-for-sale player can't be bought; null when `forSale`. */
+  notForSaleReason: string | null;
+}
+
+/** Cap on rendered rows — enough to be useful, not so many the table drags. */
+export const PLAYER_SEARCH_LIMIT = 60;
+
+/**
+ * Free-form world search: every player on another club's roster, narrowed by
+ * `filters` (name and/or the usual numeric constraints), ranked by OVR and
+ * capped at PLAYER_SEARCH_LIMIT. Unlike `recommendedTransfers` this applies no
+ * ovr-band, budget, or per-position variety cap — you can look up anyone. Each
+ * result carries a `forSale` flag mirroring the offer engine's gates
+ * (`makeTransferOffer`), so the UI can show why an unbuyable player can't be
+ * bid on rather than silently dropping the offer. Empty when no window is open
+ * (offers require an open window) or when no filter is set (avoids dumping the
+ * whole world).
+ */
+export function searchWorldPlayers(
+  league: LeagueStore,
+  filters: PlayerSearchFilters = {},
+): PlayerSearchResult[] {
+  const ws = transferWindowState(league);
+  if (!ws.open) return [];
+
+  const user = league.teams.find((t) => t.tid === league.meta.userTid);
+  if (!user) return [];
+
+  const nameQuery = (filters.name ?? "").trim().toLowerCase();
+  const posFilter = filters.position || null;
+  const minOvr = filters.minOvr ?? null;
+  const minPot = filters.minPot ?? null;
+  const maxAge = filters.maxAge ?? null;
+  const maxValue = filters.maxValue ?? null;
+
+  // Require at least one constraint — an unfiltered search would just list the
+  // 60 highest-rated (and mostly unbuyable) players in the world.
+  const hasConstraint =
+    nameQuery !== "" || posFilter !== null || minOvr !== null
+    || minPot !== null || maxAge !== null || maxValue !== null;
+  if (!hasConstraint) return [];
+
+  const playerMap = new Map(league.players.map((p) => [p.pid, p]));
+  const loanedPids = new Set(league.activeLoans.map((l) => l.pid));
+  const protectedPids = protectedStarPids(
+    lastCompletedSeason(league), league.teams, league.players, league.competitions, user.tid,
+  );
+
+  const results: PlayerSearchResult[] = [];
+  for (const team of league.teams) {
+    if (team.tid === user.tid) continue;
+    for (const pid of team.roster) {
+      const player = playerMap.get(pid);
+      if (!player) continue;
+      if (nameQuery && !player.name.toLowerCase().includes(nameQuery)) continue;
+      if (posFilter && player.pos !== posFilter) continue;
+      if (minOvr !== null && player.ovr < minOvr) continue;
+      if (minPot !== null && player.potential < minPot) continue;
+      if (maxAge !== null && ws.season - player.born > maxAge) continue;
+      const value = scoutedValue(league.lid, ws.season, ws.window, player, user.scoutingSpend);
+      if (maxValue !== null && value > maxValue) continue;
+
+      // Mirror makeTransferOffer's sale gates so the UI can explain, not no-op.
+      let notForSaleReason: string | null = null;
+      if (loanedPids.has(pid)) notForSaleReason = "Out on loan";
+      else if (departsAtRollover(league, player)) notForSaleReason = "Free agent at season's end";
+      else if (protectedPids.has(pid)) notForSaleReason = "Club won't sell their star";
+      else if (!isForSaleOrRefusing(team, playerMap, pid, league.competitions)) {
+        notForSaleReason = "Club needs him for depth";
+      }
+
+      results.push({
+        player,
+        sellerTid: team.tid,
+        scoutedValue: value,
+        forSale: notForSaleReason === null,
+        notForSaleReason,
+      });
+    }
+  }
+
+  results.sort((a, b) => b.player.ovr - a.player.ovr || a.player.pid - b.player.pid);
+  return results.slice(0, PLAYER_SEARCH_LIMIT);
 }

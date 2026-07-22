@@ -567,6 +567,16 @@ export function Manual() {
             spot: fee out of your budget, player on your roster.
           </p>
           <p>
+            <strong>Search all players.</strong> Under the recommended list is a search panel that
+            reaches every club in the world, not just targets near your level. Type a name, or set
+            any of the same filters (position, min OVR, min potential, max age, max value), and it
+            lists matching players from every league with an Offer control right on the row &mdash;
+            negotiation works exactly as above. Two things it won't let you buy: a player his club
+            needs for squad depth, and the very best players at clubs coming off a big season, who
+            aren't for sale at any price. In those cases the row says why instead of taking an offer
+            that would go nowhere.
+          </p>
+          <p>
             <strong>Selling.</strong> During a window, AI clubs that rate your players will come in
             with offers, up to 4 at a time, from whichever club values each player most (
             <a href="#ai">how they decide</a>). You can accept (immediate sale, fee into your
