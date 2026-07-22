@@ -10,6 +10,7 @@ import { formatWeeklyWage } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
+import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 import { ROSTER_CAP, PROSPECT_AGE_MAX } from "../../core/constants.js";
 
 const MAX_LISTED = 25;
@@ -21,6 +22,8 @@ const MAX_LISTED = 25;
 // full depth chart, uncapped.
 const PER_POSITION_CAP = 5;
 
+type FaSortKey = "name" | "pos" | "ovr" | "pot" | "age";
+
 /**
  * General free-agent signing: unsigned players over PROSPECT_AGE_MAX. Young
  * unsigned players (prospects) live on the Incoming Talent page instead,
@@ -29,6 +32,7 @@ const PER_POSITION_CAP = 5;
 export function FreeAgents() {
   const { league, signFreeAgentAction, simming } = useLeague();
   const [posFilter, setPosFilter] = useState<Position | "ALL">("ALL");
+  const { sort, toggle } = useTableSort<FaSortKey>("ovr", "desc");
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -46,27 +50,38 @@ export function FreeAgents() {
   // by the next season-start charge.
   const midSeason = league.phase === "regular";
 
+  // Pool: the top players by OVR+POT (caps the render size). Sorting below only
+  // reorders this shown set, so a re-sort never surfaces a 40-ovr filler player.
   availablePlayers.sort((a, b) => b.ovr + b.potential - (a.ovr + a.potential));
   const filtered =
     posFilter === "ALL"
       ? availablePlayers
       : availablePlayers.filter((p) => p.pos === posFilter);
-  // The "all positions" view diversifies by capping each position; a specific
-  // position is already narrowed, so show its depth uncapped.
-  let shownPlayers: Player[];
+  // Select the shown set first (by OVR+POT): the "all positions" view diversifies
+  // by capping each position; a specific position is already narrowed, so show its
+  // depth uncapped. The column sort below only reorders this already-selected set,
+  // so a re-sort never surfaces a filler player past the caps.
+  let pool: Player[];
   if (posFilter === "ALL") {
     const perPos = new Map<Position, number>();
-    shownPlayers = [];
+    pool = [];
     for (const p of filtered) {
-      if (shownPlayers.length >= MAX_LISTED) break;
+      if (pool.length >= MAX_LISTED) break;
       const used = perPos.get(p.pos) ?? 0;
       if (used >= PER_POSITION_CAP) continue;
       perPos.set(p.pos, used + 1);
-      shownPlayers.push(p);
+      pool.push(p);
     }
   } else {
-    shownPlayers = filtered.slice(0, MAX_LISTED);
+    pool = filtered.slice(0, MAX_LISTED);
   }
+  const shownPlayers = sortRows(pool, sort, {
+    name: (p) => p.name,
+    pos: (p) => p.pos,
+    ovr: (p) => p.ovr,
+    pot: (p) => p.potential,
+    age: (p) => league.season - p.born,
+  });
 
   return (
     <div className="container-fluid p-3">
@@ -111,11 +126,11 @@ export function FreeAgents() {
         <table className="table table-striped table-sm">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Pos</th>
-              <th className="text-end">OVR</th>
-              <th className="text-end">POT <PotHelp /></th>
-              <th className="text-end">Age</th>
+              <SortableTh sortKey="name" sort={sort} onSort={toggle} defaultDir="asc">Name</SortableTh>
+              <SortableTh sortKey="pos" sort={sort} onSort={toggle} defaultDir="asc">Pos</SortableTh>
+              <SortableTh sortKey="ovr" sort={sort} onSort={toggle} className="text-end">OVR</SortableTh>
+              <SortableTh sortKey="pot" sort={sort} onSort={toggle} className="text-end">POT <PotHelp /></SortableTh>
+              <SortableTh sortKey="age" sort={sort} onSort={toggle} className="text-end" defaultDir="asc">Age</SortableTh>
               <th></th>
             </tr>
           </thead>

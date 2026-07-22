@@ -20,8 +20,13 @@ import { Flag } from "../components/Flag.js";
 import { OfferAmountInput } from "../components/OfferAmountInput.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
+import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 import { ROSTER_CAP } from "../../core/constants.js";
 import { POSITIONS } from "../../core/players/types.js";
+
+// "recommended" is the initial, unsorted order (best-fit targets first); the
+// other keys map to clickable columns.
+type TargetSortKey = "recommended" | "name" | "pos" | "age" | "ovr" | "pot" | "club" | "wage" | "value";
 
 interface TransferFilters {
   position: string;
@@ -163,6 +168,7 @@ export function Transfers() {
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [filters, setFilters] = useState<TransferFilters>(EMPTY_FILTERS);
   const [search, setSearch] = useState<SearchFilters>(EMPTY_SEARCH);
+  const { sort, toggle } = useTableSort<TargetSortKey>("recommended", "desc");
 
   const hasFilters =
     filters.position !== "" || filters.minOvr !== "" || filters.minPot !== ""
@@ -260,10 +266,23 @@ export function Transfers() {
   // to the top or disappear. (See `pinnedBuys` above for the once-per-visit
   // lifetime.)
   const pinnedPids = new Set(pinnedBuys.map((b) => b.row.player.pid));
-  const displayTargets = targets.filter((t) => !pinnedPids.has(t.player.pid));
+  const baseTargets = targets.filter((t) => !pinnedPids.has(t.player.pid));
   for (const { row, index } of [...pinnedBuys].sort((a, b) => a.index - b.index)) {
-    displayTargets.splice(Math.min(index, displayTargets.length), 0, row);
+    baseTargets.splice(Math.min(index, baseTargets.length), 0, row);
   }
+  // Apply the chosen column sort on top. The default "recommended" key has no
+  // accessor, so sortRows leaves the pinned best-fit order (and bought-row
+  // positions) untouched; any other key sorts the whole list, pinned buys included.
+  const displayTargets = sortRows(baseTargets, sort, {
+    name: (r) => r.player.name,
+    pos: (r) => r.player.pos,
+    age: (r) => league.season - r.player.born,
+    ovr: (r) => r.player.ovr,
+    pot: (r) => r.player.potential,
+    club: (r) => teamName(r.sellerTid),
+    wage: (r) => r.player.contract.salary,
+    value: (r) => r.scoutedValue,
+  });
 
   const windowTransfers = league.transfers.filter(
     (t) => ws.open && t.season === ws.season && t.window === ws.window,
@@ -384,21 +403,21 @@ export function Transfers() {
               <table className="table table-striped table-sm align-middle">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Pos</th>
-                    <th className="text-end">Age</th>
-                    <th className="text-end">Ovr</th>
-                    <th className="text-end">Pot <PotHelp /></th>
-                    <th>Club</th>
-                    <th className="text-end">Wage</th>
-                    <th className="text-end">
+                    <SortableTh sortKey="name" sort={sort} onSort={toggle} defaultDir="asc">Name</SortableTh>
+                    <SortableTh sortKey="pos" sort={sort} onSort={toggle} defaultDir="asc">Pos</SortableTh>
+                    <SortableTh sortKey="age" sort={sort} onSort={toggle} className="text-end" defaultDir="asc">Age</SortableTh>
+                    <SortableTh sortKey="ovr" sort={sort} onSort={toggle} className="text-end">Ovr</SortableTh>
+                    <SortableTh sortKey="pot" sort={sort} onSort={toggle} className="text-end">Pot <PotHelp /></SortableTh>
+                    <SortableTh sortKey="club" sort={sort} onSort={toggle} defaultDir="asc">Club</SortableTh>
+                    <SortableTh sortKey="wage" sort={sort} onSort={toggle} className="text-end">Wage</SortableTh>
+                    <SortableTh sortKey="value" sort={sort} onSort={toggle} className="text-end">
                       Scout value
                       <HelpHint>
                         Our scouts' estimate of this player's transfer value. It's an estimate, not
                         the exact asking price. More scouting spend makes it more accurate (it can be
                         off by up to &plusmn;35% at &pound;0 spend, down to about &plusmn;5% at the max).
                       </HelpHint>
-                    </th>
+                    </SortableTh>
                     <th>Offer</th>
                   </tr>
                 </thead>
