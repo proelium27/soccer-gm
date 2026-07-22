@@ -8,12 +8,18 @@ import { tierOf } from "../../core/competitions.js";
 import { worldHasCup, cupSlotsForCompetition } from "../../core/cup/cup.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { ClubCrest } from "../components/ClubCrest.js";
+import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 import { seasonYear } from "../format.js";
+
+type StandingsSortKey =
+  | "pos" | "team" | "p" | "w" | "d" | "l" | "gf" | "ga" | "gd" | "pts" | "ovr" | "pot";
 
 export function Standings() {
   const { league } = useLeague();
   const [season, setSeason] = useState<number | "current">("current");
   const [compIdOverride, setCompIdOverride] = useState<number | null>(null);
+  // Default "pos" ascending keeps the natural league-table order (1st on top).
+  const { sort, toggle } = useTableSort<StandingsSortKey>("pos", "asc");
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -62,6 +68,43 @@ export function Standings() {
     championTid = entry.championTidByCompId[compId] ?? (standings[0]?.tid ?? -1);
   }
 
+  // True league position (0-based) by tid, captured before any re-sort so the
+  // "#" column and cup-qualification shading always reflect real standing, not
+  // the current display order.
+  const posByTid = new Map(standings.map((row, i) => [row.tid, i]));
+  // OVR/POT are only shown (and sortable) for the current season. Precompute
+  // once so the sort accessor and the row render share the same numbers.
+  const ratingByTid = new Map<number, { ovr: number; pot: number }>();
+  if (season === "current") {
+    for (const row of standings) {
+      const team = league.teams.find((t) => t.tid === row.tid);
+      if (team) {
+        ratingByTid.set(
+          row.tid,
+          computeTeamRating(
+            league.players.filter((p) => team.roster.includes(p.pid)),
+            team.starters,
+            teamSlots(team),
+          ),
+        );
+      }
+    }
+  }
+  const displayRows = sortRows(standings, sort, {
+    pos: (r) => posByTid.get(r.tid) ?? 0,
+    team: (r) => league.teams.find((t) => t.tid === r.tid)?.name ?? `Team ${r.tid}`,
+    p: (r) => r.played,
+    w: (r) => r.won,
+    d: (r) => r.drawn,
+    l: (r) => r.lost,
+    gf: (r) => r.gf,
+    ga: (r) => r.ga,
+    gd: (r) => r.gd,
+    pts: (r) => r.points,
+    ovr: (r) => ratingByTid.get(r.tid)?.ovr ?? -1,
+    pot: (r) => ratingByTid.get(r.tid)?.pot ?? -1,
+  });
+
   return (
     <div className="container-fluid p-3">
       <h4>
@@ -93,27 +136,28 @@ export function Standings() {
         <table className="table table-striped table-sm">
           <thead>
             <tr>
-              <th className="text-end">#</th>
-              <th>Team</th>
-              <th className="text-end">P</th>
-              <th className="text-end">W</th>
-              <th className="text-end">D</th>
-              <th className="text-end">L</th>
-              <th className="text-end">GF</th>
-              <th className="text-end">GA</th>
-              <th className="text-end">GD</th>
-              <th className="text-end">Pts</th>
-              {season === "current" && <th className="text-end">OVR</th>}
-              {season === "current" && <th className="text-end">POT <PotHelp /></th>}
+              <SortableTh sortKey="pos" sort={sort} onSort={toggle} className="text-end" defaultDir="asc">#</SortableTh>
+              <SortableTh sortKey="team" sort={sort} onSort={toggle} defaultDir="asc">Team</SortableTh>
+              <SortableTh sortKey="p" sort={sort} onSort={toggle} className="text-end">P</SortableTh>
+              <SortableTh sortKey="w" sort={sort} onSort={toggle} className="text-end">W</SortableTh>
+              <SortableTh sortKey="d" sort={sort} onSort={toggle} className="text-end">D</SortableTh>
+              <SortableTh sortKey="l" sort={sort} onSort={toggle} className="text-end">L</SortableTh>
+              <SortableTh sortKey="gf" sort={sort} onSort={toggle} className="text-end">GF</SortableTh>
+              <SortableTh sortKey="ga" sort={sort} onSort={toggle} className="text-end">GA</SortableTh>
+              <SortableTh sortKey="gd" sort={sort} onSort={toggle} className="text-end">GD</SortableTh>
+              <SortableTh sortKey="pts" sort={sort} onSort={toggle} className="text-end">Pts</SortableTh>
+              {season === "current" && <SortableTh sortKey="ovr" sort={sort} onSort={toggle} className="text-end">OVR</SortableTh>}
+              {season === "current" && <SortableTh sortKey="pot" sort={sort} onSort={toggle} className="text-end">POT <PotHelp /></SortableTh>}
             </tr>
           </thead>
           <tbody>
-            {standings.map((row, i) => {
+            {displayRows.map((row) => {
+              const pos = posByTid.get(row.tid) ?? 0;
               const team = league.teams.find((t) => t.tid === row.tid);
               const isUser = row.tid === league.meta.userTid;
               const isChampion = row.tid === championTid;
-              const isCupSpot = showCupZone && i < cupSlots;
-              const isCupCut = showCupZone && i === cupSlots - 1;
+              const isCupSpot = showCupZone && pos < cupSlots;
+              const isCupCut = showCupZone && pos === cupSlots - 1;
               const rowClass = [
                 isCupSpot && "cup-qualification",
                 isCupCut && "cup-qualification-cut",
@@ -122,17 +166,10 @@ export function Standings() {
               ]
                 .filter(Boolean)
                 .join(" ") || undefined;
-              const rating =
-                season === "current" && team
-                  ? computeTeamRating(
-                      league.players.filter((p) => team.roster.includes(p.pid)),
-                      team.starters,
-                      teamSlots(team),
-                    )
-                  : null;
+              const rating = ratingByTid.get(row.tid) ?? null;
               return (
                 <tr key={row.tid} className={rowClass}>
-                  <td className="text-end">{i + 1}</td>
+                  <td className="text-end">{pos + 1}</td>
                   <td>
                     <span className="d-inline-flex align-items-center gap-1">
                       <ClubCrest tid={row.tid} colors={team?.colors ?? ["#888888", "#888888"]} />

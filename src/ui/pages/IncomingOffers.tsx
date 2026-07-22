@@ -14,6 +14,7 @@ import { Flag } from "../components/Flag.js";
 import { OfferAmountInput } from "../components/OfferAmountInput.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
+import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 
 function scoutCommentaryText(commentary: ScoutCommentary, playerName: string): string {
   switch (commentary.tone) {
@@ -25,6 +26,8 @@ function scoutCommentaryText(commentary: ScoutCommentary, playerName: string): s
       return `Maybe try to counter at ${currency.format(commentary.suggested)} and see how it goes.`;
   }
 }
+
+type OfferSortKey = "default" | "name" | "pos" | "age" | "ovr" | "pot" | "wage" | "offer";
 
 interface OfferRowProps {
   pid: number;
@@ -123,6 +126,7 @@ export function IncomingOffers() {
   const {
     league, acceptInboundOfferAction, rejectInboundOfferAction, counterInboundOfferAction, simming,
   } = useLeague();
+  const { sort, toggle } = useTableSort<OfferSortKey>("default", "desc");
 
   const candidates = useMemo(
     () => (league ? inboundOfferCandidates(league) : []),
@@ -167,7 +171,17 @@ export function IncomingOffers() {
       ? [{ player, buyerTid: n.buyerTid, openingOffer: n.offers.at(-1) ?? 0 }]
       : [];
   });
-  const displayCandidates = [...soldRows, ...candidates];
+  const offerOf = (c: { player: Player; openingOffer: number }) =>
+    negotiationByPid.get(c.player.pid)?.offers.at(-1) ?? c.openingOffer;
+  const displayCandidates = sortRows([...soldRows, ...candidates], sort, {
+    name: (c) => c.player.name,
+    pos: (c) => c.player.pos,
+    age: (c) => league.season - c.player.born,
+    ovr: (c) => c.player.ovr,
+    pot: (c) => c.player.potential,
+    wage: (c) => c.player.contract.salary,
+    offer: (c) => offerOf(c),
+  });
 
   // An accepted offer sells the player and drops him off the roster, so he
   // falls out of both `candidates` and `orphaned` with no other confirmation
@@ -206,13 +220,13 @@ export function IncomingOffers() {
         <table className="table table-striped table-sm align-middle">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Pos</th>
-              <th className="text-end">Age</th>
-              <th className="text-end">Ovr</th>
-              <th className="text-end">Pot <PotHelp /></th>
-              <th className="text-end">Wage</th>
-              <th>Offer</th>
+              <SortableTh sortKey="name" sort={sort} onSort={toggle} defaultDir="asc">Name</SortableTh>
+              <SortableTh sortKey="pos" sort={sort} onSort={toggle} defaultDir="asc">Pos</SortableTh>
+              <SortableTh sortKey="age" sort={sort} onSort={toggle} className="text-end" defaultDir="asc">Age</SortableTh>
+              <SortableTh sortKey="ovr" sort={sort} onSort={toggle} className="text-end">Ovr</SortableTh>
+              <SortableTh sortKey="pot" sort={sort} onSort={toggle} className="text-end">Pot <PotHelp /></SortableTh>
+              <SortableTh sortKey="wage" sort={sort} onSort={toggle} className="text-end">Wage</SortableTh>
+              <SortableTh sortKey="offer" sort={sort} onSort={toggle}>Offer</SortableTh>
             </tr>
           </thead>
           <tbody>

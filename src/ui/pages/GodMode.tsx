@@ -6,6 +6,7 @@ import { NATIONALITIES } from "../../core/players/nationalities.js";
 import { SKILL_LABELS } from "../components/PlayerRatingsTooltip.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 import type { NewPlayerSpec } from "../../core/godMode.js";
+import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 
 const NATION_NAMES = Object.keys(NATIONALITIES);
 const flatRatings = (v: number): PlayerRatings =>
@@ -153,12 +154,21 @@ function RosterBuilder() {
   const { league, movePlayerToClubAction, releasePlayerGodModeAction } = useLeague();
   const [tid, setTid] = useState<number | null>(null);
   const [filter, setFilter] = useState("");
+  const { sort, toggle } = useTableSort<"default" | "name" | "pos" | "ovr">("default", "desc");
   if (!league) return null;
 
   const teamsSorted = [...league.teams].sort((a, b) => a.name.localeCompare(b.name));
   const selectedTid = tid ?? league.meta.userTid;
   const club = league.teams.find((t) => t.tid === selectedTid);
   const playerById = new Map(league.players.map((p) => [p.pid, p]));
+
+  const rosterPlayers = sortRows(
+    (club?.roster ?? [])
+      .map((pid) => playerById.get(pid))
+      .filter((p): p is NonNullable<typeof p> => p != null),
+    sort,
+    { name: (p) => p.name, pos: (p) => p.pos, ovr: (p) => p.ovr },
+  );
 
   const rosteredPids = new Set<number>();
   for (const t of league.teams) {
@@ -186,11 +196,15 @@ function RosterBuilder() {
       </div>
 
       <table className="table table-sm align-middle">
-        <thead><tr><th>Player</th><th>Pos</th><th>OVR</th><th className="text-end">Actions</th></tr></thead>
+        <thead><tr>
+          <SortableTh sortKey="name" sort={sort} onSort={toggle} defaultDir="asc">Player</SortableTh>
+          <SortableTh sortKey="pos" sort={sort} onSort={toggle} defaultDir="asc">Pos</SortableTh>
+          <SortableTh sortKey="ovr" sort={sort} onSort={toggle}>OVR</SortableTh>
+          <th className="text-end">Actions</th>
+        </tr></thead>
         <tbody>
-          {(club?.roster ?? []).map((pid) => {
-            const p = playerById.get(pid);
-            if (!p) return null;
+          {rosterPlayers.map((p) => {
+            const pid = p.pid;
             return (
               <tr key={pid}>
                 <td><Link to={`/player/${pid}`}>{p.name}</Link></td>

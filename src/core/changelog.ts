@@ -34,6 +34,13 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-21",
+    title: "Click a column header to sort it",
+    items: [
+      "A bunch of the tables around the game were stuck in one fixed order, which was annoying when you wanted to, say, find the youngest free agent or the club with the biggest wage bill. Now you can click a column header to sort by it, and click again to flip the direction (there's a little arrow showing which way it's going). I wired it up on the tables where it actually helps: the Transfers search, Free Agents, Incoming Talent, Incoming Offers, the Academy, the Loans pages, the league-wide finances table, the Standings (sort by GD, OVR, whatever you like, and the position number stays honest), and the God Mode roster editor. The Roster and Stat Leaders pages already had their own thing going, so I left those alone.",
+    ],
+  },
+  {
+    date: "2026-07-21",
     title: "Crests for every Spanish club",
     items: [
       "Up till now England was the only country with real crest art, and everyone else just got the two-color swatch. I made crests for all 40 of Spain's clubs, both divisions, so they now show up wherever the club's name does instead of the plain swatch. That includes the big names I hadn't gotten to yet (Madrid, Barcelona Halcones, Valencia) and finishes off the last stragglers, so Spain's completely done now. Italy, Germany, France and Portugal are still on swatches, but I'll keep chipping away at them.",
