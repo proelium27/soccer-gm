@@ -34,11 +34,10 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-22",
-    title: "Subs now think about your bench, and you can push a reserve for minutes",
+    title: "Subs",
     items: [
-      "The in-match coach used to just swap off the most tired player around the 60th and 75th minute, every time, no matter who was sitting on the bench. That never felt right, especially with a thin squad. Now the coach actually weighs the fresh bench player against the tired starter he'd be replacing. If the bench guy is close in quality, he still comes on for the fresh legs, but the coach won't yank a good starter for a much weaker reserve unless that starter is genuinely running on empty. In practice a strong bench rotates as freely as before, and a shallow one leaves your tired legs out there rather than downgrading itself. About one sub in ten that used to happen automatically now gets held back.",
-      "The coach also looks at how a starter is actually playing that day, not just his rating and his legs. Someone tearing the game up (a high live match rating) is now harder to justify hooking, and someone having a stinker is easier to pull, even at the same fitness. It's the same in-game rating you see in the box score, so the guy running the show tends to stay on the pitch a bit longer.",
-      "I also added a small thing I always wanted: on the Roster page, every bench player now has a More minutes button. Flag a young reserve you're trying to develop (or just a squad player you rate) and the coach will lean toward subbing him on, even a touch ahead of a marginally better option. It's a nudge, not a cheat code, so it won't force a clearly worse player onto the pitch, but over a season it's a real way to get someone game time.",
+      "The in-match coach used to just sub off the most tired players but now the coach also decides who to sub off based on OVR and match performance.",
+      "On the roster page, you can also now direct the in-match coach to give a bench player more minutes than he would regularly. This feature is for players who have a very high potential because more playing time=more progression.",
     ],
   },
   {
