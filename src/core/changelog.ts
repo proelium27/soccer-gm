@@ -34,6 +34,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-21",
+    title: "Search for any player in the world",
+    items: [
+      "The recommended transfers list only ever showed you a handful of players near your own team's level, and a bunch of you wanted to just go find a specific guy and make a bid. So I added a \"Search all players\" panel right under the recommendations on the Transfers page. Type a name, or set filters like position, min overall, min potential, max age, or max value, and it'll pull up matching players from every club in the world (not just your league) and let you put in an offer right there.",
+      "Two honest caveats it'll tell you about: a club won't sell someone it actually needs for squad depth, and the genuine best players at clubs coming off a big season simply aren't for sale at any price. When that's the case the row just says so instead of letting you waste an offer. Everything else works exactly like the recommended list, so the fee you agree and the wages you take on are the same deal.",
+    ],
+  },
+  {
+    date: "2026-07-21",
     title: "Crests for every Spanish club",
     items: [
       "Up till now England was the only country with real crest art, and everyone else just got the two-color swatch. I made crests for all 40 of Spain's clubs, both divisions, so they now show up wherever the club's name does instead of the plain swatch. That includes the big names I hadn't gotten to yet (Madrid, Barcelona Halcones, Valencia) and finishes off the last stragglers, so Spain's completely done now. Italy, Germany, France and Portugal are still on swatches, but I'll keep chipping away at them.",
