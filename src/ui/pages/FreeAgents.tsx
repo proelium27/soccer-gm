@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import { freeAgentPids } from "../../core/freeAgency.js";
-import type { Player } from "../../core/players/types.js";
+import type { Player, Position } from "../../core/players/types.js";
+import { POSITIONS } from "../../core/players/types.js";
 import { contractTerms } from "../../core/contracts.js";
 import { formatWeeklyWage } from "../format.js";
 import { Flag } from "../components/Flag.js";
@@ -12,6 +14,13 @@ import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.
 import { ROSTER_CAP, PROSPECT_AGE_MAX } from "../../core/constants.js";
 
 const MAX_LISTED = 25;
+// On the unfiltered "all positions" view, cap how many of any one position can
+// appear so the list can't turn into a wall of a single position. The two
+// low-slot positions (DM/AM, 2 roster slots each) structurally leak more good
+// players into free agency than positions with 4 slots, so without this the
+// top of the list is dominated by them. Pick a specific position to see its
+// full depth chart, uncapped.
+const PER_POSITION_CAP = 5;
 
 type FaSortKey = "name" | "pos" | "ovr" | "pot" | "age";
 
@@ -22,6 +31,7 @@ type FaSortKey = "name" | "pos" | "ovr" | "pot" | "age";
  */
 export function FreeAgents() {
   const { league, signFreeAgentAction, simming } = useLeague();
+  const [posFilter, setPosFilter] = useState<Position | "ALL">("ALL");
   const { sort, toggle } = useTableSort<FaSortKey>("ovr", "desc");
 
   if (!league) {
@@ -43,7 +53,28 @@ export function FreeAgents() {
   // Pool: the top players by OVR+POT (caps the render size). Sorting below only
   // reorders this shown set, so a re-sort never surfaces a 40-ovr filler player.
   availablePlayers.sort((a, b) => b.ovr + b.potential - (a.ovr + a.potential));
-  const pool = availablePlayers.slice(0, MAX_LISTED);
+  const filtered =
+    posFilter === "ALL"
+      ? availablePlayers
+      : availablePlayers.filter((p) => p.pos === posFilter);
+  // Select the shown set first (by OVR+POT): the "all positions" view diversifies
+  // by capping each position; a specific position is already narrowed, so show its
+  // depth uncapped. The column sort below only reorders this already-selected set,
+  // so a re-sort never surfaces a filler player past the caps.
+  let pool: Player[];
+  if (posFilter === "ALL") {
+    const perPos = new Map<Position, number>();
+    pool = [];
+    for (const p of filtered) {
+      if (pool.length >= MAX_LISTED) break;
+      const used = perPos.get(p.pos) ?? 0;
+      if (used >= PER_POSITION_CAP) continue;
+      perPos.set(p.pos, used + 1);
+      pool.push(p);
+    }
+  } else {
+    pool = filtered.slice(0, MAX_LISTED);
+  }
   const shownPlayers = sortRows(pool, sort, {
     name: (p) => p.name,
     pos: (p) => p.pos,
@@ -67,12 +98,30 @@ export function FreeAgents() {
           Your roster is full ({ROSTER_CAP}/{ROSTER_CAP}). Release a player before signing another.
         </div>
       )}
+      <div className="mb-3 d-flex flex-wrap gap-2 align-items-center">
+        <label htmlFor="fa-pos" className="text-muted small mb-0">Position</label>
+        <select
+          id="fa-pos"
+          className="form-select form-select-sm w-auto"
+          value={posFilter}
+          onChange={(e) => setPosFilter(e.target.value as Position | "ALL")}
+        >
+          <option value="ALL">All positions</option>
+          {(POSITIONS as readonly Position[]).map((pos) => (
+            <option key={pos} value={pos}>{pos}</option>
+          ))}
+        </select>
+      </div>
       {availablePlayers.length === 0 ? (
         <p>No available players.</p>
+      ) : filtered.length === 0 ? (
+        <p>No available players at {posFilter}.</p>
       ) : (
         <>
         <p className="text-muted">
-          Showing top {shownPlayers.length} of {availablePlayers.length} by OVR + POT.
+          {posFilter === "ALL"
+            ? `Showing the top ${shownPlayers.length} across every position (up to ${PER_POSITION_CAP} per position so one spot can't crowd out the rest) of ${availablePlayers.length} free agents by OVR + POT. Pick a position to see its full list.`
+            : `Showing top ${shownPlayers.length} of ${filtered.length} ${posFilter}s by OVR + POT.`}
         </p>
         <table className="table table-striped table-sm">
           <thead>
