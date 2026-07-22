@@ -6,6 +6,7 @@ import type { StoredTeam } from "../../core/teams/clubs.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { teamSlots } from "../../core/lineup/formations.js";
 import { currency, seasonYear } from "../format.js";
+import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { Flag } from "../components/Flag.js";
@@ -41,7 +42,9 @@ export function SeasonPreview() {
   const teamsByTid = new Map(league.teams.map((t) => [t.tid, t]));
   const playersByPid = new Map(league.players.map((p) => [p.pid, p]));
   const topTransfers = league.transfers
-    .filter((t) => t.season === league.season && t.window === "summer")
+    // Free signings (fee 0, from the free-agent sentinel) aren't "top" anything
+    // — the biggest-fee deals are what belongs in a season preview.
+    .filter((t) => t.season === league.season && t.window === "summer" && !isFreeAgentTid(t.fromTid))
     .sort((a, b) => b.fee - a.fee)
     .slice(0, TOP_N);
 

@@ -88,6 +88,42 @@ describe("runAIFreeAgency", () => {
     expect(new Set(allPids).size).toBe(allPids.length);
   });
 
+  it("reports each signing (pid + destination) so the caller can log it as a transfer", () => {
+    const league = makeLeague(0, 1);
+    const targetTid = 1;
+    const target = league.teams.find((t) => t.tid === targetTid)!;
+    // Leave a GK shortfall so at least one signing happens.
+    const gkPids = new Set(
+      league.players.filter((p) => p.pos === "GK" && target.roster.includes(p.pid)).map((p) => p.pid),
+    );
+    const teams = league.teams.map((t) =>
+      t.tid === targetTid ? { ...t, roster: t.roster.filter((pid) => !gkPids.has(pid)) } : t,
+    );
+    const rosterBefore = new Map(teams.map((t) => [t.tid, new Set(t.roster)]));
+
+    const { teams: updatedTeams, signings } = runAIFreeAgency(
+      teams, league.players, 2, mulberry32(3), -1, teams.map((t) => t.tid),
+    );
+
+    expect(signings.length).toBeGreaterThan(0);
+    // Every reported signing is a pid now on its destination roster, and was
+    // not there before — i.e. the signings list is exactly the new arrivals.
+    for (const s of signings) {
+      const dest = updatedTeams.find((t) => t.tid === s.toTid)!;
+      expect(dest.roster).toContain(s.pid);
+      expect(rosterBefore.get(s.toTid)!.has(s.pid)).toBe(false);
+    }
+    // And every genuinely-new roster arrival is reported.
+    const reported = new Set(signings.map((s) => `${s.toTid}:${s.pid}`));
+    for (const t of updatedTeams) {
+      for (const pid of t.roster) {
+        if (!rosterBefore.get(t.tid)!.has(pid)) {
+          expect(reported.has(`${t.tid}:${pid}`)).toBe(true);
+        }
+      }
+    }
+  });
+
 });
 
 describe("signFreeAgent", () => {

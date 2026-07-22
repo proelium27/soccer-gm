@@ -9,7 +9,8 @@ import {
   signFreeAgent, releasePlayer, signToAcademy, promoteFromAcademy, releaseAcademyPlayer,
 } from "../../core/freeAgency.js";
 import { clampScoutingSpend } from "../../core/finance/scouting.js";
-import { makeTransferOffer, acceptCounterOffer } from "../../core/transfers/negotiation.js";
+import { makeTransferOffer, acceptCounterOffer, FREE_AGENT_TID } from "../../core/transfers/negotiation.js";
+import { freeAgentSigningWindow } from "../../core/transfers/window.js";
 import {
   acceptInboundOffer, rejectInboundOffer, counterInboundOffer, setTransferListed,
 } from "../../core/transfers/inboundOffers.js";
@@ -274,7 +275,19 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     );
     if (teams === l.teams && players === l.players) return null;
     trackEvent("free_agent_signed");
-    return { ...l, teams, players };
+    // Log the signing as a fee-0 transfer FROM the free-agent sentinel so the
+    // player's club-by-season history (profile, OVR chart, champion credit)
+    // and the News Feed register that he joined this club — an unrecorded
+    // free-agent arrival used to be silently attributed to whatever club his
+    // last paid move landed him at.
+    const { season, window } = freeAgentSigningWindow(l);
+    return {
+      ...l, teams, players,
+      transfers: [
+        ...l.transfers,
+        { pid, fromTid: FREE_AGENT_TID, toTid: l.meta.userTid, fee: 0, season, window },
+      ],
+    };
   }), [mutate]);
 
   const makeOfferAction = useCallback((pid: number, amount: number) => mutate(

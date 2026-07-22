@@ -4,6 +4,7 @@ import { useLeague } from "../context/LeagueContext.js";
 import type { StoredTeam } from "../../core/leagueState.js";
 import type { NewsEvent, NewsEventType } from "../../core/newsEvents.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
+import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { currency, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
@@ -76,6 +77,9 @@ export function NewsFeed() {
   const seasonsToShow = seasonFilter === "all" ? seasons : seasons.filter((s) => s === seasonFilter);
 
   const teamCell = (tid: number) => {
+    if (isFreeAgentTid(tid)) {
+      return <span className="text-muted">Free agent</span>;
+    }
     const team: StoredTeam | undefined = teamMap.get(tid);
     return (
       <span className="d-inline-flex align-items-center gap-1">
@@ -99,7 +103,7 @@ export function NewsFeed() {
   const totalItems = seasonsToShow.reduce((sum, season) => {
     const transfers = league.transfers.filter((t) => t.season === season);
     const events = league.newsEvents.filter((e) => e.season === season);
-    return sum + buildSeasonTimeline(transfers, events).filter((item) => passesFilters(season, item)).length;
+    return sum + buildSeasonTimeline(transfers, events, league.meta.userTid).filter((item) => passesFilters(season, item)).length;
   }, 0);
 
   return (
@@ -143,7 +147,7 @@ export function NewsFeed() {
         [...seasonsToShow].sort((a, b) => b - a).map((season) => {
           const transfers = league.transfers.filter((t) => t.season === season);
           const events = league.newsEvents.filter((e) => e.season === season);
-          const timeline = buildSeasonTimeline(transfers, events).filter((item) =>
+          const timeline = buildSeasonTimeline(transfers, events, league.meta.userTid).filter((item) =>
             passesFilters(season, item),
           );
           if (timeline.length === 0) return null;
@@ -180,7 +184,9 @@ export function NewsFeed() {
                                   ? "loan return"
                                   : t.loanSeasons
                                     ? `${t.window} window loan (${t.loanSeasons} season${t.loanSeasons > 1 ? "s" : ""})`
-                                    : `${t.window} window transfer`}
+                                    : isFreeAgentTid(t.fromTid)
+                                      ? `${t.window} window free signing`
+                                      : `${t.window} window transfer`}
                               </td>
                               <td>{playerCell(t.pid)}</td>
                               <td>

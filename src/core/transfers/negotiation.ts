@@ -32,6 +32,23 @@ export interface TransferNegotiation {
   status: "open" | "accepted" | "collapsed";
 }
 
+/**
+ * Sentinel "club" for a free-agent move: the from-side of a signing (nobody
+ * owned him) or the to-side of a release (nobody owns him now). Not a real tid,
+ * so it never collides with a club. A free-agent *signing* is recorded as a
+ * fee-0 transfer FROM this sentinel so the profile's club-by-season history
+ * (and the OVR chart, champion attribution, News Feed) sees every arrival —
+ * without a record, a player who joined a club on a free was silently
+ * attributed to whatever club his last *paid* move landed him at. UI that
+ * renders a tid must map this to "Free agent" (see freeAgentClubName).
+ */
+export const FREE_AGENT_TID = -1;
+
+/** True if a transfer's from/to side is the free-agent sentinel, not a club. */
+export function isFreeAgentTid(tid: number): boolean {
+  return tid === FREE_AGENT_TID;
+}
+
 export interface CompletedTransfer {
   pid: number;
   fromTid: number;

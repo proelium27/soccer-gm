@@ -11,6 +11,7 @@ import {
   releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
 } from "./freeAgency.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
+import { FREE_AGENT_TID } from "./transfers/negotiation.js";
 import { protectedStarPids } from "./transfers/protectedStars.js";
 import { runAIContractRenewals } from "./ai/renewals.js";
 import { enforceDivision2Ceiling } from "./ai/divisionCeiling.js";
@@ -174,9 +175,22 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //    its own division's finishing order — cross-division buying happens
   //    later, in the transfer market step), skipping the user's club.
   const signingOrder = [...standings].sort((a, b) => a.points - b.points).map((s) => s.tid);
-  ({ teams, players } = runAIFreeAgency(
+  let faSignings: { pid: number; toTid: number }[];
+  ({ teams, players, signings: faSignings } = runAIFreeAgency(
     teams, players, nextSeason, rng, league.meta.userTid, signingOrder, activeLoans,
   ));
+  // Log each free-agent arrival as a fee-0 transfer FROM the sentinel so the
+  // player's club-by-season history registers the move (an unrecorded free
+  // signing was otherwise attributed to his last paid club — see
+  // FREE_AGENT_TID). Fixed identity: this offseason keys to the summer window
+  // of nextSeason (matches transferWindowState during the offseason).
+  ceilingTransfers = [
+    ...ceilingTransfers,
+    ...faSignings.map((s) => ({
+      pid: s.pid, fromTid: FREE_AGENT_TID, toTid: s.toTid, fee: 0,
+      season: nextSeason, window: "summer" as const,
+    })),
+  ];
 
   // 5. Youth intake for every club, anchored to each club's fixed
   //    generation-time strength (academyBase — see promotion.ts for how it

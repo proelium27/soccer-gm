@@ -674,6 +674,19 @@ export function Manual() {
             free-agent pool is mostly players somebody decided not to hang onto.
           </p>
           <p>
+            Nobody manages your squad for you, so an expiring deal you don't act on just runs out and
+            the player leaves on a free the next offseason. To keep that from sneaking up on you, the
+            Roster page flags anyone in the final year of his deal with a <strong>"Final year"</strong>{" "}
+            badge and a heads-up banner, so you can extend him before he's gone for nothing.
+          </p>
+          <p>
+            Signing a free agent (or promoting a prospect who'd gone unsigned) now shows up on his
+            profile as a <strong>free move</strong> the same way a paid transfer does &mdash; in his
+            transfer history, on his OVR-over-time chart, and in the News Feed for your own signings.
+            Before, a free signing left no trace, so his profile could wrongly show him still at a
+            club he'd long since left even while he was playing for you.
+          </p>
+          <p>
             Don't count on picking up a gem for free, though. Each offseason the AI clubs work the
             free-agent pool before you do, and they don't just fill holes: any club will grab a
             genuinely useful free agent to upgrade a spot it's already stocked at. By the time you

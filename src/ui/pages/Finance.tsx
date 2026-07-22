@@ -11,6 +11,7 @@ import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
+import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 
 export function Finance() {
   const { league, setScoutingSpendAction, simming } = useLeague();
@@ -43,7 +44,9 @@ export function Finance() {
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   const teamName = (tid: number) =>
-    league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
+    isFreeAgentTid(tid)
+      ? "Free agent"
+      : league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
 
   const divisionTeamIds = league.teams
     .filter((t) => t.compId === userTeam.compId)

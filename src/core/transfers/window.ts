@@ -71,3 +71,25 @@ export function transferWindowState(
   }
   return CLOSED;
 }
+
+/**
+ * The (season, window) identity to log a free-agent signing under. Unlike a
+ * paid transfer, signing a free agent isn't gated by an open window, so this
+ * returns a sensible identity even when both windows are shut: the open
+ * window's identity if there is one (so an offseason signing keys to next
+ * season, matching signFreeAgent's effectiveSeason), otherwise this season and
+ * the window whose slot the current matchday falls after (winter once the
+ * summer window has closed). Keeping the record's season aligned to when the
+ * player actually joins the XI is what lets teamForSeason attribute him
+ * correctly.
+ */
+export function freeAgentSigningWindow(
+  league: Pick<LeagueStore, "phase" | "schedule" | "season">,
+): { season: number; window: TransferWindowKind } {
+  const ws = transferWindowState(league);
+  if (ws.open) return { season: ws.season, window: ws.window };
+  const md = nextMatchday(league);
+  const window: TransferWindowKind =
+    md !== null && md > SUMMER_WINDOW_CLOSE_MATCHDAY ? "winter" : "summer";
+  return { season: league.season, window };
+}

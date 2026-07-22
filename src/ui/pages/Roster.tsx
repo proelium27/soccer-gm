@@ -169,9 +169,16 @@ function RosterTable({
               </td>
               <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
               <td className="text-end">
-                {p.contract.expiresSeason <= season
-                  ? "Final year"
-                  : `Through ${seasonYear(p.contract.expiresSeason)}`}
+                {p.contract.expiresSeason <= season ? (
+                  <span
+                    className="badge bg-warning text-dark"
+                    title="His deal runs out this season. Extend him before the offseason or he leaves on a free."
+                  >
+                    Final year
+                  </span>
+                ) : (
+                  `Through ${seasonYear(p.contract.expiresSeason)}`
+                )}
               </td>
               {hasStats && (
                 <>
@@ -369,6 +376,22 @@ export function Roster() {
         <p>No players on roster.</p>
       ) : (
         <>
+          {(() => {
+            const expiring = players.filter((p) => p.contract.expiresSeason <= league.season);
+            if (expiring.length === 0) return null;
+            const one = expiring.length === 1;
+            return (
+              <div className="alert alert-warning py-2 px-3 small mb-2">
+                {one ? (
+                  <><strong>{expiring[0].name}</strong> is in the final year of his deal.</>
+                ) : (
+                  <><strong>{expiring.length} players</strong> are in the final year of their deals.</>
+                )}{" "}
+                Extend {one ? "him" : "them"} before the offseason, or {one ? "he'll" : "they'll"} leave on a
+                free with nothing coming back. Click a player to extend.
+              </div>
+            );
+          })()}
           <p className="text-muted small mb-1">
             Drag a bench player onto a pitch slot to swap him into the Starting XI, or tap a
             player's &#8942;&#8942; handle to pick him up, then tap another player's handle to

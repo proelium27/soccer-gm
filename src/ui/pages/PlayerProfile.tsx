@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { SKILL_KEYS } from "../../core/players/types.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
+import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { SKILL_LABELS } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { PotHelp } from "../components/HelpHint.js";
@@ -81,8 +82,10 @@ export function PlayerProfile() {
   const team = league.teams.find((t) => t.roster.includes(player.pid));
   const inAcademy = league.teams.find((t) => t.academyRoster.includes(player.pid));
   const teamByTid = new Map(league.teams.map((t) => [t.tid, t]));
-  const teamName = (tid: number) => teamByTid.get(tid)?.name ?? `Team ${tid}`;
-  const teamAbbrev = (tid: number) => teamByTid.get(tid)?.abbrev ?? "???";
+  const teamName = (tid: number) =>
+    isFreeAgentTid(tid) ? "Free agent" : teamByTid.get(tid)?.name ?? `Team ${tid}`;
+  const teamAbbrev = (tid: number) =>
+    isFreeAgentTid(tid) ? "FA" : teamByTid.get(tid)?.abbrev ?? "???";
 
   const playerTransfers = league.transfers
     .filter((t) => t.pid === player.pid)
@@ -390,13 +393,13 @@ export function PlayerProfile() {
               <OvrHistoryChart
                 player={player}
                 league={league}
-                teamTidForSeason={(season) =>
-                  team
-                    ? teamForSeason(playerTransfers, season, team.tid)
-                    : inAcademy
-                      ? inAcademy.tid
-                      : null
-                }
+                teamTidForSeason={(season) => {
+                  if (!team) return inAcademy ? inAcademy.tid : null;
+                  const owner = teamForSeason(playerTransfers, season, team.tid);
+                  // A season the player spent unsigned (before his first
+                  // recorded club) colors neutral, not as a phantom club.
+                  return isFreeAgentTid(owner) ? null : owner;
+                }}
               />
             </div>
           </div>

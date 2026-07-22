@@ -12,6 +12,7 @@ import {
 import {
   acquisitionWageCharge,
   currentNegotiations,
+  isFreeAgentTid,
   type TransferNegotiation,
 } from "../../core/transfers/negotiation.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
@@ -244,7 +245,9 @@ export function Transfers() {
   const atCap = userTeam.roster.length >= ROSTER_CAP;
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   const teamName = (tid: number) =>
-    league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
+    isFreeAgentTid(tid)
+      ? "Free agent"
+      : league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
 
   const negotiations = currentNegotiations(league);
   const negotiationByPid = new Map(negotiations.map((n) => [n.pid, n]));
@@ -285,7 +288,11 @@ export function Transfers() {
   });
 
   const windowTransfers = league.transfers.filter(
-    (t) => ws.open && t.season === ws.season && t.window === ws.window,
+    (t) =>
+      ws.open && t.season === ws.season && t.window === ws.window &&
+      // Routine AI free-agent churn is recorded for history but not shown as
+      // window activity; the user's own free signings still show.
+      (!isFreeAgentTid(t.fromTid) || t.toTid === league.meta.userTid),
   );
 
   return (

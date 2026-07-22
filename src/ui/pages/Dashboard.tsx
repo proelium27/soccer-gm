@@ -11,6 +11,7 @@ import { SCOUTING_SPEND_MAX, RATING_LEADER_QUALIFY_FRACTION } from "../../core/c
 import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
+import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { currency, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
@@ -154,9 +155,9 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
   const newsHeadlines = useMemo(() => {
     const currentSeasonTransfers = league.transfers.filter((t) => t.season === league.season);
     const currentSeasonEvents = league.newsEvents.filter((e) => e.season === league.season);
-    const newsTimeline = buildSeasonTimeline(currentSeasonTransfers, currentSeasonEvents);
+    const newsTimeline = buildSeasonTimeline(currentSeasonTransfers, currentSeasonEvents, league.meta.userTid);
     return [...newsTimeline].slice(-NEWS_TOP_N).reverse();
-  }, [league.transfers, league.newsEvents, league.season]);
+  }, [league.transfers, league.newsEvents, league.season, league.meta.userTid]);
 
   const teamByTid = useMemo(() => new Map(league.teams.map((t) => [t.tid, t])), [league.teams]);
   const playerByPid = useMemo(() => new Map(league.players.map((p) => [p.pid, p])), [league.players]);
@@ -168,8 +169,17 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
     if (item.kind === "transfer") {
       const t = item.data;
       const player = playerByPid.get(t.pid);
-      const from = teamByTid.get(t.fromTid);
       const to = teamByTid.get(t.toTid);
+      // A free-agent signing (fromTid is the sentinel) reads as a free move, not
+      // a club-to-club transfer with a phantom "?" origin.
+      if (isFreeAgentTid(t.fromTid)) {
+        return (
+          <>
+            {playerLink(player)} signs for {to?.name ?? "?"} on a free
+          </>
+        );
+      }
+      const from = teamByTid.get(t.fromTid);
       return (
         <>
           {playerLink(player)} moves from {from?.name ?? "?"} to {to?.name ?? "?"} ({currency.format(t.fee)})
