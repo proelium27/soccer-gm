@@ -34,14 +34,6 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-22",
-    title: "The little nationality flags actually show up now",
-    items: [
-      "Someone showed me a screenshot where the flags next to player names were just showing as plain letters like ES and DK, and one of them was a broken gray box. Turned out I was drawing the flags as emoji, and a lot of computers and browsers (Windows especially) just don't ship flag emoji at all, so they fall back to those two-letter codes. On my machine they looked fine, which is why I never caught it.",
-      "So I swapped every flag over to a real drawn image instead of an emoji. There's now an actual little flag picture for all 75 nationalities the game uses, and they render the same everywhere no matter what computer or browser you're on. You'll see them next to names on the roster, the leaders and box score pages, transfers, everywhere a player's country shows.",
-    ],
-  },
-  {
-    date: "2026-07-22",
     title: "Continental Cup knockouts are two legs now",
     items: [
       "Somebody said the cup felt way too random compared to how teams do in the league, and they were right. I dug into it and the cause wasn't the ratings or the cross-league stuff like I first guessed, it was just the format: single-match knockouts are basically a coin flip between two good teams, and then extra time and penalties on top of that. Winning three of those in a row barely has anything to do with being the best side, so a team could steamroll its league and still go out of the cup in the first round for no real reason.",
