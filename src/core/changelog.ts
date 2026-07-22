@@ -33,6 +33,13 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-07-22",
+    title: "There's a Discord now",
+    items: [
+      "I set up a Discord server for the game and dropped a link to it in the sidebar, down in the Help section under the Manual and Changelog. Come hang out, report bugs, tell me what's broken or what you'd want next. It opens in a new tab so it won't blow away your save.",
+    ],
+  },
+  {
     date: "2026-07-21",
     title: "Free agents aren't a wall of the same position anymore",
     items: [
