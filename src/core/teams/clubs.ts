@@ -351,6 +351,13 @@ export interface StoredTeam {
    */
   transferListed: number[];
   /**
+   * Pids the user has flagged to "give more minutes": in-match, the sub logic
+   * favors bringing these bench players on (see SUB_MINUTES_BOOST). Only ever
+   * set for the user's own team — AI clubs never flag — so it stays empty for
+   * every AI team.
+   */
+  moreMinutes: number[];
+  /**
    * Scouting fog-of-war: pid → the season the player was first seen on this
    * club's senior roster, so the user's potential estimate for him sharpens
    * with tenure (see src/core/scouting/potentialFog.ts). Only ever populated
@@ -389,6 +396,7 @@ export function assignIdentities(league: League, competitions: Competition[]): S
       formation: "4-3-3",
       starters: null,
       transferListed: [],
+      moreMinutes: [],
       scoutingObserved: {},
     };
   });

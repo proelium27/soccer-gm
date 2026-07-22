@@ -48,6 +48,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     formation: "4-3-3",
     starters: null,
     transferListed: [],
+    moreMinutes: [],
     scoutingObserved: {},
   }));
 
