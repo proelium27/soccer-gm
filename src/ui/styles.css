@@ -595,6 +595,11 @@ a:hover {
 }
 
 /* Nationality flag (SVG image, sized by the Flag component's `size` prop) */
+.player-flag-wrap {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
 .player-flag {
   display: inline-block;
   vertical-align: middle;
@@ -606,7 +611,33 @@ a:hover {
 .player-flag-fallback {
   width: 18px;
   height: 13px;
-  background: var(--surface-2, #333);
+  background: var(--sg-surface-2, #333);
+}
+/* CSS-only hover tooltip naming the country (mouse aid; aria-label covers AT). */
+.player-flag-tip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 5px;
+  z-index: 1060;
+  padding: 2px 7px;
+  background: var(--sg-surface-2);
+  border: 1px solid var(--sg-border-strong);
+  border-radius: var(--sg-radius);
+  box-shadow: var(--sg-shadow);
+  color: var(--sg-text);
+  font-size: var(--sg-text-sm);
+  font-weight: var(--sg-weight-semibold);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.08s ease;
+}
+.player-flag-wrap:hover .player-flag-tip {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* =========================================================================
