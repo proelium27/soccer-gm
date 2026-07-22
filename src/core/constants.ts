@@ -1381,10 +1381,25 @@ export const CUP_PLAYOFF_MATCHDAY = 27;
 export const CUP_PRIZE_WIN_PLAYOFF = 3_000_000;
 
 /**
- * Swiss-cup knockout matchdays, indexed by knockout round
- * (0 = Quarter-final, 1 = Semi-final, 2 = Final). Spread across the run-in.
+ * Swiss-cup knockout matchdays for a **single-leg** cup (a pre-two-leg save
+ * finishing under the old rules), indexed by knockout round
+ * (0 = Quarter-final, 1 = Semi-final, 2 = Final). One matchday per round.
  */
 export const CUP_KO_ROUND_MATCHDAYS = [31, 34, 37] as const;
+
+/**
+ * Swiss-cup knockout matchdays for a **two-legged** cup (all newly built cups),
+ * indexed by knockout round then by leg. The quarter-final and semi-final are
+ * two legs on separate matchdays (each club hosts once, decided on aggregate);
+ * the final is a single leg. Second-leg matchdays line up with the single-leg
+ * schedule above (31 / —, 37) so the run-in feels the same; the first legs slot
+ * in ahead of them (QF 29→31, SF 33→35, Final 37).
+ */
+export const CUP_KO_LEG_MATCHDAYS: readonly (readonly number[])[] = [
+  [29, 31], // Quarter-final: leg 1, leg 2
+  [33, 35], // Semi-final: leg 1, leg 2
+  [37],     // Final: single leg
+];
 
 /* ── Legacy straight-bracket cup (pre-Swiss saves only) ───────────────────────
  * Kept so a save that is mid-season with an old play-in/16-team cup finishes

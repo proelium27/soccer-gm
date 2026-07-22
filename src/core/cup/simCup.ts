@@ -1,13 +1,13 @@
 import type { Composites } from "../../engine/composites.js";
 import type { MatchPlayer, PlayerMatchLine, BoxScore } from "../../engine/attribution.js";
 import type { TeamMatchData } from "../league/composites.js";
-import type { CupState, CupTie } from "./types.js";
+import type { CupState, CupTie, KnockoutLeg } from "./types.js";
 import { simMatchDetailed, resolveShot, finisherAdj } from "../../engine/matchSim.js";
 import { pickShooter, pickAssister, emptyLine } from "../../engine/attribution.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
 import {
-  completedRounds, matchupsForRound, applyPlayIn, applyPlayoff,
-  isSwissCup, koRoundMatchdays, koPrizeByRound, koFinalRound, seedKnockoutFromLeaguePhase,
+  matchupsForRound, applyPlayIn, applyPlayoff,
+  isSwissCup, koPrizeByRound, koFinalRound, seedKnockoutFromLeaguePhase, dueCupLeg,
 } from "./cup.js";
 import {
   CUP_ET_CHANCES_PER_SIDE, CUP_PEN_BEST_OF, CUP_PEN_BASE_CONVERSION,
@@ -35,6 +35,44 @@ function lineFor(lines: PlayerMatchLine[], pid: number): PlayerMatchLine {
     lines.push(line);
   }
   return line;
+}
+
+/**
+ * Merge one leg's box-score lines for a club into an accumulator (keyed by pid):
+ * every counting stat sums across the two legs, and `rating` becomes a
+ * minutes-weighted mean of the legs a player featured in (so a full-90 leg
+ * weighs more than a cameo). Used to fold two-legged ties into a single tie
+ * box score, so cup stats and the box-score UI treat the tie as one line.
+ */
+function mergeLines(acc: PlayerMatchLine[], add: PlayerMatchLine[]): void {
+  for (const src of add) {
+    const dst = acc.find((l) => l.pid === src.pid);
+    if (!dst) {
+      acc.push({ ...src });
+      continue;
+    }
+    const totalMin = dst.minutesPlayed + src.minutesPlayed;
+    dst.rating = totalMin > 0
+      ? (dst.rating * dst.minutesPlayed + src.rating * src.minutesPlayed) / totalMin
+      : (dst.rating + src.rating) / 2;
+    dst.goals += src.goals;
+    dst.assists += src.assists;
+    dst.shots += src.shots;
+    dst.shotsOnTarget += src.shotsOnTarget;
+    dst.xg += src.xg;
+    dst.goalsAgainst += src.goalsAgainst;
+    dst.xga += src.xga;
+    dst.saves += src.saves;
+    dst.tackles += src.tackles;
+    dst.interceptions += src.interceptions;
+    dst.passes += src.passes;
+    dst.passesCompleted += src.passesCompleted;
+    dst.crosses += src.crosses;
+    dst.foulsCommitted += src.foulsCommitted;
+    dst.yellowCards += src.yellowCards;
+    dst.redCards += src.redCards;
+    dst.minutesPlayed += src.minutesPlayed;
+  }
 }
 
 /**
@@ -116,9 +154,11 @@ function playShootout(
 }
 
 /**
- * Play one knockout tie: 90' via simMatchDetailed, then extra time if level,
- * then a penalty shootout if still level. The box score carries regulation +
- * extra-time attribution; shootout kicks decide the winner only.
+ * Play one **single-leg** knockout tie (the final, the league-phase playoff,
+ * the legacy play-in, and any round of a single-leg cup): 90' via
+ * simMatchDetailed, then extra time if level, then a penalty shootout if still
+ * level. The box score carries regulation + extra-time attribution; shootout
+ * kicks decide the winner only.
  */
 export function resolveCupTie(
   rng: () => number,
@@ -161,24 +201,124 @@ export function resolveCupTie(
 }
 
 /**
- * Play the next due knockout round in full (all its ties), advancing the
- * bracket and returning the prize money each club earned this round (keyed by
- * tid; the caller credits budgets). Each round uses its own seeded rng
- * (derived from lid/season/round) so cup results are deterministic and
- * independent of the league's own match stream.
+ * Play the **first leg** of a two-legged knockout tie: a plain 90' match with
+ * `home` hosting (it may end level — the aggregate decides the tie on the
+ * second leg, so no extra time here). Returns the held leg for CupState.koLegs.
  */
-export function playCupRound(
+export function playFirstLeg(
+  rng: () => number,
+  home: number,
+  away: number,
+  hd: TeamMatchData,
+  ad: TeamMatchData,
+  round: number,
+): KnockoutLeg {
+  const result = simMatchDetailed(rng, hd.composites, ad.composites, hd.xi, ad.xi, hd.bench, ad.bench, {
+    recompute: { home: hd.recompute, away: ad.recompute },
+  });
+  return { round, home, away, homeGoals: result.home, awayGoals: result.away, boxScore: result.boxScore };
+}
+
+/**
+ * Resolve a two-legged tie: play the **second leg** with `away` hosting
+ * (composites/XI swapped), add it to the held first leg, and decide on the
+ * aggregate. Level on aggregate after both legs → extra time (attributed into
+ * the merged box in the tie's `home`/`away` orientation) → shootout if still
+ * level. Both legs' box scores are merged into one so cup stats and the
+ * box-score UI see a single line per tie; `legs` carries the two 90' scorelines
+ * (from `home`'s perspective) for display. The home-and-away swap cancels home
+ * advantage and doubles the sample, so the tie tracks squad strength far more
+ * than a single-match coin flip.
+ */
+export function resolveTwoLeggedTie(
+  rng: () => number,
+  firstLeg: KnockoutLeg,
+  hd: TeamMatchData,
+  ad: TeamMatchData,
+  matchday: number,
+): CupTie {
+  const { round, home, away } = firstLeg;
+  // Leg 2: `away` hosts, so leg2.home is the `away` club and leg2.away is `home`.
+  const leg2 = simMatchDetailed(rng, ad.composites, hd.composites, ad.xi, hd.xi, ad.bench, hd.bench, {
+    recompute: { home: ad.recompute, away: hd.recompute },
+  });
+
+  // Merge both legs into one box, keeping this tie's `home`/`away` orientation.
+  const box: BoxScore = { home: [], away: [], events: [...firstLeg.boxScore.events, ...leg2.boxScore.events] };
+  mergeLines(box.home, firstLeg.boxScore.home); // `home` club at home (leg 1)
+  mergeLines(box.home, leg2.boxScore.away);      // `home` club away (leg 2)
+  mergeLines(box.away, firstLeg.boxScore.away);  // `away` club away (leg 1)
+  mergeLines(box.away, leg2.boxScore.home);      // `away` club at home (leg 2)
+
+  const legs = [
+    { homeGoals: firstLeg.homeGoals, awayGoals: firstLeg.awayGoals },
+    { homeGoals: leg2.away, awayGoals: leg2.home },
+  ];
+  let homeGoals = firstLeg.homeGoals + leg2.away;
+  let awayGoals = firstLeg.awayGoals + leg2.home;
+  let wentToExtraTime = false;
+  let wentToPens = false;
+  let homePens = 0;
+  let awayPens = 0;
+
+  if (homeGoals === awayGoals) {
+    wentToExtraTime = true;
+    const et = playExtraTime(rng, hd.composites, ad.composites, hd.xi, ad.xi, box);
+    homeGoals += et.homeGoals;
+    awayGoals += et.awayGoals;
+    if (homeGoals === awayGoals) {
+      wentToPens = true;
+      ({ homePens, awayPens } = playShootout(rng, hd.composites, ad.composites));
+    }
+  }
+
+  const winner =
+    homeGoals > awayGoals ? home
+      : awayGoals > homeGoals ? away
+        : homePens > awayPens ? home
+          : away;
+
+  return { round, matchday, home, away, homeGoals, awayGoals, wentToExtraTime, wentToPens, homePens, awayPens, winner, boxScore: box, legs };
+}
+
+/**
+ * Play the knockout leg (or single-leg round) due on `matchday`, advancing the
+ * bracket and returning the prize money each club earned (keyed by tid; the
+ * caller credits budgets). Three cases, dispatched by dueCupLeg:
+ *  - a two-legged round's **first leg**: play all first legs and hold them in
+ *    `cup.koLegs` (no prizes, no bracket advance yet);
+ *  - a two-legged round's **second leg**: resolve each held tie on aggregate,
+ *    append the finished ties, and clear `koLegs`;
+ *  - a **single-leg round** (the final, or any round of a single-leg cup):
+ *    play every tie in full, as before.
+ * Each leg uses its own seeded rng (derived from lid/season/round/leg) so cup
+ * results are deterministic and independent of the league's own match stream.
+ */
+export function playKnockoutLeg(
   cup: CupState,
   matchData: Map<number, TeamMatchData>,
   lid: number,
+  matchday: number,
 ): { cup: CupState; prizes: Map<number, number> } {
-  const round = completedRounds(cup);
-  const rng = mulberry32(hashInts(lid, cup.season, round, 30));
-  const matchups = matchupsForRound(cup, round);
-  const matchday = koRoundMatchdays(cup)[round];
+  const due = dueCupLeg(cup, matchday);
+  if (!due) return { cup, prizes: new Map() };
+  const { round, leg, twoLeg } = due;
+
+  // First leg of a two-legged round: play and hold, no prizes yet.
+  if (twoLeg && leg === 0) {
+    const rng = mulberry32(hashInts(lid, cup.season, round, 30, 1));
+    const koLegs: KnockoutLeg[] = [];
+    for (const [home, away] of matchupsForRound(cup, round)) {
+      const hd = matchData.get(home);
+      const ad = matchData.get(away);
+      if (!hd || !ad) continue; // defensive: a qualifier should always be in matchData
+      koLegs.push(playFirstLeg(rng, home, away, hd, ad, round));
+    }
+    return { cup: { ...cup, koLegs }, prizes: new Map() };
+  }
+
   const finalRound = koFinalRound(cup);
   const winPrize = koPrizeByRound(cup);
-
   const prizes = new Map<number, number>();
   const addPrize = (tid: number, amount: number): void => {
     prizes.set(tid, (prizes.get(tid) ?? 0) + amount);
@@ -194,11 +334,7 @@ export function playCupRound(
 
   const newTies: CupTie[] = [];
   let championTid = cup.championTid;
-  for (const [home, away] of matchups) {
-    const hd = matchData.get(home);
-    const ad = matchData.get(away);
-    if (!hd || !ad) continue; // defensive: a qualifier should always be in matchData
-    const tie = resolveCupTie(rng, home, away, hd, ad, round, matchday);
+  const finalizeTie = (tie: CupTie, home: number, away: number): void => {
     newTies.push(tie);
     addPrize(tie.winner, winPrize[round]);
     if (round === finalRound) {
@@ -206,8 +342,28 @@ export function playCupRound(
       const runnerUp = tie.winner === home ? away : home;
       addPrize(runnerUp, CUP_PRIZE_RUNNER_UP);
     }
+  };
+
+  // Second leg of a two-legged round: resolve each held first leg on aggregate.
+  if (twoLeg && leg === 1) {
+    const rng = mulberry32(hashInts(lid, cup.season, round, 30, 2));
+    for (const fl of cup.koLegs ?? []) {
+      const hd = matchData.get(fl.home);
+      const ad = matchData.get(fl.away);
+      if (!hd || !ad) continue; // defensive
+      finalizeTie(resolveTwoLeggedTie(rng, fl, hd, ad, matchday), fl.home, fl.away);
+    }
+    return { cup: { ...cup, ties: [...cup.ties, ...newTies], championTid, koLegs: null }, prizes };
   }
 
+  // Single-leg round (the final, or any round of a single-leg cup): play in full.
+  const rng = mulberry32(hashInts(lid, cup.season, round, 30));
+  for (const [home, away] of matchupsForRound(cup, round)) {
+    const hd = matchData.get(home);
+    const ad = matchData.get(away);
+    if (!hd || !ad) continue; // defensive: a qualifier should always be in matchData
+    finalizeTie(resolveCupTie(rng, home, away, hd, ad, round, matchday), home, away);
+  }
   return { cup: { ...cup, ties: [...cup.ties, ...newTies], championTid }, prizes };
 }
 
