@@ -77,10 +77,6 @@ export function SetScouting() {
               up as an exact number sooner, instead of a wide "somewhere in this
               range" guess.
             </li>
-            <li>
-              A season-long edge. Scouting sharpens everything you see all year, so
-              a good budget compounds every time you're weighing a move.
-            </li>
           </ul>
         </div>
       </div>
