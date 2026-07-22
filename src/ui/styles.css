@@ -574,7 +574,9 @@ a:hover {
    Division badge (Power Rankings — differentiate D1/D2 clubs at a glance)
    ========================================================================= */
 .division-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.7rem;
   font-weight: var(--sg-weight-semibold);
   line-height: 1;
@@ -611,6 +613,21 @@ a:hover {
 .player-flag-fallback {
   width: 18px;
   height: 13px;
+  background: var(--sg-surface-2, #333);
+}
+/* Country-level flag (New League picker, Power Rankings badge) — same art and
+   treatment as the player flag. */
+.country-flag {
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 2px;
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.25);
+  object-fit: cover;
+}
+.country-flag-fallback {
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 2px;
   background: var(--sg-surface-2, #333);
 }
 /* CSS-only hover tooltip naming the country (mouse aid; aria-label covers AT). */
