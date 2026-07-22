@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { HelpHint, PotHelp } from "../components/HelpHint.js";
@@ -51,6 +51,9 @@ function numFilter(s: string): number | null {
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
+
+/** One recommended-transfer row (player + who's selling + scout value). */
+type TargetRow = ReturnType<typeof recommendedTransfers>[number];
 
 function windowBanner(league: LeagueStore): React.ReactNode {
   const ws = transferWindowState(league);
@@ -200,6 +203,28 @@ export function Transfers() {
     });
   }, [league, search]);
 
+  // Players bought earlier *this visit*. A completed buy moves the player onto
+  // your roster, so he drops out of the recommended scan and his row would just
+  // vanish. We keep it pinned at the same index (with a "Transferred" badge)
+  // instead. Local state, not the persisted negotiation, so the row is gone the
+  // next time you open the page — exactly once, right after the buy.
+  const [pinnedBuys, setPinnedBuys] = useState<{ row: TargetRow; index: number }[]>([]);
+  // Snapshot of the rows shown last render, so when a buy drops a player out of
+  // the fresh scan we can recover his row and its position from before.
+  const prevTargetsRef = useRef<TargetRow[]>([]);
+
+  useEffect(() => {
+    const negs = league ? currentNegotiations(league) : [];
+    const pinnedPids = new Set(pinnedBuys.map((b) => b.row.player.pid));
+    const additions = negs.flatMap((n) => {
+      if (n.status !== "accepted" || pinnedPids.has(n.pid)) return [];
+      const idx = prevTargetsRef.current.findIndex((t) => t.player.pid === n.pid);
+      return idx >= 0 ? [{ row: prevTargetsRef.current[idx], index: idx }] : [];
+    });
+    prevTargetsRef.current = targets;
+    if (additions.length > 0) setPinnedBuys((prev) => [...prev, ...additions]);
+  }, [league, targets, pinnedBuys]);
+
   if (!league) {
     return <p className="p-3">Loading...</p>;
   }
@@ -230,17 +255,15 @@ export function Transfers() {
     (n) => !listedPids.has(n.pid) && n.status !== "accepted",
   );
 
-  // A completed buy moves the player onto your roster, so he drops out of the
-  // recommended scan and his row would just vanish. Keep it in place (with a
-  // "Transferred" badge) for the rest of the window's talks instead.
-  const boughtRows = negotiations.flatMap((n) => {
-    if (n.status !== "accepted" || listedPids.has(n.pid)) return [];
-    const player = playerMap.get(n.pid);
-    return player
-      ? [{ player, sellerTid: n.sellerTid, scoutedValue: n.offers.at(-1) ?? 0 }]
-      : [];
-  });
-  const displayTargets = [...boughtRows, ...targets];
+  // Splice players bought this visit back into the list at their original row,
+  // so the row appears to stay put and flip to "Transferred" rather than jump
+  // to the top or disappear. (See `pinnedBuys` above for the once-per-visit
+  // lifetime.)
+  const pinnedPids = new Set(pinnedBuys.map((b) => b.row.player.pid));
+  const displayTargets = targets.filter((t) => !pinnedPids.has(t.player.pid));
+  for (const { row, index } of [...pinnedBuys].sort((a, b) => a.index - b.index)) {
+    displayTargets.splice(Math.min(index, displayTargets.length), 0, row);
+  }
 
   const windowTransfers = league.transfers.filter(
     (t) => ws.open && t.season === ws.season && t.window === ws.window,
