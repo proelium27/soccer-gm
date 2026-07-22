@@ -1522,7 +1522,9 @@ a:hover {
   /* --- Content --------------------------------------------------------- */
   .main-content {
     padding: 0.85rem 0.85rem 2rem;
-    /* Wide tables scroll inside the content pane, not the viewport. */
+    /* Safety net only: each wide table scrolls itself (see below), so the
+       content pane shouldn't need to scroll sideways. Kept as a fallback for
+       any non-table element that happens to overrun a phone width. */
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
@@ -1530,7 +1532,22 @@ a:hover {
     font-size: 1.15rem;
   }
 
-  /* --- Tables: tighten density so more columns fit before scrolling ---- */
+  /* --- Tables ----------------------------------------------------------
+     Each table becomes its own horizontal scroll container so only the
+     table swipes sideways — the page header, filters, and neighbouring
+     content stay fixed at viewport width. `display: block` turns the
+     <table> box into a scrollable block while its rows keep their normal
+     table layout inside. Tables narrower than the screen still fill the
+     pane via `width: 100%`; wider ones overflow and scroll internally. */
+  .main-content .table {
+    display: block;
+    max-width: 100%;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Tighten density so more columns fit before the table needs scrolling. */
   .table > thead th,
   .table > tbody td {
     padding: 0.35rem 0.4rem;

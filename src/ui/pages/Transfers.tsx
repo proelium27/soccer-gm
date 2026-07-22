@@ -1,10 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import { transferWindowState } from "../../core/transfers/window.js";
-import { recommendedTransfers } from "../../core/transfers/recommendations.js";
+import {
+  recommendedTransfers,
+  searchWorldPlayers,
+  PLAYER_SEARCH_LIMIT,
+} from "../../core/transfers/recommendations.js";
 import {
   acquisitionWageCharge,
   currentNegotiations,
@@ -39,6 +43,22 @@ const EMPTY_FILTERS: TransferFilters = {
   maxAge: "",
   maxValue: "",
 };
+
+interface SearchFilters extends TransferFilters {
+  name: string;
+}
+
+const EMPTY_SEARCH: SearchFilters = { ...EMPTY_FILTERS, name: "" };
+
+/** Parse a text field into a numeric filter value (""/invalid → no constraint). */
+function numFilter(s: string): number | null {
+  if (s === "") return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** One recommended-transfer row (player + who's selling + scout value). */
+type TargetRow = ReturnType<typeof recommendedTransfers>[number];
 
 function windowBanner(league: LeagueStore): React.ReactNode {
   const ws = transferWindowState(league);
@@ -147,11 +167,16 @@ export function Transfers() {
   const { league, makeOfferAction, acceptCounterAction, simming } = useLeague();
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [filters, setFilters] = useState<TransferFilters>(EMPTY_FILTERS);
+  const [search, setSearch] = useState<SearchFilters>(EMPTY_SEARCH);
   const { sort, toggle } = useTableSort<TargetSortKey>("recommended", "desc");
 
   const hasFilters =
     filters.position !== "" || filters.minOvr !== "" || filters.minPot !== ""
     || filters.maxAge !== "" || filters.maxValue !== "";
+
+  const hasSearch =
+    search.name.trim() !== "" || search.position !== "" || search.minOvr !== ""
+    || search.minPot !== "" || search.maxAge !== "" || search.maxValue !== "";
 
   // Filters feed into the search itself (not a post-hoc row filter), so
   // changing one re-runs the candidate scan and surfaces genuinely new
@@ -160,19 +185,51 @@ export function Transfers() {
   // redo it; it re-runs only when the league, refresh, or a filter changes.
   const targets = useMemo(() => {
     if (!league) return [];
-    const num = (s: string): number | null => {
-      if (s === "") return null;
-      const n = Number(s);
-      return Number.isFinite(n) ? n : null;
-    };
     return recommendedTransfers(league, refreshNonce, {
       position: filters.position || undefined,
-      minOvr: num(filters.minOvr),
-      minPot: num(filters.minPot),
-      maxAge: num(filters.maxAge),
-      maxValue: num(filters.maxValue),
+      minOvr: numFilter(filters.minOvr),
+      minPot: numFilter(filters.minPot),
+      maxAge: numFilter(filters.maxAge),
+      maxValue: numFilter(filters.maxValue),
     });
   }, [league, refreshNonce, filters]);
+
+  // Free-form world search: scans every club, so it's memoized to stay off the
+  // path of unrelated renders (typing an offer amount). Empty until the user
+  // sets a name or filter (see searchWorldPlayers).
+  const searchResults = useMemo(() => {
+    if (!league) return [];
+    return searchWorldPlayers(league, {
+      name: search.name,
+      position: search.position || undefined,
+      minOvr: numFilter(search.minOvr),
+      minPot: numFilter(search.minPot),
+      maxAge: numFilter(search.maxAge),
+      maxValue: numFilter(search.maxValue),
+    });
+  }, [league, search]);
+
+  // Players bought earlier *this visit*. A completed buy moves the player onto
+  // your roster, so he drops out of the recommended scan and his row would just
+  // vanish. We keep it pinned at the same index (with a "Transferred" badge)
+  // instead. Local state, not the persisted negotiation, so the row is gone the
+  // next time you open the page — exactly once, right after the buy.
+  const [pinnedBuys, setPinnedBuys] = useState<{ row: TargetRow; index: number }[]>([]);
+  // Snapshot of the rows shown last render, so when a buy drops a player out of
+  // the fresh scan we can recover his row and its position from before.
+  const prevTargetsRef = useRef<TargetRow[]>([]);
+
+  useEffect(() => {
+    const negs = league ? currentNegotiations(league) : [];
+    const pinnedPids = new Set(pinnedBuys.map((b) => b.row.player.pid));
+    const additions = negs.flatMap((n) => {
+      if (n.status !== "accepted" || pinnedPids.has(n.pid)) return [];
+      const idx = prevTargetsRef.current.findIndex((t) => t.player.pid === n.pid);
+      return idx >= 0 ? [{ row: prevTargetsRef.current[idx], index: idx }] : [];
+    });
+    prevTargetsRef.current = targets;
+    if (additions.length > 0) setPinnedBuys((prev) => [...prev, ...additions]);
+  }, [league, targets, pinnedBuys]);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -194,23 +251,29 @@ export function Transfers() {
 
   // Talks that outlived the recommended list (e.g. the budget shrank after a
   // signing, or the current filters exclude the player) still need controls
-  // somewhere.
-  const listedPids = new Set(targets.map((t) => t.player.pid));
+  // somewhere. A player currently shown in the search results already has
+  // controls there, so he doesn't also need an "Other Negotiations" row.
+  const listedPids = new Set([
+    ...targets.map((t) => t.player.pid),
+    ...searchResults.filter((r) => r.forSale).map((r) => r.player.pid),
+  ]);
   const orphaned = negotiations.filter(
     (n) => !listedPids.has(n.pid) && n.status !== "accepted",
   );
 
-  // A completed buy moves the player onto your roster, so he drops out of the
-  // recommended scan and his row would just vanish. Keep it in place (with a
-  // "Transferred" badge) for the rest of the window's talks instead.
-  const boughtRows = negotiations.flatMap((n) => {
-    if (n.status !== "accepted" || listedPids.has(n.pid)) return [];
-    const player = playerMap.get(n.pid);
-    return player
-      ? [{ player, sellerTid: n.sellerTid, scoutedValue: n.offers.at(-1) ?? 0 }]
-      : [];
-  });
-  const displayTargets = sortRows([...boughtRows, ...targets], sort, {
+  // Splice players bought this visit back into the list at their original row,
+  // so the row appears to stay put and flip to "Transferred" rather than jump
+  // to the top or disappear. (See `pinnedBuys` above for the once-per-visit
+  // lifetime.)
+  const pinnedPids = new Set(pinnedBuys.map((b) => b.row.player.pid));
+  const baseTargets = targets.filter((t) => !pinnedPids.has(t.player.pid));
+  for (const { row, index } of [...pinnedBuys].sort((a, b) => a.index - b.index)) {
+    baseTargets.splice(Math.min(index, baseTargets.length), 0, row);
+  }
+  // Apply the chosen column sort on top. The default "recommended" key has no
+  // accessor, so sortRows leaves the pinned best-fit order (and bought-row
+  // positions) untouched; any other key sorts the whole list, pinned buys included.
+  const displayTargets = sortRows(baseTargets, sort, {
     name: (r) => r.player.name,
     pos: (r) => r.player.pos,
     age: (r) => league.season - r.player.born,
@@ -390,6 +453,163 @@ export function Transfers() {
                   ))}
                 </tbody>
               </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {ws.open && (
+        <div className="card mb-3">
+          <div className="card-body">
+            <h5 className="card-title">Search all players</h5>
+            <p className="card-text text-muted">
+              Look up any player in the world by name or filters and bid on him
+              directly — not just the recommended shortlist. A club won&apos;t part
+              with a player it needs for depth, and the very best players at
+              successful clubs simply aren&apos;t for sale at any price.
+            </p>
+            <div className="d-flex flex-wrap gap-2 align-items-end mb-3">
+              <div>
+                <label className="form-label small mb-0" htmlFor="ps-name">Name</label>
+                <input
+                  id="ps-name"
+                  type="text"
+                  className="form-control form-control-sm"
+                  style={{ width: "12rem" }}
+                  placeholder="Search by name"
+                  value={search.name}
+                  onChange={(e) => setSearch((s) => ({ ...s, name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label small mb-0" htmlFor="ps-pos">Position</label>
+                <select
+                  id="ps-pos"
+                  className="form-select form-select-sm"
+                  value={search.position}
+                  onChange={(e) => setSearch((s) => ({ ...s, position: e.target.value }))}
+                >
+                  <option value="">All</option>
+                  {POSITIONS.map((pos) => (
+                    <option key={pos} value={pos}>{pos}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="form-label small mb-0" htmlFor="ps-min-ovr">Min Ovr</label>
+                <input
+                  id="ps-min-ovr"
+                  type="number"
+                  className="form-control form-control-sm"
+                  style={{ width: "5.5rem" }}
+                  value={search.minOvr}
+                  onChange={(e) => setSearch((s) => ({ ...s, minOvr: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label small mb-0" htmlFor="ps-min-pot">Min Pot</label>
+                <input
+                  id="ps-min-pot"
+                  type="number"
+                  className="form-control form-control-sm"
+                  style={{ width: "5.5rem" }}
+                  value={search.minPot}
+                  onChange={(e) => setSearch((s) => ({ ...s, minPot: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label small mb-0" htmlFor="ps-max-age">Max Age</label>
+                <input
+                  id="ps-max-age"
+                  type="number"
+                  className="form-control form-control-sm"
+                  style={{ width: "5.5rem" }}
+                  value={search.maxAge}
+                  onChange={(e) => setSearch((s) => ({ ...s, maxAge: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label small mb-0" htmlFor="ps-max-value">Max Value</label>
+                <input
+                  id="ps-max-value"
+                  type="number"
+                  className="form-control form-control-sm"
+                  style={{ width: "8rem" }}
+                  value={search.maxValue}
+                  onChange={(e) => setSearch((s) => ({ ...s, maxValue: e.target.value }))}
+                />
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={() => setSearch(EMPTY_SEARCH)}
+              >
+                Clear
+              </button>
+            </div>
+            {!hasSearch ? (
+              <p className="mb-0 text-muted">
+                Enter a name or set a filter to search the whole world.
+              </p>
+            ) : searchResults.length === 0 ? (
+              <p className="mb-0">No players match your search.</p>
+            ) : (
+              <table className="table table-striped table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Pos</th>
+                    <th className="text-end">Age</th>
+                    <th className="text-end">Ovr</th>
+                    <th className="text-end">Pot <PotHelp /></th>
+                    <th>Club</th>
+                    <th className="text-end">Wage</th>
+                    <th className="text-end">Scout value</th>
+                    <th>Offer</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchResults.map(({ player: p, sellerTid, scoutedValue, forSale, notForSaleReason }) => (
+                    <tr key={p.pid}>
+                      <td>
+                        <PlayerRatingsTooltip player={p}>
+                          <Link to={`/player/${p.pid}`}>{p.name}</Link>
+                        </PlayerRatingsTooltip>{" "}
+                        <Flag nationality={p.nationality} />
+                      </td>
+                      <td>{p.pos}</td>
+                      <td className="text-end">{league.season - p.born}</td>
+                      <td className="text-end">{p.ovr}</td>
+                      <td className="text-end"><PotDisplay player={p} /></td>
+                      <td>{teamName(sellerTid)}</td>
+                      <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
+                      <td className="text-end">{currency.format(scoutedValue)}</td>
+                      <td>
+                        {forSale ? (
+                          <NegotiationControls
+                            pid={p.pid}
+                            negotiation={negotiationByPid.get(p.pid)}
+                            suggested={scoutedValue}
+                            budget={userTeam.budget}
+                            wageCharge={acquisitionWageCharge(league, p)}
+                            disabled={simming || atCap}
+                            onOffer={makeOfferAction}
+                            onAcceptCounter={acceptCounterAction}
+                          />
+                        ) : (
+                          <span className="text-muted small">{notForSaleReason}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {hasSearch && searchResults.length >= PLAYER_SEARCH_LIMIT && (
+              <p className="text-muted small mb-0">
+                Showing the top {PLAYER_SEARCH_LIMIT} by overall — narrow your
+                filters to see more specific targets.
+              </p>
             )}
           </div>
         </div>
