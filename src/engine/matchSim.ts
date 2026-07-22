@@ -33,6 +33,7 @@ import {
   SUB_FRESHNESS_BONUS,
   SUB_QUALITY_MARGIN,
   SUB_FATIGUE_RELIEF,
+  SUB_GATE_RATING_INFLUENCE,
   SUB_MINUTES_BOOST,
   CORNER_FROM_MISS_PROB,
   PENALTY_GIVEN_FOUL,
@@ -485,17 +486,20 @@ export function simMatchDetailed(
   /**
    * A tired on-pitch player's current value for the sub decision: his ovr, minus
    * a fatigue relief that grows with his energy deficit (0 when fresh, up to
-   * SUB_FATIGUE_RELIEF when exhausted) — a gassed starter is "worth less" right
-   * now, so a lesser replacement can justify subbing him.
+   * SUB_FATIGUE_RELIEF when exhausted), plus a form adjustment for how he's
+   * actually playing this match (live match rating vs the 6.0 baseline). A gassed
+   * or poorly-playing starter is "worth less" right now, so a lesser replacement
+   * can justify subbing him; a starter having a great game protects himself.
    */
-  function tiredValue(p: MatchPlayer): number {
+  function tiredValue(side: Side, p: MatchPlayer): number {
     const fatigue = (ENERGY_START - energy.get(p.pid)!) / (ENERGY_START - ENERGY_FLOOR);
-    return p.ovr - SUB_FATIGUE_RELIEF * fatigue;
+    const form = (liveRatingFor(side, p) - RATING_BASELINE) / 10;
+    return p.ovr - SUB_FATIGUE_RELIEF * fatigue + SUB_GATE_RATING_INFLUENCE * form;
   }
 
   /** Only sub when the fresh replacement roughly matches or beats the tired starter he'd replace. */
-  function worthSub(on: MatchPlayer, off: MatchPlayer): boolean {
-    return benchValue(on) >= tiredValue(off) - SUB_QUALITY_MARGIN;
+  function worthSub(side: Side, on: MatchPlayer, off: MatchPlayer): boolean {
+    return benchValue(on) >= tiredValue(side, off) - SUB_QUALITY_MARGIN;
   }
 
   /**
@@ -520,6 +524,16 @@ export function simMatchDetailed(
     return Math.max(0, Math.round((enter - clock) / 60));
   }
 
+  /** How well a still-on-pitch player is playing so far (0-10 live match rating). */
+  function liveRatingFor(side: Side, p: MatchPlayer): number {
+    return computeMatchRating(
+      lines.get(p.pid)!,
+      p.pos,
+      liveMinutesFor(p.pid),
+      stat[other(side)].goals,
+    );
+  }
+
   /**
    * Higher = more likely to be subbed off: fatigue (energy deficit) is the primary
    * driver, nudged by how well the player is performing so far (live match rating,
@@ -528,13 +542,7 @@ export function simMatchDetailed(
    */
   function subPriority(side: Side, p: MatchPlayer): number {
     const energyDeficit = ENERGY_START - energy.get(p.pid)!;
-    const liveRating = computeMatchRating(
-      lines.get(p.pid)!,
-      p.pos,
-      liveMinutesFor(p.pid),
-      stat[other(side)].goals,
-    );
-    const ratingDeficit = (RATING_BASELINE - liveRating) / 10;
+    const ratingDeficit = (RATING_BASELINE - liveRatingFor(side, p)) / 10;
     return energyDeficit + SUB_RATING_INFLUENCE * ratingDeficit;
   }
 
@@ -585,7 +593,7 @@ export function simMatchDetailed(
       const on = flagged.reduce((best, p) => (benchValue(p) > benchValue(best) ? p : best));
       const samePos = outfield.filter((p) => p.pos === on.pos);
       const off = worstSubPriority(samePos.length > 0 ? samePos : outfield);
-      if (worthSub(on, off)) {
+      if (worthSub(side, on, off)) {
         commitSub(side, off, on);
         return;
       }
@@ -597,7 +605,7 @@ export function simMatchDetailed(
     // starter on rather than downgrading itself).
     const off = worstSubPriority(outfield);
     const on = pickReplacement(side, off.pos);
-    if (on && worthSub(on, off)) commitSub(side, off, on);
+    if (on && worthSub(side, on, off)) commitSub(side, off, on);
   }
 
   /** An injured player must come off immediately, regardless of energy — unlike attemptSub, the outgoing player is fixed. */

@@ -109,6 +109,17 @@ export const SUB_FRESHNESS_BONUS = 1.5;
 export const SUB_QUALITY_MARGIN = 1;
 export const SUB_FATIGUE_RELIEF = 2.5;
 
+// How much the outgoing starter's live match rating (see engine/matchRating.ts)
+// shifts the worth-it gate above, on top of his ovr and fatigue: a player above
+// the 6.0 baseline is currently "worth more" than his ovr (harder to justify
+// pulling), one below it is worth less (easier). Applied as
+//   SUB_GATE_RATING_INFLUENCE × (liveRating − RATING_BASELINE) / 10
+// added to the tired starter's value, so a stormer (rating ~9) protects himself
+// by ~1.5 ovr and a poor game (rating ~4.5) makes him ~0.75 ovr easier to sub.
+// Deliberately smaller than the fatigue relief so fitness/quality stay primary
+// and form only nudges — mirrors how rating nudges the who-comes-off pick.
+export const SUB_GATE_RATING_INFLUENCE = 5;
+
 // "Give more minutes": a bench player the user has flagged is credited this many
 // extra ovr points in the sub decision (both when choosing who to bring on and
 // when clearing the worth-it gate above), so he's subbed in more readily — even

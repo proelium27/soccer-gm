@@ -19,12 +19,14 @@ const SEASON = simSeason(mulberry32(12345));
  * individual-finisher effect (SHOOTER_FINISH_WEIGHT) was added to resolveShot;
  * again when rollupComposites gained position-weighting + star concentration
  * (COMPOSITE_STAR_CONCENTRATION), which changed the attack/defense/control
- * composites (and thus match results) without touching the rng stream; and again
+ * composites (and thus match results) without touching the rng stream; again
  * when the substitution logic gained a bench-quality gate (SUB_FATIGUE_RELIEF et
  * al.), which now holds back roughly one sub in ten, changing who's on the pitch
- * late — again a personnel/composite change, not an rng-stream shift.
+ * late; and once more when that gate became form-aware (SUB_GATE_RATING_INFLUENCE),
+ * shifting which held-back subs fire — each a personnel/composite change, not an
+ * rng-stream shift.
  */
-const BASELINE_SCORELINE_HASH = 1318207657;
+const BASELINE_SCORELINE_HASH = 3672352141;
 
 function scorelineHash(matches: typeof SEASON.matches): number {
   const s = matches.map((m) => `${m.home}:${m.homeGoals}-${m.awayGoals}:${m.away}`).join("|");
