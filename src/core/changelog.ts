@@ -34,13 +34,6 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-21",
-    title: "Buying a player no longer makes his row jump around",
-    items: [
-      "When you completed a transfer, the player's row would leap to the top of the recommended list and stick around every time you reopened the page, which made it look like a different row had vanished. Now the row just stays exactly where it was and flips to \"Transferred\" so you can see the deal landed. Leave the transfer page and come back and it's gone, since he's on your squad now (the buy still shows under Completed This Window either way).",
-    ],
-  },
-  {
-    date: "2026-07-21",
     title: "Crests for every Spanish club",
     items: [
       "Up till now England was the only country with real crest art, and everyone else just got the two-color swatch. I made crests for all 40 of Spain's clubs, both divisions, so they now show up wherever the club's name does instead of the plain swatch. That includes the big names I hadn't gotten to yet (Madrid, Barcelona Halcones, Valencia) and finishes off the last stragglers, so Spain's completely done now. Italy, Germany, France and Portugal are still on swatches, but I'll keep chipping away at them.",
