@@ -594,9 +594,19 @@ a:hover {
   border: 1px solid var(--sg-border);
 }
 
-/* Nationality flag */
+/* Nationality flag (SVG image, sized by the Flag component's `size` prop) */
 .player-flag {
-  font-size: 0.95em;
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 2px;
+  /* subtle outline so white/light flags stay legible on dark backgrounds */
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.25);
+  object-fit: cover;
+}
+.player-flag-fallback {
+  width: 18px;
+  height: 13px;
+  background: var(--surface-2, #333);
 }
 
 /* =========================================================================
