@@ -296,10 +296,10 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     // the old single-leg knockout rules; the next offseason builds a two-legged
     // one. (Archived cups in cupHistory are done, so the flag is cosmetic there.)
     cup: anyVersion.cup
-      ? { ...anyVersion.cup, leaguePhase: anyVersion.cup.leaguePhase ?? null, playoff: anyVersion.cup.playoff ?? null, playIn: anyVersion.cup.playIn ?? null, twoLegged: anyVersion.cup.twoLegged ?? false }
+      ? { ...anyVersion.cup, leaguePhase: anyVersion.cup.leaguePhase ?? null, playoff: anyVersion.cup.playoff ?? null, playIn: anyVersion.cup.playIn ?? null, twoLegged: anyVersion.cup.twoLegged ?? false, koLegs: anyVersion.cup.koLegs ?? null }
       : null,
     cupHistory: (anyVersion.cupHistory ?? []).map((c) => ({
-      ...c, leaguePhase: c.leaguePhase ?? null, playoff: c.playoff ?? null, playIn: c.playIn ?? null, twoLegged: c.twoLegged ?? false,
+      ...c, leaguePhase: c.leaguePhase ?? null, playoff: c.playoff ?? null, playIn: c.playIn ?? null, twoLegged: c.twoLegged ?? false, koLegs: c.koLegs ?? null,
     })),
     // Pre-feature saves start with no power-rankings history; snapshots can't
     // be reconstructed retroactively (past rosters/matches are gone), so they

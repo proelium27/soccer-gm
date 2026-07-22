@@ -31,6 +31,23 @@ export interface CupTie {
 }
 
 /**
+ * A completed **first leg** of a two-legged knockout tie, held between the two
+ * legs' matchdays. The scoreline is 90' only (no extra time — it can end level;
+ * the aggregate decides the tie on the second leg), stored from the first-leg
+ * host's perspective (`home` hosted leg 1). Once the second leg is played the
+ * two are combined into a single aggregate `CupTie` (see resolveTwoLeggedTie)
+ * and `CupState.koLegs` is cleared.
+ */
+export interface KnockoutLeg {
+  round: number;
+  home: number; // tid — hosted leg 1
+  away: number; // tid — hosts leg 2
+  homeGoals: number; // leg-1 goals, `home`'s perspective
+  awayGoals: number;
+  boxScore: BoxScore;
+}
+
+/**
  * One league-phase match. Unlike a knockout tie it is 90' only and may end
  * level (no extra time / shootout, no winner), so it carries just the scoreline
  * and box score. `played` flips true and the goals/boxScore fill once its
@@ -130,4 +147,12 @@ export interface CupState {
    * playoff are always single-leg regardless.
    */
   twoLegged: boolean;
+  /**
+   * Two-legged cups only: the completed **first legs** of the knockout round
+   * currently in progress, held until that round's second-leg matchday combines
+   * them into aggregate `ties`. Null whenever no first leg is outstanding (a
+   * single-leg cup, between rounds, or a round played atomically). Absent on
+   * old saves → treated as null.
+   */
+  koLegs: KnockoutLeg[] | null;
 }

@@ -262,16 +262,18 @@ export function Manual() {
             go straight to the quarter-finals. Clubs ranked <strong>5th to 12th</strong> drop into a
             single-leg <strong>playoff round</strong> (matchday 27) and the four winners take the last
             four quarter-final places. Clubs finishing <strong>13th to 20th</strong> are knocked out.
-            From there it's a straight knockout: quarter-finals, semi-finals and final, on matchdays
-            31, 34 and 37.
+            From there it's a straight knockout: quarter-finals, semi-finals and final.
           </p>
           <p>
-            The <strong>quarter-finals and semi-finals are two-legged</strong>: each side hosts once
-            and the tie is decided on the <strong>aggregate</strong> (both clubs' goals across the two
-            games added up). Two matches instead of one, with home advantage cancelling out, let the
-            stronger squad's quality actually come through, so cup runs track how good you really are
-            far more than a single-game coin flip did. The <strong>final is a single match</strong> at
-            a neutral venue, and the league-phase <strong>playoff stays single-leg</strong> too.
+            The <strong>quarter-finals and semi-finals are two-legged</strong>: each side hosts once,
+            on <strong>separate matchdays</strong> (first leg then second leg), and the tie is decided
+            on the <strong>aggregate</strong> (both clubs' goals across the two games added up). Two
+            matches instead of one, with home advantage cancelling out, let the stronger squad's
+            quality actually come through, so cup runs track how good you really are far more than a
+            single-game coin flip did. The QF legs are on matchdays 29 and 31, the semis on 33 and 35,
+            and the <strong>final is a single match</strong> on matchday 37 at a neutral venue. The
+            league-phase <strong>playoff (matchday 27) stays single-leg</strong> too. Your cup
+            fixtures show up on your <strong>Schedule</strong> page alongside your league games.
           </p>
           <p className="text-muted small">
             This is deliberately a fairer road in for France and Portugal than a one-off qualifier
