@@ -34,6 +34,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-22",
+    title: "You can finally see who's injured",
+    items: [
+      "Injuries have been in the game for a while, but the only place you could actually see one was on a player's profile, which was useless. A regular would pick up a knock, quietly get left out of your XI for a few games, and you'd have no idea why. That was a dumb gap and a few of you called it out.",
+      "So now injured players wear a little red cross wherever you'd want to notice it: on the Roster, both on the pitch chip and next to their name in the tables, and I added an Injuries panel to your Dashboard that lists everyone currently out and roughly how many matches until they're back. Hover the cross (or open a pitch chip) to see what the injury is. Nothing about how injuries work changed, hurt players still sit out on their own and come back when they're fit, you can just actually see it now.",
+    ],
+  },
+  {
+    date: "2026-07-22",
     title: "Subs",
     items: [
       "The in-match coach used to just sub off the most tired players but now the coach also decides who to sub off based on OVR and match performance.",

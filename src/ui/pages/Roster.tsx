@@ -18,6 +18,7 @@ import { PotDisplay } from "../components/PotDisplay.js";
 import { PitchField } from "../components/PitchField.js";
 import { ExtendControl } from "../components/ExtendControl.js";
 import { Flag } from "../components/Flag.js";
+import { InjuryBadge } from "../components/InjuryBadge.js";
 import { ROSTER_CAP } from "../../core/constants.js";
 
 const DRAG_MIME = "application/x-soccer-gm-pid";
@@ -156,6 +157,7 @@ function RosterTable({
                   <Link to={`/player/${p.pid}`}>{p.name}</Link>
                 </PlayerRatingsTooltip>{" "}
                 <Flag nationality={p.nationality} />
+                <InjuryBadge player={p} />
               </td>
               <td>{p.pos}</td>
               <td className="text-end">{season - p.born}</td>
