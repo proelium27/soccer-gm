@@ -10,6 +10,7 @@ import { currency, formatWeeklyWage, ordinal, seasonYear, transferFeeLabel } fro
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { ClubCrest } from "../components/ClubCrest.js";
+import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 
 export function Finance() {
   const { league, setScoutingSpendAction, simming } = useLeague();
@@ -17,6 +18,10 @@ export function Finance() {
   // so we don't write to IndexedDB on every drag tick.
   const [scoutingDraft, setScoutingDraft] = useState<number | null>(null);
   const [compFilterOverride, setCompFilterOverride] = useState<number | "all" | null>(null);
+  const { sort, toggle } = useTableSort<"club" | "budget" | "hype" | "wages" | "squad">(
+    "budget",
+    "desc",
+  );
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -79,10 +84,16 @@ export function Finance() {
     .filter((t) => t.fromTid === league.meta.userTid)
     .reduce((sum, t) => sum + t.fee, 0);
 
-  const clubRows = league.teams
+  const clubRowsUnsorted = league.teams
     .filter((t) => compFilter === "all" || t.compId === compFilter)
-    .map((t) => ({ team: t, wages: wageBill([...t.roster, ...t.academyRoster], salaryMap) }))
-    .sort((a, b) => b.team.budget - a.team.budget);
+    .map((t) => ({ team: t, wages: wageBill([...t.roster, ...t.academyRoster], salaryMap) }));
+  const clubRows = sortRows(clubRowsUnsorted, sort, {
+    club: (r) => r.team.name,
+    budget: (r) => r.team.budget,
+    hype: (r) => r.team.hype,
+    wages: (r) => r.wages,
+    squad: (r) => r.team.roster.length,
+  });
 
   return (
     <div className="container-fluid p-3">
@@ -309,11 +320,11 @@ export function Finance() {
           <table className="table table-striped table-sm align-middle mb-0">
             <thead>
               <tr>
-                <th>Club</th>
-                <th className="text-end">Budget</th>
-                <th className="text-end">Hype</th>
-                <th className="text-end">Wage bill</th>
-                <th className="text-end">Squad</th>
+                <SortableTh sortKey="club" sort={sort} onSort={toggle} defaultDir="asc">Club</SortableTh>
+                <SortableTh sortKey="budget" sort={sort} onSort={toggle} className="text-end">Budget</SortableTh>
+                <SortableTh sortKey="hype" sort={sort} onSort={toggle} className="text-end">Hype</SortableTh>
+                <SortableTh sortKey="wages" sort={sort} onSort={toggle} className="text-end">Wage bill</SortableTh>
+                <SortableTh sortKey="squad" sort={sort} onSort={toggle} className="text-end">Squad</SortableTh>
               </tr>
             </thead>
             <tbody>

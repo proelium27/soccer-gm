@@ -8,9 +8,12 @@ import { formatWeeklyWage } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
+import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 import { ROSTER_CAP, PROSPECT_AGE_MAX } from "../../core/constants.js";
 
 const MAX_LISTED = 25;
+
+type FaSortKey = "name" | "pos" | "ovr" | "pot" | "age";
 
 /**
  * General free-agent signing: unsigned players over PROSPECT_AGE_MAX. Young
@@ -19,6 +22,7 @@ const MAX_LISTED = 25;
  */
 export function FreeAgents() {
   const { league, signFreeAgentAction, simming } = useLeague();
+  const { sort, toggle } = useTableSort<FaSortKey>("ovr", "desc");
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -36,8 +40,17 @@ export function FreeAgents() {
   // by the next season-start charge.
   const midSeason = league.phase === "regular";
 
+  // Pool: the top players by OVR+POT (caps the render size). Sorting below only
+  // reorders this shown set, so a re-sort never surfaces a 40-ovr filler player.
   availablePlayers.sort((a, b) => b.ovr + b.potential - (a.ovr + a.potential));
-  const shownPlayers = availablePlayers.slice(0, MAX_LISTED);
+  const pool = availablePlayers.slice(0, MAX_LISTED);
+  const shownPlayers = sortRows(pool, sort, {
+    name: (p) => p.name,
+    pos: (p) => p.pos,
+    ovr: (p) => p.ovr,
+    pot: (p) => p.potential,
+    age: (p) => league.season - p.born,
+  });
 
   return (
     <div className="container-fluid p-3">
@@ -64,11 +77,11 @@ export function FreeAgents() {
         <table className="table table-striped table-sm">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Pos</th>
-              <th className="text-end">OVR</th>
-              <th className="text-end">POT <PotHelp /></th>
-              <th className="text-end">Age</th>
+              <SortableTh sortKey="name" sort={sort} onSort={toggle} defaultDir="asc">Name</SortableTh>
+              <SortableTh sortKey="pos" sort={sort} onSort={toggle} defaultDir="asc">Pos</SortableTh>
+              <SortableTh sortKey="ovr" sort={sort} onSort={toggle} className="text-end">OVR</SortableTh>
+              <SortableTh sortKey="pot" sort={sort} onSort={toggle} className="text-end">POT <PotHelp /></SortableTh>
+              <SortableTh sortKey="age" sort={sort} onSort={toggle} className="text-end" defaultDir="asc">Age</SortableTh>
               <th></th>
             </tr>
           </thead>

@@ -10,8 +10,12 @@ import { currency, formatWeeklyWage } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
+import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 
 const SEASON_OPTIONS = Array.from({ length: LOAN_MAX_SEASONS }, (_, i) => (i + 1) as 1 | 2 | 3);
+
+type LoanOfferSortKey = "default" | "name" | "pos" | "ovr" | "pot" | "club" | "seasons" | "fee";
+type EligibleSortKey = "name" | "pos" | "age" | "ovr" | "pot" | "wage";
 
 export function Loans() {
   const {
@@ -19,8 +23,10 @@ export function Loans() {
     acceptLoanOfferAction, rejectLoanOfferAction, simming,
   } = useLeague();
   const [draftSeasons, setDraftSeasons] = useState<Record<number, 1 | 2 | 3>>({});
+  const offerSort = useTableSort<LoanOfferSortKey>("default", "desc");
+  const eligibleSort = useTableSort<EligibleSortKey>("ovr", "desc");
 
-  const offers = useMemo(() => (league ? loanOfferCandidates(league) : []), [league]);
+  const rawOffers = useMemo(() => (league ? loanOfferCandidates(league) : []), [league]);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -35,10 +41,31 @@ export function Loans() {
   const teamName = (tid: number) => league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
   const playerName = (pid: number) => league.players.find((p) => p.pid === pid);
 
+  const offers = sortRows(rawOffers, offerSort.sort, {
+    name: (c) => c.player.name,
+    pos: (c) => c.player.pos,
+    ovr: (c) => c.player.ovr,
+    pot: (c) => c.player.potential,
+    club: (c) => teamName(c.buyerTid),
+    seasons: (c) => c.seasons,
+    fee: (c) => c.fee,
+  });
+
   const listedPids = new Set(league.loanListings.map((l) => l.pid));
-  const eligible = userTeam.roster
-    .map((pid) => league.players.find((p) => p.pid === pid))
-    .filter((p): p is NonNullable<typeof p> => p != null && !listedPids.has(p.pid));
+  const eligible = sortRows(
+    userTeam.roster
+      .map((pid) => league.players.find((p) => p.pid === pid))
+      .filter((p): p is NonNullable<typeof p> => p != null && !listedPids.has(p.pid)),
+    eligibleSort.sort,
+    {
+      name: (p) => p.name,
+      pos: (p) => p.pos,
+      age: (p) => league.season - p.born,
+      ovr: (p) => p.ovr,
+      pot: (p) => p.potential,
+      wage: (p) => p.contract.salary,
+    },
+  );
 
   const outOnLoan = league.activeLoans.filter((l) => l.parentTid === userTeam.tid);
 
@@ -78,13 +105,13 @@ export function Loans() {
             <table className="table table-sm align-middle mb-0">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Pos</th>
-                  <th className="text-end">Ovr</th>
-                  <th className="text-end">Pot <PotHelp /></th>
-                  <th>Club</th>
-                  <th className="text-end">Seasons</th>
-                  <th className="text-end">Fee</th>
+                  <SortableTh sortKey="name" sort={offerSort.sort} onSort={offerSort.toggle} defaultDir="asc">Name</SortableTh>
+                  <SortableTh sortKey="pos" sort={offerSort.sort} onSort={offerSort.toggle} defaultDir="asc">Pos</SortableTh>
+                  <SortableTh sortKey="ovr" sort={offerSort.sort} onSort={offerSort.toggle} className="text-end">Ovr</SortableTh>
+                  <SortableTh sortKey="pot" sort={offerSort.sort} onSort={offerSort.toggle} className="text-end">Pot <PotHelp /></SortableTh>
+                  <SortableTh sortKey="club" sort={offerSort.sort} onSort={offerSort.toggle} defaultDir="asc">Club</SortableTh>
+                  <SortableTh sortKey="seasons" sort={offerSort.sort} onSort={offerSort.toggle} className="text-end">Seasons</SortableTh>
+                  <SortableTh sortKey="fee" sort={offerSort.sort} onSort={offerSort.toggle} className="text-end">Fee</SortableTh>
                   <th />
                 </tr>
               </thead>
@@ -175,12 +202,12 @@ export function Loans() {
             <table className="table table-sm align-middle mb-0">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Pos</th>
-                  <th className="text-end">Age</th>
-                  <th className="text-end">Ovr</th>
-                  <th className="text-end">Pot <PotHelp /></th>
-                  <th className="text-end">Wage</th>
+                  <SortableTh sortKey="name" sort={eligibleSort.sort} onSort={eligibleSort.toggle} defaultDir="asc">Name</SortableTh>
+                  <SortableTh sortKey="pos" sort={eligibleSort.sort} onSort={eligibleSort.toggle} defaultDir="asc">Pos</SortableTh>
+                  <SortableTh sortKey="age" sort={eligibleSort.sort} onSort={eligibleSort.toggle} className="text-end" defaultDir="asc">Age</SortableTh>
+                  <SortableTh sortKey="ovr" sort={eligibleSort.sort} onSort={eligibleSort.toggle} className="text-end">Ovr</SortableTh>
+                  <SortableTh sortKey="pot" sort={eligibleSort.sort} onSort={eligibleSort.toggle} className="text-end">Pot <PotHelp /></SortableTh>
+                  <SortableTh sortKey="wage" sort={eligibleSort.sort} onSort={eligibleSort.toggle} className="text-end">Wage</SortableTh>
                   <th>Duration</th>
                   <th />
                 </tr>
