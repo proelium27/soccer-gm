@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 
 /**
  * One-time, dismissible announcement strip pinned to the very top of every
@@ -10,7 +9,7 @@ import { Link } from "react-router-dom";
  * makes the banner reappear for everyone (even people who dismissed the last
  * one), since the "dismissed" flag is stored per-id in localStorage.
  */
-const ANNOUNCEMENT_ID = "2026-07-20-godmode-import";
+const ANNOUNCEMENT_ID = "2026-07-22-discord";
 const STORAGE_KEY = `soccer-gm:announce:${ANNOUNCEMENT_ID}`;
 
 function wasDismissed(): boolean {
@@ -39,10 +38,16 @@ export function AnnouncementBanner() {
   return (
     <div className="announcement-banner" role="status">
       <span className="announcement-banner-text">
-        <strong>New:</strong> God Mode sandbox editing and importing real teams &amp; players are here.{" "}
-        <Link to="/changelog" className="announcement-banner-link" onClick={dismiss}>
-          See what&apos;s new
-        </Link>
+        <strong>New:</strong> the game has a Discord now. Come report bugs and tell me what to build next.{" "}
+        <a
+          href="https://discord.gg/9rpBHaeqh"
+          className="announcement-banner-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={dismiss}
+        >
+          Join the Discord
+        </a>
       </span>
       <button
         type="button"
