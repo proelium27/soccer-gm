@@ -52,6 +52,7 @@ function fakeMatchData(tid: number, strength: number): TeamMatchData {
   const xi: MatchPlayer[] = positions.map((pos, i) => ({
     pid: tid * 100 + i,
     pos,
+    ovr: 50 + strength * 40,
     shooting: 50 + strength * 40,
     dribbling: 50 + strength * 40,
     tackling: 50 + strength * 40,

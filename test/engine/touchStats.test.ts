@@ -15,13 +15,16 @@ const SEASON = simSeason(mulberry32(12345));
 /**
  * Baseline scoreline hash. Still guards that touch attribution (passes/crosses)
  * never perturbs the scoreline — it runs on a separate rng stream. The fixed
- * value has been rebased twice for deliberate shot-outcome changes: first when
- * the individual-finisher effect (SHOOTER_FINISH_WEIGHT) was added to resolveShot,
- * and again when rollupComposites gained position-weighting + star concentration
+ * value has been rebased for deliberate shot-outcome changes: first when the
+ * individual-finisher effect (SHOOTER_FINISH_WEIGHT) was added to resolveShot;
+ * again when rollupComposites gained position-weighting + star concentration
  * (COMPOSITE_STAR_CONCENTRATION), which changed the attack/defense/control
- * composites (and thus match results) without touching the rng stream.
+ * composites (and thus match results) without touching the rng stream; and again
+ * when the substitution logic gained a bench-quality gate (SUB_FATIGUE_RELIEF et
+ * al.), which now holds back roughly one sub in ten, changing who's on the pitch
+ * late — again a personnel/composite change, not an rng-stream shift.
  */
-const BASELINE_SCORELINE_HASH = 3494608931;
+const BASELINE_SCORELINE_HASH = 1318207657;
 
 function scorelineHash(matches: typeof SEASON.matches): number {
   const s = matches.map((m) => `${m.home}:${m.homeGoals}-${m.awayGoals}:${m.away}`).join("|");

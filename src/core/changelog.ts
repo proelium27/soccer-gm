@@ -33,6 +33,14 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-07-22",
+    title: "Subs now think about your bench, and you can push a reserve for minutes",
+    items: [
+      "The in-match coach used to just swap off the most tired player around the 60th and 75th minute, every time, no matter who was sitting on the bench. That never felt right, especially with a thin squad. Now the coach actually weighs the fresh bench player against the tired starter he'd be replacing. If the bench guy is close in quality, he still comes on for the fresh legs, but the coach won't yank a good starter for a much weaker reserve unless that starter is genuinely running on empty. In practice a strong bench rotates as freely as before, and a shallow one leaves your tired legs out there rather than downgrading itself. About one sub in ten that used to happen automatically now gets held back.",
+      "I also added a small thing I always wanted: on the Roster page, every bench player now has a More minutes button. Flag a young reserve you're trying to develop (or just a squad player you rate) and the coach will lean toward subbing him on, even a touch ahead of a marginally better option. It's a nudge, not a cheat code, so it won't force a clearly worse player onto the pitch, but over a season it's a real way to get someone game time.",
+    ],
+  },
+  {
     date: "2026-07-21",
     title: "Free agents aren't a wall of the same position anymore",
     items: [

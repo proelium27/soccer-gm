@@ -15,6 +15,8 @@ export type MatchPosition =
 export interface MatchPlayer {
   pid: number;
   pos: MatchPosition;
+  /** Overall rating — the substitution logic weighs a bench player's ovr against the tired starter's. */
+  ovr: number;
   shooting: number;
   dribbling: number;
   tackling: number;
@@ -23,6 +25,12 @@ export interface MatchPlayer {
   heading: number;
   stamina: number;
   interceptions: number;
+  /**
+   * User-flagged "give this player more minutes" (see StoredTeam.moreMinutes).
+   * When true, this bench player gets a quality bonus in the sub decision so he's
+   * subbed on more readily. Only ever set on the user's own bench players.
+   */
+  minutesBoost?: boolean;
 }
 
 export type MatchEventType =

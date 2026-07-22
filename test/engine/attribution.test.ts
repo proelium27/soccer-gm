@@ -7,17 +7,17 @@ import { pickShooter, pickAssister, pickTackler, pickInterceptor } from "../../s
 
 function makeSquad(pidOffset = 0): MatchPlayer[] {
   return [
-    { pid: pidOffset + 1, pos: "GK", shooting: 10, dribbling: 10, tackling: 10, keeping: 80, positioning: 50, heading: 40, stamina: 60, interceptions: 10 },
-    { pid: pidOffset + 2, pos: "CB", shooting: 20, dribbling: 30, tackling: 75, keeping: 5, positioning: 70, heading: 65, stamina: 60, interceptions: 75 },
-    { pid: pidOffset + 3, pos: "CB", shooting: 15, dribbling: 25, tackling: 72, keeping: 5, positioning: 68, heading: 60, stamina: 60, interceptions: 72 },
-    { pid: pidOffset + 4, pos: "FB", shooting: 25, dribbling: 50, tackling: 60, keeping: 5, positioning: 55, heading: 40, stamina: 60, interceptions: 60 },
-    { pid: pidOffset + 5, pos: "FB", shooting: 30, dribbling: 55, tackling: 58, keeping: 5, positioning: 52, heading: 38, stamina: 60, interceptions: 58 },
-    { pid: pidOffset + 6, pos: "DM", shooting: 35, dribbling: 45, tackling: 70, keeping: 5, positioning: 65, heading: 50, stamina: 60, interceptions: 70 },
-    { pid: pidOffset + 7, pos: "CM", shooting: 50, dribbling: 60, tackling: 50, keeping: 5, positioning: 60, heading: 45, stamina: 60, interceptions: 50 },
-    { pid: pidOffset + 8, pos: "CM", shooting: 55, dribbling: 62, tackling: 48, keeping: 5, positioning: 58, heading: 42, stamina: 60, interceptions: 48 },
-    { pid: pidOffset + 9, pos: "W", shooting: 65, dribbling: 75, tackling: 25, keeping: 5, positioning: 55, heading: 35, stamina: 60, interceptions: 25 },
-    { pid: pidOffset + 10, pos: "W", shooting: 60, dribbling: 70, tackling: 28, keeping: 5, positioning: 53, heading: 33, stamina: 60, interceptions: 28 },
-    { pid: pidOffset + 11, pos: "ST", shooting: 82, dribbling: 65, tackling: 15, keeping: 5, positioning: 60, heading: 55, stamina: 60, interceptions: 15 },
+    { pid: pidOffset + 1, pos: "GK", ovr: 60, shooting: 10, dribbling: 10, tackling: 10, keeping: 80, positioning: 50, heading: 40, stamina: 60, interceptions: 10 },
+    { pid: pidOffset + 2, pos: "CB", ovr: 60, shooting: 20, dribbling: 30, tackling: 75, keeping: 5, positioning: 70, heading: 65, stamina: 60, interceptions: 75 },
+    { pid: pidOffset + 3, pos: "CB", ovr: 60, shooting: 15, dribbling: 25, tackling: 72, keeping: 5, positioning: 68, heading: 60, stamina: 60, interceptions: 72 },
+    { pid: pidOffset + 4, pos: "FB", ovr: 60, shooting: 25, dribbling: 50, tackling: 60, keeping: 5, positioning: 55, heading: 40, stamina: 60, interceptions: 60 },
+    { pid: pidOffset + 5, pos: "FB", ovr: 60, shooting: 30, dribbling: 55, tackling: 58, keeping: 5, positioning: 52, heading: 38, stamina: 60, interceptions: 58 },
+    { pid: pidOffset + 6, pos: "DM", ovr: 60, shooting: 35, dribbling: 45, tackling: 70, keeping: 5, positioning: 65, heading: 50, stamina: 60, interceptions: 70 },
+    { pid: pidOffset + 7, pos: "CM", ovr: 60, shooting: 50, dribbling: 60, tackling: 50, keeping: 5, positioning: 60, heading: 45, stamina: 60, interceptions: 50 },
+    { pid: pidOffset + 8, pos: "CM", ovr: 60, shooting: 55, dribbling: 62, tackling: 48, keeping: 5, positioning: 58, heading: 42, stamina: 60, interceptions: 48 },
+    { pid: pidOffset + 9, pos: "W", ovr: 60, shooting: 65, dribbling: 75, tackling: 25, keeping: 5, positioning: 55, heading: 35, stamina: 60, interceptions: 25 },
+    { pid: pidOffset + 10, pos: "W", ovr: 60, shooting: 60, dribbling: 70, tackling: 28, keeping: 5, positioning: 53, heading: 33, stamina: 60, interceptions: 28 },
+    { pid: pidOffset + 11, pos: "ST", ovr: 60, shooting: 82, dribbling: 65, tackling: 15, keeping: 5, positioning: 60, heading: 55, stamina: 60, interceptions: 15 },
   ];
 }
 

@@ -32,6 +32,7 @@ export function leagueMatchData(league: League): TeamMatchData[] {
   const byPid = new Map<number, Player>(league.players.map((p) => [p.pid, p]));
   const xis: Player[][] = [];
   const benches: Player[][] = [];
+  const boostSets: (Set<number> | undefined)[] = [];
   const raw = league.teams.map((t) => {
     const roster = t.roster.map((pid) => byPid.get(pid)!).filter((p) => !p.injury);
     const xi = resolveXI(roster, teamSlots(t), t.starters);
@@ -42,6 +43,7 @@ export function leagueMatchData(league: League): TeamMatchData[] {
       .sort((a, b) => b.ovr - a.ovr)
       .slice(0, BENCH_SIZE);
     benches.push(bench);
+    boostSets.push(t.moreMinutes && t.moreMinutes.length > 0 ? new Set(t.moreMinutes) : undefined);
     return rollupComposites(xi, t.name);
   });
   const stats = computeNormStats(raw);
@@ -49,7 +51,7 @@ export function leagueMatchData(league: League): TeamMatchData[] {
   return normalized.map((c, i) => ({
     composites: c,
     xi: toMatchPlayers(xis[i]),
-    bench: toMatchPlayers(benches[i]),
+    bench: toMatchPlayers(benches[i], boostSets[i]),
     recompute: (onPitch: MatchPlayer[]) => {
       const players = onPitch
         .map((mp) => byPid.get(mp.pid))

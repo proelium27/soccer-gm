@@ -42,6 +42,9 @@ interface RosterTableProps {
   refusingPids: Set<number>;
   transferListedPids: Set<number>;
   onToggleTransferListed: (pid: number, listed: boolean) => void;
+  /** Bench-only: pids flagged for more minutes, and the toggle. Omitted on the XI table. */
+  moreMinutesPids?: Set<number>;
+  onToggleMoreMinutes?: (pid: number, enabled: boolean) => void;
   dragOverPid: number | null;
   setDragOverPid: (pid: number | null) => void;
   onSwap: (draggedPid: number, targetPid: number) => void;
@@ -59,6 +62,8 @@ function RosterTable({
   refusingPids,
   transferListedPids,
   onToggleTransferListed,
+  moreMinutesPids,
+  onToggleMoreMinutes,
   dragOverPid,
   setDragOverPid,
   onSwap,
@@ -214,6 +219,18 @@ function RosterTable({
                       {transferListedPids.has(p.pid) ? "Listed" : "List for Transfer"}
                     </button>
                   )}
+                  {onToggleMoreMinutes && p.pos !== "GK" && (
+                    <button
+                      className={
+                        "btn btn-sm text-nowrap " +
+                        (moreMinutesPids?.has(p.pid) ? "btn-success" : "btn-outline-success")
+                      }
+                      onClick={() => onToggleMoreMinutes(p.pid, !moreMinutesPids?.has(p.pid))}
+                      title="He'll be favored for substitutions, so he gets on the pitch more often."
+                    >
+                      {moreMinutesPids?.has(p.pid) ? "Getting minutes" : "More minutes"}
+                    </button>
+                  )}
                   <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => onRelease(p.pid)}
@@ -236,8 +253,8 @@ function RosterTable({
 
 export function Roster() {
   const {
-    league, releasePlayerAction, extendContractAction, setTransferListedAction, setLineupAction,
-    setFormationAction,
+    league, releasePlayerAction, extendContractAction, setTransferListedAction, setMoreMinutesAction,
+    setLineupAction, setFormationAction,
   } = useLeague();
   const [dragOverPid, setDragOverPid] = useState<number | null>(null);
   const [dragOverSlotIndex, setDragOverSlotIndex] = useState<number | null>(null);
@@ -289,6 +306,7 @@ export function Roster() {
     players.filter((p) => keepsDepthFloor(userTeam, playerMap, p.pid)).map((p) => p.pid),
   );
   const transferListedPids = new Set(userTeam.transferListed);
+  const moreMinutesPids = new Set(userTeam.moreMinutes);
 
   function handleSwap(draggedPid: number, targetPid: number) {
     if (draggedPid === targetPid) return;
@@ -455,6 +473,8 @@ export function Roster() {
               refusingPids={refusingPids}
               transferListedPids={transferListedPids}
               onToggleTransferListed={setTransferListedAction}
+              moreMinutesPids={moreMinutesPids}
+              onToggleMoreMinutes={setMoreMinutesAction}
               dragOverPid={dragOverPid}
               setDragOverPid={setDragOverPid}
               onSwap={handleSwap}

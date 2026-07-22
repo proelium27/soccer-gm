@@ -17,8 +17,8 @@ import { englandCompetitions } from "../core/competitions.js";
  * didn't exist yet, only the old `division: 0 | 1` field.
  */
 type StoredTeamAnyVersion =
-  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "nextScoutingSpend" | "academyBase" | "starters" | "formation" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "scoutingObserved"> &
-  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "nextScoutingSpend" | "academyBase" | "starters" | "formation" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "scoutingObserved">> &
+  Omit<StoredTeam, "budget" | "hype" | "scoutingSpend" | "nextScoutingSpend" | "academyBase" | "starters" | "formation" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "moreMinutes" | "scoutingObserved"> &
+  Partial<Pick<StoredTeam, "budget" | "hype" | "scoutingSpend" | "nextScoutingSpend" | "academyBase" | "starters" | "formation" | "academyRoster" | "compId" | "divisionConvergence" | "transferListed" | "moreMinutes" | "scoutingObserved">> &
   { division?: 0 | 1 };
 
 /**
@@ -212,6 +212,9 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
         compId,
         divisionConvergence: t.divisionConvergence ?? null,
         transferListed: t.transferListed ?? [],
+        // "Give more minutes" flags (added 2026-07-22). Old saves start with none
+        // flagged — subs behave exactly as before until the user flags someone.
+        moreMinutes: t.moreMinutes ?? [],
         // Fog-of-war observation map (added 2026-07-18). Old saves get an
         // empty map: the user's existing senior roster reads as tenure 0
         // (fully fogged) and then clears over the next few seasons as the
