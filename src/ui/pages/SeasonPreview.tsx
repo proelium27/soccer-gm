@@ -5,7 +5,7 @@ import type { Player } from "../../core/players/types.js";
 import type { StoredTeam } from "../../core/teams/clubs.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { teamSlots } from "../../core/lineup/formations.js";
-import { currency, seasonYear } from "../format.js";
+import { clubDisplayName, currency, seasonYear } from "../format.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
@@ -145,8 +145,8 @@ export function SeasonPreview() {
                 <tr key={`${t.pid}-${t.season}-${i}`}>
                   <td className="text-end">{i + 1}</td>
                   <td>{player ? <Link to={`/player/${player.pid}`}>{player.name}</Link> : "—"}</td>
-                  <td>{from?.name ?? "—"}</td>
-                  <td>{to?.name ?? "—"}</td>
+                  <td>{clubDisplayName(t.fromTid, () => from?.name)}</td>
+                  <td>{clubDisplayName(t.toTid, () => to?.name)}</td>
                   <td className="text-end">{currency.format(t.fee)}</td>
                 </tr>
               );

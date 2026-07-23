@@ -677,12 +677,15 @@ export function Manual() {
             Nobody manages your squad for you, so an expiring deal you don't act on just runs out and
             the player leaves on a free the next offseason. To keep that from sneaking up on you, the
             Roster page flags anyone in the final year of his deal with a <strong>"Final year"</strong>{" "}
-            badge and a heads-up banner, so you can extend him before he's gone for nothing.
+            badge and a heads-up banner, so you can extend him before he's gone for nothing. Academy
+            stipends run out the same way, so the Academy page carries the same badge and banner for
+            your prospects.
           </p>
           <p>
-            Signing a free agent (or promoting a prospect who'd gone unsigned) now shows up on his
-            profile as a <strong>free move</strong> the same way a paid transfer does &mdash; in his
-            transfer history, on his OVR-over-time chart, and in the News Feed for your own signings.
+            Signing a free agent shows up on his profile as a <strong>free move</strong> the same way
+            a paid transfer does &mdash; in his transfer history, on his OVR-over-time chart, and in
+            the News Feed for your own signings. Signing a prospect straight into your academy counts
+            as one too, so the club on his profile matches where he actually is.
             Before, a free signing left no trace, so his profile could wrongly show him still at a
             club he'd long since left even while he was playing for you.
           </p>

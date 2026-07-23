@@ -11,7 +11,8 @@ import {
   releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
 } from "./freeAgency.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
-import { FREE_AGENT_TID } from "./transfers/negotiation.js";
+import { FREE_AGENT_TID, isFreeAgentTid } from "./transfers/negotiation.js";
+import { transferWindowState } from "./transfers/window.js";
 import { protectedStarPids } from "./transfers/protectedStars.js";
 import { runAIContractRenewals } from "./ai/renewals.js";
 import { enforceDivision2Ceiling } from "./ai/divisionCeiling.js";
@@ -182,13 +183,16 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   // Log each free-agent arrival as a fee-0 transfer FROM the sentinel so the
   // player's club-by-season history registers the move (an unrecorded free
   // signing was otherwise attributed to his last paid club — see
-  // FREE_AGENT_TID). Fixed identity: this offseason keys to the summer window
-  // of nextSeason (matches transferWindowState during the offseason).
+  // FREE_AGENT_TID). The window identity comes from transferWindowState rather
+  // than being spelled out here, so these records can't drift from what every
+  // other transfer logged during the offseason is keyed to.
+  const faWindow = transferWindowState(league);
   ceilingTransfers = [
     ...ceilingTransfers,
     ...faSignings.map((s) => ({
       pid: s.pid, fromTid: FREE_AGENT_TID, toTid: s.toTid, fee: 0,
-      season: nextSeason, window: "summer" as const,
+      season: faWindow.season ?? nextSeason,
+      window: faWindow.window ?? ("summer" as const),
     })),
   ];
 
@@ -289,7 +293,27 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   );
   teams = loanMarket.teams;
   activeLoans = loanMarket.activeLoans;
-  const finalTransfers = loanMarket.transfers;
+
+  // 6.47. Drop any free-agent signing this same offseason silently undid. Step
+  //       4 logs every AI arrival from the free pool, but nothing later in the
+  //       offseason records a *departure* into it (see FREE_AGENT_TID) — so a
+  //       club that signs a free agent and then cuts him below, via
+  //       trimRosterSurplus or a youth intake out-rating him, would leave his
+  //       profile permanently claiming a club he never played for. A signing
+  //       the player was moved on from by a *recorded* deal (sold, loaned out)
+  //       is genuine history and stays; only the silent drops go.
+  const holderByPid = new Map<number, number>();
+  for (const t of teams) {
+    for (const pid of t.roster) holderByPid.set(pid, t.tid);
+    for (const pid of t.academyRoster) holderByPid.set(pid, t.tid);
+  }
+  const lastRecordIndex = new Map<number, number>();
+  loanMarket.transfers.forEach((t, i) => lastRecordIndex.set(t.pid, i));
+  const finalTransfers = loanMarket.transfers.filter((t, i) => {
+    if (!isFreeAgentTid(t.fromTid) || t.season !== nextSeason) return true;
+    if (holderByPid.get(t.pid) === t.toTid) return true;
+    return (lastRecordIndex.get(t.pid) ?? i) > i;
+  });
 
   // 6.5. Season-start finances on the finalized new-season rosters, scaled
   //      by each club's (possibly just-changed) competition tier.

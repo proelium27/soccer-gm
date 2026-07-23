@@ -78,18 +78,22 @@ export function transferWindowState(
  * returns a sensible identity even when both windows are shut: the open
  * window's identity if there is one (so an offseason signing keys to next
  * season, matching signFreeAgent's effectiveSeason), otherwise this season and
- * the window whose slot the current matchday falls after (winter once the
- * summer window has closed). Keeping the record's season aligned to when the
- * player actually joins the XI is what lets teamForSeason attribute him
- * correctly.
+ * the most recently *closed* window. Attributing to the window just gone rather
+ * than the one still ahead matters because the record's window is what places
+ * it on the news-feed timeline and in the "this window" activity lists: an
+ * October signing filed under winter would surface as January business weeks
+ * after it happened. Keeping the record's season aligned to when the player
+ * actually joins the XI is what lets teamForSeason attribute him correctly.
  */
 export function freeAgentSigningWindow(
   league: Pick<LeagueStore, "phase" | "schedule" | "season">,
 ): { season: number; window: TransferWindowKind } {
   const ws = transferWindowState(league);
   if (ws.open) return { season: ws.season, window: ws.window };
+  // Both shut: either mid-first-half (summer just closed) or after deadline day
+  // / a fully simmed season (winter just closed).
   const md = nextMatchday(league);
   const window: TransferWindowKind =
-    md !== null && md > SUMMER_WINDOW_CLOSE_MATCHDAY ? "winter" : "summer";
+    md === null || md > TRANSFER_DEADLINE_MATCHDAY ? "winter" : "summer";
   return { season: league.season, window };
 }

@@ -6,12 +6,11 @@ import { computeStandings } from "../../core/standings.js";
 import { seasonRevenue, wageBill, financeScale } from "../../core/finance/budget.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
-import { currency, formatWeeklyWage, ordinal, seasonYear, transferFeeLabel } from "../format.js";
+import { clubDisplayName, currency, formatWeeklyWage, ordinal, seasonYear, transferFeeLabel } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
-import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 
 export function Finance() {
   const { league, setScoutingSpendAction, simming } = useLeague();
@@ -44,9 +43,7 @@ export function Finance() {
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   const teamName = (tid: number) =>
-    isFreeAgentTid(tid)
-      ? "Free agent"
-      : league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
+    clubDisplayName(tid, (id) => league.teams.find((t) => t.tid === id)?.name);
 
   const divisionTeamIds = league.teams
     .filter((t) => t.compId === userTeam.compId)

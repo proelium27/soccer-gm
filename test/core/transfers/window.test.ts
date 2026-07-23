@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { makeLeague } from "../../helpers/league.js";
-import { transferWindowState, nextMatchday } from "../../../src/core/transfers/window.js";
+import {
+  transferWindowState, nextMatchday, freeAgentSigningWindow,
+} from "../../../src/core/transfers/window.js";
 import { type LeagueStore } from "../../../src/core/leagueState.js";
 import {
   SUMMER_WINDOW_CLOSE_MATCHDAY, TRANSFER_DEADLINE_MATCHDAY, WINTER_WINDOW_OPEN_MATCHDAY,
@@ -68,6 +70,39 @@ describe("transferWindowState", () => {
     const winter = { ...league, schedule: league.schedule.filter((g) => g.matchday >= 20) };
     expect(transferWindowState(winter)).toMatchObject({
       open: true, window: "winter", season: league.season,
+    });
+  });
+});
+
+describe("freeAgentSigningWindow", () => {
+  it("follows the open window when there is one", () => {
+    const league = makeLeague(0, 1);
+    expect(freeAgentSigningWindow({ ...league, phase: "offseason" })).toEqual({
+      season: league.season + 1, window: "summer",
+    });
+    expect(freeAgentSigningWindow(leagueAtMatchday(WINTER_WINDOW_OPEN_MATCHDAY))).toEqual({
+      season: league.season, window: "winter",
+    });
+  });
+
+  it("files a between-windows signing under the window just closed, not the one ahead", () => {
+    // Signing a free agent isn't window-gated, so this has to name a window
+    // regardless. The record's window is what places it on the news-feed
+    // timeline and in the "this window" lists, so an autumn deal filed as
+    // winter would surface as January business weeks after it happened.
+    const season = makeLeague(0, 1).season;
+    for (const md of [SUMMER_WINDOW_CLOSE_MATCHDAY + 1, 10, WINTER_WINDOW_OPEN_MATCHDAY - 1]) {
+      expect(freeAgentSigningWindow(leagueAtMatchday(md))).toEqual({ season, window: "summer" });
+    }
+    for (const md of [TRANSFER_DEADLINE_MATCHDAY + 1, 30, 38]) {
+      expect(freeAgentSigningWindow(leagueAtMatchday(md))).toEqual({ season, window: "winter" });
+    }
+  });
+
+  it("treats a fully simmed season as after the winter window", () => {
+    const league = makeLeague(0, 1);
+    expect(freeAgentSigningWindow({ ...league, schedule: [] })).toEqual({
+      season: league.season, window: "winter",
     });
   });
 });

@@ -1,5 +1,6 @@
 import { weeklyWage } from "../core/contracts.js";
 import type { CompletedTransfer } from "../core/transfers/negotiation.js";
+import { isFreeAgentTid } from "../core/transfers/negotiation.js";
 
 export const currency = new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", maximumFractionDigits: 0,
@@ -48,4 +49,18 @@ const TALKS_COLLAPSED_MESSAGES = [
 /** Deterministic per-player pick so the message doesn't change across re-renders. */
 export function talksCollapsedMessage(pid: number): string {
   return TALKS_COLLAPSED_MESSAGES[pid % TALKS_COLLAPSED_MESSAGES.length];
+}
+
+/**
+ * Display name for one side of a transfer, mapping the free-agent sentinel to
+ * "Free agent" (see FREE_AGENT_TID). Every surface that renders a raw
+ * fromTid/toTid needs this — a sentinel that slips through shows up as
+ * "Unknown" or "Team -1" next to a placeholder crest. `lookup` is whatever the
+ * caller already has to hand (a Map, or a find over league.teams).
+ */
+export function clubDisplayName(
+  tid: number,
+  lookup: (tid: number) => string | undefined,
+): string {
+  return isFreeAgentTid(tid) ? "Free agent" : lookup(tid) ?? "Unknown";
 }

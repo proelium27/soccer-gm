@@ -4,6 +4,7 @@ import { createLeagueState } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { computeStandings } from "../../src/core/standings.js";
+import { isFreeAgentTid } from "../../src/core/transfers/negotiation.js";
 import {
   HYPE_MAX, HYPE_MIN, NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_DEFAULT, ROSTER_SAFETY_FLOOR,
 } from "../../src/core/constants.js";
@@ -125,6 +126,49 @@ describe("simOffseason", () => {
       return p && next.season - p.born === 16;
     });
     expect(sixteenYearOlds.length).toBeGreaterThan(0);
+  });
+
+  it("records every AI free-agent arrival as a fee-0 transfer from the sentinel", () => {
+    const rng = mulberry32(31);
+    const league = playFullSeason(rng);
+    const next = simOffseason(league, rng);
+
+    const logged = next.transfers.filter(
+      (t) => t.season === next.season && isFreeAgentTid(t.fromTid),
+    );
+    // AI clubs fill holes from the free pool every offseason, so there is
+    // always some; each one must be free and land at a real club.
+    expect(logged.length).toBeGreaterThan(0);
+    for (const t of logged) {
+      expect(t.fee).toBe(0);
+      expect(next.teams.some((team) => team.tid === t.toTid)).toBe(true);
+    }
+  });
+
+  it("logs no free signing for a player the same offseason then dropped again", () => {
+    const rng = mulberry32(32);
+    const league = playFullSeason(rng);
+    const next = simOffseason(league, rng);
+
+    // Nothing records a *departure* into free agency, so a signing later undone
+    // by trimRosterSurplus would leave the player's history permanently
+    // claiming a club he never played for. Every logged arrival must therefore
+    // either still hold him, or be followed by a real recorded move.
+    const holder = new Map<number, number>();
+    for (const team of next.teams) {
+      for (const pid of [...team.roster, ...team.academyRoster]) holder.set(pid, team.tid);
+    }
+    const lastIndex = new Map<number, number>();
+    next.transfers.forEach((t, i) => lastIndex.set(t.pid, i));
+
+    const phantoms = next.transfers.filter(
+      (t, i) =>
+        isFreeAgentTid(t.fromTid) &&
+        t.season === next.season &&
+        holder.get(t.pid) !== t.toTid &&
+        (lastIndex.get(t.pid) ?? i) === i,
+    );
+    expect(phantoms).toEqual([]);
   });
 
   it("no duplicate pids exist across the player pool after offseason", () => {

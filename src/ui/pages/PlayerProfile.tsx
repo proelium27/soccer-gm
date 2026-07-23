@@ -15,7 +15,7 @@ import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { competitionOf } from "../../core/competitions.js";
 import { worldHasCup } from "../../core/cup/cup.js";
 import { cupStatsBySeasonForPlayer } from "../../core/cup/cupStats.js";
-import { formatWeeklyWage, seasonYear, transferFeeLabel } from "../format.js";
+import { clubDisplayName, formatWeeklyWage, seasonYear, transferFeeLabel } from "../format.js";
 import { PlayerEditModal } from "../components/PlayerEditModal.js";
 
 /** One career-honor badge, e.g. "3x Golden Boot" — omits the count for a single win. */
@@ -40,6 +40,13 @@ function AwardPill({ label, seasons, icon }: { label: string; seasons: number[];
  * transfer has happened yet by that season — the fromTid of his earliest
  * transfer (he must have started there), or his present-day team if he's
  * never been transferred at all.
+ *
+ * One wrinkle: if his earliest record is a *free* signing, its fromTid is the
+ * free-agent sentinel, which says nothing about where he was before it — a
+ * player can spend years on a club's roster without any transfer being logged
+ * (generated there, then released). So the sentinel must never become the
+ * pre-history owner; those earlier seasons fall back to his present club, the
+ * same best guess this made before free signings were recorded at all.
  */
 function teamForSeason(
   transfers: CompletedTransfer[],
@@ -49,12 +56,13 @@ function teamForSeason(
   const sorted = [...transfers].sort((a, b) =>
     a.season !== b.season ? a.season - b.season : (a.window === "summer" ? 0 : 1) - (b.window === "summer" ? 0 : 1),
   );
-  let owner: number | null = sorted.length > 0 ? sorted[0].fromTid : currentTid;
+  const earliest = sorted.length > 0 ? sorted[0].fromTid : currentTid;
+  let owner = isFreeAgentTid(earliest) ? currentTid : earliest;
   for (const t of sorted) {
     if (t.season > season) break;
     owner = t.toTid;
   }
-  return owner ?? currentTid;
+  return owner;
 }
 
 export function PlayerProfile() {
@@ -83,7 +91,7 @@ export function PlayerProfile() {
   const inAcademy = league.teams.find((t) => t.academyRoster.includes(player.pid));
   const teamByTid = new Map(league.teams.map((t) => [t.tid, t]));
   const teamName = (tid: number) =>
-    isFreeAgentTid(tid) ? "Free agent" : teamByTid.get(tid)?.name ?? `Team ${tid}`;
+    clubDisplayName(tid, (id) => teamByTid.get(id)?.name);
   const teamAbbrev = (tid: number) =>
     isFreeAgentTid(tid) ? "FA" : teamByTid.get(tid)?.abbrev ?? "???";
 
@@ -395,10 +403,9 @@ export function PlayerProfile() {
                 league={league}
                 teamTidForSeason={(season) => {
                   if (!team) return inAcademy ? inAcademy.tid : null;
-                  const owner = teamForSeason(playerTransfers, season, team.tid);
-                  // A season the player spent unsigned (before his first
-                  // recorded club) colors neutral, not as a phantom club.
-                  return isFreeAgentTid(owner) ? null : owner;
+                  // teamForSeason never hands back the free-agent sentinel, so
+                  // every season resolves to a real club to color by.
+                  return teamForSeason(playerTransfers, season, team.tid);
                 }}
               />
             </div>
