@@ -286,34 +286,52 @@ export function Roster() {
     );
   }, [league]);
 
+  // Everything here scales with the whole world's player pool (the roster
+  // filter) or runs the lineup engine, and none of it depends on the drag /
+  // selection state above. Dragging fires `setDragOverPid` on every dragover
+  // event, so leaving this in the render body meant re-filtering ~6000 players,
+  // re-resolving the XI, recomputing the team rating and re-running the
+  // depth-floor check for every pixel of a drag. Keyed on `league`, which is a
+  // fresh object only when the league is actually committed.
+  const derived = useMemo(() => {
+    const userTeam = league?.teams.find((t) => t.tid === league.meta.userTid);
+    if (!league || !userTeam) return null;
+    const rosterPids = new Set(userTeam.roster);
+    const players: Player[] = league.players.filter((p) => rosterPids.has(p.pid));
+    const slots = teamSlots(userTeam);
+    const xi = resolveXI(players, slots, userTeam.starters);
+    const starterPids = xi.map((p) => p.pid);
+    const starterPidSet = new Set(starterPids);
+    const bench = sortByPosThenOvr(players.filter((p) => !starterPidSet.has(p.pid)));
+    const teamRating = computeTeamRating(players, userTeam.starters, slots);
+    const playerMap = new Map(players.map((p) => [p.pid, p]));
+    const releasablePids = new Set(
+      players.filter((p) => keepsDepthFloor(userTeam, playerMap, p.pid)).map((p) => p.pid),
+    );
+    return {
+      players, slots, xi, starterPids, starterPidSet, bench, teamRating,
+      playerMap, releasablePids,
+    };
+  }, [league]);
+
   if (!league) {
     return <p className="p-3">Loading...</p>;
   }
 
   const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
-  if (!userTeam) {
+  if (!userTeam || !derived) {
     return <p className="p-3">Team not found.</p>;
   }
 
-  const rosterPids = new Set(userTeam.roster);
-  const players: Player[] = league.players.filter((p) =>
-    rosterPids.has(p.pid),
-  );
+  const {
+    players, slots, xi, starterPids, starterPidSet, bench, teamRating,
+    playerMap, releasablePids,
+  } = derived;
 
   const formation = teamFormation(userTeam);
-  const slots = teamSlots(userTeam);
-  const xi = resolveXI(players, slots, userTeam.starters);
-  const starterPids = xi.map((p) => p.pid);
-  const starterPidSet = new Set(starterPids);
-  const bench = sortByPosThenOvr(players.filter((p) => !starterPidSet.has(p.pid)));
-  const teamRating = computeTeamRating(players, userTeam.starters, slots);
 
   const hasStats = league.played.length > 0;
 
-  const playerMap = new Map(players.map((p) => [p.pid, p]));
-  const releasablePids = new Set(
-    players.filter((p) => keepsDepthFloor(userTeam, playerMap, p.pid)).map((p) => p.pid),
-  );
   const transferListedPids = new Set(userTeam.transferListed);
   const moreMinutesPids = new Set(userTeam.moreMinutes);
 

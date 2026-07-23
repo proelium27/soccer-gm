@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { usePlayerMap } from "../usePlayerMap.js";
 import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import type { Player } from "../../core/players/types.js";
 import type { StoredTeam } from "../../core/teams/clubs.js";
@@ -42,6 +43,7 @@ function previousSnapshot(
 
 export function PowerRankings() {
   const { league } = useLeague();
+  const playerByPid = usePlayerMap(league?.players);
   const [expandedTid, setExpandedTid] = useState<number | null>(null);
   const [compId, setCompId] = useState<number | "all">("all");
   // -1 = the live "Current" view; otherwise an index into powerRankingHistory.
@@ -67,7 +69,6 @@ export function PowerRankings() {
   }
 
   const teamByTid = new Map(league.teams.map((t) => [t.tid, t]));
-  const playerByPid = new Map(league.players.map((p) => [p.pid, p]));
 
   const rows = snapshot.rows.filter((r) => compId === "all" || r.compId === compId);
 

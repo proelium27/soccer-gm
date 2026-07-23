@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { usePlayerMap } from "../usePlayerMap.js";
 import { HelpHint } from "../components/HelpHint.js";
 import type { SeasonAwards } from "../../core/awards.js";
 import type { Player } from "../../core/players/types.js";
@@ -100,6 +101,7 @@ function TeamOfSeasonField({
 
 export function Awards() {
   const { league } = useLeague();
+  const playersByPid = usePlayerMap(league?.players);
   const [season, setSeason] = useState<number | null>(null);
   const [compIdOverride, setCompIdOverride] = useState<number | null>(null);
 
@@ -123,7 +125,6 @@ export function Awards() {
   const activeSeason = season ?? seasonOptions[0];
   const entry = league.seasonHistory.find((h) => h.season === activeSeason)!;
 
-  const playersByPid = new Map(league.players.map((p) => [p.pid, p]));
   const divisionAwards = entry.awards[compId];
   const potd = divisionAwards.playerOfSeasonPid !== null ? playersByPid.get(divisionAwards.playerOfSeasonPid) : undefined;
   const goldenBoot = divisionAwards.goldenBootPid !== null ? playersByPid.get(divisionAwards.goldenBootPid) : undefined;

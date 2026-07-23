@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import type { LeagueStore } from "../../core/leagueState.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
 import { emptySeasonStats } from "../../core/players/types.js";
 import { computeTeamSeasonStats, type TeamSeasonStats } from "../../core/standings.js";
@@ -126,17 +127,48 @@ export function Leaders() {
 
 function PlayerLeaders({ compId }: { compId: number }) {
   const { league } = useLeague();
+
+  const seasonOptions = useMemo(
+    () => [
+      ...new Set((league?.players ?? []).flatMap((p) => p.stats.map((s) => s.season))),
+    ].sort((a, b) => b - a),
+    [league?.players],
+  );
+
+  if (!league) {
+    return <p className="p-3">Loading...</p>;
+  }
+
+  if (seasonOptions.length === 0) {
+    return <p>No matches played yet.</p>;
+  }
+
+  return <PlayerLeadersBody league={league} compId={compId} seasonOptions={seasonOptions} />;
+}
+
+// Split out from the guards above so its hooks run unconditionally, which lets
+// every derivation below be memoized. All of it is O(players) — three separate
+// scans over the whole world's player pool, each reading multi-season stat
+// histories — and all of it sits directly on the interaction path: changing the
+// season, scope, or stat dropdown re-renders this component. Unmemoized, each
+// of those clicks redid the lot, which is what put this page's INP in the
+// 8-14 second range on mobile.
+function PlayerLeadersBody({
+  league,
+  compId,
+  seasonOptions,
+}: {
+  league: LeagueStore;
+  compId: number;
+  seasonOptions: number[];
+}) {
   const [stat, setStat] = useState<StatKey>("goals");
   const [season, setSeason] = useState<number | "all">("all");
   const [scope, setScope] = useState<Scope>("career");
   const [initializedSeason, setInitializedSeason] = useState(false);
 
-  const seasonOptions = [
-    ...new Set((league?.players ?? []).flatMap((p) => p.stats.map((s) => s.season))),
-  ].sort((a, b) => b - a);
-
   useEffect(() => {
-    if (!league || initializedSeason) return;
+    if (initializedSeason) return;
     if (seasonOptions.includes(league.season)) {
       setSeason(league.season);
     } else if (seasonOptions.length > 0) {
@@ -150,136 +182,143 @@ function PlayerLeaders({ compId }: { compId: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [league, initializedSeason]);
 
-  if (!league) {
-    return <p className="p-3">Loading...</p>;
-  }
-
-  if (seasonOptions.length === 0) {
-    return <p>No matches played yet.</p>;
-  }
-
   // A player's *current* team (used for the Career aggregate, which spans
   // many seasons and has no single "correct" historical team to show).
-  const teamByPid = new Map<number, string>();
-  const tidByPid = new Map<number, number>();
-  const compTids = new Set<number>();
-  for (const team of league.teams) {
-    if (team.compId !== compId) continue;
-    compTids.add(team.tid);
-    for (const pid of team.roster) {
-      teamByPid.set(pid, team.name);
-      tidByPid.set(pid, team.tid);
+  const { teamByPid, tidByPid, compTids } = useMemo(() => {
+    const teamByPid = new Map<number, string>();
+    const tidByPid = new Map<number, number>();
+    const compTids = new Set<number>();
+    for (const team of league.teams) {
+      if (team.compId !== compId) continue;
+      compTids.add(team.tid);
+      for (const pid of team.roster) {
+        teamByPid.set(pid, team.name);
+        tidByPid.set(pid, team.tid);
+      }
     }
-  }
+    return { teamByPid, tidByPid, compTids };
+  }, [league.teams, compId]);
 
   // How many games this competition has played in a given season — the
   // denominator the Match Rating qualifier takes a fraction of. The current
   // season is in progress (count distinct matchdays played so far); any earlier
   // season is complete, so it's the full double round-robin.
-  const currentMatchdaysPlayed = (() => {
+  const matchesPlayedInSeason = useMemo(() => {
     const mds = new Set<number>();
     for (const m of league.played) {
       if (compTids.has(m.home) || compTids.has(m.away)) mds.add(m.matchday);
     }
-    return mds.size;
-  })();
-  const fullSeasonMatches = Math.max(0, 2 * (compTids.size - 1));
-  const matchesPlayedInSeason = (s: number): number =>
-    s === league.season ? currentMatchdaysPlayed : fullSeasonMatches;
+    const currentMatchdaysPlayed = mds.size;
+    const fullSeasonMatches = Math.max(0, 2 * (compTids.size - 1));
+    return (s: number): number =>
+      s === league.season ? currentMatchdaysPlayed : fullSeasonMatches;
+  }, [league.played, league.season, compTids]);
 
   // A specific season's stat line carries the team the player was actually
   // on that season (SeasonStats.tid); this map resolves any tid to its
   // current display name/division, since a club's compId can itself have
   // changed since then (promotion/relegation).
-  const teamNameByTid = new Map<number, string>();
-  const currentCompByTid = new Map<number, number>();
-  for (const team of league.teams) {
-    teamNameByTid.set(team.tid, team.name);
-    currentCompByTid.set(team.tid, team.compId);
-  }
-  const compByTidCache = new Map<number, Map<number, number>>();
-  const compByTidForSeason = (s: number): Map<number, number> => {
-    let m = compByTidCache.get(s);
-    if (!m) {
-      const entry = league.seasonHistory.find((h) => h.season === s);
-      m = entry
-        ? new Map(Object.entries(entry.compsByTid).map(([k, v]) => [Number(k), v]))
-        : currentCompByTid;
-      compByTidCache.set(s, m);
+  const { teamNameByTid, compByTidForSeason } = useMemo(() => {
+    const teamNameByTid = new Map<number, string>();
+    const currentCompByTid = new Map<number, number>();
+    for (const team of league.teams) {
+      teamNameByTid.set(team.tid, team.name);
+      currentCompByTid.set(team.tid, team.compId);
     }
-    return m;
-  };
+    const compByTidCache = new Map<number, Map<number, number>>();
+    const compByTidForSeason = (s: number): Map<number, number> => {
+      let m = compByTidCache.get(s);
+      if (!m) {
+        const entry = league.seasonHistory.find((h) => h.season === s);
+        m = entry
+          ? new Map(Object.entries(entry.compsByTid).map(([k, v]) => [Number(k), v]))
+          : currentCompByTid;
+        compByTidCache.set(s, m);
+      }
+      return m;
+    };
+    return { teamNameByTid, compByTidForSeason };
+  }, [league.teams, league.seasonHistory]);
 
-  const rows: LeaderRow[] = [];
-  if (season !== "all") {
-    const compByTid = compByTidForSeason(season);
-    for (const p of league.players) {
-      const ss = p.stats.find((s) => s.season === season);
-      if (!ss || ss[stat] <= 0) continue;
-      if (compByTid.get(ss.tid) !== compId) continue;
-      rows.push({
-        player: p,
-        teamName: teamNameByTid.get(ss.tid) ?? "Unknown",
-        isUserTeam: ss.tid === league.meta.userTid,
-        stats: ss,
-        season: null,
-      });
-    }
-  } else if (scope === "career") {
-    for (const p of league.players) {
-      if (!tidByPid.has(p.pid)) continue;
-      const total = careerTotals(p.stats);
-      if (total[stat] > 0) {
+  const rows = useMemo(() => {
+    const rows: LeaderRow[] = [];
+    if (season !== "all") {
+      const compByTid = compByTidForSeason(season);
+      for (const p of league.players) {
+        const ss = p.stats.find((s) => s.season === season);
+        if (!ss || ss[stat] <= 0) continue;
+        if (compByTid.get(ss.tid) !== compId) continue;
         rows.push({
           player: p,
-          teamName: teamByPid.get(p.pid) ?? "Unknown",
-          isUserTeam: tidByPid.get(p.pid) === league.meta.userTid,
-          stats: total,
+          teamName: teamNameByTid.get(ss.tid) ?? "Unknown",
+          isUserTeam: ss.tid === league.meta.userTid,
+          stats: ss,
           season: null,
         });
       }
-    }
-  } else {
-    // Single season: each player's own best individual season for this stat,
-    // shown with the team he was actually on that season.
-    for (const p of league.players) {
-      let best: SeasonStats | null = null;
-      for (const s of p.stats) {
-        if (s[stat] > 0 && (!best || s[stat] > best[stat])) best = s;
+    } else if (scope === "career") {
+      for (const p of league.players) {
+        if (!tidByPid.has(p.pid)) continue;
+        const total = careerTotals(p.stats);
+        if (total[stat] > 0) {
+          rows.push({
+            player: p,
+            teamName: teamByPid.get(p.pid) ?? "Unknown",
+            isUserTeam: tidByPid.get(p.pid) === league.meta.userTid,
+            stats: total,
+            season: null,
+          });
+        }
       }
-      if (!best) continue;
-      const compByTid = compByTidForSeason(best.season);
-      if (compByTid.get(best.tid) !== compId) continue;
-      rows.push({
-        player: p,
-        teamName: teamNameByTid.get(best.tid) ?? "Unknown",
-        isUserTeam: best.tid === league.meta.userTid,
-        stats: best,
-        season: best.season,
-      });
+    } else {
+      // Single season: each player's own best individual season for this stat,
+      // shown with the team he was actually on that season.
+      for (const p of league.players) {
+        let best: SeasonStats | null = null;
+        for (const s of p.stats) {
+          if (s[stat] > 0 && (!best || s[stat] > best[stat])) best = s;
+        }
+        if (!best) continue;
+        const compByTid = compByTidForSeason(best.season);
+        if (compByTid.get(best.tid) !== compId) continue;
+        rows.push({
+          player: p,
+          teamName: teamNameByTid.get(best.tid) ?? "Unknown",
+          isUserTeam: best.tid === league.meta.userTid,
+          stats: best,
+          season: best.season,
+        });
+      }
     }
-  }
+    return rows;
+  }, [
+    league.players, league.meta.userTid, season, scope, stat, compId,
+    compByTidForSeason, teamNameByTid, teamByPid, tidByPid,
+  ]);
+
   // Match Rating is an average, so a player with only a game or two of data
   // would otherwise sit atop the chart on a single hot cameo. Require him to
   // have appeared in a fraction of the games played *so far* — scaling to
   // games-played keeps the board honest ten games in as well as at season's
   // end (counting stats like goals are unaffected).
-  const appsToQualify = (s: number): number =>
-    Math.max(1, Math.ceil(RATING_LEADER_QUALIFY_FRACTION * matchesPlayedInSeason(s)));
-  let ratingQualifies: (row: LeaderRow) => boolean;
-  if (season !== "all") {
-    const threshold = appsToQualify(season);
-    ratingQualifies = (r) => r.stats.appearances >= threshold;
-  } else if (scope === "career") {
-    // Career aggregate spans many seasons — use a flat cumulative floor.
-    ratingQualifies = (r) => r.stats.appearances >= RATING_LEADER_MIN_CAREER_APPEARANCES;
-  } else {
-    // Single best season: each row carries its own season (row.season).
-    ratingQualifies = (r) => r.stats.appearances >= appsToQualify(r.season ?? league.season);
-  }
-  const qualified = stat === "avgRating" ? rows.filter(ratingQualifies) : rows;
-  qualified.sort((a, b) => b.stats[stat] - a.stats[stat]);
-  const top = qualified.slice(0, 30);
+  const top = useMemo(() => {
+    const appsToQualify = (s: number): number =>
+      Math.max(1, Math.ceil(RATING_LEADER_QUALIFY_FRACTION * matchesPlayedInSeason(s)));
+    let ratingQualifies: (row: LeaderRow) => boolean;
+    if (season !== "all") {
+      const threshold = appsToQualify(season);
+      ratingQualifies = (r) => r.stats.appearances >= threshold;
+    } else if (scope === "career") {
+      // Career aggregate spans many seasons — use a flat cumulative floor.
+      ratingQualifies = (r) => r.stats.appearances >= RATING_LEADER_MIN_CAREER_APPEARANCES;
+    } else {
+      // Single best season: each row carries its own season (row.season).
+      ratingQualifies = (r) => r.stats.appearances >= appsToQualify(r.season ?? league.season);
+    }
+    const qualified = stat === "avgRating" ? rows.filter(ratingQualifies) : rows;
+    return [...qualified].sort((a, b) => b.stats[stat] - a.stats[stat]).slice(0, 30);
+  }, [rows, stat, season, scope, league.season, matchesPlayedInSeason]);
+
   const showSeasonColumn = season === "all" && scope === "single";
 
   return (

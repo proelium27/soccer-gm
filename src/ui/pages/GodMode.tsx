@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { usePlayerMap } from "../usePlayerMap.js";
 import { SKILL_KEYS, POSITIONS, type Position, type PlayerRatings } from "../../core/players/types.js";
 import { NATIONALITIES } from "../../core/players/nationalities.js";
 import { SKILL_LABELS } from "../components/PlayerRatingsTooltip.js";
@@ -155,12 +156,21 @@ function RosterBuilder() {
   const [tid, setTid] = useState<number | null>(null);
   const [filter, setFilter] = useState("");
   const { sort, toggle } = useTableSort<"default" | "name" | "pos" | "ovr">("default", "desc");
+  const playerById = usePlayerMap(league?.players);
+  // Every club's rostered/academy pids, used to sort free agents to the top.
+  const rosteredPids = useMemo(() => {
+    const pids = new Set<number>();
+    for (const t of league?.teams ?? []) {
+      for (const pid of t.roster) pids.add(pid);
+      for (const pid of t.academyRoster) pids.add(pid);
+    }
+    return pids;
+  }, [league?.teams]);
   if (!league) return null;
 
   const teamsSorted = [...league.teams].sort((a, b) => a.name.localeCompare(b.name));
   const selectedTid = tid ?? league.meta.userTid;
   const club = league.teams.find((t) => t.tid === selectedTid);
-  const playerById = new Map(league.players.map((p) => [p.pid, p]));
 
   const rosterPlayers = sortRows(
     (club?.roster ?? [])
@@ -170,15 +180,16 @@ function RosterBuilder() {
     { name: (p) => p.name, pos: (p) => p.pos, ovr: (p) => p.ovr },
   );
 
-  const rosteredPids = new Set<number>();
-  for (const t of league.teams) {
-    for (const pid of t.roster) rosteredPids.add(pid);
-    for (const pid of t.academyRoster) rosteredPids.add(pid);
-  }
+  // Hoisted out of the filter chain below: `roster.includes` per player made the
+  // scan O(players x squad), and `filter.toLowerCase()` was being recomputed
+  // once per player. The whole list re-derives on every keystroke in the search
+  // box, so both showed up directly in this page's interaction latency.
+  const clubRosterPids = new Set(club?.roster ?? []);
+  const needle = filter.trim().toLowerCase();
 
   const addable = league.players
-    .filter((p) => !club?.roster.includes(p.pid))
-    .filter((p) => filter === "" || p.name.toLowerCase().includes(filter.toLowerCase()))
+    .filter((p) => !clubRosterPids.has(p.pid))
+    .filter((p) => needle === "" || p.name.toLowerCase().includes(needle))
     .sort((a, b) => {
       const aFa = rosteredPids.has(a.pid) ? 1 : 0;
       const bFa = rosteredPids.has(b.pid) ? 1 : 0;

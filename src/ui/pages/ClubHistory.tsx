@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { usePlayerMap } from "../usePlayerMap.js";
 import { computeClubHistory, type ClubIndividualHonour, type ClubSeasonRecord } from "../../core/clubHistory.js";
 import { competitionOf, countriesOf } from "../../core/competitions.js";
 import { worldHasCup } from "../../core/cup/cup.js";
@@ -80,6 +81,7 @@ function HonourList({
 
 export function ClubHistory() {
   const { league } = useLeague();
+  const playersByPid = usePlayerMap(league?.players);
   const [tidOverride, setTidOverride] = useState<number | null>(null);
 
   if (!league) {
@@ -92,7 +94,6 @@ export function ClubHistory() {
   const currentComp = team ? competitionOf(league.competitions, team.compId) : undefined;
 
   const history = computeClubHistory(league, tid);
-  const playersByPid = new Map(league.players.map((p) => [p.pid, p]));
 
   const countries = countriesOf(league.competitions);
   const hasCup = worldHasCup(league.competitions);

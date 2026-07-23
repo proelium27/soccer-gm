@@ -1,4 +1,5 @@
 import type { Player } from "../players/types.js";
+import type { StoredTeam } from "../teams/clubs.js";
 import type { LeagueStore } from "../leagueState.js";
 import { transferWindowState } from "./window.js";
 import { departsAtRollover, isForSale, isForSaleOrRefusing, scoutedValue, windowSeed } from "./negotiation.js";
@@ -228,12 +229,17 @@ export function searchWorldPlayers(
   if (!hasConstraint) return [];
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
-  const loanedPids = new Set(league.activeLoans.map((l) => l.pid));
-  const protectedPids = protectedStarPids(
-    lastCompletedSeason(league), league.teams, league.players, league.competitions, user.tid,
-  );
 
-  const results: PlayerSearchResult[] = [];
+  // Two passes, because this runs on the interaction path (the user typing in
+  // the search box) over every player in the world. Pass 1 applies only the
+  // cheap field comparisons; pass 2 does the expensive per-player work —
+  // `scoutedValue`, the loan/rollover/protected/depth gates — and stops as soon
+  // as the render cap is full. Ranking is by (ovr, pid), which pass 1 already
+  // knows, so walking the sorted candidates and stopping at PLAYER_SEARCH_LIMIT
+  // yields exactly the same rows as valuing everyone and slicing afterwards —
+  // just without valuing the thousands of players that were never going to be
+  // shown.
+  const candidates: { player: Player; team: StoredTeam }[] = [];
   for (const team of league.teams) {
     if (team.tid === user.tid) continue;
     for (const pid of team.roster) {
@@ -244,28 +250,43 @@ export function searchWorldPlayers(
       if (minOvr !== null && player.ovr < minOvr) continue;
       if (minPot !== null && player.potential < minPot) continue;
       if (maxAge !== null && ws.season - player.born > maxAge) continue;
-      const value = scoutedValue(league.lid, ws.season, ws.window, player, user.scoutingSpend);
-      if (maxValue !== null && value > maxValue) continue;
-
-      // Mirror makeTransferOffer's sale gates so the UI can explain, not no-op.
-      let notForSaleReason: string | null = null;
-      if (loanedPids.has(pid)) notForSaleReason = "Out on loan";
-      else if (departsAtRollover(league, player)) notForSaleReason = "Free agent at season's end";
-      else if (protectedPids.has(pid)) notForSaleReason = "Club won't sell their star";
-      else if (!isForSaleOrRefusing(team, playerMap, pid, league.competitions)) {
-        notForSaleReason = "Club needs him for depth";
-      }
-
-      results.push({
-        player,
-        sellerTid: team.tid,
-        scoutedValue: value,
-        forSale: notForSaleReason === null,
-        notForSaleReason,
-      });
+      candidates.push({ player, team });
     }
   }
+  if (candidates.length === 0) return [];
 
-  results.sort((a, b) => b.player.ovr - a.player.ovr || a.player.pid - b.player.pid);
-  return results.slice(0, PLAYER_SEARCH_LIMIT);
+  candidates.sort((a, b) => b.player.ovr - a.player.ovr || a.player.pid - b.player.pid);
+
+  const loanedPids = new Set(league.activeLoans.map((l) => l.pid));
+  // Only needed once we know at least one player survived the cheap filters —
+  // it recomputes last season's standings, which is wasted on a no-match query.
+  const protectedPids = protectedStarPids(
+    lastCompletedSeason(league), league.teams, league.players, league.competitions, user.tid,
+  );
+
+  const results: PlayerSearchResult[] = [];
+  for (const { player, team } of candidates) {
+    if (results.length >= PLAYER_SEARCH_LIMIT) break;
+    const value = scoutedValue(league.lid, ws.season, ws.window, player, user.scoutingSpend);
+    if (maxValue !== null && value > maxValue) continue;
+
+    // Mirror makeTransferOffer's sale gates so the UI can explain, not no-op.
+    let notForSaleReason: string | null = null;
+    if (loanedPids.has(player.pid)) notForSaleReason = "Out on loan";
+    else if (departsAtRollover(league, player)) notForSaleReason = "Free agent at season's end";
+    else if (protectedPids.has(player.pid)) notForSaleReason = "Club won't sell their star";
+    else if (!isForSaleOrRefusing(team, playerMap, player.pid, league.competitions)) {
+      notForSaleReason = "Club needs him for depth";
+    }
+
+    results.push({
+      player,
+      sellerTid: team.tid,
+      scoutedValue: value,
+      forSale: notForSaleReason === null,
+      notForSaleReason,
+    });
+  }
+
+  return results;
 }
