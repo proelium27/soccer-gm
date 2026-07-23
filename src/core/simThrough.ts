@@ -252,10 +252,18 @@ export function simThrough(
     };
 
     const matchData = new Map<number, TeamMatchData>();
-    for (const comp of league.competitions) {
-      const compTeams = currentTeams.filter((t) => t.compId === comp.id);
-      const compMatchData = leagueMatchData({ teams: toLeagueTeams(compTeams), players: currentPlayers });
-      compTeams.forEach((t, i) => matchData.set(t.tid, withSeasonForm(t.tid, compMatchData[i])));
+    if (process.env.GLOBAL_NORM) {
+      // EXPERIMENT: normalize every club in the world against ONE shared
+      // mean/sd (FM-style absolute scale) instead of per-competition. Weak
+      // leagues stay below 0.5, strong leagues above; D2 reads weaker than D1.
+      const worldData = leagueMatchData({ teams: toLeagueTeams(currentTeams), players: currentPlayers });
+      currentTeams.forEach((t, i) => matchData.set(t.tid, withSeasonForm(t.tid, worldData[i])));
+    } else {
+      for (const comp of league.competitions) {
+        const compTeams = currentTeams.filter((t) => t.compId === comp.id);
+        const compMatchData = leagueMatchData({ teams: toLeagueTeams(compTeams), players: currentPlayers });
+        compTeams.forEach((t, i) => matchData.set(t.tid, withSeasonForm(t.tid, compMatchData[i])));
+      }
     }
 
     // Continental Cup composites use a SHARED normalization baseline across all
