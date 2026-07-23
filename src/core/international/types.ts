@@ -80,11 +80,48 @@ export interface IntlTournament {
 }
 
 /**
+ * A finished group's final table, self-contained: rows are keyed by nation name
+ * rather than nid so an archived campaign needs none of its original squads or
+ * fixtures to render. This is the "Light" archival unit — enough to show what
+ * happened, without the per-match box scores.
+ */
+export interface IntlGroupTable {
+  /** The confederation this group qualified through; null for tournament groups. */
+  confederation: string | null;
+  rows: {
+    nation: string;
+    played: number;
+    won: number;
+    drawn: number;
+    lost: number;
+    gf: number;
+    ga: number;
+    gd: number;
+    points: number;
+  }[];
+}
+
+/** One archived knockout result (self-contained, nation names not nids). */
+export interface IntlKnockoutResult {
+  /** 0 = quarter-final, 1 = semi-final, 2 = final. */
+  round: number;
+  home: string;
+  away: string;
+  homeGoals: number;
+  awayGoals: number;
+  winner: string;
+  /** Shootout score if the tie went to penalties, else null. */
+  pens: { home: number; away: number } | null;
+}
+
+/**
  * An archived tournament, kept forever. Deliberately far smaller than the
- * tournament itself: box scores and squads are dropped, because a 30-season
- * dynasty plays 15 tournaments and holding every one's full attribution would
- * bloat the save for a page nobody browses that deeply. Career totals survive
- * on each player instead (see Player.intl).
+ * tournament itself: per-match box scores and full squads are dropped, because
+ * a 30-season dynasty plays 15 tournaments and holding every one's full
+ * attribution would bloat the save. What it keeps is the *results* — final group
+ * tables and every knockout scoreline — which is enough to redraw the bracket,
+ * derive each nation's finish, and browse past editions. Career totals survive
+ * on each player (see Player.intl).
  */
 export interface IntlTournamentSummary {
   season: number;
@@ -97,6 +134,34 @@ export interface IntlTournamentSummary {
   topScorer: { pid: number; nation: string; goals: number } | null;
   /** The full field, strongest first. */
   field: string[];
+  /** Final group tables (INTL_GROUPS of them, confederation null). */
+  groups: IntlGroupTable[];
+  /** Every knockout result (QF, SF, final), in round order. */
+  knockout: IntlKnockoutResult[];
+}
+
+/**
+ * A compact archived qualifying campaign (Light): the final group tables and the
+ * list of qualifiers, no per-match detail. The current campaign is still held in
+ * full on `InternationalState.qualifying`; this is what past campaigns collapse
+ * to so the Qualifying tab can browse previous years.
+ */
+export interface IntlQualifyingSummary {
+  season: number;
+  /** How many nations entered qualifying this cycle. */
+  entered: number;
+  groups: IntlGroupTable[];
+  qualified: string[];
+}
+
+/**
+ * A national-team strength ranking, taken the moment a campaign is drawn (so it
+ * reads end-of-season squads). Every eligible nation, strongest first — the raw
+ * material for the Power Rankings tab and its year-on-year movement.
+ */
+export interface IntlPowerSnapshot {
+  season: number;
+  ranks: { nation: string; rating: number }[];
 }
 
 /**
@@ -129,6 +194,10 @@ export interface InternationalState {
   tournament: IntlTournament | null;
   /** Every completed tournament, oldest first. */
   history: IntlTournamentSummary[];
+  /** Every completed qualifying campaign (Light summaries), oldest first. */
+  qualifyingHistory: IntlQualifyingSummary[];
+  /** A national-team power-ranking snapshot per campaign drawn, oldest first. */
+  powerRankings: IntlPowerSnapshot[];
   /** Progress of the current offseason's staged campaign; see IntlStage. */
   stage: IntlStage;
 }

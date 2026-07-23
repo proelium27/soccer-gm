@@ -316,8 +316,25 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     // campaign pending), so their next offseason draws and stages one fresh.
     // See core/international.
     international: anyVersion.international
-      ? { ...anyVersion.international, stage: anyVersion.international.stage ?? null }
-      : { qualifying: null, tournament: null, history: [], stage: null },
+      ? {
+          ...anyVersion.international,
+          stage: anyVersion.international.stage ?? null,
+          // Light archival added later: past qualifying + power-ranking history
+          // start empty and fill from the next campaign on; old tournament
+          // summaries predate stored group tables / knockout scorelines, so
+          // backfill those to empty (their champion/field still render).
+          qualifyingHistory: anyVersion.international.qualifyingHistory ?? [],
+          powerRankings: anyVersion.international.powerRankings ?? [],
+          history: (anyVersion.international.history ?? []).map((h) => ({
+            ...h,
+            groups: h.groups ?? [],
+            knockout: h.knockout ?? [],
+          })),
+        }
+      : {
+          qualifying: null, tournament: null, history: [],
+          qualifyingHistory: [], powerRankings: [], stage: null,
+        },
     // God Mode sandbox editing defaults off for any save that predates it.
     godMode: anyVersion.godMode ?? false,
   };

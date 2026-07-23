@@ -8,7 +8,12 @@ import { NewLeague } from "./pages/NewLeague.js";
 import { Dashboard } from "./pages/Dashboard.js";
 import { Standings } from "./pages/Standings.js";
 import { Cup } from "./pages/Cup.js";
-import { International } from "./pages/International.js";
+import { NTWorldCup } from "./pages/nationalTeams/WorldCup.js";
+import { NTQualifying } from "./pages/nationalTeams/Qualifying.js";
+import { NTSchedule } from "./pages/nationalTeams/Schedule.js";
+import { NTPowerRankings } from "./pages/nationalTeams/PowerRankings.js";
+import { NTStatLeaders } from "./pages/nationalTeams/StatLeaders.js";
+import { NTHistory } from "./pages/nationalTeams/History.js";
 import { PowerRankings } from "./pages/PowerRankings.js";
 import { Schedule } from "./pages/Schedule.js";
 import { Roster } from "./pages/Roster.js";
@@ -48,7 +53,14 @@ export function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/standings" element={<Standings />} />
             <Route path="/cup" element={<Cup />} />
-            <Route path="/international" element={<International />} />
+            <Route path="/national-teams/world-cup" element={<NTWorldCup />} />
+            <Route path="/national-teams/qualifying" element={<NTQualifying />} />
+            <Route path="/national-teams/schedule" element={<NTSchedule />} />
+            <Route path="/national-teams/power-rankings" element={<NTPowerRankings />} />
+            <Route path="/national-teams/leaders" element={<NTStatLeaders />} />
+            <Route path="/national-teams/history" element={<NTHistory />} />
+            {/* Old single International page → the World Cup tab of the new section. */}
+            <Route path="/international" element={<Navigate to="/national-teams/world-cup" replace />} />
             <Route path="/power-rankings" element={<PowerRankings />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/news" element={<NewsFeed />} />

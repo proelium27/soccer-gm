@@ -11,7 +11,9 @@ import { roundRobin, groupTable, buildGroup, serpentineGroups, potDraw } from ".
 import { namePoolFor } from "../../src/core/players/nationalities.js";
 import * as Nats from "../../src/core/players/nationalities.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
-import { INTL_FIELD_SIZE, INTL_KO_SIZE } from "../../src/core/constants.js";
+import { nationRecords, finishOf } from "../../src/core/international/index.js";
+import type { IntlTournamentSummary } from "../../src/core/international/index.js";
+import { INTL_FIELD_SIZE, INTL_KO_SIZE, INTL_GROUPS } from "../../src/core/constants.js";
 
 /**
  * Play any staged international campaign that entering the offseason drew, in
@@ -172,6 +174,13 @@ describe("offseason cycle", () => {
     expect(intl.tournament!.bracket).toHaveLength(INTL_KO_SIZE);
     expect(intl.history).toHaveLength(1);
     expect(intl.history[0].champion).toBeTruthy();
+
+    // Light archival is populated as the campaigns finish.
+    expect(intl.qualifyingHistory).toHaveLength(1); // season 1's qualifying
+    expect(intl.qualifyingHistory[0].qualified).toHaveLength(INTL_FIELD_SIZE);
+    expect(intl.powerRankings.length).toBeGreaterThanOrEqual(2); // a snapshot per campaign drawn
+    expect(intl.history[0].groups).toHaveLength(INTL_GROUPS); // 4 final group tables
+    expect(intl.history[0].knockout).toHaveLength(7); // 4 QF + 2 SF + 1 final
   });
 
   it("records caps and titles on players who feature", () => {
@@ -232,5 +241,62 @@ describe("offseason cycle", () => {
     expect(st.ties.map((t) => [t.round, t.homeGoals, t.awayGoals])).toEqual(
       bulk!.tournament.ties.map((t) => [t.round, t.homeGoals, t.awayGoals]),
     );
+  });
+});
+
+describe("nation history derivations", () => {
+  // A hand-built archived tournament: Brazil beat France in the final; the
+  // losing semi-finalists were Spain and Argentina; the losing quarter-finalists
+  // Germany, Italy, England, Netherlands; Belgium exited in the group stage.
+  const field = [
+    "Brazil", "France", "Spain", "Argentina", "Germany", "Italy", "England", "Netherlands",
+    "Belgium", "Croatia", "Uruguay", "Mexico", "Japan", "Senegal", "United States", "Denmark",
+  ];
+  const summary: IntlTournamentSummary = {
+    season: 2,
+    name: "World Cup",
+    champion: "Brazil",
+    runnerUp: "France",
+    finalScore: { champion: 2, runnerUp: 1, pens: null },
+    topScorer: null,
+    field,
+    groups: [],
+    knockout: [
+      { round: 0, home: "Brazil", away: "Germany", homeGoals: 2, awayGoals: 0, winner: "Brazil", pens: null },
+      { round: 0, home: "Spain", away: "Italy", homeGoals: 1, awayGoals: 0, winner: "Spain", pens: null },
+      { round: 0, home: "France", away: "England", homeGoals: 1, awayGoals: 0, winner: "France", pens: null },
+      { round: 0, home: "Argentina", away: "Netherlands", homeGoals: 1, awayGoals: 0, winner: "Argentina", pens: null },
+      { round: 1, home: "Brazil", away: "Spain", homeGoals: 2, awayGoals: 1, winner: "Brazil", pens: null },
+      { round: 1, home: "France", away: "Argentina", homeGoals: 1, awayGoals: 0, winner: "France", pens: null },
+      { round: 2, home: "Brazil", away: "France", homeGoals: 2, awayGoals: 1, winner: "Brazil", pens: null },
+    ],
+  };
+
+  it("reads each nation's finish from the field, champion and knockout scorelines", () => {
+    expect(finishOf(summary, "Brazil")).toBe("Champions");
+    expect(finishOf(summary, "France")).toBe("Runners-up");
+    expect(finishOf(summary, "Spain")).toBe("Semi-finals"); // lost the semi
+    expect(finishOf(summary, "Germany")).toBe("Quarter-finals"); // lost the quarter
+    expect(finishOf(summary, "Belgium")).toBe("Group stage"); // in the field, no knockout
+    expect(finishOf(summary, "Kenya")).toBeNull(); // never qualified
+  });
+
+  it("aggregates records across tournaments, ranked by honours", () => {
+    const records = nationRecords([summary, summary]); // same edition twice
+    const brazil = records.find((r) => r.nation === "Brazil")!;
+    expect(brazil.titles).toBe(2);
+    expect(brazil.finals).toBe(2);
+    expect(brazil.tournaments).toBe(2);
+    expect(brazil.bestFinish).toBe("Champions");
+    // Brazil (2 titles) ranks ahead of France (0 titles, 2 finals).
+    expect(records[0].nation).toBe("Brazil");
+    const france = records.find((r) => r.nation === "France")!;
+    expect(france.titles).toBe(0);
+    expect(france.finals).toBe(2);
+    expect(france.bestFinish).toBe("Runners-up");
+    // A group-stage nation still shows an appearance and a "Group stage" best.
+    const belgium = records.find((r) => r.nation === "Belgium")!;
+    expect(belgium.tournaments).toBe(2);
+    expect(belgium.bestFinish).toBe("Group stage");
   });
 });

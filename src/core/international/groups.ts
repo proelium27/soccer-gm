@@ -1,4 +1,4 @@
-import type { IntlGroup, IntlGroupMatch } from "./types.js";
+import type { IntlGroup, IntlGroupMatch, IntlGroupTable } from "./types.js";
 
 /** A bye slot, inserted when a group has an odd number of nations. */
 const BYE = -1;
@@ -156,6 +156,28 @@ export function groupTable(group: IntlGroup): GroupRow[] {
   return [...rows.values()].sort(
     (a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf || a.nid - b.nid,
   );
+}
+
+/**
+ * Collapse a played group into a self-contained final table (nation names, not
+ * nids) for archiving — the Light unit a past campaign keeps in place of its
+ * fixtures. `nations` maps each nid to its name.
+ */
+export function groupTableSummary(group: IntlGroup, nations: string[]): IntlGroupTable {
+  return {
+    confederation: group.confederation,
+    rows: groupTable(group).map((r) => ({
+      nation: nations[r.nid],
+      played: r.played,
+      won: r.won,
+      drawn: r.drawn,
+      lost: r.lost,
+      gf: r.gf,
+      ga: r.ga,
+      gd: r.gd,
+      points: r.points,
+    })),
+  };
 }
 
 /**

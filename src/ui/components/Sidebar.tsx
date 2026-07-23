@@ -19,7 +19,6 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
       <NavLink to="/dashboard" className="nav-link" onClick={onNavigate}>Dashboard</NavLink>
       <NavLink to="/standings" className="nav-link" onClick={onNavigate}>Standings</NavLink>
       <NavLink to="/cup" className="nav-link" onClick={onNavigate}>Continental Cup</NavLink>
-      <NavLink to="/international" className="nav-link" onClick={onNavigate}>International</NavLink>
       <NavLink to="/power-rankings" className="nav-link" onClick={onNavigate}>Power Rankings</NavLink>
       <NavLink to="/schedule" className="nav-link" onClick={onNavigate}>Schedule</NavLink>
       <NavLink to="/leaders" className="nav-link" onClick={onNavigate}>Stat Leaders</NavLink>
@@ -27,6 +26,14 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
       <NavLink to="/history" className="nav-link" onClick={onNavigate}>Club History</NavLink>
       <NavLink to="/season-preview" className="nav-link" onClick={onNavigate}>Season Preview</NavLink>
       <NavLink to="/news" className="nav-link" onClick={onNavigate}>News Feed</NavLink>
+
+      <div className="nav-section">National Teams</div>
+      <NavLink to="/national-teams/world-cup" className="nav-link" onClick={onNavigate}>World Cup</NavLink>
+      <NavLink to="/national-teams/qualifying" className="nav-link" onClick={onNavigate}>Qualifying</NavLink>
+      <NavLink to="/national-teams/schedule" className="nav-link" onClick={onNavigate}>Schedule</NavLink>
+      <NavLink to="/national-teams/power-rankings" className="nav-link" onClick={onNavigate}>Power Rankings</NavLink>
+      <NavLink to="/national-teams/leaders" className="nav-link" onClick={onNavigate}>Stat Leaders</NavLink>
+      <NavLink to="/national-teams/history" className="nav-link" onClick={onNavigate}>History</NavLink>
 
       <div className="nav-section">Team</div>
       <NavLink to="/roster" className="nav-link" onClick={onNavigate}>Roster</NavLink>

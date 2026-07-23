@@ -1,7 +1,7 @@
 import type { Player } from "../players/types.js";
 import type { LeagueTeam } from "../league/generate.js";
 import type { TeamMatchData } from "../league/composites.js";
-import type { NationSquad } from "./types.js";
+import type { NationSquad, IntlPowerSnapshot } from "./types.js";
 import { leagueMatchData } from "../league/composites.js";
 import { chooseBestFormation, FORMATIONS } from "../lineup/formations.js";
 import { selectXI } from "../lineup/selectXI.js";
@@ -91,6 +91,18 @@ export function buildSquads(players: Player[]): NationSquad[] {
     if (squad) squads.push(squad);
   }
   return squads.sort((a, b) => b.rating - a.rating || a.nation.localeCompare(b.nation));
+}
+
+/**
+ * A national-team power ranking: every eligible nation, strongest first, by its
+ * best-available-squad rating. Taken when a campaign is drawn so it reflects
+ * end-of-season squads — the raw material for the Power Rankings tab.
+ */
+export function buildPowerSnapshot(players: Player[], season: number): IntlPowerSnapshot {
+  return {
+    season,
+    ranks: buildSquads(players).map((s) => ({ nation: s.nation, rating: s.rating })),
+  };
 }
 
 /**

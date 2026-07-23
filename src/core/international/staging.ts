@@ -4,7 +4,10 @@ import type { CareerDelta } from "./simIntl.js";
 import { emptyIntlCareer } from "./types.js";
 import { emptyCareerDelta } from "./simIntl.js";
 import { initQualifying, playQualifying } from "./qualifying.js";
-import { initTournament, playTournamentGroups, playTournamentRound, summarize } from "./tournament.js";
+import {
+  initTournament, playTournamentGroups, playTournamentRound, summarize, summarizeQualifying,
+} from "./tournament.js";
+import { buildPowerSnapshot } from "./squads.js";
 import { isQualifyingSeason } from "../constants.js";
 
 /**
@@ -89,17 +92,25 @@ export function initInternationalCampaign(
   endingSeason: number,
   lid: number,
 ): InternationalState {
+  // A power-ranking snapshot of every eligible nation, taken now on the
+  // just-finished club season's squads (only kept if a campaign is actually
+  // drawn below).
+  const withSnapshot = (drawn: InternationalState): InternationalState => ({
+    ...drawn,
+    powerRankings: [...state.powerRankings, buildPowerSnapshot(players, endingSeason)],
+  });
+
   if (isQualifyingSeason(endingSeason)) {
     const campaign = initQualifying(players, endingSeason);
     if (!campaign) return { ...state, stage: null };
-    return { ...state, qualifying: campaign, stage: "qualifying" };
+    return withSnapshot({ ...state, qualifying: campaign, stage: "qualifying" });
   }
 
   const qualified = state.qualifying?.qualified;
   if (!qualified || qualified.length === 0) return { ...state, stage: null };
   const tournament = initTournament(qualified, players, endingSeason, lid);
   if (!tournament) return { ...state, stage: null };
-  return { ...state, tournament, stage: "groups" };
+  return withSnapshot({ ...state, tournament, stage: "groups" });
 }
 
 /**
@@ -117,7 +128,12 @@ export function playIntlStage(
       if (!state.qualifying) return { international: { ...state, stage: "done" }, players };
       const { campaign, delta } = playQualifying(state.qualifying, players, lid);
       return {
-        international: { ...state, qualifying: campaign, stage: "done" },
+        international: {
+          ...state,
+          qualifying: campaign,
+          qualifyingHistory: [...state.qualifyingHistory, summarizeQualifying(campaign)],
+          stage: "done",
+        },
         players: applyCareerDelta(players, delta, null, null),
       };
     }

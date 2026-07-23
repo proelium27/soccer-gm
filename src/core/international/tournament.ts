@@ -1,8 +1,10 @@
 import type { Player } from "../players/types.js";
-import type { IntlTournament, IntlTournamentSummary, NationSquad } from "./types.js";
+import type {
+  IntlTournament, IntlTournamentSummary, IntlQualifyingCampaign, IntlQualifyingSummary, NationSquad,
+} from "./types.js";
 import type { CareerDelta } from "./simIntl.js";
 import { buildSquads, nationMatchData } from "./squads.js";
-import { buildGroup, potDraw } from "./groups.js";
+import { buildGroup, potDraw, groupTableSummary } from "./groups.js";
 import {
   playGroups, seedBracket, playKnockoutRound,
   emptyCareerDelta, mergeCareerDelta, TOURNAMENT_GROUP_STREAM,
@@ -218,5 +220,31 @@ export function summarize(tournament: IntlTournament, players: Player[]): IntlTo
     },
     topScorer,
     field: tournament.nations,
+    // Light archival: final group tables + every knockout scoreline, enough to
+    // redraw the tournament and derive each nation's finish without its squads.
+    groups: tournament.groups.map((g) => groupTableSummary(g, tournament.nations)),
+    knockout: tournament.ties.map((t) => ({
+      round: t.round,
+      home: tournament.nations[t.home],
+      away: tournament.nations[t.away],
+      homeGoals: t.homeGoals,
+      awayGoals: t.awayGoals,
+      winner: tournament.nations[t.winner],
+      pens: t.wentToPens ? { home: t.homePens, away: t.awayPens } : null,
+    })),
+  };
+}
+
+/**
+ * Collapse a finished qualifying campaign into its Light archived form: final
+ * group tables and the qualifiers, no per-match detail (the current campaign
+ * keeps that in full until the next one replaces it).
+ */
+export function summarizeQualifying(campaign: IntlQualifyingCampaign): IntlQualifyingSummary {
+  return {
+    season: campaign.season,
+    entered: campaign.nations.length,
+    groups: campaign.groups.map((g) => groupTableSummary(g, campaign.nations)),
+    qualified: campaign.qualified,
   };
 }

@@ -394,8 +394,11 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
               <>
                 <p className="card-text">
                   {intlStageHeadline(league.international.stage as PlayableStage)}{" "}
-                  Follow it on the <Link to="/international">International</Link> page.
-                  You'll advance to {seasonYear(league.season + 1)} once it wraps up.
+                  Follow it on the{" "}
+                  <Link to={league.international.stage === "qualifying" ? "/national-teams/qualifying" : "/national-teams/world-cup"}>
+                    National Teams
+                  </Link>{" "}
+                  pages. You'll advance to {seasonYear(league.season + 1)} once it wraps up.
                 </p>
                 <div className="d-flex flex-wrap gap-2">
                   <button
