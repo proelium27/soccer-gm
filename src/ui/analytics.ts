@@ -32,6 +32,8 @@ export interface GameEvents {
   free_agent_signed: Record<string, never>;
   /** The user changed their team's formation. */
   formation_changed: { formation: string };
+  /** The user clicked "Best XI" to auto-pick the strongest formation + lineup. */
+  best_xi_auto_picked: { formation: string };
   /** The user listed one of their players for loan. */
   player_loaned_out: { seasons: 1 | 2 | 3 };
   /** The user released a player from their senior roster. */

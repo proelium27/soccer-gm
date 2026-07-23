@@ -506,7 +506,10 @@ export function Manual() {
             match strength is rolled up from whichever eleven the formation fields, so a shape that
             starts two strikers (say 4-4-2) puts a different XI on the pitch than 4-3-3. Changing
             formation resets your Starting XI to the auto-picked best fit for the new shape, so you
-            re-arrange from a sensible starting point. Each AI club automatically lines up in
+            re-arrange from a sensible starting point. If you'd rather not fiddle with it, hit the{" "}
+            <strong>Best XI</strong> button next to the formation dropdown: it picks whichever of the
+            nine shapes fields your strongest eleven and fills the lineup for you in one click, the
+            same way the AI sets up its own clubs. Each AI club automatically lines up in
             whichever of the nine shapes fields its own strongest eleven, re-checked at the end of
             each transfer window as its squad changes. On the Roster page, your Starting XI sits on
             a pitch, one chip per slot. Drag a bench player from the bench table onto a slot to swap
@@ -900,7 +903,7 @@ export function Manual() {
         <Section id="faq" title="FAQ & Known Quirks">
           <p><strong>How do I win?</strong> You don't, the game never ends. Set your own goal: a title, a decade of dominance, an all-academy XI.</p>
           <p><strong>Where can I see that a player is injured?</strong> Injured players show a red cross on your Roster (on the pitch chip and next to their name in the tables) and on their profile, and your Dashboard has an Injuries list of everyone currently out and roughly how long. They sit out on their own until they're fit.</p>
-          <p><strong>Can I change formation?</strong> Yep. Pick from nine shapes (4-3-3, 4-4-2, 3-5-2, 5-3-2, 4-2-3-1, 4-5-1, 3-4-3, 5-4-1, 4-3-1-2) in the dropdown above the pitch on the Roster page. It changes which eleven you field (and so your match strength), and resets your Starting XI to the best fit for the new shape. Each AI club automatically uses whichever shape fields its own strongest eleven, refreshed at the end of each transfer window (summer and winter).</p>
+          <p><strong>Can I change formation?</strong> Yep. Pick from nine shapes (4-3-3, 4-4-2, 3-5-2, 5-3-2, 4-2-3-1, 4-5-1, 3-4-3, 5-4-1, 4-3-1-2) in the dropdown above the pitch on the Roster page. It changes which eleven you field (and so your match strength), and resets your Starting XI to the best fit for the new shape. Or just click <strong>Best XI</strong> next to the dropdown to let the game pick the shape that fields your strongest eleven and fill the lineup for you. Each AI club automatically uses whichever shape fields its own strongest eleven, refreshed at the end of each transfer window (summer and winter).</p>
           <p><strong>Can I go into debt?</strong> AI clubs are tuned never to. You can, by hoarding elite wages past what the base allocation covers. The Finance page shows you the shortfall before it hits. There are no debt consequences yet beyond the number itself.</p>
           <p><strong>I bought a striker in January and his whole season's stats show at my club.</strong> Season stats are one running total per player and show at his current club. There's no per-club split for mid-season movers yet. (Known quirk.)</p>
           <p><strong>A recommended target or incoming offer disappeared.</strong> Both lists are recalculated live from the state of the league, so a target can get bought by an AI club right out from under you, and an offer can drift if the bidding club's situation changes. Deals you've already agreed to are never affected.</p>

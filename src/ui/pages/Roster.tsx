@@ -263,7 +263,7 @@ function RosterTable({
 export function Roster() {
   const {
     league, releasePlayerAction, extendContractAction, setTransferListedAction, setMoreMinutesAction,
-    setLineupAction, setFormationAction,
+    setLineupAction, setFormationAction, autoPickBestXIAction,
   } = useLeague();
   const [dragOverPid, setDragOverPid] = useState<number | null>(null);
   const [dragOverSlotIndex, setDragOverSlotIndex] = useState<number | null>(null);
@@ -450,9 +450,17 @@ export function Roster() {
                 ))}
               </select>
             </div>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-primary"
+              onClick={() => void autoPickBestXIAction()}
+            >
+              Best XI
+            </button>
           </div>
           <p className="text-muted small mb-2">
             Changing formation resets your Starting XI to the auto-picked best fit for the new shape.
+            Best XI picks the formation that fields your strongest eleven and fills it for you.
           </p>
           <div className="form-check form-switch mb-2">
             <input
