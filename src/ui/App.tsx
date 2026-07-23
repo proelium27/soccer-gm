@@ -8,6 +8,7 @@ import { NewLeague } from "./pages/NewLeague.js";
 import { Dashboard } from "./pages/Dashboard.js";
 import { Standings } from "./pages/Standings.js";
 import { Cup } from "./pages/Cup.js";
+import { International } from "./pages/International.js";
 import { PowerRankings } from "./pages/PowerRankings.js";
 import { Schedule } from "./pages/Schedule.js";
 import { Roster } from "./pages/Roster.js";
@@ -47,6 +48,7 @@ export function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/standings" element={<Standings />} />
             <Route path="/cup" element={<Cup />} />
+            <Route path="/international" element={<International />} />
             <Route path="/power-rankings" element={<PowerRankings />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/news" element={<NewsFeed />} />

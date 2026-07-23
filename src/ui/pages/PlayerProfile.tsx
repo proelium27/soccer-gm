@@ -165,6 +165,15 @@ export function PlayerProfile() {
         )}
       </p>
 
+      {player.intl && player.intl.caps > 0 && (
+        <p className="mb-3 small">
+          <span className="text-muted">{player.nationality}:</span>{" "}
+          <strong>{player.intl.caps}</strong> caps, <strong>{player.intl.goals}</strong> goals
+          {player.intl.tournaments > 0 && <> &middot; {player.intl.tournaments} {player.intl.tournaments === 1 ? "tournament" : "tournaments"}</>}
+          {player.intl.titles > 0 && <> &middot; <strong>{player.intl.titles}</strong> {player.intl.titles === 1 ? "title" : "titles"}</>}
+        </p>
+      )}
+
       {league.godMode && (
         <div className="gm-panel">
           <div className="gm-panel-title">God Mode</div>

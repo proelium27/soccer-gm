@@ -28,6 +28,7 @@ import { settleSeasonEnd, chargeSeasonStart, wageBill, financeScale } from "./fi
 import { academyContractTerms } from "./contracts.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
 import { competitionOf } from "./competitions.js";
+import { runInternationalOffseason } from "./international/index.js";
 import { hashInts } from "../engine/rng.js";
 
 /** Awards for the season that just ended, computed separately per competition from players' current club membership. */
@@ -89,12 +90,28 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   teams = loanReturns.teams;
   let activeLoans = loanReturns.activeLoans;
 
+  // 1.7. International football (see core/international): a qualifying campaign
+  //      every odd season, the tournament it fills every even one.
+  //
+  //      Deliberately placed *before* progression and retirement, so a nation
+  //      picks its squad from the ratings and injuries the club season actually
+  //      finished with — the tournament belongs to the summer just gone. That
+  //      also means a player who ends the season injured genuinely misses it,
+  //      and a player about to retire gets one last campaign.
+  //
+  //      Every international match runs on its own seeded rng stream, never the
+  //      shared `rng` threaded through this function, so adding or removing the
+  //      feature cannot shift a single club result.
+  const intl = runInternationalOffseason(
+    league.international, renewals.players, endingSeason, league.lid,
+  );
+
   // 2. Progress every remaining player's ratings; heal any lingering injury.
   //    Academy players have no senior appearances to read minutes from (they
   //    don't play senior matches), so they're assumed to play a full season
   //    rather than being penalized with the worst-case minutesFactor.
   const academyPids = new Set(teams.flatMap((t) => t.academyRoster));
-  let players: Player[] = renewals.players.map((p) => {
+  let players: Player[] = intl.players.map((p) => {
     const progressed = progressPlayer(rng, p, endingSeason, academyPids.has(p.pid));
     return progressed.injury ? { ...progressed, injury: null } : progressed;
   });
@@ -368,6 +385,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     // from the tier-1 tables just decided above (top CUP_TEAMS_PER_LEAGUE of
     // each). buildCupState returns null if a full bracket can't be fielded.
     cup: buildCupState(league.competitions, tablesByCompId, nextSeason),
+    international: intl.international,
     cupHistory: league.cup ? [...league.cupHistory, league.cup] : league.cupHistory,
     seasonHistory: [
       ...league.seasonHistory,

@@ -34,6 +34,15 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-23",
+    title: "Your players go to the World Cup now",
+    items: [
+      "I added international football. Your players represent their countries in the summer, on a two-year cycle: every odd season's offseason there's qualifying, and the season after that the 16 who made it play a World Cup (four groups of four, then quarter-finals, semis and a final). It all happens between seasons, so it doesn't touch your league at all. There's a new International page in the sidebar where you can follow it.",
+      "Nobody manages a national team, not even you. Each country just picks its best available squad, so the whole thing is really about developing players good enough to get called up and then watching how they do. Every nation with enough players in the world enters qualifying, and confederations that actually have strong teams get more places, so the field ends up looking like it should. In my testing the winners were nations like Brazil, France and the Netherlands, which felt right.",
+      "One thing I like: squads are picked from the shape your players are in at the end of the club season, injuries and all. So if your star pulls up injured in May, he genuinely misses the tournament. Caps, goals, tournaments and titles all build up on each player's profile over his career. To be clear, none of it feeds back into your club, it's purely there for the story of it. Might change that later, we'll see.",
+    ],
+  },
+  {
+    date: "2026-07-23",
     title: "Yes, an AI wrote these",
     items: [
       "Quick confession: all these changelog entries were written with AI, because I am too lazy to write them myself. The changes themselves are real and they're mine, I just don't want to sit down and type up a nice little note every time I touch something. So the AI does it. Now you know.",
