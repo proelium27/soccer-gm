@@ -29,6 +29,10 @@ export function Changelog() {
           Every notable change to the game, newest first. For a full explanation of how
           anything here works, see the <Link to="/manual">Manual</Link>.
         </p>
+        <p className="text-muted small">
+          And yes, all these logs were written with AI, because I'm too lazy to write them
+          myself.
+        </p>
 
         {CHANGELOG.map((entry, i) => (
           <div className="card mb-3" key={`${entry.date}-${i}`}>
