@@ -17,6 +17,7 @@ import { formatWeeklyWage, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { Flag } from "../components/Flag.js";
+import { CountryFlag } from "../components/CountryFlag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { sortByPosThenOvr } from "./Roster.js";
@@ -243,7 +244,8 @@ export function PowerRankings() {
                           }
                           title={comp.name}
                         >
-                          {comp.country.slice(0, 3).toUpperCase()} D{tier} #{divisionRanks.get(r.tid)}
+                          <CountryFlag country={comp.country} size={11} />
+                          <span>D{tier} #{divisionRanks.get(r.tid)}</span>
                         </span>
                       );
                     })()}

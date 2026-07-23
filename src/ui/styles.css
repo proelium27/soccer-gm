@@ -574,7 +574,9 @@ a:hover {
    Division badge (Power Rankings — differentiate D1/D2 clubs at a glance)
    ========================================================================= */
 .division-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.7rem;
   font-weight: var(--sg-weight-semibold);
   line-height: 1;
@@ -594,9 +596,65 @@ a:hover {
   border: 1px solid var(--sg-border);
 }
 
-/* Nationality flag */
+/* Nationality flag (SVG image, sized by the Flag component's `size` prop) */
+.player-flag-wrap {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
 .player-flag {
-  font-size: 0.95em;
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 2px;
+  /* subtle outline so white/light flags stay legible on dark backgrounds */
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.25);
+  object-fit: cover;
+}
+.player-flag-fallback {
+  width: 18px;
+  height: 13px;
+  background: var(--sg-surface-2, #333);
+}
+/* Country-level flag (New League picker, Power Rankings badge) — same art and
+   treatment as the player flag. */
+.country-flag {
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 2px;
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.25);
+  object-fit: cover;
+}
+.country-flag-fallback {
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 2px;
+  background: var(--sg-surface-2, #333);
+}
+/* CSS-only hover tooltip naming the country (mouse aid; aria-label covers AT). */
+.player-flag-tip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 5px;
+  z-index: 1060;
+  padding: 2px 7px;
+  background: var(--sg-surface-2);
+  border: 1px solid var(--sg-border-strong);
+  border-radius: var(--sg-radius);
+  box-shadow: var(--sg-shadow);
+  color: var(--sg-text);
+  font-size: var(--sg-text-sm);
+  font-weight: var(--sg-weight-semibold);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.08s ease;
+}
+.player-flag-wrap:hover .player-flag-tip {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* =========================================================================
