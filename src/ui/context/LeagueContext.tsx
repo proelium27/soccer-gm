@@ -28,7 +28,7 @@ import {
   type PlayerEdit, type NewPlayerSpec,
 } from "../../core/godMode.js";
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
-import { teamSlots, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
+import { teamSlots, chooseBestFormation, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { SimOverlay } from "../components/SimOverlay.js";
 import { trackEvent } from "../analytics.js";
 
@@ -64,6 +64,7 @@ interface LeagueContextValue {
   setMoreMinutesAction: (pid: number, enabled: boolean) => Promise<void>;
   setLineupAction: (starters: number[]) => Promise<void>;
   setFormationAction: (formation: FormationId) => Promise<void>;
+  autoPickBestXIAction: () => Promise<void>;
   // God Mode sandbox actions (no-ops in the UI unless league.godMode is true).
   setGodModeAction: (on: boolean) => Promise<void>;
   movePlayerToClubAction: (pid: number, tid: number) => Promise<void>;
@@ -437,6 +438,26 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     };
   }), [mutate]);
 
+  // Pick the shape that lets the user field their strongest eleven (the same
+  // chooseBestFormation the AI uses on its own squads) and clear the manual
+  // lineup so that shape's best XI auto-fills — a one-click "just play my best
+  // team" for people who don't want to fiddle with formations and drag-drop.
+  const autoPickBestXIAction = useCallback(() => mutate((l) => {
+    const user = l.teams.find((t) => t.tid === l.meta.userTid);
+    if (!user) return null;
+    const rosterSet = new Set(user.roster);
+    const rosterPlayers = l.players.filter((p) => rosterSet.has(p.pid));
+    if (rosterPlayers.length === 0) return null;
+    const formation = chooseBestFormation(rosterPlayers);
+    trackEvent("best_xi_auto_picked", { formation });
+    return {
+      ...l,
+      teams: l.teams.map((t) =>
+        t.tid === l.meta.userTid ? { ...t, formation, starters: null } : t,
+      ),
+    };
+  }), [mutate]);
+
   // --- God Mode sandbox actions ---
   // All routed through `mutate` like every other action, so they serialize and
   // can't lose a write. They bypass the realism guardrails on purpose; the UI
@@ -542,6 +563,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     setMoreMinutesAction,
     setLineupAction,
     setFormationAction,
+    autoPickBestXIAction,
     setGodModeAction,
     movePlayerToClubAction,
     releasePlayerGodModeAction,
@@ -561,6 +583,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     rejectInboundOfferAction, counterInboundOfferAction, extendContractAction,
     listPlayerForLoanAction, unlistPlayerForLoanAction, acceptLoanOfferAction,
     rejectLoanOfferAction, setTransferListedAction, setMoreMinutesAction, setLineupAction, setFormationAction,
+    autoPickBestXIAction,
     setGodModeAction, movePlayerToClubAction, releasePlayerGodModeAction,
     editPlayerAction, createPlayerAction, setClubFinancesAction,
     simming, simOverlayOpen, busy, saveToDb, doExport, doImport,
