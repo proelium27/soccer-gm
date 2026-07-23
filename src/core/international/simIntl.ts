@@ -27,6 +27,18 @@ export function emptyCareerDelta(): CareerDelta {
 }
 
 /**
+ * Fold `source` into `target` in place. A staged campaign produces one delta per
+ * stage; the bulk path plays every stage into a single delta by merging, so a
+ * click-through and a one-pass sim credit exactly the same caps/goals/assists.
+ */
+export function mergeCareerDelta(target: CareerDelta, source: CareerDelta): void {
+  for (const [pid, s] of source) {
+    const t = target.get(pid) ?? { caps: 0, goals: 0, assists: 0 };
+    target.set(pid, { caps: t.caps + s.caps, goals: t.goals + s.goals, assists: t.assists + s.assists });
+  }
+}
+
+/**
  * Fold one match's attribution into a career delta. A player has a box-score
  * line only if he actually featured, so a line is exactly one cap — the same
  * rule simThrough uses to count a club appearance.
@@ -108,11 +120,45 @@ export function seedBracket(groups: IntlGroup[]): number[] {
 }
 
 /**
- * Play the whole knockout from a seeded bracket: quarter-finals, semi-finals,
- * final. Each round gets its own seeded stream, and each tie is a single match
- * decided by the Continental Cup's own `resolveCupTie` — 90', extra time if
- * level, shootout if still level. `matchday` is 0 on every tie: international
- * football sits outside the club calendar entirely.
+ * Play exactly one knockout round — every tie between consecutive pairs of the
+ * current `field` — and return the round's ties plus the nids that advanced.
+ * `round` picks the seeded stream (`KNOCKOUT_STREAM + round`), so a round plays
+ * identically whether it is reached in one bulk pass or one user click at a
+ * time: the staged offseason and the bulk `playKnockout` share this function and
+ * therefore always agree. Each tie is decided by the Continental Cup's own
+ * `resolveCupTie` — 90', extra time if level, shootout if still level.
+ * `matchday` is 0 on every tie: international football sits outside the club
+ * calendar entirely.
+ */
+export function playKnockoutRound(
+  field: number[],
+  matchData: Map<number, TeamMatchData>,
+  lid: number,
+  season: number,
+  round: number,
+  delta: CareerDelta,
+): { ties: CupTie[]; winners: number[] } {
+  const rng = mulberry32(hashInts(lid, season, KNOCKOUT_STREAM + round, 30));
+  const ties: CupTie[] = [];
+  const winners: number[] = [];
+  for (let i = 0; i + 1 < field.length; i += 2) {
+    const home = field[i];
+    const away = field[i + 1];
+    const hd = matchData.get(home);
+    const ad = matchData.get(away);
+    if (!hd || !ad) continue; // defensive
+    const tie = resolveCupTie(rng, home, away, hd, ad, round, 0);
+    accumulate(delta, tie.boxScore);
+    ties.push(tie);
+    winners.push(tie.winner);
+  }
+  return { ties, winners };
+}
+
+/**
+ * Play the whole knockout from a seeded bracket in one pass: quarter-finals,
+ * semi-finals, final. A thin loop over `playKnockoutRound`, so a bulk sim and a
+ * click-through of the same bracket produce byte-identical results.
  */
 export function playKnockout(
   bracket: number[],
@@ -127,20 +173,9 @@ export function playKnockout(
   let championNid: number | null = null;
 
   while (field.length > 1) {
-    const rng = mulberry32(hashInts(lid, season, KNOCKOUT_STREAM + round, 30));
-    const winners: number[] = [];
-    for (let i = 0; i + 1 < field.length; i += 2) {
-      const home = field[i];
-      const away = field[i + 1];
-      const hd = matchData.get(home);
-      const ad = matchData.get(away);
-      if (!hd || !ad) continue; // defensive
-      const tie = resolveCupTie(rng, home, away, hd, ad, round, 0);
-      accumulate(delta, tie.boxScore);
-      ties.push(tie);
-      winners.push(tie.winner);
-    }
+    const { ties: roundTies, winners } = playKnockoutRound(field, matchData, lid, season, round, delta);
     if (winners.length === 0) break; // defensive: nothing playable
+    ties.push(...roundTies);
     if (winners.length === 1) championNid = winners[0];
     field = winners;
     round++;

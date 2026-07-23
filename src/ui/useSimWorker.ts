@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LeagueStore } from "../core/leagueState.js";
 import type { PlayedMatch } from "../core/standings.js";
 import type { CupTie } from "../core/cup/types.js";
-import type { SimThrough, WorkerResponse } from "../worker/protocol.js";
+import type { SimThrough, IntlMode, WorkerResponse } from "../worker/protocol.js";
 
 export type SimProgress = {
   matchday: number;
@@ -35,7 +35,11 @@ export function useSimWorker() {
         progressRef.current?.({ matchday, matchdayIndex, totalMatchdays, results, cupTies });
         return;
       }
-      if (e.data.type === "simResult" || e.data.type === "offseasonResult") {
+      if (
+        e.data.type === "simResult" ||
+        e.data.type === "offseasonResult" ||
+        e.data.type === "intlResult"
+      ) {
         setSimming(false);
         pendingRef.current?.resolve(e.data.league);
         pendingRef.current = null;
@@ -58,7 +62,10 @@ export function useSimWorker() {
 
   const post = useCallback(
     (
-      command: { type: "sim"; through: SimThrough; league: LeagueStore } | { type: "offseason"; league: LeagueStore },
+      command:
+        | { type: "sim"; through: SimThrough; league: LeagueStore }
+        | { type: "offseason"; league: LeagueStore }
+        | { type: "intl"; mode: IntlMode; league: LeagueStore },
       onProgress: ((progress: SimProgress) => void) | null,
     ): Promise<LeagueStore> => {
       return new Promise((resolve, reject) => {
@@ -89,5 +96,10 @@ export function useSimWorker() {
     [post],
   );
 
-  return { sim, runOffseason, simming };
+  const runIntlStage = useCallback(
+    (mode: IntlMode, league: LeagueStore): Promise<LeagueStore> => post({ type: "intl", mode, league }, null),
+    [post],
+  );
+
+  return { sim, runOffseason, runIntlStage, simming };
 }

@@ -326,6 +326,14 @@ export function Manual() {
             seasons, and the <strong>International</strong> page is where you follow it.
           </p>
           <p>
+            You play it out yourself, a stage at a time. When you reach the offseason in an
+            international summer, the Dashboard hands you the buttons: in a qualifying year you play
+            qualifying; in a World Cup year you play the group stage, then the quarter-finals, then
+            the semis, then the final, one click each, so you can watch it unfold. If you'd rather
+            not linger, "Sim through the World Cup" plays the rest in one go. You can't advance into
+            the next season until the tournament has finished.
+          </p>
+          <p>
             Every nation with enough players in the world enters qualifying. They're split into
             groups by confederation and play each other home and away, and the number of places
             each confederation gets depends on how many genuinely strong nations it has, so the 16
@@ -340,7 +348,8 @@ export function Manual() {
             job isn't to pick the team, it's to develop players worth picking, then watch how they
             get on. One consequence worth knowing: a squad is chosen from the ratings and injuries
             your players finished the club season with, so a star who ends the year injured really
-            does miss the tournament.
+            does miss the tournament. The whole thing also plays out before anyone retires, so a
+            veteran in his final season gets one last crack at it.
           </p>
           <p>
             International football is a record, not a lever. Caps, goals, tournaments played and

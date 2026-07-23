@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, type ReactNode } from "react";
 import type { LeagueStore } from "../../core/leagueState.js";
-import type { SimThrough } from "../../worker/protocol.js";
+import type { SimThrough, IntlMode } from "../../worker/protocol.js";
 import { useSimWorker, type SimProgress } from "../useSimWorker.js";
 import { saveLeague, loadLeague } from "../../db/leagueDb.js";
 import { getActiveLid, setActiveLid, clearActiveLid } from "../../db/activeLeague.js";
@@ -43,6 +43,8 @@ interface LeagueContextValue {
   importRosterAction: (lid: number, file: RosterFile) => Promise<Omit<RosterFileApplyResult, "league">>;
   simAction: (through: SimThrough) => Promise<void>;
   offseasonAction: () => Promise<void>;
+  /** Play the next staged international stage ("stage") or every remaining one ("through"). */
+  intlStageAction: (mode: IntlMode) => Promise<void>;
   signFreeAgentAction: (pid: number) => Promise<void>;
   releasePlayerAction: (pid: number) => Promise<void>;
   signToAcademyAction: (pid: number) => Promise<void>;
@@ -90,7 +92,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const [loadingActiveLeague, setLoadingActiveLeague] = useState(
     () => getActiveLid() !== null,
   );
-  const { sim, runOffseason, simming } = useSimWorker();
+  const { sim, runOffseason, runIntlStage, simming } = useSimWorker();
 
   const [simOverlayOpen, setSimOverlayOpen] = useState(false);
   const [animQueue, setAnimQueue] = useState<SimProgress[]>([]);
@@ -262,6 +264,19 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       console.error("Offseason failed:", err);
     }
   }), [runExclusive, runOffseason, commitLeague]);
+
+  const intlStageAction = useCallback((mode: IntlMode) => runExclusive(async () => {
+    const current = leagueRef.current;
+    if (!current) return;
+    try {
+      const result = await runIntlStage(mode, current);
+      const lid = await saveLeague(result);
+      commitLeague({ ...result, lid });
+      trackEvent("intl_stage_played", { mode });
+    } catch (err) {
+      console.error("International stage failed:", err);
+    }
+  }), [runExclusive, runIntlStage, commitLeague]);
 
   const signFreeAgentAction = useCallback((pid: number) => mutate((l) => {
     const { teams, players } = signFreeAgent(
@@ -521,6 +536,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     importRosterAction,
     simAction,
     offseasonAction,
+    intlStageAction,
     signFreeAgentAction,
     releasePlayerAction,
     signToAcademyAction,
@@ -554,7 +570,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     importJSON: doImport,
   }), [
     league, loadingActiveLeague, setLeague, loadLeagueAction, switchLeagueAction,
-    customizeTeamsAction, importRosterAction, simAction, offseasonAction, signFreeAgentAction,
+    customizeTeamsAction, importRosterAction, simAction, offseasonAction, intlStageAction, signFreeAgentAction,
     releasePlayerAction, signToAcademyAction, promoteFromAcademyAction,
     releaseAcademyPlayerAction, extendAcademyContractAction, setScoutingSpendAction,
     makeOfferAction, acceptCounterAction, acceptInboundOfferAction,

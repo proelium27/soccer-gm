@@ -28,6 +28,7 @@ import { dueCupRound, dueCupLeg, cupFinalists, playInDue, playoffDue, koFinalRou
 import { leaguePhaseDue } from "./cup/leaguePhase.js";
 import { playKnockoutLeg, playPlayIn, playLeaguePhaseRound, playPlayoff } from "./cup/simCup.js";
 import { clampBudget, financeScale } from "./finance/budget.js";
+import { initInternationalCampaign } from "./international/index.js";
 import { POWER_SNAPSHOT_INTERVAL } from "./constants.js";
 
 function accumulateStats(
@@ -397,11 +398,21 @@ export function simThrough(
       ? remaining
       : [...toSim.filter((g) => g.matchday >= stoppedBeforeMatchday), ...remaining];
 
+  // Entering the offseason: draw this offseason's international campaign (if any)
+  // so its fixtures exist, unplayed, before the user is offered the stage
+  // buttons. Purely a draw on end-of-season ratings — no player is touched and
+  // no shared-stream rng is drawn — so it can't perturb club results.
+  const enteringOffseason = finalRemaining.length === 0;
+  const international = enteringOffseason
+    ? initInternationalCampaign(league.international, currentPlayers, league.season, league.lid)
+    : league.international;
+
   return {
     ...league,
     teams: currentTeams,
     players: currentPlayers,
-    phase: finalRemaining.length === 0 ? "offseason" : "regular",
+    phase: enteringOffseason ? "offseason" : "regular",
+    international,
     schedule: finalRemaining,
     played: [...league.played, ...newResults],
     transfers,

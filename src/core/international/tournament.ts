@@ -3,7 +3,11 @@ import type { IntlTournament, IntlTournamentSummary, NationSquad } from "./types
 import type { CareerDelta } from "./simIntl.js";
 import { buildSquads, nationMatchData } from "./squads.js";
 import { buildGroup, potDraw } from "./groups.js";
-import { playGroups, seedBracket, playKnockout, emptyCareerDelta, TOURNAMENT_GROUP_STREAM } from "./simIntl.js";
+import {
+  playGroups, seedBracket, playKnockoutRound,
+  emptyCareerDelta, mergeCareerDelta, TOURNAMENT_GROUP_STREAM,
+} from "./simIntl.js";
+import type { CupTie } from "../cup/types.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
 import { INTL_TOURNAMENT_NAME, INTL_FIELD_SIZE, INTL_GROUPS } from "../constants.js";
 
@@ -43,17 +47,19 @@ export function assembleField(qualified: string[], players: Player[]): NationSqu
 }
 
 /**
- * Play a whole tournament in one pass: pot draw into INTL_GROUPS groups, a
- * single round-robin in each, then the knockout its top finishers seed. Returns
- * the finished tournament plus the international appearances it generated.
- * Null when the field can't be filled (see assembleField).
+ * Draw a tournament without playing a match: assemble the field from the
+ * qualifiers, pot-draw them into INTL_GROUPS groups whose fixtures start
+ * unplayed, and leave the bracket empty (it can only be seeded once the groups
+ * are played). No player is touched and no shared-stream rng is drawn, so this
+ * is safe to run the instant the offseason begins. Null when the field can't be
+ * filled (see assembleField).
  */
-export function runTournament(
+export function initTournament(
   qualified: string[],
   players: Player[],
   season: number,
   lid: number,
-): { tournament: IntlTournament; delta: CareerDelta } | null {
+): IntlTournament | null {
   const squads = assembleField(qualified, players);
   if (squads.length < INTL_FIELD_SIZE) return null;
 
@@ -63,26 +69,88 @@ export function runTournament(
   const drawn = potDraw(seeded, INTL_GROUPS, drawRng);
   const groups = drawn.map((nids, i) => buildGroup(i, nids, null));
 
+  return { season, name: INTL_TOURNAMENT_NAME, nations, squads, groups, bracket: [], ties: [], championNid: null };
+}
+
+/**
+ * Play a drawn tournament's group stage, then seed the knockout bracket from the
+ * final tables. Returns the tournament with played groups and a filled bracket,
+ * plus the group-stage appearances.
+ */
+export function playTournamentGroups(
+  tournament: IntlTournament,
+  players: Player[],
+  lid: number,
+): { tournament: IntlTournament; delta: CareerDelta } {
   const delta = emptyCareerDelta();
-  const matchData = nationMatchData(squads, players);
-  const played = playGroups(groups, matchData, lid, season, TOURNAMENT_GROUP_STREAM, true, delta);
-
+  const matchData = nationMatchData(tournament.squads, players);
+  const played = playGroups(tournament.groups, matchData, lid, tournament.season, TOURNAMENT_GROUP_STREAM, true, delta);
   const bracket = seedBracket(played);
-  const { ties, championNid } = playKnockout(bracket, matchData, lid, season, delta);
+  return { tournament: { ...tournament, groups: played, bracket }, delta };
+}
 
-  return {
-    tournament: {
-      season,
-      name: INTL_TOURNAMENT_NAME,
-      nations,
-      squads,
-      groups: played,
-      bracket,
-      ties,
-      championNid,
-    },
-    delta,
-  };
+/**
+ * The nids contesting the next knockout round: the seeded bracket if no round
+ * has been played yet, otherwise the winners of the most recent round in the
+ * order they were played (which is the pairing order for the round to come).
+ */
+function nextKnockoutRound(tournament: IntlTournament): { round: number; field: number[] } {
+  if (tournament.ties.length === 0) return { round: 0, field: [...tournament.bracket] };
+  const lastRound = Math.max(...tournament.ties.map((t) => t.round));
+  const field = tournament.ties.filter((t) => t.round === lastRound).map((t) => t.winner);
+  return { round: lastRound + 1, field };
+}
+
+/**
+ * Play exactly the next knockout round (QF, then SF, then final) of a tournament
+ * whose groups are already played. Each round owns its seed, so playing them one
+ * at a time is byte-identical to playKnockout's one-pass loop. Sets championNid
+ * when the round leaves a single nation standing.
+ */
+export function playTournamentRound(
+  tournament: IntlTournament,
+  players: Player[],
+  lid: number,
+): { tournament: IntlTournament; delta: CareerDelta } {
+  const delta = emptyCareerDelta();
+  const matchData = nationMatchData(tournament.squads, players);
+  const { round, field } = nextKnockoutRound(tournament);
+  const { ties, winners } = playKnockoutRound(field, matchData, lid, tournament.season, round, delta);
+  const nextTies: CupTie[] = [...tournament.ties, ...ties];
+  const championNid = winners.length === 1 ? winners[0] : tournament.championNid;
+  return { tournament: { ...tournament, ties: nextTies, championNid }, delta };
+}
+
+/**
+ * Play a whole tournament in one pass: pot draw, group stage, then the knockout.
+ * The bulk path behind "Sim through the World Cup" and the equivalence baseline
+ * for the staged path — it drives the very same stage functions the staged
+ * offseason clicks through. Null when the field can't be filled (see
+ * assembleField).
+ */
+export function runTournament(
+  qualified: string[],
+  players: Player[],
+  season: number,
+  lid: number,
+): { tournament: IntlTournament; delta: CareerDelta } | null {
+  const drawn = initTournament(qualified, players, season, lid);
+  if (!drawn) return null;
+
+  const delta = emptyCareerDelta();
+  let stage = playTournamentGroups(drawn, players, lid);
+  mergeCareerDelta(delta, stage.delta);
+  let tournament = stage.tournament;
+  while (tournament.championNid === null) {
+    stage = playTournamentRound(tournament, players, lid);
+    mergeCareerDelta(delta, stage.delta);
+    // Defensive: a bracket that can never resolve (missing match data) would
+    // otherwise spin forever — bail if a round advances nobody.
+    if (stage.tournament.ties.length === tournament.ties.length) break;
+    tournament = stage.tournament;
+  }
+
+  return { tournament, delta };
 }
 
 /** The final tie, i.e. the last round played. Null if the knockout never completed. */

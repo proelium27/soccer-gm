@@ -3,13 +3,25 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
+import { simThroughInternational, isIntlStagePending } from "../../src/core/international/index.js";
+import { runTournament } from "../../src/core/international/tournament.js";
 import { buildSquads } from "../../src/core/international/squads.js";
-import { groupByConfederation, allocateSlots, confederationOf } from "../../src/core/international/confederations.js";
+import { allocateSlots, confederationOf } from "../../src/core/international/confederations.js";
 import { roundRobin, groupTable, buildGroup, serpentineGroups, potDraw } from "../../src/core/international/groups.js";
-import { CONFEDERATION_OF } from "../../src/core/international/confederations.js";
 import { namePoolFor } from "../../src/core/players/nationalities.js";
 import * as Nats from "../../src/core/players/nationalities.js";
+import type { LeagueStore } from "../../src/core/leagueState.js";
 import { INTL_FIELD_SIZE, INTL_KO_SIZE } from "../../src/core/constants.js";
+
+/**
+ * Play any staged international campaign that entering the offseason drew, in
+ * full — the headless stand-in for the user clicking the stage buttons (or "sim
+ * through"). A no-op in a non-international offseason.
+ */
+function playInternational(league: LeagueStore): LeagueStore {
+  const r = simThroughInternational(league.international, league.players, league.lid);
+  return { ...league, international: r.international, players: r.players };
+}
 
 /** Advance a fresh league by `n` full seasons, running each offseason. */
 function advance(seed: number, seasons: number) {
@@ -18,6 +30,7 @@ function advance(seed: number, seasons: number) {
   for (let s = 0; s < seasons; s++) {
     league = simThrough(league, "season", rng);
     league = simThrough(league, "season", rng); // clear the cup-final halt
+    league = playInternational(league); // international plays out before the advance
     league = simOffseason(league, rng);
   }
   return league;
@@ -169,5 +182,55 @@ describe("offseason cycle", () => {
     expect(champions.length).toBeGreaterThan(0);
     // A titled player was necessarily named in a tournament squad.
     for (const p of champions) expect(p.intl!.tournaments).toBeGreaterThanOrEqual(1);
+  });
+
+  it("draws the campaign on entering the offseason, and the advance plays it out", () => {
+    const rng = mulberry32(3);
+    let league = createLeagueState(0, rng);
+    league = simThrough(league, "season", rng); // season 1 ends → qualifying drawn
+    league = simThrough(league, "season", rng); // clear any cup-final halt
+    expect(league.phase).toBe("offseason");
+    // Drawn but unplayed: the fixtures exist, and the UI holds "Advance" on this.
+    expect(league.international.stage).toBe("qualifying");
+    expect(isIntlStagePending(league.international)).toBe(true);
+
+    // Advancing plays the pending campaign through, then rolls the season over
+    // (self-contained: a headless advance doesn't need the stages played by hand).
+    const next = simOffseason(league, rng);
+    expect(next.season).toBe(2);
+    expect(next.international.qualifying?.qualified).toHaveLength(INTL_FIELD_SIZE);
+    expect(next.international.stage).toBeNull();
+  });
+
+  it("staged play matches a one-pass runTournament on the same field", () => {
+    const rng = mulberry32(11);
+    let league = createLeagueState(0, rng);
+    // Season 1: qualify.
+    league = simThrough(league, "season", rng);
+    league = simThrough(league, "season", rng);
+    league = playInternational(league);
+    league = simOffseason(league, rng);
+    // Season 2: entering the offseason draws the tournament (stage "groups").
+    league = simThrough(league, "season", rng);
+    league = simThrough(league, "season", rng);
+    expect(league.international.stage).toBe("groups");
+
+    // Play it in stages...
+    const staged = simThroughInternational(league.international, league.players, league.lid);
+    // ...versus one bulk pass over the very same qualifiers and players.
+    const bulk = runTournament(
+      league.international.qualifying!.qualified,
+      league.players,
+      league.season,
+      league.lid,
+    );
+
+    expect(bulk).not.toBeNull();
+    const st = staged.international.tournament!;
+    expect(st.championNid).toBe(bulk!.tournament.championNid);
+    // Every knockout scoreline agrees, so the per-round seeds line up exactly.
+    expect(st.ties.map((t) => [t.round, t.homeGoals, t.awayGoals])).toEqual(
+      bulk!.tournament.ties.map((t) => [t.round, t.homeGoals, t.awayGoals]),
+    );
   });
 });

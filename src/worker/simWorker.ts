@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { simThrough } from "../core/simThrough.js";
 import { simOffseason } from "../core/offseason.js";
+import { playIntlStage, simThroughInternational } from "../core/international/index.js";
 import { mulberry32 } from "../engine/rng.js";
 import type { WorkerCommand, WorkerResponse } from "./protocol.js";
 
@@ -35,6 +36,17 @@ self.onmessage = (e: MessageEvent<WorkerCommand>) => {
     const rng = mulberry32(seed);
     const result = simOffseason(cmd.league, rng);
     const response: WorkerResponse = { type: "offseasonResult", league: result };
+    self.postMessage(response);
+  } else if (cmd.type === "intl") {
+    // Staged international football: play one stage, or every remaining stage.
+    // No rng is threaded in — each international stage runs on its own seeded
+    // stream (see core/international/simIntl.ts), so this stays deterministic.
+    const { international, players } =
+      cmd.mode === "through"
+        ? simThroughInternational(cmd.league.international, cmd.league.players, cmd.league.lid)
+        : playIntlStage(cmd.league.international, cmd.league.players, cmd.league.lid);
+    const result = { ...cmd.league, international, players };
+    const response: WorkerResponse = { type: "intlResult", league: result };
     self.postMessage(response);
   }
 };

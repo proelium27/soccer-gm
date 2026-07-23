@@ -100,6 +100,21 @@ export interface IntlTournamentSummary {
 }
 
 /**
+ * How far this offseason's staged international campaign has progressed, so the
+ * offseason can pause between stages and let the user play them one click at a
+ * time (see core/international/staging.ts). `null` means there is nothing to
+ * play this offseason — an even year with no qualifiers on file, a world too
+ * small to field INTL_FIELD_SIZE nations, or simply a save still mid-club-season
+ * — and the offseason's "Advance" is available immediately. Otherwise "Advance"
+ * is withheld until the stage reaches "done".
+ *  - "qualifying": qualifying groups are drawn but unplayed
+ *  - "groups": tournament groups are drawn but unplayed
+ *  - "qf" | "sf" | "final": that knockout round is the next to play
+ *  - "done": the campaign is finished for this offseason
+ */
+export type IntlStage = "qualifying" | "groups" | "qf" | "sf" | "final" | "done" | null;
+
+/**
  * All international state for a save.
  *
  * Only the *current* qualifying campaign and the *current* tournament are held
@@ -114,6 +129,8 @@ export interface InternationalState {
   tournament: IntlTournament | null;
   /** Every completed tournament, oldest first. */
   history: IntlTournamentSummary[];
+  /** Progress of the current offseason's staged campaign; see IntlStage. */
+  stage: IntlStage;
 }
 
 /**

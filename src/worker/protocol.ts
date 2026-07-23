@@ -4,15 +4,20 @@ import type { CupTie } from "../core/cup/types.js";
 
 export type SimThrough = "game" | "month" | "deadline" | "season";
 
+/** Play one staged international stage, or blast through every remaining one. */
+export type IntlMode = "stage" | "through";
+
 // UI -> Worker
 export type WorkerCommand =
   | { type: "sim"; through: SimThrough; league: LeagueStore }
-  | { type: "offseason"; league: LeagueStore };
+  | { type: "offseason"; league: LeagueStore }
+  | { type: "intl"; mode: IntlMode; league: LeagueStore };
 
 // Worker -> UI
 export type WorkerResponse =
   | { type: "simResult"; league: LeagueStore }
   | { type: "offseasonResult"; league: LeagueStore }
+  | { type: "intlResult"; league: LeagueStore }
   | {
       type: "simProgress";
       matchday: number;

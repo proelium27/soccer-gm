@@ -24,6 +24,8 @@ export interface GameEvents {
   season_simmed: { through: "game" | "month" | "deadline" | "season" };
   /** The user advanced past the offseason into a new season. */
   offseason_advanced: Record<string, never>;
+  /** The user played a staged international stage (one stage, or through the rest). */
+  intl_stage_played: { mode: "stage" | "through" };
   /** The user made a transfer bid for another club's player. */
   transfer_offer_made: Record<string, never>;
   /** The user accepted an AI club's offer for one of their players. */

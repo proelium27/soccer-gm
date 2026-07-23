@@ -312,8 +312,12 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     // empty state and join the two-year cycle at their next *odd* season's
     // offseason (an even one has no qualifying campaign on file to play a
     // tournament from), so at worst a save waits one extra season for its
-    // first World Cup. See core/international.
-    international: anyVersion.international ?? { qualifying: null, tournament: null, history: [] },
+    // first World Cup. Saves from before staged play get `stage: null` (no
+    // campaign pending), so their next offseason draws and stages one fresh.
+    // See core/international.
+    international: anyVersion.international
+      ? { ...anyVersion.international, stage: anyVersion.international.stage ?? null }
+      : { qualifying: null, tournament: null, history: [], stage: null },
     // God Mode sandbox editing defaults off for any save that predates it.
     godMode: anyVersion.godMode ?? false,
   };

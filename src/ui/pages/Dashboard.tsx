@@ -10,12 +10,43 @@ import { TRANSFER_DEADLINE_MATCHDAY } from "../../core/calendar.js";
 import { SCOUTING_SPEND_MAX, RATING_LEADER_QUALIFY_FRACTION } from "../../core/constants.js";
 import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
+import { isIntlStagePending } from "../../core/international/index.js";
+import { INTL_TOURNAMENT_NAME } from "../../core/constants.js";
+import type { IntlStage } from "../../core/international/index.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { currency, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
+
+/** A pending staged international stage — every IntlStage that still has play left. */
+type PlayableStage = Exclude<IntlStage, null | "done">;
+
+/** The button label for playing the next staged international stage. */
+const INTL_STAGE_BUTTON: Record<PlayableStage, string> = {
+  qualifying: "Play qualifying",
+  groups: "Play the group stage",
+  qf: "Play the quarterfinals",
+  sf: "Play the semifinals",
+  final: "Play the final",
+};
+
+/** A one-line status for the staged international campaign on the Dashboard. */
+function intlStageHeadline(stage: PlayableStage): string {
+  switch (stage) {
+    case "qualifying":
+      return "It's a qualifying year. Play it out to see which nations reach the World Cup.";
+    case "groups":
+      return `The ${INTL_TOURNAMENT_NAME} is here. Play the group stage to get things underway.`;
+    case "qf":
+      return "The group stage is done. The quarterfinals are next.";
+    case "sf":
+      return "The last eight is set. On to the semifinals.";
+    case "final":
+      return "Two nations left. It's the final.";
+  }
+}
 
 const STANDINGS_TOP_N = 8;
 const NEWS_TOP_N = 8;
@@ -96,7 +127,7 @@ export function Dashboard() {
 // draft state — skips recomputing standings, the news timeline, the lookup
 // maps, the wage bill, and the stat-leader scans over the whole player pool.
 function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: StoredTeam }) {
-  const { simAction, setScoutingSpendAction, simming } = useLeague();
+  const { simAction, setScoutingSpendAction, intlStageAction, simming } = useLeague();
   const navigate = useNavigate();
   // Slider position while dragging; persisted (and clamped) only on release
   // so we don't write to IndexedDB on every drag tick.
@@ -359,19 +390,49 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
         <div className="card mb-3">
           <div className="card-body">
             <h5 className="card-title">Offseason</h5>
-            <p className="card-text">
-              {seasonYear(league.season)} is complete. First you'll set your
-              scouting budget for the new season, then advancing runs player
-              progression, retirements, AI free agency, and youth intake, and
-              starts {seasonYear(league.season + 1)}.
-            </p>
-            <button
-              className="btn btn-success"
-              disabled={simming}
-              onClick={() => navigate("/set-scouting")}
-            >
-              Advance to {seasonYear(league.season + 1)}
-            </button>
+            {isIntlStagePending(league.international) ? (
+              <>
+                <p className="card-text">
+                  {intlStageHeadline(league.international.stage as PlayableStage)}{" "}
+                  Follow it on the <Link to="/international">International</Link> page.
+                  You'll advance to {seasonYear(league.season + 1)} once it wraps up.
+                </p>
+                <div className="d-flex flex-wrap gap-2">
+                  <button
+                    className="btn btn-primary"
+                    disabled={simming}
+                    onClick={() => intlStageAction("stage")}
+                  >
+                    {INTL_STAGE_BUTTON[league.international.stage as PlayableStage]}
+                  </button>
+                  {league.international.stage !== "qualifying" && (
+                    <button
+                      className="btn btn-outline-primary"
+                      disabled={simming}
+                      onClick={() => intlStageAction("through")}
+                    >
+                      Sim through the {INTL_TOURNAMENT_NAME}
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="card-text">
+                  {seasonYear(league.season)} is complete. First you'll set your
+                  scouting budget for the new season, then advancing runs player
+                  progression, retirements, AI free agency, and youth intake, and
+                  starts {seasonYear(league.season + 1)}.
+                </p>
+                <button
+                  className="btn btn-success"
+                  disabled={simming}
+                  onClick={() => navigate("/set-scouting")}
+                >
+                  Advance to {seasonYear(league.season + 1)}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
