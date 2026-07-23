@@ -105,8 +105,15 @@ export const SUB_RATING_INFLUENCE = 0.5;
 // downgrade), weak benches hold their starters on rather than gut their quality,
 // and a genuinely exhausted player comes off even for a lesser sub. Tuned so
 // roughly one sub in ten is now held back vs the old always-sub behavior.
+//
+// SUB_QUALITY_MARGIN was 1 when the gate landed, which held back ~1 sub in 5 —
+// about twice the intended rate — and cost the champion enough late-game quality
+// to push the M1 standings gate (champion 78-94 pts) under its floor. Measured
+// over 15 seeded seasons: margin 1 → 78.7 champion pts, margin 2.5 → 80.8 (the
+// old always-sub behavior was 79.8). 2.5 restores the documented ~1-in-10 rate
+// and leaves the gate comfortably inside its band instead of on the boundary.
 export const SUB_FRESHNESS_BONUS = 1.5;
-export const SUB_QUALITY_MARGIN = 1;
+export const SUB_QUALITY_MARGIN = 2.5;
 export const SUB_FATIGUE_RELIEF = 2.5;
 
 // How much the outgoing starter's live match rating (see engine/matchRating.ts)
