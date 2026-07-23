@@ -242,6 +242,15 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
     [userTeam.roster, userTeam.academyRoster, league.players],
   );
 
+  // Injured players in the user's squad — surfaced so you know who's out before
+  // simming (they get auto-benched during the sim, so this is the heads-up).
+  const injuredPlayers = useMemo(() => {
+    const roster = new Set(userTeam.roster);
+    return league.players
+      .filter((p) => roster.has(p.pid) && p.injury)
+      .sort((a, b) => (b.injury!.gamesRemaining - a.injury!.gamesRemaining));
+  }, [league.players, userTeam.roster]);
+
   const disableSim = simming || league.phase === "offseason";
   // Once the user is standing on deadline day (or past it), "sim to the
   // deadline" has nowhere left to go — simThrough treats it as a no-op.
@@ -311,6 +320,29 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
           </div>
         </div>
       </div>
+
+      {/* Injury report: who on your squad is currently sidelined. */}
+      {injuredPlayers.length > 0 && (
+        <div className="card mb-3">
+          <div className="card-body">
+            <h5 className="card-title">
+              Injuries <span className="text-muted small">({injuredPlayers.length} out)</span>
+            </h5>
+            <ul className="list-unstyled small mb-0">
+              {injuredPlayers.map((p) => (
+                <li key={p.pid} className="mb-1">
+                  <Link to={`/player/${p.pid}`}>{p.name}</Link>{" "}
+                  <Flag nationality={p.nationality} />
+                  <span className="text-muted">
+                    {" "}({p.pos}) — {p.injury!.type}, out about {p.injury!.gamesRemaining}{" "}
+                    {p.injury!.gamesRemaining === 1 ? "match" : "matches"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* Offseason */}
       {league.phase === "offseason" && (

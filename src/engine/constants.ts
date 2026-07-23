@@ -93,6 +93,40 @@ export const SUB_CHECKPOINTS_ELAPSED = [3600, 4500] as const;
 // range so fatigue stays the primary driver and rating only nudges the choice.
 export const SUB_RATING_INFLUENCE = 0.5;
 
+// A substitution is only made when the fresh bench player is actually worth
+// bringing on. Bringing on fresh legs is worth a small quality cost, but not a
+// big one — and the more gassed the outgoing starter, the bigger the downgrade
+// we'll accept to rest him. Concretely, we allow the replacement's ovr to fall
+// short of the starter's ovr by up to:
+//   SUB_FRESHNESS_BONUS + SUB_QUALITY_MARGIN + SUB_FATIGUE_RELIEF × fatigue
+// where fatigue is the starter's energy deficit normalized to 0..1 (0 fresh, 1
+// exhausted). Below that we sub; a larger drop-off keeps the tired starter on.
+// Net effect: strong benches rotate freely (their replacements aren't a big
+// downgrade), weak benches hold their starters on rather than gut their quality,
+// and a genuinely exhausted player comes off even for a lesser sub. Tuned so
+// roughly one sub in ten is now held back vs the old always-sub behavior.
+export const SUB_FRESHNESS_BONUS = 1.5;
+export const SUB_QUALITY_MARGIN = 1;
+export const SUB_FATIGUE_RELIEF = 2.5;
+
+// How much the outgoing starter's live match rating (see engine/matchRating.ts)
+// shifts the worth-it gate above, on top of his ovr and fatigue: a player above
+// the 6.0 baseline is currently "worth more" than his ovr (harder to justify
+// pulling), one below it is worth less (easier). Applied as
+//   SUB_GATE_RATING_INFLUENCE × (liveRating − RATING_BASELINE) / 10
+// added to the tired starter's value, so a stormer (rating ~9) protects himself
+// by ~1.5 ovr and a poor game (rating ~4.5) makes him ~0.75 ovr easier to sub.
+// Deliberately smaller than the fatigue relief so fitness/quality stay primary
+// and form only nudges — mirrors how rating nudges the who-comes-off pick.
+export const SUB_GATE_RATING_INFLUENCE = 5;
+
+// "Give more minutes": a bench player the user has flagged is credited this many
+// extra ovr points in the sub decision (both when choosing who to bring on and
+// when clearing the worth-it gate above), so he's subbed in more readily — even
+// slightly ahead of a marginally better un-flagged option. Deliberately modest:
+// it tips close calls, it doesn't force a clearly-worse player onto the pitch.
+export const SUB_MINUTES_BOOST = 6;
+
 // --- Set pieces + penalties (M5) ---
 // Fraction of blocked/off-target run-of-play shots that earn a corner (one bonus
 // shot, heading-weighted attribution). Resolved via the normal off/def composites

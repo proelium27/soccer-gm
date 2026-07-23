@@ -13,6 +13,7 @@ import { makeTransferOffer, acceptCounterOffer } from "../../core/transfers/nego
 import {
   acceptInboundOffer, rejectInboundOffer, counterInboundOffer, setTransferListed,
 } from "../../core/transfers/inboundOffers.js";
+import { setMoreMinutes } from "../../core/lineup/moreMinutes.js";
 import { extendContract, extendAcademyContract } from "../../core/contracts.js";
 import {
   listPlayerForLoan, unlistPlayerForLoan, acceptLoanOffer, rejectLoanOffer,
@@ -59,6 +60,7 @@ interface LeagueContextValue {
   acceptLoanOfferAction: (pid: number) => Promise<void>;
   rejectLoanOfferAction: (pid: number) => Promise<void>;
   setTransferListedAction: (pid: number, listed: boolean) => Promise<void>;
+  setMoreMinutesAction: (pid: number, enabled: boolean) => Promise<void>;
   setLineupAction: (starters: number[]) => Promise<void>;
   setFormationAction: (formation: FormationId) => Promise<void>;
   // God Mode sandbox actions (no-ops in the UI unless league.godMode is true).
@@ -315,6 +317,10 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     (l) => setTransferListed(l, pid, listed),
   ), [mutate]);
 
+  const setMoreMinutesAction = useCallback((pid: number, enabled: boolean) => mutate(
+    (l) => setMoreMinutes(l, pid, enabled),
+  ), [mutate]);
+
   const releasePlayerAction = useCallback((pid: number) => mutate((l) => {
     const teams = releasePlayer(l.teams, l.players, l.meta.userTid, pid);
     if (teams === l.teams) return null;
@@ -507,6 +513,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     acceptLoanOfferAction,
     rejectLoanOfferAction,
     setTransferListedAction,
+    setMoreMinutesAction,
     setLineupAction,
     setFormationAction,
     setGodModeAction,
@@ -527,7 +534,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     makeOfferAction, acceptCounterAction, acceptInboundOfferAction,
     rejectInboundOfferAction, counterInboundOfferAction, extendContractAction,
     listPlayerForLoanAction, unlistPlayerForLoanAction, acceptLoanOfferAction,
-    rejectLoanOfferAction, setTransferListedAction, setLineupAction, setFormationAction,
+    rejectLoanOfferAction, setTransferListedAction, setMoreMinutesAction, setLineupAction, setFormationAction,
     setGodModeAction, movePlayerToClubAction, releasePlayerGodModeAction,
     editPlayerAction, createPlayerAction, setClubFinancesAction,
     simming, simOverlayOpen, busy, saveToDb, doExport, doImport,

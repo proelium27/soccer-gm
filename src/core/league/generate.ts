@@ -39,6 +39,12 @@ export interface LeagueTeam {
    * generation and for any team that hasn't chosen one (defaults to 4-3-3).
    */
   formation?: FormationId;
+  /**
+   * Pids the user has flagged for more minutes (StoredTeam.moreMinutes), carried
+   * over by simThrough so leagueMatchData can bias the in-match sub logic toward
+   * bringing them on. Only ever set for the user's own team.
+   */
+  moreMinutes?: number[];
 }
 
 export interface League {

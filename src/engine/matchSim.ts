@@ -30,6 +30,11 @@ import {
   MAX_SUBS,
   SUB_CHECKPOINTS_ELAPSED,
   SUB_RATING_INFLUENCE,
+  SUB_FRESHNESS_BONUS,
+  SUB_QUALITY_MARGIN,
+  SUB_FATIGUE_RELIEF,
+  SUB_GATE_RATING_INFLUENCE,
+  SUB_MINUTES_BOOST,
   CORNER_FROM_MISS_PROB,
   PENALTY_GIVEN_FOUL,
   PENALTY_CONVERSION,
@@ -469,18 +474,64 @@ export function simMatchDetailed(
     return sum / xi.length;
   };
 
-  /** Pick a bench replacement for a departing player, never fielding a GK out of goal (or vice versa). */
+  /**
+   * A fresh bench player's value if brought on: his ovr, plus a small bonus for
+   * fresh legs, plus the user's "give him more minutes" boost when flagged. Used
+   * both to pick the *best* replacement and to gate whether the sub is worth it.
+   */
+  function benchValue(p: MatchPlayer): number {
+    return p.ovr + SUB_FRESHNESS_BONUS + (p.minutesBoost ? SUB_MINUTES_BOOST : 0);
+  }
+
+  /**
+   * A tired on-pitch player's current value for the sub decision: his ovr, minus
+   * a fatigue relief that grows with his energy deficit (0 when fresh, up to
+   * SUB_FATIGUE_RELIEF when exhausted), plus a form adjustment for how he's
+   * actually playing this match (live match rating vs the 6.0 baseline). A gassed
+   * or poorly-playing starter is "worth less" right now, so a lesser replacement
+   * can justify subbing him; a starter having a great game protects himself.
+   */
+  function tiredValue(side: Side, p: MatchPlayer): number {
+    const fatigue = (ENERGY_START - energy.get(p.pid)!) / (ENERGY_START - ENERGY_FLOOR);
+    const form = (liveRatingFor(side, p) - RATING_BASELINE) / 10;
+    return p.ovr - SUB_FATIGUE_RELIEF * fatigue + SUB_GATE_RATING_INFLUENCE * form;
+  }
+
+  /** Only sub when the fresh replacement roughly matches or beats the tired starter he'd replace. */
+  function worthSub(side: Side, on: MatchPlayer, off: MatchPlayer): boolean {
+    return benchValue(on) >= tiredValue(side, off) - SUB_QUALITY_MARGIN;
+  }
+
+  /**
+   * Pick the *best* bench replacement (by benchValue) for a departing player,
+   * preferring his own position and never fielding a GK out of goal (or vice
+   * versa). Flagged "more minutes" players are favored via their benchValue bonus.
+   */
   function pickReplacement(side: Side, offPos: MatchPlayer["pos"]): MatchPlayer | undefined {
-    const samePos = bench[side].find((p) => p.pos === offPos);
-    if (samePos) return samePos;
-    const pool = offPos === "GK" ? bench[side] : bench[side].filter((p) => p.pos !== "GK");
-    return pool[0];
+    const samePos = bench[side].filter((p) => p.pos === offPos);
+    const pool = samePos.length > 0
+      ? samePos
+      : offPos === "GK"
+        ? bench[side]
+        : bench[side].filter((p) => p.pos !== "GK");
+    if (pool.length === 0) return undefined;
+    return pool.reduce((best, p) => (benchValue(p) > benchValue(best) ? p : best));
   }
 
   /** Minutes played so far by a still-on-pitch player, for a live (mid-match) rating estimate. */
   function liveMinutesFor(pid: number): number {
     const enter = enterClock.get(pid) ?? MATCH_SECONDS;
     return Math.max(0, Math.round((enter - clock) / 60));
+  }
+
+  /** How well a still-on-pitch player is playing so far (0-10 live match rating). */
+  function liveRatingFor(side: Side, p: MatchPlayer): number {
+    return computeMatchRating(
+      lines.get(p.pid)!,
+      p.pos,
+      liveMinutesFor(p.pid),
+      stat[other(side)].goals,
+    );
   }
 
   /**
@@ -491,14 +542,22 @@ export function simMatchDetailed(
    */
   function subPriority(side: Side, p: MatchPlayer): number {
     const energyDeficit = ENERGY_START - energy.get(p.pid)!;
-    const liveRating = computeMatchRating(
-      lines.get(p.pid)!,
-      p.pos,
-      liveMinutesFor(p.pid),
-      stat[other(side)].goals,
-    );
-    const ratingDeficit = (RATING_BASELINE - liveRating) / 10;
+    const ratingDeficit = (RATING_BASELINE - liveRatingFor(side, p)) / 10;
     return energyDeficit + SUB_RATING_INFLUENCE * ratingDeficit;
+  }
+
+  /** Carry out a substitution: swap `off` for `on`, refresh energy, log the event. */
+  function commitSub(side: Side, off: MatchPlayer, on: MatchPlayer): void {
+    onPitch[side] = onPitch[side].filter((p) => p.pid !== off.pid).concat(on);
+    bench[side] = bench[side].filter((p) => p.pid !== on.pid);
+    subsUsed[side]++;
+    appeared[side].add(on.pid);
+    energy.set(on.pid, ENERGY_START);
+    exitClock.set(off.pid, clock);
+    enterClock.set(on.pid, clock);
+    rebuildTeam(side);
+    bumpEvent();
+    events.push({ clock, type: "substitution", side, pids: [off.pid, on.pid] });
   }
 
   function attemptSub(side: Side, checkpoint: number): void {
@@ -511,33 +570,42 @@ export function simMatchDetailed(
         subPriority(side, p) > subPriority(side, worst) ? p : worst,
       );
 
+    // Attacking sub: when trailing late, throw on the bench's best finisher for a
+    // defensive-minded player. This is a deliberate chase-the-game gamble, so it
+    // bypasses the quality gate below (you accept a downgrade to add attack).
     const trailing = stat[side].goals < stat[other(side)].goals;
-    let off: MatchPlayer;
-    let on: MatchPlayer | undefined;
     if (checkpoint === SUB_CHECKPOINTS_ELAPSED[SUB_CHECKPOINTS_ELAPSED.length - 1] && trailing) {
-      // Attacking sub: bring on the bench's best (outfield) finisher for a defensive-minded player.
       const defensive = outfield.filter((p) => p.pos === "CB" || p.pos === "FB" || p.pos === "DM");
-      off = worstSubPriority(defensive.length > 0 ? defensive : outfield);
+      const off = worstSubPriority(defensive.length > 0 ? defensive : outfield);
       const outfieldBench = bench[side].filter((p) => p.pos !== "GK");
-      on = outfieldBench.length > 0
+      const on = outfieldBench.length > 0
         ? outfieldBench.reduce((best, p) => (p.shooting > best.shooting ? p : best))
         : undefined;
-    } else {
-      off = worstSubPriority(outfield);
-      on = pickReplacement(side, off.pos);
+      if (on) commitSub(side, off, on);
+      return;
     }
-    if (!on) return; // no valid (non-GK) bench replacement available
 
-    onPitch[side] = onPitch[side].filter((p) => p.pid !== off.pid).concat(on);
-    bench[side] = bench[side].filter((p) => p.pid !== on!.pid);
-    subsUsed[side]++;
-    appeared[side].add(on.pid);
-    energy.set(on.pid, ENERGY_START);
-    exitClock.set(off.pid, clock);
-    enterClock.set(on.pid, clock);
-    rebuildTeam(side);
-    bumpEvent();
-    events.push({ clock, type: "substitution", side, pids: [off.pid, on.pid] });
+    // "Give more minutes": if the user flagged a bench player, try to get him on
+    // by subbing off the weakest on-pitch player at his position (or the weakest
+    // outfielder if none share it). His minutesBoost helps clear the worth-it gate.
+    const flagged = bench[side].filter((p) => p.pos !== "GK" && p.minutesBoost);
+    if (flagged.length > 0) {
+      const on = flagged.reduce((best, p) => (benchValue(p) > benchValue(best) ? p : best));
+      const samePos = outfield.filter((p) => p.pos === on.pos);
+      const off = worstSubPriority(samePos.length > 0 ? samePos : outfield);
+      if (worthSub(side, on, off)) {
+        commitSub(side, off, on);
+        return;
+      }
+      // Not worth it even with the boost — fall through to a normal sub.
+    }
+
+    // Normal sub: rest the worst-priority outfielder, but only if the best fresh
+    // replacement is actually worth bringing on (a weak bench keeps the tired
+    // starter on rather than downgrading itself).
+    const off = worstSubPriority(outfield);
+    const on = pickReplacement(side, off.pos);
+    if (on && worthSub(side, on, off)) commitSub(side, off, on);
   }
 
   /** An injured player must come off immediately, regardless of energy — unlike attemptSub, the outgoing player is fixed. */

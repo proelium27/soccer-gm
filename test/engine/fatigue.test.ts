@@ -12,6 +12,7 @@ function makeSquad(pidOffset: number, stamina = 50): MatchPlayer[] {
   return positions.map((pos, i) => ({
     pid: pidOffset + i + 1,
     pos,
+    ovr: pos === "ST" ? 68 : 62,
     shooting: pos === "ST" ? 80 : 40,
     dribbling: 50,
     tackling: pos === "CB" || pos === "DM" ? 70 : 40,
@@ -28,6 +29,7 @@ function makeBench(pidOffset: number, stamina = 50): MatchPlayer[] {
   return positions.map((pos, i) => ({
     pid: pidOffset + i + 1,
     pos,
+    ovr: pos === "ST" ? 68 : 62,
     shooting: pos === "ST" ? 85 : 45,
     dribbling: 50,
     tackling: 50,
@@ -267,5 +269,50 @@ describe("fatigue + substitutions", () => {
       boostedShots += boosted.stat.home.shots;
     }
     expect(boostedShots).toBeGreaterThan(baseShots);
+  });
+});
+
+/** A bench of near-scrubs: every player is far below the starters' ovr. */
+function makeWeakBench(pidOffset: number): MatchPlayer[] {
+  return makeBench(pidOffset).map((p) => ({ ...p, ovr: 45 }));
+}
+
+describe("substitutions weigh bench quality", () => {
+  it("holds tired starters on rather than subbing them for a much weaker bench", () => {
+    // Same match, same seed, only the bench quality differs. A strong bench (ovr
+    // ~62) refreshes freely; a scrub bench (ovr 45) is too big a downgrade at the
+    // checkpoints, so fewer (often zero) normal subs are made.
+    let strongTotal = 0;
+    let weakTotal = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const strong = simMatchDetailed(
+        mulberry32(seed), makeTeam("Home"), makeTeam("Away"),
+        makeSquad(0), makeSquad(100), makeBench(1000), makeBench(2000),
+      );
+      const weak = simMatchDetailed(
+        mulberry32(seed), makeTeam("Home"), makeTeam("Away"),
+        makeSquad(0), makeSquad(100), makeWeakBench(1000), makeWeakBench(2000),
+      );
+      strongTotal += strong.boxScore.events.filter((e) => e.type === "substitution").length;
+      weakTotal += weak.boxScore.events.filter((e) => e.type === "substitution").length;
+    }
+    expect(weakTotal).toBeLessThan(strongTotal);
+  });
+
+  it("subs on a flagged 'more minutes' bench player who'd otherwise stay benched", () => {
+    // A lone flagged bench player, weaker than his un-flagged bench-mates, still
+    // gets on because his minutesBoost tips the sub decision toward him.
+    const flaggedPid = 5001;
+    const bench: MatchPlayer[] = makeBench(5000).map((p, i) =>
+      i === 0 ? { ...p, pid: flaggedPid, pos: "CM", ovr: 52, minutesBoost: true } : p,
+    );
+    const result = simMatchDetailed(
+      mulberry32(3), makeTeam("Home"), makeTeam("Away"),
+      makeSquad(0), makeSquad(100), bench, makeBench(6000),
+    );
+    const cameOn = result.boxScore.events.some(
+      (e) => e.type === "substitution" && e.side === "home" && e.pids[1] === flaggedPid,
+    );
+    expect(cameOn).toBe(true);
   });
 });
