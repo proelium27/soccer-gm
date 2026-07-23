@@ -22,11 +22,12 @@ const SEASON = simSeason(mulberry32(12345));
  * composites (and thus match results) without touching the rng stream; again
  * when the substitution logic gained a bench-quality gate (SUB_FATIGUE_RELIEF et
  * al.), which now holds back roughly one sub in ten, changing who's on the pitch
- * late; and once more when that gate became form-aware (SUB_GATE_RATING_INFLUENCE),
- * shifting which held-back subs fire — each a personnel/composite change, not an
- * rng-stream shift.
+ * late; once more when that gate became form-aware (SUB_GATE_RATING_INFLUENCE),
+ * shifting which held-back subs fire; and again when SUB_QUALITY_MARGIN was
+ * retuned 1→2.5 so the gate holds back its intended ~1 sub in ten rather than
+ * ~1 in five — each a personnel/composite change, not an rng-stream shift.
  */
-const BASELINE_SCORELINE_HASH = 3672352141;
+const BASELINE_SCORELINE_HASH = 3023701295;
 
 function scorelineHash(matches: typeof SEASON.matches): number {
   const s = matches.map((m) => `${m.home}:${m.homeGoals}-${m.awayGoals}:${m.away}`).join("|");

@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
-  LEAGUE_NATIONALITY_WEIGHTS, namePoolFor, pickNationality,
+  LEAGUE_NATIONALITY_WEIGHTS, NATIONALITIES, OTHER_NATIONS, namePoolFor, pickNationality,
 } from "../../src/core/players/nationalities.js";
-import { flagFor } from "../../src/core/players/flags.js";
+import { flagCodeFor } from "../../src/core/players/flags.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 
 const REST = "__REST__";
@@ -82,8 +82,14 @@ describe("league-specific flavor (real-calibrated tails)", () => {
 
   it("Kosovo (a Germany-only named nation) has both a name pool and a flag", () => {
     expect(namePoolFor("Kosovo")).toBeDefined();
-    expect(flagFor("Kosovo")).not.toBe("🏳️");
-    expect(flagFor("Italy")).toBe("🇮🇹");
+    expect(flagCodeFor("Kosovo")).toBe("xk");
+    expect(flagCodeFor("Italy")).toBe("it");
+  });
+
+  it("every generated nationality maps to a flag code", () => {
+    const all = [...Object.keys(NATIONALITIES), ...Object.keys(OTHER_NATIONS)];
+    const missing = all.filter((n) => flagCodeFor(n) === null);
+    expect(missing).toEqual([]);
   });
 });
 
