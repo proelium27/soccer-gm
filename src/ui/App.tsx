@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LeagueProvider } from "./context/LeagueContext.js";
 import { SportNameProvider } from "./sportName.js";
 import { Layout } from "./components/Layout.js";
@@ -34,9 +34,15 @@ function RootRedirect() {
   return <Navigate to="/leagues" replace />;
 }
 
+// itch.io serves the game from a deep subpath inside an iframe with no server to
+// handle history-API deep links, so the itch build swaps to hash-based routes
+// (/#/roster). Every other target keeps clean URLs. Driven by the itch build
+// mode (see .env.itch / vite.config.ts).
+const Router = import.meta.env.VITE_BUILD_TARGET === "itch" ? HashRouter : BrowserRouter;
+
 export function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <SportNameProvider>
       <LeagueProvider>
         <AnnouncementBanner />
@@ -73,6 +79,6 @@ export function App() {
         </Routes>
       </LeagueProvider>
       </SportNameProvider>
-    </BrowserRouter>
+    </Router>
   );
 }
