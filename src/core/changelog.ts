@@ -33,6 +33,13 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-07-23",
+    title: "Yes, an AI wrote these",
+    items: [
+      "Quick confession: all these changelog entries were written with AI, because I am too lazy to write them myself. The changes themselves are real and they're mine, I just don't want to sit down and type up a nice little note every time I touch something. So the AI does it. Now you know.",
+    ],
+  },
+  {
     date: "2026-07-22",
     title: "Free signings finally show up in a player's history",
     items: [
