@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { usePlayerMap } from "../usePlayerMap.js";
 import { PotHelp } from "../components/HelpHint.js";
 import type { Player } from "../../core/players/types.js";
 import type { StoredTeam } from "../../core/teams/clubs.js";
@@ -16,6 +17,7 @@ const TOP_N = 10;
 
 export function SeasonPreview() {
   const { league } = useLeague();
+  const playersByPid = usePlayerMap(league?.players);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -40,7 +42,6 @@ export function SeasonPreview() {
     .slice(0, TOP_N);
 
   const teamsByTid = new Map(league.teams.map((t) => [t.tid, t]));
-  const playersByPid = new Map(league.players.map((p) => [p.pid, p]));
   const topTransfers = league.transfers
     // Free signings (fee 0, from the free-agent sentinel) aren't "top" anything
     // — the biggest-fee deals are what belongs in a season preview.

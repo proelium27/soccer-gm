@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { usePlayerMap } from "../usePlayerMap.js";
 import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings } from "../../core/standings.js";
 import { seasonRevenue, wageBill, financeScale } from "../../core/finance/budget.js";
@@ -23,12 +24,41 @@ export function Finance() {
     "desc",
   );
 
+  // All memoized because dragging the scouting slider re-renders this page on
+  // every tick: without it each tick rebuilt two ~6000-entry maps and recomputed
+  // the division table.
+  const playerMap = usePlayerMap(league?.players);
+  const salaryMap = useMemo(
+    () => new Map((league?.players ?? []).map((p) => [p.pid, p.contract.salary])),
+    [league?.players],
+  );
+  const teamNameByTid = useMemo(
+    () => new Map((league?.teams ?? []).map((t) => [t.tid, t.name])),
+    [league?.teams],
+  );
+  // The user's league position, which sets the prize tier in the estimate below.
+  const rank = useMemo(() => {
+    const userTeam = league?.teams.find((t) => t.tid === league.meta.userTid);
+    if (!league || !userTeam) return null;
+    const divisionTeamIds = league.teams
+      .filter((t) => t.compId === userTeam.compId)
+      .map((t) => t.tid);
+    // Set membership, not Array.includes — this filter runs once per played
+    // match and the old form scanned the whole division for each one.
+    const divisionTids = new Set(divisionTeamIds);
+    const standings = computeStandings(
+      divisionTeamIds,
+      league.played.filter((m) => divisionTids.has(m.home)),
+    );
+    return standings.findIndex((r) => r.tid === league.meta.userTid) + 1;
+  }, [league]);
+
   if (!league) {
     return <p className="p-3">Loading...</p>;
   }
 
   const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
-  if (!userTeam) {
+  if (!userTeam || rank === null) {
     return <p className="p-3">Team not found.</p>;
   }
 
@@ -40,19 +70,8 @@ export function Finance() {
     setScoutingDraft(null);
   };
 
-  const playerMap = new Map(league.players.map((p) => [p.pid, p]));
-  const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   const teamName = (tid: number) =>
-    clubDisplayName(tid, (id) => league.teams.find((t) => t.tid === id)?.name);
-
-  const divisionTeamIds = league.teams
-    .filter((t) => t.compId === userTeam.compId)
-    .map((t) => t.tid);
-  const standings = computeStandings(
-    divisionTeamIds,
-    league.played.filter((m) => divisionTeamIds.includes(m.home)),
-  );
-  const rank = standings.findIndex((r) => r.tid === league.meta.userTid) + 1;
+    clubDisplayName(tid, (id) => teamNameByTid.get(id));
 
   // Mirror of the offseason cash flow in runOffseason: season-end settlement
   // (prize by rank + hype revenue − scouting) followed by the new season's

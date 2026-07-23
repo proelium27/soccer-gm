@@ -1,5 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { usePlayerMap } from "../usePlayerMap.js";
 import type { PlayedMatch } from "../../core/standings.js";
 import type { MatchEvent, PlayerMatchLine } from "../../engine/attribution.js";
 import { Flag } from "../components/Flag.js";
@@ -177,6 +178,7 @@ function EventRow({ event, playerName }: { event: MatchEvent; playerName: (pid: 
 export function BoxScore() {
   const { matchIndex } = useParams<{ matchIndex: string }>();
   const { league } = useLeague();
+  const playerMap = usePlayerMap(league?.players);
 
   if (!league || matchIndex === undefined) {
     return <p className="p-3">Loading...</p>;
@@ -199,7 +201,6 @@ export function BoxScore() {
   const homeName = homeTeam?.name ?? "Home";
   const awayName = awayTeam?.name ?? "Away";
 
-  const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   const playerName = (pid: number) => playerMap.get(pid)?.name ?? `#${pid}`;
   const playerPos = (pid: number) => playerMap.get(pid)?.pos ?? "?";
   const playerNationality = (pid: number) => playerMap.get(pid)?.nationality;

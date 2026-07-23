@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { useDebounced } from "../useDebounced.js";
 import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import { transferWindowState } from "../../core/transfers/window.js";
@@ -179,6 +180,14 @@ export function Transfers() {
     search.name.trim() !== "" || search.position !== "" || search.minOvr !== ""
     || search.minPot !== "" || search.maxAge !== "" || search.maxValue !== "";
 
+  // Both scans below walk every club's roster, so they run off *debounced*
+  // copies of the filter state: the inputs stay bound to the raw state (typing
+  // is instant) while the scan itself waits until the user stops. Keying them
+  // straight off the raw state meant one full-world scan per keystroke, which
+  // is what pushed this page's INP into the seconds on mobile.
+  const debouncedFilters = useDebounced(filters);
+  const debouncedSearch = useDebounced(search);
+
   // Filters feed into the search itself (not a post-hoc row filter), so
   // changing one re-runs the candidate scan and surfaces genuinely new
   // targets — e.g. picking "FB" brings up a fresh list of full-backs. The
@@ -187,13 +196,13 @@ export function Transfers() {
   const targets = useMemo(() => {
     if (!league) return [];
     return recommendedTransfers(league, refreshNonce, {
-      position: filters.position || undefined,
-      minOvr: numFilter(filters.minOvr),
-      minPot: numFilter(filters.minPot),
-      maxAge: numFilter(filters.maxAge),
-      maxValue: numFilter(filters.maxValue),
+      position: debouncedFilters.position || undefined,
+      minOvr: numFilter(debouncedFilters.minOvr),
+      minPot: numFilter(debouncedFilters.minPot),
+      maxAge: numFilter(debouncedFilters.maxAge),
+      maxValue: numFilter(debouncedFilters.maxValue),
     });
-  }, [league, refreshNonce, filters]);
+  }, [league, refreshNonce, debouncedFilters]);
 
   // Free-form world search: scans every club, so it's memoized to stay off the
   // path of unrelated renders (typing an offer amount). Empty until the user
@@ -201,14 +210,14 @@ export function Transfers() {
   const searchResults = useMemo(() => {
     if (!league) return [];
     return searchWorldPlayers(league, {
-      name: search.name,
-      position: search.position || undefined,
-      minOvr: numFilter(search.minOvr),
-      minPot: numFilter(search.minPot),
-      maxAge: numFilter(search.maxAge),
-      maxValue: numFilter(search.maxValue),
+      name: debouncedSearch.name,
+      position: debouncedSearch.position || undefined,
+      minOvr: numFilter(debouncedSearch.minOvr),
+      minPot: numFilter(debouncedSearch.minPot),
+      maxAge: numFilter(debouncedSearch.maxAge),
+      maxValue: numFilter(debouncedSearch.maxValue),
     });
-  }, [league, search]);
+  }, [league, debouncedSearch]);
 
   // Players bought earlier *this visit*. A completed buy moves the player onto
   // your roster, so he drops out of the recommended scan and his row would just
@@ -232,6 +241,54 @@ export function Transfers() {
     if (additions.length > 0) setPinnedBuys((prev) => [...prev, ...additions]);
   }, [league, targets, pinnedBuys]);
 
+  // Lookup maps over the whole world, memoized because they were being rebuilt
+  // on every render of this page — 6000-odd players and 240 clubs at a time,
+  // including on every keystroke in an offer box. `teamNameByTid` also replaces
+  // a linear `teams.find` that the club-column sort accessor called once per
+  // comparison.
+  const playerMap = useMemo(
+    () => new Map((league?.players ?? []).map((p) => [p.pid, p])),
+    [league?.players],
+  );
+  const teamNameByTid = useMemo(
+    () => new Map((league?.teams ?? []).map((t) => [t.tid, t.name])),
+    [league?.teams],
+  );
+  const teamName = useCallback(
+    (tid: number) => clubDisplayName(tid, (id) => teamNameByTid.get(id)),
+    [teamNameByTid],
+  );
+  const negotiations = useMemo(
+    () => (league ? currentNegotiations(league) : []),
+    [league],
+  );
+
+  // Splice players bought this visit back into the list at their original row,
+  // so the row appears to stay put and flip to "Transferred" rather than jump
+  // to the top or disappear. (See `pinnedBuys` above for the once-per-visit
+  // lifetime.) Then apply the chosen column sort on top: the default
+  // "recommended" key has no accessor, so sortRows leaves the pinned best-fit
+  // order (and bought-row positions) untouched; any other key sorts the whole
+  // list, pinned buys included.
+  const displayTargets = useMemo(() => {
+    const pinnedPids = new Set(pinnedBuys.map((b) => b.row.player.pid));
+    const baseTargets = targets.filter((t) => !pinnedPids.has(t.player.pid));
+    for (const { row, index } of [...pinnedBuys].sort((a, b) => a.index - b.index)) {
+      baseTargets.splice(Math.min(index, baseTargets.length), 0, row);
+    }
+    const season = league?.season ?? 0;
+    return sortRows(baseTargets, sort, {
+      name: (r) => r.player.name,
+      pos: (r) => r.player.pos,
+      age: (r) => season - r.player.born,
+      ovr: (r) => r.player.ovr,
+      pot: (r) => r.player.potential,
+      club: (r) => teamName(r.sellerTid),
+      wage: (r) => r.player.contract.salary,
+      value: (r) => r.scoutedValue,
+    });
+  }, [targets, pinnedBuys, sort, league?.season, teamName]);
+
   if (!league) {
     return <p className="p-3">Loading...</p>;
   }
@@ -243,11 +300,6 @@ export function Transfers() {
 
   const ws = transferWindowState(league);
   const atCap = userTeam.roster.length >= ROSTER_CAP;
-  const playerMap = new Map(league.players.map((p) => [p.pid, p]));
-  const teamName = (tid: number) =>
-    clubDisplayName(tid, (id) => league.teams.find((t) => t.tid === id)?.name);
-
-  const negotiations = currentNegotiations(league);
   const negotiationByPid = new Map(negotiations.map((n) => [n.pid, n]));
 
   // Talks that outlived the recommended list (e.g. the budget shrank after a
@@ -261,29 +313,6 @@ export function Transfers() {
   const orphaned = negotiations.filter(
     (n) => !listedPids.has(n.pid) && n.status !== "accepted",
   );
-
-  // Splice players bought this visit back into the list at their original row,
-  // so the row appears to stay put and flip to "Transferred" rather than jump
-  // to the top or disappear. (See `pinnedBuys` above for the once-per-visit
-  // lifetime.)
-  const pinnedPids = new Set(pinnedBuys.map((b) => b.row.player.pid));
-  const baseTargets = targets.filter((t) => !pinnedPids.has(t.player.pid));
-  for (const { row, index } of [...pinnedBuys].sort((a, b) => a.index - b.index)) {
-    baseTargets.splice(Math.min(index, baseTargets.length), 0, row);
-  }
-  // Apply the chosen column sort on top. The default "recommended" key has no
-  // accessor, so sortRows leaves the pinned best-fit order (and bought-row
-  // positions) untouched; any other key sorts the whole list, pinned buys included.
-  const displayTargets = sortRows(baseTargets, sort, {
-    name: (r) => r.player.name,
-    pos: (r) => r.player.pos,
-    age: (r) => league.season - r.player.born,
-    ovr: (r) => r.player.ovr,
-    pot: (r) => r.player.potential,
-    club: (r) => teamName(r.sellerTid),
-    wage: (r) => r.player.contract.salary,
-    value: (r) => r.scoutedValue,
-  });
 
   const windowTransfers = league.transfers.filter(
     (t) =>
