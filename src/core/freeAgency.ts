@@ -95,11 +95,14 @@ export function runAIFreeAgency(
   userTid: number,
   signingOrderTids: number[],
   activeLoans: ActiveLoan[] = [],
-): { teams: StoredTeam[]; players: Player[] } {
+): { teams: StoredTeam[]; players: Player[]; signings: { pid: number; toTid: number }[] } {
   const playerMap = new Map(players.map((p) => [p.pid, { ...p }]));
   const teamMap = new Map(teams.map((t) => [t.tid, { ...t, roster: [...t.roster] }]));
 
   let pool = [...freeAgentPids(teams, players, activeLoans)];
+  // Each free-agent arrival is logged by the caller as a fee-0 transfer (see
+  // offseason.ts) so the player's club-by-season history registers the move.
+  const signings: { pid: number; toTid: number }[] = [];
 
   const sign = (team: StoredTeam & { roster: number[] }, signing: Player): void => {
     const length = CONTRACT_LENGTH_MIN
@@ -109,6 +112,7 @@ export function runAIFreeAgency(
       expiresSeason: season + length,
     };
     team.roster.push(signing.pid);
+    signings.push({ pid: signing.pid, toTid: team.tid });
     pool = pool.filter((pid) => pid !== signing.pid);
   };
 
@@ -157,6 +161,7 @@ export function runAIFreeAgency(
       expiresSeason: season + length,
     };
     team.roster.push(signing.pid);
+    signings.push({ pid: signing.pid, toTid: team.tid });
     pool = pool.filter((pid) => pid !== signing.pid);
   };
 
@@ -185,6 +190,7 @@ export function runAIFreeAgency(
   return {
     teams: [...teams.map((t) => teamMap.get(t.tid)!)],
     players: [...players.map((p) => playerMap.get(p.pid)!)],
+    signings,
   };
 }
 

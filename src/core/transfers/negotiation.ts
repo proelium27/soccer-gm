@@ -32,6 +32,32 @@ export interface TransferNegotiation {
   status: "open" | "accepted" | "collapsed";
 }
 
+/**
+ * Sentinel "club" on the from-side of a free-agent signing: nobody owned him,
+ * so there's no real tid to name (and -1 can never collide with one). A free
+ * signing is recorded as a fee-0 transfer FROM this sentinel so the profile's
+ * club-by-season history (and the OVR chart, champion attribution, News Feed)
+ * sees every arrival — without a record, a player who joined a club on a free
+ * was silently attributed to whatever club his last *paid* move landed him at.
+ * UI that renders a tid must map this to "Free agent" — use `clubDisplayName`
+ * (src/ui/format.ts) rather than hand-rolling the check.
+ *
+ * Deliberately one-sided: *departures* into free agency (expiring contracts,
+ * roster trims) are NOT recorded. They'd roughly double an already-append-only
+ * log for no display gain, since every surface here answers "which club did he
+ * belong to in season N", and a release leaves that answer unchanged until his
+ * next arrival. The one case where the missing counter-record would lie — a
+ * club signing a free agent and then cutting him in the same offseason, so his
+ * history claims a club he never played for — is filtered out at the source in
+ * offseason.ts instead.
+ */
+export const FREE_AGENT_TID = -1;
+
+/** True if a transfer's from/to side is the free-agent sentinel, not a club. */
+export function isFreeAgentTid(tid: number): boolean {
+  return tid === FREE_AGENT_TID;
+}
+
 export interface CompletedTransfer {
   pid: number;
   fromTid: number;

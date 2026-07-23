@@ -63,6 +63,25 @@ export function Academy() {
           promoting another.
         </div>
       )}
+      {/* Academy stipends expire on the same sweep that clears senior deals
+          (releaseExpiredContracts), so a prospect you've developed for three
+          seasons walks for nothing just as quietly — same warning as Roster. */}
+      {(() => {
+        const expiring = academyPlayers.filter((p) => p.contract.expiresSeason <= league.season);
+        if (expiring.length === 0) return null;
+        const one = expiring.length === 1;
+        return (
+          <div className="alert alert-warning py-2 px-3 small mb-2">
+            {one ? (
+              <><strong>{expiring[0].name}</strong> is in the final year of his academy deal.</>
+            ) : (
+              <><strong>{expiring.length} prospects</strong> are in the final year of their academy deals.</>
+            )}{" "}
+            Extend {one ? "him" : "them"} before the offseason, or {one ? "he'll" : "they'll"} leave
+            on a free with nothing coming back.
+          </div>
+        );
+      })()}
       {academyPlayers.length === 0 ? (
         <p>No players in the academy yet. Check back after your next offseason.</p>
       ) : (
@@ -94,9 +113,16 @@ export function Academy() {
                 <td className="text-end">{league.season - p.born}</td>
                 <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
                 <td className="text-end">
-                  {p.contract.expiresSeason <= league.season
-                    ? "Final year"
-                    : `Through ${seasonYear(p.contract.expiresSeason)}`}
+                  {p.contract.expiresSeason <= league.season ? (
+                    <span
+                      className="badge bg-warning text-dark"
+                      title="His academy deal runs out this season. Extend him before the offseason or he leaves on a free."
+                    >
+                      Final year
+                    </span>
+                  ) : (
+                    `Through ${seasonYear(p.contract.expiresSeason)}`
+                  )}
                 </td>
                 <td className="text-end">
                   <div className="d-inline-flex gap-1">

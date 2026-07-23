@@ -4,7 +4,9 @@ import { useLeague } from "../context/LeagueContext.js";
 import type { StoredTeam } from "../../core/leagueState.js";
 import type { NewsEvent, NewsEventType } from "../../core/newsEvents.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
-import { currency, seasonYear } from "../format.js";
+import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
+import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
+import { clubDisplayName, currency, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 
@@ -47,6 +49,38 @@ export function NewsFeed() {
     [league?.teams],
   );
 
+  // Bucket both logs by season and build each season's timeline exactly once.
+  // league.transfers is append-only and never pruned (and now carries every
+  // free-agent arrival, on the order of a thousand a season), so re-scanning
+  // the whole array once per displayed season — which this did twice per
+  // render, for the item count and again for the rows — grows quadratically
+  // with the age of the save. The post-hoc club/season filters below are cheap
+  // by comparison and stay out of the memo so toggling them costs nothing.
+  const timelinesBySeason = useMemo(() => {
+    const transfersBySeason = new Map<number, CompletedTransfer[]>();
+    const eventsBySeason = new Map<number, NewsEvent[]>();
+    for (const t of league?.transfers ?? []) {
+      const bucket = transfersBySeason.get(t.season);
+      if (bucket) bucket.push(t);
+      else transfersBySeason.set(t.season, [t]);
+    }
+    for (const e of league?.newsEvents ?? []) {
+      const bucket = eventsBySeason.get(e.season);
+      if (bucket) bucket.push(e);
+      else eventsBySeason.set(e.season, [e]);
+    }
+    const userTid = league?.meta.userTid ?? -1;
+    const out = new Map<number, FeedItem[]>();
+    for (const season of new Set([...transfersBySeason.keys(), ...eventsBySeason.keys()])) {
+      out.set(season, buildSeasonTimeline(
+        transfersBySeason.get(season) ?? [],
+        eventsBySeason.get(season) ?? [],
+        userTid,
+      ));
+    }
+    return out;
+  }, [league?.transfers, league?.newsEvents, league?.meta.userTid]);
+
   if (!league) {
     return <p className="p-3">Loading...</p>;
   }
@@ -66,21 +100,19 @@ export function NewsFeed() {
   };
 
   // Seasons present across either feed, newest first, for the dropdown.
-  const seasons = [
-    ...new Set([
-      ...league.transfers.map((t) => t.season),
-      ...league.newsEvents.map((e) => e.season),
-    ]),
-  ].sort((a, b) => b - a);
+  const seasons = [...timelinesBySeason.keys()].sort((a, b) => b - a);
 
   const seasonsToShow = seasonFilter === "all" ? seasons : seasons.filter((s) => s === seasonFilter);
 
   const teamCell = (tid: number) => {
+    if (isFreeAgentTid(tid)) {
+      return <span className="text-muted">{clubDisplayName(tid, () => undefined)}</span>;
+    }
     const team: StoredTeam | undefined = teamMap.get(tid);
     return (
       <span className="d-inline-flex align-items-center gap-1">
         <ClubCrest tid={tid} colors={team?.colors ?? ["#888888", "#888888"]} />
-        {team?.name ?? `Team ${tid}`}
+        {clubDisplayName(tid, (id) => teamMap.get(id)?.name)}
       </span>
     );
   };
@@ -96,11 +128,11 @@ export function NewsFeed() {
     );
   };
 
-  const totalItems = seasonsToShow.reduce((sum, season) => {
-    const transfers = league.transfers.filter((t) => t.season === season);
-    const events = league.newsEvents.filter((e) => e.season === season);
-    return sum + buildSeasonTimeline(transfers, events).filter((item) => passesFilters(season, item)).length;
-  }, 0);
+  const totalItems = seasonsToShow.reduce(
+    (sum, season) =>
+      sum + (timelinesBySeason.get(season) ?? []).filter((item) => passesFilters(season, item)).length,
+    0,
+  );
 
   return (
     <div className="container-fluid p-3">
@@ -141,9 +173,7 @@ export function NewsFeed() {
         </p>
       ) : (
         [...seasonsToShow].sort((a, b) => b - a).map((season) => {
-          const transfers = league.transfers.filter((t) => t.season === season);
-          const events = league.newsEvents.filter((e) => e.season === season);
-          const timeline = buildSeasonTimeline(transfers, events).filter((item) =>
+          const timeline = (timelinesBySeason.get(season) ?? []).filter((item) =>
             passesFilters(season, item),
           );
           if (timeline.length === 0) return null;
@@ -180,7 +210,9 @@ export function NewsFeed() {
                                   ? "loan return"
                                   : t.loanSeasons
                                     ? `${t.window} window loan (${t.loanSeasons} season${t.loanSeasons > 1 ? "s" : ""})`
-                                    : `${t.window} window transfer`}
+                                    : isFreeAgentTid(t.fromTid)
+                                      ? `${t.window} window free signing`
+                                      : `${t.window} window transfer`}
                               </td>
                               <td>{playerCell(t.pid)}</td>
                               <td>
