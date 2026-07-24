@@ -204,7 +204,7 @@ export function summarize(tournament: IntlTournament, players: Player[]): IntlTo
   for (const [pid, n] of [...goals.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])) {
     const player = byPid.get(pid);
     if (!player) continue;
-    topScorer = { pid, nation: player.nationality, goals: n };
+    topScorer = { pid, nation: player.nationality, goals: n, name: player.name };
     break;
   }
 
@@ -236,6 +236,7 @@ export function summarize(tournament: IntlTournament, players: Player[]): IntlTo
       awayGoals: t.awayGoals,
       winner: tournament.nations[t.winner],
       pens: t.wentToPens ? { home: t.homePens, away: t.awayPens } : null,
+      extraTime: t.wentToExtraTime,
     })),
   };
 }

@@ -109,6 +109,7 @@ function ArchivedTournament({ summary }: { summary: IntlTournamentSummary }) {
     awayGoals: k.awayGoals,
     winner: k.winner,
     pens: k.pens,
+    extraTime: k.extraTime,
   }));
 
   return (
@@ -124,7 +125,9 @@ function ArchivedTournament({ summary }: { summary: IntlTournamentSummary }) {
       {summary.topScorer && (
         <p className="small">
           <span className="text-muted">Golden Boot: </span>
-          <Link to={`/player/${summary.topScorer.pid}`}>#{summary.topScorer.pid}</Link>{" "}
+          <Link to={`/player/${summary.topScorer.pid}`}>
+            {summary.topScorer.name ?? `#${summary.topScorer.pid}`}
+          </Link>{" "}
           (<NationName nation={summary.topScorer.nation} />, {summary.topScorer.goals} goals)
         </p>
       )}

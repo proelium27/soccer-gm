@@ -112,6 +112,8 @@ export interface IntlKnockoutResult {
   winner: string;
   /** Shootout score if the tie went to penalties, else null. */
   pens: { home: number; away: number } | null;
+  /** True if the tie needed extra time (whether or not it then went to pens). */
+  extraTime?: boolean;
 }
 
 /**
@@ -130,8 +132,9 @@ export interface IntlTournamentSummary {
   runnerUp: string;
   /** Final scoreline from the champion's perspective, plus shootout if it went there. */
   finalScore: { champion: number; runnerUp: number; pens: { champion: number; runnerUp: number } | null };
-  /** The tournament's leading scorer, or null if nobody scored. */
-  topScorer: { pid: number; nation: string; goals: number } | null;
+  /** The tournament's leading scorer, or null if nobody scored. `name` is kept
+   *  so a past edition still shows who it was after the player leaves the pool. */
+  topScorer: { pid: number; nation: string; goals: number; name?: string } | null;
   /** The full field, strongest first. */
   field: string[];
   /** Final group tables (INTL_GROUPS of them, confederation null). */
