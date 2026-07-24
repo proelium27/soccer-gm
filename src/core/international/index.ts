@@ -17,5 +17,8 @@ export {
 } from "./staging.js";
 
 export function emptyInternationalState(): InternationalState {
-  return { qualifying: null, tournament: null, history: [], qualifyingHistory: [], powerRankings: [], stage: null };
+  return {
+    qualifying: null, tournament: null, history: [],
+    qualifyingHistory: [], powerRankings: [], stage: null, stageInjuries: [],
+  };
 }

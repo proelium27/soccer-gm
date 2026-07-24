@@ -111,13 +111,14 @@ export function playQualifying(
   campaign: IntlQualifyingCampaign,
   players: Player[],
   lid: number,
-): { campaign: IntlQualifyingCampaign; delta: CareerDelta } {
+): { campaign: IntlQualifyingCampaign; delta: CareerDelta; injured: number[] } {
   const { season, nations, squads } = campaign;
   const { nidOf, byConfederation, slotsByConfederation } = planQualifying(nations);
 
   const delta = emptyCareerDelta();
+  const injured = new Set<number>();
   const matchData = nationMatchData(squads, players);
-  const played = playGroups(campaign.groups, matchData, lid, season, QUALIFYING_GROUP_STREAM, false, delta);
+  const played = playGroups(campaign.groups, matchData, lid, season, QUALIFYING_GROUP_STREAM, false, delta, injured);
 
   // Which of the played groups belong to each confederation, keyed off the
   // confederation stamped on the fixture at draw time.
@@ -146,7 +147,7 @@ export function playQualifying(
     .slice(0, INTL_FIELD_SIZE)
     .map((nid) => nations[nid]);
 
-  return { campaign: { ...campaign, groups: played, qualified }, delta };
+  return { campaign: { ...campaign, groups: played, qualified }, delta, injured: [...injured] };
 }
 
 /**
@@ -158,7 +159,7 @@ export function runQualifying(
   players: Player[],
   season: number,
   lid: number,
-): { campaign: IntlQualifyingCampaign; delta: CareerDelta } | null {
+): { campaign: IntlQualifyingCampaign; delta: CareerDelta; injured: number[] } | null {
   const drawn = initQualifying(players, season);
   if (!drawn) return null;
   const result = playQualifying(drawn, players, lid);

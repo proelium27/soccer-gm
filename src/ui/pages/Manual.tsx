@@ -352,10 +352,12 @@ export function Manual() {
             veteran in his final season gets one last crack at it.
           </p>
           <p>
-            International football is a record, not a lever. Caps, goals, tournaments played and
-            titles won show up on a player's profile and build over his career, but they don't feed
-            his development, his value, or anything on the club side. It's there to give your
-            players a story beyond your club, and to see a golden generation announce itself.
+            International football is mostly a record, not a lever. Caps, goals, tournaments played
+            and titles won show up on a player's profile and build over his career, but they don't
+            feed his development or his value. There's one real cost, though: if a player gets hurt
+            at a tournament, that injury carries into the new club season, so he'll miss the opening
+            weeks just like any other injury. Beyond that it's there to give your players a story
+            beyond your club, and to see a golden generation announce itself.
           </p>
           <p>
             You can browse all of it in the <strong>National Teams</strong> section. The World Cup

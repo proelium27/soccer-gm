@@ -200,6 +200,13 @@ export interface InternationalState {
   powerRankings: IntlPowerSnapshot[];
   /** Progress of the current offseason's staged campaign; see IntlStage. */
   stage: IntlStage;
+  /**
+   * Pids injured during this offseason's international matches, awaiting carry
+   * into the new club season (see offseason.ts). Populated as stages are played,
+   * consumed and cleared at the season rollover, reset when a new campaign is
+   * drawn. Never stamped on the player mid-campaign — see collectInjured.
+   */
+  stageInjuries: number[];
 }
 
 /**

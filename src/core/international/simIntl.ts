@@ -54,6 +54,18 @@ export function accumulate(delta: CareerDelta, box: BoxScore): void {
 }
 
 /**
+ * Add the pids that picked up an injury in this match to `injured`. Collected
+ * only so the injury can be *carried into the club season* at the offseason
+ * rollover — it is never stamped on the player mid-campaign, so it can't change
+ * which international match a nation's XI plays or any scoreline (the same
+ * post-hoc discipline as career caps). Injuries are surfaced as box-score
+ * events by the match sim exactly as in a league game.
+ */
+export function collectInjured(box: BoxScore, injured: Set<number>): void {
+  for (const e of box.events) if (e.type === "injury") injured.add(e.pids[0]);
+}
+
+/**
  * Play every unplayed match in `groups`, in full, on one seeded stream.
  * Group games are 90' only and may end level — no extra time, no shootout.
  *
@@ -70,6 +82,7 @@ export function playGroups(
   stream: number,
   keepBoxScores: boolean,
   delta: CareerDelta,
+  injured: Set<number>,
 ): IntlGroup[] {
   const rng = mulberry32(hashInts(lid, season, stream, 30));
   return groups.map((group) => ({
@@ -83,6 +96,7 @@ export function playGroups(
         recompute: { home: hd.recompute, away: ad.recompute },
       });
       accumulate(delta, result.boxScore);
+      collectInjured(result.boxScore, injured);
       return {
         ...m,
         homeGoals: result.home,
@@ -137,6 +151,7 @@ export function playKnockoutRound(
   season: number,
   round: number,
   delta: CareerDelta,
+  injured: Set<number>,
 ): { ties: CupTie[]; winners: number[] } {
   const rng = mulberry32(hashInts(lid, season, KNOCKOUT_STREAM + round, 30));
   const ties: CupTie[] = [];
@@ -149,6 +164,7 @@ export function playKnockoutRound(
     if (!hd || !ad) continue; // defensive
     const tie = resolveCupTie(rng, home, away, hd, ad, round, 0);
     accumulate(delta, tie.boxScore);
+    collectInjured(tie.boxScore, injured);
     ties.push(tie);
     winners.push(tie.winner);
   }
@@ -166,6 +182,7 @@ export function playKnockout(
   lid: number,
   season: number,
   delta: CareerDelta,
+  injured: Set<number>,
 ): { ties: CupTie[]; championNid: number | null } {
   const ties: CupTie[] = [];
   let field = [...bracket];
@@ -173,7 +190,7 @@ export function playKnockout(
   let championNid: number | null = null;
 
   while (field.length > 1) {
-    const { ties: roundTies, winners } = playKnockoutRound(field, matchData, lid, season, round, delta);
+    const { ties: roundTies, winners } = playKnockoutRound(field, matchData, lid, season, round, delta, injured);
     if (winners.length === 0) break; // defensive: nothing playable
     ties.push(...roundTies);
     if (winners.length === 1) championNid = winners[0];

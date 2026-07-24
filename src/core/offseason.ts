@@ -29,7 +29,11 @@ import { academyContractTerms } from "./contracts.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
 import { competitionOf } from "./competitions.js";
 import { simThroughInternational } from "./international/index.js";
-import { hashInts } from "../engine/rng.js";
+import { carryIntlInjuries } from "./injuries.js";
+import { hashInts, mulberry32 } from "../engine/rng.js";
+
+/** rng-stream tag for rolling carried-over international injury durations. */
+const INTL_INJURY_STREAM = 840;
 
 /** Awards for the season that just ended, computed separately per competition from players' current club membership. */
 function awardsByCompetition(
@@ -130,6 +134,19 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     ...t,
     roster: t.roster.filter((pid) => !retiredPids.has(pid)),
   }));
+
+  // 3.05. Carry any injuries picked up at the summer's internationals into the
+  //       new club season — a World Cup injury genuinely sidelines a player for
+  //       its opening weeks. Applied here, *after* progression healed everyone's
+  //       club-season knocks (step 2), so only the fresh international injury
+  //       lingers. Rolled on a dedicated seeded stream (never the shared `rng`),
+  //       and international never stamped these mid-campaign, so no club or
+  //       international match result moves.
+  players = carryIntlInjuries(
+    players,
+    league.international.stageInjuries,
+    mulberry32(hashInts(league.lid, endingSeason, INTL_INJURY_STREAM)),
+  );
 
   // 3.5. Per-competition standings, rank-based settlement, and hype update.
   //      Each competition's own table is computed independently — pooling
@@ -391,9 +408,9 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     // each). buildCupState returns null if a full bracket can't be fielded.
     cup: buildCupState(league.competitions, tablesByCompId, nextSeason),
     // International football already played out (in stages) before this advance;
-    // carry its state forward, resetting the per-offseason stage marker so the
-    // new season starts clean (the next offseason redraws it).
-    international: { ...league.international, stage: null },
+    // carry its state forward, resetting the per-offseason stage marker (and the
+    // just-consumed injury carry-over list) so the new season starts clean.
+    international: { ...league.international, stage: null, stageInjuries: [] },
     cupHistory: league.cup ? [...league.cupHistory, league.cup] : league.cupHistory,
     seasonHistory: [
       ...league.seasonHistory,

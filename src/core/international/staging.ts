@@ -98,6 +98,8 @@ export function initInternationalCampaign(
   const withSnapshot = (drawn: InternationalState): InternationalState => ({
     ...drawn,
     powerRankings: [...state.powerRankings, buildPowerSnapshot(players, endingSeason)],
+    // A freshly drawn campaign starts with no injuries pending carry-over.
+    stageInjuries: [],
   });
 
   if (isQualifyingSeason(endingSeason)) {
@@ -126,12 +128,13 @@ export function playIntlStage(
   switch (state.stage) {
     case "qualifying": {
       if (!state.qualifying) return { international: { ...state, stage: "done" }, players };
-      const { campaign, delta } = playQualifying(state.qualifying, players, lid);
+      const { campaign, delta, injured } = playQualifying(state.qualifying, players, lid);
       return {
         international: {
           ...state,
           qualifying: campaign,
           qualifyingHistory: [...state.qualifyingHistory, summarizeQualifying(campaign)],
+          stageInjuries: [...state.stageInjuries, ...injured],
           stage: "done",
         },
         players: applyCareerDelta(players, delta, null, null),
@@ -139,9 +142,9 @@ export function playIntlStage(
     }
     case "groups": {
       if (!state.tournament) return { international: { ...state, stage: "done" }, players };
-      const { tournament, delta } = playTournamentGroups(state.tournament, players, lid);
+      const { tournament, delta, injured } = playTournamentGroups(state.tournament, players, lid);
       return {
-        international: { ...state, tournament, stage: "qf" },
+        international: { ...state, tournament, stageInjuries: [...state.stageInjuries, ...injured], stage: "qf" },
         players: applyCareerDelta(players, delta, null, null),
       };
     }
@@ -149,9 +152,11 @@ export function playIntlStage(
     case "sf":
     case "final": {
       if (!state.tournament) return { international: { ...state, stage: "done" }, players };
-      const { tournament, delta } = playTournamentRound(state.tournament, players, lid);
+      const { tournament, delta, injured } = playTournamentRound(state.tournament, players, lid);
       // caps/goals/assists from this round's matches.
       let updated = applyCareerDelta(players, delta, null, null);
+
+      const stageInjuries = [...state.stageInjuries, ...injured];
 
       if (tournament.championNid !== null) {
         // Final done: credit everyone a tournament played and the winners a
@@ -164,6 +169,7 @@ export function playIntlStage(
             ...state,
             tournament,
             history: summary ? [...state.history, summary] : state.history,
+            stageInjuries,
             stage: "done",
           },
           players: updated,
@@ -171,7 +177,7 @@ export function playIntlStage(
       }
 
       return {
-        international: { ...state, tournament, stage: state.stage === "qf" ? "sf" : "final" },
+        international: { ...state, tournament, stageInjuries, stage: state.stage === "qf" ? "sf" : "final" },
         players: updated,
       };
     }

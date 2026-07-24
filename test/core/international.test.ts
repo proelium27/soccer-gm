@@ -211,6 +211,29 @@ describe("offseason cycle", () => {
     expect(next.international.stage).toBeNull();
   });
 
+  it("carries injuries from the summer's internationals into the new club season", () => {
+    const rng = mulberry32(7);
+    let league = createLeagueState(0, rng);
+    league = simThrough(league, "season", rng); // season 1 ends → qualifying drawn
+    league = simThrough(league, "season", rng); // clear any cup-final halt
+    league = playInternational(league); // play qualifying (many matches → injuries happen)
+
+    const injuredPids = league.international.stageInjuries;
+    expect(injuredPids.length).toBeGreaterThan(0);
+
+    const next = simOffseason(league, rng);
+    expect(next.international.stageInjuries).toHaveLength(0); // consumed at the rollover
+
+    // Every injured player still around now carries an injury into the new season
+    // (progression healed the club-season knocks first, so this can only be the
+    // international one).
+    const survivors = injuredPids
+      .map((pid) => next.players.find((p) => p.pid === pid))
+      .filter((p): p is NonNullable<typeof p> => p !== undefined);
+    expect(survivors.length).toBeGreaterThan(0);
+    for (const p of survivors) expect(p.injury).not.toBeNull();
+  });
+
   it("staged play matches a one-pass runTournament on the same field", () => {
     const rng = mulberry32(11);
     let league = createLeagueState(0, rng);

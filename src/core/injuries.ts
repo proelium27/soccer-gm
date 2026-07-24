@@ -12,6 +12,21 @@ function rollInjury(rng: () => number): { gamesRemaining: number; type: string }
 }
 
 /**
+ * Stamp a fresh injury on every player in `pids` — used to carry injuries picked
+ * up at the summer's internationals into the new club season, applied *after*
+ * the offseason has healed everyone's club-season knocks (see offseason.ts). The
+ * caller passes a dedicated seeded rng, never the shared offseason stream, so
+ * durations are deterministic without perturbing progression or match results.
+ * The player then misses the opening `gamesRemaining` matchdays, ticking down
+ * through `applyInjuries` exactly like any other injury.
+ */
+export function carryIntlInjuries(players: Player[], pids: number[], rng: () => number): Player[] {
+  if (pids.length === 0) return players;
+  const set = new Set(pids);
+  return players.map((p) => (set.has(p.pid) ? { ...p, injury: rollInjury(rng) } : p));
+}
+
+/**
  * Multi-game injury recovery (spec §5/§6): the engine only decides whether a
  * player gets hurt in a given match (forcing a sub) and logs an "injury"
  * event; this is where that becomes a persistent games-out countdown. Called

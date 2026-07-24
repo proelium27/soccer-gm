@@ -325,6 +325,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
           // backfill those to empty (their champion/field still render).
           qualifyingHistory: anyVersion.international.qualifyingHistory ?? [],
           powerRankings: anyVersion.international.powerRankings ?? [],
+          stageInjuries: anyVersion.international.stageInjuries ?? [],
           history: (anyVersion.international.history ?? []).map((h) => ({
             ...h,
             groups: h.groups ?? [],
@@ -333,7 +334,7 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
         }
       : {
           qualifying: null, tournament: null, history: [],
-          qualifyingHistory: [], powerRankings: [], stage: null,
+          qualifyingHistory: [], powerRankings: [], stage: null, stageInjuries: [],
         },
     // God Mode sandbox editing defaults off for any save that predates it.
     godMode: anyVersion.godMode ?? false,

@@ -83,12 +83,13 @@ export function playTournamentGroups(
   tournament: IntlTournament,
   players: Player[],
   lid: number,
-): { tournament: IntlTournament; delta: CareerDelta } {
+): { tournament: IntlTournament; delta: CareerDelta; injured: number[] } {
   const delta = emptyCareerDelta();
+  const injured = new Set<number>();
   const matchData = nationMatchData(tournament.squads, players);
-  const played = playGroups(tournament.groups, matchData, lid, tournament.season, TOURNAMENT_GROUP_STREAM, true, delta);
+  const played = playGroups(tournament.groups, matchData, lid, tournament.season, TOURNAMENT_GROUP_STREAM, true, delta, injured);
   const bracket = seedBracket(played);
-  return { tournament: { ...tournament, groups: played, bracket }, delta };
+  return { tournament: { ...tournament, groups: played, bracket }, delta, injured: [...injured] };
 }
 
 /**
@@ -113,14 +114,15 @@ export function playTournamentRound(
   tournament: IntlTournament,
   players: Player[],
   lid: number,
-): { tournament: IntlTournament; delta: CareerDelta } {
+): { tournament: IntlTournament; delta: CareerDelta; injured: number[] } {
   const delta = emptyCareerDelta();
+  const injured = new Set<number>();
   const matchData = nationMatchData(tournament.squads, players);
   const { round, field } = nextKnockoutRound(tournament);
-  const { ties, winners } = playKnockoutRound(field, matchData, lid, tournament.season, round, delta);
+  const { ties, winners } = playKnockoutRound(field, matchData, lid, tournament.season, round, delta, injured);
   const nextTies: CupTie[] = [...tournament.ties, ...ties];
   const championNid = winners.length === 1 ? winners[0] : tournament.championNid;
-  return { tournament: { ...tournament, ties: nextTies, championNid }, delta };
+  return { tournament: { ...tournament, ties: nextTies, championNid }, delta, injured: [...injured] };
 }
 
 /**
@@ -135,24 +137,27 @@ export function runTournament(
   players: Player[],
   season: number,
   lid: number,
-): { tournament: IntlTournament; delta: CareerDelta } | null {
+): { tournament: IntlTournament; delta: CareerDelta; injured: number[] } | null {
   const drawn = initTournament(qualified, players, season, lid);
   if (!drawn) return null;
 
   const delta = emptyCareerDelta();
+  const injured = new Set<number>();
   let stage = playTournamentGroups(drawn, players, lid);
   mergeCareerDelta(delta, stage.delta);
+  for (const pid of stage.injured) injured.add(pid);
   let tournament = stage.tournament;
   while (tournament.championNid === null) {
     stage = playTournamentRound(tournament, players, lid);
     mergeCareerDelta(delta, stage.delta);
+    for (const pid of stage.injured) injured.add(pid);
     // Defensive: a bracket that can never resolve (missing match data) would
     // otherwise spin forever — bail if a round advances nobody.
     if (stage.tournament.ties.length === tournament.ties.length) break;
     tournament = stage.tournament;
   }
 
-  return { tournament, delta };
+  return { tournament, delta, injured: [...injured] };
 }
 
 /** The final tie, i.e. the last round played. Null if the knockout never completed. */
