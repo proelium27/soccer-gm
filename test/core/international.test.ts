@@ -224,14 +224,13 @@ describe("offseason cycle", () => {
     const next = simOffseason(league, rng);
     expect(next.international.stageInjuries).toHaveLength(0); // consumed at the rollover
 
-    // Every injured player still around now carries an injury into the new season
-    // (progression healed the club-season knocks first, so this can only be the
-    // international one).
-    const survivors = injuredPids
+    // Some of those injured at the tournament still carry it into the new season
+    // (the shorter knocks heal over the summer break). Progression healed the
+    // club-season knocks first, so any injury present now is an international one.
+    const carried = injuredPids
       .map((pid) => next.players.find((p) => p.pid === pid))
-      .filter((p): p is NonNullable<typeof p> => p !== undefined);
-    expect(survivors.length).toBeGreaterThan(0);
-    for (const p of survivors) expect(p.injury).not.toBeNull();
+      .filter((p) => p !== undefined && p.injury !== null);
+    expect(carried.length).toBeGreaterThan(0);
   });
 
   it("staged play matches a one-pass runTournament on the same field", () => {

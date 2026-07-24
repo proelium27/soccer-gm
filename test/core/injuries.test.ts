@@ -10,6 +10,7 @@ import type { StoredTeam } from "../../src/core/teams/clubs.js";
 import {
   INJURY_GAMES_MIN,
   INJURY_GAMES_MAX,
+  INTL_INJURY_OFFSEASON_RECOVERY,
   BASE_SEASON_BUDGET,
   HYPE_INITIAL,
   SCOUTING_SPEND_MIN,
@@ -190,15 +191,23 @@ describe("carryIntlInjuries", () => {
     hist: [],
   });
 
-  it("stamps a bounded injury on the named pids only", () => {
-    const out = carryIntlInjuries([mk(1), mk(2), mk(3)], [1, 3], mulberry32(5));
+  it("carries a reduced injury (or none) onto named pids only, leaving others untouched", () => {
+    const players = Array.from({ length: 20 }, (_, i) => mk(i + 1));
+    const named = players.slice(0, 10).map((p) => p.pid);
+    const out = carryIntlInjuries(players, named, mulberry32(5));
     const byPid = new Map(out.map((p) => [p.pid, p]));
-    expect(byPid.get(1)!.injury).not.toBeNull();
-    expect(byPid.get(3)!.injury).not.toBeNull();
-    expect(byPid.get(2)!.injury).toBeNull();
-    const g = byPid.get(1)!.injury!.gamesRemaining;
-    expect(g).toBeGreaterThanOrEqual(INJURY_GAMES_MIN);
-    expect(g).toBeLessThanOrEqual(INJURY_GAMES_MAX);
+
+    // Unnamed players are never touched.
+    for (const p of players.slice(10)) expect(byPid.get(p.pid)!.injury).toBeNull();
+
+    // Named players either healed over the summer break (null) or carry a spell
+    // shortened by the offseason recovery — never the full rolled duration.
+    const carried = named.map((pid) => byPid.get(pid)!.injury).filter((i) => i !== null);
+    expect(carried.length).toBeGreaterThan(0); // some were serious enough to linger
+    for (const inj of carried) {
+      expect(inj!.gamesRemaining).toBeGreaterThanOrEqual(1);
+      expect(inj!.gamesRemaining).toBeLessThanOrEqual(INJURY_GAMES_MAX - INTL_INJURY_OFFSEASON_RECOVERY);
+    }
   });
 
   it("is a no-op (same reference) when there's nothing to carry", () => {

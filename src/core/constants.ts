@@ -1535,3 +1535,14 @@ export const INTL_QUAL_GROUP_TARGET = 5;
  * stay single-leg — that variance is the point of a tournament.
  */
 export const INTL_QUAL_LEGS = 2;
+
+/**
+ * How many games of recovery an international injury is credited for having
+ * already served over the summer break, before the new club season starts. A
+ * tournament is played weeks ahead of kickoff, so a short knock heals in time
+ * (it never carries) and only a more serious injury still sidelines the player
+ * into the new season, at a reduced remaining spell. Subtracted from the rolled
+ * INJURY_GAMES duration; if it lands at zero or below, the player is fit by the
+ * opening day. Tunable — raise it to make carried injuries rarer/shorter.
+ */
+export const INTL_INJURY_OFFSEASON_RECOVERY = 2;

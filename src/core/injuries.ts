@@ -1,6 +1,6 @@
 import type { Player } from "./players/types.js";
 import type { PlayedMatch } from "./standings.js";
-import { INJURY_GAMES_MIN, INJURY_GAMES_MAX } from "./constants.js";
+import { INJURY_GAMES_MIN, INJURY_GAMES_MAX, INTL_INJURY_OFFSEASON_RECOVERY } from "./constants.js";
 
 const INJURY_TYPES = ["knock", "muscle strain", "ankle sprain"] as const;
 
@@ -23,7 +23,14 @@ function rollInjury(rng: () => number): { gamesRemaining: number; type: string }
 export function carryIntlInjuries(players: Player[], pids: number[], rng: () => number): Player[] {
   if (pids.length === 0) return players;
   const set = new Set(pids);
-  return players.map((p) => (set.has(p.pid) ? { ...p, injury: rollInjury(rng) } : p));
+  return players.map((p) => {
+    if (!set.has(p.pid)) return p;
+    // Roll the full injury, then credit the weeks of the summer break already
+    // served: a short knock heals before kickoff, only a serious one lingers.
+    const rolled = rollInjury(rng);
+    const gamesRemaining = rolled.gamesRemaining - INTL_INJURY_OFFSEASON_RECOVERY;
+    return gamesRemaining > 0 ? { ...p, injury: { ...rolled, gamesRemaining } } : p;
+  });
 }
 
 /**
