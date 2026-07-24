@@ -3,12 +3,12 @@ import type { InternationalState, IntlCareer, NationSquad } from "./types.js";
 import type { CareerDelta } from "./simIntl.js";
 import { emptyIntlCareer } from "./types.js";
 import { emptyCareerDelta } from "./simIntl.js";
-import { initQualifying, playQualifying } from "./qualifying.js";
+import { initQualifying, playQualifyingRound } from "./qualifying.js";
 import {
   initTournament, playTournamentGroups, playTournamentRound, summarize, summarizeQualifying,
 } from "./tournament.js";
 import { buildPowerSnapshot } from "./squads.js";
-import { isQualifyingSeason } from "../constants.js";
+import { qualifyingLeg } from "../constants.js";
 
 /**
  * Staged international football.
@@ -102,12 +102,27 @@ export function initInternationalCampaign(
     stageInjuries: [],
   });
 
-  if (isQualifyingSeason(endingSeason)) {
+  const leg = qualifyingLeg(endingSeason);
+
+  if (leg === 0) {
+    // Start of a cycle: draw a fresh qualifying campaign (all legs, unplayed)
+    // and stage its first leg. The campaign's season is this start season, which
+    // seeds every leg — so the whole three-offseason campaign is deterministic.
     const campaign = initQualifying(players, endingSeason);
     if (!campaign) return { ...state, stage: null };
     return withSnapshot({ ...state, qualifying: campaign, stage: "qualifying" });
   }
 
+  if (leg > 0) {
+    // A later qualifying offseason of the same cycle: resume the in-progress
+    // campaign for its next leg. Nothing to resume if it never started, or if it
+    // somehow already finished.
+    if (!state.qualifying || state.qualifying.qualified.length > 0) return { ...state, stage: null };
+    return withSnapshot({ ...state, stage: "qualifying" });
+  }
+
+  // Tournament offseason (every fourth season): draw the World Cup from the just
+  // completed qualifying campaign.
   const qualified = state.qualifying?.qualified;
   if (!qualified || qualified.length === 0) return { ...state, stage: null };
   const tournament = initTournament(qualified, players, endingSeason, lid);
@@ -128,12 +143,17 @@ export function playIntlStage(
   switch (state.stage) {
     case "qualifying": {
       if (!state.qualifying) return { international: { ...state, stage: "done" }, players };
-      const { campaign, delta, injured } = playQualifying(state.qualifying, players, lid);
+      // Play this offseason's one leg. The campaign spans three offseasons, so
+      // only archive its summary once the last leg locks in the 16 qualifiers.
+      const { campaign, delta, injured } = playQualifyingRound(state.qualifying, players, lid);
+      const finished = campaign.qualified.length > 0;
       return {
         international: {
           ...state,
           qualifying: campaign,
-          qualifyingHistory: [...state.qualifyingHistory, summarizeQualifying(campaign)],
+          qualifyingHistory: finished
+            ? [...state.qualifyingHistory, summarizeQualifying(campaign)]
+            : state.qualifyingHistory,
           stageInjuries: [...state.stageInjuries, ...injured],
           stage: "done",
         },

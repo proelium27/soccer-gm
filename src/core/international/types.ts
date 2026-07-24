@@ -26,6 +26,13 @@ export interface NationSquad {
 export interface IntlGroupMatch {
   group: number;
   round: number;
+  /**
+   * Which leg of the round-robin this fixture belongs to (0-based). Qualifying
+   * plays one leg per offseason across the cycle, so the leg says which offseason
+   * a fixture is played in; tournament groups are single-leg (all leg 0).
+   * Optional for legacy campaigns saved before legs were tagged (treated as 0).
+   */
+  leg?: number;
   home: number; // nid
   away: number; // nid
   homeGoals: number;

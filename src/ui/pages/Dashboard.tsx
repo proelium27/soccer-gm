@@ -11,7 +11,7 @@ import { SCOUTING_SPEND_MAX, RATING_LEADER_QUALIFY_FRACTION } from "../../core/c
 import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
 import { isIntlStagePending } from "../../core/international/index.js";
-import { INTL_TOURNAMENT_NAME } from "../../core/constants.js";
+import { INTL_TOURNAMENT_NAME, INTL_QUAL_LEGS, qualifyingLeg } from "../../core/constants.js";
 import type { IntlStage } from "../../core/international/index.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
@@ -23,20 +23,29 @@ import type { Player, SeasonStats } from "../../core/players/types.js";
 /** A pending staged international stage — every IntlStage that still has play left. */
 type PlayableStage = Exclude<IntlStage, null | "done">;
 
-/** The button label for playing the next staged international stage. */
-const INTL_STAGE_BUTTON: Record<PlayableStage, string> = {
-  qualifying: "Play qualifying",
-  groups: "Play the group stage",
-  qf: "Play the quarterfinals",
-  sf: "Play the semifinals",
-  final: "Play the final",
-};
-
-/** A one-line status for the staged international campaign on the Dashboard. */
-function intlStageHeadline(stage: PlayableStage): string {
+/** The button label for playing the next staged international stage. `qualRound` is 1-based. */
+function intlStageButton(stage: PlayableStage, qualRound: number): string {
   switch (stage) {
     case "qualifying":
-      return "It's a qualifying year. Play it out to see which nations reach the World Cup.";
+      return `Play qualifying (round ${qualRound} of ${INTL_QUAL_LEGS})`;
+    case "groups":
+      return "Play the group stage";
+    case "qf":
+      return "Play the quarterfinals";
+    case "sf":
+      return "Play the semifinals";
+    case "final":
+      return "Play the final";
+  }
+}
+
+/** A one-line status for the staged international campaign on the Dashboard. */
+function intlStageHeadline(stage: PlayableStage, qualRound: number): string {
+  switch (stage) {
+    case "qualifying":
+      return qualRound < INTL_QUAL_LEGS
+        ? `World Cup qualifying is on, round ${qualRound} of ${INTL_QUAL_LEGS}. Play it to move the campaign along.`
+        : `The final round of World Cup qualifying, ${qualRound} of ${INTL_QUAL_LEGS}. Play it to lock in who reaches the finals.`;
     case "groups":
       return `The ${INTL_TOURNAMENT_NAME} is here. Play the group stage to get things underway.`;
     case "qf":
@@ -393,7 +402,7 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
             {isIntlStagePending(league.international) ? (
               <>
                 <p className="card-text">
-                  {intlStageHeadline(league.international.stage as PlayableStage)}{" "}
+                  {intlStageHeadline(league.international.stage as PlayableStage, qualifyingLeg(league.season) + 1)}{" "}
                   Follow it on the{" "}
                   <Link to={league.international.stage === "qualifying" ? "/national-teams/qualifying" : "/national-teams/world-cup"}>
                     National Teams
@@ -406,7 +415,7 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                     disabled={simming}
                     onClick={() => intlStageAction("stage")}
                   >
-                    {INTL_STAGE_BUTTON[league.international.stage as PlayableStage]}
+                    {intlStageButton(league.international.stage as PlayableStage, qualifyingLeg(league.season) + 1)}
                   </button>
                   {league.international.stage !== "qualifying" && (
                     <button

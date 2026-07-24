@@ -320,24 +320,25 @@ export function Manual() {
         <Section id="international" title="International Football">
           <p>
             Your players also represent their countries. National teams play in the summer, on a
-            two-year cycle: every odd season's offseason runs <strong>qualifying</strong>, and the
-            following even season's offseason plays the <strong>World Cup</strong> the qualifiers
-            earned a place in. Nothing about it touches your league calendar; it all happens between
-            seasons, and the <strong>International</strong> page is where you follow it.
+            four-year cycle: there's a <strong>World Cup</strong> every fourth season, and the three
+            offseasons leading up to it each run a round of <strong>qualifying</strong>. Nothing
+            about it touches your league calendar; it all happens between seasons, and the{" "}
+            <strong>National Teams</strong> pages are where you follow it.
           </p>
           <p>
-            You play it out yourself, a stage at a time. When you reach the offseason in an
-            international summer, the Dashboard hands you the buttons: in a qualifying year you play
-            qualifying; in a World Cup year you play the group stage, then the quarter-finals, then
+            You play it out yourself, a stage at a time. When you reach the offseason, the Dashboard
+            hands you the buttons: in a qualifying year you play that year's round of qualifying (one
+            of three); in a World Cup year you play the group stage, then the quarter-finals, then
             the semis, then the final, one click each, so you can watch it unfold. If you'd rather
             not linger, "Sim through the World Cup" plays the rest in one go. You can't advance into
-            the next season until the tournament has finished.
+            the next season until that offseason's international games are done.
           </p>
           <p>
             Every nation with enough players in the world enters qualifying. They're split into
-            groups by confederation and play each other home and away, and the number of places
-            each confederation gets depends on how many genuinely strong nations it has, so the 16
-            who make it are a believable field rather than whoever happens to be nearby. At the
+            groups by confederation and play a long home-and-away campaign spread over the three
+            qualifying offseasons, and the number of places each confederation gets depends on how
+            many genuinely strong nations it has, so the 16 who make it are a believable field rather
+            than whoever happens to be nearby. At the
             tournament those 16 are drawn into four groups of four; the top two from each go through
             to the quarter-finals, then semi-finals and a final. Knockout ties level after extra
             time go to a shootout, exactly like the Continental Cup.

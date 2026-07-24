@@ -87,7 +87,8 @@ export function playTournamentGroups(
   const delta = emptyCareerDelta();
   const injured = new Set<number>();
   const matchData = nationMatchData(tournament.squads, players);
-  const played = playGroups(tournament.groups, matchData, lid, tournament.season, TOURNAMENT_GROUP_STREAM, true, delta, injured);
+  const seed = hashInts(lid, tournament.season, TOURNAMENT_GROUP_STREAM, 30);
+  const played = playGroups(tournament.groups, matchData, seed, true, delta, injured);
   const bracket = seedBracket(played);
   return { tournament: { ...tournament, groups: played, bracket }, delta, injured: [...injured] };
 }

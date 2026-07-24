@@ -66,29 +66,33 @@ export function collectInjured(box: BoxScore, injured: Set<number>): void {
 }
 
 /**
- * Play every unplayed match in `groups`, in full, on one seeded stream.
- * Group games are 90' only and may end level — no extra time, no shootout.
+ * Play unplayed matches in `groups` on one seeded stream (`seed`), 90' only —
+ * group games may end level, no extra time or shootout. When `onlyLeg` is given,
+ * only that leg's fixtures are played (the rest wait for their own offseason);
+ * this is how qualifying spreads its three legs across the cycle. Callers pass
+ * the seed directly so a per-leg stream can be seeded independently, which keeps
+ * each leg's results the same whether the campaign is played leg-by-leg or in
+ * one pass.
  *
  * `keepBoxScores` controls whether the per-match attribution is retained on the
- * fixture. Qualifying discards it (a campaign is ~80 matches and a long dynasty
- * plays dozens of campaigns; the career totals folded into `delta` are the
+ * fixture. Qualifying discards it (the career totals folded into `delta` are the
  * lasting record), while a tournament keeps it so its matches stay browsable.
  */
 export function playGroups(
   groups: IntlGroup[],
   matchData: Map<number, TeamMatchData>,
-  lid: number,
-  season: number,
-  stream: number,
+  seed: number,
   keepBoxScores: boolean,
   delta: CareerDelta,
   injured: Set<number>,
+  onlyLeg?: number,
 ): IntlGroup[] {
-  const rng = mulberry32(hashInts(lid, season, stream, 30));
+  const rng = mulberry32(seed);
   return groups.map((group) => ({
     ...group,
     matches: group.matches.map((m) => {
       if (m.homeGoals >= 0) return m;
+      if (onlyLeg !== undefined && (m.leg ?? 0) !== onlyLeg) return m; // not this leg's fixture
       const hd = matchData.get(m.home);
       const ad = matchData.get(m.away);
       if (!hd || !ad) return m; // defensive: every entrant should be in matchData

@@ -16,7 +16,7 @@ const BYE = -1;
  * were missing tournaments at a rate no amount of seeding could fix. Doubling
  * the fixtures halves that variance, and is how real qualifying is played.
  */
-export function roundRobin(nids: number[], legs = 1): { round: number; home: number; away: number }[] {
+export function roundRobin(nids: number[], legs = 1): { round: number; leg: number; home: number; away: number }[] {
   let arr = [...nids];
   if (arr.length % 2 === 1) arr.push(BYE);
   const n = arr.length;
@@ -35,11 +35,11 @@ export function roundRobin(nids: number[], legs = 1): { round: number; home: num
     arr = [arr[0], arr[n - 1], ...arr.slice(1, n - 1)];
   }
 
-  const out = [...single];
+  const out = single.map((m) => ({ ...m, leg: 0 }));
   const roundsPerLeg = n - 1;
   for (let leg = 1; leg < legs; leg++) {
     for (const m of single) {
-      out.push({ round: m.round + leg * roundsPerLeg, home: m.away, away: m.home });
+      out.push({ round: m.round + leg * roundsPerLeg, leg, home: m.away, away: m.home });
     }
   }
   return out;
@@ -55,6 +55,7 @@ export function buildGroup(
   const matches: IntlGroupMatch[] = roundRobin(nids, legs).map((m) => ({
     group: groupIndex,
     round: m.round,
+    leg: m.leg,
     home: m.home,
     away: m.away,
     homeGoals: -1,

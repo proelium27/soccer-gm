@@ -4,7 +4,8 @@ import type { CareerDelta } from "./simIntl.js";
 import { buildSquads, nationMatchData } from "./squads.js";
 import { groupByConfederation, allocateSlots } from "./confederations.js";
 import { buildGroup, serpentineGroups, groupTable, rankAcrossGroups, type GroupRow } from "./groups.js";
-import { playGroups, emptyCareerDelta, QUALIFYING_GROUP_STREAM } from "./simIntl.js";
+import { playGroups, emptyCareerDelta, mergeCareerDelta, QUALIFYING_GROUP_STREAM } from "./simIntl.js";
+import { hashInts } from "../../engine/rng.js";
 import { INTL_FIELD_SIZE, INTL_QUAL_GROUP_TARGET, INTL_QUAL_LEGS } from "../constants.js";
 
 /**
@@ -72,8 +73,9 @@ function planQualifying(nations: string[]): {
  * names a squad, confederations are allocated the INTL_FIELD_SIZE places between
  * them, and each confederation that has more nations than places is drawn into
  * serpentine groups whose fixtures start unplayed (`qualified` stays empty until
- * playQualifying runs). No rng draw is taken from the shared stream and no
- * player is touched, so this is safe to run the instant the offseason begins.
+ * the last leg is played, one leg per offseason via playQualifyingRound). No rng
+ * draw is taken from the shared stream and no player is touched, so this is safe
+ * to run the instant the offseason begins.
  *
  * Returns null when the world simply cannot fill the field — an England-only
  * legacy save, say, whose player pool spans too few nations. The caller treats
@@ -101,24 +103,15 @@ export function initQualifying(players: Player[], season: number): IntlQualifyin
 }
 
 /**
- * Play a drawn qualifying campaign's groups and fill each confederation's
- * places, returning the completed campaign (its `qualified` now the next
- * tournament's field) plus the appearances the matches generated. The
- * allocation is recomputed from the campaign's own nations, so this needs no
- * extra state beyond the drawn campaign itself.
+ * The 16 qualifiers, computed once the whole campaign is played: each
+ * confederation's places filled by finishing position across its groups, plus
+ * the direct qualifiers whose confederation had no more nations than places.
+ * Strongest first (by nid) so the tournament draw's pots seed correctly. The
+ * allocation is recomputed from the campaign's own nations, so no extra state is
+ * stored on the campaign.
  */
-export function playQualifying(
-  campaign: IntlQualifyingCampaign,
-  players: Player[],
-  lid: number,
-): { campaign: IntlQualifyingCampaign; delta: CareerDelta; injured: number[] } {
-  const { season, nations, squads } = campaign;
+export function computeQualified(played: IntlGroup[], nations: string[]): string[] {
   const { nidOf, byConfederation, slotsByConfederation } = planQualifying(nations);
-
-  const delta = emptyCareerDelta();
-  const injured = new Set<number>();
-  const matchData = nationMatchData(squads, players);
-  const played = playGroups(campaign.groups, matchData, lid, season, QUALIFYING_GROUP_STREAM, false, delta, injured);
 
   // Which of the played groups belong to each confederation, keyed off the
   // confederation stamped on the fixture at draw time.
@@ -141,18 +134,61 @@ export function playQualifying(
     qualifiedNids.push(...fillPlaces(indices.map((i) => played[i]), slots));
   }
 
-  // Strongest first (by nid), so the tournament draw's pots are seeded correctly.
-  const qualified = [...new Set(qualifiedNids)]
+  return [...new Set(qualifiedNids)]
     .sort((a, b) => a - b)
     .slice(0, INTL_FIELD_SIZE)
     .map((nid) => nations[nid]);
+}
 
+/**
+ * Play the next unplayed leg of a qualifying campaign — one leg per offseason
+ * across the four-year cycle. Each leg is seeded independently (off the
+ * campaign's start season and the leg index), so its results are the same
+ * whether the campaign is clicked through a leg at a time or run in one pass.
+ * Squad pids are filtered to players still in the world, because a three-season
+ * campaign outlives some of the players named at its start (retirement runs
+ * between offseasons). Once the final leg completes, the 16 qualifiers are
+ * locked in.
+ */
+export function playQualifyingRound(
+  campaign: IntlQualifyingCampaign,
+  players: Player[],
+  lid: number,
+): { campaign: IntlQualifyingCampaign; delta: CareerDelta; injured: number[] } {
+  const delta = emptyCareerDelta();
+  const injured = new Set<number>();
+
+  // The next leg to play is the lowest leg with any fixture still unplayed.
+  const pendingLegs = campaign.groups.flatMap((g) =>
+    g.matches.filter((m) => m.homeGoals < 0).map((m) => m.leg ?? 0),
+  );
+  if (pendingLegs.length === 0) {
+    // Nothing left to play (or a world where every confederation qualified
+    // directly): make sure the qualifiers are computed.
+    const qualified = campaign.qualified.length > 0
+      ? campaign.qualified
+      : computeQualified(campaign.groups, campaign.nations);
+    return { campaign: { ...campaign, qualified }, delta, injured: [] };
+  }
+  const leg = Math.min(...pendingLegs);
+
+  // Drop squad members who have since retired out of the world so match data
+  // never dereferences a missing pid.
+  const alive = new Set(players.map((p) => p.pid));
+  const liveSquads = campaign.squads.map((s) => ({ ...s, pids: s.pids.filter((pid) => alive.has(pid)) }));
+  const matchData = nationMatchData(liveSquads, players);
+
+  const seed = hashInts(lid, campaign.season, QUALIFYING_GROUP_STREAM, leg);
+  const played = playGroups(campaign.groups, matchData, seed, false, delta, injured, leg);
+
+  const complete = played.every((g) => g.matches.every((m) => m.homeGoals >= 0));
+  const qualified = complete ? computeQualified(played, campaign.nations) : campaign.qualified;
   return { campaign: { ...campaign, groups: played, qualified }, delta, injured: [...injured] };
 }
 
 /**
- * Draw and play a whole qualifying campaign in one pass — the bulk path behind
- * "Sim through qualifying" and the equivalence baseline for the staged path.
+ * Draw and play a whole qualifying campaign (every leg) in one pass — the bulk
+ * path and the equivalence baseline for the staged, one-leg-per-offseason play.
  * Null when the world cannot fill the field (see initQualifying).
  */
 export function runQualifying(
@@ -162,7 +198,17 @@ export function runQualifying(
 ): { campaign: IntlQualifyingCampaign; delta: CareerDelta; injured: number[] } | null {
   const drawn = initQualifying(players, season);
   if (!drawn) return null;
-  const result = playQualifying(drawn, players, lid);
-  if (result.campaign.qualified.length < INTL_FIELD_SIZE) return null;
-  return result;
+
+  const delta = emptyCareerDelta();
+  const injured = new Set<number>();
+  let campaign = drawn;
+  for (let guard = 0; campaign.qualified.length === 0 && guard <= INTL_QUAL_LEGS; guard++) {
+    const r = playQualifyingRound(campaign, players, lid);
+    mergeCareerDelta(delta, r.delta);
+    for (const pid of r.injured) injured.add(pid);
+    campaign = r.campaign;
+  }
+
+  if (campaign.qualified.length < INTL_FIELD_SIZE) return null;
+  return { campaign, delta, injured: [...injured] };
 }

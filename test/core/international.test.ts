@@ -99,6 +99,9 @@ describe("round robin", () => {
     // Each ordered (home, away) appears exactly once across both legs.
     const ordered = fixtures.map((m) => `${m.home}-${m.away}`);
     expect(new Set(ordered).size).toBe(12);
+    // Each fixture is tagged with its leg (6 per leg), so a leg can be played on its own.
+    expect(fixtures.filter((m) => m.leg === 0)).toHaveLength(6);
+    expect(fixtures.filter((m) => m.leg === 1)).toHaveLength(6);
   });
 
   it("odd group: nobody plays themselves, everyone plays everyone", () => {
@@ -163,10 +166,9 @@ describe("squads", () => {
 });
 
 describe("offseason cycle", () => {
-  it("qualifies 16 then plays a completed tournament, on the two-year cadence", () => {
-    const league = advance(7, 2);
+  it("qualifies 16 over three offseasons then plays the World Cup, on the four-year cadence", () => {
+    const league = advance(7, 4); // seasons 1-3 qualify, season 4 is the tournament
     const intl = league.international;
-    // After seasons 1 (qualifying) and 2 (tournament):
     expect(intl.qualifying?.qualified).toHaveLength(INTL_FIELD_SIZE);
     expect(intl.tournament).not.toBeNull();
     expect(intl.tournament!.nations).toHaveLength(INTL_FIELD_SIZE);
@@ -176,15 +178,15 @@ describe("offseason cycle", () => {
     expect(intl.history[0].champion).toBeTruthy();
 
     // Light archival is populated as the campaigns finish.
-    expect(intl.qualifyingHistory).toHaveLength(1); // season 1's qualifying
+    expect(intl.qualifyingHistory).toHaveLength(1); // one completed campaign (seasons 1-3)
     expect(intl.qualifyingHistory[0].qualified).toHaveLength(INTL_FIELD_SIZE);
-    expect(intl.powerRankings.length).toBeGreaterThanOrEqual(2); // a snapshot per campaign drawn
+    expect(intl.powerRankings.length).toBeGreaterThanOrEqual(4); // a snapshot each offseason
     expect(intl.history[0].groups).toHaveLength(INTL_GROUPS); // 4 final group tables
     expect(intl.history[0].knockout).toHaveLength(7); // 4 QF + 2 SF + 1 final
   });
 
   it("records caps and titles on players who feature", () => {
-    const league = advance(7, 2);
+    const league = advance(7, 4);
     const capped = league.players.filter((p) => p.intl && p.intl.caps > 0);
     expect(capped.length).toBeGreaterThan(0);
     const champions = league.players.filter((p) => p.intl && p.intl.titles > 0);
@@ -193,22 +195,33 @@ describe("offseason cycle", () => {
     for (const p of champions) expect(p.intl!.tournaments).toBeGreaterThanOrEqual(1);
   });
 
-  it("draws the campaign on entering the offseason, and the advance plays it out", () => {
+  it("draws a qualifying campaign and finishes it across three offseasons", () => {
     const rng = mulberry32(3);
     let league = createLeagueState(0, rng);
-    league = simThrough(league, "season", rng); // season 1 ends → qualifying drawn
+
+    // Season 1: the campaign is drawn and its first leg is pending.
+    league = simThrough(league, "season", rng);
     league = simThrough(league, "season", rng); // clear any cup-final halt
     expect(league.phase).toBe("offseason");
-    // Drawn but unplayed: the fixtures exist, and the UI holds "Advance" on this.
     expect(league.international.stage).toBe("qualifying");
     expect(isIntlStagePending(league.international)).toBe(true);
 
-    // Advancing plays the pending campaign through, then rolls the season over
-    // (self-contained: a headless advance doesn't need the stages played by hand).
-    const next = simOffseason(league, rng);
-    expect(next.season).toBe(2);
-    expect(next.international.qualifying?.qualified).toHaveLength(INTL_FIELD_SIZE);
-    expect(next.international.stage).toBeNull();
+    // One leg per offseason: the 16 qualifiers aren't decided until the third.
+    league = playInternational(league); // leg 1
+    expect(league.international.qualifying!.qualified).toHaveLength(0);
+    league = simOffseason(league, rng);
+    expect(league.season).toBe(2);
+
+    // Seasons 2 and 3 play legs 2 and 3; after the third, the field is set.
+    for (let s = 0; s < 2; s++) {
+      league = simThrough(league, "season", rng);
+      league = simThrough(league, "season", rng);
+      league = playInternational(league);
+      league = simOffseason(league, rng);
+    }
+    expect(league.season).toBe(4);
+    expect(league.international.qualifying!.qualified).toHaveLength(INTL_FIELD_SIZE);
+    expect(league.international.qualifyingHistory).toHaveLength(1);
   });
 
   it("carries injuries from the summer's internationals into the new club season", () => {
@@ -236,12 +249,14 @@ describe("offseason cycle", () => {
   it("staged play matches a one-pass runTournament on the same field", () => {
     const rng = mulberry32(11);
     let league = createLeagueState(0, rng);
-    // Season 1: qualify.
-    league = simThrough(league, "season", rng);
-    league = simThrough(league, "season", rng);
-    league = playInternational(league);
-    league = simOffseason(league, rng);
-    // Season 2: entering the offseason draws the tournament (stage "groups").
+    // Seasons 1-3: qualify (one leg each).
+    for (let s = 0; s < 3; s++) {
+      league = simThrough(league, "season", rng);
+      league = simThrough(league, "season", rng);
+      league = playInternational(league);
+      league = simOffseason(league, rng);
+    }
+    // Season 4: entering the offseason draws the tournament (stage "groups").
     league = simThrough(league, "season", rng);
     league = simThrough(league, "season", rng);
     expect(league.international.stage).toBe("groups");

@@ -1488,9 +1488,33 @@ export const RATING_LEADER_MIN_CAREER_APPEARANCES = 10;
 /** Display name of the international tournament. */
 export const INTL_TOURNAMENT_NAME = "World Cup";
 
-/** Qualifying runs in odd seasons' offseasons, the tournament in even ones'. */
+/**
+ * The World Cup runs on a four-year cycle: three qualifying offseasons then the
+ * tournament. `INTL_QUAL_LEGS` (below) legs of the qualifying round-robin map
+ * one-to-one onto those three offseasons, and the cycle length is one more than
+ * that (the extra year being the tournament). A tournament offseason is every
+ * `INTL_CYCLE_YEARS`th season; the three seasons before it each play one leg.
+ */
+export const INTL_CYCLE_YEARS = 4;
+
+/** True in the offseason that stages the World Cup (every fourth season). */
+export function isTournamentSeason(season: number): boolean {
+  return season % INTL_CYCLE_YEARS === 0;
+}
+
+/**
+ * Which qualifying leg (0-based) a season's offseason plays, or -1 if that
+ * offseason stages the tournament instead. Over the cycle: season%4 ==
+ * 1 → leg 0 (a fresh campaign starts), 2 → leg 1, 3 → leg 2 (the campaign
+ * finishes and its 16 qualifiers are locked in), 0 → the tournament.
+ */
+export function qualifyingLeg(season: number): number {
+  return isTournamentSeason(season) ? -1 : (season % INTL_CYCLE_YEARS) - 1;
+}
+
+/** True in any of the three qualifying offseasons of the cycle. */
 export function isQualifyingSeason(season: number): boolean {
-  return season % 2 === 1;
+  return qualifyingLeg(season) >= 0;
 }
 
 /**
@@ -1528,13 +1552,15 @@ export const INTL_MIN_KEEPERS = 1;
 export const INTL_QUAL_GROUP_TARGET = 5;
 
 /**
- * Qualifying groups are played home and away. A single round-robin left a
- * five-nation group turning on four games, which was enough noise that the
- * strongest nations regularly missed the tournament outright; two legs halves
- * that, and matches how real qualifying is played. The tournament's own groups
- * stay single-leg — that variance is the point of a tournament.
+ * Legs of the qualifying round-robin — now three, one played in each of the
+ * cycle's three qualifying offseasons (see INTL_CYCLE_YEARS). A single
+ * round-robin left a five-nation group turning on four games, noisy enough that
+ * strong nations regularly missed out; spreading three legs across three
+ * offseasons gives a long, low-variance campaign (each pair meets three times)
+ * that reads like real World Cup qualifying. The tournament's own groups stay
+ * single-leg — that variance is the point of a tournament.
  */
-export const INTL_QUAL_LEGS = 2;
+export const INTL_QUAL_LEGS = 3;
 
 /**
  * How many games of recovery an international injury is credited for having
