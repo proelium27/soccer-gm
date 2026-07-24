@@ -20,7 +20,7 @@ export const LEAGUE_BASE = 54;
  * close the gap between "average starter" and "a team's best player" (both
  * ends of that gap need real spread, not just a higher floor).
  */
-export const TEAM_STRENGTH_SPREAD = 9;
+export const TEAM_STRENGTH_SPREAD = Number(process.env.TEAM_SPREAD ?? 9);
 
 /**
  * Division 1 team count, moved up from its previous location further down
@@ -61,8 +61,10 @@ export const NUM_TEAMS = 20;
  */
 export const NUM_TEAMS_D2 = 20;
 export const DIVISION_2_TARGET_D1_RANK = 16;
-export const DIVISION_2_OFFSET =
-  ((DIVISION_2_TARGET_D1_RANK - 1) / (NUM_TEAMS - 1)) * 2 * TEAM_STRENGTH_SPREAD;
+export const DIVISION_2_OFFSET = Number(
+  process.env.DIV2_OFFSET ??
+    ((DIVISION_2_TARGET_D1_RANK - 1) / (NUM_TEAMS - 1)) * 2 * TEAM_STRENGTH_SPREAD,
+);
 /**
  * Division 2's money-in scale (2026-07-15 retune): both the income rate
  * (see divisionScale in finance/budget.ts) and, as of the same retune, the
