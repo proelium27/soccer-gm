@@ -166,7 +166,7 @@ export function academyBaseCenter(country: string, tier: 1 | 2): number {
  * this (with the target distribution shape) governs both single-game favorite
  * odds and end-of-season table spread. Tuned against the M1 validation gates.
  */
-export const NORMALIZE_K = 0.08;
+export const NORMALIZE_K = Number(process.env.NORM_K ?? 0.08);
 
 /**
  * Star concentration for the attack/control/defense composite rollups

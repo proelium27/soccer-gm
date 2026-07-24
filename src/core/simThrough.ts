@@ -258,6 +258,35 @@ export function simThrough(
       // leagues stay below 0.5, strong leagues above; D2 reads weaker than D1.
       const worldData = leagueMatchData({ teams: toLeagueTeams(currentTeams), players: currentPlayers });
       currentTeams.forEach((t, i) => matchData.set(t.tid, withSeasonForm(t.tid, worldData[i])));
+    } else if (process.env.TWO_LEVEL) {
+      // EXPERIMENT (two-level): keep the per-competition curve EXACTLY as it is
+      // — so within-league spread stays pinned at NORMALIZE_K and every existing
+      // gate still holds — then shift each league bodily up or down by how far
+      // its average club sits from the world average. Within-league spread and
+      // cross-league gap become two independent dials instead of one.
+      const betweenScale = Number(process.env.TWO_LEVEL ?? 1);
+      const worldData = leagueMatchData({ teams: toLeagueTeams(currentTeams), players: currentPlayers });
+      const worldByTid = new Map<number, number>();
+      currentTeams.forEach((t, i) => worldByTid.set(t.tid, worldData[i].composites.attack));
+      for (const comp of league.competitions) {
+        const compTeams = currentTeams.filter((t) => t.compId === comp.id);
+        if (compTeams.length === 0) continue;
+        // This league's average position on the shared world scale; 0.5 = a
+        // perfectly average league, so the offset is its distance from that.
+        const leagueMean =
+          compTeams.reduce((s, t) => s + (worldByTid.get(t.tid) ?? 0.5), 0) / compTeams.length;
+        const offset = (leagueMean - 0.5) * betweenScale;
+        const compMatchData = leagueMatchData({ teams: toLeagueTeams(compTeams), players: currentPlayers });
+        compTeams.forEach((t, i) => {
+          const d = compMatchData[i];
+          const shifted: TeamMatchData = offset === 0 ? d : {
+            ...d,
+            composites: applySeasonForm(d.composites, offset),
+            recompute: (onPitch) => applySeasonForm(d.recompute(onPitch), offset),
+          };
+          matchData.set(t.tid, withSeasonForm(t.tid, shifted));
+        });
+      }
     } else {
       for (const comp of league.competitions) {
         const compTeams = currentTeams.filter((t) => t.compId === comp.id);

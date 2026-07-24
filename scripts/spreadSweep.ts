@@ -27,7 +27,11 @@ import type { LeagueTeam } from "../src/core/league/generate.js";
 const SEED = Number(process.env.SEED ?? 1);
 const SEASONS = Number(process.env.SEASONS ?? 3);
 const USER_TID = 0;
-const MODE = process.env.GLOBAL_NORM ? "GLOBAL" : "per-league";
+const MODE = process.env.GLOBAL_NORM
+  ? "GLOBAL"
+  : process.env.TWO_LEVEL
+    ? "TWO-LEVEL"
+    : "per-league";
 
 const mean = (xs: number[]): number => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 const sd = (xs: number[]): number => {
@@ -58,10 +62,24 @@ if (MODE === "GLOBAL") {
   const d = leagueMatchData({ teams: toLeagueTeams(league.teams), players: league.players });
   league.teams.forEach((t, i) => compAttack.set(t.tid, d[i].composites.attack));
 } else {
+  // per-league curve; TWO-LEVEL additionally shifts each league by its distance
+  // from the world average (mirrors simThrough's own two-level branch).
+  const worldByTid = new Map<number, number>();
+  if (MODE === "TWO-LEVEL") {
+    const wd = leagueMatchData({ teams: toLeagueTeams(league.teams), players: league.players });
+    league.teams.forEach((t, i) => worldByTid.set(t.tid, wd[i].composites.attack));
+  }
+  const betweenScale = Number(process.env.TWO_LEVEL ?? 1);
   for (const comp of league.competitions) {
     const teams = league.teams.filter((t) => t.compId === comp.id);
+    if (!teams.length) continue;
     const d = leagueMatchData({ teams: toLeagueTeams(teams), players: league.players });
-    teams.forEach((t, i) => compAttack.set(t.tid, d[i].composites.attack));
+    let offset = 0;
+    if (MODE === "TWO-LEVEL") {
+      const lm = teams.reduce((s, t) => s + (worldByTid.get(t.tid) ?? 0.5), 0) / teams.length;
+      offset = (lm - 0.5) * betweenScale;
+    }
+    teams.forEach((t, i) => compAttack.set(t.tid, d[i].composites.attack + offset));
   }
 }
 
