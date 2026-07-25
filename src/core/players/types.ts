@@ -1,3 +1,5 @@
+import type { IntlCareer } from "../international/career.js";
+
 export const POSITIONS = ["GK", "CB", "FB", "DM", "CM", "AM", "W", "ST"] as const;
 export type Position = (typeof POSITIONS)[number];
 
@@ -80,4 +82,11 @@ export interface Player {
    * free agency by the user (and for pre-feature saves — see migrate.ts).
    */
   faSignedSeason?: number;
+  /**
+   * International career totals (caps, goals, tournaments, titles), accumulated
+   * when this player features for his nation — see core/international. Absent
+   * until he first makes a squad, and for saves predating the feature. Purely a
+   * record: nothing here feeds progression or valuation.
+   */
+  intl?: IntlCareer;
 }

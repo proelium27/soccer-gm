@@ -1,0 +1,360 @@
+import { describe, it, expect } from "vitest";
+import { mulberry32 } from "../../src/engine/rng.js";
+import { createLeagueState } from "../../src/core/leagueState.js";
+import { simThrough } from "../../src/core/simThrough.js";
+import { simOffseason } from "../../src/core/offseason.js";
+import { simThroughInternational, isIntlStagePending } from "../../src/core/international/index.js";
+import { runTournament } from "../../src/core/international/tournament.js";
+import { buildSquads } from "../../src/core/international/squads.js";
+import { allocateSlots, confederationOf } from "../../src/core/international/confederations.js";
+import { roundRobin, groupTable, buildGroup, serpentineGroups, potDraw } from "../../src/core/international/groups.js";
+import { namePoolFor } from "../../src/core/players/nationalities.js";
+import * as Nats from "../../src/core/players/nationalities.js";
+import type { LeagueStore } from "../../src/core/leagueState.js";
+import { nationRecords, finishOf } from "../../src/core/international/index.js";
+import type { IntlTournamentSummary } from "../../src/core/international/index.js";
+import { INTL_FIELD_SIZE, INTL_KO_SIZE, INTL_GROUPS } from "../../src/core/constants.js";
+
+/**
+ * Play any staged international campaign that entering the offseason drew, in
+ * full — the headless stand-in for the user clicking the stage buttons (or "sim
+ * through"). A no-op in a non-international offseason.
+ */
+function playInternational(league: LeagueStore): LeagueStore {
+  const r = simThroughInternational(league.international, league.players, league.lid, league.season);
+  return { ...league, international: r.international, players: r.players };
+}
+
+/** Advance a fresh league by `n` full seasons, running each offseason. */
+function advance(seed: number, seasons: number) {
+  const rng = mulberry32(seed);
+  let league = createLeagueState(0, rng);
+  for (let s = 0; s < seasons; s++) {
+    league = simThrough(league, "season", rng);
+    league = simThrough(league, "season", rng); // clear the cup-final halt
+    league = playInternational(league); // international plays out before the advance
+    league = simOffseason(league, rng);
+  }
+  return league;
+}
+
+describe("confederation table", () => {
+  it("covers every nation a generated player can hold", () => {
+    // Collect every nation that has a name pool (the ones players can be given).
+    const withPool = new Set<string>();
+    for (const table of Object.values(Nats) as unknown[]) {
+      if (table && typeof table === "object" && !Array.isArray(table)) {
+        for (const nation of Object.keys(table as object)) {
+          if (namePoolFor(nation)) withPool.add(nation);
+        }
+      }
+    }
+    const missing = [...withPool].filter((n) => confederationOf(n) === null);
+    expect(missing, `nations with a name pool but no confederation: ${missing.join(", ")}`).toEqual([]);
+  });
+});
+
+describe("slot allocation", () => {
+  it("distributes exactly the field size, floors every confederation, respects caps", () => {
+    const byConf = new Map([
+      ["Europe", Array.from({ length: 24 }, (_, i) => `E${i}`)],
+      ["South America", Array.from({ length: 6 }, (_, i) => `S${i}`)],
+      ["Africa", Array.from({ length: 8 }, (_, i) => `A${i}`)],
+      ["Oceania", ["O0"]],
+    ] as [string, string[]][]);
+    const alloc = allocateSlots(byConf as never, INTL_FIELD_SIZE);
+    const total = [...alloc.values()].reduce((a, b) => a + b, 0);
+    expect(total).toBe(INTL_FIELD_SIZE);
+    // Every confederation with nations gets at least one.
+    for (const [, n] of alloc) expect(n).toBeGreaterThanOrEqual(1);
+    // Oceania has a single nation, so it can get at most one place.
+    expect(alloc.get("Oceania")).toBe(1);
+  });
+
+  it("weights toward confederations holding the strongest nations", () => {
+    const byConf = new Map([
+      ["Europe", ["E0", "E1", "E2", "E3"]],
+      ["Africa", Array.from({ length: 12 }, (_, i) => `A${i}`)],
+    ] as [string, string[]][]);
+    // All four strong contenders are European; Africa has more nations but none.
+    const contenders = new Set(["E0", "E1", "E2", "E3"]);
+    const weighted = allocateSlots(byConf as never, 8, contenders);
+    const unweighted = allocateSlots(byConf as never, 8);
+    // Weighting by strength gives Europe more than weighting by raw count would.
+    expect(weighted.get("Europe")!).toBeGreaterThan(unweighted.get("Europe")!);
+  });
+});
+
+describe("round robin", () => {
+  it("single leg: every pair meets once", () => {
+    const fixtures = roundRobin([0, 1, 2, 3]);
+    expect(fixtures).toHaveLength(6); // C(4,2)
+    const pairs = new Set(fixtures.map((m) => [m.home, m.away].sort((a, b) => a - b).join("-")));
+    expect(pairs.size).toBe(6);
+  });
+
+  it("two legs: every pair meets twice with reversed venues", () => {
+    const fixtures = roundRobin([0, 1, 2, 3], 2);
+    expect(fixtures).toHaveLength(12);
+    // Each ordered (home, away) appears exactly once across both legs.
+    const ordered = fixtures.map((m) => `${m.home}-${m.away}`);
+    expect(new Set(ordered).size).toBe(12);
+    // Each fixture is tagged with its leg (6 per leg), so a leg can be played on its own.
+    expect(fixtures.filter((m) => m.leg === 0)).toHaveLength(6);
+    expect(fixtures.filter((m) => m.leg === 1)).toHaveLength(6);
+  });
+
+  it("odd group: nobody plays themselves, everyone plays everyone", () => {
+    const fixtures = roundRobin([0, 1, 2, 3, 4]);
+    expect(fixtures).toHaveLength(10);
+    for (const m of fixtures) expect(m.home).not.toBe(m.away);
+  });
+});
+
+describe("group table", () => {
+  it("orders on points then goal difference", () => {
+    const group = buildGroup(0, [0, 1, 2], null);
+    // 0 beats 1 (2-0), 0 beats 2 (1-0), 2 beats 1 (3-0).
+    group.matches = group.matches.map((m) => {
+      if (m.home === 0 && m.away === 1) return { ...m, homeGoals: 2, awayGoals: 0 };
+      if (m.home === 1 && m.away === 0) return { ...m, homeGoals: 0, awayGoals: 2 };
+      if ((m.home === 0 && m.away === 2) || (m.home === 2 && m.away === 0))
+        return { ...m, homeGoals: m.home === 0 ? 1 : 0, awayGoals: m.home === 0 ? 0 : 1 };
+      if ((m.home === 2 && m.away === 1) || (m.home === 1 && m.away === 2))
+        return { ...m, homeGoals: m.home === 2 ? 3 : 0, awayGoals: m.home === 2 ? 0 : 3 };
+      return m;
+    });
+    const table = groupTable(group);
+    expect(table[0].nid).toBe(0); // 6 pts
+    expect(table[1].nid).toBe(2); // 3 pts, +2 GD
+    expect(table[2].nid).toBe(1); // 0 pts
+  });
+});
+
+describe("draw shapes", () => {
+  it("serpentine balances group strength", () => {
+    const groups = serpentineGroups([0, 1, 2, 3, 4, 5, 6, 7], 4);
+    // Group 0 gets the strongest (0) and the weakest of the second row (7).
+    expect(groups[0]).toEqual([0, 7]);
+    expect(groups[3]).toEqual([3, 4]);
+  });
+
+  it("pot draw puts one seed from each pot in each group", () => {
+    const rng = mulberry32(1);
+    const groups = potDraw([0, 1, 2, 3, 4, 5, 6, 7], 4, rng);
+    for (const g of groups) {
+      expect(g).toHaveLength(2);
+      // One nation from the top pot (0-3), one from the bottom (4-7).
+      expect(g.some((n) => n < 4)).toBe(true);
+      expect(g.some((n) => n >= 4)).toBe(true);
+    }
+  });
+});
+
+describe("squads", () => {
+  it("a fresh world fields more than enough eligible nations", () => {
+    const rng = mulberry32(7);
+    const league = createLeagueState(0, rng);
+    const squads = buildSquads(league.players);
+    expect(squads.length).toBeGreaterThanOrEqual(INTL_FIELD_SIZE);
+    // Strongest first, and every squad has at least an XI.
+    for (let i = 1; i < squads.length; i++) {
+      expect(squads[i - 1].rating).toBeGreaterThanOrEqual(squads[i].rating);
+    }
+    for (const s of squads) expect(s.pids.length).toBeGreaterThanOrEqual(11);
+  });
+});
+
+describe("offseason cycle", () => {
+  it("qualifies 16 over three offseasons then plays the World Cup, on the four-year cadence", () => {
+    const league = advance(7, 4); // seasons 1-3 qualify, season 4 is the tournament
+    const intl = league.international;
+    expect(intl.qualifying?.qualified).toHaveLength(INTL_FIELD_SIZE);
+    expect(intl.tournament).not.toBeNull();
+    expect(intl.tournament!.nations).toHaveLength(INTL_FIELD_SIZE);
+    expect(intl.tournament!.championNid).not.toBeNull();
+    expect(intl.tournament!.bracket).toHaveLength(INTL_KO_SIZE);
+    expect(intl.history).toHaveLength(1);
+    expect(intl.history[0].champion).toBeTruthy();
+
+    // Light archival is populated as the campaigns finish.
+    expect(intl.qualifyingHistory).toHaveLength(1); // one completed campaign (seasons 1-3)
+    expect(intl.qualifyingHistory[0].qualified).toHaveLength(INTL_FIELD_SIZE);
+    expect(intl.powerRankings.length).toBeGreaterThanOrEqual(4); // a snapshot each offseason
+    expect(intl.history[0].groups).toHaveLength(INTL_GROUPS); // 4 final group tables
+    expect(intl.history[0].knockout).toHaveLength(7); // 4 QF + 2 SF + 1 final
+  });
+
+  it("records caps and titles on players who feature", () => {
+    const league = advance(7, 4);
+    const capped = league.players.filter((p) => p.intl && p.intl.caps > 0);
+    expect(capped.length).toBeGreaterThan(0);
+    const champions = league.players.filter((p) => p.intl && p.intl.titles > 0);
+    expect(champions.length).toBeGreaterThan(0);
+    // A titled player was necessarily named in a tournament squad.
+    for (const p of champions) expect(p.intl!.tournaments).toBeGreaterThanOrEqual(1);
+
+    // The per-campaign breakdown must account for the career totals exactly —
+    // every appearance is written to a line as it's earned.
+    for (const p of capped) {
+      const lines = p.intl!.seasons;
+      expect(lines.length).toBeGreaterThan(0);
+      const sum = (key: "caps" | "goals" | "assists") =>
+        lines.reduce((total, l) => total + l[key], 0);
+      expect(sum("caps")).toBe(p.intl!.caps);
+      expect(sum("goals")).toBe(p.intl!.goals);
+      expect(sum("assists")).toBe(p.intl!.assists);
+      // One line per offseason played, labelled by the cadence: seasons 1-3
+      // qualifying, season 4 the tournament.
+      for (const l of lines) {
+        expect(l.kind).toBe(l.season % 4 === 0 ? "tournament" : "qualifying");
+      }
+      expect(new Set(lines.map((l) => `${l.season}-${l.kind}`)).size).toBe(lines.length);
+    }
+    // Four seasons in, somebody has played both qualifying and the tournament.
+    expect(capped.some((p) => p.intl!.seasons.some((l) => l.kind === "tournament"))).toBe(true);
+    expect(capped.some((p) => p.intl!.seasons.some((l) => l.kind === "qualifying"))).toBe(true);
+  });
+
+  it("draws a qualifying campaign and finishes it across three offseasons", () => {
+    const rng = mulberry32(3);
+    let league = createLeagueState(0, rng);
+
+    // Season 1: the campaign is drawn and its first leg is pending.
+    league = simThrough(league, "season", rng);
+    league = simThrough(league, "season", rng); // clear any cup-final halt
+    expect(league.phase).toBe("offseason");
+    expect(league.international.stage).toBe("qualifying");
+    expect(isIntlStagePending(league.international)).toBe(true);
+
+    // One leg per offseason: the 16 qualifiers aren't decided until the third.
+    league = playInternational(league); // leg 1
+    expect(league.international.qualifying!.qualified).toHaveLength(0);
+    league = simOffseason(league, rng);
+    expect(league.season).toBe(2);
+
+    // Seasons 2 and 3 play legs 2 and 3; after the third, the field is set.
+    for (let s = 0; s < 2; s++) {
+      league = simThrough(league, "season", rng);
+      league = simThrough(league, "season", rng);
+      league = playInternational(league);
+      league = simOffseason(league, rng);
+    }
+    expect(league.season).toBe(4);
+    expect(league.international.qualifying!.qualified).toHaveLength(INTL_FIELD_SIZE);
+    expect(league.international.qualifyingHistory).toHaveLength(1);
+  });
+
+  it("carries injuries from the summer's internationals into the new club season", () => {
+    const rng = mulberry32(7);
+    let league = createLeagueState(0, rng);
+    league = simThrough(league, "season", rng); // season 1 ends → qualifying drawn
+    league = simThrough(league, "season", rng); // clear any cup-final halt
+    league = playInternational(league); // play qualifying (many matches → injuries happen)
+
+    const injuredPids = league.international.stageInjuries;
+    expect(injuredPids.length).toBeGreaterThan(0);
+
+    const next = simOffseason(league, rng);
+    expect(next.international.stageInjuries).toHaveLength(0); // consumed at the rollover
+
+    // Some of those injured at the tournament still carry it into the new season
+    // (the shorter knocks heal over the summer break). Progression healed the
+    // club-season knocks first, so any injury present now is an international one.
+    const carried = injuredPids
+      .map((pid) => next.players.find((p) => p.pid === pid))
+      .filter((p) => p !== undefined && p.injury !== null);
+    expect(carried.length).toBeGreaterThan(0);
+  });
+
+  it("staged play matches a one-pass runTournament on the same field", () => {
+    const rng = mulberry32(11);
+    let league = createLeagueState(0, rng);
+    // Seasons 1-3: qualify (one leg each).
+    for (let s = 0; s < 3; s++) {
+      league = simThrough(league, "season", rng);
+      league = simThrough(league, "season", rng);
+      league = playInternational(league);
+      league = simOffseason(league, rng);
+    }
+    // Season 4: entering the offseason draws the tournament (stage "groups").
+    league = simThrough(league, "season", rng);
+    league = simThrough(league, "season", rng);
+    expect(league.international.stage).toBe("groups");
+
+    // Play it in stages...
+    const staged = simThroughInternational(league.international, league.players, league.lid, league.season);
+    // ...versus one bulk pass over the very same qualifiers and players.
+    const bulk = runTournament(
+      league.international.qualifying!.qualified,
+      league.players,
+      league.season,
+      league.lid,
+    );
+
+    expect(bulk).not.toBeNull();
+    const st = staged.international.tournament!;
+    expect(st.championNid).toBe(bulk!.tournament.championNid);
+    // Every knockout scoreline agrees, so the per-round seeds line up exactly.
+    expect(st.ties.map((t) => [t.round, t.homeGoals, t.awayGoals])).toEqual(
+      bulk!.tournament.ties.map((t) => [t.round, t.homeGoals, t.awayGoals]),
+    );
+  });
+});
+
+describe("nation history derivations", () => {
+  // A hand-built archived tournament: Brazil beat France in the final; the
+  // losing semi-finalists were Spain and Argentina; the losing quarter-finalists
+  // Germany, Italy, England, Netherlands; Belgium exited in the group stage.
+  const field = [
+    "Brazil", "France", "Spain", "Argentina", "Germany", "Italy", "England", "Netherlands",
+    "Belgium", "Croatia", "Uruguay", "Mexico", "Japan", "Senegal", "United States", "Denmark",
+  ];
+  const summary: IntlTournamentSummary = {
+    season: 2,
+    name: "World Cup",
+    champion: "Brazil",
+    runnerUp: "France",
+    finalScore: { champion: 2, runnerUp: 1, pens: null },
+    topScorer: null,
+    field,
+    groups: [],
+    knockout: [
+      { round: 0, home: "Brazil", away: "Germany", homeGoals: 2, awayGoals: 0, winner: "Brazil", pens: null },
+      { round: 0, home: "Spain", away: "Italy", homeGoals: 1, awayGoals: 0, winner: "Spain", pens: null },
+      { round: 0, home: "France", away: "England", homeGoals: 1, awayGoals: 0, winner: "France", pens: null },
+      { round: 0, home: "Argentina", away: "Netherlands", homeGoals: 1, awayGoals: 0, winner: "Argentina", pens: null },
+      { round: 1, home: "Brazil", away: "Spain", homeGoals: 2, awayGoals: 1, winner: "Brazil", pens: null },
+      { round: 1, home: "France", away: "Argentina", homeGoals: 1, awayGoals: 0, winner: "France", pens: null },
+      { round: 2, home: "Brazil", away: "France", homeGoals: 2, awayGoals: 1, winner: "Brazil", pens: null },
+    ],
+  };
+
+  it("reads each nation's finish from the field, champion and knockout scorelines", () => {
+    expect(finishOf(summary, "Brazil")).toBe("Champions");
+    expect(finishOf(summary, "France")).toBe("Runners-up");
+    expect(finishOf(summary, "Spain")).toBe("Semi-finals"); // lost the semi
+    expect(finishOf(summary, "Germany")).toBe("Quarter-finals"); // lost the quarter
+    expect(finishOf(summary, "Belgium")).toBe("Group stage"); // in the field, no knockout
+    expect(finishOf(summary, "Kenya")).toBeNull(); // never qualified
+  });
+
+  it("aggregates records across tournaments, ranked by honours", () => {
+    const records = nationRecords([summary, summary]); // same edition twice
+    const brazil = records.find((r) => r.nation === "Brazil")!;
+    expect(brazil.titles).toBe(2);
+    expect(brazil.finals).toBe(2);
+    expect(brazil.tournaments).toBe(2);
+    expect(brazil.bestFinish).toBe("Champions");
+    // Brazil (2 titles) ranks ahead of France (0 titles, 2 finals).
+    expect(records[0].nation).toBe("Brazil");
+    const france = records.find((r) => r.nation === "France")!;
+    expect(france.titles).toBe(0);
+    expect(france.finals).toBe(2);
+    expect(france.bestFinish).toBe("Runners-up");
+    // A group-stage nation still shows an appearance and a "Group stage" best.
+    const belgium = records.find((r) => r.nation === "Belgium")!;
+    expect(belgium.tournaments).toBe(2);
+    expect(belgium.bestFinish).toBe("Group stage");
+  });
+});

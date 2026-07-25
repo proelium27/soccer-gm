@@ -16,6 +16,7 @@ import { competitionOf } from "../../core/competitions.js";
 import { worldHasCup } from "../../core/cup/cup.js";
 import { cupStatsBySeasonForPlayer } from "../../core/cup/cupStats.js";
 import { clubDisplayName, formatWeeklyWage, seasonYear, transferFeeLabel } from "../format.js";
+import { INTL_TOURNAMENT_NAME } from "../../core/constants.js";
 import { PlayerEditModal } from "../components/PlayerEditModal.js";
 
 /** One career-honor badge, e.g. "3x Golden Boot" — omits the count for a single win. */
@@ -68,7 +69,7 @@ function teamForSeason(
 export function PlayerProfile() {
   const { pid } = useParams<{ pid: string }>();
   const { league, movePlayerToClubAction, releasePlayerGodModeAction } = useLeague();
-  const [statsTab, setStatsTab] = useState<"league" | "cup">("league");
+  const [statsTab, setStatsTab] = useState<"league" | "cup" | "intl">("league");
   const [editing, setEditing] = useState(false);
 
   if (!league || pid === undefined) {
@@ -122,6 +123,16 @@ export function PlayerProfile() {
   const histBySeasonDesc = [...player.hist].sort((a, b) => b.season - a.season);
   const cupStatsBySeason = cupStatsBySeasonForPlayer(league.cup, league.cupHistory, player.pid);
   const showCupTab = worldHasCup(league.competitions);
+  // The national-team tab appears once he's been involved at all. Its per-campaign
+  // lines only exist from the season they started being recorded, so a save older
+  // than that still shows the career totals with an empty table underneath.
+  const intl = player.intl ?? null;
+  const showIntlTab = intl !== null && (intl.caps > 0 || intl.tournaments > 0);
+  const intlSeasonsDesc = [...(intl?.seasons ?? [])].sort((a, b) => b.season - a.season);
+  // Guard against a stale selection: a tab that isn't offered for this player
+  // (no cup in the world, never capped) falls back to the league stats.
+  const activeStatsTab =
+    (statsTab === "cup" && !showCupTab) || (statsTab === "intl" && !showIntlTab) ? "league" : statsTab;
   // Scouting fog also applies to the POT column of the history table, per row
   // and keyed off that row's own season — so a player the user has never
   // scouted stays fogged here too (closing the "read the exact number one tab
@@ -164,6 +175,15 @@ export function PlayerProfile() {
           </>
         )}
       </p>
+
+      {player.intl && player.intl.caps > 0 && (
+        <p className="mb-3 small">
+          <span className="text-muted">{player.nationality}:</span>{" "}
+          <strong>{player.intl.caps}</strong> caps, <strong>{player.intl.goals}</strong> goals
+          {player.intl.tournaments > 0 && <> &middot; {player.intl.tournaments} {player.intl.tournaments === 1 ? "tournament" : "tournaments"}</>}
+          {player.intl.titles > 0 && <> &middot; <strong>{player.intl.titles}</strong> {player.intl.titles === 1 ? "title" : "titles"}</>}
+        </p>
+      )}
 
       {league.godMode && (
         <div className="gm-panel">
@@ -275,32 +295,91 @@ export function PlayerProfile() {
             <div className="card-body">
               <div className="d-flex align-items-center justify-content-between mb-2">
                 <h6 className="card-title mb-0">
-                  {showCupTab && statsTab === "cup" ? "Continental Cup Stats" : "Season Stats"}
+                  {activeStatsTab === "cup"
+                    ? "Continental Cup Stats"
+                    : activeStatsTab === "intl"
+                      ? "National Team Stats"
+                      : "Season Stats"}
                 </h6>
-                {showCupTab && (
+                {(showCupTab || showIntlTab) && (
                   <ul className="nav nav-pills nav-sm">
                     <li className="nav-item">
                       <button
                         type="button"
-                        className={`nav-link py-0 px-2${statsTab === "league" ? " active" : ""}`}
+                        className={`nav-link py-0 px-2${activeStatsTab === "league" ? " active" : ""}`}
                         onClick={() => setStatsTab("league")}
                       >
                         League
                       </button>
                     </li>
-                    <li className="nav-item">
-                      <button
-                        type="button"
-                        className={`nav-link py-0 px-2${statsTab === "cup" ? " active" : ""}`}
-                        onClick={() => setStatsTab("cup")}
-                      >
-                        Cup
-                      </button>
-                    </li>
+                    {showCupTab && (
+                      <li className="nav-item">
+                        <button
+                          type="button"
+                          className={`nav-link py-0 px-2${activeStatsTab === "cup" ? " active" : ""}`}
+                          onClick={() => setStatsTab("cup")}
+                        >
+                          Cup
+                        </button>
+                      </li>
+                    )}
+                    {showIntlTab && (
+                      <li className="nav-item">
+                        <button
+                          type="button"
+                          className={`nav-link py-0 px-2${activeStatsTab === "intl" ? " active" : ""}`}
+                          onClick={() => setStatsTab("intl")}
+                        >
+                          National Team
+                        </button>
+                      </li>
+                    )}
                   </ul>
                 )}
               </div>
-              {showCupTab && statsTab === "cup" ? (
+              {activeStatsTab === "intl" && intl ? (
+                <>
+                  <p className="small mb-2">
+                    <Flag nationality={player.nationality} /> {player.nationality} &middot;{" "}
+                    <strong>{intl.caps}</strong> {intl.caps === 1 ? "cap" : "caps"},{" "}
+                    <strong>{intl.goals}</strong> {intl.goals === 1 ? "goal" : "goals"},{" "}
+                    <strong>{intl.assists}</strong> {intl.assists === 1 ? "assist" : "assists"}
+                    {intl.tournaments > 0 && <> &middot; {intl.tournaments} {intl.tournaments === 1 ? "tournament" : "tournaments"}</>}
+                    {intl.titles > 0 && <> &middot; <strong>{intl.titles}</strong> {intl.titles === 1 ? "title" : "titles"}</>}
+                  </p>
+                  {intlSeasonsDesc.length === 0 ? (
+                    <p className="text-muted mb-0">
+                      No campaign-by-campaign breakdown on record, so the totals above are his whole
+                      international career.
+                    </p>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="table table-striped table-sm mb-0">
+                        <thead>
+                          <tr>
+                            <th>Season</th>
+                            <th>Competition</th>
+                            <th className="text-end">Apps</th>
+                            <th className="text-end">G</th>
+                            <th className="text-end">A</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {intlSeasonsDesc.map((s) => (
+                            <tr key={`${s.season}-${s.kind}`}>
+                              <td>{seasonYear(s.season)}</td>
+                              <td>{s.kind === "tournament" ? INTL_TOURNAMENT_NAME : "Qualifying"}</td>
+                              <td className="text-end">{s.caps}</td>
+                              <td className="text-end">{s.goals}</td>
+                              <td className="text-end">{s.assists}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              ) : activeStatsTab === "cup" ? (
                 cupStatsBySeason.length === 0 ? (
                   <p className="text-muted mb-0">No Continental Cup matches yet.</p>
                 ) : (

@@ -9,6 +9,8 @@ import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { ActiveLoan, LoanListing, LoanRejection } from "./loans.js";
 import type { Competition } from "./competitions.js";
 import type { CupState } from "./cup/types.js";
+import type { InternationalState } from "./international/types.js";
+import { emptyInternationalState } from "./international/index.js";
 import { generateWorld } from "./league/generate.js";
 import { assignIdentities, assignAIFormations } from "./teams/clubs.js";
 import { generateSchedule } from "./schedule.js";
@@ -83,6 +85,13 @@ export interface LeagueStore {
   /** Every completed Continental Cup, oldest first (archived at offseason rollover). */
   cupHistory: CupState[];
   /**
+   * National-team football, played entirely inside the offseason on a two-year
+   * cycle (odd seasons qualify, even seasons play the tournament). Starts empty
+   * on a new save and fills from the first offseason onward; see
+   * src/core/international.
+   */
+  international: InternationalState;
+  /**
    * God Mode sandbox toggle for this save. When true, guardrail-free editing
    * is unlocked (see src/core/godMode.ts) and potential is shown un-fogged
    * everywhere. Purely a save-scoped switch; migrated to false for old saves.
@@ -134,6 +143,7 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
     // and there is none yet. The first Continental Cup runs in season 2.
     cup: null,
     cupHistory: [],
+    international: emptyInternationalState(),
     godMode: false,
   };
 }

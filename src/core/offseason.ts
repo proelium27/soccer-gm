@@ -28,7 +28,12 @@ import { settleSeasonEnd, chargeSeasonStart, wageBill, financeScale } from "./fi
 import { academyContractTerms } from "./contracts.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
 import { competitionOf } from "./competitions.js";
-import { hashInts } from "../engine/rng.js";
+import { simThroughInternational } from "./international/index.js";
+import { carryIntlInjuries } from "./injuries.js";
+import { hashInts, mulberry32 } from "../engine/rng.js";
+
+/** rng-stream tag for rolling carried-over international injury durations. */
+const INTL_INJURY_STREAM = 840;
 
 /** Awards for the season that just ended, computed separately per competition from players' current club membership. */
 function awardsByCompetition(
@@ -58,6 +63,17 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   if (league.phase !== "offseason") {
     return league;
   }
+
+  // International football (drawn the instant the season ended, see simThrough)
+  // is played out *before* anything else in the advance, so squads read
+  // end-of-season ratings and the whole thing lands before progression and
+  // retirement (a retiring veteran gets one last campaign). The UI plays it in
+  // stages the user watches and only enables "Advance" once it's done, so this
+  // is normally a no-op; here it also completes any stages the user didn't play
+  // by hand, keeping the advance self-contained. No shared-`rng` draw — every
+  // international match runs on its own seeded stream (see simIntl.ts).
+  const intl = simThroughInternational(league.international, league.players, league.lid, league.season);
+  league = { ...league, international: intl.international, players: intl.players };
 
   const endingSeason = league.season;
   const nextSeason = endingSeason + 1;
@@ -89,6 +105,16 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   teams = loanReturns.teams;
   let activeLoans = loanReturns.activeLoans;
 
+  // 1.7. International football (qualifying campaigns and World Cups) is no
+  //      longer played here. It runs *before* the offseason advances, drawn the
+  //      instant the club season ends and then played in stages the user clicks
+  //      through (see core/international/staging.ts); its results and the caps it
+  //      credits are already on `league.players`/`league.international` by the
+  //      time this advance runs. Because it happens before this whole function,
+  //      it is naturally before progression and retirement — a player injured in
+  //      May still misses the tournament, one about to retire gets one last
+  //      campaign — exactly as before, only now watchable.
+
   // 2. Progress every remaining player's ratings; heal any lingering injury.
   //    Academy players have no senior appearances to read minutes from (they
   //    don't play senior matches), so they're assumed to play a full season
@@ -108,6 +134,19 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     ...t,
     roster: t.roster.filter((pid) => !retiredPids.has(pid)),
   }));
+
+  // 3.05. Carry any injuries picked up at the summer's internationals into the
+  //       new club season — a World Cup injury genuinely sidelines a player for
+  //       its opening weeks. Applied here, *after* progression healed everyone's
+  //       club-season knocks (step 2), so only the fresh international injury
+  //       lingers. Rolled on a dedicated seeded stream (never the shared `rng`),
+  //       and international never stamped these mid-campaign, so no club or
+  //       international match result moves.
+  players = carryIntlInjuries(
+    players,
+    league.international.stageInjuries,
+    mulberry32(hashInts(league.lid, endingSeason, INTL_INJURY_STREAM)),
+  );
 
   // 3.5. Per-competition standings, rank-based settlement, and hype update.
   //      Each competition's own table is computed independently — pooling
@@ -368,6 +407,10 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     // from the tier-1 tables just decided above (top CUP_TEAMS_PER_LEAGUE of
     // each). buildCupState returns null if a full bracket can't be fielded.
     cup: buildCupState(league.competitions, tablesByCompId, nextSeason),
+    // International football already played out (in stages) before this advance;
+    // carry its state forward, resetting the per-offseason stage marker (and the
+    // just-consumed injury carry-over list) so the new season starts clean.
+    international: { ...league.international, stage: null, stageInjuries: [] },
     cupHistory: league.cup ? [...league.cupHistory, league.cup] : league.cupHistory,
     seasonHistory: [
       ...league.seasonHistory,
