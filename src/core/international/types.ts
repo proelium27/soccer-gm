@@ -225,5 +225,5 @@ export interface InternationalState {
  * attribution and archived tournaments drop theirs — those totals are the only
  * lasting record. It lives in ./career.js to stay import-cycle-free; see there.
  */
-export type { IntlCareer } from "./career.js";
+export type { IntlCareer, IntlSeasonLine } from "./career.js";
 export { emptyIntlCareer } from "./career.js";

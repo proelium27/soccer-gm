@@ -1,5 +1,5 @@
 import type { Player } from "../players/types.js";
-import type { InternationalState, IntlCareer, NationSquad } from "./types.js";
+import type { InternationalState, IntlCareer, IntlSeasonLine, NationSquad } from "./types.js";
 import type { CareerDelta } from "./simIntl.js";
 import { emptyIntlCareer } from "./types.js";
 import { emptyCareerDelta } from "./simIntl.js";
@@ -39,18 +39,43 @@ export function isIntlStagePending(state: InternationalState): boolean {
 }
 
 /**
+ * Fold one stage's appearances into a player's per-campaign lines: a qualifying
+ * offseason contributes one line, a tournament offseason four stages that all
+ * merge into the same one. Kept append-only and ordered oldest-first so the UI
+ * can render it straight.
+ */
+function mergeSeasonLine(
+  seasons: IntlSeasonLine[],
+  season: number,
+  kind: IntlSeasonLine["kind"],
+  d: { caps: number; goals: number; assists: number },
+): IntlSeasonLine[] {
+  const i = seasons.findIndex((s) => s.season === season && s.kind === kind);
+  if (i < 0) return [...seasons, { season, kind, ...d }];
+  const existing = seasons[i];
+  const merged = { ...existing, caps: existing.caps + d.caps, goals: existing.goals + d.goals, assists: existing.assists + d.assists };
+  return seasons.map((s, j) => (j === i ? merged : s));
+}
+
+/**
  * Write a campaign's appearances onto the players who earned them, plus the
  * squad-level counters (a tournament named in, a tournament won). Returns a new
  * array; players with no international involvement are returned untouched, so
  * the common case allocates nothing new. Applied per stage — caps/goals/assists
  * accumulate from each stage's match delta, while the one-off `tournaments` and
  * `titles` counters are credited once at the final (pass the squads then).
+ *
+ * `season`/`kind` label the per-campaign line this stage's appearances land on.
+ * Only players who actually featured get a line — the squads-only call at the
+ * final carries an empty delta and must not stamp empty rows on 23 benchwarmers.
  */
 export function applyCareerDelta(
   players: Player[],
   delta: CareerDelta,
   squads: NationSquad[] | null,
   championSquad: NationSquad | null,
+  season: number,
+  kind: IntlSeasonLine["kind"],
 ): Player[] {
   const named = new Set(squads?.flatMap((s) => s.pids) ?? []);
   const champions = new Set(championSquad?.pids ?? []);
@@ -69,6 +94,9 @@ export function applyCareerDelta(
         assists: current.assists + (d?.assists ?? 0),
         tournaments: current.tournaments + (isNamed ? 1 : 0),
         titles: current.titles + (champions.has(p.pid) ? 1 : 0),
+        seasons: d
+          ? mergeSeasonLine(current.seasons ?? [], season, kind, d)
+          : current.seasons ?? [],
       },
     };
   });
@@ -134,11 +162,18 @@ export function initInternationalCampaign(
  * Play exactly one stage of the drawn campaign, advancing `stage`. A no-op when
  * nothing is pending. Returns the new international state and the players with
  * this stage's appearances folded in.
+ *
+ * `season` is the club season whose offseason this is — it labels the per-season
+ * international lines written onto each player who featured. It is passed in
+ * rather than read off the campaign because a qualifying campaign spans three
+ * offseasons: its own `season` is the cycle's start, not the offseason being
+ * played here.
  */
 export function playIntlStage(
   state: InternationalState,
   players: Player[],
   lid: number,
+  season: number,
 ): { international: InternationalState; players: Player[] } {
   switch (state.stage) {
     case "qualifying": {
@@ -157,7 +192,7 @@ export function playIntlStage(
           stageInjuries: [...state.stageInjuries, ...injured],
           stage: "done",
         },
-        players: applyCareerDelta(players, delta, null, null),
+        players: applyCareerDelta(players, delta, null, null, season, "qualifying"),
       };
     }
     case "groups": {
@@ -165,7 +200,7 @@ export function playIntlStage(
       const { tournament, delta, injured } = playTournamentGroups(state.tournament, players, lid);
       return {
         international: { ...state, tournament, stageInjuries: [...state.stageInjuries, ...injured], stage: "qf" },
-        players: applyCareerDelta(players, delta, null, null),
+        players: applyCareerDelta(players, delta, null, null, season, "tournament"),
       };
     }
     case "qf":
@@ -174,7 +209,7 @@ export function playIntlStage(
       if (!state.tournament) return { international: { ...state, stage: "done" }, players };
       const { tournament, delta, injured } = playTournamentRound(state.tournament, players, lid);
       // caps/goals/assists from this round's matches.
-      let updated = applyCareerDelta(players, delta, null, null);
+      let updated = applyCareerDelta(players, delta, null, null, season, "tournament");
 
       const stageInjuries = [...state.stageInjuries, ...injured];
 
@@ -182,7 +217,7 @@ export function playIntlStage(
         // Final done: credit everyone a tournament played and the winners a
         // title, then collapse the tournament into the permanent history record.
         const championSquad = tournament.squads[tournament.championNid] ?? null;
-        updated = applyCareerDelta(updated, emptyCareerDelta(), tournament.squads, championSquad);
+        updated = applyCareerDelta(updated, emptyCareerDelta(), tournament.squads, championSquad, season, "tournament");
         const summary = summarize(tournament, updated);
         return {
           international: {
@@ -215,13 +250,14 @@ export function simThroughInternational(
   state: InternationalState,
   players: Player[],
   lid: number,
+  season: number,
 ): { international: InternationalState; players: Player[] } {
   let international = state;
   let current = players;
   // At most four stages (tournament: groups, qf, sf, final); the guard just
   // stops a degenerate un-resolvable bracket from looping forever.
   for (let guard = 0; isIntlStagePending(international) && guard < 8; guard++) {
-    const result = playIntlStage(international, current, lid);
+    const result = playIntlStage(international, current, lid, season);
     international = result.international;
     current = result.players;
   }

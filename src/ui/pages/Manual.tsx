@@ -135,7 +135,7 @@ export function Manual() {
             <li><strong>Dashboard</strong>. Your current W/D/L record and next fixture front and center, with your division's standings on the left and the latest news headlines on the right. Below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim buttons.</li>
             <li><strong>Standings</strong>. The league table, plus each club's current OVR/POT. A season dropdown lets you pull up any past season's final table next to the current one. The champion's row is highlighted, and the <a href="#cup">Continental Cup</a> qualification places are shaded.</li>
             <li><strong>Continental Cup</strong>. The live league-phase table and knockout bracket for the current season, plus past winners via a season dropdown. More in <a href="#cup">The Continental Cup</a>.</li>
-            <li><strong>National Teams</strong>. A whole section for the summer's national-team football: the current World Cup and Qualifying, a Schedule of fixtures, Power Rankings of every nation, Stat Leaders (top nations and top players, filterable by country), and History with past winners and each nation's record. More in <a href="#international">International Football</a>.</li>
+            <li><strong>National Teams</strong>. A whole section for the summer's national-team football: the current World Cup and Qualifying, Rosters showing every nation's named squad, a Schedule of fixtures, Power Rankings of every nation, Stat Leaders (top nations and top players, filterable by country), and History with past winners and each nation's record. More in <a href="#international">International Football</a>.</li>
             <li><strong>Power Rankings</strong>. Every club in the world ranked by a blended Power score: squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column) plus a current-season form bonus or penalty. Form isn't just your record. Beating a strong side counts for more than beating a weak one (and losing to a weak side hurts more than losing to a strong one), and goal difference factors in too, so a club can rank above or below its raw OVR depending on how it's actually playing. Record, goal difference, OVR, and the blended Power score all sit side by side, with a badge showing each club's competition and its rank within it. Click a team to expand its full roster in place. The rankings also get snapshotted every 5 matchdays (plus once after the final matchday), and a dropdown lets you browse any past snapshot from any season, with arrows showing how far each club rose or fell since the last one. Historical views can't expand rosters, since past squads aren't stored, and snapshots only start piling up from the point this feature shipped.</li>
             <li><strong>Schedule</strong>. Every matchday's fixtures and results. Click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong>. A Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, passes, crosses, fouls, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since). Match rating is an average rather than a running total, so to keep a one-off cameo from topping the chart a player needs to have appeared in at least half of the games played so far before he shows up on the match-rating board (a threshold that scales as the season goes, so it works ten games in as well as at the end).</li>
@@ -354,8 +354,10 @@ export function Manual() {
           </p>
           <p>
             International football is mostly a record, not a lever. Caps, goals, tournaments played
-            and titles won show up on a player's profile and build over his career, but they don't
-            feed his development or his value. There's one real cost, though: if a player gets hurt
+            and titles won show up on a player's profile and build over his career, and the{" "}
+            <strong>National Team</strong> tab on his stats card breaks them down campaign by
+            campaign, the same way his league and cup seasons are listed. None of it feeds his
+            development or his value. There's one real cost, though: if a player gets hurt
             at a tournament, part of the recovery happens over the summer, but a serious injury
             still carries into the new club season and he'll miss its opening weeks (a minor knock
             heals in time). Beyond that it's there to give your players a story beyond your club, and
@@ -364,7 +366,9 @@ export function Manual() {
           <p>
             You can browse all of it in the <strong>National Teams</strong> section. The World Cup
             and Qualifying tabs show the current campaign and let you flip back to past years;
-            Schedule lists the fixtures for whatever's being played; Power Rankings sorts every
+            Rosters shows the squad every nation has named for the campaign being played, with the
+            eleven it would field highlighted; Schedule lists the fixtures for whatever's being
+            played; Power Rankings sorts every
             nation by squad strength, with movement since last time; Stat Leaders has both the most
             successful nations and the top individual players, which you can filter to a single
             country; and History keeps the roll of past winners plus each nation's tally of titles,

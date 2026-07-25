@@ -11,6 +11,7 @@ import { Cup } from "./pages/Cup.js";
 import { NTWorldCup } from "./pages/nationalTeams/WorldCup.js";
 import { NTQualifying } from "./pages/nationalTeams/Qualifying.js";
 import { NTSchedule } from "./pages/nationalTeams/Schedule.js";
+import { NTRosters } from "./pages/nationalTeams/Rosters.js";
 import { NTPowerRankings } from "./pages/nationalTeams/PowerRankings.js";
 import { NTStatLeaders } from "./pages/nationalTeams/StatLeaders.js";
 import { NTHistory } from "./pages/nationalTeams/History.js";
@@ -56,6 +57,7 @@ export function App() {
             <Route path="/national-teams/world-cup" element={<NTWorldCup />} />
             <Route path="/national-teams/qualifying" element={<NTQualifying />} />
             <Route path="/national-teams/schedule" element={<NTSchedule />} />
+            <Route path="/national-teams/rosters" element={<NTRosters />} />
             <Route path="/national-teams/power-rankings" element={<NTPowerRankings />} />
             <Route path="/national-teams/leaders" element={<NTStatLeaders />} />
             <Route path="/national-teams/history" element={<NTHistory />} />

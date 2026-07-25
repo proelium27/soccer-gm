@@ -21,7 +21,7 @@ import { INTL_FIELD_SIZE, INTL_KO_SIZE, INTL_GROUPS } from "../../src/core/const
  * through"). A no-op in a non-international offseason.
  */
 function playInternational(league: LeagueStore): LeagueStore {
-  const r = simThroughInternational(league.international, league.players, league.lid);
+  const r = simThroughInternational(league.international, league.players, league.lid, league.season);
   return { ...league, international: r.international, players: r.players };
 }
 
@@ -193,6 +193,27 @@ describe("offseason cycle", () => {
     expect(champions.length).toBeGreaterThan(0);
     // A titled player was necessarily named in a tournament squad.
     for (const p of champions) expect(p.intl!.tournaments).toBeGreaterThanOrEqual(1);
+
+    // The per-campaign breakdown must account for the career totals exactly —
+    // every appearance is written to a line as it's earned.
+    for (const p of capped) {
+      const lines = p.intl!.seasons;
+      expect(lines.length).toBeGreaterThan(0);
+      const sum = (key: "caps" | "goals" | "assists") =>
+        lines.reduce((total, l) => total + l[key], 0);
+      expect(sum("caps")).toBe(p.intl!.caps);
+      expect(sum("goals")).toBe(p.intl!.goals);
+      expect(sum("assists")).toBe(p.intl!.assists);
+      // One line per offseason played, labelled by the cadence: seasons 1-3
+      // qualifying, season 4 the tournament.
+      for (const l of lines) {
+        expect(l.kind).toBe(l.season % 4 === 0 ? "tournament" : "qualifying");
+      }
+      expect(new Set(lines.map((l) => `${l.season}-${l.kind}`)).size).toBe(lines.length);
+    }
+    // Four seasons in, somebody has played both qualifying and the tournament.
+    expect(capped.some((p) => p.intl!.seasons.some((l) => l.kind === "tournament"))).toBe(true);
+    expect(capped.some((p) => p.intl!.seasons.some((l) => l.kind === "qualifying"))).toBe(true);
   });
 
   it("draws a qualifying campaign and finishes it across three offseasons", () => {
@@ -262,7 +283,7 @@ describe("offseason cycle", () => {
     expect(league.international.stage).toBe("groups");
 
     // Play it in stages...
-    const staged = simThroughInternational(league.international, league.players, league.lid);
+    const staged = simThroughInternational(league.international, league.players, league.lid, league.season);
     // ...versus one bulk pass over the very same qualifiers and players.
     const bulk = runTournament(
       league.international.qualifying!.qualified,

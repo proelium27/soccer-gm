@@ -1,23 +1,14 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
 import { useLeague } from "../../context/LeagueContext.js";
 import { Flag } from "../../components/Flag.js";
-import type { IntlGroup } from "../../../core/international/index.js";
+import type {
+  IntlGroup, InternationalState, IntlTournament, IntlQualifyingCampaign,
+} from "../../../core/international/index.js";
 import { groupTable } from "../../../core/international/index.js";
-import { INTL_TOURNAMENT_NAME } from "../../../core/constants.js";
+import { INTL_TOURNAMENT_NAME, INTL_CYCLE_YEARS, INTL_FIELD_SIZE } from "../../../core/constants.js";
 
 /** Knockout round names for the three-round international bracket. */
 export const KO_ROUND_NAMES = ["Quarter-finals", "Semi-finals", "Final"];
-
-/** The National Teams pages, in sidebar/tab order: [path, label]. */
-export const NT_TABS: [string, string][] = [
-  ["/national-teams/world-cup", INTL_TOURNAMENT_NAME],
-  ["/national-teams/qualifying", "Qualifying"],
-  ["/national-teams/schedule", "Schedule"],
-  ["/national-teams/power-rankings", "Power Rankings"],
-  ["/national-teams/leaders", "Stat Leaders"],
-  ["/national-teams/history", "History"],
-];
 
 export function NationName({ nation }: { nation: string }) {
   return (
@@ -28,22 +19,14 @@ export function NationName({ nation }: { nation: string }) {
 }
 
 /**
- * Shared chrome for every National Teams page: the section heading plus a pill
- * strip that links the six tabs, then the page's own title and content.
+ * Shared chrome for every National Teams page: the section heading and the
+ * page's own title, then its content. Navigation between the tabs is the
+ * sidebar's job — the pages carry no link strip of their own.
  */
 export function NationalTeamsLayout({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="container-fluid p-3">
       <h4>National Teams</h4>
-      <ul className="nav nav-pills mb-3 flex-wrap gap-1">
-        {NT_TABS.map(([to, label]) => (
-          <li className="nav-item" key={to}>
-            <NavLink to={to} className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
-              {label}
-            </NavLink>
-          </li>
-        ))}
-      </ul>
       <h5 className="mb-3">{title}</h5>
       {children}
     </div>
@@ -210,6 +193,36 @@ export function SeasonSelect({
   );
 }
 
+/**
+ * Which campaign a "what's happening now" tab should show.
+ *
+ * While a stage is pending, it's whatever is being played. Otherwise it's the
+ * more recent of the two on file — which is *not* simply "the tournament if
+ * there is one": once a new cycle's qualifying is drawn, that campaign is newer
+ * than the last World Cup and should take over. Qualifying's `season` is the
+ * cycle's start, which is still after the previous tournament's, so comparing
+ * seasons orders them correctly either way.
+ */
+export function liveCampaign(intl: InternationalState): {
+  tournament: IntlTournament | null;
+  qualifying: IntlQualifyingCampaign | null;
+  showing: "tournament" | "qualifying" | null;
+} {
+  const { tournament, qualifying, stage } = intl;
+  let showing: "tournament" | "qualifying" | null;
+  if (stage === "qualifying") showing = "qualifying";
+  else if (stage != null && stage !== "done") showing = "tournament";
+  else if (tournament && qualifying) showing = tournament.season >= qualifying.season ? "tournament" : "qualifying";
+  else if (tournament) showing = "tournament";
+  else if (qualifying) showing = "qualifying";
+  else showing = null;
+
+  // Never claim to show a campaign that isn't there.
+  if (showing === "tournament" && !tournament) showing = qualifying ? "qualifying" : null;
+  if (showing === "qualifying" && !qualifying) showing = tournament ? "tournament" : null;
+  return { tournament, qualifying, showing };
+}
+
 /** The shared "international hasn't started" empty state, used by every tab. */
 export function useHasInternational(): boolean {
   const { league } = useLeague();
@@ -228,15 +241,16 @@ export function IntlEmpty() {
   return (
     <NationalTeamsLayout title="Not started yet">
       <p className="text-muted">
-        National teams play in the summer, on a two-year cycle. Every odd season's offseason runs
-        qualifying, where every nation with enough players plays its confederation group home and
-        away for one of 16 places. The season after, those 16 meet in the {INTL_TOURNAMENT_NAME}:
-        four groups of four, then quarter-finals, semi-finals and a final.
+        National teams play in the summer, on a {INTL_CYCLE_YEARS}-year cycle. The first three
+        offseasons of each cycle play one round of qualifying apiece, where every nation with enough
+        players works through its confederation group for one of {INTL_FIELD_SIZE} places. The fourth
+        offseason, those {INTL_FIELD_SIZE} meet in the {INTL_TOURNAMENT_NAME}: four groups of four,
+        then quarter-finals, semi-finals and a final.
       </p>
       <p className="text-muted">
         Nobody manages a national team, including you. Squads pick themselves from whoever's good
         enough, so your job is to develop players worth calling up, then watch how they get on. The
-        first qualifying campaign runs at the end of season 1.
+        first round of qualifying runs at the end of season 1.
       </p>
     </NationalTeamsLayout>
   );

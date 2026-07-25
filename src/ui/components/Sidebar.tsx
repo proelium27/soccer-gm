@@ -27,14 +27,6 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
       <NavLink to="/season-preview" className="nav-link" onClick={onNavigate}>Season Preview</NavLink>
       <NavLink to="/news" className="nav-link" onClick={onNavigate}>News Feed</NavLink>
 
-      <div className="nav-section">National Teams</div>
-      <NavLink to="/national-teams/world-cup" className="nav-link" onClick={onNavigate}>World Cup</NavLink>
-      <NavLink to="/national-teams/qualifying" className="nav-link" onClick={onNavigate}>Qualifying</NavLink>
-      <NavLink to="/national-teams/schedule" className="nav-link" onClick={onNavigate}>Schedule</NavLink>
-      <NavLink to="/national-teams/power-rankings" className="nav-link" onClick={onNavigate}>Power Rankings</NavLink>
-      <NavLink to="/national-teams/leaders" className="nav-link" onClick={onNavigate}>Stat Leaders</NavLink>
-      <NavLink to="/national-teams/history" className="nav-link" onClick={onNavigate}>History</NavLink>
-
       <div className="nav-section">Team</div>
       <NavLink to="/roster" className="nav-link" onClick={onNavigate}>Roster</NavLink>
       <NavLink to="/transfers" className="nav-link" onClick={onNavigate}>Transfers</NavLink>
@@ -44,6 +36,15 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
       <NavLink to="/incoming-talent" className="nav-link" onClick={onNavigate}>Incoming Talent</NavLink>
       <NavLink to="/free-agents" className="nav-link" onClick={onNavigate}>Free Agents</NavLink>
       <NavLink to="/academy" className="nav-link" onClick={onNavigate}>Academy</NavLink>
+
+      <div className="nav-section">National Teams</div>
+      <NavLink to="/national-teams/world-cup" className="nav-link" onClick={onNavigate}>World Cup</NavLink>
+      <NavLink to="/national-teams/qualifying" className="nav-link" onClick={onNavigate}>Qualifying</NavLink>
+      <NavLink to="/national-teams/rosters" className="nav-link" onClick={onNavigate}>Rosters</NavLink>
+      <NavLink to="/national-teams/schedule" className="nav-link" onClick={onNavigate}>Schedule</NavLink>
+      <NavLink to="/national-teams/power-rankings" className="nav-link" onClick={onNavigate}>Power Rankings</NavLink>
+      <NavLink to="/national-teams/leaders" className="nav-link" onClick={onNavigate}>Stat Leaders</NavLink>
+      <NavLink to="/national-teams/history" className="nav-link" onClick={onNavigate}>History</NavLink>
 
       {league?.godMode && (
         <>

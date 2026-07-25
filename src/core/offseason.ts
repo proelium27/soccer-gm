@@ -72,7 +72,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   // is normally a no-op; here it also completes any stages the user didn't play
   // by hand, keeping the advance self-contained. No shared-`rng` draw — every
   // international match runs on its own seeded stream (see simIntl.ts).
-  const intl = simThroughInternational(league.international, league.players, league.lid);
+  const intl = simThroughInternational(league.international, league.players, league.lid, league.season);
   league = { ...league, international: intl.international, players: intl.players };
 
   const endingSeason = league.season;

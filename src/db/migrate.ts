@@ -147,6 +147,12 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
       ...h,
       academy: h.academy ?? false,
     })),
+    // Per-campaign international lines (added 2026-07-25). Saves from before
+    // them keep their career totals, which stay the authoritative record; the
+    // breakdown can't be reconstructed (archived campaigns hold no box scores),
+    // so it starts empty and fills from the next campaign on. `p.intl` itself
+    // absent still means "never capped" and is left absent.
+    intl: p.intl ? { ...p.intl, seasons: p.intl.seasons ?? [] } : p.intl,
     // faSignedSeason (the free-agent transfer hold) is intentionally left
     // absent on pre-feature saves: there's no way to know which past free-agent
     // signings would still be inside their hold, and "absent" is the correct

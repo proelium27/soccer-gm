@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { useLeague } from "../../context/LeagueContext.js";
 import type { IntlTournament, IntlQualifyingCampaign } from "../../../core/international/index.js";
 import { INTL_TOURNAMENT_NAME } from "../../../core/constants.js";
-import { NationalTeamsLayout, NationName, KO_ROUND_NAMES, useHasInternational, IntlEmpty } from "./shared.js";
+import {
+  NationalTeamsLayout, NationName, KO_ROUND_NAMES, useHasInternational, IntlEmpty, liveCampaign,
+} from "./shared.js";
 
 /** One fixture row: a played result shows its scoreline, an unplayed one shows "v". */
 function Fixture({ home, away, homeGoals, awayGoals }: {
@@ -146,18 +148,13 @@ export function NTSchedule() {
   const hasIntl = useHasInternational();
   if (!hasIntl || !league) return <IntlEmpty />;
 
-  const { tournament, qualifying, stage } = league.international;
   // Show whichever campaign is live this offseason; between campaigns, fall back
   // to the most recent one so its fixtures stay browsable.
-  const showTournament = stage === "groups" || stage === "qf" || stage === "sf" || stage === "final"
-    ? true
-    : stage === "qualifying"
-      ? false
-      : tournament !== null;
+  const { tournament, qualifying, showing } = liveCampaign(league.international);
 
   return (
     <NationalTeamsLayout title="Schedule">
-      {showTournament && tournament ? (
+      {showing === "tournament" && tournament ? (
         <>
           <p className="text-muted small">{INTL_TOURNAMENT_NAME} fixtures. Pick a stage to see its matches.</p>
           <TournamentSchedule tournament={tournament} />

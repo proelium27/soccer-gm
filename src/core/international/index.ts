@@ -1,7 +1,7 @@
 import type { InternationalState } from "./types.js";
 
 export type {
-  InternationalState, IntlStage, IntlCareer, IntlTournament, IntlTournamentSummary,
+  InternationalState, IntlStage, IntlCareer, IntlSeasonLine, IntlTournament, IntlTournamentSummary,
   IntlQualifyingCampaign, IntlQualifyingSummary, IntlGroup, IntlGroupMatch, IntlGroupTable,
   IntlKnockoutResult, IntlPowerSnapshot, NationSquad,
 } from "./types.js";
