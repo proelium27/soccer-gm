@@ -1500,3 +1500,98 @@ export const RATING_LEADER_QUALIFY_FRACTION = 1 / 2;
  * games-played denominator to take a fraction of.
  */
 export const RATING_LEADER_MIN_CAREER_APPEARANCES = 10;
+
+/* ── International football ───────────────────────────────────────────────────
+ * A national-team competition run entirely inside the offseason, on a two-year
+ * cycle: every odd season's offseason plays a qualifying campaign, and every
+ * even season's offseason plays the tournament its qualifiers earned a place in.
+ * Nothing here touches the club calendar — see src/core/international/.
+ */
+
+/** Display name of the international tournament. */
+export const INTL_TOURNAMENT_NAME = "World Cup";
+
+/**
+ * The World Cup runs on a four-year cycle: three qualifying offseasons then the
+ * tournament. `INTL_QUAL_LEGS` (below) legs of the qualifying round-robin map
+ * one-to-one onto those three offseasons, and the cycle length is one more than
+ * that (the extra year being the tournament). A tournament offseason is every
+ * `INTL_CYCLE_YEARS`th season; the three seasons before it each play one leg.
+ */
+export const INTL_CYCLE_YEARS = 4;
+
+/** True in the offseason that stages the World Cup (every fourth season). */
+export function isTournamentSeason(season: number): boolean {
+  return season % INTL_CYCLE_YEARS === 0;
+}
+
+/**
+ * Which qualifying leg (0-based) a season's offseason plays, or -1 if that
+ * offseason stages the tournament instead. Over the cycle: season%4 ==
+ * 1 → leg 0 (a fresh campaign starts), 2 → leg 1, 3 → leg 2 (the campaign
+ * finishes and its 16 qualifiers are locked in), 0 → the tournament.
+ */
+export function qualifyingLeg(season: number): number {
+  return isTournamentSeason(season) ? -1 : (season % INTL_CYCLE_YEARS) - 1;
+}
+
+/** True in any of the three qualifying offseasons of the cycle. */
+export function isQualifyingSeason(season: number): boolean {
+  return qualifyingLeg(season) >= 0;
+}
+
+/**
+ * How many nations reach the tournament. 16 splits into INTL_GROUPS groups of
+ * INTL_GROUP_SIZE, whose top INTL_QUALIFY_PER_GROUP feed an eight-nation
+ * bracket — the same size as the Continental Cup's, so the knockout reuses its
+ * seedOrder/resolveCupTie machinery unchanged.
+ */
+export const INTL_FIELD_SIZE = 16;
+export const INTL_GROUPS = 4;
+export const INTL_GROUP_SIZE = 4;
+export const INTL_QUALIFY_PER_GROUP = 2;
+export const INTL_KO_SIZE = INTL_GROUPS * INTL_QUALIFY_PER_GROUP;
+
+/** Squad size a nation names for a campaign (senior players only — no academy call-ups). */
+export const INTL_SQUAD_SIZE = 23;
+
+/**
+ * A nation enters qualifying only if the world contains at least this many of
+ * its players, including at least INTL_MIN_KEEPERS goalkeeper. The keeper floor
+ * is not cosmetic: selectXI fills a GK slot with an outfielder when no keeper is
+ * available, which leaves the keeping composite at its neutral default while
+ * still counting the player as an attacker — a silently corrupted match sim.
+ * At the shipped world size (240 clubs, 6000 players) roughly 40 of the 75
+ * nations with name pools clear this bar, which comfortably fills 16 places.
+ */
+export const INTL_MIN_POOL = 18;
+export const INTL_MIN_KEEPERS = 1;
+
+/**
+ * Target nations per qualifying group. Group counts are derived from this
+ * (see planQualifying) rather than fixed, because a confederation's eligible
+ * count moves with the save's generated nationality spread.
+ */
+export const INTL_QUAL_GROUP_TARGET = 5;
+
+/**
+ * Legs of the qualifying round-robin — now three, one played in each of the
+ * cycle's three qualifying offseasons (see INTL_CYCLE_YEARS). A single
+ * round-robin left a five-nation group turning on four games, noisy enough that
+ * strong nations regularly missed out; spreading three legs across three
+ * offseasons gives a long, low-variance campaign (each pair meets three times)
+ * that reads like real World Cup qualifying. The tournament's own groups stay
+ * single-leg — that variance is the point of a tournament.
+ */
+export const INTL_QUAL_LEGS = 3;
+
+/**
+ * How many games of recovery an international injury is credited for having
+ * already served over the summer break, before the new club season starts. A
+ * tournament is played weeks ahead of kickoff, so a short knock heals in time
+ * (it never carries) and only a more serious injury still sidelines the player
+ * into the new season, at a reduced remaining spell. Subtracted from the rolled
+ * INJURY_GAMES duration; if it lands at zero or below, the player is fit by the
+ * opening day. Tunable — raise it to make carried injuries rarer/shorter.
+ */
+export const INTL_INJURY_OFFSEASON_RECOVERY = 2;

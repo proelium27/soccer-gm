@@ -53,8 +53,8 @@ function fallbackAcademyBase(tid: number): number {
 
 /** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "nextPid"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "nextPid">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking. */
 type SeasonStatsAnyVersion =
@@ -148,6 +148,12 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
       ...h,
       academy: h.academy ?? false,
     })),
+    // Per-campaign international lines (added 2026-07-25). Saves from before
+    // them keep their career totals, which stay the authoritative record; the
+    // breakdown can't be reconstructed (archived campaigns hold no box scores),
+    // so it starts empty and fills from the next campaign on. `p.intl` itself
+    // absent still means "never capped" and is left absent.
+    intl: p.intl ? { ...p.intl, seasons: p.intl.seasons ?? [] } : p.intl,
     // faSignedSeason (the free-agent transfer hold) is intentionally left
     // absent on pre-feature saves: there's no way to know which past free-agent
     // signings would still be inside their hold, and "absent" is the correct
@@ -326,6 +332,34 @@ function migrateFields(league: LeagueStore): LeagueStore {
     // be reconstructed retroactively (past rosters/matches are gone), so they
     // simply accrue from the next simmed matchdays onward.
     powerRankingHistory: anyVersion.powerRankingHistory ?? [],
+    // Pre-feature saves have no international football. They start with an
+    // empty state and join the two-year cycle at their next *odd* season's
+    // offseason (an even one has no qualifying campaign on file to play a
+    // tournament from), so at worst a save waits one extra season for its
+    // first World Cup. Saves from before staged play get `stage: null` (no
+    // campaign pending), so their next offseason draws and stages one fresh.
+    // See core/international.
+    international: anyVersion.international
+      ? {
+          ...anyVersion.international,
+          stage: anyVersion.international.stage ?? null,
+          // Light archival added later: past qualifying + power-ranking history
+          // start empty and fill from the next campaign on; old tournament
+          // summaries predate stored group tables / knockout scorelines, so
+          // backfill those to empty (their champion/field still render).
+          qualifyingHistory: anyVersion.international.qualifyingHistory ?? [],
+          powerRankings: anyVersion.international.powerRankings ?? [],
+          stageInjuries: anyVersion.international.stageInjuries ?? [],
+          history: (anyVersion.international.history ?? []).map((h) => ({
+            ...h,
+            groups: h.groups ?? [],
+            knockout: h.knockout ?? [],
+          })),
+        }
+      : {
+          qualifying: null, tournament: null, history: [],
+          qualifyingHistory: [], powerRankings: [], stage: null, stageInjuries: [],
+        },
     // God Mode sandbox editing defaults off for any save that predates it.
     godMode: anyVersion.godMode ?? false,
     // The pid allocator used to be derived as max(pid) + 1 at each use, so

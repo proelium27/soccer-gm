@@ -10,11 +10,12 @@ import type { StoredTeam } from "../../src/core/teams/clubs.js";
 import {
   INJURY_GAMES_MIN,
   INJURY_GAMES_MAX,
+  INTL_INJURY_OFFSEASON_RECOVERY,
   BASE_SEASON_BUDGET,
   HYPE_INITIAL,
   SCOUTING_SPEND_MIN,
 } from "../../src/core/constants.js";
-import { applyInjuries } from "../../src/core/injuries.js";
+import { applyInjuries, carryIntlInjuries } from "../../src/core/injuries.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
 import type { PlayedMatch } from "../../src/core/standings.js";
 import { englandCompetitions } from "../../src/core/competitions.js";
@@ -75,6 +76,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     loanRejections: [],
     cup: null,
     cupHistory: [],
+    international: { qualifying: null, tournament: null, history: [], qualifyingHistory: [], powerRankings: [], stage: null, stageInjuries: [] },
     powerRankingHistory: [],
     godMode: false,
   };
@@ -166,5 +168,52 @@ describe("injuries persist across matchdays via simThrough", () => {
     expect(byPid.get(2)!.injury).toBeNull(); // ticked from 1 -> healed
     expect(byPid.get(3)!.injury).toEqual({ gamesRemaining: 2, type: "knock" }); // ticked down by 1
     expect(byPid.get(4)!.injury).toBeNull(); // untouched
+  });
+});
+
+describe("carryIntlInjuries", () => {
+  const mk = (pid: number): Player => ({
+    pid,
+    name: `P${pid}`,
+    nationality: "USA",
+    born: 2000,
+    pos: "CM",
+    heightCm: 180,
+    ratings: {
+      speed: 50, strength: 50, stamina: 50, jumping: 50,
+      shortPass: 50, longPass: 50, crosses: 50,
+      dribbling: 50, longShot: 50, finishing: 50,
+      tackling: 50, interceptions: 50, positioning: 50, goalkeeping: 5,
+    },
+    ovr: 50,
+    potential: 50,
+    contract: { salary: 1000, expiresSeason: 2030 },
+    injury: null,
+    stats: [emptySeasonStats(2026)],
+    hist: [],
+  });
+
+  it("carries a reduced injury (or none) onto named pids only, leaving others untouched", () => {
+    const players = Array.from({ length: 20 }, (_, i) => mk(i + 1));
+    const named = players.slice(0, 10).map((p) => p.pid);
+    const out = carryIntlInjuries(players, named, mulberry32(5));
+    const byPid = new Map(out.map((p) => [p.pid, p]));
+
+    // Unnamed players are never touched.
+    for (const p of players.slice(10)) expect(byPid.get(p.pid)!.injury).toBeNull();
+
+    // Named players either healed over the summer break (null) or carry a spell
+    // shortened by the offseason recovery — never the full rolled duration.
+    const carried = named.map((pid) => byPid.get(pid)!.injury).filter((i) => i !== null);
+    expect(carried.length).toBeGreaterThan(0); // some were serious enough to linger
+    for (const inj of carried) {
+      expect(inj!.gamesRemaining).toBeGreaterThanOrEqual(1);
+      expect(inj!.gamesRemaining).toBeLessThanOrEqual(INJURY_GAMES_MAX - INTL_INJURY_OFFSEASON_RECOVERY);
+    }
+  });
+
+  it("is a no-op (same reference) when there's nothing to carry", () => {
+    const players = [mk(1)];
+    expect(carryIntlInjuries(players, [], mulberry32(5))).toBe(players);
   });
 });

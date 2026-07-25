@@ -306,6 +306,10 @@ describe("simOffseason injuries", () => {
     const wounded = new Set(league.players.slice(0, 5).map((p) => p.pid));
     const withInjuries = {
       ...league,
+      // Isolate club-injury healing: clear any international campaign the season
+      // drew, so simOffseason doesn't play it and carry fresh tournament
+      // injuries in (that carry-over is covered by international.test.ts).
+      international: { ...league.international, stage: null, stageInjuries: [] },
       players: league.players.map((p) =>
         wounded.has(p.pid) ? { ...p, injury: { gamesRemaining: 6, type: "knock" } } : p,
       ),

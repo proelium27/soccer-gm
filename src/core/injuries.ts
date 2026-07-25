@@ -1,6 +1,6 @@
 import type { Player } from "./players/types.js";
 import type { PlayedMatch } from "./standings.js";
-import { INJURY_GAMES_MIN, INJURY_GAMES_MAX } from "./constants.js";
+import { INJURY_GAMES_MIN, INJURY_GAMES_MAX, INTL_INJURY_OFFSEASON_RECOVERY } from "./constants.js";
 
 const INJURY_TYPES = ["knock", "muscle strain", "ankle sprain"] as const;
 
@@ -9,6 +9,28 @@ function rollInjury(rng: () => number): { gamesRemaining: number; type: string }
     INJURY_GAMES_MIN + Math.floor(rng() * (INJURY_GAMES_MAX - INJURY_GAMES_MIN + 1));
   const type = INJURY_TYPES[Math.floor(rng() * INJURY_TYPES.length)];
   return { gamesRemaining, type };
+}
+
+/**
+ * Stamp a fresh injury on every player in `pids` — used to carry injuries picked
+ * up at the summer's internationals into the new club season, applied *after*
+ * the offseason has healed everyone's club-season knocks (see offseason.ts). The
+ * caller passes a dedicated seeded rng, never the shared offseason stream, so
+ * durations are deterministic without perturbing progression or match results.
+ * The player then misses the opening `gamesRemaining` matchdays, ticking down
+ * through `applyInjuries` exactly like any other injury.
+ */
+export function carryIntlInjuries(players: Player[], pids: number[], rng: () => number): Player[] {
+  if (pids.length === 0) return players;
+  const set = new Set(pids);
+  return players.map((p) => {
+    if (!set.has(p.pid)) return p;
+    // Roll the full injury, then credit the weeks of the summer break already
+    // served: a short knock heals before kickoff, only a serious one lingers.
+    const rolled = rollInjury(rng);
+    const gamesRemaining = rolled.gamesRemaining - INTL_INJURY_OFFSEASON_RECOVERY;
+    return gamesRemaining > 0 ? { ...p, injury: { ...rolled, gamesRemaining } } : p;
+  });
 }
 
 /**

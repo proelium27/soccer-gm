@@ -135,6 +135,34 @@ describe("cullFreeAgentPool", () => {
     expect(after.teams[0].scoutingObserved[doomed.pid]).toBeUndefined();
   });
 
+  it("drops culled pids from national-team squads and pending injuries", () => {
+    // Reachable because a weak nation can genuinely name a sub-65 player, and a
+    // squad listing a player who no longer exists is worse than one short.
+    const league = makeLeague(0, 11);
+    const doomed = addFreeAgent(league, {
+      pid: 900009, age: FREE_AGENT_CULL_MIN_AGE + 7, ovr: 47, potential: 51,
+    });
+    const keeper = league.teams[3].roster[0];
+    league.international = {
+      ...league.international,
+      qualifying: {
+        season: league.season,
+        nations: ["Nowhere"],
+        squads: [{
+          nation: "Nowhere", pids: [doomed.pid, keeper], formation: "4-3-3", rating: 50,
+        }],
+        groups: [], results: [], qualified: [],
+      } as unknown as LeagueStore["international"]["qualifying"],
+      stageInjuries: [doomed.pid, keeper],
+    };
+
+    const after = cullFreeAgentPool(league);
+    const squad = after.international.qualifying!.squads[0];
+    expect(squad.pids).not.toContain(doomed.pid);
+    expect(squad.pids).toContain(keeper);
+    expect(after.international.stageInjuries).toEqual([keeper]);
+  });
+
   it("leaves a league with nothing to cull byte-identical", () => {
     const league = makeLeague(0, 11);
     // A fresh world has every player on a roster, so nothing qualifies.

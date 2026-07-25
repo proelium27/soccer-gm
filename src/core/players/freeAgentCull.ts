@@ -116,6 +116,41 @@ export function cullFreeAgentPool(league: LeagueStore): LeagueStore {
     // so a historical tie never lists a player who no longer exists.
     cupHistory: league.cupHistory.map((cup) => scrubCupLines(cup, cull)),
     cup: league.cup ? scrubCupLines(league.cup, cull) : league.cup,
+    international: scrubInternational(league.international, cull),
+  };
+}
+
+/**
+ * Drop culled pids from the current campaign's named squads.
+ *
+ * Only the live qualifying campaign and tournament hold squads at all (archived
+ * campaigns already discard them), and by the time the cull runs the campaign
+ * has finished playing, so these lists are display-only — the National Teams
+ * Rosters tab. A weak nation genuinely can name a sub-65 player, so this is
+ * reachable, and a squad listing a player who no longer exists is worse than one
+ * listing a player fewer. `stageInjuries` is scrubbed for the same reason: it's
+ * consumed at rollover to carry an injury onto a player who may now be gone.
+ */
+function scrubInternational(
+  intl: LeagueStore["international"],
+  cull: ReadonlySet<number>,
+): LeagueStore["international"] {
+  const scrubSquads = <T extends { squads: { pids: number[] }[] }>(c: T): T => {
+    if (!c.squads.some((s) => s.pids.some((pid) => cull.has(pid)))) return c;
+    return {
+      ...c,
+      squads: c.squads.map((s) =>
+        s.pids.some((pid) => cull.has(pid))
+          ? { ...s, pids: s.pids.filter((pid) => !cull.has(pid)) }
+          : s,
+      ),
+    };
+  };
+  return {
+    ...intl,
+    qualifying: intl.qualifying ? scrubSquads(intl.qualifying) : intl.qualifying,
+    tournament: intl.tournament ? scrubSquads(intl.tournament) : intl.tournament,
+    stageInjuries: intl.stageInjuries.filter((pid) => !cull.has(pid)),
   };
 }
 

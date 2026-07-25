@@ -39,6 +39,7 @@ function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed =
     loanRejections: [],
     cup: null,
     cupHistory: [],
+    international: { qualifying: null, tournament: null, history: [], qualifyingHistory: [], powerRankings: [], stage: null, stageInjuries: [] },
     powerRankingHistory: [],
     godMode: false,
   };

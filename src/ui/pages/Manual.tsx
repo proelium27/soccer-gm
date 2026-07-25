@@ -18,6 +18,7 @@ const SECTIONS: [id: string, title: string][] = [
   ["season", "The Season & Simming"],
   ["world", "The World"],
   ["cup", "The Continental Cup"],
+  ["international", "International Football"],
   ["players", "Players: Ratings, OVR & Potential"],
   ["development", "Player Development & Aging"],
   ["matches", "The Match Engine"],
@@ -134,6 +135,7 @@ export function Manual() {
             <li><strong>Dashboard</strong>. Your current W/D/L record and next fixture front and center, with your division's standings on the left and the latest news headlines on the right. Below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim buttons.</li>
             <li><strong>Standings</strong>. The league table, plus each club's current OVR/POT. A season dropdown lets you pull up any past season's final table next to the current one. The champion's row is highlighted, and the <a href="#cup">Continental Cup</a> qualification places are shaded.</li>
             <li><strong>Continental Cup</strong>. The live league-phase table and knockout bracket for the current season, plus past winners via a season dropdown. More in <a href="#cup">The Continental Cup</a>.</li>
+            <li><strong>National Teams</strong>. A whole section for the summer's national-team football: the current World Cup and Qualifying, Rosters showing every nation's named squad, a Schedule of fixtures, Power Rankings of every nation, Stat Leaders (top nations and top players, filterable by country), and History with past winners and each nation's record. More in <a href="#international">International Football</a>.</li>
             <li><strong>Power Rankings</strong>. Every club in the world ranked by a blended Power score: squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column) plus a current-season form bonus or penalty. Form isn't just your record. Beating a strong side counts for more than beating a weak one (and losing to a weak side hurts more than losing to a strong one), and goal difference factors in too, so a club can rank above or below its raw OVR depending on how it's actually playing. Record, goal difference, OVR, and the blended Power score all sit side by side, with a badge showing each club's competition and its rank within it. Click a team to expand its full roster in place. The rankings also get snapshotted every 5 matchdays (plus once after the final matchday), and a dropdown lets you browse any past snapshot from any season, with arrows showing how far each club rose or fell since the last one. Historical views can't expand rosters, since past squads aren't stored, and snapshots only start piling up from the point this feature shipped.</li>
             <li><strong>Schedule</strong>. Every matchday's fixtures and results. Click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong>. A Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, passes, crosses, fouls, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since). Match rating is an average rather than a running total, so to keep a one-off cameo from topping the chart a player needs to have appeared in at least half of the games played so far before he shows up on the match-rating board (a threshold that scales as the season goes, so it works ten games in as well as at the end).</li>
@@ -312,6 +314,67 @@ export function Manual() {
             One handy thing: if your club reaches the final, simming to the end of the season{" "}
             <strong>stops just before the final</strong> so you don't blow past it. Check your
             lineup, then sim on to play it.
+          </p>
+        </Section>
+
+        <Section id="international" title="International Football">
+          <p>
+            Your players also represent their countries. National teams play in the summer, on a
+            four-year cycle: there's a <strong>World Cup</strong> every fourth season, and the three
+            offseasons leading up to it each run a round of <strong>qualifying</strong>. Nothing
+            about it touches your league calendar; it all happens between seasons, and the{" "}
+            <strong>National Teams</strong> pages are where you follow it.
+          </p>
+          <p>
+            You play it out yourself, a stage at a time. When you reach the offseason, the Dashboard
+            hands you the buttons: in a qualifying year you play that year's round of qualifying (one
+            of three); in a World Cup year you play the group stage, then the quarter-finals, then
+            the semis, then the final, one click each, so you can watch it unfold. If you'd rather
+            not linger, "Sim through the World Cup" plays the rest in one go. You can't advance into
+            the next season until that offseason's international games are done.
+          </p>
+          <p>
+            Every nation with enough players in the world enters qualifying. They're split into
+            groups by confederation and play a long home-and-away campaign spread over the three
+            qualifying offseasons, and the number of places each confederation gets depends on how
+            many genuinely strong nations it has, so the 16 who make it are a believable field rather
+            than whoever happens to be nearby. At the
+            tournament those 16 are drawn into four groups of four; the top two from each go through
+            to the quarter-finals, then semi-finals and a final. Knockout ties level after extra
+            time go to a shootout, exactly like the Continental Cup.
+          </p>
+          <p>
+            <strong>Nobody manages a national team, including you.</strong> Each nation picks its
+            own squad from whoever is good enough, in the strongest formation it can field. So your
+            job isn't to pick the team, it's to develop players worth picking, then watch how they
+            get on. One consequence worth knowing: a squad is chosen from the ratings and injuries
+            your players finished the club season with, so a star who ends the year injured really
+            does miss the tournament. The whole thing also plays out before anyone retires, so a
+            veteran in his final season gets one last crack at it.
+          </p>
+          <p>
+            International football is mostly a record, not a lever. Caps, goals, tournaments played
+            and titles won show up on a player's profile and build over his career, and the{" "}
+            <strong>National Team</strong> tab on his stats card breaks them down campaign by
+            campaign, the same way his league and cup seasons are listed. None of it feeds his
+            development or his value. There's one real cost, though: if a player gets hurt
+            at a tournament, part of the recovery happens over the summer, but a serious injury
+            still carries into the new club season and he'll miss its opening weeks (a minor knock
+            heals in time). Beyond that it's there to give your players a story beyond your club, and
+            to see a golden generation announce itself.
+          </p>
+          <p>
+            You can browse all of it in the <strong>National Teams</strong> section. The World Cup
+            and Qualifying tabs show the current campaign and let you flip back to past years;
+            Rosters shows the squad every nation has named for the campaign being played, with the
+            eleven it would field highlighted; Schedule lists the fixtures for whatever's being
+            played, opening on the qualifying round currently being played (a whole campaign at once
+            is hundreds of games, but "All rounds" is there if you want it); Power Rankings sorts every
+            nation by squad strength, with movement since last time; Stat Leaders has both the most
+            successful nations and the top individual players, which you can filter to a single
+            country; and History keeps the roll of past winners plus each nation's tally of titles,
+            finals and best finishes. Past editions keep their results and standings, though not the
+            match-by-match detail of the current one.
           </p>
         </Section>
 
