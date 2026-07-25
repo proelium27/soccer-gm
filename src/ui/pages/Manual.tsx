@@ -139,7 +139,7 @@ export function Manual() {
             <li><strong>Power Rankings</strong>. Every club in the world ranked by a blended Power score: squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column) plus a current-season form bonus or penalty. Form isn't just your record. Beating a strong side counts for more than beating a weak one (and losing to a weak side hurts more than losing to a strong one), and goal difference factors in too, so a club can rank above or below its raw OVR depending on how it's actually playing. Record, goal difference, OVR, and the blended Power score all sit side by side, with a badge showing each club's competition and its rank within it. Click a team to expand its full roster in place. The rankings also get snapshotted every 5 matchdays (plus once after the final matchday), and a dropdown lets you browse any past snapshot from any season, with arrows showing how far each club rose or fell since the last one. Historical views can't expand rosters, since past squads aren't stored, and snapshots only start piling up from the point this feature shipped.</li>
             <li><strong>Schedule</strong>. Every matchday's fixtures and results. Click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong>. A Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, passes, crosses, fouls, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or each player's single best season) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since). Match rating is an average rather than a running total, so to keep a one-off cameo from topping the chart a player needs to have appeared in at least half of the games played so far before he shows up on the match-rating board (a threshold that scales as the season goes, so it works ten games in as well as at the end).</li>
-            <li><strong>Awards</strong>. Player of the Season, the Golden Boot, and a Team of the Season pitch view, one entry per completed season with a dropdown to browse past years.</li>
+            <li><strong>Awards</strong>. Two tabs. World gives the Ballon d'Or for the best player in the world that season (with a top-10 shortlist and a breakdown of where his points came from) and a World Team of the Year pitch view. By league gives Player of the Season, the Golden Boot, and a Team of the Season pitch view for one competition. Both have a dropdown to browse past years.</li>
             <li><strong>Club History</strong>. A per-club honours page (yours by default, with a dropdown for any club in the world): a trophy case (league titles, second-tier titles, Continental Cups, promotions and relegations), individual honours won by the club's players (Player of the Season, Golden Boot, Team of the Season selections), franchise records (best finish, most points and wins in a season, all-time record), and a season-by-season table of every completed season (each season's note also shows how far the club got in that year's Continental Cup).</li>
             <li><strong>Season Preview</strong>. A snapshot of how the offseason shook out: the league's top 10 highest-rated players, top 10 highest-rated teams (both by OVR), and the top 10 biggest transfers from the summer window, ranked by fee. It opens automatically the moment you advance past a season, with a link through to Awards.</li>
             <li><strong>News Feed</strong>. Every completed transfer in the league (AI-to-AI deals included) plus player accomplishments (hat-tricks, a standout performance each matchday, and goal milestones every 10, season and career) all woven into one timeline per season, with club and season filters. Your club's items are highlighted.</li>
@@ -153,7 +153,7 @@ export function Manual() {
             <li><strong>Academy</strong>. Your club's youth-academy holding pool: extend, release, or promote to the senior team.</li>
             <li><strong>Box Score</strong>. Per-match detail: goals, cards, substitutions, injuries, and a stat line (including xG, passes completed/attempted, crosses and fouls, plus goals against and xG against on the goalkeeper's row) plus a 0&ndash;10 match rating for every player who appeared, with each side's total xG next to the score. The highest-rated player among those who actually played gets starred as Man of the Match.</li>
             <li><strong>Leagues</strong>. Your saved leagues. Create, enter, or delete saves. Each one is fully independent.</li>
-            <li><strong>Player Profile</strong>. Click any player's name anywhere in the game (Roster, Stat Leaders, Awards, Transfers, News Feed) to open his full career page: every attribute rating, individual and team honors (Player of the Season, Golden Boot, Team of the Season, league titles), a season-by-season stat line with columns you won't see elsewhere (shots on target, xG, goals against/xG against for keepers), full transfer history, an OVR-over-time chart (the line is colored by whichever club he was at each season and changes color when he transfers, with club crests marking transfers, and you can hover any point for that season's club and exact OVR, where a youth-academy year reads as "Club (Academy)"), and a season-by-season OVR/POT/attribute history.</li>
+            <li><strong>Player Profile</strong>. Click any player's name anywhere in the game (Roster, Stat Leaders, Awards, Transfers, News Feed) to open his full career page: every attribute rating, individual and team honors (Ballon d'Or, World Team of the Year, Player of the Season, Golden Boot, Team of the Season, league titles), a season-by-season stat line with columns you won't see elsewhere (shots on target, xG, goals against/xG against for keepers), full transfer history, an OVR-over-time chart (the line is colored by whichever club he was at each season and changes color when he transfers, with club crests marking transfers, and you can hover any point for that season's club and exact OVR, where a youth-academy year reads as "Club (Academy)"), and a season-by-season OVR/POT/attribute history.</li>
           </ul>
         </Section>
 
@@ -536,6 +536,34 @@ export function Manual() {
             line, so a modest player who piled up a big statistical season (often just from facing
             heavy pressure on a weaker side) won't out-rank a genuinely elite one. Only players who
             appeared in a decent share of the season's matchdays are eligible for any of the three.
+          </p>
+          <p>
+            <strong>The Ballon d'Or and the World Team of the Year.</strong> The three honors above
+            are decided inside one league. The Awards page also has a World tab, which judges every
+            league in the world as a single field: the <strong>Ballon d'Or</strong> for the best
+            player alive that season (with the nine behind him listed as a shortlist), and a{" "}
+            <strong>World Team of the Year</strong> best XI drawn from anywhere. Three things go into
+            it. First, the domestic season, scored the same way Player of the Season is, and it's
+            the biggest part by a distance. Second, the Continental Cup &mdash; cup goals and assists
+            count the same as league ones, your rating in it counts, and there's a bonus for how far
+            your club went, biggest for winning the thing (all of it scaled down if you only played a
+            game or two of the run). A great cup run decides a close race; it won't drag a mediocre
+            league season past a great one.
+            Third, the international campaign played that summer: goals, assists and caps, worth
+            double in a World Cup year over a qualifying one, plus a bonus if your country actually
+            won it. Winning your own league helps too, scaled by how much of the season you played.
+          </p>
+          <p>
+            One thing worth knowing about how the world award compares leagues. Match ratings are
+            scored against the standard of the league you're playing in, so a 7.5 average in a weak
+            league and a 7.5 in a strong one are not the same season &mdash; the first was earned
+            against easier opponents. The world award corrects for that by how strong each league's
+            players actually are, so the trophy doesn't just drift to whoever plays in the weakest
+            division. It's a correction, not a penalty: a genuinely better player in France or
+            Portugal still beats a merely good one in England, and the second division is not shut
+            out by rule, only by the correction. The Continental Cup is the exception that needs no
+            correcting &mdash; everyone in it is measured against the same pooled field, which is why
+            it carries the weight it does.
           </p>
           <p>
             <strong>xG (expected goals).</strong> Every shot's chance of going in before you know

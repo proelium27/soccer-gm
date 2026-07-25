@@ -105,19 +105,26 @@ export function PlayerProfile() {
   const goldenBootSeasons: number[] = [];
   const totsSeasons: number[] = [];
   const championSeasons: number[] = [];
+  const ballonDOrSeasons: number[] = [];
+  const worldTeamSeasons: number[] = [];
   for (const entry of league.seasonHistory) {
     for (const compAwards of Object.values(entry.awards)) {
       if (compAwards.playerOfSeasonPid === player.pid) potySeasons.push(entry.season);
       if (compAwards.goldenBootPid === player.pid) goldenBootSeasons.push(entry.season);
       if (compAwards.teamOfSeason.includes(player.pid)) totsSeasons.push(entry.season);
     }
+    // Optional-chained because a save written before worldwide awards only gets
+    // `world` once migrateLeague has run over it.
+    if (entry.world?.ballonDOr[0]?.pid === player.pid) ballonDOrSeasons.push(entry.season);
+    if (entry.world?.worldTeamOfYear.includes(player.pid)) worldTeamSeasons.push(entry.season);
     const ownerTid = team ? teamForSeason(playerTransfers, entry.season, team.tid) : null;
     if (ownerTid !== null && Object.values(entry.championTidByCompId).includes(ownerTid)) {
       championSeasons.push(entry.season);
     }
   }
   const hasAwards =
-    potySeasons.length > 0 || goldenBootSeasons.length > 0 || totsSeasons.length > 0 || championSeasons.length > 0;
+    potySeasons.length > 0 || goldenBootSeasons.length > 0 || totsSeasons.length > 0
+    || championSeasons.length > 0 || ballonDOrSeasons.length > 0 || worldTeamSeasons.length > 0;
 
   const statsBySeasonDesc = [...player.stats].sort((a, b) => b.season - a.season);
   const histBySeasonDesc = [...player.hist].sort((a, b) => b.season - a.season);
@@ -248,6 +255,8 @@ export function PlayerProfile() {
                 <p className="text-muted mb-0">No individual or team honors yet.</p>
               ) : (
                 <div className="award-pills">
+                  <AwardPill label="Ballon d'Or" seasons={ballonDOrSeasons} />
+                  <AwardPill label="World Team of the Year" seasons={worldTeamSeasons} />
                   <AwardPill label="Player of the Season" seasons={potySeasons} />
                   <AwardPill label="Golden Boot" seasons={goldenBootSeasons} icon={<GoldenBootIcon />} />
                   <AwardPill label="Team of the Season" seasons={totsSeasons} />

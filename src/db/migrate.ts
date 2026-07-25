@@ -4,6 +4,7 @@ import type { Player, SeasonStats, RatingsSnapshot } from "../core/players/types
 import type { PlayerMatchLine } from "../engine/attribution.js";
 import type { TeamSeasonStats } from "../core/standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "../core/awards.js";
+import { computeWorldAwards, type WorldAwards } from "../core/worldAwards.js";
 import {
   HYPE_INITIAL, SCOUTING_SPEND_DEFAULT,
   NUM_TEAMS,
@@ -72,9 +73,10 @@ type TeamSeasonStatsAnyVersion = Omit<TeamSeasonStats, "xg" | "goalsAgainst" | "
  * and a Record<compId, SeasonAwards> (post-competitions-refactor).
  */
 type SeasonHistoryEntryAnyVersion =
-  Omit<LeagueStore["seasonHistory"][number], "teamStats" | "awards" | "compsByTid" | "championTidByCompId"> &
+  Omit<LeagueStore["seasonHistory"][number], "teamStats" | "awards" | "world" | "compsByTid" | "championTidByCompId"> &
   Partial<{
     teamStats: TeamSeasonStatsAnyVersion[];
+    world: WorldAwards;
     awards: SeasonAwards | [SeasonAwards, SeasonAwards] | Record<number, SeasonAwards>;
     compsByTid: Record<number, number>;
     divisionsByTid: Record<number, 0 | 1>;
@@ -279,12 +281,28 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
             : { 0: computeSeasonAwards(migratedPlayers, h.season) };
       const championTidByCompId: Record<number, number> = h.championTidByCompId
         ?? (h.championTid !== undefined ? { 0: h.championTid } : { 0: h.table[0]?.tid ?? 0 });
+      // Worldwide honors reconstruct from the same append-only records, so a
+      // save that predates them gets its whole history backfilled rather than
+      // only picking them up from the next offseason. Same caveat as the
+      // per-competition awards above: players who have since retired are no
+      // longer in the pool, so a very old season is judged on the survivors.
+      const seasonCup = [...(anyVersion.cupHistory ?? []), ...(anyVersion.cup ? [anyVersion.cup] : [])]
+        .find((c) => c.season === h.season) ?? null;
+      const world: WorldAwards = h.world ?? computeWorldAwards(migratedPlayers, h.season, {
+        compsByTid,
+        competitions,
+        championTidByCompId,
+        cup: seasonCup ? { ...seasonCup, leaguePhase: seasonCup.leaguePhase ?? null, playoff: seasonCup.playoff ?? null, playIn: seasonCup.playIn ?? null, twoLegged: seasonCup.twoLegged ?? false, koLegs: seasonCup.koLegs ?? null } : null,
+        worldCupChampion:
+          anyVersion.international?.history?.find((t) => t.season === h.season)?.champion ?? null,
+      });
       return {
         ...h,
         teamStats: (h.teamStats ?? []).map((t) => ({
           ...t, xg: t.xg ?? 0, goalsAgainst: t.goalsAgainst ?? 0, xga: t.xga ?? 0,
         })),
         awards,
+        world,
         compsByTid,
         championTidByCompId,
       };

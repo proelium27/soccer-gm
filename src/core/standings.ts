@@ -1,5 +1,6 @@
 import type { BoxScore, PlayerMatchLine } from "../engine/attribution.js";
 import type { SeasonAwards } from "./awards.js";
+import type { WorldAwards } from "./worldAwards.js";
 
 export interface MatchScore {
   home: number;
@@ -54,6 +55,8 @@ export interface SeasonHistoryEntry {
   teamStats: TeamSeasonStats[];
   /** Player of the Season / Golden Boot / Team of the Season, per competition, keyed by compId. */
   awards: Record<number, SeasonAwards>;
+  /** Ballon d'Or ranking + World Team of the Year — the whole world judged as one field, not league by league. */
+  world: WorldAwards;
   /** Each team's competition *during this season* (snapshotted before any promotion/relegation swap), so a past season's table/awards can still be labeled correctly after later swaps. */
   compsByTid: Record<number, number>;
   /** Each tier-1 competition's champion, keyed by compId. */

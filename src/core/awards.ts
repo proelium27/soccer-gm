@@ -7,9 +7,9 @@ import {
   TOTS_SAVE_WEIGHT, TOTS_GOALS_AGAINST_PENALTY,
 } from "./constants.js";
 
-type PositionGroup = "GK" | "DEF" | "MID" | "FWD";
+export type PositionGroup = "GK" | "DEF" | "MID" | "FWD";
 
-function positionGroup(pos: Position): PositionGroup {
+export function positionGroup(pos: Position): PositionGroup {
   switch (pos) {
     case "GK": return "GK";
     case "CB": case "FB": return "DEF";
@@ -26,7 +26,7 @@ export interface SeasonAwards {
   teamOfSeason: (number | null)[];
 }
 
-function statsFor(p: Player, season: number): SeasonStats | undefined {
+export function statsFor(p: Player, season: number): SeasonStats | undefined {
   return p.stats.find((s) => s.season === season);
 }
 
@@ -42,7 +42,7 @@ function statsFor(p: Player, season: number): SeasonStats | undefined {
  * (a save's very first season, before any progression has run yet — at that
  * point p.ovr *is* the season-1 ovr — or pre-hist legacy data).
  */
-function ovrDuringSeason(p: Player, season: number): number {
+export function ovrDuringSeason(p: Player, season: number): number {
   const snapshot = p.hist.find((h) => h.season === season - 1);
   return snapshot?.ovr ?? p.ovr;
 }
@@ -51,13 +51,13 @@ function ovrBonus(p: Player, season: number): number {
   return (ovrDuringSeason(p, season) - AWARD_OVR_BASELINE) * AWARD_OVR_WEIGHT;
 }
 
-function potyScore(p: Player, s: SeasonStats, season: number): number {
+export function potyScore(p: Player, s: SeasonStats, season: number): number {
   const group = positionGroup(p.pos);
   return s.avgRating + s.goals * POTY_GOAL_WEIGHT[group] + s.assists * POTY_ASSIST_WEIGHT[group]
     + ovrBonus(p, season);
 }
 
-function totsScore(p: Player, s: SeasonStats, season: number): number {
+export function totsScore(p: Player, s: SeasonStats, season: number): number {
   const group = positionGroup(p.pos);
   let score = s.avgRating;
   score += s.goals * TOTS_GOAL_WEIGHT[group];
