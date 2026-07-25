@@ -10,7 +10,6 @@ import { simThrough } from "../src/core/simThrough.js";
 import { simOffseason } from "../src/core/offseason.js";
 import { mulberry32 } from "../src/engine/rng.js";
 import { cupStatsForPlayer } from "../src/core/cup/cupStats.js";
-import { stripLeaguePhaseBoxScores } from "../src/core/players/freeAgentCull.js";
 
 const rng = mulberry32(7);
 let league = createLeagueState(0, rng);
