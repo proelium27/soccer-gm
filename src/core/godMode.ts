@@ -139,7 +139,17 @@ export interface NewPlayerSpec {
 export function createCustomPlayer(
   league: LeagueStore, spec: NewPlayerSpec,
 ): { league: LeagueStore; pid: number } {
-  const pid = league.players.reduce((max, p) => Math.max(max, p.pid), 0) + 1;
+  // Take the stored monotonic cursor, not max(pid) + 1: players get removed
+  // (retirement, the free-agent cull), and a derived cursor would reissue a
+  // removed player's pid to this new one, handing him that player's transfer,
+  // news and cup history. See LeagueStore.nextPid.
+  // The `?? 0` is not decoration: a league object built outside migrate (a test
+  // fixture, a hand-rolled import) has no cursor, and Math.max(undefined, n) is
+  // NaN — which would sail straight into a player's pid.
+  const pid = Math.max(
+    Number.isFinite(league.nextPid) ? league.nextPid : 0,
+    league.players.reduce((max, p) => Math.max(max, p.pid), 0) + 1,
+  );
   const ovr = computeOvr(spec.pos, spec.ratings, spec.heightCm);
   const player: Player = {
     pid,
@@ -158,7 +168,12 @@ export function createCustomPlayer(
       { season: league.season - 1, ratings: spec.ratings, ovr, potential: spec.potential, academy: false },
     ],
   };
-  const withPlayer: LeagueStore = { ...league, players: [...league.players, player] };
+  // Advance the cursor so this pid can never be handed out again.
+  const withPlayer: LeagueStore = {
+    ...league,
+    players: [...league.players, player],
+    nextPid: pid + 1,
+  };
   return {
     league: spec.tid === null ? withPlayer : movePlayerToClub(withPlayer, pid, spec.tid),
     pid,

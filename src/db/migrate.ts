@@ -10,6 +10,7 @@ import {
 } from "../core/constants.js";
 import { chargeSeasonStart, wageBill, financeScale } from "../core/finance/budget.js";
 import { englandCompetitions } from "../core/competitions.js";
+import { cullFreeAgentPool, stripLeaguePhaseBoxScores } from "../core/players/freeAgentCull.js";
 
 /**
  * A team as it may exist in a save written before M6 added the finance
@@ -52,8 +53,8 @@ function fallbackAcademyBase(tid: number): number {
 
 /** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "nextPid"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "nextPid">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking. */
 type SeasonStatsAnyVersion =
@@ -172,6 +173,19 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
  * the real-club-names era) would be silently reverted on the next load.
  */
 export function migrateLeague(league: LeagueStore): LeagueStore {
+  return cullFreeAgentPool(migrateFields(league));
+}
+
+/**
+ * Field-by-field backfill. Split out from migrateLeague so the free-agent cull
+ * runs on a fully-formed LeagueStore.
+ *
+ * The cull is applied here, at load, rather than waiting for the next offseason:
+ * an aged save is frozen *now* (save size is what blocks the main thread), and a
+ * player who can't get the game to respond can't reach an offseason to have it
+ * cleaned up. The ongoing offseason cull then keeps it bounded from there.
+ */
+function migrateFields(league: LeagueStore): LeagueStore {
   const anyVersion = league as LeagueStoreAnyVersion;
   // Pre-competitions-refactor saves have no competitions table at all — they
   // were always England-only, so the 2-entry table backfills mechanically
@@ -301,7 +315,11 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     cup: anyVersion.cup
       ? { ...anyVersion.cup, leaguePhase: anyVersion.cup.leaguePhase ?? null, playoff: anyVersion.cup.playoff ?? null, playIn: anyVersion.cup.playIn ?? null, twoLegged: anyVersion.cup.twoLegged ?? false, koLegs: anyVersion.cup.koLegs ?? null }
       : null,
-    cupHistory: (anyVersion.cupHistory ?? []).map((c) => ({
+    // Archived cups also get their league-phase box scores stripped: nothing
+    // reads them (see stripLeaguePhaseBoxScores) and they are ~17% of an aged
+    // save, which is what makes the game freeze. Scorelines, tables and ties
+    // are untouched, so nothing displayed is lost.
+    cupHistory: (anyVersion.cupHistory ?? []).map((c) => stripLeaguePhaseBoxScores({
       ...c, leaguePhase: c.leaguePhase ?? null, playoff: c.playoff ?? null, playIn: c.playIn ?? null, twoLegged: c.twoLegged ?? false, koLegs: c.koLegs ?? null,
     })),
     // Pre-feature saves start with no power-rankings history; snapshots can't
@@ -310,5 +328,12 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     powerRankingHistory: anyVersion.powerRankingHistory ?? [],
     // God Mode sandbox editing defaults off for any save that predates it.
     godMode: anyVersion.godMode ?? false,
+    // The pid allocator used to be derived as max(pid) + 1 at each use, so
+    // seeding the stored cursor with exactly that value keeps every existing
+    // save generating the same pids it would have anyway. From here it only
+    // ever moves forward, which is what makes removing players safe.
+    nextPid:
+      anyVersion.nextPid
+      ?? Math.max(0, ...(anyVersion.players ?? []).map((p) => p.pid)) + 1,
   };
 }

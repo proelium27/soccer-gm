@@ -301,6 +301,29 @@ export const ROSTER_CAP = 30;
  */
 export const ROSTER_SAFETY_FLOOR = 18;
 
+/**
+ * Free-agent pool cull (see core/players/freeAgentCull.ts).
+ *
+ * Nothing ever removed unsigned free agents, so the pool grew without bound: a
+ * 14-season save held 9245 of them against 5996 rostered players, and 96% had
+ * never peaked above ovr 55 — washed-out youth intake nobody would ever sign.
+ * That pool was ~27% of the whole save, and save size is what makes the game
+ * freeze (every mutation writes the entire league to IndexedDB, every sim
+ * structuredClones it to the worker; both block the main thread and both scale
+ * with total size).
+ *
+ * A player is culled only if he is on NO roster (senior or academy) AND all
+ * three of these hold. The age and potential gates are what protect the youth
+ * pipeline: a 17-year-old at ovr 45 with potential 80 has a career *peak* of 45,
+ * so culling on peak alone would delete this season's prospects before the user
+ * ever saw them on /incoming-talent.
+ */
+export const FREE_AGENT_CULL_MIN_AGE = 24;
+/** Career-peak ovr (best across his ratings history) at or below which he goes. */
+export const FREE_AGENT_CULL_MAX_PEAK_OVR = 65;
+/** Potential at or below which he's judged never going to become useful. */
+export const FREE_AGENT_CULL_MAX_POT = 65;
+
 /** In-match injuries (M5): games missed once hurt, uniform between these inclusive bounds. */
 export const INJURY_GAMES_MIN = 1;
 export const INJURY_GAMES_MAX = 6;

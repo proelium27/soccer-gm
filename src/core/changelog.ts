@@ -34,6 +34,17 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-25",
+    title: "Fixed the freezing, and found out why it was happening",
+    items: [
+      "This is the big one. A bunch of you told me the transfers tab freezes the whole game, and on phones it was barely usable at all. I assumed it was something clever going wrong on that page. It wasn't. The transfers page is fine, and always was. Your save file was just getting enormous, and the game rewrites the entire save every single time anything happens in it. By season 14 that file was 88 MB, and writing it took seconds. That's what the freeze was. It had nothing to do with transfers specifically, which is why the dashboard felt awful too.",
+      "Two things were bloating it. First, every Continental Cup league-phase match was keeping a full per-player stat sheet forever, even though literally nothing in the game ever displayed them. That was 17% of your save doing absolutely nothing. Those are gone and you won't notice a single difference, all the scorelines and tables and knockout stats are still there.",
+      "Second, and this is the real one: free agents never went away. Ever. Every washed-out academy kid who nobody signed just sat in your save forever, and by season 14 there were 9,245 of them against only 5,996 players actually on teams. 96% of them had never even reached 55 overall. So now, once a free agent is 24 or older, has never been any good, and isn't projected to become good, he's permanently deleted. Anyone under 24 is safe, anyone with real potential is safe, and any former star who's declined is safe, so your incoming talent list and the useful end of free agency are untouched.",
+      "Result: that 88 MB save drops to 55 MB, and the slowest thing the game does got about 11 times faster. The pool now settles at a stable size instead of climbing forever, so it shouldn't creep back.",
+      "Two honest warnings. This permanently deletes those players from your existing save the first time you load it, and I can't undo that, so if you had a sentimental attachment to a 44-overall 31-year-old free agent, I'm sorry. And while I was in here I found a genuinely nasty old bug: because of how new players got their ID numbers, a newly generated player could occasionally inherit a deleted player's entire transfer history. That's fixed properly now.",
+    ],
+  },
+  {
+    date: "2026-07-25",
     title: "A crash no longer wipes out the whole game",
     items: [
       "Someone told me the transfers tab keeps crashing on them, and when I went looking I realised I had no way at all to find out why. Any error anywhere in the game took down the entire screen and left you staring at a blank white page, with the actual reason buried in the browser console where nobody's going to look for it. On top of that, I'd never switched on crash reporting, so not a single one of these had ever been recorded. I was completely blind to it.",
