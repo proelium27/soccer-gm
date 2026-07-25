@@ -6,7 +6,7 @@
  * structuredClone costing more. This breaks that total down per top-level field
  * (and inside `players`) so a fix can target the bulk instead of guessing.
  */
-import { createLeagueState, type LeagueStore } from "../src/core/leagueState.js";
+import { createLeagueState } from "../src/core/leagueState.js";
 import { simThrough } from "../src/core/simThrough.js";
 import { simOffseason } from "../src/core/offseason.js";
 import { mulberry32 } from "../src/engine/rng.js";
