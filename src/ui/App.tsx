@@ -3,6 +3,7 @@ import { LeagueProvider } from "./context/LeagueContext.js";
 import { SportNameProvider } from "./sportName.js";
 import { Layout } from "./components/Layout.js";
 import { AnnouncementBanner } from "./components/AnnouncementBanner.js";
+import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { Leagues } from "./pages/Leagues.js";
 import { NewLeague } from "./pages/NewLeague.js";
 import { Dashboard } from "./pages/Dashboard.js";
@@ -46,6 +47,11 @@ export function App() {
       <SportNameProvider>
       <LeagueProvider>
         <AnnouncementBanner />
+        {/* Outer net for the routes that render outside Layout (the league
+            picker and new-league flow), which have no boundary of their own.
+            Pages inside Layout get a per-route boundary that keeps the nav
+            alive, so this one only catches what that can't reach. */}
+        <ErrorBoundary what="the game">
         <Routes>
           <Route path="/leagues" element={<Leagues />} />
           <Route path="/new-league" element={<NewLeague />} />
@@ -77,6 +83,7 @@ export function App() {
           </Route>
           <Route path="*" element={<RootRedirect />} />
         </Routes>
+        </ErrorBoundary>
       </LeagueProvider>
       </SportNameProvider>
     </Router>

@@ -17,6 +17,12 @@ import { App } from "./App.js";
 posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   api_host: import.meta.env.VITE_POSTHOG_HOST,
   defaults: "2026-05-30",
+  // Crash reports were previously invisible: error tracking had zero issues
+  // recorded because exceptions were never captured, so a "the transfers page
+  // keeps crashing" report came with no stack trace to work from. This sends
+  // unhandled errors and rejections to error tracking; ErrorBoundary also
+  // reports the ones React swallows on its way to unmounting the tree.
+  capture_exceptions: true,
 });
 
 createRoot(document.getElementById("root")!).render(
