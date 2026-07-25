@@ -337,6 +337,21 @@ export const FREE_AGENT_CULL_MAX_POT = 65;
  */
 export const FREE_AGENT_CULL_LOAD_THRESHOLD = 7000;
 
+/**
+ * Cap on the "Completed This Window" list on /transfers.
+ *
+ * This list was uncapped, and it is what froze the page. A 240-club world moves
+ * thousands of players per summer window: a real 5-season save rendered **2056
+ * rows, 2066 flag images and 10684 DOM elements**, pulling ~1 MB of SVG flag art
+ * (single flags run 150-240 KB of coat-of-arms detail, drawn at 13px tall). The
+ * JS was never the problem — that render is 147ms — which is exactly why it
+ * never showed up in any profiling of the page's logic. The cost is layout,
+ * image decode and paint, and it is why /transfers froze when no other page did.
+ *
+ * The user's own deals always show; this bounds the rest.
+ */
+export const WINDOW_TRANSFER_LIMIT = 50;
+
 /** In-match injuries (M5): games missed once hurt, uniform between these inclusive bounds. */
 export const INJURY_GAMES_MIN = 1;
 export const INJURY_GAMES_MAX = 6;
