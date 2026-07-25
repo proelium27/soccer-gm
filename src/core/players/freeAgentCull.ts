@@ -4,6 +4,7 @@ import {
   FREE_AGENT_CULL_MIN_AGE,
   FREE_AGENT_CULL_MAX_PEAK_OVR,
   FREE_AGENT_CULL_MAX_POT,
+  FREE_AGENT_CULL_LOAD_THRESHOLD,
 } from "../constants.js";
 
 /**
@@ -65,22 +66,76 @@ export function cullablePids(
   return cull;
 }
 
-/** Every pid named by a stored award, which must never be deleted. */
+/**
+ * Every pid an honours board names, which must never be deleted.
+ *
+ * `SeasonAwards` stores **bare numbers** under `playerOfSeasonPid`,
+ * `goldenBootPid` and `teamOfSeason[]` — there is no `pid` key anywhere. An
+ * earlier version of this looked for objects with a `pid` property and so
+ * returned an empty set every time, i.e. the protection did nothing at all.
+ * (The same mistake made `scripts/freeAgentPoolAudit.ts` report zero award
+ * references, which read as "awards are safe" when it had simply looked in the
+ * wrong place.) That matters because tier-2 squads are capped below
+ * `DIVISION_2_REFUSAL_OVR_THRESHOLD`, so a second-division Team-of-the-Season
+ * pick or Golden Boot winner really can sit at peak ovr ≤ 65 — exactly the
+ * profile the cull deletes — and `/awards` would then render an empty slot.
+ *
+ * The award container has had three shapes over time (a single SeasonAwards, a
+ * [D1, D2] tuple, and a Record<compId, SeasonAwards>), so this walks whatever it
+ * is and picks out any `*Pid` number plus the `teamOfSeason` array, rather than
+ * assuming one layout.
+ */
 export function awardedPids(league: LeagueStore): Set<number> {
   const pids = new Set<number>();
+  const addIfPid = (v: unknown) => {
+    if (typeof v === "number" && Number.isFinite(v)) pids.add(v);
+  };
   const walk = (v: unknown) => {
     if (Array.isArray(v)) {
       for (const x of v) walk(x);
       return;
     }
-    if (v && typeof v === "object") {
-      const o = v as Record<string, unknown>;
-      if (typeof o.pid === "number") pids.add(o.pid);
-      for (const x of Object.values(o)) walk(x);
+    if (!v || typeof v !== "object") return;
+    for (const [key, value] of Object.entries(v as Record<string, unknown>)) {
+      if (key.endsWith("Pid")) addIfPid(value);
+      else if (key === "teamOfSeason" && Array.isArray(value)) value.forEach(addIfPid);
+      // `pid` is the shape international's topScorer uses.
+      else if (key === "pid") addIfPid(value);
+      else walk(value);
     }
   };
   for (const h of league.seasonHistory) walk(h.awards);
+  // A tournament's stored top scorer keeps a name for display, but the profile
+  // link still points at the pid, so he needs the same protection.
+  for (const t of league.international?.history ?? []) walk(t.topScorer);
   return pids;
+}
+
+/** Unsigned free agents currently in the pool (on no roster, senior or academy). */
+export function freeAgentCount(league: LeagueStore): number {
+  const rostered = new Set<number>();
+  for (const t of league.teams) {
+    for (const pid of t.roster) rostered.add(pid);
+    for (const pid of t.academyRoster) rostered.add(pid);
+  }
+  let n = 0;
+  for (const p of league.players) if (!rostered.has(p.pid)) n++;
+  return n;
+}
+
+/**
+ * The cull as applied at **load**, which only fires on a genuinely bloated pool.
+ *
+ * A save that is already frozen can't be fixed at its next offseason, because its
+ * owner can't get the game to respond long enough to reach one — hence culling on
+ * load. But doing it on *every* load makes mid-season deletions immediate: release
+ * a player by mistake, reload, and he's gone instead of re-signable from
+ * /free-agents. So normal saves are left to the offseason cull, and only a pool
+ * past FREE_AGENT_CULL_LOAD_THRESHOLD is drained here.
+ */
+export function cullOnLoad(league: LeagueStore): LeagueStore {
+  if (freeAgentCount(league) <= FREE_AGENT_CULL_LOAD_THRESHOLD) return league;
+  return cullFreeAgentPool(league);
 }
 
 /**
@@ -155,29 +210,57 @@ function scrubInternational(
 }
 
 /**
- * Drop a culled player's traces from one cup: his per-tie box-score lines while
+ * Drop a culled player's traces from one cup: his per-match box-score lines while
  * the cup is live, and his stored aggregate line once it's archived (archiveCup
  * replaces the box scores with `statLines`, so both shapes have to be handled).
+ *
+ * Covers all three stages, not just the knockout ties — `cupStatsForPlayer` reads
+ * the league phase and playoff too, so scrubbing only `ties` would leave a culled
+ * player contributing to a live cup's stats.
  */
 function scrubCupLines<T extends LeagueStore["cupHistory"][number]>(
   cup: T,
   cull: ReadonlySet<number>,
 ): T {
   let touched = false;
-  const ties = cup.ties.map((tie) => {
-    // Archived ties have no box score left; only statLines needs scrubbing.
-    if (tie.boxScore === null) return tie;
-    const home = tie.boxScore.home.filter((l) => !cull.has(l.pid));
-    const away = tie.boxScore.away.filter((l) => !cull.has(l.pid));
-    if (home.length === tie.boxScore.home.length && away.length === tie.boxScore.away.length) {
-      return tie;
-    }
+  /** Strip culled lines from one box score, or return it unchanged. */
+  const scrubBox = <B extends { home: { pid: number }[]; away: { pid: number }[] } | null>(
+    box: B,
+  ): B => {
+    if (!box) return box;
+    const home = box.home.filter((l) => !cull.has(l.pid));
+    const away = box.away.filter((l) => !cull.has(l.pid));
+    if (home.length === box.home.length && away.length === box.away.length) return box;
     touched = true;
-    return { ...tie, boxScore: { ...tie.boxScore, home, away } };
-  });
+    return { ...box, home, away };
+  };
+  const scrubTies = <E extends { boxScore: unknown }>(ties: E[]): E[] =>
+    ties.map((t) => {
+      const box = scrubBox(t.boxScore as Parameters<typeof scrubBox>[0]);
+      return box === t.boxScore ? t : { ...t, boxScore: box };
+    });
+
+  const leaguePhase = !cup.leaguePhase
+    ? cup.leaguePhase
+    : {
+        ...cup.leaguePhase,
+        matches: (cup.leaguePhase.matches ?? []).map((m) => {
+          const box = scrubBox(m.boxScore);
+          return box === m.boxScore ? m : { ...m, boxScore: box };
+        }),
+      };
+  const playoff = !cup.playoff
+    ? cup.playoff
+    : { ...cup.playoff, ties: scrubTies(cup.playoff.ties ?? []) };
+  const playIn = !cup.playIn
+    ? cup.playIn
+    : { ...cup.playIn, ties: scrubTies(cup.playIn.ties ?? []) };
+  const ties = scrubTies(cup.ties ?? []);
+
   const statLines = cup.statLines?.some((l) => cull.has(l.pid))
     ? cup.statLines.filter((l) => !cull.has(l.pid))
     : cup.statLines;
   if (statLines !== cup.statLines) touched = true;
-  return touched ? { ...cup, ties, statLines } : cup;
+
+  return touched ? { ...cup, leaguePhase, playoff, playIn, ties, statLines } : cup;
 }

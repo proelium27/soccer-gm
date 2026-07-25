@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { makeLeague } from "../helpers/league.js";
 import {
+  awardedPids,
   careerPeakOvr,
+  cullOnLoad,
   cullablePids,
   cullFreeAgentPool,
+  freeAgentCount,
 } from "../../src/core/players/freeAgentCull.js";
 import {
   FREE_AGENT_CULL_MIN_AGE,
   FREE_AGENT_CULL_MAX_PEAK_OVR,
   FREE_AGENT_CULL_MAX_POT,
+  FREE_AGENT_CULL_LOAD_THRESHOLD,
 } from "../../src/core/constants.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { Player } from "../../src/core/players/types.js";
@@ -212,5 +216,92 @@ describe("pid reuse after a cull", () => {
     });
     expect(pid).not.toBe(doomedPid);
     expect(pid).toBeGreaterThan(doomedPid);
+  });
+});
+
+describe("awardedPids", () => {
+  // This returned an empty set for every save at one point: it looked for objects
+  // with a `pid` property, but SeasonAwards stores bare numbers under
+  // playerOfSeasonPid / goldenBootPid / teamOfSeason[]. The award protection was
+  // therefore doing nothing at all, silently.
+  it("finds every pid an honours board names", () => {
+    const league = {
+      seasonHistory: [{
+        awards: {
+          0: { playerOfSeasonPid: 111, goldenBootPid: 222, teamOfSeason: [333, 444, null] },
+        },
+      }],
+      international: { history: [] },
+    } as unknown as LeagueStore;
+    expect([...awardedPids(league)].sort((a, b) => a - b)).toEqual([111, 222, 333, 444]);
+  });
+
+  it("handles the older single-SeasonAwards and tuple shapes too", () => {
+    const single = {
+      seasonHistory: [{ awards: { playerOfSeasonPid: 7, goldenBootPid: null, teamOfSeason: [8] } }],
+      international: { history: [] },
+    } as unknown as LeagueStore;
+    expect([...awardedPids(single)].sort((a, b) => a - b)).toEqual([7, 8]);
+
+    const tuple = {
+      seasonHistory: [{
+        awards: [
+          { playerOfSeasonPid: 1, goldenBootPid: 2, teamOfSeason: [] },
+          { playerOfSeasonPid: 3, goldenBootPid: null, teamOfSeason: [4] },
+        ],
+      }],
+      international: { history: [] },
+    } as unknown as LeagueStore;
+    expect([...awardedPids(tuple)].sort((a, b) => a - b)).toEqual([1, 2, 3, 4]);
+  });
+
+  it("protects a tournament top scorer, whose profile link uses his pid", () => {
+    const league = {
+      seasonHistory: [],
+      international: { history: [{ topScorer: { pid: 55, nation: "X", goals: 6 } }] },
+    } as unknown as LeagueStore;
+    expect([...awardedPids(league)]).toEqual([55]);
+  });
+
+  it("keeps an award winner who would otherwise be culled", () => {
+    // Reachable: tier-2 squads are capped below the D2 ceiling, so a
+    // second-division Team-of-the-Season pick really can sit at peak ovr <= 65.
+    const league = makeLeague(0, 11);
+    const winner = addFreeAgent(league, {
+      pid: 900100, age: FREE_AGENT_CULL_MIN_AGE + 6, ovr: 61, potential: 62,
+    });
+    league.seasonHistory = [{
+      awards: { 0: { playerOfSeasonPid: null, goldenBootPid: winner.pid, teamOfSeason: [] } },
+    }] as unknown as LeagueStore["seasonHistory"];
+
+    expect(cullablePids(league).has(winner.pid)).toBe(true); // no protection passed
+    const after = cullFreeAgentPool(league);                 // applies awardedPids
+    expect(after.players.some((p) => p.pid === winner.pid)).toBe(true);
+  });
+});
+
+describe("cullOnLoad", () => {
+  it("leaves a normal-sized pool alone, so a released player stays re-signable", () => {
+    const league = makeLeague(0, 11);
+    addFreeAgent(league, {
+      pid: 900101, age: FREE_AGENT_CULL_MIN_AGE + 3, ovr: 55, potential: 58,
+    });
+    expect(freeAgentCount(league)).toBeLessThan(FREE_AGENT_CULL_LOAD_THRESHOLD);
+    const after = cullOnLoad(league);
+    expect(after).toBe(league);
+    expect(after.players.some((p) => p.pid === 900101)).toBe(true);
+  });
+
+  it("drains a bloated pool, which is the frozen-save case it exists for", () => {
+    const league = makeLeague(0, 11);
+    // Push the pool past the threshold with cullable free agents.
+    for (let i = 0; i < FREE_AGENT_CULL_LOAD_THRESHOLD + 10; i++) {
+      addFreeAgent(league, {
+        pid: 950000 + i, age: FREE_AGENT_CULL_MIN_AGE + 5, ovr: 45, potential: 50,
+      });
+    }
+    const after = cullOnLoad(league);
+    expect(after.players.length).toBeLessThan(league.players.length);
+    expect(freeAgentCount(after)).toBeLessThan(FREE_AGENT_CULL_LOAD_THRESHOLD);
   });
 });

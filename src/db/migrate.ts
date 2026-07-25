@@ -10,7 +10,7 @@ import {
 } from "../core/constants.js";
 import { chargeSeasonStart, wageBill, financeScale } from "../core/finance/budget.js";
 import { englandCompetitions } from "../core/competitions.js";
-import { cullFreeAgentPool } from "../core/players/freeAgentCull.js";
+import { cullOnLoad } from "../core/players/freeAgentCull.js";
 import { archiveCup } from "../core/cup/archive.js";
 
 /**
@@ -180,7 +180,7 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
  * the real-club-names era) would be silently reverted on the next load.
  */
 export function migrateLeague(league: LeagueStore): LeagueStore {
-  return cullFreeAgentPool(migrateFields(league));
+  return cullOnLoad(migrateFields(league));
 }
 
 /**
@@ -191,6 +191,10 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
  * an aged save is frozen *now* (save size is what blocks the main thread), and a
  * player who can't get the game to respond can't reach an offseason to have it
  * cleaned up. The ongoing offseason cull then keeps it bounded from there.
+ *
+ * `cullOnLoad` only fires on a pool past FREE_AGENT_CULL_LOAD_THRESHOLD, so
+ * normal mid-season play never has players deleted out from under it (a released
+ * player stays re-signable until the next offseason).
  */
 function migrateFields(league: LeagueStore): LeagueStore {
   const anyVersion = league as LeagueStoreAnyVersion;

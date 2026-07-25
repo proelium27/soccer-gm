@@ -324,6 +324,19 @@ export const FREE_AGENT_CULL_MAX_PEAK_OVR = 65;
 /** Potential at or below which he's judged never going to become useful. */
 export const FREE_AGENT_CULL_MAX_POT = 65;
 
+/**
+ * Unsigned free agents above which a save is treated as bloated, and gets culled
+ * at **load** rather than waiting for its next offseason.
+ *
+ * The load-time cull exists for saves that are already frozen: their owner can't
+ * reach an offseason to have the pool cleaned up. But culling on every load makes
+ * deletions immediate mid-season — release a player by mistake, reload, and he's
+ * gone rather than re-signable from /free-agents. Gating on pool size keeps that
+ * out of normal play: a pool the ongoing offseason cull is keeping bounded sits
+ * around 5.3k, while the un-culled 14-season save that prompted this held 9245.
+ */
+export const FREE_AGENT_CULL_LOAD_THRESHOLD = 7000;
+
 /** In-match injuries (M5): games missed once hurt, uniform between these inclusive bounds. */
 export const INJURY_GAMES_MIN = 1;
 export const INJURY_GAMES_MAX = 6;

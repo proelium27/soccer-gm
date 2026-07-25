@@ -10,11 +10,16 @@ import { transferWindowState } from "../../src/core/transfers/window.js";
 import { FREE_AGENT_TID } from "../../src/core/transfers/negotiation.js";
 
 /**
- * Render harness for the Transfers page. The app has no error boundary above
- * the router, so any throw in this tree blanks the whole app — these cases
- * cover the render paths that pure-function tests can't reach
- * (NegotiationControls in each status, the orphaned-talks table, the
- * completed-this-window list including the free-agent sentinel).
+ * Render harness for the Transfers page: covers the render paths pure-function
+ * tests can't reach (NegotiationControls in each status, the orphaned-talks
+ * table, the completed-this-window list including the free-agent sentinel).
+ *
+ * A throw here surfaces as a test failure. Note server rendering does NOT run
+ * error boundaries — React re-throws to the caller — so this sees raw throws
+ * regardless of the boundaries App/Layout now install around the router.
+ *
+ * The simmed league is built ONCE and cloned per case: each season costs ~20s of
+ * real sim, and simming per case put this file at ~7 minutes on its own.
  */
 const leagueRef: { current: LeagueStore | null } = { current: null };
 
@@ -36,16 +41,26 @@ function render(league: LeagueStore): string {
   );
 }
 
-/** A fresh world plus `seasons` fully simmed seasons, left in the offseason. */
-function simmedLeague(seasons: number): LeagueStore {
+/**
+ * Snapshots after each simmed season, built once for the whole file. Simming is
+ * ~20s a season, so the three cases share one run and clone what they need.
+ */
+const SIMMED_SEASONS = 3;
+const snapshots: LeagueStore[] = (() => {
   const rng = mulberry32(4242);
   let league = createLeagueState(0, rng);
-  for (let i = 0; i < seasons; i++) {
+  const out: LeagueStore[] = [];
+  for (let i = 0; i < SIMMED_SEASONS; i++) {
     league = simThrough(league, "season", rng);
     league = simOffseason(league, rng);
+    out.push({ ...league, phase: "offseason" });
   }
-  league.phase = "offseason";
-  return league;
+  return out;
+})();
+
+/** A fresh world plus `seasons` fully simmed seasons, left in the offseason. */
+function simmedLeague(seasons: number): LeagueStore {
+  return structuredClone(snapshots[seasons - 1]);
 }
 
 describe("Transfers page render", () => {

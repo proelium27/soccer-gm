@@ -10,7 +10,8 @@
  * Dumps the simmed league to $CLAUDE_JOB_DIR/tmp (or /tmp) so repeat analysis
  * doesn't pay the ~10 minute sim again: pass a path as argv[3] to reuse it.
  */
-import { writeFileSync, readFileSync, existsSync } from "node:fs";
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import { createLeagueState, type LeagueStore } from "../src/core/leagueState.js";
 import { simThrough } from "../src/core/simThrough.js";
 import { simOffseason } from "../src/core/offseason.js";
@@ -34,6 +35,9 @@ if (existsSync(cachePath)) {
     league = simThrough(league, "season", rng);
     league = simOffseason(league, rng);
   }
+  // /tmp/tmp does not exist when CLAUDE_JOB_DIR is unset, and throwing here
+  // would waste the whole sim that just ran.
+  mkdirSync(dirname(cachePath), { recursive: true });
   writeFileSync(cachePath, JSON.stringify(league));
   console.log(`(cached league to ${cachePath})\n`);
 }

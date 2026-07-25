@@ -188,7 +188,15 @@ export function applyRosterFile(league: LeagueStore, file: RosterFile): RosterFi
   const teams = withIdentities.teams.map((t) => ({ ...t }));
   const teamByTid = new Map(teams.map((t) => [t.tid, t]));
   let players = [...withIdentities.players];
-  let nextPid = players.reduce((m, p) => Math.max(m, p.pid), -1) + 1;
+  // Take the stored monotonic cursor, not max(pid) + 1. Players get removed
+  // (retirement deletes them outright, and so does the free-agent cull) WITHOUT
+  // their transfers/newsEvents/cup lines being scrubbed in retirement's case, so
+  // a derived cursor can reissue a removed player's pid to an imported player who
+  // then inherits that history. See LeagueStore.nextPid.
+  let nextPid = Math.max(
+    Number.isFinite(withIdentities.nextPid) ? withIdentities.nextPid : 0,
+    players.reduce((m, p) => Math.max(m, p.pid), -1) + 1,
+  );
   const season = withIdentities.season;
 
   const removedPids = new Set<number>();
@@ -226,7 +234,7 @@ export function applyRosterFile(league: LeagueStore, file: RosterFile): RosterFi
   }
 
   return {
-    league: { ...withIdentities, teams, players },
+    league: { ...withIdentities, teams, players, nextPid },
     warnings,
     clubsRenamed: slots.length,
     squadsReplaced,
