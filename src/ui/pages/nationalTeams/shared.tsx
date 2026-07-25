@@ -13,7 +13,8 @@ export const KO_ROUND_NAMES = ["Quarter-finals", "Semi-finals", "Final"];
 export function NationName({ nation }: { nation: string }) {
   return (
     <span className="text-nowrap">
-      <Flag nationality={nation} /> {nation}
+      {/* No flag tooltip: the name is right here, and these render in bulk. */}
+      <Flag nationality={nation} tip={false} /> {nation}
     </span>
   );
 }

@@ -368,7 +368,8 @@ export function Manual() {
             and Qualifying tabs show the current campaign and let you flip back to past years;
             Rosters shows the squad every nation has named for the campaign being played, with the
             eleven it would field highlighted; Schedule lists the fixtures for whatever's being
-            played; Power Rankings sorts every
+            played, opening on the qualifying round currently being played (a whole campaign at once
+            is hundreds of games, but "All rounds" is there if you want it); Power Rankings sorts every
             nation by squad strength, with movement since last time; Stat Leaders has both the most
             successful nations and the top individual players, which you can filter to a single
             country; and History keeps the roll of past winners plus each nation's tally of titles,

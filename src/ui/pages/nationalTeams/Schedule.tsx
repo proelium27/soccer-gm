@@ -97,41 +97,87 @@ function TournamentSchedule({ tournament }: { tournament: IntlTournament }) {
   );
 }
 
+/**
+ * The round a qualifying campaign is currently on: the lowest round with a
+ * fixture still unplayed (the one the next offseason will play), or the last
+ * round once the campaign is finished. Mirrors playQualifyingRound's own
+ * "which leg is next" rule, so the page opens on the round you just watched or
+ * are about to.
+ */
+function currentLegOf(campaign: IntlQualifyingCampaign): number {
+  const legs = campaign.groups.flatMap((g) => g.matches.map((m) => ({ leg: m.leg ?? 0, played: m.homeGoals >= 0 })));
+  const pending = legs.filter((l) => !l.played).map((l) => l.leg);
+  if (pending.length > 0) return Math.min(...pending);
+  return legs.length > 0 ? Math.max(...legs.map((l) => l.leg)) : 0;
+}
+
 function QualifyingSchedule({ campaign }: { campaign: IntlQualifyingCampaign }) {
   const nations = campaign.nations;
   const confederations = useMemo(
     () => [...new Set(campaign.groups.map((g) => g.confederation ?? "Other"))],
     [campaign.groups],
   );
+  const legs = useMemo(
+    () => [...new Set(campaign.groups.flatMap((g) => g.matches.map((m) => m.leg ?? 0)))].sort((a, b) => a - b),
+    [campaign.groups],
+  );
   const [conf, setConf] = useState("");
+  // One round at a time by default. A full campaign is hundreds of fixtures
+  // across every confederation, which is both slow to draw and more than anyone
+  // wants at once; "All rounds" is still there for when you do.
+  const [leg, setLeg] = useState<number | "all">(() => currentLegOf(campaign));
 
-  const shown = campaign.groups
-    .map((g, index) => ({ g, index }))
-    .filter(({ g }) => !conf || (g.confederation ?? "Other") === conf);
+  const shown = useMemo(
+    () =>
+      campaign.groups
+        .map((g, index) => ({ g, index }))
+        .filter(({ g }) => !conf || (g.confederation ?? "Other") === conf)
+        .map(({ g, index }) => ({
+          index,
+          confederation: g.confederation,
+          matches: leg === "all" ? g.matches : g.matches.filter((m) => (m.leg ?? 0) === leg),
+        }))
+        .filter(({ matches }) => matches.length > 0),
+    [campaign.groups, conf, leg],
+  );
 
   return (
     <>
-      {confederations.length > 1 && (
-        <select
-          className="form-select form-select-sm w-auto mb-3"
-          value={conf}
-          onChange={(e) => setConf(e.target.value)}
-        >
-          <option value="">All confederations</option>
-          {confederations.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-      )}
+      <div className="d-flex flex-wrap gap-2 mb-3">
+        {legs.length > 1 && (
+          <select
+            className="form-select form-select-sm w-auto"
+            value={String(leg)}
+            onChange={(e) => setLeg(e.target.value === "all" ? "all" : Number(e.target.value))}
+          >
+            {legs.map((l) => (
+              <option key={l} value={l}>Round {l + 1} of {legs.length}</option>
+            ))}
+            <option value="all">All rounds</option>
+          </select>
+        )}
+        {confederations.length > 1 && (
+          <select
+            className="form-select form-select-sm w-auto"
+            value={conf}
+            onChange={(e) => setConf(e.target.value)}
+          >
+            <option value="">All confederations</option>
+            {confederations.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        )}
+      </div>
       <div className="row g-3">
-        {shown.map(({ g, index }) => (
+        {shown.map(({ confederation, index, matches }) => (
           <div className="col-12 col-lg-6" key={index}>
             <div className="card">
               <div className="card-header py-1 small fw-bold">
-                {g.confederation ?? "Group"} &middot; Group {index + 1}
+                {confederation ?? "Group"} &middot; Group {index + 1}
               </div>
               <div className="card-body py-1">
-                {g.matches.map((m, j) => (
+                {matches.map((m, j) => (
                   <Fixture key={j} home={nations[m.home]} away={nations[m.away]} homeGoals={m.homeGoals} awayGoals={m.awayGoals} />
                 ))}
               </div>
@@ -161,7 +207,10 @@ export function NTSchedule() {
         </>
       ) : qualifying ? (
         <>
-          <p className="text-muted small">Qualifying fixtures, played home and away within each confederation.</p>
+          <p className="text-muted small">
+            Qualifying fixtures, played home and away within each confederation. One round is played
+            each offseason, so this opens on the round being played now.
+          </p>
           <QualifyingSchedule campaign={qualifying} />
         </>
       ) : (
