@@ -10,7 +10,8 @@ import {
 } from "../core/constants.js";
 import { chargeSeasonStart, wageBill, financeScale } from "../core/finance/budget.js";
 import { englandCompetitions } from "../core/competitions.js";
-import { cullFreeAgentPool, stripLeaguePhaseBoxScores } from "../core/players/freeAgentCull.js";
+import { cullFreeAgentPool } from "../core/players/freeAgentCull.js";
+import { archiveCup } from "../core/cup/archive.js";
 
 /**
  * A team as it may exist in a save written before M6 added the finance
@@ -319,14 +320,15 @@ function migrateFields(league: LeagueStore): LeagueStore {
     // the old single-leg knockout rules; the next offseason builds a two-legged
     // one. (Archived cups in cupHistory are done, so the flag is cosmetic there.)
     cup: anyVersion.cup
-      ? { ...anyVersion.cup, leaguePhase: anyVersion.cup.leaguePhase ?? null, playoff: anyVersion.cup.playoff ?? null, playIn: anyVersion.cup.playIn ?? null, twoLegged: anyVersion.cup.twoLegged ?? false, koLegs: anyVersion.cup.koLegs ?? null }
+      ? { ...anyVersion.cup, leaguePhase: anyVersion.cup.leaguePhase ?? null, playoff: anyVersion.cup.playoff ?? null, playIn: anyVersion.cup.playIn ?? null, twoLegged: anyVersion.cup.twoLegged ?? false, koLegs: anyVersion.cup.koLegs ?? null, statLines: anyVersion.cup.statLines ?? null }
       : null,
-    // Archived cups also get their league-phase box scores stripped: nothing
-    // reads them (see stripLeaguePhaseBoxScores) and they are ~17% of an aged
-    // save, which is what makes the game freeze. Scorelines, tables and ties
-    // are untouched, so nothing displayed is lost.
-    cupHistory: (anyVersion.cupHistory ?? []).map((c) => stripLeaguePhaseBoxScores({
-      ...c, leaguePhase: c.leaguePhase ?? null, playoff: c.playoff ?? null, playIn: c.playIn ?? null, twoLegged: c.twoLegged ?? false, koLegs: c.koLegs ?? null,
+    // Archived cups collapse to per-player stat lines and drop their box scores
+    // (see archiveCup) -- 18 MB of an aged save, and size is what freezes the
+    // game. archiveCup aggregates BEFORE dropping, so an old save's group-stage
+    // and playoff appearances are captured on the way out rather than lost;
+    // that is the only chance to do it, since the box scores are then gone.
+    cupHistory: (anyVersion.cupHistory ?? []).map((c) => archiveCup({
+      ...c, leaguePhase: c.leaguePhase ?? null, playoff: c.playoff ?? null, playIn: c.playIn ?? null, twoLegged: c.twoLegged ?? false, koLegs: c.koLegs ?? null, statLines: c.statLines ?? null,
     })),
     // Pre-feature saves start with no power-rankings history; snapshots can't
     // be reconstructed retroactively (past rosters/matches are gone), so they

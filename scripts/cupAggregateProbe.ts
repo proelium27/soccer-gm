@@ -79,7 +79,7 @@ for (const cup of league.cupHistory) {
   curKept += keptNow; curAll += all; agg += aggBytes; lines += ls.length;
   allApps += ls.reduce((n, l) => n + l.apps, 0);
   koOnlyApps += cup.ties.reduce(
-    (n, t) => n + t.boxScore.home.length + t.boxScore.away.length, 0,
+    (n, t) => n + (t.boxScore ? t.boxScore.home.length + t.boxScore.away.length : 0), 0,
   );
 
   console.log(`${cup.season}\t${kb(keptNow)} KB\t${kb(0)} KB\t\t${kb(aggBytes)} KB\t${ls.length}`);

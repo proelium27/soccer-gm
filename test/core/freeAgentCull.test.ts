@@ -4,7 +4,6 @@ import {
   careerPeakOvr,
   cullablePids,
   cullFreeAgentPool,
-  stripLeaguePhaseBoxScores,
 } from "../../src/core/players/freeAgentCull.js";
 import {
   FREE_AGENT_CULL_MIN_AGE,
@@ -213,37 +212,5 @@ describe("pid reuse after a cull", () => {
     });
     expect(pid).not.toBe(doomedPid);
     expect(pid).toBeGreaterThan(doomedPid);
-  });
-});
-
-describe("stripLeaguePhaseBoxScores", () => {
-  it("clears league-phase box scores but keeps scorelines and ties", () => {
-    // Hand-build the minimum shape: one played LP match carrying a box score.
-    const cup = {
-      season: 2, name: "Cup", teams: [], seeds: {},
-      leaguePhase: {
-        teams: [1, 2], pots: [], matches: [
-          {
-            round: 0, matchday: 3, home: 1, away: 2, played: true,
-            homeGoals: 2, awayGoals: 1,
-            boxScore: { home: [{ pid: 5 }], away: [], events: [] },
-          },
-        ],
-      },
-      playoff: null, playIn: null, ties: [], championTid: null, twoLegged: true, koLegs: null,
-    } as unknown as LeagueStore["cupHistory"][number];
-
-    const stripped = stripLeaguePhaseBoxScores(cup);
-    const match = stripped.leaguePhase!.matches[0];
-    expect(match.boxScore).toBeNull();
-    // The displayed information all survives.
-    expect(match.homeGoals).toBe(2);
-    expect(match.awayGoals).toBe(1);
-    expect(match.played).toBe(true);
-  });
-
-  it("returns the same object when there is nothing to strip", () => {
-    const cup = { season: 2, leaguePhase: null } as unknown as LeagueStore["cupHistory"][number];
-    expect(stripLeaguePhaseBoxScores(cup)).toBe(cup);
   });
 });

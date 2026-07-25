@@ -97,6 +97,7 @@ for (const h of league.seasonHistory) {
 }
 for (const cup of [...league.cupHistory, ...(league.cup ? [league.cup] : [])]) {
   for (const tie of cup.ties) {
+    if (!tie.boxScore) continue;
     for (const side of [tie.boxScore.home, tie.boxScore.away]) {
       for (const l of side) add("cupHistory.ties", l.pid);
     }

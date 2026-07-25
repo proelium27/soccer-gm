@@ -154,12 +154,19 @@ function scrubInternational(
   };
 }
 
+/**
+ * Drop a culled player's traces from one cup: his per-tie box-score lines while
+ * the cup is live, and his stored aggregate line once it's archived (archiveCup
+ * replaces the box scores with `statLines`, so both shapes have to be handled).
+ */
 function scrubCupLines<T extends LeagueStore["cupHistory"][number]>(
   cup: T,
   cull: ReadonlySet<number>,
 ): T {
   let touched = false;
   const ties = cup.ties.map((tie) => {
+    // Archived ties have no box score left; only statLines needs scrubbing.
+    if (tie.boxScore === null) return tie;
     const home = tie.boxScore.home.filter((l) => !cull.has(l.pid));
     const away = tie.boxScore.away.filter((l) => !cull.has(l.pid));
     if (home.length === tie.boxScore.home.length && away.length === tie.boxScore.away.length) {
@@ -168,31 +175,9 @@ function scrubCupLines<T extends LeagueStore["cupHistory"][number]>(
     touched = true;
     return { ...tie, boxScore: { ...tie.boxScore, home, away } };
   });
-  return touched ? { ...cup, ties } : cup;
-}
-
-/**
- * Drop the per-player box scores from a finished cup's league-phase matches.
- *
- * These are 14.8 MB of a 14-season save (17% of the whole thing) and **nothing
- * reads them**: `cupStatsForPlayer` (the Player Profile Cup tab) iterates only
- * `cup.ties`; Cup.tsx never touches `boxScore` and builds its table via
- * `leaguePhaseTable` from the stored scorelines; clubHistory only keys cups by
- * season. The scorelines, the table and the knockout ties all survive, so this
- * costs no displayed information.
- */
-export function stripLeaguePhaseBoxScores<T extends LeagueStore["cupHistory"][number]>(
-  cup: T,
-): T {
-  if (!cup.leaguePhase) return cup;
-  if (!cup.leaguePhase.matches.some((m) => m.boxScore !== null)) return cup;
-  return {
-    ...cup,
-    leaguePhase: {
-      ...cup.leaguePhase,
-      matches: cup.leaguePhase.matches.map((m) =>
-        m.boxScore === null ? m : { ...m, boxScore: null },
-      ),
-    },
-  };
+  const statLines = cup.statLines?.some((l) => cull.has(l.pid))
+    ? cup.statLines.filter((l) => !cull.has(l.pid))
+    : cup.statLines;
+  if (statLines !== cup.statLines) touched = true;
+  return touched ? { ...cup, ties, statLines } : cup;
 }

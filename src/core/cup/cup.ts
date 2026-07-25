@@ -198,6 +198,8 @@ export function buildCupState(
     championTid: null,
     twoLegged: true,
     koLegs: null,
+    // Live cup: stats are summed from box scores until it is archived.
+    statLines: null,
   };
 }
 

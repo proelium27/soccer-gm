@@ -7,7 +7,8 @@ import { progressPlayer, rollRetirement, isGenerational } from "./players/progre
 import type { NewsEvent } from "./newsEvents.js";
 import { generateYouthIntake } from "./players/youth.js";
 import { computeAcademyFormModifiers } from "./players/academyForm.js";
-import { cullFreeAgentPool, stripLeaguePhaseBoxScores } from "./players/freeAgentCull.js";
+import { cullFreeAgentPool } from "./players/freeAgentCull.js";
+import { archiveCup } from "./cup/archive.js";
 import {
   releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
 } from "./freeAgency.js";
@@ -422,11 +423,11 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     // carry its state forward, resetting the per-offseason stage marker (and the
     // just-consumed injury carry-over list) so the new season starts clean.
     international: { ...league.international, stage: null, stageInjuries: [] },
-    // A finished cup's league-phase box scores are dead weight (14.8 MB of a
-    // 14-season save, read by nothing — see stripLeaguePhaseBoxScores), so they
-    // go as the cup is archived. Its scorelines, table and ties all survive.
+    // A finished cup's box scores fold into per-player stat lines as it's
+    // archived (see archiveCup): ~8x smaller, nothing displayed is lost, and it
+    // fixes the under-count where only knockout appearances ever counted.
     cupHistory: league.cup
-      ? [...league.cupHistory, stripLeaguePhaseBoxScores(league.cup)]
+      ? [...league.cupHistory, archiveCup(league.cup)]
       : league.cupHistory,
     nextPid,
     seasonHistory: [

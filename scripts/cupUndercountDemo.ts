@@ -40,9 +40,11 @@ for (const m of cup.leaguePhase?.matches ?? []) {
   for (const side of [m.boxScore.home, m.boxScore.away]) for (const l of side) bump(lp, l.pid);
 }
 for (const t of cup.playoff?.ties ?? []) {
+  if (!t.boxScore) continue;
   for (const side of [t.boxScore.home, t.boxScore.away]) for (const l of side) bump(po, l.pid);
 }
 for (const t of cup.ties) {
+  if (!t.boxScore) continue;
   for (const side of [t.boxScore.home, t.boxScore.away]) for (const l of side) bump(ko, l.pid);
 }
 
