@@ -167,8 +167,12 @@ export function playKnockoutRound(
     const ad = matchData.get(away);
     if (!hd || !ad) continue; // defensive
     const tie = resolveCupTie(rng, home, away, hd, ad, round, 0);
-    accumulate(delta, tie.boxScore);
-    collectInjured(tie.boxScore, injured);
+    // Always set on a tie that was just played; CupTie.boxScore is nullable only
+    // because archiving drops it (see cup/archive.ts).
+    if (tie.boxScore) {
+      accumulate(delta, tie.boxScore);
+      collectInjured(tie.boxScore, injured);
+    }
     ties.push(tie);
     winners.push(tie.winner);
   }
