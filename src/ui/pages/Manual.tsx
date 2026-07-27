@@ -544,14 +544,22 @@ export function Manual() {
             player alive that season (with the nine behind him listed as a shortlist), and a{" "}
             <strong>World Team of the Year</strong> best XI drawn from anywhere. Three things go into
             it. First, the domestic season, scored the same way Player of the Season is, and it's
-            the biggest part by a distance. Second, the Continental Cup &mdash; cup goals and assists
-            count the same as league ones, your rating in it counts, and there's a bonus for how far
-            your club went, biggest for winning the thing (all of it scaled down if you only played a
-            game or two of the run). A great cup run decides a close race; it won't drag a mediocre
-            league season past a great one.
-            Third, the international campaign played that summer: goals, assists and caps, worth
-            double in a World Cup year over a qualifying one, plus a bonus if your country actually
-            won it. Winning your own league helps too, scaled by how much of the season you played.
+            still the biggest single part. Second, the Continental Cup: cup goals and assists count
+            the same as league ones, your rating in it counts, and there's a bonus for how far your
+            club went, biggest by far for winning the thing (all of it scaled down if you only
+            played a game or two of the run). Third, the international campaign played that summer:
+            goals, assists and caps, worth double in a World Cup year over a qualifying one.
+          </p>
+          <p>
+            Trophies count for a lot here. Winning your league, winning the Continental Cup, and
+            being in the squad that won the World Cup are all worth real points on top of whatever
+            you did personally, and they stack. Roughly speaking, winning your league is worth about
+            ten league goals to a striker, the Continental Cup a bit more than that, and the World
+            Cup more again, so a player who wins two of the three is very hard to beat on a personal
+            statline alone. It isn't a pure team prize either: you still have to have played a good
+            season yourself, and a squad player who barely featured in the cup run only collects a
+            fraction of it. But if you're wondering why the best goalscorer in the world didn't win
+            it, look at what the guy who did was lifting that year.
           </p>
           <p>
             One thing worth knowing about how the world award compares leagues. Match ratings are

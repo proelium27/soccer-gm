@@ -1384,16 +1384,41 @@ export const WORLD_AWARD_CUP_RATING_WEIGHT = 0.2;
  */
 export const WORLD_AWARD_CUP_FULL_INVOLVEMENT = 6;
 
+/* ── Team achievement (2026-07-27) ────────────────────────────────────────
+ * The three constants below (cup run, league title, World Cup win) are the
+ * *team* side of the Ballon d'Or, as opposed to a player's own end product.
+ * They were all raised sharply on 2026-07-27 after an audit showed team
+ * success was very nearly decorative: over 20 winners the mean score split was
+ * league 10.58 / cup 0.76 / intl 0.45 / title 0.16, i.e. winning your league
+ * moved the needle less than scoring four extra goals.
+ *
+ * The useful way to size these is an exchange rate against the thing that
+ * dominates the score. A striker's league goal is worth POTY_GOAL_WEIGHT.FWD
+ * (0.08), so the values below read as: a league title ≈ 10 goals, winning the
+ * Continental Cup ≈ 12 goals, winning the World Cup ≈ 17 goals. That ordering
+ * (World Cup > Continental Cup > domestic league) is the intended hierarchy.
+ *
+ * Raising *these* is much safer than raising the cup's individual-production
+ * weights (WORLD_AWARD_CUP_MULTIPLIER, which is 1.0 for measured reasons —
+ * see its comment). A run bonus is uniform across a squad, so it can only move
+ * the award *between* clubs; it can't inflate one player above a better
+ * team-mate. The failure mode to watch when tuning is therefore not "a weak
+ * player beat his own team-mate" but "the award became a prize for being on
+ * the best team" — check the winner's world ovr rank and the share of winners
+ * coming from champion clubs in scripts/worldAwardsAudit.ts.
+ * ──────────────────────────────────────────────────────────────────────── */
+
 /**
  * Bonus for how far a player's club went in the Continental Cup, indexed by
  * rounds from the final: [0] won it, [1] lost the final, [2] out in the semis,
  * [3] out in the quarters. Anything earlier is worth nothing beyond the
- * per-match stats already counted.
+ * per-match stats already counted. Pro-rated by involvement, so a bit-part
+ * player on the winner does not collect the full 1.0.
  */
-export const WORLD_AWARD_CUP_RUN_BONUS: readonly number[] = [0.35, 0.2, 0.1, 0.05];
+export const WORLD_AWARD_CUP_RUN_BONUS: readonly number[] = [1, 0.55, 0.3, 0.15];
 
 /** Bonus for winning your own (tier-1) league, pro-rated by appearances up to WORLD_AWARD_TITLE_FULL_SEASON. */
-export const WORLD_AWARD_LEAGUE_TITLE_BONUS = 0.3;
+export const WORLD_AWARD_LEAGUE_TITLE_BONUS = 0.8;
 
 /**
  * Appearances that count as having played a whole title-winning season — a full
@@ -1415,8 +1440,13 @@ export const WORLD_AWARD_INTL_ASSIST_WEIGHT = 0.06;
 export const WORLD_AWARD_INTL_CAP_WEIGHT = 0.02;
 export const WORLD_AWARD_INTL_TOURNAMENT_MULTIPLIER = 2;
 
-/** Bonus for being in the squad that won the World Cup that offseason. */
-export const WORLD_AWARD_WORLD_CUP_BONUS = 0.6;
+/**
+ * Bonus for being in the squad that won the World Cup that offseason — the
+ * single biggest team achievement available, and the rarest (a tournament only
+ * comes round every INTL_CYCLE_YEARS seasons, so three winners in four never
+ * get the chance). See the team-achievement note above for how it was sized.
+ */
+export const WORLD_AWARD_WORLD_CUP_BONUS = 1.4;
 
 /* ────────────────────────────────────────────────────────────────────────
  * News Feed accomplishments

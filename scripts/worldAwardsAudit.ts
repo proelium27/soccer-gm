@@ -17,6 +17,7 @@ import { simThrough } from "../src/core/simThrough.js";
 import { simOffseason } from "../src/core/offseason.js";
 import { competitionOf } from "../src/core/competitions.js";
 import { cupStatsByPid } from "../src/core/cup/cupStats.js";
+import { cupRoundsFromFinal } from "../src/core/cup/cup.js";
 
 const SEASONS = Number(process.env.SEASONS ?? 12);
 const SEEDS = (process.env.SEEDS ?? "1,2,3").split(",").map(Number);
@@ -24,6 +25,12 @@ const SEEDS = (process.env.SEEDS ?? "1,2,3").split(",").map(Number);
 const winnersByCountry = new Map<string, number>();
 const xiByCountry = new Map<string, number>();
 const winnerOvrRanks: number[] = [];
+const winnersByPos = new Map<string, number>();
+/** Team-achievement share: how often the winner actually won something. See the
+ * team-achievement note in constants.ts — raising those bonuses trades a better
+ * "winners come from winning clubs" rate against a worse world ovr rank. */
+const teamSuccess = { title: 0, cupWin: 0, cupPlayed: 0, worldCup: 0, seasons: 0 };
+const parts = { league: 0, cup: 0, intl: 0, title: 0 };
 
 for (const seed of SEEDS) {
   const rng = mulberry32(seed);
@@ -64,6 +71,25 @@ for (const seed of SEEDS) {
 
     const seasonCup = league.cupHistory.find((c) => c.season === entry.season) ?? null;
     const cupLines = seasonCup ? cupStatsByPid(seasonCup) : new Map();
+
+    // Did the winner actually win anything? The team-achievement bonuses exist
+    // to make this rate high without wrecking the ovr rank above.
+    const winnerPlayer = byPid.get(winner.pid);
+    const rounds = seasonCup ? cupRoundsFromFinal(seasonCup).get(winner.tid) : undefined;
+    const wcChampion = league.international.history.find((h) => h.season === entry.season)?.champion;
+    teamSuccess.seasons++;
+    if (winner.title > 0) teamSuccess.title++;
+    if (winner.cup > 0) teamSuccess.cupPlayed++;
+    if (rounds === 0) teamSuccess.cupWin++;
+    if (wcChampion !== undefined && winnerPlayer?.nationality === wcChampion) teamSuccess.worldCup++;
+    if (winnerPlayer) {
+      winnersByPos.set(winnerPlayer.pos, (winnersByPos.get(winnerPlayer.pos) ?? 0) + 1);
+    }
+    parts.league += winner.league;
+    parts.cup += winner.cup;
+    parts.intl += winner.intl;
+    parts.title += winner.title;
+
     const line = (e: typeof winner, i: number): string => {
       const p = byPid.get(e.pid);
       const st = p?.stats.find((x) => x.season === entry.season);
@@ -98,6 +124,22 @@ console.log("\n=== World XI places by country ===");
 for (const [c, n] of [...xiByCountry].sort((a, b) => b[1] - a[1])) {
   console.log(`  ${c.padEnd(10)} ${String(n).padStart(3)}  ${pct(n, totalXI)}`);
 }
+console.log("\n=== Ballon d'Or winners by position ===");
+for (const [p, n] of [...winnersByPos].sort((a, b) => b[1] - a[1])) {
+  console.log(`  ${p.padEnd(4)} ${String(n).padStart(3)}  ${pct(n, totalWinners)}`);
+}
+
+const n = teamSuccess.seasons;
+console.log("\n=== Did the winner win anything? ===");
+console.log(`  won their league   ${String(teamSuccess.title).padStart(3)}/${n}  ${pct(teamSuccess.title, n)}`);
+console.log(`  played in the cup  ${String(teamSuccess.cupPlayed).padStart(3)}/${n}  ${pct(teamSuccess.cupPlayed, n)}`);
+console.log(`  won the cup        ${String(teamSuccess.cupWin).padStart(3)}/${n}  ${pct(teamSuccess.cupWin, n)}`);
+console.log(`  won the World Cup  ${String(teamSuccess.worldCup).padStart(3)}/${n}  ${pct(teamSuccess.worldCup, n)}`);
+console.log(
+  `  mean score split: league ${(parts.league / n).toFixed(2)}` +
+    `  cup ${(parts.cup / n).toFixed(2)}  intl ${(parts.intl / n).toFixed(2)}  title ${(parts.title / n).toFixed(2)}`,
+);
+
 const meanRank = winnerOvrRanks.reduce((a, b) => a + b, 0) / winnerOvrRanks.length;
 console.log(
   `\nWinner's world ovr rank: mean ${meanRank.toFixed(1)}, ` +
