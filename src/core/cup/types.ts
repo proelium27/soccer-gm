@@ -1,4 +1,5 @@
 import type { BoxScore } from "../../engine/attribution.js";
+import type { CupPlayerLine } from "./cupStats.js";
 
 /**
  * One completed knockout tie. Scoreline is regulation + extra time; a shootout
@@ -19,7 +20,15 @@ export interface CupTie {
   homePens: number;
   awayPens: number;
   winner: number; // tid
-  boxScore: BoxScore;
+  /**
+   * Per-player lines for this tie, or **null once the cup has been archived** —
+   * at that point the whole cup's box scores are folded into
+   * `CupState.statLines` and dropped, because they were 3.6 MB of an aged save
+   * and save size is what freezes the game (see CLAUDE.md's save-size section).
+   * Everything displayed — scorelines, aggregate, legs, winner — is stored
+   * separately and survives.
+   */
+  boxScore: BoxScore | null;
   /**
    * Two-legged ties only (twoLegged cups' QF/SF): the two 90' leg scorelines,
    * always from `home`'s perspective. legs[0] = first leg (`home` hosts),
@@ -155,4 +164,19 @@ export interface CupState {
    * old saves → treated as null.
    */
   koLegs: KnockoutLeg[] | null;
+  /**
+   * Per-player cup totals for this season, one line per player who featured in
+   * **any** stage — set when the cup is archived, and null while it's the live
+   * cup (stats are summed from box scores on demand instead).
+   *
+   * Archiving folds every stage's box scores into these lines and then drops the
+   * box scores: ~8x smaller (431 KB vs 3.6 MB across 13 cups), and save size is
+   * what freezes the game. Aggregating across all three stages also fixed a
+   * long-standing under-count — `cupStatsForPlayer` used to read only the
+   * top-level `ties`, so group-stage and playoff appearances never showed on a
+   * profile at all (1857 played vs 199 counted, in one measured season).
+   *
+   * Null on pre-feature saves until migrate backfills it.
+   */
+  statLines: CupPlayerLine[] | null;
 }

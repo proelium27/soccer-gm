@@ -22,6 +22,8 @@ function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed =
     competitions,
     teams,
     players: league.players,
+    // Same value the old derived allocator produced, so pids are unchanged.
+    nextPid: Math.max(0, ...league.players.map((p) => p.pid)) + 1,
     season: 1,
     phase: "regular",
     schedule,

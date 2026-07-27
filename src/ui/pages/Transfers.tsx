@@ -23,7 +23,7 @@ import { OfferAmountInput } from "../components/OfferAmountInput.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
-import { ROSTER_CAP } from "../../core/constants.js";
+import { ROSTER_CAP, WINDOW_TRANSFER_LIMIT } from "../../core/constants.js";
 import { POSITIONS } from "../../core/players/types.js";
 
 // "recommended" is the initial, unsorted order (best-fit targets first); the
@@ -314,13 +314,34 @@ export function Transfers() {
     (n) => !listedPids.has(n.pid) && n.status !== "accepted",
   );
 
-  const windowTransfers = league.transfers.filter(
+  const allWindowTransfers = league.transfers.filter(
     (t) =>
       ws.open && t.season === ws.season && t.window === ws.window &&
       // Routine AI free-agent churn is recorded for history but not shown as
       // window activity; the user's own free signings still show.
       (!isFreeAgentTid(t.fromTid) || t.toTid === league.meta.userTid),
   );
+
+  // This list used to render every transfer in the window, which is what froze
+  // the page: a 240-club world moves thousands of players per summer, and a real
+  // save measured **2056 rows / 2066 flag images / 10684 DOM elements**, pulling
+  // ~1 MB of SVG flag art (some single flags are 150-240 KB of coat-of-arms
+  // detail, drawn at 13px). The JS is fast — 147ms — so this never showed up in
+  // any profiling of the page's logic; the cost is all layout, image decode and
+  // paint, and it is why /transfers froze when no other page did.
+  //
+  // Your own club's business always shows. The rest is capped to the biggest
+  // remaining deals, which is the interesting part of a window anyway, with the
+  // News Feed carrying the full record.
+  const isUserDeal = (t: (typeof allWindowTransfers)[number]) =>
+    t.fromTid === league.meta.userTid || t.toTid === league.meta.userTid;
+  const userDeals = allWindowTransfers.filter(isUserDeal);
+  const otherDeals = allWindowTransfers
+    .filter((t) => !isUserDeal(t))
+    .sort((a, b) => b.fee - a.fee)
+    .slice(0, Math.max(0, WINDOW_TRANSFER_LIMIT - userDeals.length));
+  const windowTransfers = [...userDeals, ...otherDeals];
+  const hiddenTransfers = allWindowTransfers.length - windowTransfers.length;
 
   return (
     <div className="container-fluid p-3">
@@ -691,6 +712,13 @@ export function Transfers() {
         <div className="card mb-3">
           <div className="card-body">
             <h5 className="card-title">Completed This Window</h5>
+            {hiddenTransfers > 0 && (
+              <p className="card-text text-muted">
+                Your own deals, plus the {otherDeals.length} biggest elsewhere.{" "}
+                {hiddenTransfers.toLocaleString()} more went through around the
+                league &mdash; the <Link to="/news">News Feed</Link> has the lot.
+              </p>
+            )}
             <ul className="mb-0">
               {windowTransfers.map((t, i) => {
                 const p = playerMap.get(t.pid);

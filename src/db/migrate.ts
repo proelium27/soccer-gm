@@ -10,6 +10,8 @@ import {
 } from "../core/constants.js";
 import { chargeSeasonStart, wageBill, financeScale } from "../core/finance/budget.js";
 import { englandCompetitions } from "../core/competitions.js";
+import { cullOnLoad } from "../core/players/freeAgentCull.js";
+import { archiveCup } from "../core/cup/archive.js";
 
 /**
  * A team as it may exist in a save written before M6 added the finance
@@ -52,8 +54,8 @@ function fallbackAcademyBase(tid: number): number {
 
 /** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking. */
 type SeasonStatsAnyVersion =
@@ -178,6 +180,23 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
  * the real-club-names era) would be silently reverted on the next load.
  */
 export function migrateLeague(league: LeagueStore): LeagueStore {
+  return cullOnLoad(migrateFields(league));
+}
+
+/**
+ * Field-by-field backfill. Split out from migrateLeague so the free-agent cull
+ * runs on a fully-formed LeagueStore.
+ *
+ * The cull is applied here, at load, rather than waiting for the next offseason:
+ * an aged save is frozen *now* (save size is what blocks the main thread), and a
+ * player who can't get the game to respond can't reach an offseason to have it
+ * cleaned up. The ongoing offseason cull then keeps it bounded from there.
+ *
+ * `cullOnLoad` only fires on a pool past FREE_AGENT_CULL_LOAD_THRESHOLD, so
+ * normal mid-season play never has players deleted out from under it (a released
+ * player stays re-signable until the next offseason).
+ */
+function migrateFields(league: LeagueStore): LeagueStore {
   const anyVersion = league as LeagueStoreAnyVersion;
   // Pre-competitions-refactor saves have no competitions table at all — they
   // were always England-only, so the 2-entry table backfills mechanically
@@ -305,10 +324,15 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
     // the old single-leg knockout rules; the next offseason builds a two-legged
     // one. (Archived cups in cupHistory are done, so the flag is cosmetic there.)
     cup: anyVersion.cup
-      ? { ...anyVersion.cup, leaguePhase: anyVersion.cup.leaguePhase ?? null, playoff: anyVersion.cup.playoff ?? null, playIn: anyVersion.cup.playIn ?? null, twoLegged: anyVersion.cup.twoLegged ?? false, koLegs: anyVersion.cup.koLegs ?? null }
+      ? { ...anyVersion.cup, leaguePhase: anyVersion.cup.leaguePhase ?? null, playoff: anyVersion.cup.playoff ?? null, playIn: anyVersion.cup.playIn ?? null, twoLegged: anyVersion.cup.twoLegged ?? false, koLegs: anyVersion.cup.koLegs ?? null, statLines: anyVersion.cup.statLines ?? null }
       : null,
-    cupHistory: (anyVersion.cupHistory ?? []).map((c) => ({
-      ...c, leaguePhase: c.leaguePhase ?? null, playoff: c.playoff ?? null, playIn: c.playIn ?? null, twoLegged: c.twoLegged ?? false, koLegs: c.koLegs ?? null,
+    // Archived cups collapse to per-player stat lines and drop their box scores
+    // (see archiveCup) -- 18 MB of an aged save, and size is what freezes the
+    // game. archiveCup aggregates BEFORE dropping, so an old save's group-stage
+    // and playoff appearances are captured on the way out rather than lost;
+    // that is the only chance to do it, since the box scores are then gone.
+    cupHistory: (anyVersion.cupHistory ?? []).map((c) => archiveCup({
+      ...c, leaguePhase: c.leaguePhase ?? null, playoff: c.playoff ?? null, playIn: c.playIn ?? null, twoLegged: c.twoLegged ?? false, koLegs: c.koLegs ?? null, statLines: c.statLines ?? null,
     })),
     // Pre-feature saves start with no power-rankings history; snapshots can't
     // be reconstructed retroactively (past rosters/matches are gone), so they
@@ -344,5 +368,12 @@ export function migrateLeague(league: LeagueStore): LeagueStore {
         },
     // God Mode sandbox editing defaults off for any save that predates it.
     godMode: anyVersion.godMode ?? false,
+    // The pid allocator used to be derived as max(pid) + 1 at each use, so
+    // seeding the stored cursor with exactly that value keeps every existing
+    // save generating the same pids it would have anyway. From here it only
+    // ever moves forward, which is what makes removing players safe.
+    nextPid:
+      anyVersion.nextPid
+      ?? Math.max(0, ...(anyVersion.players ?? []).map((p) => p.pid)) + 1,
   };
 }

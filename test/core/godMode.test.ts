@@ -24,6 +24,7 @@ function league(over: Partial<LeagueStore> = {}): LeagueStore {
     negotiations: [], inboundOffers: [], transfers: [], winterMarketRunSeason: null,
     seasonHistory: [], newsEvents: [], powerRankingHistory: [], activeLoans: [],
     loanListings: [], loanRejections: [], cup: null, cupHistory: [], godMode: true,
+    nextPid: 1,
     ...over,
   } as LeagueStore;
 }

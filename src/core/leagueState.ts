@@ -97,6 +97,22 @@ export interface LeagueStore {
    * everywhere. Purely a save-scoped switch; migrated to false for old saves.
    */
   godMode: boolean;
+  /**
+   * Monotonic pid allocator: the next pid a generated player will take.
+   *
+   * **Must never go backwards.** This used to be derived as
+   * `max(players.pid) + 1` at each use, which is only safe while players are
+   * never removed — and they are: retirement deletes them (simOffseason step 3)
+   * and so does the free-agent cull. If the highest-pid player is removed, a
+   * derived allocator hands his pid to a brand-new player, who then silently
+   * inherits his transfer history, news events and cup box-score lines (pids
+   * are the only link). Storing the cursor makes reuse impossible.
+   *
+   * Backfilled for old saves as `max(pid) + 1` (see migrate.ts), which is
+   * exactly what the derived version would have returned, so no save changes
+   * behavior on upgrade.
+   */
+  nextPid: number;
 }
 
 export function createLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
@@ -145,5 +161,8 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
     cupHistory: [],
     international: emptyInternationalState(),
     godMode: false,
+    // Same value the old derived `max(pid) + 1` produced at first use, so a
+    // fresh world generates identically to before.
+    nextPid: Math.max(0, ...league.players.map((p) => p.pid)) + 1,
   };
 }
