@@ -11,7 +11,7 @@ import {
   positionGroup, statsFor, ovrDuringSeason, potyScore, totsScore,
 } from "./awards.js";
 import {
-  AWARD_MIN_APPEARANCES, BALLON_DOR_SHORTLIST,
+  AWARD_MIN_APPEARANCES, AWARD_OVR_BASELINE, BALLON_DOR_SHORTLIST, WORLD_AWARD_OVR_WEIGHT,
   POTY_GOAL_WEIGHT, POTY_ASSIST_WEIGHT, TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT,
   WORLD_AWARD_LEAGUE_STRENGTH_WEIGHT, WORLD_AWARD_CUP_MULTIPLIER,
   WORLD_AWARD_CUP_RATING_WEIGHT, WORLD_AWARD_CUP_FULL_INVOLVEMENT, WORLD_AWARD_CUP_RUN_BONUS,
@@ -28,7 +28,7 @@ export interface BallonDOrEntry {
   /** Club he finished the season at (SeasonStats.tid), for display after he later moves. */
   tid: number;
   score: number;
-  /** Domestic league season, league-strength corrected, including the ovr term. */
+  /** Domestic league season, league-strength corrected, including both ovr terms (AWARD_OVR_WEIGHT + WORLD_AWARD_OVR_WEIGHT). */
   league: number;
   /** Continental Cup: his own end product and rating there, plus how far his club went. */
   cup: number;
@@ -163,6 +163,18 @@ function intlComponent(p: Player, season: number, worldCupChampion: string | nul
   return score;
 }
 
+/**
+ * The extra ovr weight the worldwide awards apply on top of the one already
+ * baked into potyScore/totsScore — see WORLD_AWARD_OVR_WEIGHT for why it's a
+ * separate constant rather than a bigger AWARD_OVR_WEIGHT.
+ *
+ * Uses the same AWARD_OVR_BASELINE, so it's a straight continuation of the same
+ * line rather than a second, differently-shaped term.
+ */
+function worldOvrComponent(e: Entry): number {
+  return (e.ovr - AWARD_OVR_BASELINE) * WORLD_AWARD_OVR_WEIGHT;
+}
+
 /** Winning your own league, pro-rated by how much of the season you played. Tier-2 titles aren't in championTidByCompId, so they score nothing. */
 function titleComponent(e: Entry, championTidByCompId: Record<number, number>): number {
   if (championTidByCompId[e.compId] !== e.stats.tid) return 0;
@@ -179,7 +191,10 @@ function ballonDOrParts(
   ctx: WorldAwardContext,
   roundsFromFinal: Map<number, number>,
 ): BallonDOrEntry {
-  const league = potyScore(e.player, e.stats, season) + e.strength;
+  // The ovr terms fold into `league` rather than becoming a fifth part: the UI
+  // already labels that column as including an ovr term, and adding a field
+  // would break WorldAwards entries already persisted on old saves.
+  const league = potyScore(e.player, e.stats, season) + e.strength + worldOvrComponent(e);
   const cup = cupComponent(e, roundsFromFinal, POTY_GOAL_WEIGHT, POTY_ASSIST_WEIGHT);
   const intl = intlComponent(e.player, season, ctx.worldCupChampion);
   const title = titleComponent(e, ctx.championTidByCompId);
@@ -203,6 +218,7 @@ function worldTotsScore(
 ): number {
   return totsScore(e.player, e.stats, season)
     + e.strength
+    + worldOvrComponent(e)
     + cupComponent(e, roundsFromFinal, TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT)
     + intlComponent(e.player, season, ctx.worldCupChampion)
     + titleComponent(e, ctx.championTidByCompId);

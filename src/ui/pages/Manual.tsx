@@ -555,11 +555,22 @@ export function Manual() {
             being in the squad that won the World Cup are all worth real points on top of whatever
             you did personally, and they stack. Roughly speaking, winning your league is worth about
             ten league goals to a striker, the Continental Cup a bit more than that, and the World
-            Cup more again, so a player who wins two of the three is very hard to beat on a personal
-            statline alone. It isn't a pure team prize either: you still have to have played a good
-            season yourself, and a squad player who barely featured in the cup run only collects a
-            fraction of it. But if you're wondering why the best goalscorer in the world didn't win
-            it, look at what the guy who did was lifting that year.
+            Cup more again. It isn't a pure team prize: you still have to have played a good season
+            yourself, and a squad player who barely featured in the cup run only collects a fraction
+            of it.
+          </p>
+          <p>
+            The last thing in the mix is how good the player actually is. The world award leans on a
+            player's overall rating noticeably harder than your league's own Player of the Season
+            does, and that's deliberate. Every other number in the calculation has been scored
+            against the standard of one league, so a rating is the only thing that means the same
+            everywhere. Practically, it means the Ballon d'Or usually goes to someone genuinely
+            among the very best players alive rather than to whoever had the hottest goal tally, and
+            it's the reason the odd midfielder or defender can win it at all. There's a real tension
+            between this and the trophy bonuses above, and they're balanced against each other on
+            purpose: turn either one up and the other stops mattering. So the leading scorer won't
+            always win, a treble winner won't always win, and the very best player won't always win.
+            Whoever the season made the strongest case for does.
           </p>
           <p>
             One thing worth knowing about how the world award compares leagues. Match ratings are

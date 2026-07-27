@@ -152,6 +152,32 @@ describe("computeWorldAwards — league strength correction", () => {
     ];
     expect(computeWorldAwards(players, SEASON, ctx()).ballonDOr[0].pid).toBe(2);
   });
+
+  it("lets a clearly better player beat a bigger statline in the same league", () => {
+    // WORLD_AWARD_OVR_WEIGHT exists so the world award leans harder on raw
+    // quality than the per-league POTY does. Same league, same supporting cast:
+    // the 86-ovr player scored 8 fewer goals and still wins, which under the
+    // per-league formula alone (AWARD_OVR_WEIGHT 0.06) he would not.
+    const players = [
+      player({ pid: 1, tid: 1, ovr: 72, goals: 28, avgRating: 7.1 }),
+      player({ pid: 2, tid: 2, ovr: 86, goals: 20, avgRating: 7.1 }),
+      ...squad(100, 1, 70),
+      ...squad(200, 2, 70),
+    ];
+    expect(computeWorldAwards(players, SEASON, ctx()).ballonDOr[0].pid).toBe(2);
+  });
+
+  it("still lets a big enough statline beat a slightly better player", () => {
+    // The counterweight must not become an ovr ranking: 3 ovr of quality does
+    // not survive a 22-goal gap. If this flips, WORLD_AWARD_OVR_WEIGHT is too high.
+    const players = [
+      player({ pid: 1, tid: 1, ovr: 75, goals: 34, avgRating: 7.6 }),
+      player({ pid: 2, tid: 2, ovr: 78, goals: 12, avgRating: 6.9 }),
+      ...squad(100, 1, 70),
+      ...squad(200, 2, 70),
+    ];
+    expect(computeWorldAwards(players, SEASON, ctx()).ballonDOr[0].pid).toBe(1);
+  });
 });
 
 describe("computeWorldAwards — cross-league competitions", () => {

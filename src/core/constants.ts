@@ -1384,6 +1384,53 @@ export const WORLD_AWARD_CUP_RATING_WEIGHT = 0.2;
  */
 export const WORLD_AWARD_CUP_FULL_INVOLVEMENT = 6;
 
+/**
+ * EXTRA weight on (ovr − AWARD_OVR_BASELINE), applied by the worldwide awards
+ * only, *on top of* the AWARD_OVR_WEIGHT term already inside potyScore/totsScore.
+ * Effective world-award weight is therefore AWARD_OVR_WEIGHT + this.
+ *
+ * Why a second constant instead of just raising AWARD_OVR_WEIGHT: that one is
+ * shared with the per-competition Player of the Season, Golden Boot and Team of
+ * the Season, which are separately tuned and player-visible. Raising it would
+ * silently re-tune three existing awards to fix a fourth.
+ *
+ * There is also a real reason a *worldwide* award should lean on ovr harder
+ * than a within-league one. Every other input has been z-normalized inside its
+ * own competition; ovr is the only player number that means the same thing
+ * everywhere, which is exactly why it powers leagueStrengthOffsets too. Leaning
+ * on it across leagues is better-founded than leaning on it within one.
+ *
+ * This is the direct counterweight to the goal-scoring term. It trades "a big
+ * statline can beat a better player" (the per-league POTY's deliberate trade)
+ * for "the best player in the world usually wins the world award". Tune against
+ * the winner's world ovr rank in scripts/worldAwardsAudit.ts, and watch that the
+ * shortlist doesn't collapse into a pure ovr ranking — if the winner is the
+ * highest-ovr eligible player nearly every season, this is too high.
+ *
+ * Measured sweep, 20 seasons (2 seeds × 10). Rank is the winner's ovr rank
+ * among the ~4,300 players who appeared, at the team bonuses set below:
+ *
+ *   weight   median   mean / worst   won league   won cup   ST share
+ *   0        108      210 / 882      65%          40%       75%
+ *   0.06     56       120 / 618      70%          25%       70%
+ *   0.14     8        31 / 150       65%          15%       45%
+ *
+ * It trades directly against team achievement, and **the trade cannot be
+ * escaped by raising both.** Scaling the team bonuses up ~1.8x alongside 0.14
+ * (to 1.4 / [1.8,1,0.55,0.27] / 2.5) did restore trophies (league 80%, cup
+ * 25%) but put the ovr rank straight back to median 61 — both levers reorder
+ * the same ranking, so raising them together just cancels. Pick a point on the
+ * curve rather than trying to have both ends of it.
+ *
+ * 0.14 is chosen deliberately at the quality end. Welcome side effect: it's the
+ * only setting that meaningfully dents the striker monopoly (ST share 75%->45%,
+ * with AM/W/CM winning and a fullback taking one), because a high-ovr defender
+ * finally scores for being good instead of needing goals potyScore will never
+ * give him. That's a partial mitigation of the structural issue documented in
+ * CLAUDE.md, not a fix for it.
+ */
+export const WORLD_AWARD_OVR_WEIGHT = 0.14;
+
 /* ── Team achievement (2026-07-27) ────────────────────────────────────────
  * The three constants below (cup run, league title, World Cup win) are the
  * *team* side of the Ballon d'Or, as opposed to a player's own end product.
