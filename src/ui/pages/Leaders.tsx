@@ -271,23 +271,23 @@ function PlayerLeadersBody({
         }
       }
     } else {
-      // Single season: each player's own best individual season for this stat,
-      // shown with the team he was actually on that season.
+      // Single season: every individual season is its own row, shown with the
+      // team the player was actually on that season. A player deliberately
+      // appears once per season he recorded, so the two best scoring seasons in
+      // league history sit together at the top even when they're the same man.
       for (const p of league.players) {
-        let best: SeasonStats | null = null;
         for (const s of p.stats) {
-          if (s[stat] > 0 && (!best || s[stat] > best[stat])) best = s;
+          if (s[stat] <= 0) continue;
+          const compByTid = compByTidForSeason(s.season);
+          if (compByTid.get(s.tid) !== compId) continue;
+          rows.push({
+            player: p,
+            teamName: teamNameByTid.get(s.tid) ?? "Unknown",
+            isUserTeam: s.tid === league.meta.userTid,
+            stats: s,
+            season: s.season,
+          });
         }
-        if (!best) continue;
-        const compByTid = compByTidForSeason(best.season);
-        if (compByTid.get(best.tid) !== compId) continue;
-        rows.push({
-          player: p,
-          teamName: teamNameByTid.get(best.tid) ?? "Unknown",
-          isUserTeam: best.tid === league.meta.userTid,
-          stats: best,
-          season: best.season,
-        });
       }
     }
     return rows;
@@ -316,7 +316,11 @@ function PlayerLeadersBody({
       ratingQualifies = (r) => r.stats.appearances >= appsToQualify(r.season ?? league.season);
     }
     const qualified = stat === "avgRating" ? rows.filter(ratingQualifies) : rows;
-    return [...qualified].sort((a, b) => b.stats[stat] - a.stats[stat]).slice(0, 30);
+    return [...qualified]
+      // Tiebreak on season so the same player's repeated entries land in a
+      // stable, readable order rather than whatever the scan happened to emit.
+      .sort((a, b) => b.stats[stat] - a.stats[stat] || (b.season ?? 0) - (a.season ?? 0))
+      .slice(0, 30);
   }, [rows, stat, season, scope, league.season, matchesPlayedInSeason]);
 
   const showSeasonColumn = season === "all" && scope === "single";
@@ -384,7 +388,7 @@ function PlayerLeadersBody({
         <tbody>
           {top.map((row, i) => (
             <tr
-              key={row.player.pid}
+              key={row.season === null ? row.player.pid : `${row.player.pid}-${row.season}`}
               className={row.isUserTeam ? "text-primary fw-semibold" : undefined}
             >
               <td className="text-end">{i + 1}</td>
@@ -396,8 +400,8 @@ function PlayerLeadersBody({
               </td>
               <td>{row.teamName}</td>
               <td>{row.player.pos}</td>
-              {showSeasonColumn && row.season !== null && (
-                <td className="text-end">{seasonYear(row.season)}</td>
+              {showSeasonColumn && (
+                <td className="text-end">{row.season !== null ? seasonYear(row.season) : ""}</td>
               )}
               <td className="text-end">{row.stats.appearances}</td>
               <td className="text-end">{row.stats.minutesPlayed}</td>
