@@ -7,6 +7,8 @@ import { progressPlayer, rollRetirement, isGenerational } from "./players/progre
 import type { NewsEvent } from "./newsEvents.js";
 import { generateYouthIntake } from "./players/youth.js";
 import { computeAcademyFormModifiers } from "./players/academyForm.js";
+import { cullFreeAgentPool } from "./players/freeAgentCull.js";
+import { archiveCup } from "./cup/archive.js";
 import {
   releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
 } from "./freeAgency.js";
@@ -266,7 +268,17 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const academyFormModifiers = computeAcademyFormModifiers(
     tablesByCompId.values(), league.seasonHistory,
   );
-  let nextPid = Math.max(0, ...players.map((p) => p.pid)) + 1;
+  // Monotonic, read from the store rather than derived from max(pid): players
+  // get removed (retirement above, the free-agent cull below), and a derived
+  // cursor would hand a removed player's pid to a new player, who'd inherit his
+  // transfer/news/cup history. The max() term keeps it correct if anything ever
+  // adds a player without advancing the cursor.
+  // `?? 0` guards a league built outside migrate (test fixture, hand-rolled
+  // import): Math.max(undefined, n) is NaN, which would poison every new pid.
+  let nextPid = Math.max(
+    Number.isFinite(league.nextPid) ? league.nextPid : 0,
+    Math.max(0, ...players.map((p) => p.pid)) + 1,
+  );
   const generationalEvents: NewsEvent[] = [];
   teams = teams.map((t) => {
     const genSeed = hashInts(league.lid, nextSeason, t.tid, 2);
@@ -411,7 +423,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       : t,
   );
 
-  return {
+  const rolled: LeagueStore = {
     ...league,
     teams,
     players,
@@ -432,7 +444,13 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     // carry its state forward, resetting the per-offseason stage marker (and the
     // just-consumed injury carry-over list) so the new season starts clean.
     international: { ...league.international, stage: null, stageInjuries: [] },
-    cupHistory: league.cup ? [...league.cupHistory, league.cup] : league.cupHistory,
+    // A finished cup's box scores fold into per-player stat lines as it's
+    // archived (see archiveCup): ~8x smaller, nothing displayed is lost, and it
+    // fixes the under-count where only knockout appearances ever counted.
+    cupHistory: league.cup
+      ? [...league.cupHistory, archiveCup(league.cup)]
+      : league.cupHistory,
+    nextPid,
     seasonHistory: [
       ...league.seasonHistory,
       {
@@ -446,4 +464,10 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       },
     ],
   };
+
+  // Dead last, deliberately. The cull consumes no rng, but it removes entries
+  // from `players`, and any rng draw that iterated the pool after this point
+  // would shift — breaking the seeded-stream invariant. Ages are judged against
+  // the new season, which is what `rolled` already carries.
+  return cullFreeAgentPool(rolled);
 }

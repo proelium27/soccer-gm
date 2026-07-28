@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { TopBar } from "./TopBar.js";
 import { Sidebar } from "./Sidebar.js";
+import { ErrorBoundary } from "./ErrorBoundary.js";
 
 export function Layout() {
   const { league, loadingActiveLeague } = useLeague();
@@ -43,7 +44,12 @@ export function Layout() {
           aria-hidden="true"
         />
         <main className="main-content">
-          <Outlet />
+          {/* Keyed by route so a crash is scoped to the page that threw:
+              navigating anywhere else remounts a clean boundary, and TopBar /
+              Sidebar stay mounted so the user can actually leave. */}
+          <ErrorBoundary key={location.key} what="this page">
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </>

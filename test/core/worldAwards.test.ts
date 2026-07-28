@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { computeWorldAwards, type WorldAwardContext } from "../../src/core/worldAwards.js";
 import { emptySeasonStats, type Player, type Position } from "../../src/core/players/types.js";
 import type { CupState, CupTie } from "../../src/core/cup/types.js";
+import { archiveCup } from "../../src/core/cup/archive.js";
 import type { BoxScore, PlayerMatchLine } from "../../src/engine/attribution.js";
 import { FORMATIONS } from "../../src/core/lineup/formations.js";
 import { BALLON_DOR_SHORTLIST, AWARD_MIN_APPEARANCES } from "../../src/core/constants.js";
@@ -108,6 +109,7 @@ function cup(
     name: "Continental Cup",
     teams: [winnerTid, loserTid],
     seeds: {},
+    statLines: null,
     leaguePhase: {
       teams: [winnerTid, loserTid],
       matches: Array.from({ length: lpGames }, (_, round) => ({
@@ -181,6 +183,30 @@ describe("computeWorldAwards — league strength correction", () => {
 });
 
 describe("computeWorldAwards — cross-league competitions", () => {
+  it("still credits the cup after the cup has been archived", () => {
+    // archiveCup folds box scores into statLines and deletes them (save size).
+    // computeWorldAwards must read the stored lines, or every past season's cup
+    // silently scores zero — which is exactly what migrate.ts's backfill hits.
+    const base = [
+      player({ pid: 1, tid: 1, ovr: 80, goals: 20, avgRating: 7.4 }),
+      player({ pid: 2, tid: 2, ovr: 80, goals: 20, avgRating: 7.4 }),
+      ...squad(100, 1, 74),
+      ...squad(200, 2, 74),
+    ];
+    const live = cup(2, 1, [{ tid: 2, pid: 2, goals: 4, rating: 8 }]);
+    const archived = archiveCup(live);
+    // Precondition: archiving really did drop the box scores it aggregated.
+    expect(archived.statLines).not.toBeNull();
+    expect(archived.ties.every((t) => t.boxScore === null)).toBe(true);
+
+    const fromLive = computeWorldAwards(base, SEASON, ctx({ cup: live }));
+    const fromArchive = computeWorldAwards(base, SEASON, ctx({ cup: archived }));
+    const cupOf = (r: typeof fromLive, pid: number) => r.ballonDOr.find((e) => e.pid === pid)!.cup;
+    expect(cupOf(fromArchive, 2)).toBeGreaterThan(0);
+    expect(cupOf(fromArchive, 2)).toBeCloseTo(cupOf(fromLive, 2), 10);
+    expect(fromArchive.ballonDOr[0].pid).toBe(fromLive.ballonDOr[0].pid);
+  });
+
   it("a winning cup run breaks a tie between two identical league seasons", () => {
     const base = [
       player({ pid: 1, tid: 1, ovr: 80, goals: 20, avgRating: 7.4 }),

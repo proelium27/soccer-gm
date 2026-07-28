@@ -181,6 +181,7 @@ export function tournamentGoals(tournament: IntlTournament): Map<number, number>
     }
   }
   for (const tie of tournament.ties) {
+    if (!tie.boxScore) continue; // dropped when the tournament was archived
     for (const line of [...tie.boxScore.home, ...tie.boxScore.away]) add(line.pid, line.goals);
   }
   return goals;

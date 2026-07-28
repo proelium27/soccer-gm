@@ -1,10 +1,16 @@
+import type { BoxScore } from "../../engine/attribution.js";
 import type { CupState } from "./types.js";
 
 /**
- * A player's Continental Cup stat line for one season, derived on demand from
- * that season's tie box scores (cup stats are deliberately NOT folded into
- * league SeasonStats — see core/simThrough). Goals/assists/etc. include extra
- * time; penalty-shootout kicks are not counted as goals, matching the sim.
+ * A player's Continental Cup stat line for one season. Goals/assists/etc.
+ * include extra time; penalty-shootout kicks are not counted as goals, matching
+ * the sim. Cup stats are deliberately NOT folded into league SeasonStats (see
+ * core/simThrough).
+ *
+ * A two-legged knockout tie counts as **one** appearance, because its two legs
+ * are merged into a single box-score line before storage (see resolveTwoLeggedTie
+ * / mergeLines) — the minutes cover both legs, but the individual legs can no
+ * longer be told apart, so counting them separately would be false precision.
  */
 export interface CupStatLine {
   season: number;
@@ -30,6 +36,11 @@ export interface CupStatLine {
   ratedAppearances: number;
 }
 
+/** A stored, pre-aggregated cup line — what an archived cup keeps instead of box scores. */
+export interface CupPlayerLine extends CupStatLine {
+  pid: number;
+}
+
 function emptyLine(season: number): CupStatLine {
   return {
     season, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0,
@@ -43,49 +54,88 @@ export function cupAvgRating(line: CupStatLine): number | null {
   return line.ratedAppearances > 0 ? line.ratingSum / line.ratedAppearances : null;
 }
 
-/**
- * Every box score in one cup, whatever format it is: the Swiss league phase's
- * matches, the playoff round, a legacy play-in, and the knockout ties. They
- * live in four different places on CupState, and until the worldwide awards
- * needed a complete cup record only `ties` was ever summed — which quietly left
- * a Swiss cup's six league-phase games out of every player's cup line.
- */
-function allBoxScores(cup: CupState) {
-  return [
-    ...(cup.leaguePhase?.matches ?? []).flatMap((m) => (m.boxScore ? [m.boxScore] : [])),
-    ...(cup.playoff?.ties ?? []).map((t) => t.boxScore),
-    ...(cup.playIn?.ties ?? []).map((t) => t.boxScore),
-    ...cup.ties.map((t) => t.boxScore),
-  ];
+function addLine(into: CupStatLine, l: BoxScore["home"][number]): void {
+  into.appearances++;
+  into.goals += l.goals;
+  into.assists += l.assists;
+  into.shots += l.shots;
+  into.shotsOnTarget += l.shotsOnTarget;
+  into.saves += l.saves;
+  into.goalsAgainst += l.goalsAgainst;
+  into.tackles += l.tackles;
+  into.interceptions += l.interceptions;
+  into.minutesPlayed += l.minutesPlayed;
+  // Must be accumulated here, not only at read time: archiveCup folds box
+  // scores into statLines and then deletes them, so anything addLine misses is
+  // gone from that cup forever. The worldwide awards read cup ratings.
+  if (l.minutesPlayed > 0 && Number.isFinite(l.rating)) {
+    into.ratingSum += l.rating;
+    into.ratedAppearances++;
+  }
 }
 
 /**
- * Sum a player's box-score lines across one whole cup into a single season line.
+ * Every box score a cup still holds, across **all three** stages.
  *
- * A two-legged knockout tie counts as one appearance with both legs' stats
- * folded in, because that's how it's stored — mergeLines combines the legs into
- * the tie's single box score before it's appended.
+ * This is the fix for a long-standing under-count: the cup's three stages live in
+ * three separate places (`leaguePhase.matches`, `playoff.ties`, and the top-level
+ * `ties`), and this used to read only the last of them. So a club that played all
+ * six group games and went out in the playoff showed 0 cup appearances for every
+ * player, and even a quarter-finalist lost his group games. Measured on one real
+ * season: 1857 appearances played, 199 counted.
+ */
+function boxScoresOf(cup: CupState): BoxScore[] {
+  const out: BoxScore[] = [];
+  // Every list is defaulted: archiveCup runs on every archived cup during
+  // migrate, and a throw there would stop the save loading at all.
+  for (const m of cup.leaguePhase?.matches ?? []) if (m.boxScore) out.push(m.boxScore);
+  for (const t of cup.playoff?.ties ?? []) if (t.boxScore) out.push(t.boxScore);
+  for (const t of cup.playIn?.ties ?? []) if (t.boxScore) out.push(t.boxScore);
+  for (const t of cup.ties ?? []) if (t.boxScore) out.push(t.boxScore);
+  return out;
+}
+
+/**
+ * Fold a cup's box scores into one line per player who featured.
+ *
+ * Called as a cup is archived: the lines are kept and the box scores dropped,
+ * which is ~8x smaller (431 KB vs 3.6 MB across 13 cups) and keeps the Player
+ * Profile Cup tab working. Save size is what freezes the game, so this matters
+ * (see CLAUDE.md's save-size section).
+ */
+export function aggregateCupStats(cup: CupState): CupPlayerLine[] {
+  const byPid = new Map<number, CupPlayerLine>();
+  for (const box of boxScoresOf(cup)) {
+    for (const side of [box.home, box.away]) {
+      for (const l of side) {
+        let line = byPid.get(l.pid);
+        if (!line) {
+          line = { pid: l.pid, ...emptyLine(cup.season) };
+          byPid.set(l.pid, line);
+        }
+        addLine(line, l);
+      }
+    }
+  }
+  return [...byPid.values()];
+}
+
+/**
+ * A player's line for one cup: read from the stored aggregate when the cup has
+ * been archived, otherwise summed live from its box scores.
  */
 export function cupStatsForPlayer(cup: CupState, pid: number): CupStatLine {
+  if (cup.statLines !== null && cup.statLines !== undefined) {
+    const stored = cup.statLines.find((l) => l.pid === pid);
+    if (!stored) return emptyLine(cup.season);
+    const { pid: _pid, ...line } = stored;
+    return line;
+  }
   const line = emptyLine(cup.season);
-  for (const box of allBoxScores(cup)) {
+  for (const box of boxScoresOf(cup)) {
     for (const side of [box.home, box.away]) {
       const l = side.find((x) => x.pid === pid);
-      if (!l) continue;
-      line.appearances++;
-      line.goals += l.goals;
-      line.assists += l.assists;
-      line.shots += l.shots;
-      line.shotsOnTarget += l.shotsOnTarget;
-      line.saves += l.saves;
-      line.goalsAgainst += l.goalsAgainst;
-      line.tackles += l.tackles;
-      line.interceptions += l.interceptions;
-      line.minutesPlayed += l.minutesPlayed;
-      if (l.minutesPlayed > 0 && Number.isFinite(l.rating)) {
-        line.ratingSum += l.rating;
-        line.ratedAppearances++;
-      }
+      if (l) addLine(line, l);
     }
   }
   return line;
@@ -94,10 +144,24 @@ export function cupStatsForPlayer(cup: CupState, pid: number): CupStatLine {
 /**
  * The same totals as cupStatsForPlayer, for every player at once, keyed by pid
  * — so a whole-world award pass doesn't re-scan every box score once per player.
+ *
+ * Reads the stored aggregate on an archived cup, exactly like cupStatsForPlayer.
+ * That branch is load-bearing rather than an optimisation: archiveCup drops the
+ * box scores, so summing them here would silently score every archived season's
+ * cup as zero — which is precisely what the worldwide awards read when
+ * migrate.ts backfills past seasons.
  */
 export function cupStatsByPid(cup: CupState): Map<number, CupStatLine> {
   const lines = new Map<number, CupStatLine>();
-  for (const box of allBoxScores(cup)) {
+  if (cup.statLines !== null && cup.statLines !== undefined) {
+    for (const { pid, ...line } of cup.statLines) {
+      // Lines aggregated before ratings were tracked have neither field;
+      // default them so cupAvgRating reports "no rating" rather than NaN.
+      lines.set(pid, { ...line, ratingSum: line.ratingSum ?? 0, ratedAppearances: line.ratedAppearances ?? 0 });
+    }
+    return lines;
+  }
+  for (const box of boxScoresOf(cup)) {
     for (const side of [box.home, box.away]) {
       for (const l of side) {
         let line = lines.get(l.pid);
@@ -105,20 +169,7 @@ export function cupStatsByPid(cup: CupState): Map<number, CupStatLine> {
           line = emptyLine(cup.season);
           lines.set(l.pid, line);
         }
-        line.appearances++;
-        line.goals += l.goals;
-        line.assists += l.assists;
-        line.shots += l.shots;
-        line.shotsOnTarget += l.shotsOnTarget;
-        line.saves += l.saves;
-        line.goalsAgainst += l.goalsAgainst;
-        line.tackles += l.tackles;
-        line.interceptions += l.interceptions;
-        line.minutesPlayed += l.minutesPlayed;
-        if (l.minutesPlayed > 0 && Number.isFinite(l.rating)) {
-          line.ratingSum += l.rating;
-          line.ratedAppearances++;
-        }
+        addLine(line, l);
       }
     }
   }
