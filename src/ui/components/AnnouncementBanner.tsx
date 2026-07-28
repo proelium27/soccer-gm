@@ -40,7 +40,7 @@ export function AnnouncementBanner() {
       <span className="announcement-banner-text">
         <strong>New:</strong> the game has a Discord now. Come report bugs and tell me what to build next.{" "}
         <a
-          href="https://discord.gg/PJTumZU3nk"
+          href="https://discord.gg/hMbrX2Yg6"
           className="announcement-banner-link"
           target="_blank"
           rel="noopener noreferrer"
