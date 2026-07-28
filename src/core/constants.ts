@@ -583,10 +583,54 @@ export const POTENTIAL_SIM_TRIALS = 16;
 export const POTENTIAL_SIM_MAX_AGE = 40;
 export const POTENTIAL_SIM_PERCENTILE = 0.75;
 
-/** Retirement: no chance before this age; probability climbs per year after. */
+/**
+ * Retirement (reworked 2026-07-28 — was age-only). Two inputs: **age** sets
+ * the shape of the curve, **whether a club rostered him last season** sets its
+ * scale. Nothing else — not ovr, not potential, not minutes. Roster status is
+ * deliberately the whole quality signal, because the AI market already sorts
+ * wanted from unwanted every offseason (renewals, free agency, quality
+ * poaching, `trimRosterSurplus`), so "good enough to still be playing at 39"
+ * falls out of it without a second quality term to tune or to drift.
+ *
+ * The age curve is unchanged: nothing below `RETIREMENT_START_AGE`, then
+ * `RETIREMENT_BASE_PROB` climbing by `RETIREMENT_PROB_PER_YEAR` each year.
+ * From there:
+ *
+ * - **Rostered** last season → the age curve scaled by
+ *   `RETIREMENT_ROSTERED_DAMPING`. Damped, never zeroed: age still dominates,
+ *   so even a wanted 39-year-old has a real chance of hanging them up. At 0.6
+ *   a continuously-rostered player's median retirement lands ~37 and ~12% are
+ *   still going at 40 (vs ~1% past 39 under the old age-only curve).
+ * - **Unrostered** last season → `RETIREMENT_UNROSTERED_BASE` at *any* age,
+ *   plus the undamped age curve on top. This is the half of the rework that
+ *   matters most: before it, a player nobody ever signed sat in the free-agent
+ *   pool from 16 until he hit 33 and only then began rolling, so every
+ *   season's youth-intake surplus accumulated there permanently. Now he drifts
+ *   out of the game instead.
+ *
+ * "Rostered" means **last season**, not the live roster at the moment of the
+ * roll — retirement is offseason step 3, but step 1 has already dumped every
+ * expired contract into the free pool and AI free agency doesn't re-sign
+ * anyone until step 4, so a live read would retire a crowd of players who were
+ * about to be re-signed. `simOffseason` snapshots roster membership before
+ * step 1 (see there). A useful side effect: a player whose contract just
+ * expired gets one full offseason of grace to find a club before the unrostered
+ * rate applies to him.
+ *
+ * No "seasons out of the game" counter — one roll per season compounds on its
+ * own (survive unsigned, roll again next year), so washing out is emergent
+ * with no persisted field and no migration.
+ *
+ * `RETIREMENT_UNROSTERED_BASE` is the pool-size lever: raise it and the
+ * free-agent bargain bin thins out (and AI clubs have less to sign from at
+ * step 4 — audit roster fill, not just pool size, before moving it).
+ */
 export const RETIREMENT_START_AGE = 33;
 export const RETIREMENT_PROB_PER_YEAR = 0.12;
 export const RETIREMENT_BASE_PROB = 0.05;
+export const RETIREMENT_ROSTERED_DAMPING = 0.6;
+export const RETIREMENT_UNROSTERED_BASE = 0.35;
+export const RETIREMENT_MAX_PROB = 0.95;
 
 /**
  * Wages (2026-07-11 rework, replacing the flat 20k-per-ovr placeholder;

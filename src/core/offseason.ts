@@ -11,6 +11,7 @@ import { cullFreeAgentPool } from "./players/freeAgentCull.js";
 import { archiveCup } from "./cup/archive.js";
 import {
   releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
+  freeAgentPids,
 } from "./freeAgency.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { FREE_AGENT_TID, isFreeAgentTid } from "./transfers/negotiation.js";
@@ -88,6 +89,18 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   // where.
   const compsByTid: Record<number, number> = {};
   for (const t of league.teams) compsByTid[t.tid] = t.compId;
+
+  // Who a club actually rostered *last season*, snapshotted here because it is
+  // the quality signal retirement reads at step 3 — and by then step 1 has
+  // released every expired contract into the free pool while step 4 hasn't
+  // re-signed anyone yet, so a live read would retire a crowd of players who
+  // were about to be picked back up. Taken from the pre-step-1 `league.teams`
+  // and `league.activeLoans`, and via `freeAgentPids` so academy players and
+  // players out on loan count as rostered (they are, just not by their parent
+  // club). Grace is deliberate: a contract expiring at the end of last season
+  // still leaves him "rostered" for this offseason's roll, so he gets one full
+  // free agency to find a club before the unrostered rate starts applying.
+  const unrosteredLastSeason = freeAgentPids(league.teams, league.players, league.activeLoans);
   const awards = awardsByCompetition(league.players, league.teams, league.competitions, endingSeason);
 
   // 0. Proactive AI contract renewals (cross-division: a club's own player,
@@ -128,14 +141,21 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     return progressed.injury ? { ...progressed, injury: null } : progressed;
   });
 
-  // 3. Roll retirement; drop retirees from rosters and the player pool.
+  // 3. Roll retirement; drop retirees from rosters and the player pool. Age
+  //    sets the odds, last season's roster status scales them: a player a club
+  //    wanted retires slowly, one nobody rostered drifts out of the game at any
+  //    age (see the RETIREMENT_* block in constants.ts). One rng draw per
+  //    player either way, so the shared stream's draw count is unchanged.
   const retiredPids = new Set(
-    players.filter((p) => rollRetirement(rng, p, endingSeason)).map((p) => p.pid),
+    players
+      .filter((p) => rollRetirement(rng, p, endingSeason, !unrosteredLastSeason.has(p.pid)))
+      .map((p) => p.pid),
   );
   players = players.filter((p) => !retiredPids.has(p.pid));
   teams = teams.map((t) => ({
     ...t,
     roster: t.roster.filter((pid) => !retiredPids.has(pid)),
+    academyRoster: t.academyRoster.filter((pid) => !retiredPids.has(pid)),
   }));
 
   // 3.05. Carry any injuries picked up at the summer's internationals into the

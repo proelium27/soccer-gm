@@ -7,7 +7,9 @@ import {
 } from "../../src/core/players/progression.js";
 import { computeOvr } from "../../src/core/players/ovr.js";
 import type { Player, PlayerRatings } from "../../src/core/players/types.js";
-import { RETIREMENT_START_AGE, RATING_MAX } from "../../src/core/constants.js";
+import {
+  RETIREMENT_START_AGE, RATING_MAX, RETIREMENT_UNROSTERED_BASE, RETIREMENT_MAX_PROB,
+} from "../../src/core/constants.js";
 
 const flatRatings = (v: number): PlayerRatings => ({
   speed: v, strength: v, stamina: v, jumping: v, shortPass: v, longPass: v,
@@ -246,21 +248,73 @@ describe("progressPlayer", () => {
 });
 
 describe("retirementProbability", () => {
-  it("is zero below the retirement start age", () => {
-    expect(retirementProbability(RETIREMENT_START_AGE - 1)).toBe(0);
+  it("is zero below the retirement start age for a rostered player", () => {
+    expect(retirementProbability(RETIREMENT_START_AGE - 1, true)).toBe(0);
   });
   it("increases with age past the start age", () => {
-    const a = retirementProbability(RETIREMENT_START_AGE);
-    const b = retirementProbability(RETIREMENT_START_AGE + 5);
+    const a = retirementProbability(RETIREMENT_START_AGE, true);
+    const b = retirementProbability(RETIREMENT_START_AGE + 5, true);
     expect(b).toBeGreaterThan(a);
+  });
+
+  // The rework: roster status scales the curve, age still shapes it.
+  it("gives an unrostered player a real chance at any age", () => {
+    // A 20-year-old nobody signed drifts out of the game; a rostered one can't.
+    expect(retirementProbability(20, false)).toBeCloseTo(RETIREMENT_UNROSTERED_BASE, 10);
+    expect(retirementProbability(20, true)).toBe(0);
+  });
+  it("always retires an unrostered player faster than a rostered one of the same age", () => {
+    for (let age = 18; age <= 42; age++) {
+      expect(retirementProbability(age, false)).toBeGreaterThan(
+        retirementProbability(age, true),
+      );
+    }
+  });
+  it("damps but never zeroes a rostered veteran, so age still dominates", () => {
+    // The "good enough to play till 40" ask: still a live career at 39-40,
+    // but never a free pass — the probability keeps climbing.
+    const at39 = retirementProbability(39, true);
+    expect(at39).toBeGreaterThan(0);
+    expect(at39).toBeLessThan(1);
+    expect(retirementProbability(40, true)).toBeGreaterThan(at39);
+  });
+  it("never exceeds the cap", () => {
+    for (const rostered of [true, false]) {
+      for (let age = 16; age <= 60; age++) {
+        expect(retirementProbability(age, rostered)).toBeLessThanOrEqual(RETIREMENT_MAX_PROB);
+      }
+    }
   });
 });
 
 describe("rollRetirement", () => {
-  it("never retires a young player", () => {
+  it("never retires a young rostered player", () => {
     const rng = mulberry32(1);
     const p = generatePlayer(rng, "ST", 55, 1, 21, 1);
-    expect(rollRetirement(rng, p, 1)).toBe(false);
+    expect(rollRetirement(rng, p, 1, true)).toBe(false);
+  });
+  it("defaults to the rostered curve when roster status is not passed", () => {
+    const p = generatePlayer(mulberry32(1), "ST", 55, 1, 21, 1);
+    expect(rollRetirement(() => 0.0001, p, 1)).toBe(false);
+  });
+  it("retires young unrostered players at roughly the unrostered base rate", () => {
+    const rng = mulberry32(9);
+    const p = generatePlayer(mulberry32(1), "ST", 55, 1, 21, 1);
+    let retired = 0;
+    const N = 4000;
+    for (let i = 0; i < N; i++) {
+      if (rollRetirement(rng, p, 1, false)) retired++;
+    }
+    expect(retired / N).toBeCloseTo(RETIREMENT_UNROSTERED_BASE, 1);
+  });
+  it("consumes exactly one rng draw either way, keeping stream order stable", () => {
+    const p = generatePlayer(mulberry32(1), "ST", 55, 1, 21, 1);
+    for (const rostered of [true, false]) {
+      let draws = 0;
+      const rng = () => { draws++; return 0.5; };
+      rollRetirement(rng, p, 40, rostered);
+      expect(draws).toBe(1);
+    }
   });
 });
 

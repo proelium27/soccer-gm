@@ -14,6 +14,7 @@ import {
   POTENTIAL_SIM_TRIALS, POTENTIAL_SIM_MAX_AGE, POTENTIAL_SIM_PERCENTILE,
   RATING_MIN, RATING_MAX,
   RETIREMENT_START_AGE, RETIREMENT_BASE_PROB, RETIREMENT_PROB_PER_YEAR,
+  RETIREMENT_ROSTERED_DAMPING, RETIREMENT_UNROSTERED_BASE, RETIREMENT_MAX_PROB,
 } from "../constants.js";
 
 /** Salt distinguishing this hash use from other pid-keyed hashes (e.g. identity rng). */
@@ -252,20 +253,40 @@ export function progressPlayer(
   };
 }
 
-/** Retirement probability: 0 below RETIREMENT_START_AGE, climbing per year after. */
-export function retirementProbability(age: number): number {
-  if (age < RETIREMENT_START_AGE) return 0;
+/**
+ * Retirement probability for one offseason. Age sets the curve's shape,
+ * `rostered` (was a club rostering him *last season*) sets its scale — see the
+ * `RETIREMENT_*` block in constants.ts for why roster status is the whole
+ * quality signal and why it has to be read from last season rather than live.
+ *
+ * A rostered player gets the age curve damped but never zeroed; an unrostered
+ * one gets a flat per-season chance at any age on top of the undamped curve,
+ * so players nobody wants drift out of the game instead of accumulating in the
+ * free-agent pool forever.
+ */
+export function retirementProbability(age: number, rostered = true): number {
+  const ageTerm = age < RETIREMENT_START_AGE
+    ? 0
+    : RETIREMENT_BASE_PROB + (age - RETIREMENT_START_AGE) * RETIREMENT_PROB_PER_YEAR;
   return Math.min(
-    0.95,
-    RETIREMENT_BASE_PROB + (age - RETIREMENT_START_AGE) * RETIREMENT_PROB_PER_YEAR,
+    RETIREMENT_MAX_PROB,
+    rostered
+      ? ageTerm * RETIREMENT_ROSTERED_DAMPING
+      : RETIREMENT_UNROSTERED_BASE + ageTerm,
   );
 }
 
-/** Roll whether a player retires at the end of the given season. */
+/**
+ * Roll whether a player retires at the end of the given season. Consumes
+ * exactly one `rng()` draw whether or not he's rostered, so the shared stream's
+ * draw *count* is unchanged from the age-only version (the outcomes move, of
+ * course — that's the point).
+ */
 export function rollRetirement(
   rng: () => number,
   player: Player,
   season: number,
+  rostered = true,
 ): boolean {
-  return rng() < retirementProbability(ageOf(player, season));
+  return rng() < retirementProbability(ageOf(player, season), rostered);
 }
