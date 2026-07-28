@@ -15,7 +15,7 @@ import {
   RATING_MIN, RATING_MAX,
   RETIREMENT_START_AGE, RETIREMENT_BASE_PROB, RETIREMENT_PROB_PER_YEAR,
   RETIREMENT_ROSTERED_DAMPING, RETIREMENT_UNROSTERED_BASE, RETIREMENT_MAX_PROB,
-  RETIREMENT_PROSPECT_POT_THRESHOLD,
+  RETIREMENT_PROSPECT_POT_THRESHOLD, RETIREMENT_PROSPECT_MAX_AGE,
 } from "../constants.js";
 
 /** Salt distinguishing this hash use from other pid-keyed hashes (e.g. identity rng). */
@@ -279,12 +279,23 @@ export function retirementProbability(age: number, wanted = true): number {
 
 /**
  * Whether retirement treats this player as wanted: a club rostered him last
- * season, or he's still enough of a prospect that one plainly will. The second
- * clause is what stops a high-ceiling teenager who happens to be between clubs
- * from washing out at journeyman rates (see `RETIREMENT_PROSPECT_POT_THRESHOLD`).
+ * season, or he's young enough and high-ceilinged enough that one plainly will.
+ * The second clause stops a high-ceiling teenager who happens to be between
+ * clubs from washing out at journeyman rates.
+ *
+ * The age bound is essential, not cosmetic: `estimatePotential` never returns
+ * less than current ovr, so without it every unsigned player above ovr 65 —
+ * veterans included — would be exempted onto the damped curve and retire *less*
+ * than under the old age-only model. See `RETIREMENT_PROSPECT_MAX_AGE`.
  */
-export function isWantedForRetirement(player: Player, rostered: boolean): boolean {
-  return rostered || player.potential > RETIREMENT_PROSPECT_POT_THRESHOLD;
+export function isWantedForRetirement(
+  player: Player,
+  rostered: boolean,
+  age: number,
+): boolean {
+  return rostered
+    || (age < RETIREMENT_PROSPECT_MAX_AGE
+      && player.potential > RETIREMENT_PROSPECT_POT_THRESHOLD);
 }
 
 /**
@@ -299,8 +310,6 @@ export function rollRetirement(
   season: number,
   rostered = true,
 ): boolean {
-  return rng() < retirementProbability(
-    ageOf(player, season),
-    isWantedForRetirement(player, rostered),
-  );
+  const age = ageOf(player, season);
+  return rng() < retirementProbability(age, isWantedForRetirement(player, rostered, age));
 }

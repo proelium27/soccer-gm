@@ -607,20 +607,34 @@ export const POTENTIAL_SIM_PERCENTILE = 0.75;
  *   pool from 16 until he hit 33 and only then began rolling, so every
  *   season's youth-intake surplus accumulated there permanently. Now he drifts
  *   out of the game instead.
- * - **Unrostered but still a prospect** (potential above
+ * - **Unrostered but still a prospect** (*under*
+ *   `RETIREMENT_PROSPECT_MAX_AGE` **and** potential above
  *   `RETIREMENT_PROSPECT_POT_THRESHOLD`) → treated as wanted, i.e. back onto
  *   the damped curve. Without this, a 17-year-old at ovr 45 with a ceiling of
  *   80 washes out at the same rate as a journeyman nobody will ever sign,
  *   which throws away exactly the players `/incoming-talent` exists to surface.
  *   It is the *one* place quality enters retirement directly rather than
- *   through roster status, and it is deliberately pinned to
- *   `FREE_AGENT_CULL_MAX_POT` rather than given its own number: the pool cull
- *   already spares precisely this population (it deletes only potential ≤ that
- *   value), so sharing the constant makes the two mechanics exactly
- *   complementary and unable to drift into a state where retirement spares a
- *   kid the cull then deletes anyway. Note this reads the stored scout
- *   estimate, same as the cull does — the fog on `/roster` is a UI layer, not
- *   a different number — and it reads it *after* step 2 has recomputed it.
+ *   through roster status.
+ *
+ *   **The age bound is load-bearing, not decoration.** `estimatePotential`
+ *   seeds its simulated peak at the player's current ovr and only ever raises
+ *   it, so `potential >= ovr` *always* holds. Without an age gate the
+ *   exemption therefore catches every unrostered player above ovr 65 — a
+ *   released 37-year-old on ovr 70 included — and hands him the *damped*
+ *   curve, which at 37 is 0.318 against 0.53 on the old age-only model. That
+ *   is backwards: it would make good unsigned veterans retire ~40% *less* than
+ *   before the rework, and leave the ovr-66+ slice of the pool as the one
+ *   population nothing removes (the cull spares it too, on
+ *   `FREE_AGENT_CULL_MAX_PEAK_OVR`). The bound keeps the exemption meaning
+ *   "prospect", which is all it was ever for.
+ *
+ *   Both bounds are pinned to the pool cull's own constants rather than given
+ *   their own numbers, so the two mechanics can't drift apart on either axis.
+ *   They are **not** fully complementary even so: the cull additionally spares
+ *   career peak > `FREE_AGENT_CULL_MAX_PEAK_OVR`, which retirement ignores on
+ *   purpose — an unsigned ex-good 30-year-old *should* retire. Note this reads
+ *   the stored scout estimate, same as the cull does (the fog on `/roster` is a
+ *   UI layer, not a different number), *after* step 2 has recomputed it.
  *
  * "Rostered" means **last season**, not the live roster at the moment of the
  * roll — retirement is offseason step 3, but step 1 has already dumped every
@@ -646,11 +660,15 @@ export const RETIREMENT_ROSTERED_DAMPING = 0.6;
 export const RETIREMENT_UNROSTERED_BASE = 0.35;
 export const RETIREMENT_MAX_PROB = 0.95;
 /**
- * Unrostered players with potential *above* this are spared the unrostered rate
- * and fall back to the damped curve. Pinned to the pool cull's own threshold on
- * purpose — see the discussion above before changing either.
+ * Unrostered players *under* `RETIREMENT_PROSPECT_MAX_AGE` with potential
+ * *above* `RETIREMENT_PROSPECT_POT_THRESHOLD` are spared the unrostered rate
+ * and fall back to the damped curve. Both are pinned to the pool cull's own
+ * constants on purpose — see the discussion above before changing either, and
+ * note the age bound is what stops the exemption swallowing every unsigned
+ * veteran above ovr 65.
  */
 export const RETIREMENT_PROSPECT_POT_THRESHOLD = FREE_AGENT_CULL_MAX_POT;
+export const RETIREMENT_PROSPECT_MAX_AGE = FREE_AGENT_CULL_MIN_AGE;
 
 /**
  * Wages (2026-07-11 rework, replacing the flat 20k-per-ovr placeholder;

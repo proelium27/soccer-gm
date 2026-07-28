@@ -157,6 +157,28 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     roster: t.roster.filter((pid) => !retiredPids.has(pid)),
     academyRoster: t.academyRoster.filter((pid) => !retiredPids.has(pid)),
   }));
+  // Retirement deletes the player outright, so any *live* state still pointing
+  // at him is now referring to somebody who doesn't exist: an open negotiation,
+  // an inbound offer to buy him, a loan listing, or an active loan whose return
+  // would otherwise hand a dead pid back to its parent club next rollover
+  // (`processLoanReturns` appends it blindly and logs a phantom transfer). The
+  // pool cull scrubs exactly this set for the players it deletes; retirement
+  // needs it too, and needs it more now that it can fire below 33.
+  //
+  // Historical records (`transfers`, `newsEvents`, cup box scores) are
+  // deliberately NOT scrubbed: unlike a culled nobody, a retiree had a real
+  // career and his transfer history is the record of it. That does leave those
+  // rows rendering as "Player <pid>" once he's gone, which is pre-existing
+  // behaviour on main rather than something this change introduces — see the
+  // retirement section of CLAUDE.md.
+  activeLoans = activeLoans.filter((l) => !retiredPids.has(l.pid));
+  const liveRefsScrubbed = {
+    negotiations: league.negotiations.filter((n) => !retiredPids.has(n.pid)),
+    inboundOffers: league.inboundOffers.filter((o) => !retiredPids.has(o.pid)),
+    loanListings: league.loanListings.filter((l) => !retiredPids.has(l.pid)),
+    loanRejections: league.loanRejections.filter((l) => !retiredPids.has(l.pid)),
+  };
+  league = { ...league, ...liveRefsScrubbed };
 
   // 3.05. Carry any injuries picked up at the summer's internationals into the
   //       new club season — a World Cup injury genuinely sidelines a player for

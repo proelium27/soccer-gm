@@ -466,9 +466,11 @@ export function Manual() {
             The other half is that players nobody signs drift out of the game, at any age. Go a
             full season unsigned and you start rolling to retire whether you're 19 or 35. Two things
             soften that. A contract simply running out doesn't count against you, so a player always
-            gets one full free agency to find a club before it starts applying. And genuine
-            prospects are exempt: if a young player's ceiling is still high, he sticks around
-            waiting for his shot no matter how long he's been unsigned.
+            gets one full free agency to find a club before it starts applying. And genuine young
+            prospects are exempt: if a player is still in his early twenties and his ceiling is
+            high, he sticks around waiting for his shot no matter how long he's been unsigned. That
+            exemption is for prospects only, though. An unsigned 30-year-old is done regardless of
+            how good he used to be.
           </p>
           <p>
             What this means for you day to day: the free agent and incoming talent lists churn.
@@ -831,9 +833,9 @@ export function Manual() {
           <p>
             The pool also doesn't just pile up anymore. A player who goes a full season with nobody
             signing him starts rolling to <a href="#development">retire</a>, at any age, so the
-            journeymen clear out over time instead of sitting on that page forever. Prospects with a
-            high ceiling are exempt and will wait for a club however long it takes, so this only
-            thins out the filler.
+            journeymen clear out over time instead of sitting on that page forever. Young prospects
+            with a high ceiling are exempt and will wait for a club however long it takes, so this
+            thins out the filler rather than the talent.
           </p>
           <p>
             <strong>Signed a free agent? You're keeping him for a season.</strong> A free agent you

@@ -10,6 +10,8 @@ import type { Player, PlayerRatings } from "../../src/core/players/types.js";
 import {
   RETIREMENT_START_AGE, RATING_MAX, RETIREMENT_UNROSTERED_BASE, RETIREMENT_MAX_PROB,
   RETIREMENT_PROSPECT_POT_THRESHOLD, FREE_AGENT_CULL_MAX_POT,
+  RETIREMENT_PROSPECT_MAX_AGE, FREE_AGENT_CULL_MIN_AGE,
+  RETIREMENT_BASE_PROB, RETIREMENT_PROB_PER_YEAR,
 } from "../../src/core/constants.js";
 
 const flatRatings = (v: number): PlayerRatings => ({
@@ -335,14 +337,40 @@ describe("rollRetirement", () => {
       ...generatePlayer(mulberry32(1), "ST", 45, 1, 17, 1),
       potential: RETIREMENT_PROSPECT_POT_THRESHOLD,
     };
-    expect(isWantedForRetirement(p, false)).toBe(false);
-    expect(isWantedForRetirement(p, true)).toBe(true);
+    expect(isWantedForRetirement(p, false, 17)).toBe(false);
+    expect(isWantedForRetirement(p, true, 17)).toBe(true);
   });
-  it("stays exactly complementary to the free-agent pool cull", () => {
-    // Retirement spares potential ABOVE the threshold; the cull deletes only
-    // potential AT OR BELOW its own. Sharing one number is what stops the pair
-    // drifting into "retirement spared him, the cull deleted him anyway".
+  it("does not let the prospect exemption spare an unsigned veteran", () => {
+    // estimatePotential never returns less than current ovr, so a good older
+    // player always clears the potential bar. Without the age bound he'd be
+    // exempted onto the damped curve and retire LESS than under the old
+    // age-only model, which is backwards.
+    const vet = {
+      ...generatePlayer(mulberry32(1), "ST", 70, 1, 37, 1),
+      potential: RETIREMENT_PROSPECT_POT_THRESHOLD + 10,
+    };
+    expect(isWantedForRetirement(vet, false, 37)).toBe(false);
+    // ...and he must retire at least as fast as the old age-only curve did.
+    const oldModel = RETIREMENT_BASE_PROB
+      + (37 - RETIREMENT_START_AGE) * RETIREMENT_PROB_PER_YEAR;
+    expect(retirementProbability(37, false)).toBeGreaterThan(oldModel);
+  });
+  it("applies the exemption right up to, but not at, the age bound", () => {
+    const kid = {
+      ...generatePlayer(mulberry32(1), "ST", 60, 1, 20, 1),
+      potential: RETIREMENT_PROSPECT_POT_THRESHOLD + 10,
+    };
+    expect(isWantedForRetirement(kid, false, RETIREMENT_PROSPECT_MAX_AGE - 1)).toBe(true);
+    expect(isWantedForRetirement(kid, false, RETIREMENT_PROSPECT_MAX_AGE)).toBe(false);
+  });
+  it("keeps the prospect exemption pinned to the pool cull's own bounds", () => {
+    // Both bounds are shared with the cull so the pair can't drift apart on
+    // either axis. This is NOT a claim that the two are fully complementary:
+    // the cull additionally spares career peak > FREE_AGENT_CULL_MAX_PEAK_OVR,
+    // which retirement deliberately ignores (an unsigned ex-good 30-year-old
+    // should retire). It only pins the two axes they do share.
     expect(RETIREMENT_PROSPECT_POT_THRESHOLD).toBe(FREE_AGENT_CULL_MAX_POT);
+    expect(RETIREMENT_PROSPECT_MAX_AGE).toBe(FREE_AGENT_CULL_MIN_AGE);
   });
   it("consumes exactly one rng draw either way, keeping stream order stable", () => {
     const p = generatePlayer(mulberry32(1), "ST", 55, 1, 21, 1);
