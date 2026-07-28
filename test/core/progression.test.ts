@@ -3,12 +3,13 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { generatePlayer } from "../../src/core/players/generate.js";
 import {
   ageOf, progressPlayer, retirementProbability, rollRetirement, estimatePotential,
-  isGenerational,
+  isGenerational, isWantedForRetirement,
 } from "../../src/core/players/progression.js";
 import { computeOvr } from "../../src/core/players/ovr.js";
 import type { Player, PlayerRatings } from "../../src/core/players/types.js";
 import {
   RETIREMENT_START_AGE, RATING_MAX, RETIREMENT_UNROSTERED_BASE, RETIREMENT_MAX_PROB,
+  RETIREMENT_PROSPECT_POT_THRESHOLD, FREE_AGENT_CULL_MAX_POT,
 } from "../../src/core/constants.js";
 
 const flatRatings = (v: number): PlayerRatings => ({
@@ -299,13 +300,49 @@ describe("rollRetirement", () => {
   });
   it("retires young unrostered players at roughly the unrostered base rate", () => {
     const rng = mulberry32(9);
-    const p = generatePlayer(mulberry32(1), "ST", 55, 1, 21, 1);
+    // Pin potential at the threshold so the prospect exemption doesn't apply —
+    // a generated player's own ceiling could land either side of it.
+    const p = {
+      ...generatePlayer(mulberry32(1), "ST", 55, 1, 21, 1),
+      potential: RETIREMENT_PROSPECT_POT_THRESHOLD,
+    };
     let retired = 0;
     const N = 4000;
     for (let i = 0; i < N; i++) {
       if (rollRetirement(rng, p, 1, false)) retired++;
     }
     expect(retired / N).toBeCloseTo(RETIREMENT_UNROSTERED_BASE, 1);
+  });
+  it("spares an unrostered kid whose ceiling is still high", () => {
+    // The exemption: a high-potential prospect between clubs must not wash out
+    // at the same rate as a journeyman nobody will ever sign.
+    const kid = {
+      ...generatePlayer(mulberry32(1), "ST", 45, 1, 17, 1),
+      potential: RETIREMENT_PROSPECT_POT_THRESHOLD + 15,
+    };
+    const journeyman = {
+      ...generatePlayer(mulberry32(1), "ST", 45, 2, 17, 1),
+      potential: RETIREMENT_PROSPECT_POT_THRESHOLD,
+    };
+    // rng returns just under the unrostered base: enough to retire the
+    // journeyman, while the prospect is on the damped curve (zero at 17).
+    const draw = () => RETIREMENT_UNROSTERED_BASE - 0.01;
+    expect(rollRetirement(draw, journeyman, 1, false)).toBe(true);
+    expect(rollRetirement(draw, kid, 1, false)).toBe(false);
+  });
+  it("does not spare an unrostered player whose ceiling is at or below the threshold", () => {
+    const p = {
+      ...generatePlayer(mulberry32(1), "ST", 45, 1, 17, 1),
+      potential: RETIREMENT_PROSPECT_POT_THRESHOLD,
+    };
+    expect(isWantedForRetirement(p, false)).toBe(false);
+    expect(isWantedForRetirement(p, true)).toBe(true);
+  });
+  it("stays exactly complementary to the free-agent pool cull", () => {
+    // Retirement spares potential ABOVE the threshold; the cull deletes only
+    // potential AT OR BELOW its own. Sharing one number is what stops the pair
+    // drifting into "retirement spared him, the cull deleted him anyway".
+    expect(RETIREMENT_PROSPECT_POT_THRESHOLD).toBe(FREE_AGENT_CULL_MAX_POT);
   });
   it("consumes exactly one rng draw either way, keeping stream order stable", () => {
     const p = generatePlayer(mulberry32(1), "ST", 55, 1, 21, 1);

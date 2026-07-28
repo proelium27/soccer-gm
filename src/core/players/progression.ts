@@ -15,6 +15,7 @@ import {
   RATING_MIN, RATING_MAX,
   RETIREMENT_START_AGE, RETIREMENT_BASE_PROB, RETIREMENT_PROB_PER_YEAR,
   RETIREMENT_ROSTERED_DAMPING, RETIREMENT_UNROSTERED_BASE, RETIREMENT_MAX_PROB,
+  RETIREMENT_PROSPECT_POT_THRESHOLD,
 } from "../constants.js";
 
 /** Salt distinguishing this hash use from other pid-keyed hashes (e.g. identity rng). */
@@ -255,25 +256,35 @@ export function progressPlayer(
 
 /**
  * Retirement probability for one offseason. Age sets the curve's shape,
- * `rostered` (was a club rostering him *last season*) sets its scale — see the
- * `RETIREMENT_*` block in constants.ts for why roster status is the whole
- * quality signal and why it has to be read from last season rather than live.
+ * `wanted` sets its scale — see the `RETIREMENT_*` block in constants.ts for
+ * why roster status is (almost) the whole quality signal and why it has to be
+ * read from last season rather than live.
  *
- * A rostered player gets the age curve damped but never zeroed; an unrostered
- * one gets a flat per-season chance at any age on top of the undamped curve,
- * so players nobody wants drift out of the game instead of accumulating in the
- * free-agent pool forever.
+ * A wanted player gets the age curve damped but never zeroed; an unwanted one
+ * gets a flat per-season chance at any age on top of the undamped curve, so
+ * players nobody will sign drift out of the game instead of accumulating in
+ * the free-agent pool forever.
  */
-export function retirementProbability(age: number, rostered = true): number {
+export function retirementProbability(age: number, wanted = true): number {
   const ageTerm = age < RETIREMENT_START_AGE
     ? 0
     : RETIREMENT_BASE_PROB + (age - RETIREMENT_START_AGE) * RETIREMENT_PROB_PER_YEAR;
   return Math.min(
     RETIREMENT_MAX_PROB,
-    rostered
+    wanted
       ? ageTerm * RETIREMENT_ROSTERED_DAMPING
       : RETIREMENT_UNROSTERED_BASE + ageTerm,
   );
+}
+
+/**
+ * Whether retirement treats this player as wanted: a club rostered him last
+ * season, or he's still enough of a prospect that one plainly will. The second
+ * clause is what stops a high-ceiling teenager who happens to be between clubs
+ * from washing out at journeyman rates (see `RETIREMENT_PROSPECT_POT_THRESHOLD`).
+ */
+export function isWantedForRetirement(player: Player, rostered: boolean): boolean {
+  return rostered || player.potential > RETIREMENT_PROSPECT_POT_THRESHOLD;
 }
 
 /**
@@ -288,5 +299,8 @@ export function rollRetirement(
   season: number,
   rostered = true,
 ): boolean {
-  return rng() < retirementProbability(ageOf(player, season), rostered);
+  return rng() < retirementProbability(
+    ageOf(player, season),
+    isWantedForRetirement(player, rostered),
+  );
 }

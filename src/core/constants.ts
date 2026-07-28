@@ -607,6 +607,20 @@ export const POTENTIAL_SIM_PERCENTILE = 0.75;
  *   pool from 16 until he hit 33 and only then began rolling, so every
  *   season's youth-intake surplus accumulated there permanently. Now he drifts
  *   out of the game instead.
+ * - **Unrostered but still a prospect** (potential above
+ *   `RETIREMENT_PROSPECT_POT_THRESHOLD`) → treated as wanted, i.e. back onto
+ *   the damped curve. Without this, a 17-year-old at ovr 45 with a ceiling of
+ *   80 washes out at the same rate as a journeyman nobody will ever sign,
+ *   which throws away exactly the players `/incoming-talent` exists to surface.
+ *   It is the *one* place quality enters retirement directly rather than
+ *   through roster status, and it is deliberately pinned to
+ *   `FREE_AGENT_CULL_MAX_POT` rather than given its own number: the pool cull
+ *   already spares precisely this population (it deletes only potential ≤ that
+ *   value), so sharing the constant makes the two mechanics exactly
+ *   complementary and unable to drift into a state where retirement spares a
+ *   kid the cull then deletes anyway. Note this reads the stored scout
+ *   estimate, same as the cull does — the fog on `/roster` is a UI layer, not
+ *   a different number — and it reads it *after* step 2 has recomputed it.
  *
  * "Rostered" means **last season**, not the live roster at the moment of the
  * roll — retirement is offseason step 3, but step 1 has already dumped every
@@ -631,6 +645,12 @@ export const RETIREMENT_BASE_PROB = 0.05;
 export const RETIREMENT_ROSTERED_DAMPING = 0.6;
 export const RETIREMENT_UNROSTERED_BASE = 0.35;
 export const RETIREMENT_MAX_PROB = 0.95;
+/**
+ * Unrostered players with potential *above* this are spared the unrostered rate
+ * and fall back to the damped curve. Pinned to the pool cull's own threshold on
+ * purpose — see the discussion above before changing either.
+ */
+export const RETIREMENT_PROSPECT_POT_THRESHOLD = FREE_AGENT_CULL_MAX_POT;
 
 /**
  * Wages (2026-07-11 rework, replacing the flat 20k-per-ovr placeholder;

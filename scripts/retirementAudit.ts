@@ -36,15 +36,13 @@ console.log(
   "season |   pool | rostered |     FA | minRos | avgAge | 33+ | 36+ | 38+ | D1 ovr | retd",
 );
 
-let prevPids = new Set(league.players.map((p) => p.pid));
-
 for (let s = 1; s <= SEASONS; s++) {
   league = simThrough(league, "season", rng);
   const before = new Set(league.players.map((p) => p.pid));
   league = simOffseason(league, rng);
 
-  const gone = [...before].filter((pid) => !new Set(league.players.map((p) => p.pid)).has(pid));
-  prevPids = before;
+  const after = new Set(league.players.map((p) => p.pid));
+  const gone = [...before].filter((pid) => !after.has(pid));
 
   const rosteredSet = new Set(
     league.teams.flatMap((t) => [...t.roster, ...t.academyRoster]),
