@@ -185,8 +185,8 @@ export function Manual() {
           <ol>
             <li>AI clubs renew expiring contracts for players they still rate (<a href="#ai">details</a>).</li>
             <li>Contracts that didn't get renewed expire, and those players become free agents.</li>
-            <li>Retirements, usually from the mid-30s onward.</li>
             <li>Every player ages a year and develops (or declines) per the <a href="#development">development model</a>.</li>
+            <li>Retirements: veterans from the mid-30s onward, plus players nobody has signed (<a href="#development">details</a>).</li>
             <li>The youth academy delivers each club's new intake (<a href="#youth">details</a>).</li>
             <li>AI clubs sign free agents, both to fill holes and to poach any that upgrade a spot they're already stocked at, then trim their squads back to 25.</li>
             <li>The summer transfer window opens and the AI-to-AI market runs.</li>
@@ -454,9 +454,27 @@ export function Manual() {
             curve.
           </p>
           <p>
-            Retirement becomes possible at 33 and gets more likely every year after. Declining
-            veterans and marginal players go first, and a still-elite 34-year-old will often play
-            on.
+            Retirement comes down to two things: how old a player is, and whether anybody actually
+            wanted him last season. Age does most of the work. Nobody with a club retires before 33,
+            and from there it climbs every year, so even a great player eventually hangs them up.
+            But holding a squad place knocks those odds down by about 40%, which is enough that a
+            player good enough to keep his place can still be going at 39 or 40, while a fringe
+            one his age is long gone. It's never a free pass, though. There's no age at which a
+            still-brilliant veteran is safe.
+          </p>
+          <p>
+            The other half is that players nobody signs drift out of the game, at any age. Go a
+            full season unsigned and you start rolling to retire whether you're 19 or 35. Two things
+            soften that. A contract simply running out doesn't count against you, so a player always
+            gets one full free agency to find a club before it starts applying. And genuine
+            prospects are exempt: if a young player's ceiling is still high, he sticks around
+            waiting for his shot no matter how long he's been unsigned.
+          </p>
+          <p>
+            What this means for you day to day: the free agent and incoming talent lists churn.
+            Journeymen you passed on won't sit there forever, so the bargain bin is thinner and
+            older than it used to be. The genuinely promising kids stay put, so you're not on a
+            clock with those.
           </p>
           <p>
             <strong>Generational talents.</strong> Development normally gets a lot harder the better
@@ -809,6 +827,13 @@ export function Manual() {
             get to the Free Agents page, most of the good ones are gone and what's left skews toward
             squad filler and reclamation projects. A real bargain still turns up now and then, but
             it's the exception.
+          </p>
+          <p>
+            The pool also doesn't just pile up anymore. A player who goes a full season with nobody
+            signing him starts rolling to <a href="#development">retire</a>, at any age, so the
+            journeymen clear out over time instead of sitting on that page forever. Prospects with a
+            high ceiling are exempt and will wait for a club however long it takes, so this only
+            thins out the filler.
           </p>
           <p>
             <strong>Signed a free agent? You're keeping him for a season.</strong> A free agent you
