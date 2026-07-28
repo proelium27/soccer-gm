@@ -245,6 +245,28 @@ describe("offseason cycle", () => {
     expect(league.international.qualifyingHistory).toHaveLength(1);
   });
 
+  it("advancing without playing the campaign gives the same results (the Dashboard skip button)", () => {
+    const rng = mulberry32(5);
+    let league = createLeagueState(0, rng);
+    league = simThrough(league, "season", rng);
+    league = simThrough(league, "season", rng); // clear any cup-final halt
+    expect(isIntlStagePending(league.international)).toBe(true);
+
+    // Watched: play every stage by hand, then advance.
+    const watched = simOffseason(playInternational(league), mulberry32(99));
+    // Skipped: advance straight from the pending stage — simOffseason opens by
+    // playing whatever is left, on the same seeded streams.
+    const skipped = simOffseason(league, mulberry32(99));
+
+    expect(isIntlStagePending(skipped.international)).toBe(false);
+    expect(skipped.international).toEqual(watched.international);
+    // ...and the caps/goals earned land on the same players either way.
+    const caps = (l: LeagueStore) =>
+      l.players.filter((p) => (p.intl?.caps ?? 0) > 0).map((p) => [p.pid, p.intl!.caps, p.intl!.goals]);
+    expect(caps(skipped).length).toBeGreaterThan(0);
+    expect(caps(skipped)).toEqual(caps(watched));
+  });
+
   it("carries injuries from the summer's internationals into the new club season", () => {
     const rng = mulberry32(7);
     let league = createLeagueState(0, rng);

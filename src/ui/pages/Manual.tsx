@@ -330,8 +330,11 @@ export function Manual() {
             hands you the buttons: in a qualifying year you play that year's round of qualifying (one
             of three); in a World Cup year you play the group stage, then the quarter-finals, then
             the semis, then the final, one click each, so you can watch it unfold. If you'd rather
-            not linger, "Sim through the World Cup" plays the rest in one go. You can't advance into
-            the next season until that offseason's international games are done.
+            not linger, "Sim through the World Cup" plays the rest in one go and leaves you on the
+            Dashboard to read the results. And if you don't care for it at all, "Skip qualifying" /
+            "Skip the World Cup" takes you straight to the offseason. Skipping doesn't cancel
+            anything: the games are still played as you advance, on exactly the same results they'd
+            have had, and they're waiting on the National Teams pages afterwards.
           </p>
           <p>
             Every nation with enough players in the world enters qualifying. They're split into
