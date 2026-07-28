@@ -30,7 +30,10 @@ function entry(
     });
     if (compId === 0) championTidByCompId[compId] = tids[0];
   }
-  return { season, table, teamStats: [], awards, compsByTid, championTidByCompId };
+  return {
+    season, table, teamStats: [], awards, compsByTid, championTidByCompId,
+    world: { ballonDOr: [], worldTeamOfYear: [] },
+  };
 }
 
 const noAwards: SeasonAwards = { playerOfSeasonPid: null, goldenBootPid: null, teamOfSeason: [] };

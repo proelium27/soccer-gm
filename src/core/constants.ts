@@ -1362,6 +1362,191 @@ export const TOTS_GOALS_AGAINST_PENALTY: Record<"GK" | "DEF" | "MID" | "FWD", nu
 };
 
 /* ────────────────────────────────────────────────────────────────────────
+ * Worldwide awards — Ballon d'Or and World Team of the Year (core/worldAwards.ts)
+ *
+ * The per-competition awards above rank players *inside one league*. These rank
+ * the whole world against itself, which needs two things that a within-league
+ * award never does:
+ *
+ *  1. A league-strength correction. Match ratings are z-normalized within each
+ *     competition (see CLAUDE.md), so a 7.6 average in Portugal and a 7.6 in
+ *     England are NOT the same performance — each is measured against its own
+ *     league's mean. Comparing them at face value would hand the Ballon d'Or to
+ *     whoever plays in the weakest league, since dominating weak opposition is
+ *     easier. The fix is an additive offset in rating units, proportional to how
+ *     far a competition's own quality sits from the world's.
+ *  2. Credit for the two cross-league competitions. The Continental Cup and the
+ *     World Cup are the only places players from different leagues actually meet,
+ *     so they carry weight out of proportion to their game count — which is also
+ *     how the real award is voted.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** How many players the Ballon d'Or ranking keeps (the winner plus the rest of the shortlist). */
+export const BALLON_DOR_SHORTLIST = 10;
+
+/**
+ * Rating points added per point of ovr that a player's competition sits above the
+ * world average (negative below it) — the correction described above.
+ *
+ * Set from the empirical slope of avgRating against ovr *inside* one league:
+ * roughly a point of season average rating per 20 points of ovr. Because
+ * z-normalization rescales every league onto that same slope, a league whose
+ * players average N ovr below the world hands out ratings about N × this much
+ * too generously, and subtracting it back off is what puts the leagues on one
+ * scale. Do NOT think of this as a "weak leagues are worth less" penalty knob —
+ * it's a unit conversion, and inflating it past the real slope would over-correct
+ * and make a strong league's mid-table player outrank a weak league's best.
+ */
+export const WORLD_AWARD_LEAGUE_STRENGTH_WEIGHT = 0.05;
+
+/**
+ * Continental Cup goals/assists are worth this much more than league ones.
+ *
+ * **Measured at 1.0 — a cup goal is worth exactly a league goal.** The tempting
+ * intuition is that cup goals are rarer and so should count for more, and this
+ * shipped at 1.5 on exactly that reasoning. `scripts/worldAwardsAudit.ts` showed
+ * the intuition is false here: only elite attackers on the best 20 clubs in the
+ * world play the cup, so its per-game scoring rate *matches* the league's (the
+ * same player putting up 13 goals in 8 cup games and 25 in 38 league games).
+ * Paying a premium on top of that double-counts, and it handed two Ballon d'Ors
+ * in eight seasons to players who'd had a below-6.8-average league season and
+ * won on the cup alone. The cup still counts for plenty — it just counts once.
+ */
+export const WORLD_AWARD_CUP_MULTIPLIER = 1;
+
+/**
+ * Weight on (cup average rating − RATING_BASELINE). Applied with no league-
+ * strength correction, deliberately: cup ratings already normalize against the
+ * whole pooled field, making them the one directly cross-league performance
+ * number the sim produces.
+ *
+ * Kept small for the same reason the multiplier is 1.0: nine cup games must not
+ * out-swing thirty-eight league ones. The cup component as a whole is meant to
+ * span roughly 0 to 1.7, against a league component spanning about 2.4 — enough
+ * to decide a close race, never enough to overturn a clearly better season.
+ */
+export const WORLD_AWARD_CUP_RATING_WEIGHT = 0.2;
+
+/**
+ * Cup appearances needed before a player takes full credit for his club's cup
+ * run (and full weight on his cup rating). Below it, credit is pro-rated — a
+ * fourth-choice keeper who played one league-phase game doesn't get a winner's
+ * medal's worth of Ballon d'Or points.
+ */
+export const WORLD_AWARD_CUP_FULL_INVOLVEMENT = 6;
+
+/**
+ * EXTRA weight on (ovr − AWARD_OVR_BASELINE), applied by the worldwide awards
+ * only, *on top of* the AWARD_OVR_WEIGHT term already inside potyScore/totsScore.
+ * Effective world-award weight is therefore AWARD_OVR_WEIGHT + this.
+ *
+ * Why a second constant instead of just raising AWARD_OVR_WEIGHT: that one is
+ * shared with the per-competition Player of the Season, Golden Boot and Team of
+ * the Season, which are separately tuned and player-visible. Raising it would
+ * silently re-tune three existing awards to fix a fourth.
+ *
+ * There is also a real reason a *worldwide* award should lean on ovr harder
+ * than a within-league one. Every other input has been z-normalized inside its
+ * own competition; ovr is the only player number that means the same thing
+ * everywhere, which is exactly why it powers leagueStrengthOffsets too. Leaning
+ * on it across leagues is better-founded than leaning on it within one.
+ *
+ * This is the direct counterweight to the goal-scoring term. It trades "a big
+ * statline can beat a better player" (the per-league POTY's deliberate trade)
+ * for "the best player in the world usually wins the world award". Tune against
+ * the winner's world ovr rank in scripts/worldAwardsAudit.ts, and watch that the
+ * shortlist doesn't collapse into a pure ovr ranking — if the winner is the
+ * highest-ovr eligible player nearly every season, this is too high.
+ *
+ * Measured sweep, 20 seasons (2 seeds × 10). Rank is the winner's ovr rank
+ * among the ~4,300 players who appeared, at the team bonuses set below:
+ *
+ *   weight   median   mean / worst   won league   won cup   ST share
+ *   0        108      210 / 882      65%          40%       75%
+ *   0.06     56       120 / 618      70%          25%       70%
+ *   0.14     8        31 / 150       65%          15%       45%
+ *
+ * It trades directly against team achievement, and **the trade cannot be
+ * escaped by raising both.** Scaling the team bonuses up ~1.8x alongside 0.14
+ * (to 1.4 / [1.8,1,0.55,0.27] / 2.5) did restore trophies (league 80%, cup
+ * 25%) but put the ovr rank straight back to median 61 — both levers reorder
+ * the same ranking, so raising them together just cancels. Pick a point on the
+ * curve rather than trying to have both ends of it.
+ *
+ * 0.14 is chosen deliberately at the quality end. Welcome side effect: it's the
+ * only setting that meaningfully dents the striker monopoly (ST share 75%->45%,
+ * with AM/W/CM winning and a fullback taking one), because a high-ovr defender
+ * finally scores for being good instead of needing goals potyScore will never
+ * give him. That's a partial mitigation of the structural issue documented in
+ * CLAUDE.md, not a fix for it.
+ */
+export const WORLD_AWARD_OVR_WEIGHT = 0.14;
+
+/* ── Team achievement (2026-07-27) ────────────────────────────────────────
+ * The three constants below (cup run, league title, World Cup win) are the
+ * *team* side of the Ballon d'Or, as opposed to a player's own end product.
+ * They were all raised sharply on 2026-07-27 after an audit showed team
+ * success was very nearly decorative: over 20 winners the mean score split was
+ * league 10.58 / cup 0.76 / intl 0.45 / title 0.16, i.e. winning your league
+ * moved the needle less than scoring four extra goals.
+ *
+ * The useful way to size these is an exchange rate against the thing that
+ * dominates the score. A striker's league goal is worth POTY_GOAL_WEIGHT.FWD
+ * (0.08), so the values below read as: a league title ≈ 10 goals, winning the
+ * Continental Cup ≈ 12 goals, winning the World Cup ≈ 17 goals. That ordering
+ * (World Cup > Continental Cup > domestic league) is the intended hierarchy.
+ *
+ * Raising *these* is much safer than raising the cup's individual-production
+ * weights (WORLD_AWARD_CUP_MULTIPLIER, which is 1.0 for measured reasons —
+ * see its comment). A run bonus is uniform across a squad, so it can only move
+ * the award *between* clubs; it can't inflate one player above a better
+ * team-mate. The failure mode to watch when tuning is therefore not "a weak
+ * player beat his own team-mate" but "the award became a prize for being on
+ * the best team" — check the winner's world ovr rank and the share of winners
+ * coming from champion clubs in scripts/worldAwardsAudit.ts.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Bonus for how far a player's club went in the Continental Cup, indexed by
+ * rounds from the final: [0] won it, [1] lost the final, [2] out in the semis,
+ * [3] out in the quarters. Anything earlier is worth nothing beyond the
+ * per-match stats already counted. Pro-rated by involvement, so a bit-part
+ * player on the winner does not collect the full 1.0.
+ */
+export const WORLD_AWARD_CUP_RUN_BONUS: readonly number[] = [1, 0.55, 0.3, 0.15];
+
+/** Bonus for winning your own (tier-1) league, pro-rated by appearances up to WORLD_AWARD_TITLE_FULL_SEASON. */
+export const WORLD_AWARD_LEAGUE_TITLE_BONUS = 0.8;
+
+/**
+ * Appearances that count as having played a whole title-winning season — a full
+ * league campaign, every club home and away. Pro-rating against *this* rather
+ * than the AWARD_MIN_APPEARANCES eligibility bar is what makes the title bonus
+ * discriminate at all: everyone eligible for the award has already cleared that
+ * bar, so dividing by it would hand every last squad member full credit.
+ */
+export const WORLD_AWARD_TITLE_FULL_SEASON = 2 * (NUM_TEAMS - 1);
+
+/**
+ * International football, from the campaign played in the offseason directly
+ * after the season being judged. Weights are per goal / assist / cap, and the
+ * multiplier applies to a World Cup campaign over a qualifying one — a goal at
+ * the tournament counts double a goal in qualifying.
+ */
+export const WORLD_AWARD_INTL_GOAL_WEIGHT = 0.09;
+export const WORLD_AWARD_INTL_ASSIST_WEIGHT = 0.06;
+export const WORLD_AWARD_INTL_CAP_WEIGHT = 0.02;
+export const WORLD_AWARD_INTL_TOURNAMENT_MULTIPLIER = 2;
+
+/**
+ * Bonus for being in the squad that won the World Cup that offseason — the
+ * single biggest team achievement available, and the rarest (a tournament only
+ * comes round every INTL_CYCLE_YEARS seasons, so three winners in four never
+ * get the chance). See the team-achievement note above for how it was sized.
+ */
+export const WORLD_AWARD_WORLD_CUP_BONUS = 1.4;
+
+/* ────────────────────────────────────────────────────────────────────────
  * News Feed accomplishments
  * ──────────────────────────────────────────────────────────────────────── */
 

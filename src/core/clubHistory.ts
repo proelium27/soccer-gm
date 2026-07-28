@@ -25,6 +25,10 @@ export interface ClubSeasonRecord {
   goldenBootPid: number | null;
   /** This club's players selected in the season's Team of the Season. */
   teamOfSeasonPids: number[];
+  /** This club's Ballon d'Or winner that season, if any — the whole world's best player, not just this league's. */
+  ballonDOrPid: number | null;
+  /** This club's players selected in the season's World Team of the Year. */
+  worldTeamOfYearPids: number[];
   /**
    * The club's Continental Cup run this season: a short stage label plus
    * champion / runner-up flags (format-aware for Swiss and legacy cups). Null if
@@ -58,6 +62,10 @@ export interface ClubHistory {
   playerOfSeason: ClubIndividualHonour[];
   goldenBoots: ClubIndividualHonour[];
   teamOfSeasonSelections: ClubIndividualHonour[];
+  /** Seasons one of the club's players won the Ballon d'Or, newest first. */
+  ballonDOrWinners: ClubIndividualHonour[];
+  /** World Team of the Year places won by the club's players, newest first. */
+  worldTeamOfYearSelections: ClubIndividualHonour[];
   /** All-time aggregate record across every completed season. */
   totals: { played: number; won: number; drawn: number; lost: number; gf: number; ga: number };
   /** Best (lowest-numbered) finishing position ever, preferring a tier-1 finish; null if no seasons. */
@@ -127,6 +135,14 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
       ? awards.teamOfSeason.filter((pid): pid is number => belongs(pid))
       : [];
 
+    // Worldwide honours are stored once per season, not per competition, so
+    // they're filtered to this club the same way: by who was here that season.
+    const world = entry.world;
+    const ballonDOrPid = world && belongs(world.ballonDOr[0]?.pid ?? null) ? world.ballonDOr[0].pid : null;
+    const worldTeamOfYearPids = world
+      ? world.worldTeamOfYear.filter((pid): pid is number => belongs(pid))
+      : [];
+
     const cup = cupBySeason.get(entry.season);
     const cupRun = cup ? cupRunSummary(cup, tid) : null;
 
@@ -143,6 +159,8 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
       playerOfSeasonPid,
       goldenBootPid,
       teamOfSeasonPids,
+      ballonDOrPid,
+      worldTeamOfYearPids,
       cupRun,
     };
   });
@@ -204,6 +222,12 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
     goldenBoots: newest
       .filter((r) => r.goldenBootPid !== null)
       .map((r) => ({ season: r.season, compId: r.compId, pid: r.goldenBootPid! })),
+    ballonDOrWinners: newest
+      .filter((r) => r.ballonDOrPid !== null)
+      .map((r) => ({ season: r.season, compId: r.compId, pid: r.ballonDOrPid! })),
+    worldTeamOfYearSelections: newest.flatMap((r) =>
+      r.worldTeamOfYearPids.map((pid) => ({ season: r.season, compId: r.compId, pid })),
+    ),
     teamOfSeasonSelections: newest.flatMap((r) =>
       r.teamOfSeasonPids.map((pid) => ({ season: r.season, compId: r.compId, pid })),
     ),

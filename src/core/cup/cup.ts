@@ -303,6 +303,32 @@ export function cupFinalists(cup: CupState): number[] {
   return winnersOfRound(cup, koFinalRound(cup) - 1);
 }
 
+/**
+ * How far each club got, as **rounds from the final**: 0 = won it, 1 = lost the
+ * final, 2 = out in the semis, 3 = out in the quarters, and every other
+ * participant one step worse again (never reached the knockout at all).
+ *
+ * Deliberately measured backwards from the final rather than by raw round
+ * index, because the round numbering isn't the same across formats — a Swiss
+ * cup's knockout opens at the quarter-finals (round 0 = QF), a legacy bracket's
+ * at the round of 16. Counting down from the final means "out in the semis" is
+ * the same number in both.
+ */
+export function cupRoundsFromFinal(cup: CupState): Map<number, number> {
+  const finalRound = koFinalRound(cup);
+  const out = new Map<number, number>();
+  const participants = cup.leaguePhase ? cup.leaguePhase.teams : cup.teams;
+  for (const tid of participants) if (tid >= 0) out.set(tid, finalRound + 2);
+  for (const tie of cup.ties) {
+    for (const tid of [tie.home, tie.away]) {
+      const reached = finalRound - tie.round + (tid === tie.winner ? 0 : 1);
+      const best = out.get(tid);
+      if (best === undefined || reached < best) out.set(tid, reached);
+    }
+  }
+  return out;
+}
+
 /** A knockout leg due to be played: which round, which leg (0/1), and whether the round is two-legged. */
 export interface DueLeg {
   round: number;

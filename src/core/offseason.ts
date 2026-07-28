@@ -22,6 +22,7 @@ import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
 import { processLoanReturns, runAILoanMarket } from "./loans.js";
 import { computeStandings, computeTeamSeasonStats, type StandingsRow } from "./standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
+import { computeWorldAwards } from "./worldAwards.js";
 import { buildCupState } from "./cup/cup.js";
 import { computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence } from "./promotion.js";
 import { generateSchedule } from "./schedule.js";
@@ -166,6 +167,26 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   }
   const standings = league.competitions.flatMap((comp) => tablesByCompId.get(comp.id)!);
   const teamStats = computeTeamSeasonStats(teams.map((t) => t.tid), league.played);
+  const championTidByCompId: Record<number, number> = Object.fromEntries(
+    league.competitions.filter((c) => c.tier === 1).map((c) => [c.id, tablesByCompId.get(c.id)![0].tid]),
+  );
+
+  // 3.6. Worldwide honors — the Ballon d'Or ranking and the World Team of the
+  //      Year — scored across every competition at once. Computed here rather
+  //      than up with the per-competition awards because it needs the tables
+  //      (who won their league) as well as the players; like those, it reads
+  //      `league.players`, untouched by the progression above, so it judges the
+  //      season on the ratings it was actually played with. It also needs the
+  //      cup that ran *during* this season (archived a few steps below) and the
+  //      international campaign already played at the top of this function.
+  const world = computeWorldAwards(league.players, endingSeason, {
+    compsByTid,
+    competitions: league.competitions,
+    championTidByCompId,
+    cup: league.cup,
+    worldCupChampion:
+      league.international.history.find((h) => h.season === endingSeason)?.champion ?? null,
+  });
 
   const settle = (rows: StandingsRow[], compId: number): void => {
     const scale = financeScale(league.competitions, compId);
@@ -437,12 +458,9 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
         table: standings,
         teamStats,
         awards,
+        world,
         compsByTid,
-        championTidByCompId: Object.fromEntries(
-          league.competitions
-            .filter((c) => c.tier === 1)
-            .map((c) => [c.id, tablesByCompId.get(c.id)![0].tid]),
-        ),
+        championTidByCompId,
       },
     ],
   };

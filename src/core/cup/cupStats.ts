@@ -24,6 +24,16 @@ export interface CupStatLine {
   tackles: number;
   interceptions: number;
   minutesPlayed: number;
+  /**
+   * Sum of match ratings over appearances with minutes played; divide by
+   * `ratedAppearances` for the average. Worth more than a league average
+   * rating for cross-league comparison: cup matches normalize against the
+   * whole 20-club field pooled together (see simThrough's cupMatchData), so a
+   * 7.5 in the cup means the same thing whichever league the player comes from.
+   */
+  ratingSum: number;
+  /** Appearances that had minutes and so contributed to `ratingSum`. */
+  ratedAppearances: number;
 }
 
 /** A stored, pre-aggregated cup line — what an archived cup keeps instead of box scores. */
@@ -35,7 +45,13 @@ function emptyLine(season: number): CupStatLine {
   return {
     season, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0,
     saves: 0, goalsAgainst: 0, tackles: 0, interceptions: 0, minutesPlayed: 0,
+    ratingSum: 0, ratedAppearances: 0,
   };
+}
+
+/** Average cup match rating, or null when he never played a minute. */
+export function cupAvgRating(line: CupStatLine): number | null {
+  return line.ratedAppearances > 0 ? line.ratingSum / line.ratedAppearances : null;
 }
 
 function addLine(into: CupStatLine, l: BoxScore["home"][number]): void {
@@ -49,6 +65,13 @@ function addLine(into: CupStatLine, l: BoxScore["home"][number]): void {
   into.tackles += l.tackles;
   into.interceptions += l.interceptions;
   into.minutesPlayed += l.minutesPlayed;
+  // Must be accumulated here, not only at read time: archiveCup folds box
+  // scores into statLines and then deletes them, so anything addLine misses is
+  // gone from that cup forever. The worldwide awards read cup ratings.
+  if (l.minutesPlayed > 0 && Number.isFinite(l.rating)) {
+    into.ratingSum += l.rating;
+    into.ratedAppearances++;
+  }
 }
 
 /**
@@ -116,6 +139,41 @@ export function cupStatsForPlayer(cup: CupState, pid: number): CupStatLine {
     }
   }
   return line;
+}
+
+/**
+ * The same totals as cupStatsForPlayer, for every player at once, keyed by pid
+ * — so a whole-world award pass doesn't re-scan every box score once per player.
+ *
+ * Reads the stored aggregate on an archived cup, exactly like cupStatsForPlayer.
+ * That branch is load-bearing rather than an optimisation: archiveCup drops the
+ * box scores, so summing them here would silently score every archived season's
+ * cup as zero — which is precisely what the worldwide awards read when
+ * migrate.ts backfills past seasons.
+ */
+export function cupStatsByPid(cup: CupState): Map<number, CupStatLine> {
+  const lines = new Map<number, CupStatLine>();
+  if (cup.statLines !== null && cup.statLines !== undefined) {
+    for (const { pid, ...line } of cup.statLines) {
+      // Lines aggregated before ratings were tracked have neither field;
+      // default them so cupAvgRating reports "no rating" rather than NaN.
+      lines.set(pid, { ...line, ratingSum: line.ratingSum ?? 0, ratedAppearances: line.ratedAppearances ?? 0 });
+    }
+    return lines;
+  }
+  for (const box of boxScoresOf(cup)) {
+    for (const side of [box.home, box.away]) {
+      for (const l of side) {
+        let line = lines.get(l.pid);
+        if (!line) {
+          line = emptyLine(cup.season);
+          lines.set(l.pid, line);
+        }
+        addLine(line, l);
+      }
+    }
+  }
+  return lines;
 }
 
 /**

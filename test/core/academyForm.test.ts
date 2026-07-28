@@ -23,6 +23,7 @@ function historyEntry(
     table: tables.flatMap((t) => table(t.tids)),
     teamStats: [],
     awards: {},
+    world: { ballonDOr: [], worldTeamOfYear: [] },
     compsByTid,
     championTidByCompId: {},
   };
