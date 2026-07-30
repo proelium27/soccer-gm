@@ -33,7 +33,7 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    date: "2026-07-28",
+    date: "2026-07-30",
     title: "Retirement now depends on whether anyone actually wanted you",
     items: [
       "Retirement was embarrassingly simple before this and I don't think many people noticed, which is sort of the problem. It was pure age. Nobody could retire before 33, and after that everyone rolled the same dice. A 33-year-old who was the best player in your league and a 33-year-old who couldn't get off the bench had exactly the same chance of packing it in. How good you were never entered into it at all.",
