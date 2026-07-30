@@ -407,7 +407,8 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                   <Link to={league.international.stage === "qualifying" ? "/national-teams/qualifying" : "/national-teams/world-cup"}>
                     National Teams
                   </Link>{" "}
-                  pages. You'll advance to {seasonYear(league.season + 1)} once it wraps up.
+                  pages. You'll advance to {seasonYear(league.season + 1)} once it wraps up, or you
+                  can skip it and go straight to the offseason.
                 </p>
                 <div className="d-flex flex-wrap gap-2">
                   <button
@@ -426,7 +427,28 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                       Sim through the {INTL_TOURNAMENT_NAME}
                     </button>
                   )}
+                  {/*
+                    Skip: go straight to the offseason without watching any of
+                    this. Nothing is thrown away — the advance itself plays out
+                    every stage the user left unplayed (simOffseason opens with
+                    simThroughInternational), on the same seeded streams, so the
+                    results are identical to having clicked through them and are
+                    waiting on the National Teams pages afterwards.
+                  */}
+                  <button
+                    className="btn btn-outline-secondary"
+                    disabled={simming}
+                    onClick={() => navigate("/set-scouting")}
+                  >
+                    {league.international.stage === "qualifying"
+                      ? "Skip qualifying"
+                      : `Skip the ${INTL_TOURNAMENT_NAME}`}
+                  </button>
                 </div>
+                <p className="card-text text-muted small mt-2 mb-0">
+                  Skipping still plays the games out, you just don't watch them. The results will be
+                  on the National Teams pages when you get there.
+                </p>
               </>
             ) : (
               <>
