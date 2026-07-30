@@ -3,11 +3,16 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { generatePlayer } from "../../src/core/players/generate.js";
 import {
   ageOf, progressPlayer, retirementProbability, rollRetirement, estimatePotential,
-  isGenerational,
+  isGenerational, isWantedForRetirement,
 } from "../../src/core/players/progression.js";
 import { computeOvr } from "../../src/core/players/ovr.js";
 import type { Player, PlayerRatings } from "../../src/core/players/types.js";
-import { RETIREMENT_START_AGE, RATING_MAX } from "../../src/core/constants.js";
+import {
+  RETIREMENT_START_AGE, RATING_MAX, RETIREMENT_UNROSTERED_BASE, RETIREMENT_MAX_PROB,
+  RETIREMENT_PROSPECT_POT_THRESHOLD, FREE_AGENT_CULL_MAX_POT,
+  RETIREMENT_PROSPECT_MAX_AGE, FREE_AGENT_CULL_MIN_AGE,
+  RETIREMENT_BASE_PROB, RETIREMENT_PROB_PER_YEAR,
+} from "../../src/core/constants.js";
 
 const flatRatings = (v: number): PlayerRatings => ({
   speed: v, strength: v, stamina: v, jumping: v, shortPass: v, longPass: v,
@@ -246,21 +251,135 @@ describe("progressPlayer", () => {
 });
 
 describe("retirementProbability", () => {
-  it("is zero below the retirement start age", () => {
-    expect(retirementProbability(RETIREMENT_START_AGE - 1)).toBe(0);
+  it("is zero below the retirement start age for a rostered player", () => {
+    expect(retirementProbability(RETIREMENT_START_AGE - 1, true)).toBe(0);
   });
   it("increases with age past the start age", () => {
-    const a = retirementProbability(RETIREMENT_START_AGE);
-    const b = retirementProbability(RETIREMENT_START_AGE + 5);
+    const a = retirementProbability(RETIREMENT_START_AGE, true);
+    const b = retirementProbability(RETIREMENT_START_AGE + 5, true);
     expect(b).toBeGreaterThan(a);
+  });
+
+  // The rework: roster status scales the curve, age still shapes it.
+  it("gives an unrostered player a real chance at any age", () => {
+    // A 20-year-old nobody signed drifts out of the game; a rostered one can't.
+    expect(retirementProbability(20, false)).toBeCloseTo(RETIREMENT_UNROSTERED_BASE, 10);
+    expect(retirementProbability(20, true)).toBe(0);
+  });
+  it("always retires an unrostered player faster than a rostered one of the same age", () => {
+    for (let age = 18; age <= 42; age++) {
+      expect(retirementProbability(age, false)).toBeGreaterThan(
+        retirementProbability(age, true),
+      );
+    }
+  });
+  it("damps but never zeroes a rostered veteran, so age still dominates", () => {
+    // The "good enough to play till 40" ask: still a live career at 39-40,
+    // but never a free pass — the probability keeps climbing.
+    const at39 = retirementProbability(39, true);
+    expect(at39).toBeGreaterThan(0);
+    expect(at39).toBeLessThan(1);
+    expect(retirementProbability(40, true)).toBeGreaterThan(at39);
+  });
+  it("never exceeds the cap", () => {
+    for (const rostered of [true, false]) {
+      for (let age = 16; age <= 60; age++) {
+        expect(retirementProbability(age, rostered)).toBeLessThanOrEqual(RETIREMENT_MAX_PROB);
+      }
+    }
   });
 });
 
 describe("rollRetirement", () => {
-  it("never retires a young player", () => {
+  it("never retires a young rostered player", () => {
     const rng = mulberry32(1);
     const p = generatePlayer(rng, "ST", 55, 1, 21, 1);
-    expect(rollRetirement(rng, p, 1)).toBe(false);
+    expect(rollRetirement(rng, p, 1, true)).toBe(false);
+  });
+  it("defaults to the rostered curve when roster status is not passed", () => {
+    const p = generatePlayer(mulberry32(1), "ST", 55, 1, 21, 1);
+    expect(rollRetirement(() => 0.0001, p, 1)).toBe(false);
+  });
+  it("retires young unrostered players at roughly the unrostered base rate", () => {
+    const rng = mulberry32(9);
+    // Pin potential at the threshold so the prospect exemption doesn't apply —
+    // a generated player's own ceiling could land either side of it.
+    const p = {
+      ...generatePlayer(mulberry32(1), "ST", 55, 1, 21, 1),
+      potential: RETIREMENT_PROSPECT_POT_THRESHOLD,
+    };
+    let retired = 0;
+    const N = 4000;
+    for (let i = 0; i < N; i++) {
+      if (rollRetirement(rng, p, 1, false)) retired++;
+    }
+    expect(retired / N).toBeCloseTo(RETIREMENT_UNROSTERED_BASE, 1);
+  });
+  it("spares an unrostered kid whose ceiling is still high", () => {
+    // The exemption: a high-potential prospect between clubs must not wash out
+    // at the same rate as a journeyman nobody will ever sign.
+    const kid = {
+      ...generatePlayer(mulberry32(1), "ST", 45, 1, 17, 1),
+      potential: RETIREMENT_PROSPECT_POT_THRESHOLD + 15,
+    };
+    const journeyman = {
+      ...generatePlayer(mulberry32(1), "ST", 45, 2, 17, 1),
+      potential: RETIREMENT_PROSPECT_POT_THRESHOLD,
+    };
+    // rng returns just under the unrostered base: enough to retire the
+    // journeyman, while the prospect is on the damped curve (zero at 17).
+    const draw = () => RETIREMENT_UNROSTERED_BASE - 0.01;
+    expect(rollRetirement(draw, journeyman, 1, false)).toBe(true);
+    expect(rollRetirement(draw, kid, 1, false)).toBe(false);
+  });
+  it("does not spare an unrostered player whose ceiling is at or below the threshold", () => {
+    const p = {
+      ...generatePlayer(mulberry32(1), "ST", 45, 1, 17, 1),
+      potential: RETIREMENT_PROSPECT_POT_THRESHOLD,
+    };
+    expect(isWantedForRetirement(p, false, 17)).toBe(false);
+    expect(isWantedForRetirement(p, true, 17)).toBe(true);
+  });
+  it("does not let the prospect exemption spare an unsigned veteran", () => {
+    // estimatePotential never returns less than current ovr, so a good older
+    // player always clears the potential bar. Without the age bound he'd be
+    // exempted onto the damped curve and retire LESS than under the old
+    // age-only model, which is backwards.
+    const vet = {
+      ...generatePlayer(mulberry32(1), "ST", 70, 1, 37, 1),
+      potential: RETIREMENT_PROSPECT_POT_THRESHOLD + 10,
+    };
+    expect(isWantedForRetirement(vet, false, 37)).toBe(false);
+    // ...and he must retire at least as fast as the old age-only curve did.
+    const oldModel = RETIREMENT_BASE_PROB
+      + (37 - RETIREMENT_START_AGE) * RETIREMENT_PROB_PER_YEAR;
+    expect(retirementProbability(37, false)).toBeGreaterThan(oldModel);
+  });
+  it("applies the exemption right up to, but not at, the age bound", () => {
+    const kid = {
+      ...generatePlayer(mulberry32(1), "ST", 60, 1, 20, 1),
+      potential: RETIREMENT_PROSPECT_POT_THRESHOLD + 10,
+    };
+    expect(isWantedForRetirement(kid, false, RETIREMENT_PROSPECT_MAX_AGE - 1)).toBe(true);
+    expect(isWantedForRetirement(kid, false, RETIREMENT_PROSPECT_MAX_AGE)).toBe(false);
+  });
+  it("keeps the prospect exemption pinned to the pool cull's own bounds", () => {
+    // Both bounds are shared with the cull so the pair can't drift apart on
+    // either axis. This is NOT a claim that the two are fully complementary:
+    // the cull additionally spares career peak > FREE_AGENT_CULL_MAX_PEAK_OVR,
+    // which retirement deliberately ignores (an unsigned ex-good 30-year-old
+    // should retire). It only pins the two axes they do share.
+    expect(RETIREMENT_PROSPECT_POT_THRESHOLD).toBe(FREE_AGENT_CULL_MAX_POT);
+    expect(RETIREMENT_PROSPECT_MAX_AGE).toBe(FREE_AGENT_CULL_MIN_AGE);
+  });
+  it("consumes exactly one rng draw either way, keeping stream order stable", () => {
+    const p = generatePlayer(mulberry32(1), "ST", 55, 1, 21, 1);
+    for (const rostered of [true, false]) {
+      let draws = 0;
+      const rng = () => { draws++; return 0.5; };
+      rollRetirement(rng, p, 40, rostered);
+      expect(draws).toBe(1);
+    }
   });
 });
 

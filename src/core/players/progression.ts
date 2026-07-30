@@ -14,6 +14,8 @@ import {
   POTENTIAL_SIM_TRIALS, POTENTIAL_SIM_MAX_AGE, POTENTIAL_SIM_PERCENTILE,
   RATING_MIN, RATING_MAX,
   RETIREMENT_START_AGE, RETIREMENT_BASE_PROB, RETIREMENT_PROB_PER_YEAR,
+  RETIREMENT_ROSTERED_DAMPING, RETIREMENT_UNROSTERED_BASE, RETIREMENT_MAX_PROB,
+  RETIREMENT_PROSPECT_POT_THRESHOLD, RETIREMENT_PROSPECT_MAX_AGE,
 } from "../constants.js";
 
 /** Salt distinguishing this hash use from other pid-keyed hashes (e.g. identity rng). */
@@ -252,20 +254,62 @@ export function progressPlayer(
   };
 }
 
-/** Retirement probability: 0 below RETIREMENT_START_AGE, climbing per year after. */
-export function retirementProbability(age: number): number {
-  if (age < RETIREMENT_START_AGE) return 0;
+/**
+ * Retirement probability for one offseason. Age sets the curve's shape,
+ * `wanted` sets its scale — see the `RETIREMENT_*` block in constants.ts for
+ * why roster status is (almost) the whole quality signal and why it has to be
+ * read from last season rather than live.
+ *
+ * A wanted player gets the age curve damped but never zeroed; an unwanted one
+ * gets a flat per-season chance at any age on top of the undamped curve, so
+ * players nobody will sign drift out of the game instead of accumulating in
+ * the free-agent pool forever.
+ */
+export function retirementProbability(age: number, wanted = true): number {
+  const ageTerm = age < RETIREMENT_START_AGE
+    ? 0
+    : RETIREMENT_BASE_PROB + (age - RETIREMENT_START_AGE) * RETIREMENT_PROB_PER_YEAR;
   return Math.min(
-    0.95,
-    RETIREMENT_BASE_PROB + (age - RETIREMENT_START_AGE) * RETIREMENT_PROB_PER_YEAR,
+    RETIREMENT_MAX_PROB,
+    wanted
+      ? ageTerm * RETIREMENT_ROSTERED_DAMPING
+      : RETIREMENT_UNROSTERED_BASE + ageTerm,
   );
 }
 
-/** Roll whether a player retires at the end of the given season. */
+/**
+ * Whether retirement treats this player as wanted: a club rostered him last
+ * season, or he's young enough and high-ceilinged enough that one plainly will.
+ * The second clause stops a high-ceiling teenager who happens to be between
+ * clubs from washing out at journeyman rates.
+ *
+ * The age bound is essential, not cosmetic: `estimatePotential` never returns
+ * less than current ovr, so without it every unsigned player above ovr 65 —
+ * veterans included — would be exempted onto the damped curve and retire *less*
+ * than under the old age-only model. See `RETIREMENT_PROSPECT_MAX_AGE`.
+ */
+export function isWantedForRetirement(
+  player: Player,
+  rostered: boolean,
+  age: number,
+): boolean {
+  return rostered
+    || (age < RETIREMENT_PROSPECT_MAX_AGE
+      && player.potential > RETIREMENT_PROSPECT_POT_THRESHOLD);
+}
+
+/**
+ * Roll whether a player retires at the end of the given season. Consumes
+ * exactly one `rng()` draw whether or not he's rostered, so the shared stream's
+ * draw *count* is unchanged from the age-only version (the outcomes move, of
+ * course — that's the point).
+ */
 export function rollRetirement(
   rng: () => number,
   player: Player,
   season: number,
+  rostered = true,
 ): boolean {
-  return rng() < retirementProbability(ageOf(player, season));
+  const age = ageOf(player, season);
+  return rng() < retirementProbability(age, isWantedForRetirement(player, rostered, age));
 }

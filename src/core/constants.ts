@@ -583,10 +583,105 @@ export const POTENTIAL_SIM_TRIALS = 16;
 export const POTENTIAL_SIM_MAX_AGE = 40;
 export const POTENTIAL_SIM_PERCENTILE = 0.75;
 
-/** Retirement: no chance before this age; probability climbs per year after. */
+/**
+ * Retirement (reworked 2026-07-28 — was age-only). Two inputs: **age** sets
+ * the shape of the curve, **whether a club rostered him last season** sets its
+ * scale. Nothing else — not ovr, not potential, not minutes. Roster status is
+ * deliberately the whole quality signal, because the AI market already sorts
+ * wanted from unwanted every offseason (renewals, free agency, quality
+ * poaching, `trimRosterSurplus`), so "good enough to still be playing at 39"
+ * falls out of it without a second quality term to tune or to drift.
+ *
+ * The age curve is unchanged: nothing below `RETIREMENT_START_AGE`, then
+ * `RETIREMENT_BASE_PROB` climbing by `RETIREMENT_PROB_PER_YEAR` each year.
+ * From there:
+ *
+ * - **Rostered** last season → the age curve scaled by
+ *   `RETIREMENT_ROSTERED_DAMPING`. Damped, never zeroed: age still dominates,
+ *   so even a wanted 39-year-old has a real chance of hanging them up. At 0.6
+ *   a continuously-rostered player's median retirement lands ~37 and ~12% are
+ *   still going at 40 (vs ~1% past 39 under the old age-only curve).
+ * - **Unrostered** last season → `RETIREMENT_UNROSTERED_BASE` at *any* age,
+ *   plus the undamped age curve on top. This is the half of the rework that
+ *   matters most: before it, a player nobody ever signed sat in the free-agent
+ *   pool from 16 until he hit 33 and only then began rolling, so every
+ *   season's youth-intake surplus accumulated there permanently. Now he drifts
+ *   out of the game instead.
+ * - **Unrostered but still a prospect** (*under*
+ *   `RETIREMENT_PROSPECT_MAX_AGE` **and** potential above
+ *   `RETIREMENT_PROSPECT_POT_THRESHOLD`) → treated as wanted, i.e. back onto
+ *   the damped curve. Without this, a 17-year-old at ovr 45 with a ceiling of
+ *   80 washes out at the same rate as a journeyman nobody will ever sign,
+ *   which throws away exactly the players `/incoming-talent` exists to surface.
+ *   It is the *one* place quality enters retirement directly rather than
+ *   through roster status.
+ *
+ *   **The age bound is load-bearing, not decoration.** `estimatePotential`
+ *   seeds its simulated peak at the player's current ovr and only ever raises
+ *   it, so `potential >= ovr` *always* holds. Without an age gate the
+ *   exemption therefore catches every unrostered player above ovr 65 — a
+ *   released 37-year-old on ovr 70 included — and hands him the *damped*
+ *   curve, which at 37 is 0.318 against 0.53 on the old age-only model. That
+ *   is backwards: it would make good unsigned veterans retire ~40% *less* than
+ *   before the rework, and leave the ovr-66+ slice of the pool as the one
+ *   population nothing removes (the cull spares it too, on
+ *   `FREE_AGENT_CULL_MAX_PEAK_OVR`). The bound keeps the exemption meaning
+ *   "prospect", which is all it was ever for.
+ *
+ *   Both bounds are pinned to the pool cull's own constants rather than given
+ *   their own numbers, so the two mechanics can't drift apart on either axis.
+ *   They are **not** fully complementary even so: the cull additionally spares
+ *   career peak > `FREE_AGENT_CULL_MAX_PEAK_OVR`, which retirement ignores on
+ *   purpose — an unsigned ex-good 30-year-old *should* retire. Note this reads
+ *   the stored scout estimate, same as the cull does (the fog on `/roster` is a
+ *   UI layer, not a different number), *after* step 2 has recomputed it.
+ *
+ * "Rostered" means **last season**, not the live roster at the moment of the
+ * roll — retirement is offseason step 3, but step 1 has already dumped every
+ * expired contract into the free pool and AI free agency doesn't re-sign
+ * anyone until step 4, so a live read would retire a crowd of players who were
+ * about to be re-signed. `simOffseason` snapshots roster membership before
+ * step 1 (see there). A useful side effect: a player whose contract just
+ * expired gets one full offseason of grace to find a club before the unrostered
+ * rate applies to him.
+ *
+ * No "seasons out of the game" counter — one roll per season compounds on its
+ * own (survive unsigned, roll again next year), so washing out is emergent
+ * with no persisted field and no migration.
+ *
+ * `RETIREMENT_UNROSTERED_BASE` is the pool-size lever: raise it and the
+ * free-agent bargain bin thins out (and AI clubs have less to sign from at
+ * step 4 — audit roster fill, not just pool size, before moving it).
+ */
 export const RETIREMENT_START_AGE = 33;
 export const RETIREMENT_PROB_PER_YEAR = 0.12;
 export const RETIREMENT_BASE_PROB = 0.05;
+export const RETIREMENT_ROSTERED_DAMPING = 0.6;
+export const RETIREMENT_UNROSTERED_BASE = 0.35;
+export const RETIREMENT_MAX_PROB = 0.95;
+/**
+ * Unrostered players *under* `RETIREMENT_PROSPECT_MAX_AGE` with potential
+ * *above* `RETIREMENT_PROSPECT_POT_THRESHOLD` are spared the unrostered rate
+ * and fall back to the damped curve. Both are pinned to the pool cull's own
+ * constants on purpose — see the discussion above before changing either, and
+ * note the age bound is what stops the exemption swallowing every unsigned
+ * veteran above ovr 65.
+ */
+export const RETIREMENT_PROSPECT_POT_THRESHOLD = FREE_AGENT_CULL_MAX_POT;
+export const RETIREMENT_PROSPECT_MAX_AGE = FREE_AGENT_CULL_MIN_AGE;
+
+/**
+ * How many retirees the Season Preview names (`RetirementSummary.notable`).
+ *
+ * Both a display cap and a save-size cap, because the list is persisted on the
+ * season-history entry — the players themselves are deleted, so a snapshot is
+ * the only record left. Thousands of unsigned players now leave the game every
+ * offseason, and storing all of them would grow the save forever and put an
+ * unbounded table on the page: the two failure modes behind the 88 MB save and
+ * the `/transfers` freeze respectively. The headline `total` carries the real
+ * number, so nothing is misreported by keeping this small.
+ */
+export const RETIREMENT_NOTABLE_LIMIT = 15;
 
 /**
  * Wages (2026-07-11 rework, replacing the flat 20k-per-ovr placeholder;

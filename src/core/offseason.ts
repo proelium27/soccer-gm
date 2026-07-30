@@ -8,9 +8,11 @@ import type { NewsEvent } from "./newsEvents.js";
 import { generateYouthIntake } from "./players/youth.js";
 import { computeAcademyFormModifiers } from "./players/academyForm.js";
 import { cullFreeAgentPool } from "./players/freeAgentCull.js";
+import { summarizeRetirements } from "./players/retirements.js";
 import { archiveCup } from "./cup/archive.js";
 import {
   releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
+  freeAgentPids,
 } from "./freeAgency.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { FREE_AGENT_TID, isFreeAgentTid } from "./transfers/negotiation.js";
@@ -88,6 +90,28 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   // where.
   const compsByTid: Record<number, number> = {};
   for (const t of league.teams) compsByTid[t.tid] = t.compId;
+
+  // Who a club actually rostered *last season*, snapshotted here because it is
+  // the quality signal retirement reads at step 3 — and by then step 1 has
+  // released every expired contract into the free pool while step 4 hasn't
+  // re-signed anyone yet, so a live read would retire a crowd of players who
+  // were about to be picked back up. Taken from the pre-step-1 `league.teams`
+  // and `league.activeLoans`, and via `freeAgentPids` so academy players and
+  // players out on loan count as rostered (they are, just not by their parent
+  // club). Grace is deliberate: a contract expiring at the end of last season
+  // still leaves him "rostered" for this offseason's roll, so he gets one full
+  // free agency to find a club before the unrostered rate starts applying.
+  const unrosteredLastSeason = freeAgentPids(league.teams, league.players, league.activeLoans);
+  // Which club, for the same reason and off the same pre-step-1 rosters: a
+  // retiring player's last club is what the Season Preview names him under, and
+  // reading it after step 1 would file a fifteen-year club legend whose contract
+  // just ran out as a free agent on his way out the door. A player out on loan
+  // maps to the club that fielded him last season (wages key off roster
+  // membership, so that is where he was), not his parent club.
+  const tidLastSeason = new Map<number, number>();
+  for (const t of league.teams) {
+    for (const pid of [...t.roster, ...t.academyRoster]) tidLastSeason.set(pid, t.tid);
+  }
   const awards = awardsByCompetition(league.players, league.teams, league.competitions, endingSeason);
 
   // 0. Proactive AI contract renewals (cross-division: a club's own player,
@@ -128,15 +152,48 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     return progressed.injury ? { ...progressed, injury: null } : progressed;
   });
 
-  // 3. Roll retirement; drop retirees from rosters and the player pool.
-  const retiredPids = new Set(
-    players.filter((p) => rollRetirement(rng, p, endingSeason)).map((p) => p.pid),
+  // 3. Roll retirement; drop retirees from rosters and the player pool. Age
+  //    sets the odds, last season's roster status scales them: a player a club
+  //    wanted retires slowly, one nobody rostered drifts out of the game at any
+  //    age (see the RETIREMENT_* block in constants.ts). One rng draw per
+  //    player either way, so the shared stream's draw count is unchanged.
+  //    The retirees are captured (not just their pids) because they are about to
+  //    be deleted from the save entirely: the Season Preview's farewell list is
+  //    built from this snapshot, since nothing can be looked up afterwards.
+  const retirees = players.filter((p) =>
+    rollRetirement(rng, p, endingSeason, !unrosteredLastSeason.has(p.pid)));
+  const retiredPids = new Set(retirees.map((p) => p.pid));
+  const retirements = summarizeRetirements(
+    retirees, endingSeason, tidLastSeason, league.meta.userTid,
   );
   players = players.filter((p) => !retiredPids.has(p.pid));
   teams = teams.map((t) => ({
     ...t,
     roster: t.roster.filter((pid) => !retiredPids.has(pid)),
+    academyRoster: t.academyRoster.filter((pid) => !retiredPids.has(pid)),
   }));
+  // Retirement deletes the player outright, so any *live* state still pointing
+  // at him is now referring to somebody who doesn't exist: an open negotiation,
+  // an inbound offer to buy him, a loan listing, or an active loan whose return
+  // would otherwise hand a dead pid back to its parent club next rollover
+  // (`processLoanReturns` appends it blindly and logs a phantom transfer). The
+  // pool cull scrubs exactly this set for the players it deletes; retirement
+  // needs it too, and needs it more now that it can fire below 33.
+  //
+  // Historical records (`transfers`, `newsEvents`, cup box scores) are
+  // deliberately NOT scrubbed: unlike a culled nobody, a retiree had a real
+  // career and his transfer history is the record of it. That does leave those
+  // rows rendering as "Player <pid>" once he's gone, which is pre-existing
+  // behaviour on main rather than something this change introduces — see the
+  // retirement section of CLAUDE.md.
+  activeLoans = activeLoans.filter((l) => !retiredPids.has(l.pid));
+  const liveRefsScrubbed = {
+    negotiations: league.negotiations.filter((n) => !retiredPids.has(n.pid)),
+    inboundOffers: league.inboundOffers.filter((o) => !retiredPids.has(o.pid)),
+    loanListings: league.loanListings.filter((l) => !retiredPids.has(l.pid)),
+    loanRejections: league.loanRejections.filter((l) => !retiredPids.has(l.pid)),
+  };
+  league = { ...league, ...liveRefsScrubbed };
 
   // 3.05. Carry any injuries picked up at the summer's internationals into the
   //       new club season — a World Cup injury genuinely sidelines a player for
@@ -461,6 +518,9 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
         world,
         compsByTid,
         championTidByCompId,
+        // Snapshotted at step 3 above, because the players it names no longer
+        // exist by the time anything renders it.
+        retirements,
       },
     ],
   };

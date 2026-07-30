@@ -42,6 +42,11 @@ export function SeasonPreview() {
     .slice(0, TOP_N);
 
   const teamsByTid = new Map(league.teams.map((t) => [t.tid, t]));
+  // The offseason that produced this preview retired players at the end of the
+  // *previous* season, which is the history entry it wrote them onto. Matched by
+  // season rather than taking the last entry, so a save mid-rollover can't show
+  // the wrong offseason's farewells.
+  const retirements = league.seasonHistory.find((h) => h.season === league.season - 1)?.retirements;
   const topTransfers = league.transfers
     // Free signings (fee 0, from the free-agent sentinel) aren't "top" anything
     // — the biggest-fee deals are what belongs in a season preview.
@@ -154,6 +159,60 @@ export function SeasonPreview() {
             })}
           </tbody>
         </table>
+      )}
+
+      <h5 className="mt-4">Retirements</h5>
+      {!retirements ? (
+        <p className="text-muted">
+          No retirement record for this offseason. This save is from before the game started keeping one.
+        </p>
+      ) : retirements.total === 0 ? (
+        <p className="text-muted">Nobody hung up their boots this offseason.</p>
+      ) : (
+        <>
+          <p className="text-muted small">
+            {retirements.total} {retirements.total === 1 ? "player" : "players"} retired, {retirements.rostered} of
+            them on a club's books. Here are the biggest names to go.
+          </p>
+          <table className="table table-striped table-sm">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Pos</th>
+                <th className="text-end">Age</th>
+                <th>Last club</th>
+                <th className="text-end">OVR</th>
+                <th className="text-end">Seasons</th>
+                <th className="text-end">Apps</th>
+                <th className="text-end">G</th>
+                <th className="text-end">A</th>
+                <th className="text-end">Caps</th>
+              </tr>
+            </thead>
+            <tbody>
+              {retirements.notable.map((r) => (
+                <tr key={r.pid} className={r.tid === league.meta.userTid ? "team-highlight" : undefined}>
+                  {/* No profile link: a retiree is deleted from the save, so his page would have nothing to show. */}
+                  <td>
+                    <span className="d-inline-flex align-items-center gap-1">
+                      <Flag nationality={r.nationality} />
+                      {r.name}
+                    </span>
+                  </td>
+                  <td>{r.pos}</td>
+                  <td className="text-end">{r.age}</td>
+                  <td>{r.tid === null ? <span className="text-muted">Free agent</span> : teamsByTid.get(r.tid)?.name ?? "—"}</td>
+                  <td className="text-end">{r.ovr}</td>
+                  <td className="text-end">{r.seasonsPlayed}</td>
+                  <td className="text-end">{r.appearances}</td>
+                  <td className="text-end">{r.goals}</td>
+                  <td className="text-end">{r.assists}</td>
+                  <td className="text-end">{r.caps}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
 
       <Link to="/awards" className="btn btn-primary mt-2">
