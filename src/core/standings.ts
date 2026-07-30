@@ -1,6 +1,7 @@
 import type { BoxScore, PlayerMatchLine } from "../engine/attribution.js";
 import type { SeasonAwards } from "./awards.js";
 import type { WorldAwards } from "./worldAwards.js";
+import type { RetirementSummary } from "./players/retirements.js";
 
 export interface MatchScore {
   home: number;
@@ -61,6 +62,16 @@ export interface SeasonHistoryEntry {
   compsByTid: Record<number, number>;
   /** Each tier-1 competition's champion, keyed by compId. */
   championTidByCompId: Record<number, number>;
+  /**
+   * Who retired in the offseason that followed this season — a count plus the
+   * notable names, snapshotted because retirement deletes the players.
+   *
+   * Optional and never backfilled: a save written before the record existed has
+   * no way to reconstruct who left (they were deleted without a trace), so
+   * those seasons show nothing rather than a fabricated list. See
+   * core/players/retirements.ts.
+   */
+  retirements?: RetirementSummary;
 }
 
 /** Sum each club's box-score lines across a season's played matches. */

@@ -141,7 +141,7 @@ export function Manual() {
             <li><strong>Stat Leaders</strong>. A Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, passes, crosses, fouls, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or by individual seasons, where every season a player recorded is its own row, so one man can hold several places on the board at once) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since). Match rating is an average rather than a running total, so to keep a one-off cameo from topping the chart a player needs to have appeared in at least half of the games played so far before he shows up on the match-rating board (a threshold that scales as the season goes, so it works ten games in as well as at the end).</li>
             <li><strong>Awards</strong>. Two tabs. World gives the Ballon d'Or for the best player in the world that season (with a top-10 shortlist and a breakdown of where his points came from) and a World Team of the Year pitch view. By league gives Player of the Season, the Golden Boot, and a Team of the Season pitch view for one competition. Both have a dropdown to browse past years.</li>
             <li><strong>Club History</strong>. A per-club honours page (yours by default, with a dropdown for any club in the world): a trophy case (league titles, second-tier titles, Continental Cups, promotions and relegations), individual honours won by the club's players (Player of the Season, Golden Boot, Team of the Season selections), franchise records (best finish, most points and wins in a season, all-time record), and a season-by-season table of every completed season (each season's note also shows how far the club got in that year's Continental Cup).</li>
-            <li><strong>Season Preview</strong>. A snapshot of how the offseason shook out: the league's top 10 highest-rated players, top 10 highest-rated teams (both by OVR), and the top 10 biggest transfers from the summer window, ranked by fee. It opens automatically the moment you advance past a season, with a link through to Awards.</li>
+            <li><strong>Season Preview</strong>. A snapshot of how the offseason shook out: the league's top 10 highest-rated players, top 10 highest-rated teams (both by OVR), the top 10 biggest transfers from the summer window ranked by fee, and who <a href="#development">retired</a>. It opens automatically the moment you advance past a season, with a link through to Awards.</li>
             <li><strong>News Feed</strong>. Every completed transfer in the league (AI-to-AI deals included) plus player accomplishments (hat-tricks, a standout performance each matchday, and goal milestones every 10, season and career) all woven into one timeline per season, with club and season filters. Your club's items are highlighted.</li>
             <li><strong>Roster</strong>. Your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay), a stats table for the XI, and a bench table (both with ratings, ages, contracts, and season stats, and goalkeepers also show goals against and xG against). Drag a bench player onto a pitch slot to swap him into the XI, extend contracts, or release players.</li>
             <li><strong>Transfers</strong>. Recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
@@ -471,6 +471,19 @@ export function Manual() {
             high, he sticks around waiting for his shot no matter how long he's been unsigned. That
             exemption is for prospects only, though. An unsigned 30-year-old is done regardless of
             how good he used to be.
+          </p>
+          <p>
+            You get to see who went. The Season Preview lists the offseason's retirements: how many
+            players called it a career, how many of those were on a club's books, and then the
+            biggest names to go, with the club they last played for and what they did over their
+            career. Anyone your own club loses is always on that list. It only covers the biggest
+            names, though, because most of the players who retire in any given offseason are
+            unsigned ones nobody would recognize.
+          </p>
+          <p>
+            One thing to know: a retired player is gone from the game, not filed away somewhere.
+            There's no career page to visit afterwards, and old transfer entries or news items about
+            him lose his name. That Season Preview list is the record of his send-off.
           </p>
           <p>
             What this means for you day to day: the free agent and incoming talent lists churn.

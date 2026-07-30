@@ -7,6 +7,7 @@ import { computeStandings } from "../../src/core/standings.js";
 import { isFreeAgentTid } from "../../src/core/transfers/negotiation.js";
 import {
   HYPE_MAX, HYPE_MIN, NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_DEFAULT, ROSTER_SAFETY_FLOOR,
+  RETIREMENT_NOTABLE_LIMIT,
 } from "../../src/core/constants.js";
 
 function playFullSeason(rng: () => number) {
@@ -177,6 +178,46 @@ describe("simOffseason", () => {
     const next = simOffseason(league, rng);
     const pids = next.players.map((p) => p.pid);
     expect(new Set(pids).size).toBe(pids.length);
+  });
+
+  it("records who retired on the season-history entry, since the players themselves are deleted", () => {
+    const rng = mulberry32(6);
+    const league = playFullSeason(rng);
+    const next = simOffseason(league, rng);
+
+    const retirements = next.seasonHistory.at(-1)!.retirements!;
+    expect(retirements.total).toBeGreaterThan(0);
+    expect(retirements.rostered).toBeLessThanOrEqual(retirements.total);
+    // Bounded on purpose: this list is persisted, and thousands leave each
+    // offseason once the unrostered rate applies at any age.
+    expect(retirements.notable.length).toBeLessThanOrEqual(RETIREMENT_NOTABLE_LIMIT);
+
+    const survivors = new Set(next.players.map((p) => p.pid));
+    const wasRostered = new Set(league.teams.flatMap((t) => [...t.roster, ...t.academyRoster]));
+    for (const r of retirements.notable) {
+      // Every one of them really is gone, and the snapshot carries the details
+      // that could no longer be looked up.
+      expect(survivors.has(r.pid)).toBe(false);
+      expect(r.name).not.toBe("");
+      expect(r.ovr).toBeGreaterThan(0);
+      // The club is read from the pre-release rosters, so a player whose
+      // contract expired this same offseason is still filed under his club.
+      if (r.tid !== null) expect(wasRostered.has(r.pid)).toBe(true);
+    }
+  });
+
+  it("names a retiring player's last club rather than filing him as a free agent", () => {
+    const rng = mulberry32(11);
+    const league = playFullSeason(rng);
+    const next = simOffseason(league, rng);
+
+    const retirements = next.seasonHistory.at(-1)!.retirements!;
+    // The notable list is ranked by ovr, and the best players in the world are
+    // on somebody's books, so at least one named retiree must have a club.
+    const withClub = retirements.notable.filter((r) => r.tid !== null);
+    expect(withClub.length).toBeGreaterThan(0);
+    const tids = new Set(next.teams.map((t) => t.tid));
+    for (const r of withClub) expect(tids.has(r.tid!)).toBe(true);
   });
 
   it("settles every team's budget and hype, and locks in each team's next-season scouting spend", () => {

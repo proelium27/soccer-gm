@@ -8,6 +8,7 @@ import type { NewsEvent } from "./newsEvents.js";
 import { generateYouthIntake } from "./players/youth.js";
 import { computeAcademyFormModifiers } from "./players/academyForm.js";
 import { cullFreeAgentPool } from "./players/freeAgentCull.js";
+import { summarizeRetirements } from "./players/retirements.js";
 import { archiveCup } from "./cup/archive.js";
 import {
   releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
@@ -101,6 +102,16 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   // still leaves him "rostered" for this offseason's roll, so he gets one full
   // free agency to find a club before the unrostered rate starts applying.
   const unrosteredLastSeason = freeAgentPids(league.teams, league.players, league.activeLoans);
+  // Which club, for the same reason and off the same pre-step-1 rosters: a
+  // retiring player's last club is what the Season Preview names him under, and
+  // reading it after step 1 would file a fifteen-year club legend whose contract
+  // just ran out as a free agent on his way out the door. A player out on loan
+  // maps to the club that fielded him last season (wages key off roster
+  // membership, so that is where he was), not his parent club.
+  const tidLastSeason = new Map<number, number>();
+  for (const t of league.teams) {
+    for (const pid of [...t.roster, ...t.academyRoster]) tidLastSeason.set(pid, t.tid);
+  }
   const awards = awardsByCompetition(league.players, league.teams, league.competitions, endingSeason);
 
   // 0. Proactive AI contract renewals (cross-division: a club's own player,
@@ -146,10 +157,14 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //    wanted retires slowly, one nobody rostered drifts out of the game at any
   //    age (see the RETIREMENT_* block in constants.ts). One rng draw per
   //    player either way, so the shared stream's draw count is unchanged.
-  const retiredPids = new Set(
-    players
-      .filter((p) => rollRetirement(rng, p, endingSeason, !unrosteredLastSeason.has(p.pid)))
-      .map((p) => p.pid),
+  //    The retirees are captured (not just their pids) because they are about to
+  //    be deleted from the save entirely: the Season Preview's farewell list is
+  //    built from this snapshot, since nothing can be looked up afterwards.
+  const retirees = players.filter((p) =>
+    rollRetirement(rng, p, endingSeason, !unrosteredLastSeason.has(p.pid)));
+  const retiredPids = new Set(retirees.map((p) => p.pid));
+  const retirements = summarizeRetirements(
+    retirees, endingSeason, tidLastSeason, league.meta.userTid,
   );
   players = players.filter((p) => !retiredPids.has(p.pid));
   teams = teams.map((t) => ({
@@ -503,6 +518,9 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
         world,
         compsByTid,
         championTidByCompId,
+        // Snapshotted at step 3 above, because the players it names no longer
+        // exist by the time anything renders it.
+        retirements,
       },
     ],
   };

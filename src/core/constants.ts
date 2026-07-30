@@ -671,6 +671,19 @@ export const RETIREMENT_PROSPECT_POT_THRESHOLD = FREE_AGENT_CULL_MAX_POT;
 export const RETIREMENT_PROSPECT_MAX_AGE = FREE_AGENT_CULL_MIN_AGE;
 
 /**
+ * How many retirees the Season Preview names (`RetirementSummary.notable`).
+ *
+ * Both a display cap and a save-size cap, because the list is persisted on the
+ * season-history entry — the players themselves are deleted, so a snapshot is
+ * the only record left. Thousands of unsigned players now leave the game every
+ * offseason, and storing all of them would grow the save forever and put an
+ * unbounded table on the page: the two failure modes behind the 88 MB save and
+ * the `/transfers` freeze respectively. The headline `total` carries the real
+ * number, so nothing is misreported by keeping this small.
+ */
+export const RETIREMENT_NOTABLE_LIMIT = 15;
+
+/**
  * Wages (2026-07-11 rework, replacing the flat 20k-per-ovr placeholder;
  * rescaled 2026-07-13 alongside the BASE_SEASON_BUDGET cut below — same
  * cubic shape, coefficients scaled by ~BASE_SEASON_BUDGET's 50M/95M ratio so
