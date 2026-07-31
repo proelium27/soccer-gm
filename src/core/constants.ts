@@ -806,15 +806,37 @@ export const BASE_SEASON_BUDGET = 88_000_000;
  * player at ~$201M before age/potential/contract multipliers stack on top, so
  * a top club can still afford the league's most elite players. (The cap only
  * bounds *banking*; it can't cause a deficit, so AI solvency is unaffected.)
+ *
+ * Cut 400M -> 300M on 2026-07-30 (fee-normalization pass) alongside a much
+ * deeper cut to MAX_BUDGET_FLOOR below. Two goals from the user brief: lower
+ * transfer budgets overall, and widen the gap between the richest and poorest
+ * clubs so only a handful can ever spend big. This value is the ceiling for a
+ * maximally famous club, and it is deliberately kept a little *below* the
+ * MAX_TRANSFER_VALUE clamp (350M) — the all-time-record signing should be
+ * beyond what even the richest club can pay out of one season's war chest,
+ * which is what makes it a record rather than a routine purchase.
  */
-export const MAX_BUDGET = 400_000_000;
+export const MAX_BUDGET = 300_000_000;
 /**
  * Floor of the hype-scaled savings ceiling (see budgetCap): the cap for a
- * club at zero hype. A club at HYPE_INITIAL (50) sits at the midpoint
- * (~$300M at tier 1); a maximally famous club reaches MAX_BUDGET. Set so an
- * elite club can bank/spend roughly 2x a struggling one, before tier scaling.
+ * club at zero hype. A club at HYPE_INITIAL (50) sits at the midpoint; a
+ * maximally famous club reaches MAX_BUDGET.
+ *
+ * Cut 200M -> 100M on 2026-07-30 (fee-normalization pass). This is the "wider
+ * gap top-to-bottom" lever from the user brief: the elite-to-nobody savings
+ * ratio goes from 2x (200M..400M) to 3x (100M..300M), and every club below
+ * elite fame gets a materially smaller war chest. At HYPE_INITIAL (50) a club
+ * now tops out at ~200M rather than ~300M, so an average side can afford a
+ * good starter or two but not a 100M+ star — buying a genuine difference-maker
+ * becomes the privilege of a genuinely big club, which is the point.
+ *
+ * The floor stays comfortably above BASE_SEASON_BUDGET (88M) on purpose: a
+ * club must always be able to bank at least one season's allocation, or the
+ * cap would start silently destroying ordinary income rather than just
+ * bounding long-run hoarding. (Clamping can never cause a deficit either way,
+ * so AI solvency is structurally unaffected — verified by budget.test.ts.)
  */
-export const MAX_BUDGET_FLOOR = 200_000_000;
+export const MAX_BUDGET_FLOOR = 100_000_000;
 /**
  * Benchmark "dominant AI squad" the base allocation must out-fund on
  * worst-case wage deals (see the invariant note above): [count, ovr] rows,
@@ -927,9 +949,20 @@ export const SCOUT_POT_FOG_SHIFT_FRACTION = 0.5;
  * outlier like Haaland tops 200M. Base ("current ability") value with no
  * potential gap, before age/potential/contract multipliers:
  * 65 ~= 35M, 70 ~= 57M, 75 ~= 84M, 80 ~= 117M, 85 ~= 156M, 90 ~= 201M.
+ *
+ * Rescaled 2026-07-30 (fee-normalization pass, per user brief "fees are way
+ * too high — Neymar's $263M / ~$358M-in-today's-money is the ALL-TIME record,
+ * and in-game that happens constantly"). The coefficient was cut 56k → 42k
+ * (~-25%), moving the band a "quality player" trades in down to the intended
+ * 30-70M: base ("current ability") value with no potential gap, before the
+ * age/potential/contract multipliers:
+ * 65 ~= 24M, 70 ~= 38M, 75 ~= 56M, 80 ~= 79M, 85 ~= 105M, 90 ~= 135M.
+ * At a typical 3-year deal (x1.24) that reads 30M / 48M / 70M on the shop
+ * floor, which is the target band. The exponent is unchanged — the curve's
+ * *shape* was right, only its level was too high.
  */
 export const VALUATION_OVR_FLOOR = 45;
-export const VALUATION_OVR_COEFF = 56_000;
+export const VALUATION_OVR_COEFF = 42_000;
 export const VALUATION_OVR_EXPONENT = 2.15;
 export const VALUATION_CONTRACT_YEAR_BONUS = 0.08;
 export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
@@ -955,10 +988,30 @@ export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
  * successful clubs are simply not for sale (see protectedStars.ts / the
  * PROTECTED_STAR_* constants below), the way a top club would never sell its
  * best player at any price.
+ *
+ * Reshaped 2026-07-30 (fee-normalization pass). The old curve (COEFF 11M,
+ * EXPONENT 2.5) did not merely make elite players expensive — it *saturated*
+ * the MAX_TRANSFER_VALUE clamp outright: at ovr 80 the premium alone came to
+ * 11M x 4^2.5 = 352M, so every single player at 80 or above priced at exactly
+ * the 350M ceiling, indistinguishable from one another. That is the direct
+ * cause of the "record-breaking mega transfer every season" symptom — the
+ * ceiling wasn't a rare outlier price, it was the *standard* price for a large
+ * slice of the player pool.
+ *
+ * Now a ramp instead of a wall (COEFF 1.32M, EXPONENT 1.6): the premium grows
+ * steadily so that elite tiers stay *distinguishable* from each other and only
+ * a genuine once-a-generation outlier approaches the clamp. Premium on top of
+ * the base curve, and the resulting fee at a typical 3-year deal (x1.24):
+ *   ovr 78 -> +2.7M  (~87M)    ovr 85 -> +44M  (~185M)
+ *   ovr 80 -> +12M   (~113M)   ovr 90 -> +90M  (~279M)
+ *   ovr 93 -> +123M  (clamped at 350M)
+ * So 100M+ becomes the price of a genuine star (ovr ~79+) rather than of a
+ * decent starter, and only a ~93 — rarer than one per 30 seasons, see
+ * isGenerational — ever commands the all-time-record fee.
  */
 export const VALUATION_ELITE_THRESHOLD = 76;
-export const VALUATION_ELITE_COEFF = 11_000_000;
-export const VALUATION_ELITE_EXPONENT = 2.5;
+export const VALUATION_ELITE_COEFF = 1_320_000;
+export const VALUATION_ELITE_EXPONENT = 1.6;
 
 /**
  * Hard ceiling on any player's transfer value / asking price (trueTransferValue,
@@ -1010,7 +1063,15 @@ export const VALUATION_AGE_CURVE: readonly [number, number][] = [
  * At full weight, VALUATION_POTENTIAL_PCT_PER_POINT * 20 = +70%, i.e. a
  * 20-point gap at peak age roughly matches the Bellingham-style premium.
  */
-export const VALUATION_POTENTIAL_PCT_PER_POINT = 0.035;
+/*
+ * Trimmed 0.035 -> 0.025 on 2026-07-30 (fee-normalization pass): at full
+ * weight a 20-point gap now adds +50% rather than +70%. The potential premium
+ * multiplies on top of the youth *age* premium (up to x1.40), and the two
+ * stacked were pricing merely-promising teenagers into the 100M+ bracket the
+ * user wants reserved for genuine stars. Ceiling is still paid for
+ * aggressively — just not enough to make a 70-ovr prospect a record signing.
+ */
+export const VALUATION_POTENTIAL_PCT_PER_POINT = 0.025;
 export const VALUATION_POTENTIAL_WEIGHT_PEAK_AGE = 21;
 export const VALUATION_POTENTIAL_WEIGHT_ZERO_AGE = 30;
 

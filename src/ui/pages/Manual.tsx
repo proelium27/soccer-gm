@@ -696,12 +696,19 @@ export function Manual() {
           </ul>
           <p>
             <strong>Market value.</strong> A player's value climbs steeply with OVR (an average
-            starter runs $35&ndash;45M, an elite player can top $150M), then gets multiplied by age
+            starter runs about $30M, a good one $45&ndash;50M, and the best player at a strong club
+            $70&ndash;80M), then gets multiplied by age
             (youth is a premium here, since you're buying years of control and resale value, so value
             peaks in the late teens and drops hard after 28), by potential headroom (a big gap
             between potential and current OVR is worth a real premium for young players, fading to
             nothing by 30), and by remaining contract length (a player locked up for years is
             pricier to pry loose).
+          </p>
+          <p>
+            Nine-figure fees are meant to be an event, not a routine. Crossing $100M takes a genuine
+            star (roughly OVR 79 and up, or a teenager with a spectacular ceiling), and the very top
+            of the scale is reserved for a true once-in-a-generation player. Most seasons nobody in
+            the world goes near the all-time record, which is what makes it a record.
           </p>
           <p>
             <strong>Values are capped, and the very best players aren't for sale.</strong> No
@@ -915,8 +922,8 @@ export function Manual() {
             tuned to never go broke. <em>You</em> can overspend, though: hoard a full roster of elite
             wages and the projection will happily show you the shortfall coming. Budget is a running
             balance that carries over between seasons instead of resetting. The savings cap scales
-            with a club's fame: a top-flight club can bank up to <strong>$400M</strong> at full hype,
-            down to <strong>$200M</strong> for a club with no fame (Division 2 clubs are capped lower
+            with a club's fame: a top-flight club can bank up to <strong>$300M</strong> at full hype,
+            down to <strong>$100M</strong> for a club with no fame (Division 2 clubs are capped lower
             on top of that, reflecting the money gap between divisions). Spending below your cap is
             unrestricted, but you can't bank cash past it.
           </p>

@@ -34,6 +34,18 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-07-30",
+    title: "Transfer fees were absurd, so I brought them back to earth",
+    items: [
+      "The most expensive transfer that has ever actually happened is Neymar to PSG, and that was $263M, which is something like $358M in today's money. It is the all-time record and it has stood for years. In this game that was happening constantly, several times a season, to the point where a record-breaking fee meant nothing at all. So I went and looked at why, and the answer was pretty embarrassing.",
+      "There's a hard ceiling of $350M on what any player can be valued at, and the elite pricing curve was so steep that it smashed straight through that ceiling at OVR 80. Not approached it. Smashed it. Which meant every single player rated 80 or above was priced at exactly $350M, all of them, identically. A decent 80 and a genuine once-in-a-generation 90 cost precisely the same, and that same figure was also the all-time record fee. That's why the record kept falling: the record price was just the standard price for a big chunk of the player pool.",
+      "So the elite premium is a ramp now instead of a wall. It still climbs hard, but each step up the top end genuinely costs more than the one below it, and only a truly extraordinary player gets anywhere near the ceiling. I also pulled the whole base curve down about 25% and eased off how much clubs pay for raw potential, because a promising teenager stacking a youth premium on top of a potential premium was landing in nine figures without ever having been a star.",
+      "Where that leaves prices: an average starter is about $30M, a good one $45 to $50M, and the best player at a strong club $70 to $80M. Crossing $100M now takes a genuine star, around OVR 79 and up. I simmed 15 seasons across the whole world to check, and nine-figure deals dropped by around 60%, the ones that do happen go to players averaging 79 OVR instead of 72, and nothing at all went past $210M. Before this, deals over $200M were routine.",
+      "The other half of it is money. Club savings caps came down, a big club now tops out at $300M instead of $400M, and more importantly a club with no fame tops out at $100M instead of $200M. That doubles the gap between the richest clubs and everyone else. The point is that spending big should be a thing only a handful of clubs in the world can actually do, rather than something half the league can have a go at. If you're at a mid-table side you'll feel this: you can still buy good players, you just can't buy a superstar, and that's deliberate.",
+      "Your existing save is fine and nothing needed converting. Values are worked out fresh every time, so you'll just notice prices look saner from now on, including for players you already own. Two things to be ready for though. Your squad is worth less on paper than it was yesterday, so if you were planning to sell someone to fund a rebuild, the number will be lower than you had in mind. And if you were sitting on a war chest bigger than your new savings cap, it gets trimmed down to the cap at the end of the season, so spend it or lose it.",
+    ],
+  },
+  {
+    date: "2026-07-30",
     title: "Retirement now depends on whether anyone actually wanted you",
     items: [
       "Retirement was embarrassingly simple before this and I don't think many people noticed, which is sort of the problem. It was pure age. Nobody could retire before 33, and after that everyone rolled the same dice. A 33-year-old who was the best player in your league and a 33-year-old who couldn't get off the bench had exactly the same chance of packing it in. How good you were never entered into it at all.",

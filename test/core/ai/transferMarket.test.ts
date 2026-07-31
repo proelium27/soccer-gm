@@ -58,8 +58,19 @@ describe("runAITransferMarket", () => {
     // loose percentage of the league's total budget (~$8.2B), which would be
     // loose enough to hide a real double-credit/double-spend regression.
     // Creation stays exactly banned by the first assertion either way.
+    //
+    // Re-measured ~$187.5M for seed 7 after the 2026-07-30 fee-normalization
+    // pass cut the savings ceiling (MAX_BUDGET 400M→300M, MAX_BUDGET_FLOOR
+    // 200M→100M). The clamp fires far more often at the lower ceiling: a
+    // mid-fame selling club now sits much closer to its cap, so a larger share
+    // of each incoming fee lands above the line and is destroyed. Isolated by
+    // re-running this test with only the budget constants reverted — it passes
+    // at the old ceiling and fails at the new one, with the valuation changes
+    // held constant, so this is the cap doing its documented job rather than a
+    // leak in the market. Bound just above the new measurement for the same
+    // reason as before: tight enough to still catch a double-spend.
     expect(after).toBeLessThanOrEqual(before + 0.01);
-    expect(before - after).toBeLessThan(30_000_000);
+    expect(before - after).toBeLessThan(220_000_000);
   });
 
   it("never involves the user's club, and leaves the user roster untouched", () => {
