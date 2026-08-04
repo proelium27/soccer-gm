@@ -157,14 +157,21 @@ function Col({ children, wide = false }: { children: ReactNode; wide?: boolean }
 
 // --- GOAT ------------------------------------------------------------------
 
-/** Small muted number under a score, showing where the points came from. */
-function Part({ label, value }: { label: string; value: number }) {
-  return (
-    <span className="text-muted small me-2 text-nowrap">
-      {label} {Math.round(value)}
-    </span>
-  );
-}
+/**
+ * The six parts a GOAT score is made of, in the order they're shown.
+ *
+ * Every one of them is a column of its own rather than a run-on cell, and all
+ * six are shown rather than five, so the row visibly adds up to its own score —
+ * a breakdown you can't reconcile with the total is worse than no breakdown.
+ */
+const GOAT_PARTS: { key: keyof PlayerGoatRow & string; label: string; help: string }[] = [
+  { key: "peak", label: "Peak", help: "how good he got at his best" },
+  { key: "prime", label: "Prime", help: "years spent near that level" },
+  { key: "longevity", label: "Career", help: "seasons played and sustained match rating" },
+  { key: "awards", label: "Awards", help: "individual honours" },
+  { key: "trophies", label: "Trophies", help: "titles won with club and country" },
+  { key: "production", label: "Extras", help: "goals, assists and caps" },
+];
 
 function GoatTab() {
   const { league } = useLeague();
@@ -199,11 +206,13 @@ function GoatTab() {
       {side === "players" ? (
         <Panel
           title="Greatest players of all time"
-          note="Peak rating, years spent near it, individual awards, trophies, and end product."
+          note={`The score is the six columns before it added together — ${
+            GOAT_PARTS.map((p) => `${p.label} is ${p.help}`).join(", ")
+          }.`}
         >
           <RankTable
             rows={players}
-            headers={["Player", "Club", "Seasons", "Peak", "Case", "Score"]}
+            headers={["Player", "Club", "Best OVR", ...GOAT_PARTS.map((p) => p.label), "Score"]}
             render={(r: PlayerGoatRow) => [
               <PlayerCell
                 pid={r.career.pid}
@@ -212,16 +221,16 @@ function GoatTab() {
                 active={r.career.active}
               />,
               <ClubCell tid={r.career.tid} />,
-              r.career.seasonsPlayed,
+              // Labelled "Best OVR", not "Peak": the Peak column beside it is a
+              // score component derived from this, and calling both "peak" made
+              // the row unreadable.
               r.career.peakOvr,
-              <span className="d-inline-flex flex-wrap justify-content-end">
-                <Part label="peak" value={r.peak} />
-                <Part label="prime" value={r.prime} />
-                <Part label="career" value={r.longevity} />
-                <Part label="awards" value={r.awards} />
-                <Part label="trophies" value={r.trophies} />
-              </span>,
-              <strong>{Math.round(r.score)}</strong>,
+              ...GOAT_PARTS.map((p) => (
+                <span className="text-muted">{r[p.key] as number}</span>
+              )),
+              // Already a whole number, and already exactly the sum of the six
+              // columns before it (see scorePlayer).
+              <strong>{r.score}</strong>,
             ]}
             empty="careers"
           />

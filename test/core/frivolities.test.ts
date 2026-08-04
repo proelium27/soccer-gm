@@ -454,6 +454,31 @@ describe("GOAT rankings", () => {
       );
     });
 
+    it("returns exactly the parts the score is made of, with nothing left over", () => {
+      // The UI shows these six as columns and the score beside them, so any
+      // component missing from this list is a breakdown a reader can't
+      // reconcile with the total. That shipped once already.
+      const store = makeStore({
+        players: [makePlayer({
+          pid: 1, lines: [[2029, 1, 38, 20, 5]], hist: [[2028, 90]],
+        })],
+        seasonHistory: [
+          historyWithAwards(2029, [row(1, 38, 90)], { 1: 0 },
+            { champion: 1, ballonDOr: 1, poty: 1, goldenBoot: 1, tots: [1], worldXI: [1] }),
+        ],
+      } as unknown as Partial<LeagueStore>);
+
+      const r = playerGoatRanking(store)[0];
+      const parts = [r.peak, r.prime, r.longevity, r.awards, r.trophies, r.production];
+      // Exact, not close: every part is a whole number and the score is their
+      // sum, so the table can never show a breakdown that doesn't reconcile.
+      expect(parts.reduce((a, b) => a + b, 0)).toBe(r.score);
+      for (const part of parts) expect(Number.isInteger(part)).toBe(true);
+      // And every part must actually be carrying something here, or the test
+      // would pass just as well with a component silently stuck at zero.
+      for (const part of parts) expect(part).toBeGreaterThan(0);
+    });
+
     it("rewards a long prime over a single brilliant season", () => {
       // Same peak, very different careers — the distinction the formula exists
       // to make.

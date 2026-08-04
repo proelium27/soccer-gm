@@ -95,7 +95,12 @@ export function computeHonours(
   return out;
 }
 
-/** One player's GOAT case, broken into parts so the UI can show *why* he ranks. */
+/**
+ * One player's GOAT case, broken into parts so the UI can show *why* he ranks.
+ *
+ * Every field is a whole number and `score` is exactly the sum of the other
+ * six, so a reader can always reconcile the breakdown with the total.
+ */
 export interface PlayerGoatRow {
   career: CareerRow;
   honours: PlayerHonours;
@@ -150,16 +155,26 @@ export function scorePlayer(career: CareerRow, honours: PlayerHonours): PlayerGo
     + GOAT_ASSIST_WEIGHT * career.totals.assists
     + GOAT_CAP_WEIGHT * career.caps;
 
+  // Every part is rounded to a whole number and the score is their sum, rather
+  // than the parts being rounded only for display. Sub-integer precision is
+  // meaningless on a taste score, and keeping it caused two visible defects:
+  // the displayed parts didn't add up to the displayed total, and sorting on
+  // the exact score could put a row showing 116 above one showing 117.
+  const parts = {
+    peak: Math.round(peak),
+    prime: Math.round(prime),
+    longevity: Math.round(longevity),
+    awards: Math.round(awards),
+    trophies: Math.round(trophies),
+    production: Math.round(production),
+  };
+
   return {
     career,
     honours,
-    peak,
-    prime,
-    longevity,
-    awards,
-    trophies,
-    production,
-    score: peak + prime + longevity + awards + trophies + production,
+    ...parts,
+    score: parts.peak + parts.prime + parts.longevity
+      + parts.awards + parts.trophies + parts.production,
   };
 }
 
@@ -267,11 +282,13 @@ export function teamGoatRanking(league: LeagueStore, limit = GOAT_LIST_LIMIT): T
   for (const r of rows.values()) {
     const p = played.get(r.tid) ?? 0;
     r.ppg = p > 0 ? (points.get(r.tid) ?? 0) / p : 0;
-    r.trophies = GOAT_TEAM_LEAGUE_TITLE_WEIGHT * r.leagueTitles
+    r.trophies = Math.round(GOAT_TEAM_LEAGUE_TITLE_WEIGHT * r.leagueTitles
       + GOAT_TEAM_CUP_TITLE_WEIGHT * r.cupTitles
-      + GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT * r.secondTierTitles;
-    r.consistency += GOAT_TEAM_TOP_FINISH_WEIGHT * r.topFinishes
-      + GOAT_TEAM_SEASON_WEIGHT * r.topFlightSeasons;
+      + GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT * r.secondTierTitles);
+    // Same whole-number rule as the player score above.
+    r.consistency = Math.round(r.consistency
+      + GOAT_TEAM_TOP_FINISH_WEIGHT * r.topFinishes
+      + GOAT_TEAM_SEASON_WEIGHT * r.topFlightSeasons);
     r.score = r.trophies + r.consistency;
   }
 
