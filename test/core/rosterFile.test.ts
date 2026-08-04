@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mulberry32 } from "../../src/engine/rng.js";
-import { createLeagueState } from "../../src/core/leagueState.js";
+import { makeLeague } from "../helpers/league.js";
 import { applyTeamIdentities } from "../../src/core/teams/customize.js";
 import {
   buildRosterFile,
@@ -8,7 +7,7 @@ import {
   rosterFileToEdits,
 } from "../../src/core/teams/rosterFile.js";
 
-const base = createLeagueState(0, mulberry32(7), 7);
+const base = makeLeague(0, 7, 7);
 // NewLeague names the league after the user's club; mirror that.
 const league = { ...base, meta: { ...base.meta, name: base.teams[0].name } };
 

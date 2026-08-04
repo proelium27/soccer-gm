@@ -1,9 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { mulberry32 } from "../../src/engine/rng.js";
-import { createLeagueState } from "../../src/core/leagueState.js";
+import { makeLeague } from "../helpers/league.js";
 
 describe("createLeagueState", () => {
-  const state = createLeagueState(3, mulberry32(42));
+  const state = makeLeague(3, 42);
 
   it("returns correct shape", () => {
     expect(state).toHaveProperty("lid");

@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mulberry32 } from "../../../src/engine/rng.js";
-import { createLeagueState } from "../../../src/core/leagueState.js";
+import { makeLeague } from "../../helpers/league.js";
 import { runAITransferMarket } from "../../../src/core/ai/transferMarket.js";
 import { keepsDepthFloor } from "../../../src/core/freeAgency.js";
 import { ROSTER_CAP, DIVISION_2_REFUSAL_OVR_THRESHOLD } from "../../../src/core/constants.js";
@@ -12,7 +11,7 @@ const USER_TID = 0;
 
 /** Run the offseason-phase market on a fresh league (no wage charge, so money is conserved). */
 function runOnFresh(seed: number) {
-  const league = createLeagueState(USER_TID, mulberry32(seed));
+  const league = makeLeague(USER_TID, seed);
   const result = runAITransferMarket(
     league.teams, league.players, league.activeLoans, league.transfers,
     league.season + 1, league.played, "summer", "offseason", USER_TID, 12345,
@@ -178,7 +177,7 @@ describe("runAITransferMarket", () => {
     // specifically a striker). Re-seeding is the established fix here
     // (checked across 10 seeds post-retune: 9/10 pass; not a real behavior
     // regression).
-    const league = createLeagueState(USER_TID, mulberry32(2));
+    const league = makeLeague(USER_TID, 2);
     const players = league.players;
     const stByTeam = (tid: number): Player[] =>
       league.teams.find((t) => t.tid === tid)!.roster
