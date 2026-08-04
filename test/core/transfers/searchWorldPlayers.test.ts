@@ -1,21 +1,21 @@
 import { describe, it, expect } from "vitest";
+import { makeLeague } from "../../helpers/league.js";
 import {
   searchWorldPlayers,
   PLAYER_SEARCH_LIMIT,
 } from "../../../src/core/transfers/recommendations.js";
-import { createLeagueState, type LeagueStore } from "../../../src/core/leagueState.js";
+import { type LeagueStore } from "../../../src/core/leagueState.js";
 import type { ActiveLoan } from "../../../src/core/loans.js";
-import { mulberry32 } from "../../../src/engine/rng.js";
 
 /** A league sitting inside the winter window (offers require an open window). */
 function windowLeague(seed: number): LeagueStore {
-  const league = createLeagueState(0, mulberry32(seed));
+  const league = makeLeague(0, seed);
   return { ...league, schedule: league.schedule.filter((g) => g.matchday >= 20) };
 }
 
 describe("searchWorldPlayers", () => {
   it("returns nothing when no window is open", () => {
-    const league = createLeagueState(0, mulberry32(1));
+    const league = makeLeague(0, 1);
     const midAutumn = { ...league, schedule: league.schedule.filter((g) => g.matchday >= 10) };
     expect(searchWorldPlayers(midAutumn, { minOvr: 60 })).toEqual([]);
   });

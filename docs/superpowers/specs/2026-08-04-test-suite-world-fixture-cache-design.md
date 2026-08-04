@@ -1,7 +1,7 @@
 # Test suite speed: cache generated worlds on disk
 
 **Date:** 2026-08-04
-**Status:** design approved, not yet implemented
+**Status:** implemented — `test/helpers/worldCache.ts` + `test/helpers/league.ts`
 **Goal:** cut full-suite wall time without changing what any test covers.
 
 ## Problem
@@ -40,8 +40,21 @@ test read it. Coverage is untouched: same seeds, same assertions, same worlds.
 - Parse is **12ms** vs **4,116ms** to generate — ~340x.
 - One world is 4.4MB of JSON; ~12-15 distinct worlds exist across the suite
   (~66MB total).
-- Nearly every call site constructs a fresh inline `mulberry32(seed)`. Only
-  `loans.test.ts:189` holds an rng and reuses it after generation.
+- Of the 38 `createLeagueState` call sites in tests, **25 pass a fresh inline
+  `mulberry32(seed)`** and are cacheable. The other 13 hold an rng and reuse it
+  after generation, so they must keep generating: `international.test.ts` (6),
+  `offseason.test.ts` (2), the m3/m4 validation gates (3),
+  `transfersRender.test.tsx` (1) and `loans.test.ts:190` (1). None of those are
+  among the top-cost files.
+
+### Implementation notes (found while building)
+
+- **Generation is deterministic apart from `meta.created`**, a `Date.now()`
+  stamp. Everything else — all 6,000 players, teams, schedule — is byte-identical
+  across same-seed generations. This is the precondition the cache rests on and
+  is now asserted directly, not assumed.
+- `test/db/leagueDb.test.ts` defines its **own local `makeLeague`**, so it is
+  excluded from the migration rather than being given a colliding import.
 
 ## Design
 

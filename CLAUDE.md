@@ -17,6 +17,8 @@ npm run cli        # scripts/cli.ts (headless sim harness for audits)
 
 Audit scripts live in `scripts/` (e.g. `divisionAudit.ts`, `weakLeaguesAudit.ts`) — run with `tsx`.
 
+The first `npm test` after any `src/core` change rebuilds the cached test worlds (see `test/` below); later runs reuse them. `SOCCER_GM_NO_FIXTURE_CACHE=1 npm test` skips the cache.
+
 ## Git workflow
 
 - Keep work committed: after code changes, commit locally with a clear message rather than leaving the tree dirty.
@@ -39,6 +41,7 @@ Two accounts (proelium27 and joeltmeyer/joeltm82) work here, each with private C
 - `src/db/` — IndexedDB persistence (`leagueDb.ts`, `activeLeague.ts`) and **`migrate.ts`** (backfills every new field for old saves — update it whenever you add a persisted field).
 - `src/ui/` — React pages (`pages/`), components, `context/LeagueContext.tsx` (all league-mutating actions, serialized through one promise chain).
 - `test/` — vitest. `test/validation/` holds the M1/M4 §8 gate tests.
+- **Test worlds are cached on disk** (`test/helpers/worldCache.ts`, used by `makeLeague`). `createLeagueState` costs ~4.1s for the 240-club/6000-player world, and vitest gives every test file its own worker process, so an in-process memo died at each file boundary and the same world was regenerated in all 36 files that wanted one — the single dominant cost in the suite. Worlds are now generated once ever into `node_modules/.cache/soccer-gm-worlds/<hash>/` and parsed back in ~12ms (~340x). **Always build test worlds with `makeLeague(tid, seed)`, never `createLeagueState` directly** — the one exception is a test that *reuses its rng after generation* (threading it into a later `simThrough`/`simOffseason`), which needs the rng advanced by generation and so must keep generating; those live in `international.test.ts`, `offseason.test.ts`, `simThrough.test.ts`, `transfersRender.test.tsx`, the m3/m4 validation gates and one case in `loans.test.ts`. Gotchas: **(a)** the cache key is a content hash of **all of `src/core`** plus `src/engine/rng.ts` and the Node version — deliberately broad, because generation cannot then depend on anything unhashed. Narrowing it to generation's current import list reintroduces silent staleness; don't. A core edit costs one rebuild (~60s) and is free thereafter. **(b)** It is only sound because generation is deterministic apart from `meta.created` (a wall-clock stamp) — `fixtureFidelity.test.ts` asserts both that and cached-equals-fresh, and is what stops the cache drifting silently. **(c)** `SOCCER_GM_NO_FIXTURE_CACHE=1` bypasses disk entirely if you ever suspect the cache.
 
 ## Core invariants & gotchas (durable — read before touching sim code)
 

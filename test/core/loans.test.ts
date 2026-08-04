@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { makeLeague } from "../helpers/league.js";
 import {
   computeLoanFee, executeLoan, processLoanReturns, listPlayerForLoan,
   unlistPlayerForLoan, loanOfferCandidates, acceptLoanOffer, rejectLoanOffer,
@@ -17,7 +18,7 @@ import { teamSlots } from "../../src/core/lineup/formations.js";
 import { LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, ROSTER_CAP } from "../../src/core/constants.js";
 
 function windowLeague(seed = 1): LeagueStore {
-  const league = createLeagueState(0, mulberry32(seed));
+  const league = makeLeague(0, seed);
   // Summer window is open right after generation (matchdays 1-4).
   return league;
 }

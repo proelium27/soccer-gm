@@ -1,11 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { mulberry32 } from "../../src/engine/rng.js";
-import { createLeagueState } from "../../src/core/leagueState.js";
+import { makeLeague } from "../helpers/league.js";
 import { buildImportPromptText } from "../../src/core/teams/rosterAiPrompt.js";
 import { parseRosterFile } from "../../src/core/teams/rosterFile.js";
 import { POSITIONS, SKILL_KEYS } from "../../src/core/players/types.js";
 
-const league = createLeagueState(0, mulberry32(3), 3);
+const league = makeLeague(0, 3, 3);
 
 describe("buildImportPromptText", () => {
   const prompt = buildImportPromptText(league);

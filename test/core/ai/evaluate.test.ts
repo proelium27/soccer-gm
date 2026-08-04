@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mulberry32 } from "../../../src/engine/rng.js";
-import { createLeagueState } from "../../../src/core/leagueState.js";
+import { makeLeague } from "../../helpers/league.js";
 import type { Player, Position } from "../../../src/core/players/types.js";
 import { POSITIONS } from "../../../src/core/players/types.js";
 import type { ClubContext, StrategicDirection } from "../../../src/core/ai/clubContext.js";
@@ -17,7 +16,7 @@ const SEASON = 10;
 
 /** A real generated player we can override fields on (so every field is valid). */
 function samplePlayer(overrides: Partial<Player> = {}): Player {
-  const league = createLeagueState(0, mulberry32(1));
+  const league = makeLeague(0, 1);
   const base = league.players[0];
   return {
     ...base,

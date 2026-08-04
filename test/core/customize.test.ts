@@ -1,11 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { mulberry32 } from "../../src/engine/rng.js";
-import { createLeagueState } from "../../src/core/leagueState.js";
+import { makeLeague } from "../helpers/league.js";
 import { applyTeamIdentities } from "../../src/core/teams/customize.js";
 
 describe("applyTeamIdentities", () => {
   // NewLeague names the league after the chosen club at creation; mirror that.
-  const base = createLeagueState(0, mulberry32(42), 42);
+  const base = makeLeague(0, 42, 42);
   const league = { ...base, meta: { ...base.meta, name: base.teams[0].name } };
 
   it("applies name/abbrev/colors edits to the targeted team only", () => {

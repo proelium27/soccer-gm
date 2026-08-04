@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
+import { makeLeague } from "../../helpers/league.js";
 import {
   respondToOffer, reservationPrice, scoutedValue, isForSale, windowSeed,
   makeTransferOffer, acceptCounterOffer, currentNegotiations,
 } from "../../../src/core/transfers/negotiation.js";
 import { transferWindowState } from "../../../src/core/transfers/window.js";
 import { trueTransferValue } from "../../../src/core/finance/valuation.js";
-import { createLeagueState, type LeagueStore } from "../../../src/core/leagueState.js";
-import { mulberry32 } from "../../../src/engine/rng.js";
+import { type LeagueStore } from "../../../src/core/leagueState.js";
 import {
   RESERVATION_FACTOR_MIN, RESERVATION_FACTOR_MAX,
   NEGOTIATION_LOWBALL_FACTOR, NEGOTIATION_MAX_ROUNDS,
@@ -29,7 +29,7 @@ function fillUserRosterToCap(league: LeagueStore): LeagueStore {
 
 /** A league sitting in the winter window with a rich user club. */
 function windowLeague(seed = 1): LeagueStore {
-  const league = createLeagueState(0, mulberry32(seed));
+  const league = makeLeague(0, seed);
   return {
     ...league,
     schedule: league.schedule.filter((g) => g.matchday >= 20),
@@ -216,7 +216,7 @@ describe("makeTransferOffer / acceptCounterOffer", () => {
   });
 
   it("is a no-op outside a window, over budget, or for the user's own player", () => {
-    const closed = { ...windowLeague(), schedule: createLeagueState(0, mulberry32(1)).schedule.filter((g) => g.matchday >= 10) };
+    const closed = { ...windowLeague(), schedule: makeLeague(0, 1).schedule.filter((g) => g.matchday >= 10) };
     expect(transferWindowState(closed).open).toBe(false);
     const { pid } = firstTarget(closed);
     expect(makeTransferOffer(closed, pid, 1_000_000)).toBe(closed);
@@ -336,7 +336,7 @@ describe("makeTransferOffer / acceptCounterOffer", () => {
 describe("the summer window across the season rollover", () => {
   /** A league in the offseason phase (next season's schedule already drawn). */
   function offseasonLeague(seed = 6): LeagueStore {
-    const league = createLeagueState(0, mulberry32(seed));
+    const league = makeLeague(0, seed);
     return {
       ...league,
       phase: "offseason",

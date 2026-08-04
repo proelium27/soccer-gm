@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { makeLeague } from "../../helpers/league.js";
 import {
   inboundOfferCandidates, currentInboundOffers, respondToAsk, setTransferListed,
   acceptInboundOffer, rejectInboundOffer, counterInboundOffer,
 } from "../../../src/core/transfers/inboundOffers.js";
-import { createLeagueState, type LeagueStore } from "../../../src/core/leagueState.js";
-import { mulberry32 } from "../../../src/engine/rng.js";
+import { type LeagueStore } from "../../../src/core/leagueState.js";
 import {
   NEGOTIATION_LOWBALL_FACTOR, NEGOTIATION_MAX_ROUNDS,
   AI_MARKET_MIN_SURPLUS, LISTED_FOR_TRANSFER_MIN_SURPLUS, INBOUND_OFFERS_MAX,
@@ -12,7 +12,7 @@ import {
 
 /** A league sitting in the winter window (seed picked so the user gets inbound offers). */
 function windowLeague(seed = 1): LeagueStore {
-  const league = createLeagueState(0, mulberry32(seed));
+  const league = makeLeague(0, seed);
   return { ...league, schedule: league.schedule.filter((g) => g.matchday >= 20) };
 }
 
@@ -65,7 +65,7 @@ describe("respondToAsk", () => {
 
 describe("inboundOfferCandidates", () => {
   it("is empty outside an open window", () => {
-    const closed = { ...windowLeague(), schedule: createLeagueState(0, mulberry32(1)).schedule.filter((g) => g.matchday >= 10) };
+    const closed = { ...windowLeague(), schedule: makeLeague(0, 1).schedule.filter((g) => g.matchday >= 10) };
     expect(inboundOfferCandidates(closed)).toEqual([]);
   });
 
@@ -278,7 +278,7 @@ describe("acceptInboundOffer / rejectInboundOffer / counterInboundOffer", () => 
   });
 
   it("is a no-op outside a window or for a nonexistent offer", () => {
-    const closed = { ...windowLeague(), schedule: createLeagueState(0, mulberry32(1)).schedule.filter((g) => g.matchday >= 10) };
+    const closed = { ...windowLeague(), schedule: makeLeague(0, 1).schedule.filter((g) => g.matchday >= 10) };
     expect(acceptInboundOffer(closed, 1)).toBe(closed);
     expect(rejectInboundOffer(closed, 1)).toBe(closed);
     expect(counterInboundOffer(closed, 1, 1)).toBe(closed);
