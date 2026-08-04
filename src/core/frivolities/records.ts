@@ -21,6 +21,12 @@ export interface TeamSeasonRecord {
 export interface TransferRecord {
   pid: number;
   name: string;
+  /**
+   * Empty when the player is no longer known to the save (sold years ago, then
+   * retired below the archive's quality gate). The row is still a real transfer,
+   * so it renders with a placeholder name and no flag rather than vanishing.
+   */
+  nationality: string;
   fromTid: number;
   toTid: number;
   fee: number;
@@ -94,7 +100,7 @@ export function computeRecordBook(league: LeagueStore, limit = RECORD_LIST_LIMIT
   // --- Transfers ----------------------------------------------------------
   // Free-agent arrivals carry the FREE_AGENT_TID sentinel and a zero fee, and
   // loan moves/returns aren't purchases — none belong on a "biggest fee" list.
-  const nameByPid = new Map(careers.map((c) => [c.pid, c.name]));
+  const careerByPid = new Map(careers.map((c) => [c.pid, c]));
   const biggestTransfers: TransferRecord[] = league.transfers
     .filter((t) => t.fee > 0 && !t.loanSeasons && !t.loanReturn
       && !isFreeAgentTid(t.fromTid) && !isFreeAgentTid(t.toTid))
@@ -103,7 +109,8 @@ export function computeRecordBook(league: LeagueStore, limit = RECORD_LIST_LIMIT
       // A player sold years ago may have since retired out of the archive; the
       // transfer row is still real, so it shows with a placeholder rather than
       // being dropped and silently shortening the list.
-      name: nameByPid.get(t.pid) ?? `Player ${t.pid}`,
+      name: careerByPid.get(t.pid)?.name ?? `Player ${t.pid}`,
+      nationality: careerByPid.get(t.pid)?.nationality ?? "",
       fromTid: t.fromTid,
       toTid: t.toTid,
       fee: t.fee,

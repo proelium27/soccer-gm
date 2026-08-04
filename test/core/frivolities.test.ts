@@ -161,6 +161,24 @@ describe("computeRecordBook", () => {
     expect(fees[0].fee).toBe(50);
   });
 
+  it("carries each transfer's player nationality, so the row can render a flag", () => {
+    // Without this the biggest-fees table was the one player list on the page
+    // with no flags, because TransferRecord didn't carry a nationality at all.
+    const store = makeStore({
+      players: [makePlayer({ pid: 1, nationality: "Brazil", lines: [[2029, 1, 5, 0, 0]] })],
+      transfers: [
+        { pid: 1, fromTid: 1, toTid: 2, fee: 50, season: 2029, window: "summer" },
+        // A player the save no longer knows: still a real transfer, but there
+        // is no nationality to show, so it must be empty rather than invented.
+        { pid: 404, fromTid: 1, toTid: 2, fee: 90, season: 2029, window: "summer" },
+      ],
+    } as Partial<LeagueStore>);
+    const fees = computeRecordBook(store).biggestTransfers;
+    expect(fees.find((f) => f.pid === 1)!.nationality).toBe("Brazil");
+    expect(fees.find((f) => f.pid === 404)!.nationality).toBe("");
+    expect(fees.find((f) => f.pid === 404)!.name).toBe("Player 404");
+  });
+
   it("puts retirees on the all-time lists alongside active players", () => {
     const store = makeStore({
       players: [makePlayer({ pid: 1, lines: [[2029, 1, 30, 20, 5]], hist: [[2029, 75]] })],

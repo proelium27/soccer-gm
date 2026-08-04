@@ -65,7 +65,9 @@ function PlayerCell({ pid, name, nationality, active }: {
 }) {
   return (
     <span className="d-inline-flex align-items-center gap-1">
-      {nationality && <Flag nationality={nationality} tip={false} />}
+      {/* Falsy for a player the save no longer knows (see TransferRecord.nationality) —
+          the Flag fallback swatch would imply a country we don't actually have. */}
+      {nationality ? <Flag nationality={nationality} tip={false} /> : null}
       {active === false
         ? <span>{name}</span>
         : <Link to={`/player/${pid}`}>{name}</Link>}
@@ -270,7 +272,7 @@ function RecordsTab() {
               rows={book.biggestTransfers}
               headers={["Player", "From", "To", "Season", "Fee"]}
               render={(t: TransferRecord) => [
-                <PlayerCell pid={t.pid} name={t.name} />,
+                <PlayerCell pid={t.pid} name={t.name} nationality={t.nationality} />,
                 <ClubCell tid={t.fromTid} />,
                 <ClubCell tid={t.toTid} />,
                 seasonYear(t.season),
@@ -358,7 +360,7 @@ function BiosTab() {
                 n.rostered,
                 n.avgOvr.toFixed(1),
                 n.best
-                  ? <PlayerCell pid={n.best.pid} name={n.best.name} />
+                  ? <PlayerCell pid={n.best.pid} name={n.best.name} nationality={n.best.nationality} />
                   : <span className="text-muted">None</span>,
               ]}
               empty="players"
