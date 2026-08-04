@@ -9,6 +9,24 @@ import {
 } from "../frivolities/stats.js";
 
 /**
+ * One season a player actually played, reduced to what the all-time surfaces
+ * need from it.
+ *
+ * `tid` is what makes honours derivable: a league or cup title belongs to
+ * whoever was at the champion club *that season*, and a distinct club list
+ * can't answer that. `ovr` lets the GOAT formula weigh a long prime rather than
+ * a single peak. Three numbers a season, which is why only seasons with an
+ * appearance are kept.
+ */
+export interface ArchivedSeason {
+  season: number;
+  /** Club of his most recent appearance that season (SeasonStats.tid). */
+  tid: number;
+  /** The rating he played that season at. */
+  ovr: number;
+}
+
+/**
  * A retired player kept permanently, so the all-time frivolities leaderboards
  * still know he existed.
  *
@@ -50,6 +68,18 @@ export interface ArchivedPlayer {
   /** Distinct clubs he made league appearances for, first to last. */
   clubs: number[];
   /**
+   * Every season he made an appearance in, with the club and rating.
+   *
+   * Deliberately raw data rather than a snapshot of his honours. Honours could
+   * be counted once here and stored as a handful of numbers, but that would put
+   * retirees on a *different code path* from living players — and the count
+   * would have to be taken at offseason step 3, before the season's own awards
+   * and champions exist, so a player retiring the year he won the title would
+   * silently lose it. Keeping the club-per-season line instead means one
+   * honours function serves both (see frivolities/goat.ts).
+   */
+  seasons: ArchivedSeason[];
+  /**
    * League career totals, one number per ranked stat. Cup and international
    * appearances are not included (they live on separate stat lines), matching
    * SeasonStats' own scope.
@@ -67,9 +97,10 @@ export interface ArchivedPlayer {
    * the row, and the reason RETIREE_ARCHIVE_LIMIT came down when it was added.
    */
   best: BestSeasons;
-  /** International caps and goals, 0 if he was never called up. */
+  /** International caps, goals and World Cup wins; 0 if he was never called up. */
   caps: number;
   intlGoals: number;
+  intlTitles: number;
 }
 
 /** Career league appearances across every season on the stat line. */
@@ -152,10 +183,18 @@ export function archivePlayer(player: Player, season: number): ArchivedPlayer {
     peakSeason: peak.season,
     finalOvr: ovrDuringSeason(player, season),
     clubs,
+    seasons: played.map((st) => ({
+      season: st.season,
+      tid: st.tid,
+      // The rating he carried into that season; falls back to his peak when no
+      // snapshot exists (a career that predates ratings history).
+      ovr: player.hist.find((h) => h.season === st.season - 1)?.ovr ?? peak.ovr,
+    })),
     totals: totalsOf(played),
     best: bestSeasonsOf(played),
     caps: player.intl?.caps ?? 0,
     intlGoals: player.intl?.goals ?? 0,
+    intlTitles: player.intl?.titles ?? 0,
   };
 }
 

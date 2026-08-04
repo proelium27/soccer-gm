@@ -1,6 +1,6 @@
 import type { LeagueStore } from "../leagueState.js";
 import type { Player, Position } from "../players/types.js";
-import type { ArchivedPlayer } from "../players/archive.js";
+import type { ArchivedPlayer, ArchivedSeason } from "../players/archive.js";
 import {
   totalsOf, bestSeasonsOf, type AllTimeStatKey, type StatTotals, type BestSeasons,
 } from "./stats.js";
@@ -35,8 +35,12 @@ export interface CareerRow {
   best: BestSeasons;
   caps: number;
   intlGoals: number;
+  /** World Cups won with his nation. */
+  intlTitles: number;
   /** Distinct clubs he made league appearances for. */
   clubs: number[];
+  /** Every season he appeared in, with the club and the rating he played it at. */
+  seasons: ArchivedSeason[];
 }
 
 /** Shorthand for the two numbers nearly every caller wants off a row. */
@@ -61,7 +65,9 @@ function rowFromArchived(a: ArchivedPlayer): CareerRow {
     best: a.best,
     caps: a.caps,
     intlGoals: a.intlGoals,
+    intlTitles: a.intlTitles ?? 0,
     clubs: a.clubs,
+    seasons: a.seasons ?? [],
   };
 }
 
@@ -105,7 +111,15 @@ function rowFromPlayer(
     best: bestSeasonsOf(played),
     caps: p.intl?.caps ?? 0,
     intlGoals: p.intl?.goals ?? 0,
+    intlTitles: p.intl?.titles ?? 0,
     clubs,
+    seasons: played.map((s) => ({
+      season: s.season,
+      tid: s.tid,
+      // Same rule archivePlayer uses, so a living and a retired player's
+      // season lines mean exactly the same thing.
+      ovr: p.hist.find((h) => h.season === s.season - 1)?.ovr ?? peakOvr,
+    })),
   };
 }
 

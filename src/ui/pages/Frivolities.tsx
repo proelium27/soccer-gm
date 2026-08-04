@@ -6,14 +6,18 @@ import { computePlayerBios, type BioRow, type NameCount, type NationalityRow } f
 import { computeClubTrivia, type ClubRecordRow, type ClubSpendRow, type OneClubMan } from "../../core/frivolities/clubs.js";
 import type { CareerRow } from "../../core/frivolities/careers.js";
 import { allTimeLeaders, type LeaderScope } from "../../core/frivolities/leaders.js";
+import {
+  playerGoatRanking, teamGoatRanking, type PlayerGoatRow, type TeamGoatRow,
+} from "../../core/frivolities/goat.js";
 import { ALL_TIME_STAT_KEYS, type AllTimeStatKey } from "../../core/frivolities/stats.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { Flag } from "../components/Flag.js";
 import { currency, seasonYear } from "../format.js";
 
-type Tab = "records" | "leaders" | "bios" | "clubs";
+type Tab = "goat" | "records" | "leaders" | "bios" | "clubs";
 
 const TAB_LABELS: Record<Tab, string> = {
+  goat: "GOAT",
   records: "Records",
   leaders: "All-Time Leaders",
   bios: "Player Bios",
@@ -151,6 +155,102 @@ function Col({ children, wide = false }: { children: ReactNode; wide?: boolean }
   return <div className={wide ? "col-12" : "col-12 col-lg-6"}>{children}</div>;
 }
 
+// --- GOAT ------------------------------------------------------------------
+
+/** Small muted number under a score, showing where the points came from. */
+function Part({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="text-muted small me-2 text-nowrap">
+      {label} {Math.round(value)}
+    </span>
+  );
+}
+
+function GoatTab() {
+  const { league } = useLeague();
+  const [side, setSide] = useState<"players" | "clubs">("players");
+  const players = useMemo(() => (league ? playerGoatRanking(league) : []), [league]);
+  const clubs = useMemo(() => (league ? teamGoatRanking(league) : []), [league]);
+  if (!league) return null;
+
+  return (
+    <>
+      <p className="text-secondary small">
+        Who's the greatest of all time? There's no right answer, so this is just one opinion
+        written down as a formula. It weighs how good you were at your peak, how long you stayed
+        there, what you won, and what you produced — and it counts retired players, so your
+        legends don't drop off the list when they hang up. The breakdown under each score shows
+        which parts of the case did the work.
+      </p>
+
+      <ul className="nav nav-pills nav-sm mb-3">
+        {(["players", "clubs"] as const).map((s) => (
+          <li key={s} className="nav-item">
+            <button
+              className={`nav-link ${side === s ? "active" : ""}`}
+              onClick={() => setSide(s)}
+            >
+              {s === "players" ? "Players" : "Clubs"}
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      {side === "players" ? (
+        <Panel
+          title="Greatest players of all time"
+          note="Peak rating, years spent near it, individual awards, trophies, and end product."
+        >
+          <RankTable
+            rows={players}
+            headers={["Player", "Club", "Seasons", "Peak", "Case", "Score"]}
+            render={(r: PlayerGoatRow) => [
+              <PlayerCell
+                pid={r.career.pid}
+                name={r.career.name}
+                nationality={r.career.nationality}
+                active={r.career.active}
+              />,
+              <ClubCell tid={r.career.tid} />,
+              r.career.seasonsPlayed,
+              r.career.peakOvr,
+              <span className="d-inline-flex flex-wrap justify-content-end">
+                <Part label="peak" value={r.peak} />
+                <Part label="prime" value={r.prime} />
+                <Part label="career" value={r.longevity} />
+                <Part label="awards" value={r.awards} />
+                <Part label="trophies" value={r.trophies} />
+              </span>,
+              <strong>{Math.round(r.score)}</strong>,
+            ]}
+            empty="careers"
+          />
+        </Panel>
+      ) : (
+        <Panel
+          title="Greatest clubs of all time"
+          note="Trophies mostly, with points per game separating clubs on level cabinets."
+        >
+          <RankTable
+            rows={clubs}
+            headers={["Club", "Titles", "Cups", "Top 4", "Seasons", "PPG", "Score"]}
+            render={(r: TeamGoatRow) => [
+              <ClubCell tid={r.tid} />,
+              r.leagueTitles,
+              r.cupTitles,
+              r.topFinishes,
+              r.seasons,
+              r.ppg.toFixed(2),
+              <strong>{Math.round(r.score)}</strong>,
+            ]}
+            empty="completed seasons"
+          />
+        </Panel>
+      )}
+    </>
+  );
+}
+
 // --- Records ---------------------------------------------------------------
 
 function teamSeasonCells(r: TeamSeasonRecord): ReactNode[] {
@@ -193,7 +293,7 @@ function RecordsTab() {
       <Row>
         <Col>
           <Panel
-            title="Best team seasons"
+            title="Most dominant seasons"
             note="Ranked by points per game, so a season in a smaller league isn't punished for playing fewer matches."
           >
             <RankTable
@@ -623,7 +723,7 @@ function ClubsTab() {
 
 export function Frivolities() {
   const { league } = useLeague();
-  const [tab, setTab] = useState<Tab>("records");
+  const [tab, setTab] = useState<Tab>("goat");
   if (!league) return null;
 
   return (
@@ -647,6 +747,7 @@ export function Frivolities() {
         ))}
       </ul>
 
+      {tab === "goat" && <GoatTab />}
       {tab === "records" && <RecordsTab />}
       {tab === "leaders" && <LeadersTab />}
       {tab === "bios" && <BiosTab />}

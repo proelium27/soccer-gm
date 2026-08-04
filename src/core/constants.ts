@@ -706,7 +706,9 @@ export const RETIREMENT_NOTABLE_LIMIT = 15;
  *    `LIMIT` came down from 4000 when the row widened to carry full career
  *    totals plus a best-season line per ranked stat (needed so the all-time
  *    leaderboards cover retirees for *every* stat, not just goals and assists)
- *    — roughly 3x the width, so a lower row count holds the same budget.
+ *    — roughly 3x the width, so a lower row count holds the same budget. It
+ *    came down again (2500 -> 2000) when the per-season club/rating line was
+ *    added for the GOAT rankings.
  *
  * Every list the archive feeds is a leaderboard (the top N of something), so a
  * career that clears neither bar costs save size and buys nothing.
@@ -722,7 +724,7 @@ export const RETIREMENT_NOTABLE_LIMIT = 15;
  */
 export const RETIREE_ARCHIVE_MIN_PEAK_OVR = 70;
 export const RETIREE_ARCHIVE_MIN_APPEARANCES = 200;
-export const RETIREE_ARCHIVE_LIMIT = 2_500;
+export const RETIREE_ARCHIVE_LIMIT = 2_000;
 
 /**
  * Wages (2026-07-11 rework, replacing the flat 20k-per-ovr placeholder;
@@ -1955,3 +1957,74 @@ export const INTL_QUAL_LEGS = 3;
  * opening day. Tunable — raise it to make carried injuries rarer/shorter.
  */
 export const INTL_INJURY_OFFSEASON_RECOVERY = 2;
+
+
+/**
+ * GOAT rankings (`core/frivolities/goat.ts`) — a **first-draft** formula, and
+ * explicitly a matter of taste rather than a measured quantity. Every weight
+ * here is meant to be argued with; none of it feeds the sim.
+ *
+ * Scaled so a genuinely all-time career lands around 1200-1400 and a good
+ * top-flight regular around 100-200, which keeps the numbers readable without
+ * needing a normalization pass.
+ *
+ * The shape of the argument:
+ * - **Peak** says how good you were at your best, **prime** how long you stayed
+ *   there. Prime is weighted to out-earn peak over a long career, because the
+ *   thing that separates a GOAT from a one-season wonder is duration at a
+ *   level, not the single highest number he ever hit.
+ * - **Honours carry roughly half the score.** They're the game's own verdict on
+ *   a season, already blending production, rating and team success.
+ * - **Production (goals/assists) is weighted deliberately low.** It's the main
+ *   source of positional bias and it double-counts with the awards it wins.
+ *
+ * **Known bias, not yet solved:** the Ballon d'Or and POTY are structurally
+ * striker awards (see the world-awards notes above — `potyScore` carries no
+ * defensive stats at all), so a GOAT list built on them tilts toward attackers.
+ * The position-fair counterweights are the Team of the Season and World Team of
+ * the Year terms, which are selected into fixed positional slots, which is why
+ * they're weighted more generously per selection than their rarity alone
+ * justifies. Fixing this properly means giving those awards defensive terms —
+ * a design change, not a retune.
+ */
+export const GOAT_OVR_BASELINE = 70;
+export const GOAT_PEAK_WEIGHT = 6;
+export const GOAT_PRIME_WEIGHT = 1.5;
+export const GOAT_LONGEVITY_WEIGHT = 4;
+/** Sustained match rating above the 6.0 baseline, damped until he has a real sample. */
+export const GOAT_RATING_WEIGHT = 40;
+export const GOAT_RATING_FULL_SAMPLE = 150;
+export const GOAT_BALLON_DOR_WEIGHT = 60;
+export const GOAT_WORLD_XI_WEIGHT = 22;
+export const GOAT_POTY_WEIGHT = 25;
+export const GOAT_GOLDEN_BOOT_WEIGHT = 15;
+export const GOAT_TOTS_WEIGHT = 10;
+export const GOAT_LEAGUE_TITLE_WEIGHT = 12;
+export const GOAT_CUP_TITLE_WEIGHT = 25;
+export const GOAT_WORLD_CUP_WEIGHT = 50;
+export const GOAT_CAP_WEIGHT = 0.3;
+export const GOAT_GOAL_WEIGHT = 0.15;
+export const GOAT_ASSIST_WEIGHT = 0.1;
+
+/**
+ * Club GOAT weights. Same first-draft caveat as the player formula above.
+ *
+ * Trophies dominate, because a club's case really is its cabinet. The
+ * points-per-game term is what separates two clubs on equal trophy counts: it
+ * rewards being *consistently* strong rather than winning a title and vanishing,
+ * and it's measured against a mid-table baseline so ordinary seasons contribute
+ * nothing either way. Second-tier seasons count for less on that term (and a
+ * second-tier title counts for much less than a top-flight one) so a club can't
+ * build a GOAT case by dominating a division it shouldn't be in.
+ */
+export const GOAT_TEAM_LEAGUE_TITLE_WEIGHT = 100;
+export const GOAT_TEAM_CUP_TITLE_WEIGHT = 150;
+export const GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT = 20;
+export const GOAT_TEAM_TOP_FINISH_WEIGHT = 15;
+/** A finishing position this good or better counts as contending. */
+export const GOAT_TEAM_TOP_FINISH_POSITION = 4;
+export const GOAT_TEAM_SEASON_WEIGHT = 3;
+export const GOAT_TEAM_PPG_BASELINE = 1.4;
+export const GOAT_TEAM_PPG_WEIGHT = 20;
+/** Tier-2 seasons contribute this fraction of their points-per-game surplus. */
+export const GOAT_TEAM_SECOND_TIER_SCALE = 0.5;

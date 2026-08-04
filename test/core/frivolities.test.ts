@@ -7,6 +7,9 @@ import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { ArchivedPlayer } from "../../src/core/players/archive.js";
 import { emptyTotals, emptyBestSeasons } from "../../src/core/frivolities/stats.js";
 import { allTimeLeaders } from "../../src/core/frivolities/leaders.js";
+import {
+  computeHonours, playerGoatRanking, teamGoatRanking,
+} from "../../src/core/frivolities/goat.js";
 import { FREE_AGENT_TID } from "../../src/core/transfers/negotiation.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
 import type { SeasonHistoryEntry, StandingsRow } from "../../src/core/standings.js";
@@ -57,7 +60,8 @@ function makeArchived(o: Partial<ArchivedPlayer> & { pid: number }): ArchivedPla
     peakOvr: 80, peakSeason: 2018, finalOvr: 70, clubs: [1],
     totals: { ...emptyTotals(), appearances: 500, goals: 300, assists: 100, minutesPlayed: 45000, avgRating: 7.5 },
     best: { ...emptyBestSeasons(), goals: { value: 35, season: 2018, appearances: 38 } },
-    caps: 100, intlGoals: 50,
+    caps: 100, intlGoals: 50, intlTitles: 0,
+    seasons: [{ season: 2018, tid: 1, ovr: 80 }],
     ...o,
   } as ArchivedPlayer;
 }
@@ -347,5 +351,168 @@ describe("computeClubTrivia", () => {
     } as Partial<LeagueStore>));
     expect(trivia.oneClubMen.map((m) => m.career.pid)).toEqual([1]);
     expect(trivia.oneClubMen[0].tid).toBe(1);
+  });
+});
+
+describe("GOAT rankings", () => {
+  /** A season-history entry that also carries awards and a champion. */
+  function historyWithAwards(
+    season: number,
+    table: StandingsRow[],
+    compsByTid: Record<number, number>,
+    extra: {
+      champion?: number;
+      ballonDOr?: number;
+      worldXI?: (number | null)[];
+      poty?: number;
+      goldenBoot?: number;
+      tots?: (number | null)[];
+    } = {},
+  ): SeasonHistoryEntry {
+    return {
+      season, table, compsByTid, teamStats: [],
+      awards: {
+        0: {
+          playerOfSeasonPid: extra.poty ?? null,
+          goldenBootPid: extra.goldenBoot ?? null,
+          teamOfSeason: extra.tots ?? [],
+        },
+      },
+      world: {
+        ballonDOr: extra.ballonDOr == null ? [] : [{ pid: extra.ballonDOr }],
+        worldTeamOfYear: extra.worldXI ?? [],
+      },
+      championTidByCompId: extra.champion == null ? {} : { 0: extra.champion },
+    } as unknown as SeasonHistoryEntry;
+  }
+
+  describe("computeHonours", () => {
+    it("credits awards and titles to retired players, not just the living", () => {
+      // The whole reason honours are derived from seasonHistory instead of
+      // snapshotted: a retiree must keep every trophy he ever won.
+      const store = makeStore({
+        players: [],
+        retiredPlayers: [makeArchived({
+          pid: 99,
+          seasons: [{ season: 2028, tid: 1, ovr: 90 }, { season: 2029, tid: 1, ovr: 88 }],
+          intlTitles: 1,
+        })],
+        cupHistory: [{ season: 2029, championTid: 1 }],
+        seasonHistory: [
+          historyWithAwards(2028, [row(1, 38, 90)], { 1: 0 },
+            { champion: 1, ballonDOr: 99, poty: 99, tots: [99] }),
+          historyWithAwards(2029, [row(1, 38, 88)], { 1: 0 },
+            { champion: 1, worldXI: [99], goldenBoot: 99 }),
+        ],
+      } as unknown as Partial<LeagueStore>);
+
+      const h = computeHonours(store, allCareers(store)).get(99)!;
+      expect(h.ballonDOr).toBe(1);
+      expect(h.playerOfSeason).toBe(1);
+      expect(h.teamOfSeason).toBe(1);
+      expect(h.worldXI).toBe(1);
+      expect(h.goldenBoot).toBe(1);
+      expect(h.leagueTitles).toBe(2);
+      expect(h.cupTitles).toBe(1);
+      expect(h.worldCups).toBe(1);
+    });
+
+    it("only credits a title to players who were at the club that season", () => {
+      // He joined the champions the season *after* they won it.
+      const store = makeStore({
+        players: [makePlayer({ pid: 1, lines: [[2029, 1, 30, 5, 0]] })],
+        seasonHistory: [
+          historyWithAwards(2028, [row(1, 38, 90)], { 1: 0 }, { champion: 1 }),
+          historyWithAwards(2029, [row(1, 38, 60), row(2, 38, 90)], { 1: 0, 2: 0 }, { champion: 2 }),
+        ],
+      } as unknown as Partial<LeagueStore>);
+      expect(computeHonours(store, allCareers(store)).get(1)!.leagueTitles).toBe(0);
+    });
+  });
+
+  describe("playerGoatRanking", () => {
+    it("ranks a decorated career above an equally rated one with no honours", () => {
+      const store = makeStore({
+        players: [
+          makePlayer({ pid: 1, lines: [[2029, 1, 38, 20, 5]], hist: [[2028, 90]] }),
+          makePlayer({ pid: 2, lines: [[2029, 2, 38, 20, 5]], hist: [[2028, 90]] }),
+        ],
+        seasonHistory: [
+          historyWithAwards(2029, [row(1, 38, 90), row(2, 38, 80)], { 1: 0, 2: 0 },
+            { champion: 1, ballonDOr: 1, poty: 1 }),
+        ],
+      } as unknown as Partial<LeagueStore>);
+
+      const rank = playerGoatRanking(store);
+      expect(rank[0].career.pid).toBe(1);
+      expect(rank[0].awards).toBeGreaterThan(0);
+      expect(rank[1].awards).toBe(0);
+      // The parts must actually add up to the headline number.
+      const r = rank[0];
+      expect(r.score).toBeCloseTo(
+        r.peak + r.prime + r.longevity + r.awards + r.trophies + r.production, 6,
+      );
+    });
+
+    it("rewards a long prime over a single brilliant season", () => {
+      // Same peak, very different careers — the distinction the formula exists
+      // to make.
+      const oneYear = makePlayer({
+        pid: 1, lines: [[2029, 1, 38, 20, 5]], hist: [[2028, 90]],
+      });
+      const longCareer = makePlayer({
+        pid: 2,
+        lines: Array.from({ length: 10 }, (_, i) => [2020 + i, 2, 38, 20, 5] as [number, number, number, number, number]),
+        hist: Array.from({ length: 10 }, (_, i) => [2019 + i, 88] as [number, number]),
+      });
+      const store = makeStore({ players: [oneYear, longCareer] });
+      const rank = playerGoatRanking(store);
+      expect(rank[0].career.pid).toBe(2);
+      expect(rank[0].prime).toBeGreaterThan(rank[1].prime);
+    });
+
+    it("gives no peak or prime credit below the baseline", () => {
+      // A journeyman shouldn't accumulate a GOAT case just by existing.
+      const store = makeStore({
+        players: [makePlayer({ pid: 1, lines: [[2029, 1, 38, 0, 0]], hist: [[2028, 55]] })],
+      });
+      const r = playerGoatRanking(store)[0];
+      expect(r.peak).toBe(0);
+      expect(r.prime).toBe(0);
+    });
+  });
+
+  describe("teamGoatRanking", () => {
+    const store = makeStore({
+      seasonHistory: [
+        historyWithAwards(2028, [row(1, 38, 90, 40), row(2, 38, 70, 10), row(3, 20, 55)],
+          { 1: 0, 2: 0, 3: 1 }, { champion: 1 }),
+        historyWithAwards(2029, [row(1, 38, 88, 35), row(2, 38, 60, 5), row(3, 20, 50)],
+          { 1: 0, 2: 0, 3: 1 }, { champion: 1 }),
+      ],
+      cupHistory: [{ season: 2029, championTid: 1 }],
+    } as unknown as Partial<LeagueStore>);
+
+    it("puts the serial winner top and shows its cabinet", () => {
+      const rank = teamGoatRanking(store);
+      expect(rank[0].tid).toBe(1);
+      expect(rank[0].leagueTitles).toBe(2);
+      expect(rank[0].cupTitles).toBe(1);
+      expect(rank[0].score).toBeCloseTo(rank[0].trophies + rank[0].consistency, 6);
+    });
+
+    it("counts a second-tier title separately from a top-flight one", () => {
+      const club3 = teamGoatRanking(store).find((r) => r.tid === 3)!;
+      expect(club3.leagueTitles).toBe(0);
+      expect(club3.secondTierTitles).toBe(2);
+      expect(club3.topFlightSeasons).toBe(0);
+      // And it must not outrank the club that won the actual league twice.
+      expect(club3.score).toBeLessThan(teamGoatRanking(store)[0].score);
+    });
+
+    it("computes career points per game across seasons, not a mean of means", () => {
+      // 178 points from 76 matches.
+      expect(teamGoatRanking(store).find((r) => r.tid === 1)!.ppg).toBeCloseTo(178 / 76, 6);
+    });
   });
 });

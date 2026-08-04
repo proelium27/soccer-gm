@@ -34,6 +34,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-08-04",
+    title: "GOAT rankings, and a panel finally called what it actually is",
+    items: [
+      "Frivolities opens on a new GOAT tab now, ranking the greatest players and greatest clubs your world has produced. There's no correct answer to \"who's the greatest\", so rather than pretend otherwise I've written my opinion down as a formula and shown you the working. Each row breaks the score into peak, prime, career, awards and trophies, so when you disagree with the order you can at least see which part of the argument you're disagreeing with.",
+      "Roughly: peak rating says how good you were at your best, prime adds up the years you spent near that level, and prime is weighted to beat peak over a long career, because what separates an all-timer from a one-season wonder is staying there. Individual awards carry about half the score. Trophies count, but a league title is worth a lot less than a Ballon d'Or, since eleven people win the league. Goals and assists are in there but weighted low on purpose, because they mostly double-count with the awards they win. Clubs are simpler: trophies dominate, and points per game breaks ties between clubs with similar cabinets.",
+      "One thing I want to be upfront about, because you'll notice it: the list leans toward attackers. That's inherited from the Ballon d'Or and Player of the Season, which are built on scoring and don't count defensive work at all. The Team of the Season and World Team of the Year terms fight back a bit (they pick an actual formation, so centre-backs and keepers get selected), but they don't fully fix it. Properly fixing it means rewriting how those awards are judged, which is a bigger job than a frivolity should drag in, so for now the bias is a known flaw rather than a hidden one. This is a first draft and I fully expect to move the numbers around.",
+      "Also renamed \"Best team seasons\" to \"Most dominant seasons\", because that's what it was actually showing. It ranks by points per game, which measures how far clear of the field you finished, not how good the team was.",
+    ],
+  },
+  {
+    date: "2026-08-04",
     title: "All-time leaders moved out of Stat Leaders and into Frivolities",
     items: [
       "Stat Leaders had an \"All Seasons\" option hiding in its season dropdown, and when you picked it a second dropdown appeared offering Career or Single Season. It always felt bolted on, and now that Frivolities exists it's clearly in the wrong place. So I've pulled it out. Stat Leaders is now purely one season at a time, which is what it's actually good at, and there's a new All-Time Leaders tab in Frivolities that does the all-time version properly.",
