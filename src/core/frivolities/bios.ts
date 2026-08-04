@@ -1,4 +1,5 @@
 import type { LeagueStore } from "../leagueState.js";
+import { allCareers, type CareerRow } from "./careers.js";
 import type { Player, Position } from "../players/types.js";
 
 /** How many rows each bio list shows. */
@@ -34,6 +35,17 @@ export interface NameCount {
   count: number;
 }
 
+/**
+ * A player who only ever appeared for one club.
+ *
+ * Lives with the player lists rather than the club ones: it's a fact about a
+ * career, and it's shown on the Player Bios tab.
+ */
+export interface OneClubMan {
+  career: CareerRow;
+  tid: number;
+}
+
 export interface PlayerBios {
   tallest: BioRow[];
   shortest: BioRow[];
@@ -46,6 +58,12 @@ export interface PlayerBios {
   commonFirstNames: NameCount[];
   /** Most common surnames among current players. */
   commonSurnames: NameCount[];
+  /**
+   * Longest single-club careers, most appearances first. Unlike the lists above
+   * this one spans retirees as well as the living, since a one-club career is
+   * an all-time claim rather than a fact about the current world.
+   */
+  oneClubMen: OneClubMan[];
   /** How many players these lists were drawn from. */
   poolSize: number;
 }
@@ -142,6 +160,11 @@ export function computePlayerBios(league: LeagueStore, limit = BIO_LIST_LIMIT): 
     longestNames: by((r) => r.name.length, 1),
     commonFirstNames: tally(names.map((n) => n.first), limit),
     commonSurnames: tally(names.map((n) => n.last), limit),
+    oneClubMen: allCareers(league)
+      .filter((c) => c.clubs.length === 1)
+      .sort((a, b) => b.totals.appearances - a.totals.appearances || a.pid - b.pid)
+      .slice(0, limit)
+      .map((career) => ({ career, tid: career.clubs[0] })),
     poolSize: rows.length,
   };
 }

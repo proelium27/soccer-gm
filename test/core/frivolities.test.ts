@@ -342,15 +342,31 @@ describe("computeClubTrivia", () => {
     expect(trivia.biggestSellers.find((s) => s.tid === 1)!.net).toBe(100);
   });
 
-  it("finds players who only ever appeared for one club", () => {
+  it("counts total trophies across both tiers and the cup", () => {
     const trivia = computeClubTrivia(makeStore({
+      seasonHistory: history,
+      cupHistory: [{ season: 2029, championTid: 2 }],
+    } as unknown as Partial<LeagueStore>));
+    const byTid = new Map(trivia.records.map((r) => [r.tid, r]));
+    expect(byTid.get(1)!.totalTrophies).toBe(1);
+    expect(byTid.get(2)!.totalTrophies).toBe(2); // one league title, one cup
+    expect(byTid.get(3)!.totalTrophies).toBe(2); // two second-tier titles
+    // The table leads with this column, so the ranking has to follow it.
+    const totals = trivia.records.map((r) => r.totalTrophies);
+    expect(totals).toEqual([...totals].sort((a, b) => b - a));
+  });
+});
+
+describe("one-club men", () => {
+  it("finds players who only ever appeared for one club", () => {
+    const bios = computePlayerBios(makeStore({
       players: [
         makePlayer({ pid: 1, lines: [[2028, 1, 30, 0, 0], [2029, 1, 30, 0, 0]] }),
         makePlayer({ pid: 2, lines: [[2028, 1, 30, 0, 0], [2029, 2, 30, 0, 0]] }),
       ],
     } as Partial<LeagueStore>));
-    expect(trivia.oneClubMen.map((m) => m.career.pid)).toEqual([1]);
-    expect(trivia.oneClubMen[0].tid).toBe(1);
+    expect(bios.oneClubMen.map((m) => m.career.pid)).toEqual([1]);
+    expect(bios.oneClubMen[0].tid).toBe(1);
   });
 });
 

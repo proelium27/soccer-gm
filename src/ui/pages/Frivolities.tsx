@@ -2,8 +2,10 @@ import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeRecordBook, type TeamSeasonRecord, type TransferRecord } from "../../core/frivolities/records.js";
-import { computePlayerBios, type BioRow, type NameCount, type NationalityRow } from "../../core/frivolities/bios.js";
-import { computeClubTrivia, type ClubRecordRow, type ClubSpendRow, type OneClubMan } from "../../core/frivolities/clubs.js";
+import {
+  computePlayerBios, type BioRow, type NameCount, type NationalityRow, type OneClubMan,
+} from "../../core/frivolities/bios.js";
+import { computeClubTrivia, type ClubRecordRow, type ClubSpendRow } from "../../core/frivolities/clubs.js";
 import type { CareerRow } from "../../core/frivolities/careers.js";
 import { allTimeLeaders, type LeaderScope } from "../../core/frivolities/leaders.js";
 import {
@@ -22,7 +24,7 @@ const TAB_LABELS: Record<Tab, string> = {
   records: "Records",
   leaders: "All-Time Leaders",
   bios: "Player Bios",
-  clubs: "Club Trivia",
+  clubs: "Club Records",
 };
 
 /** Display labels for the ranked stats, matching the per-season Stat Leaders page's wording. */
@@ -282,10 +284,7 @@ function GoatTab() {
       <p className="text-secondary small">
         Who's the greatest of all time? There's no right answer, so this is just one opinion
         written down as a formula. It weighs how good you were at your peak, how long you stayed
-        there, what you won, and what you produced — and it counts retired players, so your
-        legends don't drop off the list when they hang up. The breakdown under each score shows
-        which parts of the case did the work — and clicking a row opens the full working, down
-        to what every trophy and award was worth.
+        there, what you won, and what you produced.
       </p>
 
       <ul className="nav nav-pills nav-sm mb-3">
@@ -308,7 +307,7 @@ function GoatTab() {
         <Panel
           key="players"
           title="Greatest players of all time"
-          note="Click any row to see exactly how his score was worked out."
+          note="Click on a row to see the full score breakdown"
         >
           <RankTable
             rows={players}
@@ -344,7 +343,7 @@ function GoatTab() {
         <Panel
           key="clubs"
           title="Greatest clubs of all time"
-          note="Click any row to see exactly how its score was worked out."
+          note="Click on a row to see the full score breakdown"
         >
           <RankTable
             rows={clubs}
@@ -401,13 +400,6 @@ function RecordsTab() {
 
   return (
     <>
-      {!book.hasArchive && (
-        <div className="alert alert-secondary small">
-          These lists cover everyone still playing. Once players start retiring, the best of
-          them stick around here permanently, so the all-time lists keep growing as your save does.
-        </div>
-      )}
-
       <Row>
         <Col>
           <Panel
@@ -436,7 +428,7 @@ function RecordsTab() {
 
       <Row>
         <Col>
-          <Panel title="Highest rating ever reached" note="The best any player has ever been, not what he is now.">
+          <Panel title="Highest rating ever reached">
             <RankTable
               rows={book.peakRatings}
               headers={careerHeaders("Peak", "Season")}
@@ -458,63 +450,7 @@ function RecordsTab() {
       </Row>
 
       <Row>
-        <Col>
-          <Panel title="Most goals in a season">
-            <RankTable
-              rows={book.seasonGoals}
-              headers={careerHeaders("Goals", "Season")}
-              render={(c) => careerCells(c, c.best.goals.value, seasonYear(c.best.goals.season))}
-              empty="league goals"
-            />
-          </Panel>
-        </Col>
-        <Col>
-          <Panel title="Most assists in a season">
-            <RankTable
-              rows={book.seasonAssists}
-              headers={careerHeaders("Assists", "Season")}
-              render={(c) => careerCells(c, c.best.assists.value, seasonYear(c.best.assists.season))}
-              empty="league assists"
-            />
-          </Panel>
-        </Col>
-      </Row>
-
-      <Row>
-        <Col>
-          <Panel title="Career goals">
-            <RankTable
-              rows={book.careerGoals}
-              headers={careerHeaders("Goals", "Apps")}
-              render={(c) => careerCells(c, c.totals.goals, c.totals.appearances)}
-              empty="league goals"
-            />
-          </Panel>
-        </Col>
-        <Col>
-          <Panel title="Career assists">
-            <RankTable
-              rows={book.careerAssists}
-              headers={careerHeaders("Assists", "Apps")}
-              render={(c) => careerCells(c, c.totals.assists, c.totals.appearances)}
-              empty="league assists"
-            />
-          </Panel>
-        </Col>
-      </Row>
-
-      <Row>
-        <Col>
-          <Panel title="Career appearances">
-            <RankTable
-              rows={book.careerAppearances}
-              headers={careerHeaders("Apps", "Seasons")}
-              render={(c) => careerCells(c, c.totals.appearances, c.seasonsPlayed)}
-              empty="appearances"
-            />
-          </Panel>
-        </Col>
-        <Col>
+        <Col wide>
           <Panel title="Biggest transfer fees" note="Permanent deals only — loans and free moves aren't purchases.">
             <RankTable
               rows={book.biggestTransfers}
@@ -630,26 +566,6 @@ function BiosTab() {
 
   return (
     <>
-      <p className="text-secondary small">
-        Everyone currently in the world, all {bios.poolSize.toLocaleString()} of them — academy
-        players included, which is why the youngest list is full of teenagers.
-      </p>
-
-      <Row>
-        <Col>
-          <Panel title="Tallest">
-            <RankTable rows={bios.tallest} headers={headers("Height")}
-              render={(b) => bioCells(b, `${b.heightCm} cm`)} empty="players" />
-          </Panel>
-        </Col>
-        <Col>
-          <Panel title="Shortest">
-            <RankTable rows={bios.shortest} headers={headers("Height")}
-              render={(b) => bioCells(b, `${b.heightCm} cm`)} empty="players" />
-          </Panel>
-        </Col>
-      </Row>
-
       <Row>
         <Col>
           <Panel title="Oldest">
@@ -687,6 +603,25 @@ function BiosTab() {
                   : <span className="text-muted">None</span>,
               ]}
               empty="players"
+            />
+          </Panel>
+        </Col>
+      </Row>
+
+      <Row>
+        <Col>
+          <Panel title="One-club men" note="Players who've only ever turned out for a single club.">
+            <RankTable
+              rows={bios.oneClubMen}
+              headers={["Player", "Club", "Seasons", "Apps"]}
+              render={(m: OneClubMan) => [
+                <PlayerCell pid={m.career.pid} name={m.career.name}
+                  nationality={m.career.nationality} active={m.career.active} />,
+                <ClubCell tid={m.tid} />,
+                m.career.seasonsPlayed,
+                m.career.totals.appearances,
+              ]}
+              empty="careers"
             />
           </Panel>
         </Col>
@@ -744,18 +679,21 @@ function ClubsTab() {
 
       <Row>
         <Col wide>
-          <Panel title="Trophy cabinet" note="League titles first, then cups.">
+          <Panel title="Trophy cabinet">
             <RankTable
               rows={trivia.records}
-              headers={["Club", "Titles", "Cups", "D2 titles", "Seasons", "Top flight", "PPG"]}
+              headers={[
+                "Club", "Total Trophies", "D1 Championships", "Continental Cups",
+                "D2 Championships", "Seasons", "Top flight",
+              ]}
               render={(r: ClubRecordRow) => [
                 <ClubCell tid={r.tid} />,
+                <strong>{r.totalTrophies}</strong>,
                 r.leagueTitles,
                 r.cupTitles,
                 r.secondTierTitles,
                 r.seasons,
                 r.topFlightSeasons,
-                r.ppg.toFixed(2),
               ]}
               empty="completed seasons"
             />
@@ -780,22 +718,6 @@ function ClubsTab() {
                   : seasonYear(r.lastTitleSeason),
               ]}
               empty="completed seasons"
-            />
-          </Panel>
-        </Col>
-        <Col>
-          <Panel title="One-club men" note="Players who've only ever turned out for a single club.">
-            <RankTable
-              rows={trivia.oneClubMen}
-              headers={["Player", "Club", "Seasons", "Apps"]}
-              render={(m: OneClubMan) => [
-                <PlayerCell pid={m.career.pid} name={m.career.name}
-                  nationality={m.career.nationality} active={m.career.active} />,
-                <ClubCell tid={m.tid} />,
-                m.career.seasonsPlayed,
-                m.career.totals.appearances,
-              ]}
-              empty="careers"
             />
           </Panel>
         </Col>
@@ -846,11 +768,7 @@ export function Frivolities() {
 
   return (
     <div>
-      <h1 className="h4 mb-1">Frivolities</h1>
-      <p className="text-secondary small">
-        The stuff that doesn't help you win anything. All-time lists, odd trivia, and the
-        records your world has quietly been setting while you weren't looking.
-      </p>
+      <h1 className="h4 mb-3">Frivolities</h1>
 
       <ul className="nav nav-tabs mb-3">
         {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (

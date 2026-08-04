@@ -1,6 +1,6 @@
 import type { LeagueStore } from "../leagueState.js";
 import { isFreeAgentTid } from "../transfers/negotiation.js";
-import { allCareers, type CareerRow } from "./careers.js";
+
 
 /** How many rows each club list shows. */
 export const CLUB_LIST_LIMIT = 25;
@@ -24,6 +24,8 @@ export interface ClubRecordRow {
   points: number;
   /** Points per game across every season ever played. */
   ppg: number;
+  /** Every trophy of any kind — the column the table leads with, so it's also what it sorts by. */
+  totalTrophies: number;
   /** Season of the club's most recent tier-1 title, or null if it has never won one. */
   lastTitleSeason: number | null;
   /**
@@ -44,12 +46,6 @@ export interface ClubSpendRow {
   sales: number;
 }
 
-/** A player who only ever appeared for one club. */
-export interface OneClubMan {
-  career: CareerRow;
-  tid: number;
-}
-
 export interface ClubTrivia {
   /** All-time records, most league titles first. */
   records: ClubRecordRow[];
@@ -59,8 +55,6 @@ export interface ClubTrivia {
   biggestSpenders: ClubSpendRow[];
   /** Biggest all-time transfer *profit* (received minus spent), most first. */
   biggestSellers: ClubSpendRow[];
-  /** Longest single-club careers, most appearances first. */
-  oneClubMen: OneClubMan[];
   /** How many completed seasons the save has on record. */
   seasonsRecorded: number;
 }
@@ -87,6 +81,7 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
     if (!r) {
       r = {
         tid, seasons: 0, topFlightSeasons: 0, leagueTitles: 0, secondTierTitles: 0, cupTitles: 0,
+        totalTrophies: 0,
         played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0, ppg: 0,
         lastTitleSeason: null, titleDrought: 0,
       };
@@ -142,6 +137,7 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
   }
 
   for (const r of rows.values()) {
+    r.totalTrophies = r.leagueTitles + r.cupTitles + r.secondTierTitles;
     r.ppg = r.played > 0 ? r.points / r.played : 0;
     // A club that has never won counts its whole recorded history as the wait.
     r.titleDrought = r.lastTitleSeason == null
@@ -178,17 +174,13 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
   for (const s of spend.values()) s.net = s.received - s.spent;
   const spendRows = [...spend.values()];
 
-  // --- One-club men -------------------------------------------------------
-  const oneClubMen: OneClubMan[] = allCareers(league)
-    .filter((c) => c.clubs.length === 1)
-    .sort((a, b) => b.totals.appearances - a.totals.appearances || a.pid - b.pid)
-    .slice(0, limit)
-    .map((career) => ({ career, tid: career.clubs[0] }));
-
   return {
+    // Sorted by the column the table leads with. Ranking by league titles while
+    // displaying a total first would put a club with fewer trophies above one
+    // with more, which reads as a bug.
     records: [...all].sort(
-      (a, b) => b.leagueTitles - a.leagueTitles || b.cupTitles - a.cupTitles
-        || b.ppg - a.ppg || a.tid - b.tid,
+      (a, b) => b.totalTrophies - a.totalTrophies || b.leagueTitles - a.leagueTitles
+        || b.cupTitles - a.cupTitles || a.tid - b.tid,
     ).slice(0, limit),
     droughts: all
       .filter((r) => r.seasons > 0)
@@ -196,7 +188,6 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
       .slice(0, limit),
     biggestSpenders: [...spendRows].sort((a, b) => b.spent - a.spent || a.tid - b.tid).slice(0, limit),
     biggestSellers: [...spendRows].sort((a, b) => b.net - a.net || a.tid - b.tid).slice(0, limit),
-    oneClubMen,
     seasonsRecorded: league.seasonHistory.length,
   };
 }
