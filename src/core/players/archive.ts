@@ -4,6 +4,9 @@ import { ovrDuringSeason } from "../awards.js";
 import {
   RETIREE_ARCHIVE_MIN_PEAK_OVR, RETIREE_ARCHIVE_MIN_APPEARANCES, RETIREE_ARCHIVE_LIMIT,
 } from "../constants.js";
+import {
+  totalsOf, bestSeasonsOf, type StatTotals, type BestSeasons,
+} from "../frivolities/stats.js";
 
 /**
  * A retired player kept permanently, so the all-time frivolities leaderboards
@@ -46,31 +49,27 @@ export interface ArchivedPlayer {
   finalOvr: number;
   /** Distinct clubs he made league appearances for, first to last. */
   clubs: number[];
-  // League career totals. Cup and international appearances are not included
-  // (they live on separate stat lines), matching SeasonStats' own scope.
-  appearances: number;
-  goals: number;
-  assists: number;
-  minutesPlayed: number;
-  saves: number;
-  tackles: number;
-  interceptions: number;
-  /** Per-appearance career average match rating, 0 if he never played. */
-  avgRating: number;
+  /**
+   * League career totals, one number per ranked stat. Cup and international
+   * appearances are not included (they live on separate stat lines), matching
+   * SeasonStats' own scope.
+   *
+   * Every stat the leaderboards rank by is here, not just the headline few:
+   * a career board for shots or passes that silently omitted retirees would be
+   * exactly the "all-time among the living" bug the archive exists to prevent.
+   */
+  totals: StatTotals;
+  /**
+   * His best individual season in each ranked stat.
+   *
+   * Kept because the single-season boards can't be rebuilt from career totals
+   * and the per-season lines are deleted with him. This is the widest part of
+   * the row, and the reason RETIREE_ARCHIVE_LIMIT came down when it was added.
+   */
+  best: BestSeasons;
   /** International caps and goals, 0 if he was never called up. */
   caps: number;
   intlGoals: number;
-  /**
-   * His best individual season, kept because the single-season record lists
-   * ("most goals in a season, all-time") can't be rebuilt from career totals
-   * and the per-season stat lines are deleted with the player. Four numbers, so
-   * cheap; goals and assists peak in different seasons often enough to be worth
-   * tracking separately.
-   */
-  bestGoals: number;
-  bestGoalsSeason: number;
-  bestAssists: number;
-  bestAssistsSeason: number;
 }
 
 /** Career league appearances across every season on the stat line. */
@@ -127,10 +126,7 @@ export function isArchiveWorthy(player: Player): boolean {
  */
 export function archivePlayer(player: Player, season: number): ArchivedPlayer {
   const played = player.stats.filter((s) => s.appearances > 0);
-  const sum = (pick: (s: (typeof played)[number]) => number) =>
-    played.reduce((acc, s) => acc + pick(s), 0);
   const peak = peakOf(player, season);
-  const minutes = sum((s) => s.minutesPlayed);
 
   // Distinct clubs in the order he played for them. SeasonStats.tid is the club
   // of his most recent appearance that season, so a mid-season move shows only
@@ -156,35 +152,11 @@ export function archivePlayer(player: Player, season: number): ArchivedPlayer {
     peakSeason: peak.season,
     finalOvr: ovrDuringSeason(player, season),
     clubs,
-    appearances: sum((s) => s.appearances),
-    goals: sum((s) => s.goals),
-    assists: sum((s) => s.assists),
-    minutesPlayed: minutes,
-    saves: sum((s) => s.saves),
-    tackles: sum((s) => s.tackles),
-    interceptions: sum((s) => s.interceptions),
-    // Each season's ratingSum is already the sum over that season's
-    // appearances, so dividing the career totals gives a per-appearance mean
-    // without weighting a 3-game cameo like a 38-game season.
-    avgRating: sum((s) => s.appearances) > 0
-      ? sum((s) => s.ratingSum) / sum((s) => s.appearances)
-      : 0,
+    totals: totalsOf(played),
+    best: bestSeasonsOf(played),
     caps: player.intl?.caps ?? 0,
     intlGoals: player.intl?.goals ?? 0,
-    ...bestSeasons(played),
   };
-}
-
-/** His highest-scoring and highest-assisting single seasons, and when they were. */
-function bestSeasons(played: { season: number; goals: number; assists: number }[]): Pick<
-  ArchivedPlayer, "bestGoals" | "bestGoalsSeason" | "bestAssists" | "bestAssistsSeason"
-> {
-  let bestGoals = 0, bestGoalsSeason = 0, bestAssists = 0, bestAssistsSeason = 0;
-  for (const s of played) {
-    if (s.goals > bestGoals) { bestGoals = s.goals; bestGoalsSeason = s.season; }
-    if (s.assists > bestAssists) { bestAssists = s.assists; bestAssistsSeason = s.season; }
-  }
-  return { bestGoals, bestGoalsSeason, bestAssists, bestAssistsSeason };
 }
 
 /**

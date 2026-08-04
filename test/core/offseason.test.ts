@@ -223,10 +223,10 @@ describe("simOffseason", () => {
       expect(a.name).not.toBe("");
       // The gate is the save-size guarantee: nobody without a real career, and
       // nobody below both bars, may take up a permanent row.
-      expect(a.appearances).toBeGreaterThan(0);
+      expect(a.totals.appearances).toBeGreaterThan(0);
       expect(
         a.peakOvr >= RETIREE_ARCHIVE_MIN_PEAK_OVR
-        || a.appearances >= RETIREE_ARCHIVE_MIN_APPEARANCES,
+        || a.totals.appearances >= RETIREE_ARCHIVE_MIN_APPEARANCES,
       ).toBe(true);
       // Peak is read off the ratings history, so it can't be the post-decline
       // value retirement leaves behind.

@@ -32,7 +32,9 @@ function makePlayer({ pid, ovr = 60, age = 34, lines = [], hist = [], caps }: Ov
     potential: ovr,
     stats: lines.map(([season, tid, appearances, goals, assists]) => ({
       ...emptySeasonStats(season, tid), appearances, goals, assists,
-      ratingSum: appearances * 7, minutesPlayed: appearances * 90,
+      // Real SeasonStats carries avgRating alongside ratingSum (see its type),
+      // so the fixture must too, or the single-season rating board sees nothing.
+      ratingSum: appearances * 7, avgRating: 7, minutesPlayed: appearances * 90,
     })),
     hist: hist.map(([season, h]) => ({ season, ovr: h, ratings: {}, potential: h, academy: false })),
     ...(caps === undefined ? {} : { intl: { caps, goals: 3, assists: 0, tournaments: 0, titles: 0, seasons: [] } }),
@@ -94,9 +96,9 @@ describe("archivePlayer", () => {
   const row = archivePlayer(player, SEASON);
 
   it("sums league career totals across seasons he actually played", () => {
-    expect(row.appearances).toBe(83);
-    expect(row.goals).toBe(40);
-    expect(row.assists).toBe(17);
+    expect(row.totals.appearances).toBe(83);
+    expect(row.totals.goals).toBe(40);
+    expect(row.totals.assists).toBe(17);
     expect(row.seasonsPlayed).toBe(3);
     expect(row.firstSeason).toBe(2026);
   });
@@ -110,10 +112,13 @@ describe("archivePlayer", () => {
 
   it("records the best single season separately from career totals", () => {
     // Goals and assists peaked in different seasons — the point of storing both.
-    expect(row.bestGoals).toBe(18);
-    expect(row.bestGoalsSeason).toBe(2027);
-    expect(row.bestAssists).toBe(9);
-    expect(row.bestAssistsSeason).toBe(2028);
+    expect(row.best.goals.value).toBe(18);
+    expect(row.best.goals.season).toBe(2027);
+    expect(row.best.assists.value).toBe(9);
+    expect(row.best.assists.season).toBe(2028);
+    // Appearances ride along so the rate-stat floor can be applied to a
+    // retiree the same way it is to a living player.
+    expect(row.best.goals.appearances).toBe(28);
   });
 
   it("lists distinct clubs in the order he played for them", () => {
@@ -121,7 +126,7 @@ describe("archivePlayer", () => {
   });
 
   it("averages rating per appearance, not per season", () => {
-    expect(row.avgRating).toBeCloseTo(7, 5);
+    expect(row.totals.avgRating).toBeCloseTo(7, 5);
   });
 
   it("carries international totals", () => {

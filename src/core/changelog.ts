@@ -34,6 +34,15 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-08-04",
+    title: "All-time leaders moved out of Stat Leaders and into Frivolities",
+    items: [
+      "Stat Leaders had an \"All Seasons\" option hiding in its season dropdown, and when you picked it a second dropdown appeared offering Career or Single Season. It always felt bolted on, and now that Frivolities exists it's clearly in the wrong place. So I've pulled it out. Stat Leaders is now purely one season at a time, which is what it's actually good at, and there's a new All-Time Leaders tab in Frivolities that does the all-time version properly.",
+      "It's better there for a reason that isn't just tidiness. Stat Leaders reads the live player pool, and retiring deletes you from it, so its career board quietly meant \"career totals among people who still exist\". The Frivolities version reads the retiree archive too, so your all-time top scorer stays your all-time top scorer after he hangs up.",
+      "Two things work differently now. It ranks the whole world at once instead of one league at a time, because a career crosses divisions and countries and there's no single league it belongs to. And the single-season view gives one row per player, his own best season, instead of listing every season separately. That second one is partly a limit (I only keep a retiree's best season, not all of them, or your save would balloon) but honestly I think it reads better anyway, since one absurd career can't take up half the board.",
+    ],
+  },
+  {
+    date: "2026-08-04",
     title: "Frivolities: the all-time lists nobody asked for",
     items: [
       "There's a new Frivolities page in the sidebar, under Club History. None of it helps you win anything, which is sort of the point. It's three tabs of lists your world has been quietly building the whole time you've been playing and had no way to look at.",

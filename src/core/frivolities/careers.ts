@@ -1,6 +1,9 @@
 import type { LeagueStore } from "../leagueState.js";
 import type { Player, Position } from "../players/types.js";
 import type { ArchivedPlayer } from "../players/archive.js";
+import {
+  totalsOf, bestSeasonsOf, type AllTimeStatKey, type StatTotals, type BestSeasons,
+} from "./stats.js";
 
 /**
  * One career, whether or not the player is still playing.
@@ -26,19 +29,19 @@ export interface CareerRow {
   lastSeason: number;
   peakOvr: number;
   peakSeason: number;
-  appearances: number;
-  goals: number;
-  assists: number;
-  minutesPlayed: number;
-  avgRating: number;
+  /** League career totals, one number per ranked stat (see frivolities/stats.ts). */
+  totals: StatTotals;
+  /** Best individual season in each ranked stat, with the season it happened in. */
+  best: BestSeasons;
   caps: number;
   intlGoals: number;
   /** Distinct clubs he made league appearances for. */
   clubs: number[];
-  bestGoals: number;
-  bestGoalsSeason: number;
-  bestAssists: number;
-  bestAssistsSeason: number;
+}
+
+/** Shorthand for the two numbers nearly every caller wants off a row. */
+export function statOf(row: CareerRow, key: AllTimeStatKey): number {
+  return row.totals[key];
 }
 
 function rowFromArchived(a: ArchivedPlayer): CareerRow {
@@ -54,18 +57,11 @@ function rowFromArchived(a: ArchivedPlayer): CareerRow {
     lastSeason: a.retiredSeason,
     peakOvr: a.peakOvr,
     peakSeason: a.peakSeason,
-    appearances: a.appearances,
-    goals: a.goals,
-    assists: a.assists,
-    minutesPlayed: a.minutesPlayed,
-    avgRating: a.avgRating,
+    totals: a.totals,
+    best: a.best,
     caps: a.caps,
     intlGoals: a.intlGoals,
     clubs: a.clubs,
-    bestGoals: a.bestGoals,
-    bestGoalsSeason: a.bestGoalsSeason,
-    bestAssists: a.bestAssists,
-    bestAssistsSeason: a.bestAssistsSeason,
   };
 }
 
@@ -75,9 +71,7 @@ function rowFromPlayer(
   currentSeason: number,
 ): CareerRow {
   const played = p.stats.filter((s) => s.appearances > 0);
-  const sum = (pick: (s: (typeof played)[number]) => number) =>
-    played.reduce((acc, s) => acc + pick(s), 0);
-  const apps = sum((s) => s.appearances);
+  const totals = totalsOf(played);
 
   // Peak ovr comes off `hist` (the ratings he actually played each season at).
   // A player in his very first season has no snapshot yet, so his current ovr
@@ -95,12 +89,6 @@ function rowFromPlayer(
     if (s.tid >= 0 && !clubs.includes(s.tid)) clubs.push(s.tid);
   }
 
-  let bestGoals = 0, bestGoalsSeason = 0, bestAssists = 0, bestAssistsSeason = 0;
-  for (const s of played) {
-    if (s.goals > bestGoals) { bestGoals = s.goals; bestGoalsSeason = s.season; }
-    if (s.assists > bestAssists) { bestAssists = s.assists; bestAssistsSeason = s.season; }
-  }
-
   return {
     pid: p.pid,
     name: p.name,
@@ -113,18 +101,11 @@ function rowFromPlayer(
     lastSeason: played.length ? played[played.length - 1].season : 0,
     peakOvr,
     peakSeason,
-    appearances: apps,
-    goals: sum((s) => s.goals),
-    assists: sum((s) => s.assists),
-    minutesPlayed: sum((s) => s.minutesPlayed),
-    avgRating: apps > 0 ? sum((s) => s.ratingSum) / apps : 0,
+    totals,
+    best: bestSeasonsOf(played),
     caps: p.intl?.caps ?? 0,
     intlGoals: p.intl?.goals ?? 0,
     clubs,
-    bestGoals,
-    bestGoalsSeason,
-    bestAssists,
-    bestAssistsSeason,
   };
 }
 
@@ -148,7 +129,7 @@ export function allCareers(league: LeagueStore): CareerRow[] {
 
   const living = league.players
     .map((p) => rowFromPlayer(p, tidOf, league.season))
-    .filter((r) => r.appearances > 0);
+    .filter((r) => r.totals.appearances > 0);
   const retired = (league.retiredPlayers ?? []).map(rowFromArchived);
   return [...living, ...retired];
 }

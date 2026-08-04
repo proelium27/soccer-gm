@@ -181,7 +181,7 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
   // --- One-club men -------------------------------------------------------
   const oneClubMen: OneClubMan[] = allCareers(league)
     .filter((c) => c.clubs.length === 1)
-    .sort((a, b) => b.appearances - a.appearances || a.pid - b.pid)
+    .sort((a, b) => b.totals.appearances - a.totals.appearances || a.pid - b.pid)
     .slice(0, limit)
     .map((career) => ({ career, tid: career.clubs[0] }));
 

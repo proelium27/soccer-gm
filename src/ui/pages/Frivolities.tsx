@@ -5,17 +5,47 @@ import { computeRecordBook, type TeamSeasonRecord, type TransferRecord } from ".
 import { computePlayerBios, type BioRow, type NameCount, type NationalityRow } from "../../core/frivolities/bios.js";
 import { computeClubTrivia, type ClubRecordRow, type ClubSpendRow, type OneClubMan } from "../../core/frivolities/clubs.js";
 import type { CareerRow } from "../../core/frivolities/careers.js";
+import { allTimeLeaders, type LeaderScope } from "../../core/frivolities/leaders.js";
+import { ALL_TIME_STAT_KEYS, type AllTimeStatKey } from "../../core/frivolities/stats.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { Flag } from "../components/Flag.js";
 import { currency, seasonYear } from "../format.js";
 
-type Tab = "records" | "bios" | "clubs";
+type Tab = "records" | "leaders" | "bios" | "clubs";
 
 const TAB_LABELS: Record<Tab, string> = {
   records: "Records",
+  leaders: "All-Time Leaders",
   bios: "Player Bios",
   clubs: "Club Trivia",
 };
+
+/** Display labels for the ranked stats, matching the per-season Stat Leaders page's wording. */
+const STAT_LABELS: Record<AllTimeStatKey, string> = {
+  goals: "Goals",
+  assists: "Assists",
+  shots: "Shots",
+  shotsOnTarget: "Shots on Target",
+  xg: "xG",
+  saves: "Saves",
+  tackles: "Tackles",
+  interceptions: "Interceptions",
+  passes: "Passes",
+  crosses: "Crosses",
+  foulsCommitted: "Fouls",
+  minutesPlayed: "Minutes",
+  appearances: "Appearances",
+  avgRating: "Match Rating",
+};
+
+/** Stats that read better with a decimal than as a whole number. */
+const DECIMAL_STATS = new Set<AllTimeStatKey>(["xg", "avgRating"]);
+
+function formatStat(stat: AllTimeStatKey, value: number): string {
+  return DECIMAL_STATS.has(stat)
+    ? value.toFixed(stat === "avgRating" ? 2 : 1)
+    : Math.round(value).toLocaleString();
+}
 
 /** A titled card wrapping one list, with an optional line of explanation under the heading. */
 function Panel({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
@@ -202,7 +232,7 @@ function RecordsTab() {
             <RankTable
               rows={book.longestCareers}
               headers={careerHeaders("Seasons", "Apps")}
-              render={(c) => careerCells(c, c.seasonsPlayed, c.appearances)}
+              render={(c) => careerCells(c, c.seasonsPlayed, c.totals.appearances)}
               empty="careers"
             />
           </Panel>
@@ -215,7 +245,7 @@ function RecordsTab() {
             <RankTable
               rows={book.seasonGoals}
               headers={careerHeaders("Goals", "Season")}
-              render={(c) => careerCells(c, c.bestGoals, seasonYear(c.bestGoalsSeason))}
+              render={(c) => careerCells(c, c.best.goals.value, seasonYear(c.best.goals.season))}
               empty="league goals"
             />
           </Panel>
@@ -225,7 +255,7 @@ function RecordsTab() {
             <RankTable
               rows={book.seasonAssists}
               headers={careerHeaders("Assists", "Season")}
-              render={(c) => careerCells(c, c.bestAssists, seasonYear(c.bestAssistsSeason))}
+              render={(c) => careerCells(c, c.best.assists.value, seasonYear(c.best.assists.season))}
               empty="league assists"
             />
           </Panel>
@@ -238,7 +268,7 @@ function RecordsTab() {
             <RankTable
               rows={book.careerGoals}
               headers={careerHeaders("Goals", "Apps")}
-              render={(c) => careerCells(c, c.goals, c.appearances)}
+              render={(c) => careerCells(c, c.totals.goals, c.totals.appearances)}
               empty="league goals"
             />
           </Panel>
@@ -248,7 +278,7 @@ function RecordsTab() {
             <RankTable
               rows={book.careerAssists}
               headers={careerHeaders("Assists", "Apps")}
-              render={(c) => careerCells(c, c.assists, c.appearances)}
+              render={(c) => careerCells(c, c.totals.assists, c.totals.appearances)}
               empty="league assists"
             />
           </Panel>
@@ -261,7 +291,7 @@ function RecordsTab() {
             <RankTable
               rows={book.careerAppearances}
               headers={careerHeaders("Apps", "Seasons")}
-              render={(c) => careerCells(c, c.appearances, c.seasonsPlayed)}
+              render={(c) => careerCells(c, c.totals.appearances, c.seasonsPlayed)}
               empty="appearances"
             />
           </Panel>
@@ -283,6 +313,81 @@ function RecordsTab() {
           </Panel>
         </Col>
       </Row>
+    </>
+  );
+}
+
+// --- All-time leaders ------------------------------------------------------
+
+function LeadersTab() {
+  const { league } = useLeague();
+  const [stat, setStat] = useState<AllTimeStatKey>("goals");
+  const [scope, setScope] = useState<LeaderScope>("career");
+
+  const rows = useMemo(
+    () => (league ? allTimeLeaders(league, stat, scope) : []),
+    [league, stat, scope],
+  );
+  if (!league) return null;
+
+  return (
+    <>
+      <p className="text-secondary small">
+        Every club in the world at once, not one league at a time — a career crosses divisions
+        and countries, so there's no single league it belongs to. Retired players are in here
+        too, as long as the game kept a record of them.
+      </p>
+
+      <div className="mb-3 d-flex gap-2 flex-wrap">
+        <select
+          className="form-select form-select-sm"
+          style={{ width: "auto" }}
+          value={scope}
+          onChange={(e) => setScope(e.target.value as LeaderScope)}
+          aria-label="Career or single season"
+        >
+          <option value="career">Career</option>
+          <option value="single">Single season</option>
+        </select>
+        <select
+          className="form-select form-select-sm"
+          style={{ width: "auto" }}
+          value={stat}
+          onChange={(e) => setStat(e.target.value as AllTimeStatKey)}
+          aria-label="Stat"
+        >
+          {ALL_TIME_STAT_KEYS.map((k) => (
+            <option key={k} value={k}>{STAT_LABELS[k]}</option>
+          ))}
+        </select>
+      </div>
+
+      <Panel
+        title={scope === "career" ? `Career ${STAT_LABELS[stat]}` : `Best season: ${STAT_LABELS[stat]}`}
+        note={scope === "single"
+          ? "One row per player — his own best season, so a single great career can't fill the whole board."
+          : undefined}
+      >
+        <RankTable
+          rows={rows}
+          headers={scope === "career"
+            ? ["Player", "Club", "Apps", STAT_LABELS[stat]]
+            : ["Player", "Club", "Season", "Apps", STAT_LABELS[stat]]}
+          render={(r) => [
+            <PlayerCell
+              pid={r.career.pid}
+              name={r.career.name}
+              nationality={r.career.nationality}
+              active={r.career.active}
+            />,
+            <ClubCell tid={r.career.tid} />,
+            ...(scope === "single" ? [seasonYear(r.season ?? 0)] : []),
+            r.appearances,
+            formatStat(stat, r.value),
+          ]}
+          empty="recorded seasons"
+        />
+      </Panel>
     </>
   );
 }
@@ -470,7 +575,7 @@ function ClubsTab() {
                   nationality={m.career.nationality} active={m.career.active} />,
                 <ClubCell tid={m.tid} />,
                 m.career.seasonsPlayed,
-                m.career.appearances,
+                m.career.totals.appearances,
               ]}
               empty="careers"
             />
@@ -543,6 +648,7 @@ export function Frivolities() {
       </ul>
 
       {tab === "records" && <RecordsTab />}
+      {tab === "leaders" && <LeadersTab />}
       {tab === "bios" && <BiosTab />}
       {tab === "clubs" && <ClubsTab />}
     </div>

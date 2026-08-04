@@ -703,6 +703,10 @@ export const RETIREMENT_NOTABLE_LIMIT = 15;
  *    100-season save keeps its season-3 legends and loses its season-97
  *    journeymen. At the measured retirement rates this is many decades of
  *    headroom; the cap is the guarantee, not the expected steady state.
+ *    `LIMIT` came down from 4000 when the row widened to carry full career
+ *    totals plus a best-season line per ranked stat (needed so the all-time
+ *    leaderboards cover retirees for *every* stat, not just goals and assists)
+ *    — roughly 3x the width, so a lower row count holds the same budget.
  *
  * Every list the archive feeds is a leaderboard (the top N of something), so a
  * career that clears neither bar costs save size and buys nothing.
@@ -718,7 +722,7 @@ export const RETIREMENT_NOTABLE_LIMIT = 15;
  */
 export const RETIREE_ARCHIVE_MIN_PEAK_OVR = 70;
 export const RETIREE_ARCHIVE_MIN_APPEARANCES = 200;
-export const RETIREE_ARCHIVE_LIMIT = 4_000;
+export const RETIREE_ARCHIVE_LIMIT = 2_500;
 
 /**
  * Wages (2026-07-11 rework, replacing the flat 20k-per-ovr placeholder;
@@ -1845,6 +1849,17 @@ export const RATING_LEADER_QUALIFY_FRACTION = 1 / 2;
  * games-played denominator to take a fraction of.
  */
 export const RATING_LEADER_MIN_CAREER_APPEARANCES = 10;
+/**
+ * Flat appearance floor for the *single-season* Match Rating board on
+ * Frivolities' all-time leaders (see core/frivolities/leaders.ts).
+ *
+ * A flat count rather than `RATING_LEADER_QUALIFY_FRACTION` of games played,
+ * because those boards rank completed seasons from every competition at once
+ * and an archived retiree carries his appearance count but no record of how
+ * many matches his league played that year. Set at roughly half a typical
+ * 38-match season, matching what the fraction would give on a full one.
+ */
+export const RATING_LEADER_MIN_SEASON_APPEARANCES = 19;
 
 /* ── International football ───────────────────────────────────────────────────
  * A national-team competition run entirely inside the offseason, on a two-year

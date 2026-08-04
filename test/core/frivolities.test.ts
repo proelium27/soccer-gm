@@ -5,6 +5,8 @@ import { computeClubTrivia } from "../../src/core/frivolities/clubs.js";
 import { allCareers } from "../../src/core/frivolities/careers.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { ArchivedPlayer } from "../../src/core/players/archive.js";
+import { emptyTotals, emptyBestSeasons } from "../../src/core/frivolities/stats.js";
+import { allTimeLeaders } from "../../src/core/frivolities/leaders.js";
 import { FREE_AGENT_TID } from "../../src/core/transfers/negotiation.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
 import type { SeasonHistoryEntry, StandingsRow } from "../../src/core/standings.js";
@@ -38,7 +40,9 @@ function makePlayer(o: PlayerOver): Player {
     potential: o.ovr ?? 60,
     stats: (o.lines ?? []).map(([season, tid, appearances, goals, assists]) => ({
       ...emptySeasonStats(season, tid), appearances, goals, assists,
-      ratingSum: appearances * 7, minutesPlayed: appearances * 90,
+      // Real SeasonStats carries avgRating alongside ratingSum (see its type),
+      // so the fixture must too, or the single-season rating board sees nothing.
+      ratingSum: appearances * 7, avgRating: 7, minutesPlayed: appearances * 90,
     })),
     hist: (o.hist ?? []).map(([season, ovr]) => ({
       season, ovr, ratings: {}, potential: ovr, academy: false,
@@ -51,9 +55,9 @@ function makeArchived(o: Partial<ArchivedPlayer> & { pid: number }): ArchivedPla
     name: `Retiree ${o.pid}`, nationality: "esp", pos: "ST", born: 1990, heightCm: 180,
     retiredSeason: 2028, retiredAge: 36, firstSeason: 2010, seasonsPlayed: 18,
     peakOvr: 80, peakSeason: 2018, finalOvr: 70, clubs: [1],
-    appearances: 500, goals: 300, assists: 100, minutesPlayed: 45000,
-    saves: 0, tackles: 0, interceptions: 0, avgRating: 7.5, caps: 100, intlGoals: 50,
-    bestGoals: 35, bestGoalsSeason: 2018, bestAssists: 12, bestAssistsSeason: 2019,
+    totals: { ...emptyTotals(), appearances: 500, goals: 300, assists: 100, minutesPlayed: 45000, avgRating: 7.5 },
+    best: { ...emptyBestSeasons(), goals: { value: 35, season: 2018, appearances: 38 } },
+    caps: 100, intlGoals: 50,
     ...o,
   } as ArchivedPlayer;
 }
@@ -182,13 +186,67 @@ describe("computeRecordBook", () => {
   it("puts retirees on the all-time lists alongside active players", () => {
     const store = makeStore({
       players: [makePlayer({ pid: 1, lines: [[2029, 1, 30, 20, 5]], hist: [[2029, 75]] })],
-      retiredPlayers: [makeArchived({ pid: 99, goals: 300, peakOvr: 88, bestGoals: 35 })],
+      retiredPlayers: [makeArchived({ pid: 99, peakOvr: 88 })],
     });
     const book = computeRecordBook(store);
     expect(book.careerGoals[0].pid).toBe(99);
     expect(book.peakRatings[0].pid).toBe(99);
     expect(book.seasonGoals[0].pid).toBe(99);
     expect(book.hasArchive).toBe(true);
+  });
+});
+
+describe("allTimeLeaders", () => {
+  const store = makeStore({
+    players: [
+      makePlayer({ pid: 1, lines: [[2028, 1, 30, 20, 4], [2029, 1, 30, 12, 6]] }),
+      makePlayer({ pid: 2, lines: [[2029, 2, 30, 25, 1]] }),
+    ],
+    // Career 300 goals, best season 35 — ahead of both living players on each.
+    retiredPlayers: [makeArchived({ pid: 99 })],
+  });
+
+  it("ranks career totals across the living and the retired together", () => {
+    const rows = allTimeLeaders(store, "goals", "career");
+    expect(rows.map((r) => r.career.pid)).toEqual([99, 1, 2]);
+    expect(rows[0].value).toBe(300);
+    expect(rows[1].value).toBe(32); // 20 + 12
+    expect(rows[0].season).toBeNull();
+  });
+
+  it("ranks one row per player in single-season scope — his own best", () => {
+    // A player with two recorded seasons must not occupy two places: a retiree
+    // only keeps his best, so listing every season for the living would make
+    // the board mean different things for different players.
+    const rows = allTimeLeaders(store, "goals", "single");
+    expect(rows.map((r) => r.career.pid)).toEqual([99, 2, 1]);
+    expect(rows.find((r) => r.career.pid === 1)!.value).toBe(20);
+    expect(rows.find((r) => r.career.pid === 1)!.season).toBe(2028);
+    expect(rows.filter((r) => r.career.pid === 1)).toHaveLength(1);
+  });
+
+  it("drops players with nothing recorded in the chosen stat", () => {
+    // Nobody in this fixture has a save, so the board is empty rather than a
+    // list of zeroes.
+    expect(allTimeLeaders(store, "saves", "career")).toEqual([]);
+  });
+
+  it("applies an appearance floor to match rating but not to counting stats", () => {
+    const cameo = makeStore({
+      players: [
+        // One brilliant game: must not top a rating board, but must still count
+        // for goals.
+        makePlayer({ pid: 1, lines: [[2029, 1, 1, 2, 0]] }),
+        makePlayer({ pid: 2, lines: [[2029, 2, 38, 5, 0]] }),
+      ],
+    });
+    expect(allTimeLeaders(cameo, "avgRating", "career").map((r) => r.career.pid)).toEqual([2]);
+    expect(allTimeLeaders(cameo, "avgRating", "single").map((r) => r.career.pid)).toEqual([2]);
+    expect(allTimeLeaders(cameo, "goals", "career").map((r) => r.career.pid)).toEqual([2, 1]);
+  });
+
+  it("honours the row limit", () => {
+    expect(allTimeLeaders(store, "goals", "career", 1)).toHaveLength(1);
   });
 });
 
