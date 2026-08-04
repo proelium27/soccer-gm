@@ -34,6 +34,7 @@ function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed =
     winterMarketRunSeason: null,
     seasonHistory: [],
     newsEvents: [],
+    retiredPlayers: [],
     activeLoans: [],
     loanListings: [],
     loanRejections: [],

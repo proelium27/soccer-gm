@@ -1,0 +1,166 @@
+import type { LeagueStore } from "../leagueState.js";
+import type { Player, Position } from "../players/types.js";
+import type { ArchivedPlayer } from "../players/archive.js";
+
+/**
+ * One career, whether or not the player is still playing.
+ *
+ * Every all-time list needs the same answer to "who has the most X" from two
+ * differently-shaped sources: live `Player`s (full per-season stat lines) and
+ * `ArchivedPlayer`s (career totals only, because the season lines were deleted
+ * with them). Flattening both to this row once means each list below is a plain
+ * sort rather than a two-branch merge, and — the part that actually matters —
+ * makes it impossible for a list to quietly cover only the living.
+ */
+export interface CareerRow {
+  pid: number;
+  name: string;
+  nationality: string;
+  pos: Position;
+  /** Still in the world, i.e. not retired. */
+  active: boolean;
+  /** Club he's at now (active) or last played for (retired); null if neither. */
+  tid: number | null;
+  seasonsPlayed: number;
+  firstSeason: number;
+  lastSeason: number;
+  peakOvr: number;
+  peakSeason: number;
+  appearances: number;
+  goals: number;
+  assists: number;
+  minutesPlayed: number;
+  avgRating: number;
+  caps: number;
+  intlGoals: number;
+  /** Distinct clubs he made league appearances for. */
+  clubs: number[];
+  bestGoals: number;
+  bestGoalsSeason: number;
+  bestAssists: number;
+  bestAssistsSeason: number;
+}
+
+function rowFromArchived(a: ArchivedPlayer): CareerRow {
+  return {
+    pid: a.pid,
+    name: a.name,
+    nationality: a.nationality,
+    pos: a.pos,
+    active: false,
+    tid: a.clubs.length ? a.clubs[a.clubs.length - 1] : null,
+    seasonsPlayed: a.seasonsPlayed,
+    firstSeason: a.firstSeason,
+    lastSeason: a.retiredSeason,
+    peakOvr: a.peakOvr,
+    peakSeason: a.peakSeason,
+    appearances: a.appearances,
+    goals: a.goals,
+    assists: a.assists,
+    minutesPlayed: a.minutesPlayed,
+    avgRating: a.avgRating,
+    caps: a.caps,
+    intlGoals: a.intlGoals,
+    clubs: a.clubs,
+    bestGoals: a.bestGoals,
+    bestGoalsSeason: a.bestGoalsSeason,
+    bestAssists: a.bestAssists,
+    bestAssistsSeason: a.bestAssistsSeason,
+  };
+}
+
+function rowFromPlayer(
+  p: Player,
+  tidOf: (pid: number) => number | null,
+  currentSeason: number,
+): CareerRow {
+  const played = p.stats.filter((s) => s.appearances > 0);
+  const sum = (pick: (s: (typeof played)[number]) => number) =>
+    played.reduce((acc, s) => acc + pick(s), 0);
+  const apps = sum((s) => s.appearances);
+
+  // Peak ovr comes off `hist` (the ratings he actually played each season at).
+  // A player in his very first season has no snapshot yet, so his current ovr
+  // stands in — otherwise every newly generated youth would read as peak 0.
+  // The fallback season is the *current* one, never `p.born`: born is a season
+  // number too, so using it would render a real-looking but wrong year.
+  let peakOvr = p.ovr;
+  let peakSeason = currentSeason;
+  for (const h of p.hist) {
+    if (h.ovr > peakOvr) { peakOvr = h.ovr; peakSeason = h.season; }
+  }
+
+  const clubs: number[] = [];
+  for (const s of played) {
+    if (s.tid >= 0 && !clubs.includes(s.tid)) clubs.push(s.tid);
+  }
+
+  let bestGoals = 0, bestGoalsSeason = 0, bestAssists = 0, bestAssistsSeason = 0;
+  for (const s of played) {
+    if (s.goals > bestGoals) { bestGoals = s.goals; bestGoalsSeason = s.season; }
+    if (s.assists > bestAssists) { bestAssists = s.assists; bestAssistsSeason = s.season; }
+  }
+
+  return {
+    pid: p.pid,
+    name: p.name,
+    nationality: p.nationality,
+    pos: p.pos,
+    active: true,
+    tid: tidOf(p.pid),
+    seasonsPlayed: played.length,
+    firstSeason: played.length ? played[0].season : 0,
+    lastSeason: played.length ? played[played.length - 1].season : 0,
+    peakOvr,
+    peakSeason,
+    appearances: apps,
+    goals: sum((s) => s.goals),
+    assists: sum((s) => s.assists),
+    minutesPlayed: sum((s) => s.minutesPlayed),
+    avgRating: apps > 0 ? sum((s) => s.ratingSum) / apps : 0,
+    caps: p.intl?.caps ?? 0,
+    intlGoals: p.intl?.goals ?? 0,
+    clubs,
+    bestGoals,
+    bestGoalsSeason,
+    bestAssists,
+    bestAssistsSeason,
+  };
+}
+
+/**
+ * Every career the save still knows about: active players plus archived
+ * retirees.
+ *
+ * Only players with at least one senior appearance are included, so the lists
+ * aren't padded with academy kids and unsigned free agents who never played.
+ * Retirees who missed the archive's quality gate are simply gone — see
+ * players/archive.ts for why that trade is deliberate, and note it means these
+ * lists are complete for the top of every leaderboard but not a census.
+ */
+export function allCareers(league: LeagueStore): CareerRow[] {
+  const tidByPid = new Map<number, number>();
+  for (const t of league.teams) {
+    for (const pid of t.roster) tidByPid.set(pid, t.tid);
+    for (const pid of t.academyRoster) tidByPid.set(pid, t.tid);
+  }
+  const tidOf = (pid: number) => tidByPid.get(pid) ?? null;
+
+  const living = league.players
+    .map((p) => rowFromPlayer(p, tidOf, league.season))
+    .filter((r) => r.appearances > 0);
+  const retired = (league.retiredPlayers ?? []).map(rowFromArchived);
+  return [...living, ...retired];
+}
+
+/**
+ * Top `limit` rows by `pick`, descending, with pid as a stable tiebreak so the
+ * order can't shuffle between renders. Rows scoring 0 are dropped — a list of
+ * players with no goals is noise, not a record.
+ */
+export function topBy<T>(rows: T[], pick: (r: T) => number, limit: number): T[] {
+  return rows
+    .filter((r) => pick(r) > 0)
+    .sort((a, b) => pick(b) - pick(a) || (a as { pid: number }).pid - (b as { pid: number }).pid)
+    .slice(0, limit);
+}

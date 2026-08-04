@@ -30,6 +30,7 @@ const SECTIONS: [id: string, title: string][] = [
   ["youth", "The Youth Academy"],
   ["ai", "How AI Clubs Think"],
   ["strategy", "Strategy"],
+  ["frivolities", "Frivolities"],
   ["godmode", "God Mode"],
   ["faq", "FAQ & Known Quirks"],
 ];
@@ -141,6 +142,7 @@ export function Manual() {
             <li><strong>Stat Leaders</strong>. A Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, passes, crosses, fouls, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or by individual seasons, where every season a player recorded is its own row, so one man can hold several places on the board at once) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since). Match rating is an average rather than a running total, so to keep a one-off cameo from topping the chart a player needs to have appeared in at least half of the games played so far before he shows up on the match-rating board (a threshold that scales as the season goes, so it works ten games in as well as at the end).</li>
             <li><strong>Awards</strong>. Two tabs. World gives the Ballon d'Or for the best player in the world that season (with a top-10 shortlist and a breakdown of where his points came from) and a World Team of the Year pitch view. By league gives Player of the Season, the Golden Boot, and a Team of the Season pitch view for one competition. Both have a dropdown to browse past years.</li>
             <li><strong>Club History</strong>. A per-club honours page (yours by default, with a dropdown for any club in the world): a trophy case (league titles, second-tier titles, Continental Cups, promotions and relegations), individual honours won by the club's players (Player of the Season, Golden Boot, Team of the Season selections), franchise records (best finish, most points and wins in a season, all-time record), and a season-by-season table of every completed season (each season's note also shows how far the club got in that year's Continental Cup).</li>
+            <li><strong>Frivolities</strong>. The fun-but-useless corner: all-time records (best and worst team seasons, highest rating ever reached, career and single-season leaders, longest careers, biggest transfer fees), player bios for everyone currently in the world (tallest, shortest, oldest, youngest, where players come from, name oddities), and club trivia (trophy cabinet, longest title droughts, biggest spenders and best traders, one-club men). More in <a href="#frivolities">Frivolities</a>.</li>
             <li><strong>Season Preview</strong>. A snapshot of how the offseason shook out: the league's top 10 highest-rated players, top 10 highest-rated teams (both by OVR), the top 10 biggest transfers from the summer window ranked by fee, and who <a href="#development">retired</a>. It opens automatically the moment you advance past a season, with a link through to Awards.</li>
             <li><strong>News Feed</strong>. Every completed transfer in the league (AI-to-AI deals included) plus player accomplishments (hat-tricks, a standout performance each matchday, and goal milestones every 10, season and career) all woven into one timeline per season, with club and season filters. Your club's items are highlighted.</li>
             <li><strong>Roster</strong>. Your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay), a stats table for the XI, and a bench table (both with ratings, ages, contracts, and season stats, and goalkeepers also show goals against and xG against). Drag a bench player onto a pitch slot to swap him into the XI, extend contracts, or release players.</li>
@@ -1024,6 +1026,42 @@ export function Manual() {
             <li><strong>Potential is a forecast, not a fact.</strong> Most players fall short of it. Paying a big potential premium is a real gamble, and that's the game working as intended.</li>
             <li><strong>Deadline day is leverage.</strong> Asking prices are fixed for the whole window, so there's no discount for waiting, but "Sim to Transfer Deadline" guarantees a last look at the market (and any incoming offers) before it shuts.</li>
           </ul>
+        </Section>
+
+        <Section id="frivolities" title="Frivolities">
+          <p>
+            Frivolities is the fun-but-useless corner of the game. None of it helps you win
+            anything. It's the all-time lists your world has been quietly building while you were
+            busy managing, split across three tabs.
+          </p>
+          <p>
+            <strong>Records</strong> is the all-time stuff: best and worst team seasons ever,
+            the highest rating any player has ever reached, career goals, assists and appearances,
+            the most goals anyone's managed in a single season, longest careers, and the biggest
+            transfer fees ever paid. Team seasons rank by points per game rather than raw points,
+            so a great season in a smaller league isn't punished for playing fewer matches. The
+            transfer list counts permanent deals only, since loans and free moves aren't purchases.
+          </p>
+          <p>
+            <strong>Player Bios</strong> is about everyone in the world right now: tallest and
+            shortest, oldest and youngest, a breakdown of which countries the world's players come
+            from (with each country's best player), plus longest names and the first names and
+            surnames the most players share. Academy kids count here, which is why the youngest
+            list is nothing but teenagers.
+          </p>
+          <p>
+            <strong>Club Trivia</strong> is the club-level version: the trophy cabinet, who's been
+            waiting longest for a title, all-time biggest spenders, the clubs that have made the
+            most money trading players, and one-club men who never played for anyone else.
+          </p>
+          <p>
+            One thing worth knowing: when a player retires he's normally gone from the save
+            completely. So that the all-time lists don't forget your legends the moment they hang
+            up, the game now keeps a permanent record of retirees who were either genuinely good
+            or played a very long time. Everyone else still disappears, which keeps your save file
+            from growing forever. If you're loading an older save, the record starts from your next
+            offseason, since players who retired before this existed left no trace to recover.
+          </p>
         </Section>
 
         <Section id="godmode" title="God Mode">

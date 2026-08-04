@@ -33,6 +33,16 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-08-04",
+    title: "Frivolities: the all-time lists nobody asked for",
+    items: [
+      "There's a new Frivolities page in the sidebar, under Club History. None of it helps you win anything, which is sort of the point. It's three tabs of lists your world has been quietly building the whole time you've been playing and had no way to look at.",
+      "Records is the all-time stuff: the best and worst team seasons ever played, the highest rating anyone has ever reached, career goals and assists and appearances, most goals in a single season, longest careers, and the biggest transfer fees ever paid. Team seasons rank by points per game instead of raw points, because you've got leagues of different sizes in the same save and I didn't want a 38-game season automatically outranking a better one played over 20. Player Bios is everyone alive right now: tallest, shortest, oldest, youngest, which countries the world's players actually come from and who each country's best player is, plus longest names and the surnames the most players share. Club Trivia is the club version: trophy cabinet, who's been waiting longest for a title, biggest spenders, best traders, and one-club men.",
+      "Building this turned up a problem I had to fix first. When a player retired he was deleted from your save completely, so an all-time list would have quietly meant \"all-time among people who happen to still be playing\" and your best ever striker would vanish from his own record the season he hung up. So retirees now get kept. Not all of them though, and this is the bit I want to be honest about: around 660 players retire every single offseason once you count everyone unsigned, and keeping all of them would grow your save forever. I measured it, it's about 66,000 people over a hundred seasons. So the game keeps the ones who were either genuinely good or played a really long time, and everyone else still disappears like before. In practice that's the people who'd ever show up on a list anyway.",
+      "One catch for existing saves: anyone who retired before today is gone for good and there's no way for me to bring them back, since they were deleted without a trace. Your all-time lists start filling up from your next offseason. New saves get everything from season one.",
+    ],
+  },
+  {
     date: "2026-07-30",
     title: "Retirement now depends on whether anyone actually wanted you",
     items: [

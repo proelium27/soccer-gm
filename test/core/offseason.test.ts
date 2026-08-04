@@ -7,7 +7,8 @@ import { computeStandings } from "../../src/core/standings.js";
 import { isFreeAgentTid } from "../../src/core/transfers/negotiation.js";
 import {
   HYPE_MAX, HYPE_MIN, NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_DEFAULT, ROSTER_SAFETY_FLOOR,
-  RETIREMENT_NOTABLE_LIMIT,
+  RETIREMENT_NOTABLE_LIMIT, RETIREE_ARCHIVE_LIMIT, RETIREE_ARCHIVE_MIN_PEAK_OVR,
+  RETIREE_ARCHIVE_MIN_APPEARANCES,
 } from "../../src/core/constants.js";
 
 function playFullSeason(rng: () => number) {
@@ -204,6 +205,51 @@ describe("simOffseason", () => {
       // contract expired this same offseason is still filed under his club.
       if (r.tid !== null) expect(wasRostered.has(r.pid)).toBe(true);
     }
+  });
+
+  it("archives the retirees worth keeping, and only those", () => {
+    const rng = mulberry32(11);
+    const league = playFullSeason(rng);
+    const before = new Map(league.players.map((p) => [p.pid, p]));
+    const next = simOffseason(league, rng);
+
+    expect(next.retiredPlayers.length).toBeGreaterThan(0);
+    expect(next.retiredPlayers.length).toBeLessThanOrEqual(RETIREE_ARCHIVE_LIMIT);
+
+    const survivors = new Set(next.players.map((p) => p.pid));
+    for (const a of next.retiredPlayers) {
+      // Really retired, and the snapshot carries what can no longer be looked up.
+      expect(survivors.has(a.pid)).toBe(false);
+      expect(a.name).not.toBe("");
+      // The gate is the save-size guarantee: nobody without a real career, and
+      // nobody below both bars, may take up a permanent row.
+      expect(a.appearances).toBeGreaterThan(0);
+      expect(
+        a.peakOvr >= RETIREE_ARCHIVE_MIN_PEAK_OVR
+        || a.appearances >= RETIREE_ARCHIVE_MIN_APPEARANCES,
+      ).toBe(true);
+      // Peak is read off the ratings history, so it can't be the post-decline
+      // value retirement leaves behind.
+      expect(a.peakOvr).toBeGreaterThanOrEqual(a.finalOvr);
+      expect(before.has(a.pid)).toBe(true);
+    }
+  });
+
+  it("carries the archive forward across offseasons instead of replacing it", () => {
+    const rng = mulberry32(12);
+    let league = playFullSeason(rng);
+    league = simOffseason(league, rng);
+    const first = league.retiredPlayers.map((a) => a.pid);
+    expect(first.length).toBeGreaterThan(0);
+
+    league = simThrough(league, "season", rng);
+    league = simOffseason(league, rng);
+
+    // Nothing from the first intake may be dropped while the cap is nowhere
+    // near reached — a save must not quietly forget last decade's legends.
+    const now = new Set(league.retiredPlayers.map((a) => a.pid));
+    for (const pid of first) expect(now.has(pid)).toBe(true);
+    expect(league.retiredPlayers.length).toBeGreaterThan(first.length);
   });
 
   it("names a retiring player's last club rather than filing him as a free agent", () => {

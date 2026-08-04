@@ -5,6 +5,7 @@ import type { ScheduleGame } from "./schedule.js";
 import type { CompletedTransfer, TransferNegotiation } from "./transfers/negotiation.js";
 import type { InboundOffer } from "./transfers/inboundOffers.js";
 import type { NewsEvent } from "./newsEvents.js";
+import type { ArchivedPlayer } from "./players/archive.js";
 import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { ActiveLoan, LoanListing, LoanRejection } from "./loans.js";
 import type { Competition } from "./competitions.js";
@@ -62,6 +63,19 @@ export interface LeagueStore {
   seasonHistory: SeasonHistoryEntry[];
   /** Player accomplishments (hat-tricks, standout ratings, goal milestones), all seasons, oldest first. */
   newsEvents: NewsEvent[];
+  /**
+   * Permanent career records for retirees good enough to stay on the all-time
+   * lists (`/frivolities`). Retirement deletes the player from `players`
+   * outright, so without this a legend vanishes the season he hangs up.
+   *
+   * Quality-gated and hard-capped — see players/archive.ts and the
+   * `RETIREE_ARCHIVE_*` block in constants.ts — because a 240-club world retires
+   * hundreds of players every offseason and an ungated list is exactly the bug
+   * that produced the 88 MB save. Old saves backfill to empty and fill from
+   * their next offseason on: the players already deleted left no trace to
+   * reconstruct.
+   */
+  retiredPlayers: ArchivedPlayer[];
   /**
    * Power-rankings snapshots taken at fixed points during every season (every
    * POWER_SNAPSHOT_INTERVAL matchdays plus the finale — see simThrough),
@@ -151,6 +165,7 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
     winterMarketRunSeason: null,
     seasonHistory: [],
     newsEvents: [],
+    retiredPlayers: [],
     powerRankingHistory: [],
     activeLoans: [],
     loanListings: [],

@@ -684,6 +684,43 @@ export const RETIREMENT_PROSPECT_MAX_AGE = FREE_AGENT_CULL_MIN_AGE;
 export const RETIREMENT_NOTABLE_LIMIT = 15;
 
 /**
+ * Who gets a permanent record in the retiree archive (`LeagueStore.retiredPlayers`,
+ * see players/archive.ts), and how large that archive is ever allowed to get.
+ *
+ * The archive exists so the all-time frivolities lists don't forget a legend
+ * the season he retires — retirement deletes the player outright. It is
+ * therefore the same save-size hazard `RETIREMENT_NOTABLE_LIMIT` above guards
+ * against, only permanent, so it gets two defences rather than one:
+ *
+ * 1. **A quality gate.** He must have made a senior league appearance, and then
+ *    either reached `MIN_PEAK_OVR` (70 ≈ a good starter, the standard at which
+ *    a player is plausibly the answer to *any* all-time question) or lasted
+ *    `MIN_APPEARANCES` (≈ four full seasons) so the longevity lists have a
+ *    field. The great majority of each offseason's retirees are unsigned
+ *    players who never played a senior minute; they fail on the first clause.
+ * 2. **A hard cap.** However long the dynasty runs, the archive cannot exceed
+ *    `LIMIT` rows — overflow drops the *weakest careers*, not the oldest, so a
+ *    100-season save keeps its season-3 legends and loses its season-97
+ *    journeymen. At the measured retirement rates this is many decades of
+ *    headroom; the cap is the guarantee, not the expected steady state.
+ *
+ * Every list the archive feeds is a leaderboard (the top N of something), so a
+ * career that clears neither bar costs save size and buys nothing.
+ *
+ * Measured over a 6-season dynasty (seed 7, 240 clubs) to set these:
+ * **661 players retire per offseason**, of whom only 351 ever made a senior
+ * appearance and just 16.5 ever peaked at ovr 70. Ungated that is ~66,000 rows
+ * per 100 seasons — the 88 MB shape again. At `MIN_PEAK_OVR` 70 it is ~1,650
+ * per 100 seasons, and the appearance clause adds the low-rated long-servers
+ * the longevity lists exist for, landing comfortably inside `LIMIT`. Re-measure
+ * (a script like scripts/retirementAudit.ts) before loosening either bar: the
+ * retirement rate is itself tuned and moves these projections.
+ */
+export const RETIREE_ARCHIVE_MIN_PEAK_OVR = 70;
+export const RETIREE_ARCHIVE_MIN_APPEARANCES = 200;
+export const RETIREE_ARCHIVE_LIMIT = 4_000;
+
+/**
  * Wages (2026-07-11 rework, replacing the flat 20k-per-ovr placeholder;
  * rescaled 2026-07-13 alongside the BASE_SEASON_BUDGET cut below — same
  * cubic shape, coefficients scaled by ~BASE_SEASON_BUDGET's 50M/95M ratio so

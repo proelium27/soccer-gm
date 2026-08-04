@@ -16,6 +16,7 @@ import { NTRosters } from "./pages/nationalTeams/Rosters.js";
 import { NTPowerRankings } from "./pages/nationalTeams/PowerRankings.js";
 import { NTStatLeaders } from "./pages/nationalTeams/StatLeaders.js";
 import { NTHistory } from "./pages/nationalTeams/History.js";
+import { Frivolities } from "./pages/Frivolities.js";
 import { PowerRankings } from "./pages/PowerRankings.js";
 import { Schedule } from "./pages/Schedule.js";
 import { Roster } from "./pages/Roster.js";
@@ -80,6 +81,7 @@ export function App() {
             <Route path="/news" element={<NewsFeed />} />
             <Route path="/awards" element={<Awards />} />
             <Route path="/history" element={<ClubHistory />} />
+            <Route path="/frivolities" element={<Frivolities />} />
             <Route path="/season-preview" element={<SeasonPreview />} />
             <Route path="/set-scouting" element={<SetScouting />} />
             <Route path="/box-score/:matchIndex" element={<BoxScore />} />

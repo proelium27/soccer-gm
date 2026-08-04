@@ -270,6 +270,12 @@ function migrateFields(league: LeagueStore): LeagueStore {
     inboundOffers: anyVersion.inboundOffers ?? [],
     transfers: anyVersion.transfers ?? [],
     winterMarketRunSeason: anyVersion.winterMarketRunSeason ?? null,
+    // Same permanent-loss story as `retirements` below: everyone who retired
+    // before the archive existed was deleted without a trace, so there is
+    // nothing to reconstruct. An old save starts empty and fills from its next
+    // offseason onward — the all-time lists are honest about covering only the
+    // seasons the save has actually recorded.
+    retiredPlayers: anyVersion.retiredPlayers ?? [],
     // Older saves have no record of past seasons' final tables; they simply
     // start accumulating history from this point forward. Saves from before
     // Team Stat Leaders history has team totals per completed season either:
