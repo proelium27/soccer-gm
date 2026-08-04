@@ -8,7 +8,7 @@ import type { ArchivedPlayer } from "../../src/core/players/archive.js";
 import { emptyTotals, emptyBestSeasons } from "../../src/core/frivolities/stats.js";
 import { allTimeLeaders } from "../../src/core/frivolities/leaders.js";
 import {
-  computeHonours, playerGoatRanking, teamGoatRanking,
+  computeHonours, playerGoatRanking, teamGoatRanking, pointsOf,
 } from "../../src/core/frivolities/goat.js";
 import { FREE_AGENT_TID } from "../../src/core/transfers/negotiation.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
@@ -445,13 +445,8 @@ describe("GOAT rankings", () => {
 
       const rank = playerGoatRanking(store);
       expect(rank[0].career.pid).toBe(1);
-      expect(rank[0].awards).toBeGreaterThan(0);
-      expect(rank[1].awards).toBe(0);
-      // The parts must actually add up to the headline number.
-      const r = rank[0];
-      expect(r.score).toBeCloseTo(
-        r.peak + r.prime + r.longevity + r.awards + r.trophies + r.production, 6,
-      );
+      expect(pointsOf(rank[0], "awards")).toBeGreaterThan(0);
+      expect(pointsOf(rank[1], "awards")).toBe(0);
     });
 
     it("returns exactly the parts the score is made of, with nothing left over", () => {
@@ -469,14 +464,44 @@ describe("GOAT rankings", () => {
       } as unknown as Partial<LeagueStore>);
 
       const r = playerGoatRanking(store)[0];
-      const parts = [r.peak, r.prime, r.longevity, r.awards, r.trophies, r.production];
-      // Exact, not close: every part is a whole number and the score is their
-      // sum, so the table can never show a breakdown that doesn't reconcile.
-      expect(parts.reduce((a, b) => a + b, 0)).toBe(r.score);
-      for (const part of parts) expect(Number.isInteger(part)).toBe(true);
-      // And every part must actually be carrying something here, or the test
-      // would pass just as well with a component silently stuck at zero.
-      for (const part of parts) expect(part).toBeGreaterThan(0);
+      // Exact, not close, at both levels: terms sum to their component and
+      // components sum to the score, so nothing the UI shows can fail to
+      // reconcile with the number beside it.
+      expect(r.components.reduce((sum, c) => sum + c.points, 0)).toBe(r.score);
+      for (const c of r.components) {
+        // The component is the rounded sum of its exact terms.
+        expect(c.points).toBe(Math.round(c.terms.reduce((sum, t) => sum + t.points, 0)));
+        expect(Number.isInteger(c.points)).toBe(true);
+        for (const t of c.terms) {
+          // Exact, so a reader multiplying count by weight gets the shown
+          // figure. Rounding here produced lines like "24 x 0.15 = 4".
+          expect(t.points).toBe(t.count * t.weight);
+        }
+      }
+      // All six must be carrying something here, or the test would pass just as
+      // well with a component silently stuck at zero.
+      expect(r.components.map((c) => c.key)).toEqual([
+        "peak", "prime", "longevity", "awards", "trophies", "production",
+      ]);
+      for (const c of r.components) expect(c.points).toBeGreaterThan(0);
+    });
+
+    it("names each award in the breakdown, so a reader can check the working", () => {
+      const store = makeStore({
+        players: [makePlayer({ pid: 1, lines: [[2029, 1, 38, 20, 5]], hist: [[2028, 90]] })],
+        seasonHistory: [
+          historyWithAwards(2029, [row(1, 38, 90)], { 1: 0 },
+            { champion: 1, ballonDOr: 1, tots: [1] }),
+        ],
+      } as unknown as Partial<LeagueStore>);
+
+      const awards = playerGoatRanking(store)[0].components.find((c) => c.key === "awards")!;
+      const bdo = awards.terms.find((t) => t.key === "ballonDOr")!;
+      expect(bdo.count).toBe(1);
+      expect(bdo.points).toBe(bdo.weight);
+      expect(bdo.count * bdo.weight).toBe(bdo.points);
+      // Awards he never won must not clutter the breakdown with zero rows.
+      expect(awards.terms.some((t) => t.key === "goldenBoot")).toBe(false);
     });
 
     it("rewards a long prime over a single brilliant season", () => {
@@ -493,7 +518,7 @@ describe("GOAT rankings", () => {
       const store = makeStore({ players: [oneYear, longCareer] });
       const rank = playerGoatRanking(store);
       expect(rank[0].career.pid).toBe(2);
-      expect(rank[0].prime).toBeGreaterThan(rank[1].prime);
+      expect(pointsOf(rank[0], "prime")).toBeGreaterThan(pointsOf(rank[1], "prime"));
     });
 
     it("gives no peak or prime credit below the baseline", () => {
@@ -502,8 +527,8 @@ describe("GOAT rankings", () => {
         players: [makePlayer({ pid: 1, lines: [[2029, 1, 38, 0, 0]], hist: [[2028, 55]] })],
       });
       const r = playerGoatRanking(store)[0];
-      expect(r.peak).toBe(0);
-      expect(r.prime).toBe(0);
+      expect(pointsOf(r, "peak")).toBe(0);
+      expect(pointsOf(r, "prime")).toBe(0);
     });
   });
 
@@ -523,7 +548,7 @@ describe("GOAT rankings", () => {
       expect(rank[0].tid).toBe(1);
       expect(rank[0].leagueTitles).toBe(2);
       expect(rank[0].cupTitles).toBe(1);
-      expect(rank[0].score).toBeCloseTo(rank[0].trophies + rank[0].consistency, 6);
+      expect(rank[0].components.reduce((sum, c) => sum + c.points, 0)).toBe(rank[0].score);
     });
 
     it("counts a second-tier title separately from a top-flight one", () => {

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeRecordBook, type TeamSeasonRecord, type TransferRecord } from "../../core/frivolities/records.js";
@@ -7,7 +7,8 @@ import { computeClubTrivia, type ClubRecordRow, type ClubSpendRow, type OneClubM
 import type { CareerRow } from "../../core/frivolities/careers.js";
 import { allTimeLeaders, type LeaderScope } from "../../core/frivolities/leaders.js";
 import {
-  playerGoatRanking, teamGoatRanking, type PlayerGoatRow, type TeamGoatRow,
+  playerGoatRanking, teamGoatRanking,
+  type GoatComponent, type PlayerGoatRow, type TeamGoatRow,
 } from "../../core/frivolities/goat.js";
 import { ALL_TIME_STAT_KEYS, type AllTimeStatKey } from "../../core/frivolities/stats.js";
 import { ClubCrest } from "../components/ClubCrest.js";
@@ -110,13 +111,21 @@ function PlayerCell({ pid, name, nationality, active }: {
   );
 }
 
-/** A compact ranked table: rank, a label cell, and one or more value columns. */
-function RankTable<T>({ rows, headers, render, empty }: {
+/**
+ * A compact ranked table: rank, a label cell, and one or more value columns.
+ *
+ * `expand` opts a table into click-to-reveal detail rows, the same interaction
+ * Power Rankings uses for rosters. Only one row is open at a time — these
+ * details are wide, and several open at once turns the board into a wall.
+ */
+function RankTable<T>({ rows, headers, render, empty, expand }: {
   rows: T[];
   headers: string[];
   render: (row: T) => ReactNode[];
   empty: string;
+  expand?: (row: T) => ReactNode;
 }) {
+  const [open, setOpen] = useState<number | null>(null);
   if (rows.length === 0) return <Empty what={empty} />;
   return (
     <div className="table-responsive">
@@ -132,13 +141,27 @@ function RankTable<T>({ rows, headers, render, empty }: {
         <tbody>
           {rows.map((row, i) => {
             const cells = render(row);
+            const isOpen = open === i;
             return (
-              <tr key={i}>
-                <td className="text-muted">{i + 1}</td>
-                {cells.map((c, j) => (
-                  <td key={j} className={j === 0 ? "" : "text-end"}>{c}</td>
-                ))}
-              </tr>
+              <Fragment key={i}>
+                <tr
+                  onClick={expand ? () => setOpen(isOpen ? null : i) : undefined}
+                  style={expand ? { cursor: "pointer" } : undefined}
+                  className={isOpen ? "table-active" : undefined}
+                >
+                  <td className="text-muted">{i + 1}</td>
+                  {cells.map((c, j) => (
+                    <td key={j} className={j === 0 ? "" : "text-end"}>{c}</td>
+                  ))}
+                </tr>
+                {isOpen && expand && (
+                  <tr className="table-active">
+                    <td colSpan={headers.length + 1} className="pt-0">
+                      {expand(row)}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             );
           })}
         </tbody>
@@ -158,20 +181,94 @@ function Col({ children, wide = false }: { children: ReactNode; wide?: boolean }
 // --- GOAT ------------------------------------------------------------------
 
 /**
- * The six parts a GOAT score is made of, in the order they're shown.
+ * The parts a GOAT score is made of, in the order they're shown.
  *
- * Every one of them is a column of its own rather than a run-on cell, and all
- * six are shown rather than five, so the row visibly adds up to its own score —
- * a breakdown you can't reconcile with the total is worse than no breakdown.
+ * Order and membership come from the data (`row.components`), not this table —
+ * this only supplies wording. A component with no entry here still shows, under
+ * its key, rather than silently vanishing from a total it contributes to.
  */
-const GOAT_PARTS: { key: keyof PlayerGoatRow & string; label: string; help: string }[] = [
-  { key: "peak", label: "Peak", help: "how good he got at his best" },
-  { key: "prime", label: "Prime", help: "years spent near that level" },
-  { key: "longevity", label: "Career", help: "seasons played and sustained match rating" },
-  { key: "awards", label: "Awards", help: "individual honours" },
-  { key: "trophies", label: "Trophies", help: "titles won with club and country" },
-  { key: "production", label: "Extras", help: "goals, assists and caps" },
-];
+const PART_LABELS: Record<string, { label: string; help: string }> = {
+  peak: { label: "Peak", help: "how good he got at his best" },
+  prime: { label: "Prime", help: "years spent near that level" },
+  longevity: { label: "Career", help: "seasons played and sustained match rating" },
+  awards: { label: "Awards", help: "individual honours" },
+  trophies: { label: "Trophies", help: "titles won with club and country" },
+  production: { label: "Extras", help: "goals, assists and caps" },
+};
+
+/** Wording for each line of arithmetic inside a component. */
+const TERM_LABELS: Record<string, string> = {
+  peakOvr: "rating above 70 at his peak",
+  primeOvr: "rating above 70, added up across every season",
+  seasons: "seasons played",
+  rating: "match rating above 6.0, scaled by how much he played",
+  ballonDOr: "Ballon d'Or",
+  playerOfSeason: "Player of the Season",
+  worldXI: "World Team of the Year",
+  goldenBoot: "Golden Boot",
+  teamOfSeason: "Team of the Season",
+  worldCups: "World Cup",
+  cupTitles: "Continental Cup",
+  leagueTitles: "league title",
+  goals: "goals",
+  assists: "assists",
+  caps: "caps",
+  topFinishes: "top-four finishes",
+  topFlightSeasons: "seasons in the top flight",
+  ppgSurplus: "points per game above 1.40, added up across every season",
+  secondTierTitles: "second-tier title",
+};
+
+function partLabel(key: string): string {
+  return PART_LABELS[key]?.label ?? key;
+}
+
+/** A number that reads cleanly whether it's a count of trophies or a rating surplus. */
+function termCount(count: number): string {
+  return Number.isInteger(count) ? String(count) : count.toFixed(2);
+}
+
+/** Term points are exact, so show the decimal rather than a figure that won't multiply out. */
+function termPoints(points: number): string {
+  return Number.isInteger(points) ? String(points) : points.toFixed(1);
+}
+
+/**
+ * The full working behind one row's score: every component, every term, and the
+ * `count x weight = points` that produced it.
+ */
+function GoatBreakdown({ components, score }: { components: GoatComponent[]; score: number }) {
+  return (
+    <div className="small">
+      <div className="text-muted mb-2">
+        How this score was worked out. Every line is how many, times what each one is worth.
+        Each part is rounded to a whole number, so its lines can add up a fraction off.
+      </div>
+      <div className="row g-3">
+        {components.filter((c) => c.terms.length > 0).map((c) => (
+          <div key={c.key} className="col-12 col-md-6 col-lg-4">
+            <div className="d-flex justify-content-between border-bottom mb-1">
+              <strong>{partLabel(c.key)}</strong>
+              <strong>{c.points}</strong>
+            </div>
+            {c.terms.map((t) => (
+              <div key={t.key} className="d-flex justify-content-between gap-2 text-muted">
+                <span>
+                  {termCount(t.count)} x {t.weight} — {TERM_LABELS[t.key] ?? t.key}
+                </span>
+                <span className="text-nowrap">{termPoints(t.points)}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="d-flex justify-content-between border-top mt-2 pt-1">
+        <strong>Total</strong>
+        <strong>{score}</strong>
+      </div>
+    </div>
+  );
+}
 
 function GoatTab() {
   const { league } = useLeague();
@@ -187,7 +284,8 @@ function GoatTab() {
         written down as a formula. It weighs how good you were at your peak, how long you stayed
         there, what you won, and what you produced — and it counts retired players, so your
         legends don't drop off the list when they hang up. The breakdown under each score shows
-        which parts of the case did the work.
+        which parts of the case did the work — and clicking a row opens the full working, down
+        to what every trophy and award was worth.
       </p>
 
       <ul className="nav nav-pills nav-sm mb-3">
@@ -203,16 +301,22 @@ function GoatTab() {
         ))}
       </ul>
 
+      {/* Keyed on `side` so switching boards remounts the table. Without it the
+          open-row index carries across, and the Clubs board opens with a row
+          already expanded because a player row was open. */}
       {side === "players" ? (
         <Panel
+          key="players"
           title="Greatest players of all time"
-          note={`The score is the six columns before it added together — ${
-            GOAT_PARTS.map((p) => `${p.label} is ${p.help}`).join(", ")
-          }.`}
+          note="Click any row to see exactly how his score was worked out."
         >
           <RankTable
             rows={players}
-            headers={["Player", "Club", "Best OVR", ...GOAT_PARTS.map((p) => p.label), "Score"]}
+            headers={[
+              "Player", "Club", "Best OVR",
+              ...(players[0]?.components ?? []).map((c) => partLabel(c.key)),
+              "Score",
+            ]}
             render={(r: PlayerGoatRow) => [
               <PlayerCell
                 pid={r.career.pid}
@@ -225,20 +329,22 @@ function GoatTab() {
               // score component derived from this, and calling both "peak" made
               // the row unreadable.
               r.career.peakOvr,
-              ...GOAT_PARTS.map((p) => (
-                <span className="text-muted">{r[p.key] as number}</span>
-              )),
-              // Already a whole number, and already exactly the sum of the six
-              // columns before it (see scorePlayer).
+              // Columns come from the row's own components, so a component can
+              // never count toward the score without appearing here.
+              ...r.components.map((c) => <span className="text-muted">{c.points}</span>),
               <strong>{r.score}</strong>,
             ]}
+            expand={(r: PlayerGoatRow) => (
+              <GoatBreakdown components={r.components} score={r.score} />
+            )}
             empty="careers"
           />
         </Panel>
       ) : (
         <Panel
+          key="clubs"
           title="Greatest clubs of all time"
-          note="Trophies mostly, with points per game separating clubs on level cabinets."
+          note="Click any row to see exactly how its score was worked out."
         >
           <RankTable
             rows={clubs}
@@ -250,8 +356,11 @@ function GoatTab() {
               r.topFinishes,
               r.seasons,
               r.ppg.toFixed(2),
-              <strong>{Math.round(r.score)}</strong>,
+              <strong>{r.score}</strong>,
             ]}
+            expand={(r: TeamGoatRow) => (
+              <GoatBreakdown components={r.components} score={r.score} />
+            )}
             empty="completed seasons"
           />
         </Panel>

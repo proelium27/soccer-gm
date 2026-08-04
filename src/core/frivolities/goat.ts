@@ -96,27 +96,76 @@ export function computeHonours(
 }
 
 /**
- * One player's GOAT case, broken into parts so the UI can show *why* he ranks.
+ * One line of the arithmetic behind a component.
  *
- * Every field is a whole number and `score` is exactly the sum of the other
- * six, so a reader can always reconcile the breakdown with the total.
+ * Structured rather than pre-formatted text: `count x weight = points` is the
+ * whole explanation, and keeping the three numbers apart lets the UI render
+ * "3 league titles, 12 each" without core knowing anything about wording. `key`
+ * is a stable id the UI maps to a label.
+ */
+export interface GoatTerm {
+  key: string;
+  /** How many of the thing — awards won, rating above the baseline, seasons played. */
+  count: number;
+  /** What one of them is worth. */
+  weight: number;
+  /**
+   * count x weight, **exact**. Deliberately not rounded: a line reading
+   * "24 x 0.15 = 4" is arithmetic a reader can see is wrong, which defeats the
+   * point of showing the working. Rounding happens once, at the component.
+   */
+  points: number;
+}
+
+/** One part of a score, with the terms that produced it. */
+export interface GoatComponent {
+  key: "peak" | "prime" | "longevity" | "awards" | "trophies" | "production";
+  /** Exactly the sum of `terms`, so a reader can always reconcile the two. */
+  points: number;
+  terms: GoatTerm[];
+}
+
+/**
+ * Build a component from its terms.
+ *
+ * Terms keep their exact value and the component is the rounded sum of them —
+ * rounding once, here, rather than per term. That keeps two things true at the
+ * same time: every line of the shown working is arithmetic a reader can verify,
+ * and the whole-number components still sum exactly to the whole-number score,
+ * so the table's columns always reconcile with its total.
+ *
+ * Terms worth nothing are dropped, so an expanded row shows the case that was
+ * actually made rather than a column of zeroes.
+ */
+function component(key: GoatComponent["key"], terms: Omit<GoatTerm, "points">[]): GoatComponent {
+  const scored = terms
+    .map((t) => ({ ...t, points: t.count * t.weight }))
+    .filter((t) => t.points > 0);
+  return {
+    key,
+    points: Math.round(scored.reduce((sum, t) => sum + t.points, 0)),
+    terms: scored,
+  };
+}
+
+/**
+ * One player's GOAT case.
+ *
+ * The six components are held as a list rather than six named fields on
+ * purpose: the table generates its columns from them, so a component can never
+ * again be left out of the display while still counting toward the score.
  */
 export interface PlayerGoatRow {
   career: CareerRow;
   honours: PlayerHonours;
+  /** Exactly the sum of `components`. */
   score: number;
-  /** How good he was at his best. */
-  peak: number;
-  /** How long he stayed near that level. */
-  prime: number;
-  /** Longevity and sustained match rating. */
-  longevity: number;
-  /** Individual awards. */
-  awards: number;
-  /** Team trophies, club and international. */
-  trophies: number;
-  /** Goals, assists and international caps. */
-  production: number;
+  components: GoatComponent[];
+}
+
+/** Look up one component's points on a row. */
+export function pointsOf(row: PlayerGoatRow, key: GoatComponent["key"]): number {
+  return row.components.find((c) => c.key === key)?.points ?? 0;
 }
 
 /**
@@ -126,55 +175,55 @@ export interface PlayerGoatRow {
  * and, importantly, for the positional bias this first draft carries.
  */
 export function scorePlayer(career: CareerRow, honours: PlayerHonours): PlayerGoatRow {
-  const peak = GOAT_PEAK_WEIGHT * Math.max(0, career.peakOvr - GOAT_OVR_BASELINE);
-
   // Area under his career rating curve, above the "good starter" line. A long
   // stretch near the top out-earns a single spike, which is the difference the
   // formula most wants to capture.
-  const prime = GOAT_PRIME_WEIGHT * career.seasons.reduce(
+  const primeOvr = career.seasons.reduce(
     (sum, s) => sum + Math.max(0, s.ovr - GOAT_OVR_BASELINE), 0,
   );
-
   // Damped until he has a real sample, so a handful of good games can't buy a
   // sustained-quality score.
   const sample = Math.min(1, career.totals.appearances / GOAT_RATING_FULL_SAMPLE);
-  const longevity = GOAT_LONGEVITY_WEIGHT * career.seasonsPlayed
-    + GOAT_RATING_WEIGHT * Math.max(0, career.totals.avgRating - RATING_BASELINE) * sample;
 
-  const awards = GOAT_BALLON_DOR_WEIGHT * honours.ballonDOr
-    + GOAT_WORLD_XI_WEIGHT * honours.worldXI
-    + GOAT_POTY_WEIGHT * honours.playerOfSeason
-    + GOAT_GOLDEN_BOOT_WEIGHT * honours.goldenBoot
-    + GOAT_TOTS_WEIGHT * honours.teamOfSeason;
-
-  const trophies = GOAT_LEAGUE_TITLE_WEIGHT * honours.leagueTitles
-    + GOAT_CUP_TITLE_WEIGHT * honours.cupTitles
-    + GOAT_WORLD_CUP_WEIGHT * honours.worldCups;
-
-  const production = GOAT_GOAL_WEIGHT * career.totals.goals
-    + GOAT_ASSIST_WEIGHT * career.totals.assists
-    + GOAT_CAP_WEIGHT * career.caps;
-
-  // Every part is rounded to a whole number and the score is their sum, rather
-  // than the parts being rounded only for display. Sub-integer precision is
-  // meaningless on a taste score, and keeping it caused two visible defects:
-  // the displayed parts didn't add up to the displayed total, and sorting on
-  // the exact score could put a row showing 116 above one showing 117.
-  const parts = {
-    peak: Math.round(peak),
-    prime: Math.round(prime),
-    longevity: Math.round(longevity),
-    awards: Math.round(awards),
-    trophies: Math.round(trophies),
-    production: Math.round(production),
-  };
+  const components: GoatComponent[] = [
+    component("peak", [
+      { key: "peakOvr", count: Math.max(0, career.peakOvr - GOAT_OVR_BASELINE), weight: GOAT_PEAK_WEIGHT },
+    ]),
+    component("prime", [
+      { key: "primeOvr", count: primeOvr, weight: GOAT_PRIME_WEIGHT },
+    ]),
+    component("longevity", [
+      { key: "seasons", count: career.seasonsPlayed, weight: GOAT_LONGEVITY_WEIGHT },
+      {
+        key: "rating",
+        count: Math.max(0, career.totals.avgRating - RATING_BASELINE) * sample,
+        weight: GOAT_RATING_WEIGHT,
+      },
+    ]),
+    component("awards", [
+      { key: "ballonDOr", count: honours.ballonDOr, weight: GOAT_BALLON_DOR_WEIGHT },
+      { key: "playerOfSeason", count: honours.playerOfSeason, weight: GOAT_POTY_WEIGHT },
+      { key: "worldXI", count: honours.worldXI, weight: GOAT_WORLD_XI_WEIGHT },
+      { key: "goldenBoot", count: honours.goldenBoot, weight: GOAT_GOLDEN_BOOT_WEIGHT },
+      { key: "teamOfSeason", count: honours.teamOfSeason, weight: GOAT_TOTS_WEIGHT },
+    ]),
+    component("trophies", [
+      { key: "worldCups", count: honours.worldCups, weight: GOAT_WORLD_CUP_WEIGHT },
+      { key: "cupTitles", count: honours.cupTitles, weight: GOAT_CUP_TITLE_WEIGHT },
+      { key: "leagueTitles", count: honours.leagueTitles, weight: GOAT_LEAGUE_TITLE_WEIGHT },
+    ]),
+    component("production", [
+      { key: "goals", count: career.totals.goals, weight: GOAT_GOAL_WEIGHT },
+      { key: "assists", count: career.totals.assists, weight: GOAT_ASSIST_WEIGHT },
+      { key: "caps", count: career.caps, weight: GOAT_CAP_WEIGHT },
+    ]),
+  ];
 
   return {
     career,
     honours,
-    ...parts,
-    score: parts.peak + parts.prime + parts.longevity
-      + parts.awards + parts.trophies + parts.production,
+    components,
+    score: components.reduce((sum, c) => sum + c.points, 0),
   };
 }
 
@@ -191,10 +240,13 @@ export function playerGoatRanking(
     .slice(0, limit);
 }
 
-/** One club's GOAT case, broken into parts. */
+/** One club's GOAT case, with the same expandable arithmetic as a player's. */
 export interface TeamGoatRow {
   tid: number;
+  /** Exactly the sum of `components`. */
   score: number;
+  /** Trophies and consistency, each with the terms that produced them. */
+  components: GoatComponent[];
   leagueTitles: number;
   cupTitles: number;
   secondTierTitles: number;
@@ -203,10 +255,6 @@ export interface TeamGoatRow {
   topFlightSeasons: number;
   /** Career points per game across every season played. */
   ppg: number;
-  /** Trophies component. */
-  trophies: number;
-  /** Sustained-strength component (finishes, seasons, points per game). */
-  consistency: number;
 }
 
 /**
@@ -223,8 +271,8 @@ export function teamGoatRanking(league: LeagueStore, limit = GOAT_LIST_LIMIT): T
     let r = rows.get(tid);
     if (!r) {
       r = {
-        tid, score: 0, leagueTitles: 0, cupTitles: 0, secondTierTitles: 0, topFinishes: 0,
-        seasons: 0, topFlightSeasons: 0, ppg: 0, trophies: 0, consistency: 0,
+        tid, score: 0, components: [], leagueTitles: 0, cupTitles: 0, secondTierTitles: 0,
+        topFinishes: 0, seasons: 0, topFlightSeasons: 0, ppg: 0,
       };
       rows.set(tid, r);
     }
@@ -235,6 +283,9 @@ export function teamGoatRanking(league: LeagueStore, limit = GOAT_LIST_LIMIT): T
   // rather than an average of per-season averages.
   const points = new Map<number, number>();
   const played = new Map<number, number>();
+  // Summed across seasons and turned into a single term at the end, so the
+  // expanded row shows one readable line rather than one per season.
+  const ppgSurplus = new Map<number, number>();
 
   for (const h of league.seasonHistory) {
     const byComp = new Map<number, typeof h.table>();
@@ -269,8 +320,11 @@ export function teamGoatRanking(league: LeagueStore, limit = GOAT_LIST_LIMIT): T
         // division you shouldn't be in isn't a GOAT case.
         const seasonPpg = row.points / row.played;
         const scale = tier === 1 ? 1 : GOAT_TEAM_SECOND_TIER_SCALE;
-        r.consistency += GOAT_TEAM_PPG_WEIGHT
-          * Math.max(0, seasonPpg - GOAT_TEAM_PPG_BASELINE) * scale;
+        ppgSurplus.set(
+          row.tid,
+          (ppgSurplus.get(row.tid) ?? 0)
+            + Math.max(0, seasonPpg - GOAT_TEAM_PPG_BASELINE) * scale,
+        );
       });
     }
   }
@@ -282,14 +336,19 @@ export function teamGoatRanking(league: LeagueStore, limit = GOAT_LIST_LIMIT): T
   for (const r of rows.values()) {
     const p = played.get(r.tid) ?? 0;
     r.ppg = p > 0 ? (points.get(r.tid) ?? 0) / p : 0;
-    r.trophies = Math.round(GOAT_TEAM_LEAGUE_TITLE_WEIGHT * r.leagueTitles
-      + GOAT_TEAM_CUP_TITLE_WEIGHT * r.cupTitles
-      + GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT * r.secondTierTitles);
-    // Same whole-number rule as the player score above.
-    r.consistency = Math.round(r.consistency
-      + GOAT_TEAM_TOP_FINISH_WEIGHT * r.topFinishes
-      + GOAT_TEAM_SEASON_WEIGHT * r.topFlightSeasons);
-    r.score = r.trophies + r.consistency;
+    r.components = [
+      component("trophies", [
+        { key: "cupTitles", count: r.cupTitles, weight: GOAT_TEAM_CUP_TITLE_WEIGHT },
+        { key: "leagueTitles", count: r.leagueTitles, weight: GOAT_TEAM_LEAGUE_TITLE_WEIGHT },
+        { key: "secondTierTitles", count: r.secondTierTitles, weight: GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT },
+      ]),
+      component("longevity", [
+        { key: "topFinishes", count: r.topFinishes, weight: GOAT_TEAM_TOP_FINISH_WEIGHT },
+        { key: "topFlightSeasons", count: r.topFlightSeasons, weight: GOAT_TEAM_SEASON_WEIGHT },
+        { key: "ppgSurplus", count: ppgSurplus.get(r.tid) ?? 0, weight: GOAT_TEAM_PPG_WEIGHT },
+      ]),
+    ];
+    r.score = r.components.reduce((sum, c) => sum + c.points, 0);
   }
 
   return [...rows.values()]
