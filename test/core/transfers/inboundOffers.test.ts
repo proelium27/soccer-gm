@@ -105,10 +105,18 @@ describe("inboundOfferCandidates", () => {
       };
       const after = inboundOfferCandidates(locked);
       expect(after.some((c) => c.player.pid === held)).toBe(false);
-      // Everyone else who cleared the bar before still can.
-      const otherBefore = baseline.filter((c) => c.player.pid !== held).map((c) => c.player.pid).sort();
-      const stillOffered = new Set(after.map((c) => c.player.pid));
-      for (const pid of otherBefore) expect(stillOffered.has(pid)).toBe(true);
+      // ...and the hold removes only him — it must not collapse the market.
+      //
+      // Deliberately NOT asserting that every other baseline candidate still
+      // appears. Buyer assignment is greedy and order-dependent (`usedBuyers`
+      // is mutated as the roster loop runs), so holding one player frees his
+      // buyer for a later player and cascades reassignment; the result is then
+      // truncated to INBOUND_OFFERS_MAX. With that cap saturated — which it is
+      // on a full roster — freeing a buyer lets *new* players qualify, which
+      // necessarily pushes other baseline names out of the top N. Those players
+      // never lost eligibility, they were crowded out, so a set-equality check
+      // here fails on ordinary valuation changes without any real defect.
+      expect(after.length).toBeGreaterThanOrEqual(baseline.length - 1);
       return;
     }
     throw new Error("no seed produced an inbound candidate to lock");
