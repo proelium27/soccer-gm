@@ -39,7 +39,11 @@ export interface CareerRow {
   intlTitles: number;
   /** Distinct clubs he made league appearances for. */
   clubs: number[];
-  /** Every season he appeared in, with the club and the rating he played it at. */
+  /**
+   * Every season he was on a senior roster, with the club, rating and
+   * appearances. Includes seasons he never played — a stats row is the game's
+   * squad-membership record, and league titles are credited on it.
+   */
   seasons: ArchivedSeason[];
 }
 
@@ -113,12 +117,13 @@ function rowFromPlayer(
     intlGoals: p.intl?.goals ?? 0,
     intlTitles: p.intl?.titles ?? 0,
     clubs,
-    seasons: played.map((s) => ({
+    // Same rule archivePlayer uses, so a living and a retired player's season
+    // lines mean exactly the same thing: every stats row, appearances or not.
+    seasons: p.stats.map((s) => ({
       season: s.season,
       tid: s.tid,
-      // Same rule archivePlayer uses, so a living and a retired player's
-      // season lines mean exactly the same thing.
       ovr: p.hist.find((h) => h.season === s.season - 1)?.ovr ?? peakOvr,
+      apps: s.appearances,
     })),
   };
 }

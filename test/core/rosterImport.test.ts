@@ -1,12 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { mulberry32 } from "../../src/engine/rng.js";
-import { createLeagueState } from "../../src/core/leagueState.js";
+import { makeLeague } from "../helpers/league.js";
 import { parseRosterFile, type RosterFile } from "../../src/core/teams/rosterFile.js";
 import { applyRosterFile } from "../../src/core/teams/rosterImport.js";
 import { POSITIONS, SKILL_KEYS, type PlayerRatings } from "../../src/core/players/types.js";
 import { ROSTER_COMPOSITION } from "../../src/core/constants.js";
 
-const base = createLeagueState(0, mulberry32(11), 11);
+const base = makeLeague(0, 11, 11);
 const league = { ...base, meta: { ...base.meta, name: base.teams[0].name } };
 
 // Slot 0 of English Division 1 (the user's club here).

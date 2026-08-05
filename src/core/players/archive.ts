@@ -9,21 +9,29 @@ import {
 } from "../frivolities/stats.js";
 
 /**
- * One season a player actually played, reduced to what the all-time surfaces
- * need from it.
+ * One season a player was on a senior roster, reduced to what the all-time
+ * surfaces need from it.
  *
  * `tid` is what makes honours derivable: a league or cup title belongs to
- * whoever was at the champion club *that season*, and a distinct club list
+ * whoever was in the champion's squad *that season*, and a distinct club list
  * can't answer that. `ovr` lets the GOAT formula weigh a long prime rather than
- * a single peak. Three numbers a season, which is why only seasons with an
- * appearance are kept.
+ * a single peak.
+ *
+ * **Every season with a stats row is kept, including ones he never appeared
+ * in.** `accumulateStats` opens a row for every rostered player each matchday,
+ * so a row *is* squad membership — which is the rule `core/playerHonors.ts`
+ * credits a league title on, and these two have to agree or a retiree's GOAT
+ * trophies won't match what his profile showed the season before he retired.
+ * `apps` is carried so the rating-arc terms can still ignore a season he sat out.
  */
 export interface ArchivedSeason {
   season: number;
-  /** Club of his most recent appearance that season (SeasonStats.tid). */
+  /** Club he was at as of his most recent matchday that season (SeasonStats.tid). */
   tid: number;
   /** The rating he played that season at. */
   ovr: number;
+  /** Appearances that season; 0 means he was in the squad but never played. */
+  apps: number;
 }
 
 /**
@@ -183,12 +191,14 @@ export function archivePlayer(player: Player, season: number): ArchivedPlayer {
     peakSeason: peak.season,
     finalOvr: ovrDuringSeason(player, season),
     clubs,
-    seasons: played.map((st) => ({
+    // Every stats row, not just the ones with appearances — see ArchivedSeason.
+    seasons: player.stats.map((st) => ({
       season: st.season,
       tid: st.tid,
       // The rating he carried into that season; falls back to his peak when no
       // snapshot exists (a career that predates ratings history).
       ovr: player.hist.find((h) => h.season === st.season - 1)?.ovr ?? peak.ovr,
+      apps: st.appearances,
     })),
     totals: totalsOf(played),
     best: bestSeasonsOf(played),

@@ -85,6 +85,8 @@ export function computeHonours(
 
   for (const career of careers) {
     const h = honoursFor(career.pid);
+    // Squad membership, not appearances — the same rule core/playerHonors.ts
+    // credits a profile's league-title pills on. These two must agree.
     for (const s of career.seasons) {
       if (championsBySeason.get(s.season)?.has(s.tid)) h.leagueTitles += 1;
       if (cupChampionBySeason.get(s.season) === s.tid) h.cupTitles += 1;
@@ -178,8 +180,11 @@ export function scorePlayer(career: CareerRow, honours: PlayerHonours): PlayerGo
   // Area under his career rating curve, above the "good starter" line. A long
   // stretch near the top out-earns a single spike, which is the difference the
   // formula most wants to capture.
+  // Seasons he actually played: `seasons` now also carries squad-membership
+  // rows with no appearances (needed for title attribution), and crediting a
+  // rating arc for a year he sat out would reward being injured.
   const primeOvr = career.seasons.reduce(
-    (sum, s) => sum + Math.max(0, s.ovr - GOAT_OVR_BASELINE), 0,
+    (sum, s) => sum + (s.apps > 0 ? Math.max(0, s.ovr - GOAT_OVR_BASELINE) : 0), 0,
   );
   // Damped until he has a real sample, so a handful of good games can't buy a
   // sustained-quality score.

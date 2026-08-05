@@ -18,6 +18,7 @@ import { cupStatsBySeasonForPlayer } from "../../core/cup/cupStats.js";
 import { clubDisplayName, formatWeeklyWage, seasonYear, transferFeeLabel } from "../format.js";
 import { INTL_TOURNAMENT_NAME } from "../../core/constants.js";
 import { PlayerEditModal } from "../components/PlayerEditModal.js";
+import { computePlayerHonors } from "../../core/playerHonors.js";
 
 /** One career-honor badge, e.g. "3x Golden Boot" — omits the count for a single win. */
 function AwardPill({ label, seasons, icon }: { label: string; seasons: number[]; icon?: ReactNode }) {
@@ -100,31 +101,10 @@ export function PlayerProfile() {
     .filter((t) => t.pid === player.pid)
     .sort((a, b) => b.season - a.season || (a.window === "summer" ? 1 : 0) - (b.window === "summer" ? 1 : 0));
 
-  // Career awards: scan every completed season's per-competition award entries.
-  const potySeasons: number[] = [];
-  const goldenBootSeasons: number[] = [];
-  const totsSeasons: number[] = [];
-  const championSeasons: number[] = [];
-  const ballonDOrSeasons: number[] = [];
-  const worldTeamSeasons: number[] = [];
-  for (const entry of league.seasonHistory) {
-    for (const compAwards of Object.values(entry.awards)) {
-      if (compAwards.playerOfSeasonPid === player.pid) potySeasons.push(entry.season);
-      if (compAwards.goldenBootPid === player.pid) goldenBootSeasons.push(entry.season);
-      if (compAwards.teamOfSeason.includes(player.pid)) totsSeasons.push(entry.season);
-    }
-    // Optional-chained because a save written before worldwide awards only gets
-    // `world` once migrateLeague has run over it.
-    if (entry.world?.ballonDOr[0]?.pid === player.pid) ballonDOrSeasons.push(entry.season);
-    if (entry.world?.worldTeamOfYear.includes(player.pid)) worldTeamSeasons.push(entry.season);
-    const ownerTid = team ? teamForSeason(playerTransfers, entry.season, team.tid) : null;
-    if (ownerTid !== null && Object.values(entry.championTidByCompId).includes(ownerTid)) {
-      championSeasons.push(entry.season);
-    }
-  }
-  const hasAwards =
-    potySeasons.length > 0 || goldenBootSeasons.length > 0 || totsSeasons.length > 0
-    || championSeasons.length > 0 || ballonDOrSeasons.length > 0 || worldTeamSeasons.length > 0;
+  // Career honours. League titles are credited only for seasons he was actually
+  // in the champion's squad — see computePlayerHonors for why that can't come
+  // from teamForSeason's transfer-history walk.
+  const honors = computePlayerHonors(player, league.seasonHistory);
 
   const statsBySeasonDesc = [...player.stats].sort((a, b) => b.season - a.season);
   const histBySeasonDesc = [...player.hist].sort((a, b) => b.season - a.season);
@@ -251,16 +231,16 @@ export function PlayerProfile() {
           <div className="card mb-3">
             <div className="card-body">
               <h6 className="card-title">Awards &amp; Trophies</h6>
-              {!hasAwards ? (
+              {!honors.hasAny ? (
                 <p className="text-muted mb-0">No individual or team honors yet.</p>
               ) : (
                 <div className="award-pills">
-                  <AwardPill label="Ballon d'Or" seasons={ballonDOrSeasons} />
-                  <AwardPill label="World Team of the Year" seasons={worldTeamSeasons} />
-                  <AwardPill label="Player of the Season" seasons={potySeasons} />
-                  <AwardPill label="Golden Boot" seasons={goldenBootSeasons} icon={<GoldenBootIcon />} />
-                  <AwardPill label="Team of the Season" seasons={totsSeasons} />
-                  <AwardPill label="League Champion" seasons={championSeasons} icon="🏆" />
+                  <AwardPill label="Ballon d'Or" seasons={honors.ballonDOr} />
+                  <AwardPill label="World Team of the Year" seasons={honors.worldTeamOfYear} />
+                  <AwardPill label="Player of the Season" seasons={honors.playerOfSeason} />
+                  <AwardPill label="Golden Boot" seasons={honors.goldenBoot} icon={<GoldenBootIcon />} />
+                  <AwardPill label="Team of the Season" seasons={honors.teamOfSeason} />
+                  <AwardPill label="League Champion" seasons={honors.leagueTitles} icon="🏆" />
                 </div>
               )}
             </div>

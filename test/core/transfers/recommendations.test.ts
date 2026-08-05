@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { makeLeague } from "../../helpers/league.js";
 import { recommendedTransfers } from "../../../src/core/transfers/recommendations.js";
-import { createLeagueState, type LeagueStore } from "../../../src/core/leagueState.js";
-import { mulberry32 } from "../../../src/engine/rng.js";
+import { type LeagueStore } from "../../../src/core/leagueState.js";
 import {
   RECOMMENDED_TRANSFERS_MIN, RECOMMENDED_TRANSFERS_MAX,
   RECOMMENDED_MAX_PER_POSITION, SCOUTING_SPEND_MAX,
@@ -15,7 +15,7 @@ import { trueTransferValue } from "../../../src/core/finance/valuation.js";
  * tid 0 is the strongest, most expensive squad).
  */
 function windowLeague(seed: number, scoutingSpend = 0): LeagueStore {
-  const league = createLeagueState(0, mulberry32(seed));
+  const league = makeLeague(0, seed);
   return {
     ...league,
     schedule: league.schedule.filter((g) => g.matchday >= 20),
@@ -27,7 +27,7 @@ function windowLeague(seed: number, scoutingSpend = 0): LeagueStore {
 
 describe("recommendedTransfers", () => {
   it("returns an empty list when no window is open", () => {
-    const league = createLeagueState(0, mulberry32(1));
+    const league = makeLeague(0, 1);
     const midAutumn = { ...league, schedule: league.schedule.filter((g) => g.matchday >= 10) };
     expect(recommendedTransfers(midAutumn)).toEqual([]);
   });
@@ -105,7 +105,7 @@ describe("recommendedTransfers", () => {
 
   it("drops a would-be target whose contract expires at the coming rollover", () => {
     const league: LeagueStore = {
-      ...createLeagueState(0, mulberry32(8)),
+      ...makeLeague(0, 8),
       phase: "offseason",
     };
     const targets = recommendedTransfers(league);

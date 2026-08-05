@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { makeLeague } from "../helpers/league.js";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
@@ -65,13 +66,13 @@ function simmedLeague(seasons: number): LeagueStore {
 
 describe("Transfers page render", () => {
   it("renders a fresh league with the summer window open", () => {
-    const league = createLeagueState(0, mulberry32(12345));
+    const league = makeLeague(0, 12345);
     league.phase = "offseason";
     expect(render(league)).toContain("Recommended Transfers");
   });
 
   it("renders with the window closed", () => {
-    const league = createLeagueState(0, mulberry32(12345));
+    const league = makeLeague(0, 12345);
     league.phase = "regular";
     // A fresh league sits at matchday 0, where the summer window is still open
     // through matchday 4. Drop the early fixtures so the next unplayed matchday

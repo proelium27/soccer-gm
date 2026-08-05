@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import { makeLeague } from "../helpers/league.js";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
-import { createLeagueState, type LeagueStore } from "../../src/core/leagueState.js";
-import { mulberry32 } from "../../src/engine/rng.js";
+import { type LeagueStore } from "../../src/core/leagueState.js";
 import { transferWindowState } from "../../src/core/transfers/window.js";
 import { WINDOW_TRANSFER_LIMIT } from "../../src/core/constants.js";
 
@@ -32,7 +32,7 @@ const { Transfers } = await import("../../src/ui/pages/Transfers.js");
 
 /** A league whose current window contains `count` AI-to-AI transfers. */
 function leagueWithWindowTransfers(count: number): LeagueStore {
-  const league = createLeagueState(0, mulberry32(99));
+  const league = makeLeague(0, 99);
   league.phase = "offseason";
   const ws = transferWindowState(league);
   if (!ws.open) throw new Error("expected the summer window to be open");

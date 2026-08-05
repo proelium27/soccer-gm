@@ -10,6 +10,7 @@ import { allTimeLeaders } from "../../src/core/frivolities/leaders.js";
 import {
   computeHonours, playerGoatRanking, teamGoatRanking, pointsOf,
 } from "../../src/core/frivolities/goat.js";
+import { computePlayerHonors } from "../../src/core/playerHonors.js";
 import { FREE_AGENT_TID } from "../../src/core/transfers/negotiation.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
 import type { SeasonHistoryEntry, StandingsRow } from "../../src/core/standings.js";
@@ -61,7 +62,7 @@ function makeArchived(o: Partial<ArchivedPlayer> & { pid: number }): ArchivedPla
     totals: { ...emptyTotals(), appearances: 500, goals: 300, assists: 100, minutesPlayed: 45000, avgRating: 7.5 },
     best: { ...emptyBestSeasons(), goals: { value: 35, season: 2018, appearances: 38 } },
     caps: 100, intlGoals: 50, intlTitles: 0,
-    seasons: [{ season: 2018, tid: 1, ovr: 80 }],
+    seasons: [{ season: 2018, tid: 1, ovr: 80, apps: 38 }],
     ...o,
   } as ArchivedPlayer;
 }
@@ -403,6 +404,37 @@ describe("GOAT rankings", () => {
   }
 
   describe("computeHonours", () => {
+    it("agrees with the Player Profile's honours for the same player", () => {
+      // Two implementations of the same question exist for a real reason (this
+      // one covers archived retirees, who have no Player object at all), but a
+      // divergence would show as a profile and a GOAT row disagreeing about the
+      // same trophy. Pin them together.
+      const player = makePlayer({
+        pid: 1,
+        lines: [[2028, 1, 30, 10, 2], [2029, 1, 0, 0, 0]],
+        hist: [[2027, 85], [2028, 86]],
+      });
+      const history = [
+        historyWithAwards(2028, [row(1, 38, 90)], { 1: 0 },
+          { champion: 1, ballonDOr: 1, poty: 1, tots: [1], worldXI: [1], goldenBoot: 1 }),
+        // He was in the squad but never played: main's rule credits this title,
+        // so this one has to as well.
+        historyWithAwards(2029, [row(1, 38, 88)], { 1: 0 }, { champion: 1 }),
+      ];
+      const store = makeStore({ players: [player], seasonHistory: history } as unknown as Partial<LeagueStore>);
+
+      const mine = computeHonours(store, allCareers(store)).get(1)!;
+      const theirs = computePlayerHonors(player, history);
+
+      expect(mine.leagueTitles).toBe(theirs.leagueTitles.length);
+      expect(mine.leagueTitles).toBe(2);
+      expect(mine.ballonDOr).toBe(theirs.ballonDOr.length);
+      expect(mine.worldXI).toBe(theirs.worldTeamOfYear.length);
+      expect(mine.playerOfSeason).toBe(theirs.playerOfSeason.length);
+      expect(mine.goldenBoot).toBe(theirs.goldenBoot.length);
+      expect(mine.teamOfSeason).toBe(theirs.teamOfSeason.length);
+    });
+
     it("credits awards and titles to retired players, not just the living", () => {
       // The whole reason honours are derived from seasonHistory instead of
       // snapshotted: a retiree must keep every trophy he ever won.
@@ -410,7 +442,7 @@ describe("GOAT rankings", () => {
         players: [],
         retiredPlayers: [makeArchived({
           pid: 99,
-          seasons: [{ season: 2028, tid: 1, ovr: 90 }, { season: 2029, tid: 1, ovr: 88 }],
+          seasons: [{ season: 2028, tid: 1, ovr: 90, apps: 38 }, { season: 2029, tid: 1, ovr: 88, apps: 38 }],
           intlTitles: 1,
         })],
         cupHistory: [{ season: 2029, championTid: 1 }],
