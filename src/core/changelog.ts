@@ -6,18 +6,17 @@
  * Keeping it in sync (same bar as the Manual — see CLAUDE.md):
  * - When a player-visible feature ships, changes, or is removed, PREPEND an
  *   entry here in the same PR. Newest entry goes first (top of the array).
- * - Write in the dev's own FIRST-PERSON voice: casual, personal, and honest,
- *   like you're talking straight to players ("Me and a few people noticed X,
- *   so I did Y"). It's fine to share the reasoning behind a change and to be
- *   specific about how it works (even quoting a number) if that helps players
- *   understand it — this is what players read, not a commit log. Match the
- *   tone of the existing entries.
+ * - Write PURELY INFORMATIONALLY: state what changed, how it behaves, and why
+ *   it was done. No first person, no addressing the reader as a friend, no
+ *   rhetorical asides or jokes. Be specific and quote real numbers where they
+ *   help; a known limitation is stated plainly rather than apologised for.
+ *   (Entries dated before 2026-08-05 are in an older casual first-person voice
+ *   and were left as a historical record; match the newest entries, not those.)
  * - Group a batch of related changes shipped together under one dated entry.
  * - Formatting: entries render as prose paragraphs (one per `items` string) by
- *   default — most entries should read as a short first-person note, NOT a
- *   bulleted list. Only set `list: true` when the post genuinely enumerates a
- *   bunch of distinct features (e.g. God Mode, Import Teams); then `items`
- *   render as bullets.
+ *   default, which is what most entries should be. Only set `list: true` when
+ *   the post genuinely enumerates a bunch of distinct features (e.g. God Mode,
+ *   Import Teams); then `items` render as bullets.
  *
  * `date` is an ISO date string (YYYY-MM-DD); the page formats it for display.
  */
@@ -34,32 +33,32 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-08-04",
-    title: "GOAT rankings, and a panel finally called what it actually is",
+    title: "GOAT rankings for players and clubs",
     items: [
-      "Frivolities opens on a new GOAT tab now, ranking the greatest players and greatest clubs your world has produced. There's no correct answer to \"who's the greatest\", so rather than pretend otherwise I've written my opinion down as a formula and shown you the working. Each row breaks the score into peak, prime, career, awards and trophies, so when you disagree with the order you can at least see which part of the argument you're disagreeing with.",
-      "Roughly: peak rating says how good you were at your best, prime adds up the years you spent near that level, and prime is weighted to beat peak over a long career, because what separates an all-timer from a one-season wonder is staying there. Individual awards carry about half the score. Trophies count, but a league title is worth a lot less than a Ballon d'Or, since eleven people win the league. Goals and assists are in there but weighted low on purpose, because they mostly double-count with the awards they win. Clubs are simpler: trophies dominate, and points per game breaks ties between clubs with similar cabinets.",
-      "One thing I want to be upfront about, because you'll notice it: the list leans toward attackers. That's inherited from the Ballon d'Or and Player of the Season, which are built on scoring and don't count defensive work at all. The Team of the Season and World Team of the Year terms fight back a bit (they pick an actual formation, so centre-backs and keepers get selected), but they don't fully fix it. Properly fixing it means rewriting how those awards are judged, which is a bigger job than a frivolity should drag in, so for now the bias is a known flaw rather than a hidden one. This is a first draft and I fully expect to move the numbers around.",
-      "Click any row and it opens up the full working: every award, trophy and stat that went into the score, how many of each he had, and what one of them is worth. So if you think somebody's too high you can see exactly which line you disagree with, instead of arguing with a number that came out of nowhere. The clubs list does the same.",
-      "Also renamed \"Best team seasons\" to \"Most dominant seasons\", because that's what it was actually showing. It ranks by points per game, which measures how far clear of the field you finished, not how good the team was.",
+      "Frivolities now opens on a GOAT tab, ranking the greatest players and the greatest clubs in the save. Both rankings come from a fixed formula. A player's score has six parts: peak rating, prime (the years spent near that peak), career length and sustained match rating, individual awards, trophies, and goals and assists.",
+      "Prime is weighted to outweigh peak over a long career, so a sustained run at a high level scores above a single outstanding season. Individual awards account for roughly half of a typical score. Trophies are worth less per item than individual awards, because a league title is shared by an entire squad. Goals and assists are weighted low, since they largely overlap with the awards they produce. A club's score is driven by trophies, with top-four finishes and points per game separating clubs with similar trophy counts.",
+      "Selecting a row expands it into the full calculation: every award, trophy and stat that contributed, how many of each there were, and what one of them is worth. Club rows expand the same way.",
+      "Known limitation: the player ranking favours attackers. It builds on the Ballon d'Or and Player of the Season scores, which are based on scoring and contain no defensive stats. The Team of the Season and World Team of the Year terms partly offset this, because those awards fill specific positions, but they do not correct it fully. A full fix requires changing how the underlying awards are judged. The formula is a first draft and the weights are expected to change.",
+      "\"Best team seasons\" has been renamed \"Most dominant seasons\". It ranks by points per game, which measures the margin over the rest of the division rather than the quality of the squad.",
     ],
   },
   {
     date: "2026-08-04",
-    title: "All-time leaders moved out of Stat Leaders and into Frivolities",
+    title: "All-time leaders moved from Stat Leaders to Frivolities",
     items: [
-      "Stat Leaders had an \"All Seasons\" option hiding in its season dropdown, and when you picked it a second dropdown appeared offering Career or Single Season. It always felt bolted on, and now that Frivolities exists it's clearly in the wrong place. So I've pulled it out. Stat Leaders is now purely one season at a time, which is what it's actually good at, and there's a new All-Time Leaders tab in Frivolities that does the all-time version properly.",
-      "It's better there for a reason that isn't just tidiness. Stat Leaders reads the live player pool, and retiring deletes you from it, so its career board quietly meant \"career totals among people who still exist\". The Frivolities version reads the retiree archive too, so your all-time top scorer stays your all-time top scorer after he hangs up.",
-      "Two things work differently now. It ranks the whole world at once instead of one league at a time, because a career crosses divisions and countries and there's no single league it belongs to. And the single-season view gives one row per player, his own best season, instead of listing every season separately. That second one is partly a limit (I only keep a retiree's best season, not all of them, or your save would balloon) but honestly I think it reads better anyway, since one absurd career can't take up half the board.",
+      "Stat Leaders no longer has an \"All Seasons\" option in its season dropdown, along with the Career and Single Season selector that appeared with it. It now covers one season at a time. The all-time boards are a separate All-Time Leaders tab in Frivolities.",
+      "The move also closes a gap. Stat Leaders reads the live player pool, and retirement removes a player from it, so its career board only ever covered players who were still active. The Frivolities version also reads the retiree archive, so a retired player stays on the all-time boards.",
+      "Two things behave differently from the old boards. They rank the whole world at once rather than one competition, because a career crosses divisions and countries. And the single-season board shows one row per player, his best season, rather than one row per season; a retiree's record keeps only his best season, so one row per player is the only rule that reads the same for active and retired players.",
     ],
   },
   {
     date: "2026-08-04",
-    title: "Frivolities: the all-time lists nobody asked for",
+    title: "New Frivolities page, plus a permanent record for retired players",
     items: [
-      "There's a new Frivolities page in the sidebar, under Club History. None of it helps you win anything, which is sort of the point. It's three tabs of lists your world has been quietly building the whole time you've been playing and had no way to look at.",
-      "Records is the all-time stuff: the best and worst team seasons ever played, the highest rating anyone has ever reached, career goals and assists and appearances, most goals in a single season, longest careers, and the biggest transfer fees ever paid. Team seasons rank by points per game instead of raw points, because you've got leagues of different sizes in the same save and I didn't want a 38-game season automatically outranking a better one played over 20. Player Bios is everyone alive right now: tallest, shortest, oldest, youngest, which countries the world's players actually come from and who each country's best player is, plus longest names and the surnames the most players share. Club Trivia is the club version: trophy cabinet, who's been waiting longest for a title, biggest spenders, best traders, and one-club men.",
-      "Building this turned up a problem I had to fix first. When a player retired he was deleted from your save completely, so an all-time list would have quietly meant \"all-time among people who happen to still be playing\" and your best ever striker would vanish from his own record the season he hung up. So retirees now get kept. Not all of them though, and this is the bit I want to be honest about: around 660 players retire every single offseason once you count everyone unsigned, and keeping all of them would grow your save forever. I measured it, it's about 66,000 people over a hundred seasons. So the game keeps the ones who were either genuinely good or played a really long time, and everyone else still disappears like before. In practice that's the people who'd ever show up on a list anyway.",
-      "One catch for existing saves: anyone who retired before today is gone for good and there's no way for me to bring them back, since they were deleted without a trace. Your all-time lists start filling up from your next offseason. New saves get everything from season one.",
+      "There is a new Frivolities page in the sidebar, under Club History. It collects all-time lists built from records the save already keeps. Nothing on it affects play.",
+      "Records covers the most dominant and the worst team seasons, the highest rating ever reached, the longest careers, and the biggest transfer fees. Team seasons rank by points per game rather than raw points, because a save holds leagues of different sizes and raw points would rank a 38-game season above a better one played over fewer games. Player Bios covers the current player pool: oldest and youngest, where the world's players come from and each country's best player, one-club men, and name tallies. Club Records covers the trophy cabinet, the longest wait for a title, the biggest spenders and the best traders.",
+      "Retired players are now kept on record. Retirement previously deleted a player from the save entirely, which would have made every all-time list mean \"all-time among players who are still active\", and a career-best scorer would have disappeared from his own record the season he retired. Not every retiree is kept: roughly 660 players retire per offseason once unsigned players are counted, around 66,000 over a hundred seasons, and keeping all of them would grow the save without limit. The game keeps those who either reached a high rating or played a long career, and deletes the rest as before.",
+      "For existing saves, anyone who retired before this update is unrecoverable, because they were deleted without a record. All-time lists begin filling from the next offseason. New saves record everything from season one.",
     ],
   },
   {

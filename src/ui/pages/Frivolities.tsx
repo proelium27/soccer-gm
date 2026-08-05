@@ -190,8 +190,8 @@ function Col({ children, wide = false }: { children: ReactNode; wide?: boolean }
  * its key, rather than silently vanishing from a total it contributes to.
  */
 const PART_LABELS: Record<string, { label: string; help: string }> = {
-  peak: { label: "Peak", help: "how good he got at his best" },
-  prime: { label: "Prime", help: "years spent near that level" },
+  peak: { label: "Peak", help: "highest rating reached" },
+  prime: { label: "Prime", help: "years spent near that peak" },
   longevity: { label: "Career", help: "seasons played and sustained match rating" },
   awards: { label: "Awards", help: "individual honours" },
   trophies: { label: "Trophies", help: "titles won with club and country" },
@@ -256,7 +256,7 @@ function GoatBreakdown({ components, score }: { components: GoatComponent[]; sco
             {c.terms.map((t) => (
               <div key={t.key} className="d-flex justify-content-between gap-2 text-muted">
                 <span>
-                  {termCount(t.count)} x {t.weight} — {TERM_LABELS[t.key] ?? t.key}
+                  {TERM_LABELS[t.key] ?? t.key}: {termCount(t.count)} x {t.weight}
                 </span>
                 <span className="text-nowrap">{termPoints(t.points)}</span>
               </div>
@@ -282,9 +282,8 @@ function GoatTab() {
   return (
     <>
       <p className="text-secondary small">
-        Who's the greatest of all time? There's no right answer, so this is just one opinion
-        written down as a formula. It weighs how good you were at your peak, how long you stayed
-        there, what you won, and what you produced.
+        Ranked by a fixed formula weighing peak rating, years spent near that peak, career length
+        and match rating, individual awards, trophies, and goals and assists.
       </p>
 
       <ul className="nav nav-pills nav-sm mb-3">
@@ -451,7 +450,7 @@ function RecordsTab() {
 
       <Row>
         <Col wide>
-          <Panel title="Biggest transfer fees" note="Permanent deals only — loans and free moves aren't purchases.">
+          <Panel title="Biggest transfer fees" note="Permanent deals only. Loans and free moves aren't purchases.">
             <RankTable
               rows={book.biggestTransfers}
               headers={["Player", "From", "To", "Season", "Fee"]}
@@ -487,9 +486,9 @@ function LeadersTab() {
   return (
     <>
       <p className="text-secondary small">
-        Every club in the world at once, not one league at a time — a career crosses divisions
-        and countries, so there's no single league it belongs to. Retired players are in here
-        too, as long as the game kept a record of them.
+        Every club in the world at once, not one league at a time, because a career crosses
+        divisions and countries. Retired players are included where the game kept a record
+        of them.
       </p>
 
       <div className="mb-3 d-flex gap-2 flex-wrap">
@@ -519,7 +518,7 @@ function LeadersTab() {
       <Panel
         title={scope === "career" ? `Career ${STAT_LABELS[stat]}` : `Best season: ${STAT_LABELS[stat]}`}
         note={scope === "single"
-          ? "One row per player — his own best season, so a single great career can't fill the whole board."
+          ? "One row per player: his best season, so a single career can't fill the whole board."
           : undefined}
       >
         <RankTable
@@ -610,7 +609,7 @@ function BiosTab() {
 
       <Row>
         <Col>
-          <Panel title="One-club men" note="Players who've only ever turned out for a single club.">
+          <Panel title="One-club men" note="Players who have only ever played for one club.">
             <RankTable
               rows={bios.oneClubMen}
               headers={["Player", "Club", "Seasons", "Apps"]}
