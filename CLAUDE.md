@@ -22,8 +22,9 @@ The first `npm test` after any `src/core` change rebuilds the cached test worlds
 ## Git workflow
 
 - Keep work committed: after code changes, commit locally with a clear message rather than leaving the tree dirty.
-- Keep the remote in sync: push to `origin` after committing so local `main` and GitHub `main` never drift.
-- A merged PR isn't done until it's pulled into local `main` (`git checkout main && git pull`).
+- Push your branch to `origin` after committing, so the work is on GitHub and reviewable.
+- **`origin/main` is the source of truth, not any local checkout.** Branch from `origin/main`, compare against `origin/main`, and don't try to keep a local `main` in sync — it is expected to be stale or diverged, and reconciling it is the user's business, not a step in your work.
+- Note a squash-merged branch is not an *ancestor* of `main`, so `git branch -d` will call it "not fully merged" even when every byte of it landed. Check with `git diff origin/main <branch>` (empty = it's all there) before reaching for `-D`.
 - Only skip this if the user explicitly asks you to hold off.
 
 ## Shared-file conventions (two Claude accounts work this repo)
