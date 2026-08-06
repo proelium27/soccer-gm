@@ -5,6 +5,8 @@ import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { computeStandings } from "../../src/core/standings.js";
 import { isFreeAgentTid } from "../../src/core/transfers/negotiation.js";
+import type { ArchivedPlayer } from "../../src/core/players/archive.js";
+import { emptyTotals, emptyBestSeasons } from "../../src/core/frivolities/stats.js";
 import {
   HYPE_MAX, HYPE_MIN, NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_DEFAULT, ROSTER_SAFETY_FLOOR,
   RETIREMENT_NOTABLE_LIMIT, RETIREE_ARCHIVE_LIMIT, RETIREE_ARCHIVE_MIN_PEAK_OVR,
@@ -213,10 +215,35 @@ describe("simOffseason", () => {
     const before = new Map(league.players.map((p) => [p.pid, p]));
     const next = simOffseason(league, rng);
 
-    expect(next.retiredPlayers.length).toBeGreaterThan(0);
+    const survivors = new Set(next.players.map((p) => p.pid));
+    const retirees = [...before.values()].filter((p) => !survivors.has(p.pid));
+    expect(retirees.length).toBeGreaterThan(0);
+
+    // The gate restated from raw player rows rather than by calling
+    // isArchiveWorthy, so this asserts the rule independently instead of
+    // echoing the implementation.
+    const expected = retirees.filter((p) => {
+      const apps = p.stats.reduce((sum, s) => sum + s.appearances, 0);
+      const peak = Math.max(p.ovr, ...p.hist.map((h) => h.ovr));
+      return apps > 0
+        && (peak >= RETIREE_ARCHIVE_MIN_PEAK_OVR || apps >= RETIREE_ARCHIVE_MIN_APPEARANCES);
+    });
+
+    // Set equality, deliberately not a count over zero. After a single season
+    // only a handful of players have both a senior appearance and a peak at the
+    // ovr bar — on this world exactly one of 330 retirees qualifies — so a
+    // `toBeGreaterThan(0)` here is really an assertion about one player, and it
+    // failed on CI while passing locally for reasons that had nothing to do
+    // with the archive. Set equality is both robust to that and strictly
+    // stronger: it catches a retiree wrongly kept as well as one wrongly
+    // dropped. Whether the gate admits anyone at all is pinned deterministically
+    // against hand-built players in test/core/archive.test.ts.
+    const byPid = (a: number, b: number) => a - b;
+    expect(next.retiredPlayers.map((a) => a.pid).sort(byPid))
+      .toEqual(expected.map((p) => p.pid).sort(byPid));
+
     expect(next.retiredPlayers.length).toBeLessThanOrEqual(RETIREE_ARCHIVE_LIMIT);
 
-    const survivors = new Set(next.players.map((p) => p.pid));
     for (const a of next.retiredPlayers) {
       // Really retired, and the snapshot carries what can no longer be looked up.
       expect(survivors.has(a.pid)).toBe(false);
@@ -239,8 +266,36 @@ describe("simOffseason", () => {
     const rng = mulberry32(12);
     let league = playFullSeason(rng);
     league = simOffseason(league, rng);
+
+    // A synthetic legend stands in for "whatever the archive already held".
+    // Without him this test would rest on however many players happened to
+    // retire worth keeping in one offseason, which on some worlds is one and on
+    // others none — and a carry-forward assertion over an empty archive proves
+    // nothing. His peak keeps him clear of the cap's career-score pruning.
+    const sentinel: ArchivedPlayer = {
+      pid: -999,
+      name: "Sentinel Legend",
+      nationality: "EN",
+      pos: "ST",
+      born: 1,
+      heightCm: 180,
+      retiredSeason: 1,
+      retiredAge: 35,
+      firstSeason: 1,
+      seasonsPlayed: 15,
+      peakOvr: 95,
+      peakSeason: 1,
+      finalOvr: 70,
+      clubs: [0],
+      seasons: [],
+      totals: emptyTotals(),
+      best: emptyBestSeasons(),
+      caps: 0,
+      intlGoals: 0,
+      intlTitles: 0,
+    };
+    league = { ...league, retiredPlayers: [...league.retiredPlayers, sentinel] };
     const first = league.retiredPlayers.map((a) => a.pid);
-    expect(first.length).toBeGreaterThan(0);
 
     league = simThrough(league, "season", rng);
     league = simOffseason(league, rng);
@@ -249,7 +304,8 @@ describe("simOffseason", () => {
     // near reached — a save must not quietly forget last decade's legends.
     const now = new Set(league.retiredPlayers.map((a) => a.pid));
     for (const pid of first) expect(now.has(pid)).toBe(true);
-    expect(league.retiredPlayers.length).toBeGreaterThan(first.length);
+    expect(now.has(sentinel.pid)).toBe(true);
+    expect(league.retiredPlayers.length).toBeGreaterThanOrEqual(first.length);
   });
 
   it("names a retiring player's last club rather than filing him as a free agent", () => {
