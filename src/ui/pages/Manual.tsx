@@ -1057,11 +1057,11 @@ export function Manual() {
             All-Time Leaders instead, so the two tabs don't repeat each other.
           </p>
           <p>
-            <strong>All-Time Leaders</strong> replaces the "All Seasons" option that used to sit on
-            Stat Leaders. Pick any stat and see either career totals or the best single seasons
-            recorded. Two differences from the per-season board: it covers the whole world at once
-            rather than one league, because a career crosses divisions and countries; and the
-            single-season view shows one row per player, his best, rather than one row per season.
+            <strong>All-Time Leaders</strong> takes any stat and shows either career totals or the
+            best single seasons recorded. Two differences from Stat Leaders, which covers one
+            season at a time: this board covers the whole world at once rather than one league,
+            because a career crosses divisions and countries; and the single-season view shows one
+            row per player, his best, rather than one row per season.
           </p>
           <p>
             <strong>Player Bios</strong> covers the current player pool: oldest and youngest, which
@@ -1076,11 +1076,11 @@ export function Manual() {
             money trading players.
           </p>
           <p>
-            Retired players are normally deleted from the save entirely. So the all-time lists
-            still cover them, the game keeps a permanent record of retirees who either reached a
-            high rating or played a long career. The rest are still deleted, which keeps the save
-            file from growing without limit. On an older save the record starts from your next
-            offseason, because players who retired before this existed left nothing to recover.
+            Retired players are otherwise deleted from the save entirely, so the game keeps a
+            permanent record of the ones who either reached a high rating or played a long career.
+            That is what lets the all-time lists cover them. The rest are still deleted, which
+            keeps the save file from growing without limit. On an older save the record starts
+            from your next offseason, because players who retired earlier left nothing to recover.
           </p>
         </Section>
 
