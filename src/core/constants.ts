@@ -684,6 +684,49 @@ export const RETIREMENT_PROSPECT_MAX_AGE = FREE_AGENT_CULL_MIN_AGE;
 export const RETIREMENT_NOTABLE_LIMIT = 15;
 
 /**
+ * Who gets a permanent record in the retiree archive (`LeagueStore.retiredPlayers`,
+ * see players/archive.ts), and how large that archive is ever allowed to get.
+ *
+ * The archive exists so the all-time frivolities lists don't forget a legend
+ * the season he retires — retirement deletes the player outright. It is
+ * therefore the same save-size hazard `RETIREMENT_NOTABLE_LIMIT` above guards
+ * against, only permanent, so it gets two defences rather than one:
+ *
+ * 1. **A quality gate.** He must have made a senior league appearance, and then
+ *    either reached `MIN_PEAK_OVR` (70 ≈ a good starter, the standard at which
+ *    a player is plausibly the answer to *any* all-time question) or lasted
+ *    `MIN_APPEARANCES` (≈ four full seasons) so the longevity lists have a
+ *    field. The great majority of each offseason's retirees are unsigned
+ *    players who never played a senior minute; they fail on the first clause.
+ * 2. **A hard cap.** However long the dynasty runs, the archive cannot exceed
+ *    `LIMIT` rows — overflow drops the *weakest careers*, not the oldest, so a
+ *    100-season save keeps its season-3 legends and loses its season-97
+ *    journeymen. At the measured retirement rates this is many decades of
+ *    headroom; the cap is the guarantee, not the expected steady state.
+ *    `LIMIT` came down from 4000 when the row widened to carry full career
+ *    totals plus a best-season line per ranked stat (needed so the all-time
+ *    leaderboards cover retirees for *every* stat, not just goals and assists)
+ *    — roughly 3x the width, so a lower row count holds the same budget. It
+ *    came down again (2500 -> 2000) when the per-season club/rating line was
+ *    added for the GOAT rankings.
+ *
+ * Every list the archive feeds is a leaderboard (the top N of something), so a
+ * career that clears neither bar costs save size and buys nothing.
+ *
+ * Measured over a 6-season dynasty (seed 7, 240 clubs) to set these:
+ * **661 players retire per offseason**, of whom only 351 ever made a senior
+ * appearance and just 16.5 ever peaked at ovr 70. Ungated that is ~66,000 rows
+ * per 100 seasons — the 88 MB shape again. At `MIN_PEAK_OVR` 70 it is ~1,650
+ * per 100 seasons, and the appearance clause adds the low-rated long-servers
+ * the longevity lists exist for, landing comfortably inside `LIMIT`. Re-measure
+ * (a script like scripts/retirementAudit.ts) before loosening either bar: the
+ * retirement rate is itself tuned and moves these projections.
+ */
+export const RETIREE_ARCHIVE_MIN_PEAK_OVR = 70;
+export const RETIREE_ARCHIVE_MIN_APPEARANCES = 200;
+export const RETIREE_ARCHIVE_LIMIT = 2_000;
+
+/**
  * Wages (2026-07-11 rework, replacing the flat 20k-per-ovr placeholder;
  * rescaled 2026-07-13 alongside the BASE_SEASON_BUDGET cut below — same
  * cubic shape, coefficients scaled by ~BASE_SEASON_BUDGET's 50M/95M ratio so
@@ -806,37 +849,15 @@ export const BASE_SEASON_BUDGET = 88_000_000;
  * player at ~$201M before age/potential/contract multipliers stack on top, so
  * a top club can still afford the league's most elite players. (The cap only
  * bounds *banking*; it can't cause a deficit, so AI solvency is unaffected.)
- *
- * Cut 400M -> 300M on 2026-07-30 (fee-normalization pass) alongside a much
- * deeper cut to MAX_BUDGET_FLOOR below. Two goals from the user brief: lower
- * transfer budgets overall, and widen the gap between the richest and poorest
- * clubs so only a handful can ever spend big. This value is the ceiling for a
- * maximally famous club, and it is deliberately kept a little *below* the
- * MAX_TRANSFER_VALUE clamp (350M) — the all-time-record signing should be
- * beyond what even the richest club can pay out of one season's war chest,
- * which is what makes it a record rather than a routine purchase.
  */
-export const MAX_BUDGET = 300_000_000;
+export const MAX_BUDGET = 400_000_000;
 /**
  * Floor of the hype-scaled savings ceiling (see budgetCap): the cap for a
- * club at zero hype. A club at HYPE_INITIAL (50) sits at the midpoint; a
- * maximally famous club reaches MAX_BUDGET.
- *
- * Cut 200M -> 100M on 2026-07-30 (fee-normalization pass). This is the "wider
- * gap top-to-bottom" lever from the user brief: the elite-to-nobody savings
- * ratio goes from 2x (200M..400M) to 3x (100M..300M), and every club below
- * elite fame gets a materially smaller war chest. At HYPE_INITIAL (50) a club
- * now tops out at ~200M rather than ~300M, so an average side can afford a
- * good starter or two but not a 100M+ star — buying a genuine difference-maker
- * becomes the privilege of a genuinely big club, which is the point.
- *
- * The floor stays comfortably above BASE_SEASON_BUDGET (88M) on purpose: a
- * club must always be able to bank at least one season's allocation, or the
- * cap would start silently destroying ordinary income rather than just
- * bounding long-run hoarding. (Clamping can never cause a deficit either way,
- * so AI solvency is structurally unaffected — verified by budget.test.ts.)
+ * club at zero hype. A club at HYPE_INITIAL (50) sits at the midpoint
+ * (~$300M at tier 1); a maximally famous club reaches MAX_BUDGET. Set so an
+ * elite club can bank/spend roughly 2x a struggling one, before tier scaling.
  */
-export const MAX_BUDGET_FLOOR = 100_000_000;
+export const MAX_BUDGET_FLOOR = 200_000_000;
 /**
  * Benchmark "dominant AI squad" the base allocation must out-fund on
  * worst-case wage deals (see the invariant note above): [count, ovr] rows,
@@ -949,20 +970,9 @@ export const SCOUT_POT_FOG_SHIFT_FRACTION = 0.5;
  * outlier like Haaland tops 200M. Base ("current ability") value with no
  * potential gap, before age/potential/contract multipliers:
  * 65 ~= 35M, 70 ~= 57M, 75 ~= 84M, 80 ~= 117M, 85 ~= 156M, 90 ~= 201M.
- *
- * Rescaled 2026-07-30 (fee-normalization pass, per user brief "fees are way
- * too high — Neymar's $263M / ~$358M-in-today's-money is the ALL-TIME record,
- * and in-game that happens constantly"). The coefficient was cut 56k → 42k
- * (~-25%), moving the band a "quality player" trades in down to the intended
- * 30-70M: base ("current ability") value with no potential gap, before the
- * age/potential/contract multipliers:
- * 65 ~= 24M, 70 ~= 38M, 75 ~= 56M, 80 ~= 79M, 85 ~= 105M, 90 ~= 135M.
- * At a typical 3-year deal (x1.24) that reads 30M / 48M / 70M on the shop
- * floor, which is the target band. The exponent is unchanged — the curve's
- * *shape* was right, only its level was too high.
  */
 export const VALUATION_OVR_FLOOR = 45;
-export const VALUATION_OVR_COEFF = 42_000;
+export const VALUATION_OVR_COEFF = 56_000;
 export const VALUATION_OVR_EXPONENT = 2.15;
 export const VALUATION_CONTRACT_YEAR_BONUS = 0.08;
 export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
@@ -988,30 +998,10 @@ export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
  * successful clubs are simply not for sale (see protectedStars.ts / the
  * PROTECTED_STAR_* constants below), the way a top club would never sell its
  * best player at any price.
- *
- * Reshaped 2026-07-30 (fee-normalization pass). The old curve (COEFF 11M,
- * EXPONENT 2.5) did not merely make elite players expensive — it *saturated*
- * the MAX_TRANSFER_VALUE clamp outright: at ovr 80 the premium alone came to
- * 11M x 4^2.5 = 352M, so every single player at 80 or above priced at exactly
- * the 350M ceiling, indistinguishable from one another. That is the direct
- * cause of the "record-breaking mega transfer every season" symptom — the
- * ceiling wasn't a rare outlier price, it was the *standard* price for a large
- * slice of the player pool.
- *
- * Now a ramp instead of a wall (COEFF 1.32M, EXPONENT 1.6): the premium grows
- * steadily so that elite tiers stay *distinguishable* from each other and only
- * a genuine once-a-generation outlier approaches the clamp. Premium on top of
- * the base curve, and the resulting fee at a typical 3-year deal (x1.24):
- *   ovr 78 -> +2.7M  (~87M)    ovr 85 -> +44M  (~185M)
- *   ovr 80 -> +12M   (~113M)   ovr 90 -> +90M  (~279M)
- *   ovr 93 -> +123M  (clamped at 350M)
- * So 100M+ becomes the price of a genuine star (ovr ~79+) rather than of a
- * decent starter, and only a ~93 — rarer than one per 30 seasons, see
- * isGenerational — ever commands the all-time-record fee.
  */
 export const VALUATION_ELITE_THRESHOLD = 76;
-export const VALUATION_ELITE_COEFF = 1_320_000;
-export const VALUATION_ELITE_EXPONENT = 1.6;
+export const VALUATION_ELITE_COEFF = 11_000_000;
+export const VALUATION_ELITE_EXPONENT = 2.5;
 
 /**
  * Hard ceiling on any player's transfer value / asking price (trueTransferValue,
@@ -1063,15 +1053,7 @@ export const VALUATION_AGE_CURVE: readonly [number, number][] = [
  * At full weight, VALUATION_POTENTIAL_PCT_PER_POINT * 20 = +70%, i.e. a
  * 20-point gap at peak age roughly matches the Bellingham-style premium.
  */
-/*
- * Trimmed 0.035 -> 0.025 on 2026-07-30 (fee-normalization pass): at full
- * weight a 20-point gap now adds +50% rather than +70%. The potential premium
- * multiplies on top of the youth *age* premium (up to x1.40), and the two
- * stacked were pricing merely-promising teenagers into the 100M+ bracket the
- * user wants reserved for genuine stars. Ceiling is still paid for
- * aggressively — just not enough to make a 70-ovr prospect a record signing.
- */
-export const VALUATION_POTENTIAL_PCT_PER_POINT = 0.025;
+export const VALUATION_POTENTIAL_PCT_PER_POINT = 0.035;
 export const VALUATION_POTENTIAL_WEIGHT_PEAK_AGE = 21;
 export const VALUATION_POTENTIAL_WEIGHT_ZERO_AGE = 30;
 
@@ -1869,6 +1851,17 @@ export const RATING_LEADER_QUALIFY_FRACTION = 1 / 2;
  * games-played denominator to take a fraction of.
  */
 export const RATING_LEADER_MIN_CAREER_APPEARANCES = 10;
+/**
+ * Flat appearance floor for the *single-season* Match Rating board on
+ * Frivolities' all-time leaders (see core/frivolities/leaders.ts).
+ *
+ * A flat count rather than `RATING_LEADER_QUALIFY_FRACTION` of games played,
+ * because those boards rank completed seasons from every competition at once
+ * and an archived retiree carries his appearance count but no record of how
+ * many matches his league played that year. Set at roughly half a typical
+ * 38-match season, matching what the fraction would give on a full one.
+ */
+export const RATING_LEADER_MIN_SEASON_APPEARANCES = 19;
 
 /* ── International football ───────────────────────────────────────────────────
  * A national-team competition run entirely inside the offseason, on a two-year
@@ -1964,3 +1957,74 @@ export const INTL_QUAL_LEGS = 3;
  * opening day. Tunable — raise it to make carried injuries rarer/shorter.
  */
 export const INTL_INJURY_OFFSEASON_RECOVERY = 2;
+
+
+/**
+ * GOAT rankings (`core/frivolities/goat.ts`) — a **first-draft** formula, and
+ * explicitly a matter of taste rather than a measured quantity. Every weight
+ * here is meant to be argued with; none of it feeds the sim.
+ *
+ * Scaled so a genuinely all-time career lands around 1200-1400 and a good
+ * top-flight regular around 100-200, which keeps the numbers readable without
+ * needing a normalization pass.
+ *
+ * The shape of the argument:
+ * - **Peak** says how good you were at your best, **prime** how long you stayed
+ *   there. Prime is weighted to out-earn peak over a long career, because the
+ *   thing that separates a GOAT from a one-season wonder is duration at a
+ *   level, not the single highest number he ever hit.
+ * - **Honours carry roughly half the score.** They're the game's own verdict on
+ *   a season, already blending production, rating and team success.
+ * - **Production (goals/assists) is weighted deliberately low.** It's the main
+ *   source of positional bias and it double-counts with the awards it wins.
+ *
+ * **Known bias, not yet solved:** the Ballon d'Or and POTY are structurally
+ * striker awards (see the world-awards notes above — `potyScore` carries no
+ * defensive stats at all), so a GOAT list built on them tilts toward attackers.
+ * The position-fair counterweights are the Team of the Season and World Team of
+ * the Year terms, which are selected into fixed positional slots, which is why
+ * they're weighted more generously per selection than their rarity alone
+ * justifies. Fixing this properly means giving those awards defensive terms —
+ * a design change, not a retune.
+ */
+export const GOAT_OVR_BASELINE = 70;
+export const GOAT_PEAK_WEIGHT = 6;
+export const GOAT_PRIME_WEIGHT = 1.5;
+export const GOAT_LONGEVITY_WEIGHT = 4;
+/** Sustained match rating above the 6.0 baseline, damped until he has a real sample. */
+export const GOAT_RATING_WEIGHT = 40;
+export const GOAT_RATING_FULL_SAMPLE = 150;
+export const GOAT_BALLON_DOR_WEIGHT = 60;
+export const GOAT_WORLD_XI_WEIGHT = 22;
+export const GOAT_POTY_WEIGHT = 25;
+export const GOAT_GOLDEN_BOOT_WEIGHT = 15;
+export const GOAT_TOTS_WEIGHT = 10;
+export const GOAT_LEAGUE_TITLE_WEIGHT = 12;
+export const GOAT_CUP_TITLE_WEIGHT = 25;
+export const GOAT_WORLD_CUP_WEIGHT = 50;
+export const GOAT_CAP_WEIGHT = 0.3;
+export const GOAT_GOAL_WEIGHT = 0.15;
+export const GOAT_ASSIST_WEIGHT = 0.1;
+
+/**
+ * Club GOAT weights. Same first-draft caveat as the player formula above.
+ *
+ * Trophies dominate, because a club's case really is its cabinet. The
+ * points-per-game term is what separates two clubs on equal trophy counts: it
+ * rewards being *consistently* strong rather than winning a title and vanishing,
+ * and it's measured against a mid-table baseline so ordinary seasons contribute
+ * nothing either way. Second-tier seasons count for less on that term (and a
+ * second-tier title counts for much less than a top-flight one) so a club can't
+ * build a GOAT case by dominating a division it shouldn't be in.
+ */
+export const GOAT_TEAM_LEAGUE_TITLE_WEIGHT = 100;
+export const GOAT_TEAM_CUP_TITLE_WEIGHT = 150;
+export const GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT = 20;
+export const GOAT_TEAM_TOP_FINISH_WEIGHT = 15;
+/** A finishing position this good or better counts as contending. */
+export const GOAT_TEAM_TOP_FINISH_POSITION = 4;
+export const GOAT_TEAM_SEASON_WEIGHT = 3;
+export const GOAT_TEAM_PPG_BASELINE = 1.4;
+export const GOAT_TEAM_PPG_WEIGHT = 20;
+/** Tier-2 seasons contribute this fraction of their points-per-game surplus. */
+export const GOAT_TEAM_SECOND_TIER_SCALE = 0.5;

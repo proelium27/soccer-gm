@@ -9,6 +9,7 @@ import { generateYouthIntake } from "./players/youth.js";
 import { computeAcademyFormModifiers } from "./players/academyForm.js";
 import { cullFreeAgentPool } from "./players/freeAgentCull.js";
 import { summarizeRetirements } from "./players/retirements.js";
+import { extendRetireeArchive } from "./players/archive.js";
 import { archiveCup } from "./cup/archive.js";
 import {
   releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
@@ -165,6 +166,15 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const retiredPids = new Set(retirees.map((p) => p.pid));
   const retirements = summarizeRetirements(
     retirees, endingSeason, tidLastSeason, league.meta.userTid,
+  );
+  // The permanent half of the same snapshot. `retirements` above is a capped
+  // per-season farewell notice; this is the career record the all-time
+  // frivolities lists read, quality-gated and hard-capped so it can't grow the
+  // save forever (see players/archive.ts). Pure — consumes no rng.
+  // `?? []` for saves and hand-built stores predating the field; migrate.ts
+  // backfills it, but simOffseason is also called directly by tests and tooling.
+  const retiredPlayers = extendRetireeArchive(
+    league.retiredPlayers ?? [], retirees, endingSeason,
   );
   players = players.filter((p) => !retiredPids.has(p.pid));
   teams = teams.map((t) => ({
@@ -508,6 +518,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       ? [...league.cupHistory, archiveCup(league.cup)]
       : league.cupHistory,
     nextPid,
+    retiredPlayers,
     seasonHistory: [
       ...league.seasonHistory,
       {

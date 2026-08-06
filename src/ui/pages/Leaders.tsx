@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
-import { emptySeasonStats } from "../../core/players/types.js";
 import { computeTeamSeasonStats, type TeamSeasonStats } from "../../core/standings.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
@@ -11,7 +10,6 @@ import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { seasonYear } from "../format.js";
 import {
   RATING_LEADER_QUALIFY_FRACTION,
-  RATING_LEADER_MIN_CAREER_APPEARANCES,
 } from "../../core/constants.js";
 
 type StatKey =
@@ -45,7 +43,6 @@ const STAT_OPTIONS: { key: StatKey; label: string }[] = [
   { key: "minutesPlayed", label: "Minutes" },
 ];
 
-type Scope = "career" | "single";
 type LeadersTab = "players" | "teams";
 
 interface LeaderRow {
@@ -57,29 +54,6 @@ interface LeaderRow {
   season: number | null;
 }
 
-/** Sum a player's stats across every season into one aggregate line. */
-function careerTotals(seasons: SeasonStats[]): SeasonStats {
-  const total = emptySeasonStats(0);
-  for (const s of seasons) {
-    total.appearances += s.appearances;
-    total.goals += s.goals;
-    total.assists += s.assists;
-    total.shots += s.shots;
-    total.shotsOnTarget += s.shotsOnTarget;
-    total.xg += s.xg;
-    total.saves += s.saves;
-    total.tackles += s.tackles;
-    total.interceptions += s.interceptions;
-    total.passes += s.passes;
-    total.passesCompleted += s.passesCompleted;
-    total.crosses += s.crosses;
-    total.foulsCommitted += s.foulsCommitted;
-    total.minutesPlayed += s.minutesPlayed;
-    total.ratingSum += s.ratingSum;
-  }
-  total.avgRating = total.appearances > 0 ? total.ratingSum / total.appearances : 0;
-  return total;
-}
 
 export function Leaders() {
   const { league } = useLeague();
@@ -163,40 +137,33 @@ function PlayerLeadersBody({
   seasonOptions: number[];
 }) {
   const [stat, setStat] = useState<StatKey>("goals");
-  const [season, setSeason] = useState<number | "all">("all");
-  const [scope, setScope] = useState<Scope>("career");
+  // This board is per-season only. The all-seasons career and best-season views
+  // it used to carry now live on Frivolities' All-Time Leaders tab, which can
+  // also rank archived retirees — something this page never could, since it
+  // reads the live player pool and retirement deletes from it.
+  const [season, setSeason] = useState<number>(
+    seasonOptions.includes(league.season) ? league.season : seasonOptions[0],
+  );
   const [initializedSeason, setInitializedSeason] = useState(false);
 
   useEffect(() => {
     if (initializedSeason) return;
-    if (seasonOptions.includes(league.season)) {
-      setSeason(league.season);
-    } else if (seasonOptions.length > 0) {
-      // The current season has no recorded stats yet (e.g. right after
-      // advancing to a new season, before its first match) — default to the
-      // most recent season that actually has something to show instead of
-      // silently falling back to "All Seasons".
-      setSeason(seasonOptions[0]);
-    }
+    // The current season may have no recorded stats yet (right after advancing,
+    // before its first match) — fall back to the most recent season that does.
+    setSeason(seasonOptions.includes(league.season) ? league.season : seasonOptions[0]);
     setInitializedSeason(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [league, initializedSeason]);
 
   // A player's *current* team (used for the Career aggregate, which spans
   // many seasons and has no single "correct" historical team to show).
-  const { teamByPid, tidByPid, compTids } = useMemo(() => {
-    const teamByPid = new Map<number, string>();
-    const tidByPid = new Map<number, number>();
+  const { compTids } = useMemo(() => {
     const compTids = new Set<number>();
     for (const team of league.teams) {
       if (team.compId !== compId) continue;
       compTids.add(team.tid);
-      for (const pid of team.roster) {
-        teamByPid.set(pid, team.name);
-        tidByPid.set(pid, team.tid);
-      }
     }
-    return { teamByPid, tidByPid, compTids };
+    return { compTids };
   }, [league.teams, compId]);
 
   // How many games this competition has played in a given season — the
@@ -242,58 +209,23 @@ function PlayerLeadersBody({
 
   const rows = useMemo(() => {
     const rows: LeaderRow[] = [];
-    if (season !== "all") {
-      const compByTid = compByTidForSeason(season);
-      for (const p of league.players) {
-        const ss = p.stats.find((s) => s.season === season);
-        if (!ss || ss[stat] <= 0) continue;
-        if (compByTid.get(ss.tid) !== compId) continue;
-        rows.push({
-          player: p,
-          teamName: teamNameByTid.get(ss.tid) ?? "Unknown",
-          isUserTeam: ss.tid === league.meta.userTid,
-          stats: ss,
-          season: null,
-        });
-      }
-    } else if (scope === "career") {
-      for (const p of league.players) {
-        if (!tidByPid.has(p.pid)) continue;
-        const total = careerTotals(p.stats);
-        if (total[stat] > 0) {
-          rows.push({
-            player: p,
-            teamName: teamByPid.get(p.pid) ?? "Unknown",
-            isUserTeam: tidByPid.get(p.pid) === league.meta.userTid,
-            stats: total,
-            season: null,
-          });
-        }
-      }
-    } else {
-      // Single season: every individual season is its own row, shown with the
-      // team the player was actually on that season. A player deliberately
-      // appears once per season he recorded, so the two best scoring seasons in
-      // league history sit together at the top even when they're the same man.
-      for (const p of league.players) {
-        for (const s of p.stats) {
-          if (s[stat] <= 0) continue;
-          const compByTid = compByTidForSeason(s.season);
-          if (compByTid.get(s.tid) !== compId) continue;
-          rows.push({
-            player: p,
-            teamName: teamNameByTid.get(s.tid) ?? "Unknown",
-            isUserTeam: s.tid === league.meta.userTid,
-            stats: s,
-            season: s.season,
-          });
-        }
-      }
+    const compByTid = compByTidForSeason(season);
+    for (const p of league.players) {
+      const ss = p.stats.find((s) => s.season === season);
+      if (!ss || ss[stat] <= 0) continue;
+      if (compByTid.get(ss.tid) !== compId) continue;
+      rows.push({
+        player: p,
+        teamName: teamNameByTid.get(ss.tid) ?? "Unknown",
+        isUserTeam: ss.tid === league.meta.userTid,
+        stats: ss,
+        season: null,
+      });
     }
     return rows;
   }, [
-    league.players, league.meta.userTid, season, scope, stat, compId,
-    compByTidForSeason, teamNameByTid, teamByPid, tidByPid,
+    league.players, league.meta.userTid, season, stat, compId,
+    compByTidForSeason, teamNameByTid,
   ]);
 
   // Match Rating is an average, so a player with only a game or two of data
@@ -302,28 +234,19 @@ function PlayerLeadersBody({
   // games-played keeps the board honest ten games in as well as at season's
   // end (counting stats like goals are unaffected).
   const top = useMemo(() => {
-    const appsToQualify = (s: number): number =>
-      Math.max(1, Math.ceil(RATING_LEADER_QUALIFY_FRACTION * matchesPlayedInSeason(s)));
-    let ratingQualifies: (row: LeaderRow) => boolean;
-    if (season !== "all") {
-      const threshold = appsToQualify(season);
-      ratingQualifies = (r) => r.stats.appearances >= threshold;
-    } else if (scope === "career") {
-      // Career aggregate spans many seasons — use a flat cumulative floor.
-      ratingQualifies = (r) => r.stats.appearances >= RATING_LEADER_MIN_CAREER_APPEARANCES;
-    } else {
-      // Single best season: each row carries its own season (row.season).
-      ratingQualifies = (r) => r.stats.appearances >= appsToQualify(r.season ?? league.season);
-    }
-    const qualified = stat === "avgRating" ? rows.filter(ratingQualifies) : rows;
+    const threshold = Math.max(
+      1,
+      Math.ceil(RATING_LEADER_QUALIFY_FRACTION * matchesPlayedInSeason(season)),
+    );
+    const qualified = stat === "avgRating"
+      ? rows.filter((r) => r.stats.appearances >= threshold)
+      : rows;
     return [...qualified]
-      // Tiebreak on season so the same player's repeated entries land in a
-      // stable, readable order rather than whatever the scan happened to emit.
-      .sort((a, b) => b.stats[stat] - a.stats[stat] || (b.season ?? 0) - (a.season ?? 0))
+      .sort((a, b) => b.stats[stat] - a.stats[stat] || a.player.pid - b.player.pid)
       .slice(0, 30);
-  }, [rows, stat, season, scope, league.season, matchesPlayedInSeason]);
+  }, [rows, stat, season, matchesPlayedInSeason]);
 
-  const showSeasonColumn = season === "all" && scope === "single";
+  const showSeasonColumn = false;
 
   return (
     <>
@@ -332,24 +255,12 @@ function PlayerLeadersBody({
           className="form-select form-select-sm"
           style={{ width: "auto" }}
           value={season}
-          onChange={(e) => setSeason(e.target.value === "all" ? "all" : Number(e.target.value))}
+          onChange={(e) => setSeason(Number(e.target.value))}
         >
-          <option value="all">All Seasons</option>
           {seasonOptions.map((s) => (
             <option key={s} value={s}>{seasonYear(s)}</option>
           ))}
         </select>
-        {season === "all" && (
-          <select
-            className="form-select form-select-sm"
-            style={{ width: "auto" }}
-            value={scope}
-            onChange={(e) => setScope(e.target.value as Scope)}
-          >
-            <option value="career">Career</option>
-            <option value="single">Single Season</option>
-          </select>
-        )}
         <select
           className="form-select form-select-sm"
           style={{ width: "auto" }}

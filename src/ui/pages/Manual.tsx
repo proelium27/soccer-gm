@@ -30,6 +30,7 @@ const SECTIONS: [id: string, title: string][] = [
   ["youth", "The Youth Academy"],
   ["ai", "How AI Clubs Think"],
   ["strategy", "Strategy"],
+  ["frivolities", "Frivolities"],
   ["godmode", "God Mode"],
   ["faq", "FAQ & Known Quirks"],
 ];
@@ -138,9 +139,10 @@ export function Manual() {
             <li><strong>National Teams</strong>. A whole section for the summer's national-team football: the current World Cup and Qualifying, Rosters showing every nation's named squad, a Schedule of fixtures, Power Rankings of every nation, Stat Leaders (top nations and top players, filterable by country), and History with past winners and each nation's record. More in <a href="#international">International Football</a>.</li>
             <li><strong>Power Rankings</strong>. Every club in the world ranked by a blended Power score: squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column) plus a current-season form bonus or penalty. Form isn't just your record. Beating a strong side counts for more than beating a weak one (and losing to a weak side hurts more than losing to a strong one), and goal difference factors in too, so a club can rank above or below its raw OVR depending on how it's actually playing. Record, goal difference, OVR, and the blended Power score all sit side by side, with a badge showing each club's competition and its rank within it. Click a team to expand its full roster in place. The rankings also get snapshotted every 5 matchdays (plus once after the final matchday), and a dropdown lets you browse any past snapshot from any season, with arrows showing how far each club rose or fell since the last one. Historical views can't expand rosters, since past squads aren't stored, and snapshots only start piling up from the point this feature shipped.</li>
             <li><strong>Schedule</strong>. Every matchday's fixtures and results. Click a played match for its box score.</li>
-            <li><strong>Stat Leaders</strong>. A Players tab (league-wide leaderboards: goals, assists, shots, shots on target, xG, tackles, interceptions, passes, crosses, fouls, saves, clean sheets, minutes, and average match rating, with a season dropdown to view a single past season or "All Seasons" ranked by career totals or by individual seasons, where every season a player recorded is its own row, so one man can hold several places on the board at once) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown for the current season and every completed one since). Match rating is an average rather than a running total, so to keep a one-off cameo from topping the chart a player needs to have appeared in at least half of the games played so far before he shows up on the match-rating board (a threshold that scales as the season goes, so it works ten games in as well as at the end).</li>
+            <li><strong>Stat Leaders</strong>. A Players tab (league-wide leaderboards for one season at a time: goals, assists, shots, shots on target, xG, tackles, interceptions, passes, crosses, fouls, saves, clean sheets, minutes, and average match rating, with a season dropdown covering the current season and every completed one) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown). Match rating is an average rather than a running total, so to keep a one-off cameo from topping the chart a player needs to have appeared in at least half of the games played so far before he shows up on the match-rating board (a threshold that scales as the season goes, so it works ten games in as well as at the end). For career totals and all-time bests across every season at once, see <a href="#frivolities">Frivolities</a>' All-Time Leaders.</li>
             <li><strong>Awards</strong>. Two tabs. World gives the Ballon d'Or for the best player in the world that season (with a top-10 shortlist and a breakdown of where his points came from) and a World Team of the Year pitch view. By league gives Player of the Season, the Golden Boot, and a Team of the Season pitch view for one competition. Both have a dropdown to browse past years.</li>
             <li><strong>Club History</strong>. A per-club honours page (yours by default, with a dropdown for any club in the world): a trophy case (league titles, second-tier titles, Continental Cups, promotions and relegations), individual honours won by the club's players (Player of the Season, Golden Boot, Team of the Season selections), franchise records (best finish, most points and wins in a season, all-time record), and a season-by-season table of every completed season (each season's note also shows how far the club got in that year's Continental Cup).</li>
+            <li><strong>Frivolities</strong>. All-time lists that don't affect play: GOAT rankings for players and clubs, all-time records (most dominant and worst team seasons, highest rating ever reached, longest careers, biggest transfer fees), All-Time Leaders (any stat, career totals or best single seasons, world-wide and including retired players), player bios (oldest, youngest, where players come from, one-club men, name oddities), and club records (trophy cabinet, longest title droughts, biggest spenders and best traders). More in <a href="#frivolities">Frivolities</a>.</li>
             <li><strong>Season Preview</strong>. A snapshot of how the offseason shook out: the league's top 10 highest-rated players, top 10 highest-rated teams (both by OVR), the top 10 biggest transfers from the summer window ranked by fee, and who <a href="#development">retired</a>. It opens automatically the moment you advance past a season, with a link through to Awards.</li>
             <li><strong>News Feed</strong>. Every completed transfer in the league (AI-to-AI deals included) plus player accomplishments (hat-tricks, a standout performance each matchday, and goal milestones every 10, season and career) all woven into one timeline per season, with club and season filters. Your club's items are highlighted.</li>
             <li><strong>Roster</strong>. Your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay), a stats table for the XI, and a bench table (both with ratings, ages, contracts, and season stats, and goalkeepers also show goals against and xG against). Drag a bench player onto a pitch slot to swap him into the XI, extend contracts, or release players.</li>
@@ -696,19 +698,12 @@ export function Manual() {
           </ul>
           <p>
             <strong>Market value.</strong> A player's value climbs steeply with OVR (an average
-            starter runs about $30M, a good one $45&ndash;50M, and the best player at a strong club
-            $70&ndash;80M), then gets multiplied by age
+            starter runs $35&ndash;45M, an elite player can top $150M), then gets multiplied by age
             (youth is a premium here, since you're buying years of control and resale value, so value
             peaks in the late teens and drops hard after 28), by potential headroom (a big gap
             between potential and current OVR is worth a real premium for young players, fading to
             nothing by 30), and by remaining contract length (a player locked up for years is
             pricier to pry loose).
-          </p>
-          <p>
-            Nine-figure fees are meant to be an event, not a routine. Crossing $100M takes a genuine
-            star (roughly OVR 79 and up, or a teenager with a spectacular ceiling), and the very top
-            of the scale is reserved for a true once-in-a-generation player. Most seasons nobody in
-            the world goes near the all-time record, which is what makes it a record.
           </p>
           <p>
             <strong>Values are capped, and the very best players aren't for sale.</strong> No
@@ -922,8 +917,8 @@ export function Manual() {
             tuned to never go broke. <em>You</em> can overspend, though: hoard a full roster of elite
             wages and the projection will happily show you the shortfall coming. Budget is a running
             balance that carries over between seasons instead of resetting. The savings cap scales
-            with a club's fame: a top-flight club can bank up to <strong>$300M</strong> at full hype,
-            down to <strong>$100M</strong> for a club with no fame (Division 2 clubs are capped lower
+            with a club's fame: a top-flight club can bank up to <strong>$400M</strong> at full hype,
+            down to <strong>$200M</strong> for a club with no fame (Division 2 clubs are capped lower
             on top of that, reflecting the money gap between divisions). Spending below your cap is
             unrestricted, but you can't bank cash past it.
           </p>
@@ -1031,6 +1026,62 @@ export function Manual() {
             <li><strong>Potential is a forecast, not a fact.</strong> Most players fall short of it. Paying a big potential premium is a real gamble, and that's the game working as intended.</li>
             <li><strong>Deadline day is leverage.</strong> Asking prices are fixed for the whole window, so there's no discount for waiting, but "Sim to Transfer Deadline" guarantees a last look at the market (and any incoming offers) before it shuts.</li>
           </ul>
+        </Section>
+
+        <Section id="frivolities" title="Frivolities">
+          <p>
+            Frivolities holds the all-time lists derived from records your save already keeps.
+            None of it affects play. It has five tabs.
+          </p>
+          <p>
+            <strong>GOAT</strong> ranks the greatest players and clubs in your save from a fixed
+            formula. A player is scored on six things: his peak rating, his prime (the years spent
+            near that peak), career length and sustained match rating, individual awards, trophies,
+            and goals and assists. Prime is weighted to outweigh peak over a long career, and
+            individual awards make up roughly half of a typical score. Clubs are scored mostly on
+            trophies, with top-four finishes and points per game separating clubs with similar
+            trophy counts. Selecting a row expands it into the full calculation: every award,
+            trophy and stat that contributed, how many of each, and what one is worth. Retired
+            players are ranked alongside active ones. Known limitation: the player ranking favours
+            attackers, because it builds on the Ballon d'Or and Player of the Season scores, which
+            are based on scoring and contain no defensive stats. The Team of the Season and World
+            Team of the Year terms partly offset this, since those awards fill specific positions,
+            but they do not correct it fully. The formula is a first draft.
+          </p>
+          <p>
+            <strong>Records</strong> covers the most dominant and worst team seasons, the highest
+            rating any player has reached, the longest careers, and the biggest transfer fees. Team
+            seasons rank by points per game rather than raw points, so a season in a smaller league
+            isn't penalised for playing fewer matches. The transfer list counts permanent deals
+            only, since loans and free moves aren't purchases. Plain stat leaderboards live on
+            All-Time Leaders instead, so the two tabs don't repeat each other.
+          </p>
+          <p>
+            <strong>All-Time Leaders</strong> takes any stat and shows either career totals or the
+            best single seasons recorded. Two differences from Stat Leaders, which covers one
+            season at a time: this board covers the whole world at once rather than one league,
+            because a career crosses divisions and countries; and the single-season view shows one
+            row per player, his best, rather than one row per season.
+          </p>
+          <p>
+            <strong>Player Bios</strong> covers the current player pool: oldest and youngest, which
+            countries the world's players come from and each country's best player, one-club men,
+            and the longest and most common names. Academy players are included, which is why the
+            youngest list is entirely teenagers.
+          </p>
+          <p>
+            <strong>Club Records</strong> is the club-level version: the trophy cabinet (total
+            trophies, then league titles, Continental Cups and second-tier titles), the longest
+            wait for a title, all-time biggest spenders, and the clubs that have made the most
+            money trading players.
+          </p>
+          <p>
+            Retired players are otherwise deleted from the save entirely, so the game keeps a
+            permanent record of the ones who either reached a high rating or played a long career.
+            That is what lets the all-time lists cover them. The rest are still deleted, which
+            keeps the save file from growing without limit. On an older save the record starts
+            from your next offseason, because players who retired earlier left nothing to recover.
+          </p>
         </Section>
 
         <Section id="godmode" title="God Mode">

@@ -6,18 +6,17 @@
  * Keeping it in sync (same bar as the Manual — see CLAUDE.md):
  * - When a player-visible feature ships, changes, or is removed, PREPEND an
  *   entry here in the same PR. Newest entry goes first (top of the array).
- * - Write in the dev's own FIRST-PERSON voice: casual, personal, and honest,
- *   like you're talking straight to players ("Me and a few people noticed X,
- *   so I did Y"). It's fine to share the reasoning behind a change and to be
- *   specific about how it works (even quoting a number) if that helps players
- *   understand it — this is what players read, not a commit log. Match the
- *   tone of the existing entries.
+ * - Write PURELY INFORMATIONALLY: state what changed, how it behaves, and why
+ *   it was done. No first person, no addressing the reader as a friend, no
+ *   rhetorical asides or jokes. Be specific and quote real numbers where they
+ *   help; a known limitation is stated plainly rather than apologised for.
+ *   (Entries dated before 2026-08-05 are in an older casual first-person voice
+ *   and were left as a historical record; match the newest entries, not those.)
  * - Group a batch of related changes shipped together under one dated entry.
  * - Formatting: entries render as prose paragraphs (one per `items` string) by
- *   default — most entries should read as a short first-person note, NOT a
- *   bulleted list. Only set `list: true` when the post genuinely enumerates a
- *   bunch of distinct features (e.g. God Mode, Import Teams); then `items`
- *   render as bullets.
+ *   default, which is what most entries should be. Only set `list: true` when
+ *   the post genuinely enumerates a bunch of distinct features (e.g. God Mode,
+ *   Import Teams); then `items` render as bullets.
  *
  * `date` is an ISO date string (YYYY-MM-DD); the page formats it for display.
  */
@@ -33,24 +32,24 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-08-05",
+    title: "Frivolities: GOAT rankings and all-time lists",
+    items: [
+      "There is a new Frivolities page in the sidebar, under Club History. It holds five tabs of all-time lists built from records the save already keeps. Nothing on it affects play.",
+      "GOAT ranks the greatest players and the greatest clubs in the save from a fixed formula. A player is scored on six things: peak rating, prime (the years spent near that peak), career length and sustained match rating, individual awards, trophies, and goals and assists. Prime is weighted to outweigh peak over a long career, so a sustained run at a high level scores above a single outstanding season. Individual awards account for roughly half of a typical score. Trophies are worth less per item, because a league title is shared by an entire squad, and goals and assists are weighted low, since they largely overlap with the awards they produce. Clubs are scored mostly on trophies, with top-four finishes and points per game separating clubs with similar trophy counts. Selecting any row expands it into the full calculation: every award, trophy and stat that contributed, how many of each there were, and what one of them is worth.",
+      "Known limitation on the player ranking: it favours attackers. It builds on the Ballon d'Or and Player of the Season scores, which are based on scoring and contain no defensive stats. The Team of the Season and World Team of the Year terms partly offset this, because those awards fill specific positions, but they do not correct it fully. A full fix requires changing how the underlying awards are judged. The formula is a first draft and the weights are expected to change.",
+      "All-Time Leaders takes any stat and shows either career totals or the best single seasons recorded. It covers the whole world at once rather than one league, because a career crosses divisions and countries, and the single-season view shows one row per player, his best. Stat Leaders now covers one season at a time and no longer has an all-seasons option.",
+      "Records covers the most dominant and the worst team seasons, the highest rating any player has reached, the longest careers, and the biggest transfer fees. Team seasons rank by points per game rather than raw points, because a save holds leagues of different sizes and raw points would rank a 38-game season above a better one played over fewer matches. Player Bios covers the current player pool: oldest and youngest, where the world's players come from and each country's best player, one-club men, and the longest and most common names. Club Records covers the trophy cabinet, the longest wait for a title, the biggest spenders, and the clubs that have made the most money trading players.",
+      "Retired players are kept on record so the all-time lists still cover them. Retirement otherwise deletes a player from the save entirely, which would have limited every list to players who are still active. Not every retiree is kept: roughly 660 players retire per offseason once unsigned players are counted, around 66,000 over a hundred seasons, and keeping all of them would grow the save without limit. The game keeps those who either reached a high rating or played a long career, and deletes the rest as before. On an existing save the record starts from your next offseason, because players who retired earlier left nothing to recover.",
+    ],
+  },
+  {
     date: "2026-08-04",
     title: "Players don't inherit their new club's old league titles anymore",
     items: [
       "Someone spotted that signing a player handed him every league title the club had ever won, including ones from before he was born.",
       "The cause was that nothing anywhere records who was on a roster in a given season, so the profile worked backwards through a player's transfers to guess which club he was at, and for any season before his first move it just assumed he'd always been where he is now. That guess is what was handing out the trophies. It now reads his actual season record at the club instead, which is real data and doesn't need guessing, so a title only shows up if he was genuinely in the squad that won it. Existing saves are corrected too, since this is worked out fresh every time you open a profile rather than stored anywhere.",
       "One rough edge left: a title counts for whichever squad he finished the season in, so a January signing at the eventual champions gets the trophy and someone who left them in January doesn't. Splitting a season between two clubs properly is a bigger job that's on the list.",
-    ],
-  },
-  {
-    date: "2026-07-30",
-    title: "Transfer fees were absurd, so I brought them back to earth",
-    items: [
-      "The most expensive transfer that has ever actually happened is Neymar to PSG, and that was $263M, which is something like $358M in today's money. It is the all-time record and it has stood for years. In this game that was happening constantly, several times a season, to the point where a record-breaking fee meant nothing at all. So I went and looked at why, and the answer was pretty embarrassing.",
-      "There's a hard ceiling of $350M on what any player can be valued at, and the elite pricing curve was so steep that it smashed straight through that ceiling at OVR 80. Not approached it. Smashed it. Which meant every single player rated 80 or above was priced at exactly $350M, all of them, identically. A decent 80 and a genuine once-in-a-generation 90 cost precisely the same, and that same figure was also the all-time record fee. That's why the record kept falling: the record price was just the standard price for a big chunk of the player pool.",
-      "So the elite premium is a ramp now instead of a wall. It still climbs hard, but each step up the top end genuinely costs more than the one below it, and only a truly extraordinary player gets anywhere near the ceiling. I also pulled the whole base curve down about 25% and eased off how much clubs pay for raw potential, because a promising teenager stacking a youth premium on top of a potential premium was landing in nine figures without ever having been a star.",
-      "Where that leaves prices: an average starter is about $30M, a good one $45 to $50M, and the best player at a strong club $70 to $80M. Crossing $100M now takes a genuine star, around OVR 79 and up. I simmed 15 seasons across the whole world to check, and nine-figure deals dropped by around 60%, the ones that do happen go to players averaging 79 OVR instead of 72, and nothing at all went past $210M. Before this, deals over $200M were routine.",
-      "The other half of it is money. Club savings caps came down, a big club now tops out at $300M instead of $400M, and more importantly a club with no fame tops out at $100M instead of $200M. That doubles the gap between the richest clubs and everyone else. The point is that spending big should be a thing only a handful of clubs in the world can actually do, rather than something half the league can have a go at. If you're at a mid-table side you'll feel this: you can still buy good players, you just can't buy a superstar, and that's deliberate.",
-      "Your existing save is fine and nothing needed converting. Values are worked out fresh every time, so you'll just notice prices look saner from now on, including for players you already own. Two things to be ready for though. Your squad is worth less on paper than it was yesterday, so if you were planning to sell someone to fund a rebuild, the number will be lower than you had in mind. And if you were sitting on a war chest bigger than your new savings cap, it gets trimmed down to the cap at the end of the season, so spend it or lose it.",
     ],
   },
   {
