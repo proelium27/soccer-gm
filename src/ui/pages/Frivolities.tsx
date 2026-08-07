@@ -9,6 +9,10 @@ import { computeClubTrivia, type ClubRecordRow, type ClubSpendRow } from "../../
 import type { CareerRow } from "../../core/frivolities/careers.js";
 import { allTimeLeaders, type LeaderScope } from "../../core/frivolities/leaders.js";
 import {
+  allTimeInternational, cappedNationalities,
+  INTL_ALL_TIME_KEYS, type IntlAllTimeKey,
+} from "../../core/frivolities/international.js";
+import {
   playerGoatRanking, teamGoatRanking,
   type GoatComponent, type PlayerGoatRow, type TeamGoatRow,
 } from "../../core/frivolities/goat.js";
@@ -17,12 +21,13 @@ import { ClubCrest } from "../components/ClubCrest.js";
 import { Flag } from "../components/Flag.js";
 import { currency, seasonYear } from "../format.js";
 
-type Tab = "goat" | "records" | "leaders" | "bios" | "clubs";
+type Tab = "goat" | "records" | "leaders" | "international" | "bios" | "clubs";
 
 const TAB_LABELS: Record<Tab, string> = {
   goat: "GOAT",
   records: "Records",
   leaders: "All-Time Leaders",
+  international: "International",
   bios: "Player Bios",
   clubs: "Club Records",
 };
@@ -545,6 +550,96 @@ function LeadersTab() {
   );
 }
 
+// --- International ---------------------------------------------------------
+
+const INTL_STAT_LABELS: Record<IntlAllTimeKey, string> = {
+  intlGoals: "Goals",
+  caps: "Caps",
+  intlTitles: "World Cups",
+};
+
+/**
+ * What an empty board is missing, per stat.
+ *
+ * Stat-specific on purpose: before the first World Cup there are plenty of
+ * capped players but no winners, so a shared "no capped players yet" would be
+ * simply untrue on that board.
+ */
+const INTL_EMPTY_LABELS: Record<IntlAllTimeKey, string> = {
+  intlGoals: "international goals",
+  caps: "capped players",
+  intlTitles: "World Cup winners",
+};
+
+function InternationalTab() {
+  const { league } = useLeague();
+  const [key, setKey] = useState<IntlAllTimeKey>("intlGoals");
+  const [country, setCountry] = useState("");
+
+  const countries = useMemo(() => (league ? cappedNationalities(league) : []), [league]);
+  const rows = useMemo(
+    () => (league ? allTimeInternational(league, key, country || null) : []),
+    [league, key, country],
+  );
+  if (!league) return null;
+
+  return (
+    <>
+      <p className="text-secondary small">
+        National-team records for every player the save still knows about, retired ones included.
+        A country's all-time top scorer is almost always someone who has already hung up his
+        boots, so this is the one board that would be close to meaningless without them. Caps and
+        goals cover a whole international career, qualifying and World Cups together, exactly as
+        they read on a player's profile.
+      </p>
+
+      <div className="mb-3 d-flex gap-2 flex-wrap">
+        <select
+          className="form-select form-select-sm"
+          style={{ width: "auto" }}
+          value={key}
+          onChange={(e) => setKey(e.target.value as IntlAllTimeKey)}
+          aria-label="Stat"
+        >
+          {INTL_ALL_TIME_KEYS.map((k) => (
+            <option key={k} value={k}>{INTL_STAT_LABELS[k]}</option>
+          ))}
+        </select>
+        <select
+          className="form-select form-select-sm"
+          style={{ width: "auto" }}
+          value={country}
+          onChange={(e) => setCountry(e.target.value)}
+          aria-label="Country"
+        >
+          <option value="">Every country</option>
+          {countries.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      </div>
+
+      <Panel title={country ? `${country}: all-time ${INTL_STAT_LABELS[key]}` : `All-time ${INTL_STAT_LABELS[key]}`}>
+        <RankTable
+          rows={rows}
+          headers={["Player", "Club", "Caps", "Goals", "World Cups"]}
+          render={(r: CareerRow) => [
+            <PlayerCell pid={r.pid} name={r.name} nationality={r.nationality} active={r.active} />,
+            <ClubCell tid={r.tid} />,
+            // The ranked column reads bold, so it's obvious which one the order follows.
+            <span className={key === "caps" ? "fw-bold" : undefined}>{r.caps}</span>,
+            <span className={key === "intlGoals" ? "fw-bold" : undefined}>{r.intlGoals}</span>,
+            <span className={key === "intlTitles" ? "fw-bold" : undefined}>
+              {r.intlTitles || <span className="text-muted">&ndash;</span>}
+            </span>,
+          ]}
+          empty={INTL_EMPTY_LABELS[key]}
+        />
+      </Panel>
+    </>
+  );
+}
+
 // --- Player bios -----------------------------------------------------------
 
 function bioCells(b: BioRow, value: ReactNode): ReactNode[] {
@@ -785,6 +880,7 @@ export function Frivolities() {
       {tab === "goat" && <GoatTab />}
       {tab === "records" && <RecordsTab />}
       {tab === "leaders" && <LeadersTab />}
+      {tab === "international" && <InternationalTab />}
       {tab === "bios" && <BiosTab />}
       {tab === "clubs" && <ClubsTab />}
     </div>
