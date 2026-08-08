@@ -4,8 +4,8 @@ import type { Player, Position } from "../../../src/core/players/types.js";
 import { POSITIONS } from "../../../src/core/players/types.js";
 import type { ClubContext, StrategicDirection } from "../../../src/core/ai/clubContext.js";
 import {
-  evaluatePlayerForClub, valueToClub, scoutNoiseFraction, perceivedValueToClub,
-  hasPositionalGap,
+  evaluatePlayerForClub, valueToClub, keepValueToClub, scoutNoiseFraction,
+  perceivedValueToClub, hasPositionalGap,
 } from "../../../src/core/ai/evaluate.js";
 import {
   ROSTER_COMPOSITION, AI_NEED_MIN, AI_NEED_MAX,
@@ -188,5 +188,57 @@ describe("affordability", () => {
     expect(richMult).toBeGreaterThan(poorMult);
     expect(richMult).toBeLessThanOrEqual(1);
     expect(poorMult).toBeLessThan(1);
+  });
+});
+
+describe("keepValueToClub (keep side)", () => {
+  it("values a club's own best player far above what the buy side would say", () => {
+    // The core inversion this split exists to fix: on the buy side a club's own
+    // star is measured against himself, so he reads as adding nothing, and he's
+    // discounted again for "affordability" despite already being on the books.
+    // Measured on a real world, that had an 85-ovr player's own club valuing him
+    // at $132M against a $350M market, which made every star cheap to buy.
+    const star = samplePlayer({ ovr: 85, potential: 85, pos: "ST" });
+    const stacked = ctx({
+      posBestOvr: { ...ctx().posBestOvr, ST: 85 },
+      posSecondBestOvr: { ...ctx().posSecondBestOvr, ST: 68 },
+      budget: 40_000_000,
+      frugality: 0.8,
+    });
+    expect(keepValueToClub(star, stacked)).toBeGreaterThan(valueToClub(star, stacked));
+  });
+
+  it("prices him by the drop-off to his replacement, not by zero", () => {
+    // Same club, same player: the only difference is who would step up if he
+    // left. A club with a ready deputy should part with him more cheaply.
+    const star = samplePlayer({ ovr: 85, potential: 85, pos: "ST" });
+    const noDeputy = ctx({
+      posBestOvr: { ...ctx().posBestOvr, ST: 85 },
+      posSecondBestOvr: { ...ctx().posSecondBestOvr, ST: 60 },
+    });
+    const goodDeputy = ctx({
+      posBestOvr: { ...ctx().posBestOvr, ST: 85 },
+      posSecondBestOvr: { ...ctx().posSecondBestOvr, ST: 82 },
+    });
+    expect(keepValueToClub(star, noDeputy)).toBeGreaterThan(keepValueToClub(star, goodDeputy));
+  });
+
+  it("does not discount a player it already owns for affordability", () => {
+    // Affordability is a spending penalty; nothing is being bought here.
+    const star = samplePlayer({ ovr: 82, potential: 82, pos: "ST" });
+    const poor = ctx({ budget: 5_000_000, frugality: 1 });
+    const rich = ctx({ budget: 400_000_000, frugality: 0 });
+    expect(keepValueToClub(star, poor)).toBeCloseTo(keepValueToClub(star, rich), 5);
+    // ...whereas the buy side very much does.
+    expect(valueToClub(star, poor)).toBeLessThan(valueToClub(star, rich));
+  });
+
+  it("won't let a win-now club write off its own young talent", () => {
+    // A win-now club discounts a 21-year-old when buying, but must not conclude
+    // it should therefore sell its own - that stripped clubs of exactly the
+    // players they should build on.
+    const kid = samplePlayer({ ovr: 75, potential: 88, born: SEASON - 21, pos: "ST" });
+    const winNow = ctx({ ambition: 1 });
+    expect(keepValueToClub(kid, winNow)).toBeGreaterThan(valueToClub(kid, winNow));
   });
 });

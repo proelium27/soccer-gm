@@ -1,5 +1,7 @@
 import type { Player } from "../players/types.js";
+import type { StoredTeam } from "../teams/clubs.js";
 import type { ClubContext } from "../ai/clubContext.js";
+import { clubStature } from "../ai/clubContext.js";
 import {
   PLAYER_WILL_CARE_FLOOR, PLAYER_WILL_CARE_CEILING,
   PLAYER_WILL_DROP_STRENGTH, PLAYER_WILL_REFUSAL_DROP, PLAYER_WILL_RISE_BONUS,
@@ -76,6 +78,31 @@ export function moveAppeal(playerOvr: number, fromStature: number, toStature: nu
   const delta = toStature - fromStature;
   if (delta >= 0) return 1 + care * PLAYER_WILL_RISE_BONUS * delta;
   return Math.max(0, 1 - care * PLAYER_WILL_DROP_STRENGTH * -delta);
+}
+
+/**
+ * Would this player refuse to join `buyer`, leaving `seller`? The club-object
+ * form, for one-off checks (a single user offer, or explaining a target in the
+ * UI) that don't already have a derived ClubContext to hand.
+ *
+ * Applies to the user exactly as it does to an AI club. A superstar has no more
+ * reason to drop into a struggling side because a human picked it, and exempting
+ * the user would hand them the very exploit this module exists to close.
+ */
+export function refusesMoveToClub(
+  player: Player,
+  seller: StoredTeam,
+  buyer: StoredTeam,
+  players: Player[],
+): boolean {
+  const byPid = new Map(players.map((p) => [p.pid, p]));
+  const rosterOf = (t: StoredTeam): Player[] =>
+    t.roster.map((pid) => byPid.get(pid)).filter((p): p is Player => p != null);
+  return refusesMove(
+    player.ovr,
+    clubStature(rosterOf(seller), seller.hype),
+    clubStature(rosterOf(buyer), buyer.hype),
+  );
 }
 
 /** `moveAppeal` for a concrete pair of clubs. */

@@ -742,6 +742,22 @@ export function Manual() {
             that would go nowhere.
           </p>
           <p>
+            <strong>The player has to want it.</strong> Money isn't the whole story, and this is the
+            big way football differs from basketball: there's no salary cap here, so nothing would
+            otherwise stop a superstar dropping into a small club that happened to have cash. So
+            players have a say. The better a player is, the more he cares about the size of the club
+            he's joining, judged on squad quality and fame together. A fringe squad player will go
+            wherever the game time is. A genuine star will move sideways or up, but won't drop to a
+            much smaller club at any price, and a row that says "Wouldn't drop to a club this size"
+            means exactly that. This applies to you the same as to every AI club, so building your
+            own reputation is what opens up the top of the market.
+          </p>
+          <p>
+            <strong>Settling in.</strong> A player who's only just joined somewhere is much harder to
+            prise away again, and gets easier over about three seasons. Squads hold their shape from
+            year to year instead of reshuffling every summer.
+          </p>
+          <p>
             <strong>Selling.</strong> During a window, AI clubs that rate your players will come in
             with offers, up to 4 at a time, from whichever club values each player most (
             <a href="#ai">how they decide</a>). You can accept (immediate sale, fee into your
@@ -986,6 +1002,14 @@ export function Manual() {
             looking at the same player genuinely value him differently.
           </p>
           <p>
+            Pricing its <em>own</em> players is a different question, and the club asks it
+            differently: not "how much would he improve us" (he's already here) but "how far would we
+            fall back without him". A star with no ready deputy behind him is priced brutally
+            &mdash; that's the whole gap between his level and his replacement's &mdash; while one
+            with a good understudy is easier to prise loose. A club also won't write off its own
+            young talent just because it's chasing the title this season.
+          </p>
+          <p>
             <strong>The AI-to-AI market</strong> runs once per window on a single rule: a player's
             asking price is what he's worth <em>to his own club</em>, and he moves to whichever club
             values him meaningfully more than that and can afford the fee (which splits the
@@ -1000,8 +1024,11 @@ export function Manual() {
             cap themselves at 3 buys and 3 sells per window, always respect the depth floor and
             roster cap, and hold back a cash reserve instead of spending to zero (so even a
             gap-filling club never bankrupts itself, and the genuine superstars stay unbuyable at any
-            price). Expect roughly a hundred AI transfers league-wide per season, and you can watch
-            them in the News Feed.
+            price). On top of all that, players won't drop to much smaller clubs and won't be shifted
+            easily in their first seasons somewhere (see <a href="#transfers">Transfers</a>), so the
+            very best players change club rarely &mdash; roughly one in ten in a season &mdash; and
+            when they do it's sideways or upward, for a fee that makes the news. You can watch every
+            deal in the News Feed.
           </p>
           <p>
             <strong>Contract renewals.</strong> Before contracts expire each offseason, every AI club

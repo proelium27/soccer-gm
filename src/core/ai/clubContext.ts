@@ -138,6 +138,37 @@ function clamp01(x: number): number {
 }
 
 /**
+ * A single club's world stature without deriving every league context — for
+ * one-off checks (a single user transfer offer) where building the full
+ * league-wide context map would be wasteful. Identical result to the `stature`
+ * field on that club's ClubContext.
+ */
+export function clubStature(roster: Player[], hype: number): number {
+  return statureOf(squadStrength(roster), hype);
+}
+
+/**
+ * Every club's stature in one pass, keyed by tid.
+ *
+ * Use this instead of calling `clubStature`/`refusesMoveToClub` per player:
+ * those rebuild a league-wide player index on each call, so a per-player loop
+ * over every club in the world is quadratic (~36M operations on a 240-club
+ * save). The transfer pages are INP-sensitive — precompute once, look up per
+ * row.
+ */
+export function clubStatures(teams: StoredTeam[], players: Player[]): Map<number, number> {
+  const byPid = new Map(players.map((p) => [p.pid, p]));
+  const out = new Map<number, number>();
+  for (const t of teams) {
+    const roster = t.roster
+      .map((pid) => byPid.get(pid))
+      .filter((p): p is Player => p != null);
+    out.set(t.tid, clubStature(roster, t.hype));
+  }
+  return out;
+}
+
+/**
  * Label a club's strategic direction from its ambition, form (league rank,
  * 1 = top), and squad age. Only used for display/tests.
  */

@@ -9,7 +9,8 @@ import {
   windowSeed, departsAtRollover, acquisitionWageCharge, hasRosterRoom, executeTransfer,
 } from "./negotiation.js";
 import { deriveLeagueContexts } from "../ai/clubContext.js";
-import { valueToClub, perceivedValueToClub } from "../ai/evaluate.js";
+import { keepValueToClub, valueToClub, perceivedValueToClub } from "../ai/evaluate.js";
+import { moveAppealBetween, settledMultiplier, joinedSeasons } from "./playerWill.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { tierOf } from "../competitions.js";
 import {
@@ -128,6 +129,8 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
       .map((o) => o.buyerTid),
   );
 
+  const joined = joinedSeasons(league.transfers);
+
   const candidates: InboundOfferCandidate[] = [];
   for (const pid of user.roster) {
     const player = playerMap.get(pid);
@@ -137,7 +140,12 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
     // no club can bid on him until it clears (see faTransferLocked).
     if (faTransferLocked(player, league.season)) continue;
 
-    const reservation = valueToClub(player, userCtx);
+    // Keep-side, exactly as an AI seller prices its own players, plus the
+    // settling-in premium (see ValuationSide / playerWill.ts). The user's stars
+    // used to be priced by the buy-side formula, which valued them against
+    // themselves and so lowballed the asking price badly.
+    const reservation =
+      keepValueToClub(player, userCtx) * settledMultiplier(joined.get(pid), ws.season);
     const wageCharge = acquisitionWageCharge(league, player);
     const jitter = mulberry32(windowSeed(league.lid, ws.season, ws.window, pid, 4));
     // Listing lowers the surplus a buyer needs to clear — see
@@ -164,7 +172,12 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
       // A buyer only shows up as a candidate if it can actually pay a fair
       // fee without dipping into its cash reserve — otherwise the offer
       // would just fail affordability at accept time (see buyerSpendable).
-      const ceiling = Math.min(rawCeiling, buyerSpendable(buyer, buyerCtx, wageCharge));
+      // The player's own say, applied after the jitter draw like the Division 2
+      // guard above (RNG-stream-order lesson). A club much smaller than the
+      // user's won't get anywhere near his reservation, so no more insulting
+      // bids from minnows for the user's best player.
+      const appealed = rawCeiling * moveAppealBetween(player, userCtx, buyerCtx);
+      const ceiling = Math.min(appealed, buyerSpendable(buyer, buyerCtx, wageCharge));
       if (ceiling < reservation * (1 + minSurplus)) continue;
       const candidate: InboundOfferCandidate = {
         player,
@@ -336,12 +349,16 @@ export function counterInboundOffer(league: LeagueStore, pid: number, askAmount:
     competitions: league.competitions,
   });
   const buyerCtx = contexts.get(resolved.buyerTid);
-  if (!buyerCtx) return league;
+  const userCtx = contexts.get(league.meta.userTid);
+  if (!buyerCtx || !userCtx) return league;
   const wageCharge = acquisitionWageCharge(league, player);
   // Re-derived live (no jitter — that's only for opening-offer variety), but
-  // still capped by what the buyer can actually spend without dipping into
-  // its reserve, same as at candidate-generation time.
-  const ceiling = Math.min(valueToClub(player, buyerCtx), buyerSpendable(buyer, buyerCtx, wageCharge));
+  // still carrying the same move-appeal scaling and spendable cap the candidate
+  // used, so a buyer's ceiling can't silently grow between offer and counter.
+  const ceiling = Math.min(
+    valueToClub(player, buyerCtx) * moveAppealBetween(player, userCtx, buyerCtx),
+    buyerSpendable(buyer, buyerCtx, wageCharge),
+  );
 
   const response = respondToAsk(ceiling, ask, resolved.asks);
   const offers = response.kind === "countered" ? [...resolved.offers, response.offer] : resolved.offers;

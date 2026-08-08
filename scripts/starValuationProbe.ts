@@ -9,8 +9,10 @@ import { simThrough } from "../src/core/simThrough.js";
 import { simOffseason } from "../src/core/offseason.js";
 import { simThroughInternational, isIntlStagePending } from "../src/core/international/staging.js";
 import { deriveLeagueContexts } from "../src/core/ai/clubContext.js";
-import { evaluatePlayerForClub } from "../src/core/ai/evaluate.js";
+import { evaluatePlayerForClub, keepValueToClub } from "../src/core/ai/evaluate.js";
+import { moveAppealBetween, settledMultiplier, joinedSeasons } from "../src/core/transfers/playerWill.js";
 import { trueTransferValue } from "../src/core/finance/valuation.js";
+import { AI_MARKET_MIN_SURPLUS } from "../src/core/constants.js";
 
 const rng = mulberry32(1);
 let league = createLeagueState(0, rng);
@@ -41,6 +43,8 @@ const strengthOf = (tid: number) => {
 };
 const fmt = (x: number) => `$${(x / 1e6).toFixed(0)}M`;
 
+const joined = joinedSeasons(league.transfers);
+
 const stars = league.players
   .filter((p) => tidOf.has(p.pid))
   .sort((a, b) => b.ovr - a.ovr)
@@ -48,24 +52,37 @@ const stars = league.players
 
 for (const star of stars) {
   const ownTid = tidOf.get(star.pid)!;
-  const own = evaluatePlayerForClub(star, contexts.get(ownTid)!);
+  const ownCtx = contexts.get(ownTid)!;
+  // What the market actually uses: the keep-side reservation, plus the
+  // settling-in premium if he arrived recently.
+  const reservation =
+    keepValueToClub(star, ownCtx) * settledMultiplier(joined.get(star.pid), league.season);
   console.log(
-    `\n${star.name} (${star.pos}, ovr ${star.ovr}) — owned by ${nameOf(ownTid)} [squad ${strengthOf(ownTid).toFixed(1)}]`,
+    `\n${star.name} (${star.pos}, ovr ${star.ovr}) — owned by ${nameOf(ownTid)} ` +
+      `[squad ${strengthOf(ownTid).toFixed(1)}, stature ${ownCtx.stature.toFixed(2)}]`,
   );
-  console.log(`  true market value: ${fmt(trueTransferValue(star, league.season))}`);
-  console.log(
-    `  his OWN club values him at ${fmt(own.value)}  (need x${own.needMult.toFixed(2)}, timeline x${own.timelineMult.toFixed(2)}, afford x${own.affordabilityMult.toFixed(2)})`,
-  );
+  console.log(`  true market value:  ${fmt(trueTransferValue(star, league.season))}`);
+  console.log(`  won't sell below:   ${fmt(reservation)}  (the reservation any bid must clear)`);
 
+  // A bid only counts if the player would actually go (moveAppeal), and it has
+  // to beat the reservation by the market's surplus margin.
   const others = league.teams
     .filter((t) => t.tid !== ownTid)
-    .map((t) => ({ tid: t.tid, ev: evaluatePlayerForClub(star, contexts.get(t.tid)!) }))
-    .sort((a, b) => b.ev.value - a.ev.value)
+    .map((t) => {
+      const ctx = contexts.get(t.tid)!;
+      const raw = evaluatePlayerForClub(star, ctx).value;
+      const appeal = moveAppealBetween(star, ownCtx, ctx);
+      return { tid: t.tid, raw, appeal, bid: raw * appeal, stature: ctx.stature };
+    })
+    .sort((a, b) => b.bid - a.bid)
     .slice(0, 5);
-  console.log("  highest outside bidders:");
+  console.log("  highest outside bidders (after the player's own say):");
   for (const o of others) {
+    const clears = o.bid >= reservation * (1 + AI_MARKET_MIN_SURPLUS);
     console.log(
-      `    ${fmt(o.ev.value).padStart(7)}  ${nameOf(o.tid).padEnd(22)} squad ${strengthOf(o.tid).toFixed(1).padStart(5)}  need x${o.ev.needMult.toFixed(2)}`,
+      `    ${fmt(o.bid).padStart(7)}  ${nameOf(o.tid).padEnd(22)} ` +
+        `squad ${strengthOf(o.tid).toFixed(1).padStart(5)}  stature ${o.stature.toFixed(2)}  ` +
+        `appeal x${o.appeal.toFixed(2)}  ${clears ? "<- DEAL" : "(blocked)"}`,
     );
   }
 }
