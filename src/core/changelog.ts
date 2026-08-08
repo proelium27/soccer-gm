@@ -32,14 +32,6 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    date: "2026-08-08",
-    title: "The manual and the changelog open without a save",
-    items: [
-      "Both pages used to require a league in progress. Opening either one without a save loaded bounced straight to the league picker, which meant a link to a particular manual section was useless to anyone who had not started a game yet. They now open on their own, with a small header carrying links back to the game, and the first-run question about whether you call it soccer or football no longer interrupts either page. Nothing about the pages themselves changed.",
-      "The league picker now introduces the game when there are no saves on the device, describing what it is and what a season involves instead of showing an empty list. Once a save exists it goes back to being the plain picker it was before.",
-    ],
-  },
-  {
     date: "2026-08-07",
     title: "An all-time international record book on Frivolities",
     items: [
