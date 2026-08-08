@@ -23,7 +23,8 @@ function formatDate(iso: string): string {
 export function Changelog() {
   return (
     <div className="container-fluid p-3">
-      <h4>Changelog</h4>
+      {/* h1 styled as an h4 — see the Manual for why. */}
+      <h1 className="h4">Changelog</h1>
       <div style={{ maxWidth: "56rem" }}>
         <p className="text-muted">
           Every notable change to the game, newest first. For a full explanation of how

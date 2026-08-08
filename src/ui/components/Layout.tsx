@@ -1,11 +1,22 @@
-import { useEffect, useState } from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useState, type ReactNode } from "react";
+import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { useSportName } from "../sportName.js";
 import { TopBar } from "./TopBar.js";
 import { Sidebar } from "./Sidebar.js";
 import { ErrorBoundary } from "./ErrorBoundary.js";
 
-export function Layout() {
+interface LayoutProps {
+  /**
+   * Render the page even when no save is loaded, in a stripped-down shell with
+   * no sidebar or top bar (both of them read league state). Used by the manual
+   * and the changelog, which are just reading material and are the only pages
+   * worth reaching without a game in progress.
+   */
+  allowNoLeague?: boolean;
+}
+
+export function Layout({ allowNoLeague = false }: LayoutProps) {
   const { league, loadingActiveLeague } = useLeague();
   const [navOpen, setNavOpen] = useState(false);
   const location = useLocation();
@@ -21,6 +32,18 @@ export function Layout() {
     document.body.classList.toggle("nav-drawer-open", navOpen);
     return () => document.body.classList.remove("nav-drawer-open");
   }, [navOpen]);
+
+  // Reading-material routes render their content straight away, before the save
+  // has been read back from IndexedDB. Waiting would flash a "Loading..." at a
+  // visitor who has no save to load at all, and would hand a crawler an empty
+  // page if it snapshotted mid-read.
+  if (allowNoLeague && (loadingActiveLeague || !league)) {
+    return (
+      <StandaloneShell>
+        <Outlet />
+      </StandaloneShell>
+    );
+  }
 
   if (loadingActiveLeague) {
     return <p className="p-3">Loading...</p>;
@@ -51,6 +74,40 @@ export function Layout() {
             <Outlet />
           </ErrorBoundary>
         </main>
+      </div>
+    </>
+  );
+}
+
+/**
+ * Chrome for a content page being read without a save loaded. The real TopBar
+ * and Sidebar both read league state, so this stands in with just the brand and
+ * a way into the game.
+ */
+function StandaloneShell({ children }: { children: ReactNode }) {
+  const { brand } = useSportName();
+
+  return (
+    <>
+      <nav className="navbar navbar-dark app-topbar px-2 px-md-3">
+        <Link to="/leagues" className="navbar-brand mb-0 h1 d-flex align-items-center gap-2">
+          <img src="/favicon.png" alt="" width="32" height="32" className="rounded" />
+          <span>{brand}</span>
+        </Link>
+        <div className="d-flex align-items-center gap-2">
+          <Link to="/manual" className="btn btn-sm btn-outline-light">
+            Manual
+          </Link>
+          <Link to="/changelog" className="btn btn-sm btn-outline-light">
+            Changelog
+          </Link>
+          <Link to="/leagues" className="btn btn-sm btn-primary">
+            Play
+          </Link>
+        </div>
+      </nav>
+      <div className="app-layout">
+        <main className="main-content">{children}</main>
       </div>
     </>
   );

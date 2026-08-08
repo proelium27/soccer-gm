@@ -1,6 +1,7 @@
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LeagueProvider } from "./context/LeagueContext.js";
-import { SportNameProvider } from "./sportName.js";
+import { SportNameProvider, useSportName } from "./sportName.js";
+import { useRouteSeo } from "./seo.js";
 import { Layout } from "./components/Layout.js";
 import { AnnouncementBanner } from "./components/AnnouncementBanner.js";
 import { ErrorBoundary } from "./components/ErrorBoundary.js";
@@ -43,6 +44,17 @@ function RootRedirect() {
   return <Navigate to="/leagues" replace />;
 }
 
+/**
+ * Keeps <head> (title, description, canonical, robots) in step with the route.
+ * Renders nothing — it exists purely for the effect, and has to sit inside both
+ * the router and the sport-name provider to read either one.
+ */
+function RouteSeo() {
+  const { brand } = useSportName();
+  useRouteSeo(brand);
+  return null;
+}
+
 // itch.io serves the game from a deep subpath inside an iframe with no server to
 // handle history-API deep links, so the itch build swaps to hash-based routes
 // (/#/roster). Every other target keeps clean URLs. Driven by the itch build
@@ -53,6 +65,7 @@ export function App() {
   return (
     <Router>
       <SportNameProvider>
+      <RouteSeo />
       <LeagueProvider>
         <AnnouncementBanner />
         {/* Outer net for the routes that render outside Layout (the league
@@ -95,9 +108,17 @@ export function App() {
             <Route path="/loans" element={<Loans />} />
             <Route path="/finance" element={<Finance />} />
             <Route path="/god-mode" element={<GodMode />} />
+            <Route path="/player/:pid" element={<PlayerProfile />} />
+          </Route>
+          {/* The manual and the changelog are plain reading material — they
+              don't touch league state, so they render with or without a save
+              loaded. That matters beyond convenience: they're the only pages a
+              search engine (or anyone following a shared link) can actually
+              read, and behind the normal Layout gate they just bounced to the
+              league picker. */}
+          <Route element={<Layout allowNoLeague />}>
             <Route path="/manual" element={<Manual />} />
             <Route path="/changelog" element={<Changelog />} />
-            <Route path="/player/:pid" element={<PlayerProfile />} />
           </Route>
           <Route path="*" element={<RootRedirect />} />
         </Routes>
