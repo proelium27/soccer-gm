@@ -8,6 +8,8 @@ import {
   AI_SQUAD_STRENGTH_COUNT,
   AI_AMBITION_W_STRENGTH, AI_AMBITION_W_WEALTH, AI_AMBITION_W_FAME, AI_AMBITION_W_FORM,
   AI_AMBITION_HIGH, AI_AMBITION_LOW, AI_YOUNG_SQUAD_AGE,
+  STATURE_STRENGTH_LO, STATURE_STRENGTH_HI, STATURE_W_STRENGTH, STATURE_W_HYPE,
+  HYPE_MAX,
 } from "../constants.js";
 
 /**
@@ -40,6 +42,29 @@ export interface ClubContext {
   posDepth: Record<Position, number>;
   /** Best (highest) ovr the club currently has at each position, 0 if none. */
   posBestOvr: Record<Position, number>;
+  /**
+   * Second-best ovr at each position, 0 if the club has fewer than two there.
+   * Read only by keep-side valuation: to price the club's *own* best player at
+   * a position you must ask "how far would we fall back without him", which is
+   * the gap to this man — comparing him to himself (posBestOvr) says zero and
+   * is what made clubs undervalue their own stars.
+   */
+  posSecondBestOvr: Record<Position, number>;
+  /** Fame/popularity, 0-100, straight off the club. */
+  hype: number;
+  /**
+   * How big this club is in *world* terms, [0,1] — squad quality blended with
+   * fame, measured against absolute bands rather than league-relative ones.
+   *
+   * Deliberately NOT normalized within a competition, unlike ambition and
+   * frugality. Those answer "how does this club compare to its rivals", which
+   * should be league-scoped. Stature answers "would a world-class player
+   * consider this a step up", and that comparison is global: the biggest club
+   * in a weak league is still a smaller club than a mid-table side in a strong
+   * one. Using absolute bands also keeps it stable season to season instead of
+   * drifting with whatever the league's current extremes happen to be.
+   */
+  stature: number;
   /**
    * Win-now pressure, [0,1]. High for rich, famous, strong, in-form clubs;
    * low for poor, weak, struggling ones. Tilts value toward prime-age
@@ -74,14 +99,42 @@ function squadStrength(roster: Player[]): number {
 
 function positionalDepthAndBest(
   roster: Player[],
-): { depth: Record<Position, number>; best: Record<Position, number> } {
+): {
+  depth: Record<Position, number>;
+  best: Record<Position, number>;
+  secondBest: Record<Position, number>;
+} {
   const depth = Object.fromEntries(POSITIONS.map((p) => [p, 0])) as Record<Position, number>;
   const best = Object.fromEntries(POSITIONS.map((p) => [p, 0])) as Record<Position, number>;
+  const secondBest = Object.fromEntries(POSITIONS.map((p) => [p, 0])) as Record<Position, number>;
   for (const p of roster) {
     depth[p.pos]++;
-    if (p.ovr > best[p.pos]) best[p.pos] = p.ovr;
+    if (p.ovr > best[p.pos]) {
+      secondBest[p.pos] = best[p.pos];
+      best[p.pos] = p.ovr;
+    } else if (p.ovr > secondBest[p.pos]) {
+      secondBest[p.pos] = p.ovr;
+    }
   }
-  return { depth, best };
+  return { depth, best, secondBest };
+}
+
+/**
+ * A club's world stature, [0,1]: squad quality against an absolute band,
+ * blended with fame. See ClubContext.stature for why this one normalization is
+ * global rather than per-competition.
+ */
+function statureOf(strength: number, hype: number): number {
+  const strengthNorm = clamp01(
+    (strength - STATURE_STRENGTH_LO) / (STATURE_STRENGTH_HI - STATURE_STRENGTH_LO),
+  );
+  const hypeNorm = clamp01(hype / HYPE_MAX);
+  return STATURE_W_STRENGTH * strengthNorm + STATURE_W_HYPE * hypeNorm;
+}
+
+/** Clamp into [0,1]. */
+function clamp01(x: number): number {
+  return Math.max(0, Math.min(1, x));
 }
 
 /**
@@ -128,7 +181,7 @@ export function deriveLeagueContexts(league: LeagueSnapshot): Map<number, ClubCo
 
   const raw = league.teams.map((t) => {
     const roster = rosterOf(t);
-    const { depth, best } = positionalDepthAndBest(roster);
+    const { depth, best, secondBest } = positionalDepthAndBest(roster);
     return {
       tid: t.tid,
       compId: t.compId,
@@ -138,6 +191,7 @@ export function deriveLeagueContexts(league: LeagueSnapshot): Map<number, ClubCo
       avgAge: mean(roster.map((p) => league.season - p.born)),
       depth,
       best,
+      secondBest,
     };
   });
 
@@ -200,6 +254,9 @@ export function deriveLeagueContexts(league: LeagueSnapshot): Map<number, ClubCo
         squadAvgAge: r.avgAge,
         posDepth: r.depth,
         posBestOvr: r.best,
+        posSecondBestOvr: r.secondBest,
+        hype: r.hype,
+        stature: statureOf(r.strength, r.hype),
         ambition,
         frugality,
         direction: label(ambition, form, r.avgAge),

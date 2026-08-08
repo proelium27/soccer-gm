@@ -68,7 +68,10 @@ for (const seed of SEEDS) {
   /** pid -> season of his previous paid move, for tenure-between-moves. */
   const lastMoveSeason = new Map<number, number>();
   const tenures: number[] = [];
+  const bigFeeProfiles: { fee: number; ovr: number; pot: number; age: number }[] = [];
   let seenTransfers = 0;
+  let minBudget = Infinity;
+  const freeAgentCounts: number[] = [];
 
   for (let s = 1; s <= SEASONS; s++) {
     league = simThrough(league, "season", rng);
@@ -107,7 +110,11 @@ for (const seed of SEEDS) {
 
     for (const t of paid) {
       maxFee = Math.max(maxFee, t.fee);
-      if (t.fee >= 100e6) bigFees++;
+      if (t.fee >= 100e6) {
+        bigFees++;
+        const bp = byPid.get(t.pid);
+        if (bp) bigFeeProfiles.push({ fee: t.fee, ovr: bp.ovr, pot: bp.potential, age: league.season - bp.born });
+      }
       const p = byPid.get(t.pid);
       if (!p || p.ovr < STAR_OVR) continue;
       starMoves++;
@@ -120,6 +127,17 @@ for (const seed of SEEDS) {
       if (prev !== undefined) tenures.push(t.season - prev);
       lastMoveSeason.set(t.pid, t.season);
     }
+
+    // Side-effect guards. Lowering transfer values could plausibly (a) push a
+    // club into the red, or (b) collapse AI contract renewals (they key off
+    // value vs salary) and flood free agency. Watch both.
+    const rostered = new Set<number>();
+    for (const t of league.teams) {
+      for (const pid of t.roster) rostered.add(pid);
+      for (const pid of t.academyRoster) rostered.add(pid);
+    }
+    minBudget = Math.min(minBudget, ...league.teams.map((t) => t.budget));
+    freeAgentCounts.push(league.players.filter((p) => !rostered.has(p.pid)).length);
 
     rows.push({
       season: s,
@@ -151,4 +169,15 @@ for (const seed of SEEDS) {
   );
   console.log(`  ...down into division 2  ${avg(r.map((x) => x.starTierDrops)).toFixed(2)}/season`);
   console.log(`seasons between repeat moves: median ${median(tenures)}, mean ${avg(tenures).toFixed(1)} (n=${tenures.length})`);
+  console.log(`lowest club budget seen    ${fmtM(minBudget)}${minBudget < 0 ? "  <-- DEFICIT" : ""}`);
+  console.log(`free agents pool (avg)     ${avg(freeAgentCounts).toFixed(0)}`);
+  if (bigFeeProfiles.length) {
+    console.log(
+      `  $100M+ buys: median ovr ${median(bigFeeProfiles.map((b) => b.ovr))}, ` +
+        `median pot ${median(bigFeeProfiles.map((b) => b.pot))}, ` +
+        `median age ${median(bigFeeProfiles.map((b) => b.age))}`,
+    );
+    const top = [...bigFeeProfiles].sort((a, b) => b.fee - a.fee).slice(0, 5);
+    console.log(`  priciest: ${top.map((b) => `${fmtM(b.fee)}(ovr ${b.ovr}/pot ${b.pot}/age ${b.age})`).join(", ")}`);
+  }
 }

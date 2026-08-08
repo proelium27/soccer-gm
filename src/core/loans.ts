@@ -14,7 +14,7 @@ import { keepsDepthFloor } from "./freeAgency.js";
 import { resolveXI } from "./lineup/resolveXI.js";
 import { teamSlots } from "./lineup/formations.js";
 import { deriveLeagueContexts } from "./ai/clubContext.js";
-import { valueToClub, perceivedValueToClub } from "./ai/evaluate.js";
+import { keepValueToClub, perceivedValueToClub } from "./ai/evaluate.js";
 import { mulberry32 } from "../engine/rng.js";
 import {
   ROSTER_CAP, ROSTER_SAFETY_FLOOR,
@@ -201,7 +201,7 @@ export function loanOfferCandidates(league: LeagueStore): LoanOfferCandidate[] {
     if (!player) continue;
     if (departsAtRollover(league, player)) continue;
 
-    const reservation = valueToClub(player, userCtx);
+    const reservation = keepValueToClub(player, userCtx);
     const jitter = mulberry32(windowSeed(league.lid, ws.season, ws.window, listing.pid, 5));
     const skip = rejectedFor(listing.pid);
 
@@ -347,7 +347,7 @@ export function runAILoanMarket(
       if (season - player.born > LOAN_AI_MAX_AGE) continue;
 
       const market = trueTransferValue(player, season);
-      const reservation = valueToClub(player, sellerCtx);
+      const reservation = keepValueToClub(player, sellerCtx);
       if (reservation > market * LOAN_AVAILABILITY) continue;
 
       for (const buyer of teams) {

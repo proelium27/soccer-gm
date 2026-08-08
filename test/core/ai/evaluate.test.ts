@@ -32,6 +32,7 @@ function samplePlayer(overrides: Partial<Player> = {}): Player {
 function ctx(overrides: Partial<ClubContext> = {}): ClubContext {
   const posDepth = { ...ROSTER_COMPOSITION } as Record<Position, number>;
   const posBestOvr = Object.fromEntries(POSITIONS.map((p) => [p, 65])) as Record<Position, number>;
+  const posSecondBestOvr = Object.fromEntries(POSITIONS.map((p) => [p, 60])) as Record<Position, number>;
   return {
     tid: 0,
     season: SEASON,
@@ -40,6 +41,9 @@ function ctx(overrides: Partial<ClubContext> = {}): ClubContext {
     squadAvgAge: 26,
     posDepth,
     posBestOvr,
+    posSecondBestOvr,
+    hype: 50,
+    stature: 0.5,
     ambition: 0.5,
     frugality: 0.5,
     direction: "Midtable Stability" as StrategicDirection,
