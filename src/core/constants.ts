@@ -111,9 +111,15 @@ export const ACADEMY_BASE_CONVERGENCE_SEASONS = 3;
  * Per-country strength handicap, subtracted from every team's generation-time
  * strength target (on top of any tier offset) so some countries field weaker
  * leagues than others. The big-four leagues (England/Spain/Italy/Germany) are
- * equal siblings at 0; France and Portugal are deliberately weaker, with
- * Portugal weakest — anchored on the real UEFA coefficient / EA FC ordering
- * (England ≫ the pack ≫ France > Portugal). Because match composites are
+ * equal siblings at 0; France, Portugal, Belgium and Turkey are deliberately
+ * weaker, with Turkey weakest — anchored on the real UEFA five-year country
+ * coefficient ordering (England ≫ the pack ≫ France > Portugal > Belgium >
+ * Turkey; measured Aug 2026 at 101.9 / 67.7 / 63.7 / 57.9 / 47.6). The real
+ * gaps below France are only a few coefficient points each, so the ladder is
+ * deliberately *compressed* rather than mapped literally — a literal mapping
+ * puts Belgium near 17 and Turkey near 30, which generates unplayable squads.
+ * Each offset point costs roughly 0.94 OVR off a league's starters. Because
+ * match composites are
  * z-normalized *within* each competition, this handicap is invisible in a
  * country's own domestic matches (someone still wins Ligue 1) and only bites
  * where leagues meet: transfer valuations (weaker players are cheaper, so they
@@ -127,6 +133,8 @@ export const ACADEMY_BASE_CONVERGENCE_SEASONS = 3;
 export const COUNTRY_STRENGTH_OFFSET: Record<string, number> = {
   France: 5,
   Portugal: 10,
+  Belgium: 11,
+  Turkey: 12,
 };
 export function countryStrengthOffset(country: string): number {
   return COUNTRY_STRENGTH_OFFSET[country] ?? 0;
@@ -135,15 +143,31 @@ export function countryStrengthOffset(country: string): number {
 /**
  * Per-country money scale, multiplied into a competition's finance scale on top
  * of the tier scale (see financeScale in finance/budget.ts). A weaker league is
- * also a poorer one — France and Portugal can't out-bid the big four, which is
+ * also a poorer one — the weak leagues can't out-bid the big four, which is
  * what turns them into selling leagues that feed talent upward. Kept above the
  * clubs' (lower, because OVR-driven and OVR is lower here) wage bills so the
  * "no AI club runs a deficit" invariant still holds — verify via the audit.
  * Unlisted countries default to 1 via countryBudgetScale().
+ *
+ * Ordered by real total squad market value (2026): Ligue 1 €3.84B, Primeira
+ * Liga €1.80B, Super Lig €1.27B, Belgian Pro League €0.98B. Note Belgium and
+ * Turkey are inverted relative to the strength ordering above — Belgium is the
+ * poorest league in the game yet outranks Turkey on the pitch (a develop-and-
+ * sell pipeline), while Turkey spends more and still underperforms.
+ *
+ * That inversion is safe because money is a *weak* lever on a league's OVR
+ * here. Attributing 20 seasons of country drift to its sources (2026-08-08)
+ * put roster churn — the only channel budget acts through — at just 0.55 OVR
+ * of relative movement, against 3.47 from progression. Budget buys a club
+ * better players without lifting its league off the rung generation put it on.
+ * Verify with scripts/weakLeaguesAudit.ts, which now asserts a minimum
+ * surviving gap per rung rather than mere rank order.
  */
 export const COUNTRY_BUDGET_SCALE: Record<string, number> = {
   France: 0.7,
   Portugal: 0.5,
+  Turkey: 0.5,
+  Belgium: 0.35,
 };
 export function countryBudgetScale(country: string): number {
   return COUNTRY_BUDGET_SCALE[country] ?? 1;
@@ -1727,7 +1751,19 @@ export const CUP_TEAMS_PER_LEAGUE = CUP_STRONG_LEAGUE_SLOTS;
  * table then splits three ways: the top CUP_LP_DIRECT_QF go straight to the
  * quarter-finals, the next CUP_LP_PLAYOFF_TEAMS contest a single-leg playoff for
  * the other QF places, and the rest are eliminated. */
-export const CUP_LEAGUE_PHASE_SIZE = 20;
+/**
+ * Field size, derived from the world: 4 strong leagues × CUP_STRONG_LEAGUE_SLOTS
+ * + 4 weak × CUP_WEAK_LEAGUE_SLOTS = 24. Nothing in src/ reads this (the draw
+ * and the split both work off the actual field length, so both are field-size
+ * agnostic) — it documents the expected size and anchors the cup tests. Raised
+ * 20 → 24 when Belgium and Turkey joined the world. Must stay even, and must
+ * split into CUP_LEAGUE_PHASE_POTS pots of even size that each exceed
+ * CUP_LEAGUE_PHASE_GAMES / CUP_LEAGUE_PHASE_POTS — 24 → two pots of 12 ✓.
+ * (A 22-team field is NOT valid: pots of 11 are odd and the perfect-matching
+ * draw can't pair them, which is why weak leagues all send 2 rather than some
+ * sending 1.)
+ */
+export const CUP_LEAGUE_PHASE_SIZE = 24;
 export const CUP_LEAGUE_PHASE_GAMES = 6;
 /**
  * Number of strength pots the league-phase field is split into for the draw.

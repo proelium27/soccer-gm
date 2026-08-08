@@ -11,7 +11,7 @@ import { competitionOf } from "../competitions.js";
  * A competition's money scale — its country's scale times its tier's scale.
  * Both income (seasonRevenue/chargeSeasonStart) and the savings ceiling
  * (budgetCap/clampBudget) are multiplied by this, so a weaker/poorer league
- * (France, Portugal) both earns less and can bank less than the big four, and
+ * (France, Portugal, Belgium, Turkey) both earns less and can bank less than the big four, and
  * a tier-2 club less than its tier-1 counterpart. This is THE single scale
  * every finance function takes — call sites pass financeScale(competitions,
  * compId) wherever they used to pass a bare tier.

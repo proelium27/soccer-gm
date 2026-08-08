@@ -91,11 +91,11 @@ describe("seedOrder", () => {
 });
 
 describe("cupPlan", () => {
-  it("splits the real world into 4 strong + 2 weak tier-1 leagues, 20 qualifiers", () => {
+  it("splits the real world into 4 strong + 4 weak tier-1 leagues, 24 qualifiers", () => {
     const plan = cupPlan(worldCompetitions())!;
     expect(plan.strong.map((c) => c.country)).toEqual(["England", "Spain", "Italy", "Germany"]);
-    expect(plan.weak.map((c) => c.country)).toEqual(["France", "Portugal"]);
-    expect(plan.total).toBe(CUP_LEAGUE_PHASE_SIZE); // 4*4 + 2*2 = 20
+    expect(plan.weak.map((c) => c.country)).toEqual(["France", "Portugal", "Belgium", "Turkey"]);
+    expect(plan.total).toBe(CUP_LEAGUE_PHASE_SIZE); // 4*4 + 4*2 = 24
   });
   it("still fields a cup for a 4-strong-league world (16), but not for England-only", () => {
     expect(cupPlan(strongComps)!.total).toBe(16);
@@ -109,8 +109,8 @@ describe("qualifyCupTeams", () => {
     const { field, compOf } = qualifyCupTeams(comps, tablesFor(comps));
     expect(field).toHaveLength(CUP_LEAGUE_PHASE_SIZE);
     expect(new Set(field).size).toBe(CUP_LEAGUE_PHASE_SIZE);
-    // The first six seeds are champions (rank 1, tid % 100 === 0), ordered by tid.
-    for (let i = 0; i < 6; i++) expect(field[i] % 100).toBe(0);
+    // The first eight seeds are champions (rank 1, tid % 100 === 0), ordered by tid.
+    for (let i = 0; i < 8; i++) expect(field[i] % 100).toBe(0);
     // Every qualifier has a competition mapping for the draw's same-league rule.
     for (const tid of field) expect(compOf.has(tid)).toBe(true);
     // No tier-2 club qualified.

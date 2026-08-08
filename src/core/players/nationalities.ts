@@ -603,12 +603,38 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
  * to NATIONALITIES once its home league actually exists in every save it
  * could appear in.
  *
- * Currently empty: Italy lived here while its home league was newer than some
- * saves, and was graduated into NATIONALITIES once every world generated an
- * Italian league — so Italians now appear abroad as ordinary foreign flavor,
- * like Spaniards and Germans. The mechanism is kept for the next such case.
+ * Italy lived here while its home league was newer than some saves, and was
+ * graduated into NATIONALITIES once every world generated an Italian league —
+ * so Italians now appear abroad as ordinary foreign flavor, like Spaniards and
+ * Germans.
+ *
+ * The current residents arrived with the Turkish league: the Super Lig's real
+ * breakdown has a distinctive Balkan/West-African tail that names three nations
+ * with no pool anywhere. They sit here rather than in OTHER_NATIONS on purpose
+ * — TAIL_BASE is built from NATIONALITIES + OTHER_NATIONS only, so putting them
+ * there would have re-weighted the "Rest of the World" tail draw for every
+ * league in every existing save. Here they can only ever be drawn by the
+ * Turkish table that names them explicitly. The `weight` is unused for these
+ * (nothing reads UNLISTED for a flat draw); it records where they would sit if
+ * they were ever graduated.
  */
-export const UNLISTED_NATIONALITIES: Record<string, NationalityDef> = {};
+export const UNLISTED_NATIONALITIES: Record<string, NationalityDef> = {
+  "Bosnia-Herzegovina": {
+    weight: 3,
+    first: ["Amar", "Haris", "Emir", "Tarik", "Adnan", "Vedad", "Miralem", "Denis", "Armin", "Edin"],
+    last: ["Hodzic", "Begic", "Delic", "Mujic", "Salihovic", "Kovacevic", "Halilovic", "Suljic", "Music", "Alic"],
+  },
+  Gambia: {
+    weight: 2,
+    first: ["Lamin", "Modou", "Ebrima", "Musa", "Alieu", "Ousman", "Sulayman", "Momodou", "Bakary", "Yankuba"],
+    last: ["Jallow", "Ceesay", "Touray", "Sanneh", "Bojang", "Darboe", "Camara", "Njie", "Sowe", "Manneh"],
+  },
+  Albania: {
+    weight: 3,
+    first: ["Arber", "Endrit", "Klevis", "Ardit", "Redon", "Kristi", "Erjon", "Fatjon", "Blerim", "Gentian"],
+    last: ["Hoxha", "Shehu", "Krasniqi", "Berisha", "Gjoka", "Prifti", "Bardhi", "Leka", "Zeneli", "Malaj"],
+  },
+};
 
 // "Other Nations (combined)" bucket — a country is picked uniformly among
 // these when the weighted roll lands in that combined slot.
@@ -783,6 +809,29 @@ export const LEAGUE_NATIONALITY_WEIGHTS: Record<string, Record<string, number>> 
     "Ivory Coast": 16, "Cape Verde": 14, Sweden: 14, "Guinea-Bissau": 14,
     England: 14, Senegal: 14, Morocco: 12,
     [REST]: 72,
+  },
+  // Jupiler Pro League: over 61% foreign — Europe's most multi-channel trading
+  // hub. A large French intake, then pipelines no other league here has: Japan
+  // (the biggest Japanese contingent in Europe) and a broad West/North African
+  // spread, plus DR Congo reflecting Belgium's own diaspora.
+  Belgium: {
+    Belgium: 383, France: 95, Japan: 52, Senegal: 47, Morocco: 41, Germany: 36,
+    "Ivory Coast": 34, Netherlands: 28, England: 28, Nigeria: 24, Denmark: 24, "DR Congo": 21,
+    Ghana: 16, Sweden: 16, Switzerland: 16, Portugal: 13, Ecuador: 13, Serbia: 10, Guinea: 10,
+    Cameroon: 10, Spain: 10, Algeria: 10, Austria: 10,
+    [REST]: 53,
+  },
+  // Super Lig: roughly an even domestic/foreign split, with the foreign half
+  // blending Brazil, Francophone West Africa and a Balkan tail (Kosovo, Bosnia,
+  // Albania, Romania, Croatia) that is the league's most distinctive feature.
+  // Bosnia-Herzegovina, Gambia and Albania live in UNLISTED_NATIONALITIES.
+  Turkey: {
+    Turkey: 480, Brazil: 47, "Ivory Coast": 33, Senegal: 31, Nigeria: 26, France: 26,
+    Portugal: 26, Germany: 26, Romania: 24, Mali: 24, Kosovo: 21, "Bosnia-Herzegovina": 16,
+    Gambia: 14, Poland: 14, Croatia: 14, "Cape Verde": 12, Morocco: 12, "DR Congo": 12,
+    Netherlands: 9, Albania: 9, Cameroon: 9, Scotland: 9, Denmark: 9, England: 9, Belgium: 9,
+    Tunisia: 9,
+    [REST]: 65,
   },
 };
 

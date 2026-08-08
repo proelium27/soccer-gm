@@ -1,12 +1,13 @@
 /**
  * A competition is one league a set of clubs plays in — one entry per
  * division per country. Teams point at a competition via StoredTeam.compId.
- * New saves span six countries (England, Spain, Italy, Germany, France,
- * Portugal), each a two-division pyramid; England-only saves predating the
- * world expansion keep just competitions 0/1. France and Portugal are
- * deliberately weaker leagues — see COUNTRY_STRENGTH_OFFSET in constants.ts. Ids are stable forever within a save: an old save's
- * legacy division values (0 = English D1, 1 = English D2) are already valid
- * compIds by construction.
+ * New saves span eight countries (England, Spain, Italy, Germany, France,
+ * Portugal, Belgium, Turkey), each a two-division pyramid; England-only saves
+ * predating the world expansion keep just competitions 0/1. France, Portugal,
+ * Belgium and Turkey are deliberately weaker leagues — see
+ * COUNTRY_STRENGTH_OFFSET in constants.ts. Ids are stable forever within a
+ * save: an old save's legacy division values (0 = English D1, 1 = English D2)
+ * are already valid compIds by construction.
  */
 export interface Competition {
   id: number;
@@ -35,6 +36,10 @@ export function worldCompetitions(): Competition[] {
     { id: 9, country: "France", tier: 2, name: "French Division 2" },
     { id: 10, country: "Portugal", tier: 1, name: "Portuguese Division 1" },
     { id: 11, country: "Portugal", tier: 2, name: "Portuguese Division 2" },
+    { id: 12, country: "Belgium", tier: 1, name: "Belgian Division 1" },
+    { id: 13, country: "Belgium", tier: 2, name: "Belgian Division 2" },
+    { id: 14, country: "Turkey", tier: 1, name: "Turkish Division 1" },
+    { id: 15, country: "Turkey", tier: 2, name: "Turkish Division 2" },
   ];
 }
 

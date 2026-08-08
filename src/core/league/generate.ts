@@ -170,7 +170,7 @@ export function generateWorld(rng: () => number, seed = 0): League {
   for (const { d1, d2 } of tier1Pairs(comps)) {
     // Per-country strength handicap stacked onto the tier offset (0 for the
     // big four, so England stays byte-identical). Changing a player's `base`
-    // doesn't alter rng-stream consumption, and France/Portugal are generated
+    // doesn't alter rng-stream consumption, and the weak leagues are generated
     // last, so this can't perturb any other country's players.
     const countryOffset = countryStrengthOffset(d1.country);
     const d1Result = generateDivisionTeams(rng, tidCursor, NUM_TEAMS, countryOffset, d1.id, genSeed, pid, d1.country);

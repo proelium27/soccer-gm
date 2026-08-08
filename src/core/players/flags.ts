@@ -37,6 +37,10 @@ const FLAG_CODES: Record<string, string> = {
   Austria: "at",
   "Czech Republic": "cz",
   Turkey: "tr",
+  // Named only by the Super Lig's nationality table (see UNLISTED_NATIONALITIES).
+  "Bosnia-Herzegovina": "ba",
+  Gambia: "gm",
+  Albania: "al",
   Algeria: "dz",
   Morocco: "ma",
   Senegal: "sn",
