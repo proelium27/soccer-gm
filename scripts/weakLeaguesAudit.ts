@@ -17,16 +17,28 @@
  * while the check still passed. Rank order is far too weak a condition for what
  * COUNTRY_STRENGTH_OFFSET is actually for.
  *
- * The erosion is real and mostly *not* about money: attributing each country's
- * drift to its two possible sources (a player's ovr only ever changes in
- * progression, so retained players' mean change is pure progression and the
- * remainder is pure roster churn) measured, over 20 seasons, progression
- * contributing +4.06 to England vs +7.53 to Portugal — a 3.47 OVR relative lift
- * for the weaker league — against only 0.55 from churn. That is
- * `growthDamping`'s doing: it throttles positive growth above a *global,
- * absolute* ovr of GROWTH_DAMPING_START, so a league whose players sit below
- * that line grows undamped while the big four are throttled. Any future attempt
- * to hold the ladder flatter should start there, not at the transfer market.
+ * Two separate forces move a league off its generated rung, and they are easy
+ * to confuse:
+ *
+ *  1. `growthDamping` throttles positive growth above a *global, absolute* ovr
+ *     (GROWTH_DAMPING_START), so a league sitting below that line grows
+ *     undamped while the big four are throttled. Attributing 20 seasons of
+ *     drift to its sources (a player's ovr only ever changes in progression, so
+ *     retained players' mean change is pure progression and the remainder is
+ *     pure churn) measured progression at +4.06 for England vs +7.53 for
+ *     Portugal. This compresses every gap toward the middle but does NOT
+ *     reorder leagues, and it should not be "fixed" by making the threshold
+ *     league-relative — that hands every weak league its own elites.
+ *
+ *  2. **Budget reorders them.** COUNTRY_BUDGET_SCALE must stay monotonic with
+ *     COUNTRY_STRENGTH_OFFSET: at Belgium 0.35 / Turkey 0.50 the ladder
+ *     inverted by 2.23 OVR over 20 seasons, with Turkey finishing above a
+ *     Belgium it generated 0.9 below.
+ *
+ * MEASUREMENT TRAP: comparing leagues with very different starting OVR
+ * (England vs Portugal) buries force 2 under force 1 — that comparison put
+ * churn at only 0.55 OVR and wrongly cleared a budget inversion that a
+ * near-equal pair (Belgium vs Turkey) then caught. Compare near-equal leagues.
  *
  * The user's own club (tid 0) is EXCLUDED from every metric — an unmanaged user
  * club rots in a headless sim and contaminates minima/tails (see the

@@ -218,10 +218,8 @@ export function Manual() {
             deliberately weaker and poorer: their clubs generate at lower OVR, and they earn and can
             bank less money. They step down in that order —{" "}
             <strong>France</strong>, then <strong>Portugal</strong>, then <strong>Belgium</strong>,
-            then <strong>Turkey</strong> weakest of all. Money doesn't follow the same order:{" "}
-            <strong>Belgium</strong> is the poorest league in the game despite being stronger than
-            Turkey, so it develops good players and sells them, while <strong>Turkey</strong> spends
-            more and still finishes below everyone. You
+            then <strong>Turkey</strong> weakest of all, and their budgets step down in that same
+            order. All four are selling leagues, and Turkey is the poorest as well as the weakest. You
             won't feel it inside their own matches (someone still wins Ligue 1), but it shows up
             wherever leagues meet. Their players are cheaper, so the big four steadily buy up their
             best talent, and they go into every Continental Cup tie at a real disadvantage. Division 2

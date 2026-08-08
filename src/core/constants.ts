@@ -149,25 +149,31 @@ export function countryStrengthOffset(country: string): number {
  * "no AI club runs a deficit" invariant still holds — verify via the audit.
  * Unlisted countries default to 1 via countryBudgetScale().
  *
- * Ordered by real total squad market value (2026): Ligue 1 €3.84B, Primeira
- * Liga €1.80B, Super Lig €1.27B, Belgian Pro League €0.98B. Note Belgium and
- * Turkey are inverted relative to the strength ordering above — Belgium is the
- * poorest league in the game yet outranks Turkey on the pitch (a develop-and-
- * sell pipeline), while Turkey spends more and still underperforms.
+ * **This scale MUST stay monotonic with COUNTRY_STRENGTH_OFFSET** — a richer
+ * league climbs the ladder over a dynasty, so a weaker-but-richer league
+ * overtakes a stronger-but-poorer one. That is measured, not theoretical, and
+ * it is the single easiest way to break the world (2026-08-08): Belgium and
+ * Turkey generate within 0.9 OVR of each other, which makes them a near-matched
+ * pair isolating budget from every other factor, and at Belgium 0.35 / Turkey
+ * 0.50 the ladder inverted by 2.23 OVR over 20 seasons — Turkey, generated
+ * weakest, finished *above* Belgium. Real squad values invert here (Belgian Pro
+ * League €0.98B is below Süper Lig €1.27B while Belgium outranks Turkey on the
+ * pitch); that inversion is deliberately NOT modelled, because the engine
+ * cannot hold "weak but rich" and the strength ladder is the load-bearing
+ * design, not the flavour.
  *
- * That inversion is safe because money is a *weak* lever on a league's OVR
- * here. Attributing 20 seasons of country drift to its sources (2026-08-08)
- * put roster churn — the only channel budget acts through — at just 0.55 OVR
- * of relative movement, against 3.47 from progression. Budget buys a club
- * better players without lifting its league off the rung generation put it on.
- * Verify with scripts/weakLeaguesAudit.ts, which now asserts a minimum
- * surviving gap per rung rather than mere rank order.
+ * Beware measuring this across leagues with very different starting OVR (e.g.
+ * England vs Portugal): progression's own mean-reversion dominates there and
+ * masks the budget signal entirely. Compare near-equal leagues.
+ *
+ * Verify with scripts/weakLeaguesAudit.ts, which asserts a minimum surviving
+ * gap per rung rather than mere rank order.
  */
 export const COUNTRY_BUDGET_SCALE: Record<string, number> = {
   France: 0.7,
   Portugal: 0.5,
-  Turkey: 0.5,
-  Belgium: 0.35,
+  Belgium: 0.45,
+  Turkey: 0.4,
 };
 export function countryBudgetScale(country: string): number {
   return COUNTRY_BUDGET_SCALE[country] ?? 1;
