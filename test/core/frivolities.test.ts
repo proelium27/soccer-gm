@@ -7,6 +7,7 @@ import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { ArchivedPlayer } from "../../src/core/players/archive.js";
 import { emptyTotals, emptyBestSeasons } from "../../src/core/frivolities/stats.js";
 import { allTimeLeaders } from "../../src/core/frivolities/leaders.js";
+import { allTimeInternational, cappedNationalities } from "../../src/core/frivolities/international.js";
 import {
   computeHonours, playerGoatRanking, teamGoatRanking, pointsOf,
 } from "../../src/core/frivolities/goat.js";
@@ -30,6 +31,8 @@ interface PlayerOver {
   /** [season, tid, appearances, goals, assists] */
   lines?: [number, number, number, number, number][];
   hist?: [number, number][];
+  /** [caps, international goals, World Cups won] */
+  intl?: [number, number, number];
 }
 
 function makePlayer(o: PlayerOver): Player {
@@ -51,6 +54,9 @@ function makePlayer(o: PlayerOver): Player {
     hist: (o.hist ?? []).map(([season, ovr]) => ({
       season, ovr, ratings: {}, potential: ovr, academy: false,
     })),
+    intl: o.intl
+      ? { caps: o.intl[0], goals: o.intl[1], assists: 0, tournaments: 0, titles: o.intl[2], seasons: [] }
+      : undefined,
   } as unknown as Player;
 }
 
@@ -252,6 +258,58 @@ describe("allTimeLeaders", () => {
 
   it("honours the row limit", () => {
     expect(allTimeLeaders(store, "goals", "career", 1)).toHaveLength(1);
+  });
+});
+
+describe("allTimeInternational", () => {
+  const store = makeStore({
+    players: [
+      makePlayer({ pid: 1, nationality: "eng", lines: [[2029, 1, 30, 20, 4]], intl: [40, 18, 0] }),
+      makePlayer({ pid: 2, nationality: "eng", lines: [[2029, 2, 30, 25, 1]], intl: [70, 9, 1] }),
+      makePlayer({ pid: 3, nationality: "bra", lines: [[2029, 2, 30, 5, 1]], intl: [12, 30, 0] }),
+      // Never called up: must not appear on any of the boards.
+      makePlayer({ pid: 4, nationality: "eng", lines: [[2029, 1, 30, 9, 0]] }),
+    ],
+    // The retiree the whole board exists for: 50 international goals, more than
+    // any active player, and gone from `players` entirely.
+    retiredPlayers: [makeArchived({ pid: 99, nationality: "esp" })],
+  });
+
+  it("ranks scorers across the living and the retired together", () => {
+    // A nation's all-time top scorer is by definition a long career, so he is
+    // usually retired. A board off the live pool alone would hand the record to
+    // a new man every few seasons.
+    const rows = allTimeInternational(store, "intlGoals");
+    expect(rows.map((r) => r.pid)).toEqual([99, 3, 1, 2]);
+    expect(rows[0].intlGoals).toBe(50);
+    expect(rows[0].active).toBe(false);
+  });
+
+  it("ranks by caps and by World Cups won when asked", () => {
+    expect(allTimeInternational(store, "caps").map((r) => r.pid)).toEqual([99, 2, 1, 3]);
+    // Only one player in the fixture has ever won one, so the board is a single
+    // row rather than a list padded with zeroes.
+    expect(allTimeInternational(store, "intlTitles").map((r) => r.pid)).toEqual([2]);
+  });
+
+  it("filters to one country's record book", () => {
+    // The question the page is really for: who is *our* all-time top scorer.
+    expect(allTimeInternational(store, "intlGoals", "eng").map((r) => r.pid)).toEqual([1, 2]);
+    expect(allTimeInternational(store, "intlGoals", "esp").map((r) => r.pid)).toEqual([99]);
+  });
+
+  it("leaves out players who were never capped", () => {
+    expect(allTimeInternational(store, "caps").map((r) => r.pid)).not.toContain(4);
+    expect(allTimeInternational(store, "intlGoals").map((r) => r.pid)).not.toContain(4);
+  });
+
+  it("offers only countries that have a capped career on record", () => {
+    // A country in the dropdown that filters to an empty table reads as a bug.
+    expect(cappedNationalities(store)).toEqual(["bra", "eng", "esp"]);
+  });
+
+  it("honours the row limit", () => {
+    expect(allTimeInternational(store, "intlGoals", null, 2)).toHaveLength(2);
   });
 });
 
