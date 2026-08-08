@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { listLeagues, deleteLeague, loadLeague } from "../../db/leagueDb.js";
 import { useLeague } from "../context/LeagueContext.js";
+import { useSportName } from "../sportName.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 import { buildRosterFile, parseRosterFile } from "../../core/teams/rosterFile.js";
 
@@ -35,6 +36,40 @@ interface TeamEditor {
   competitions: { id: number; name: string }[];
 }
 
+/**
+ * What a first-time visitor sees instead of an empty save list. Doubles as the
+ * site's only real homepage copy, so it's plain prose rather than UI chrome.
+ */
+function FirstRunIntro({ brand }: { brand: string }) {
+  return (
+    <header className="mb-4">
+      <h1 className="h2 mb-3">{brand}</h1>
+      <p>
+        A free soccer management game that runs right here in your browser. Take
+        over a club, pick the lineup, work the transfer market, and see how far
+        you can take them. No account and no download, and your saves stay on
+        this device.
+      </p>
+      <ul className="text-muted">
+        <li>12 leagues across 6 countries, 240 clubs, promotion and relegation</li>
+        <li>A transfer market where rival clubs value players the same way you do</li>
+        <li>A youth academy, scouting reports, contracts, and a budget that has to balance</li>
+        <li>A continental cup, and a World Cup on a four year cycle</li>
+      </ul>
+      <p className="text-muted">
+        New to it? The{" "}
+        {/* Underlined on purpose: inside muted text the link colour alone
+            doesn't carry enough contrast to be distinguishable. */}
+        <Link to="/manual" className="text-decoration-underline">
+          manual
+        </Link>{" "}
+        explains how everything works, or just start a league below and find out
+        as you go.
+      </p>
+    </header>
+  );
+}
+
 export function Leagues() {
   const [leagues, setLeagues] = useState<LeagueSummary[] | null>(null);
   const [editor, setEditor] = useState<TeamEditor | null>(null);
@@ -44,6 +79,13 @@ export function Leagues() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { loadLeagueAction, customizeTeamsAction, importRosterAction } = useLeague();
   const navigate = useNavigate();
+  const { brand } = useSportName();
+
+  // Nobody has a save here yet, so this is somebody's first look at the game
+  // (and it's the page search engines land on). Lead with what the game is
+  // instead of an empty list. Once there's a save it goes back to being the
+  // plain picker.
+  const firstRun = leagues !== null && leagues.length === 0;
 
   useEffect(() => {
     refresh();
@@ -172,7 +214,7 @@ export function Leagues() {
 
   return (
     <div className="container py-4" style={{ maxWidth: 720 }}>
-      <h2 className="mb-3">Your Leagues</h2>
+      {firstRun ? <FirstRunIntro brand={brand} /> : <h1 className="h2 mb-3">Your Leagues</h1>}
 
       <input
         ref={fileInputRef}
@@ -192,10 +234,6 @@ export function Leagues() {
       )}
 
       {leagues === null && <p className="text-muted">Loading...</p>}
-
-      {leagues !== null && leagues.length === 0 && (
-        <p className="text-muted">You don't have any leagues yet.</p>
-      )}
 
       {leagues !== null && leagues.length > 0 && (
         <div className="list-group mb-3">

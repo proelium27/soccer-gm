@@ -1,0 +1,9 @@
+# Everything here is one client-side app, so most paths render the same shell.
+# Only the pages with real content are worth indexing; the rest are gated on a
+# loaded save and bounce to /leagues. Those carry a runtime noindex meta tag
+# (see src/ui/seo.ts) rather than a Disallow, so crawlers can still follow
+# links through them.
+User-agent: *
+Allow: /
+
+Sitemap: https://worldsoccersim.org/sitemap.xml

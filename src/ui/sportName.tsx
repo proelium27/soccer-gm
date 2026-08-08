@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 
 /**
  * The user's preferred name for the sport. This is a per-device display
@@ -35,16 +36,26 @@ interface SportNameValue {
 
 const SportNameContext = createContext<SportNameValue | null>(null);
 
+/**
+ * Pages that are just reading material and open to anyone, save or no save.
+ * Someone who landed on the manual from a search result came to read it, so the
+ * first thing they see shouldn't be a modal asking them to name the sport — the
+ * choice keeps until they actually start a league. (It also means these pages
+ * lead with their own heading rather than the prompt's.)
+ */
+const READING_ONLY = new Set(["/manual", "/changelog"]);
+
 export function SportNameProvider({ children }: { children: ReactNode }) {
   const [choice, setChoice] = useState<SportChoice | null>(() => readStored());
+  const { pathname } = useLocation();
 
   const term = displayTerm(choice ?? "soccer");
   const brand = `World ${term} Simulator`;
 
-  // Keep the browser tab title in sync with the chosen brand.
-  useEffect(() => {
-    document.title = brand;
-  }, [brand]);
+  // The tab title used to be set here, but it's route-dependent now (and has to
+  // stay in step with the canonical/robots tags), so `useRouteSeo` in seo.ts
+  // owns document.title instead. It takes `brand` as an input, so the title
+  // still follows the sport-name choice.
 
   function choose(c: SportChoice) {
     localStorage.setItem(STORAGE_KEY, c);
@@ -56,7 +67,7 @@ export function SportNameProvider({ children }: { children: ReactNode }) {
   return (
     <SportNameContext.Provider value={value}>
       {children}
-      {choice === null && <SportNamePrompt onChoose={choose} />}
+      {choice === null && !READING_ONLY.has(pathname) && <SportNamePrompt onChoose={choose} />}
     </SportNameContext.Provider>
   );
 }
@@ -72,7 +83,10 @@ function SportNamePrompt({ onChoose }: { onChoose: (c: SportChoice) => void }) {
   return (
     <div className="sport-name-backdrop">
       <div className="sport-name-modal">
-        <h1 className="sport-name-title">Do you call it soccer or football?</h1>
+        {/* h2, not h1: this is a modal over a page that has its own heading,
+            and two h1s muddies what the page is actually about. Styling is on
+            the class, so it looks the same. */}
+        <h2 className="sport-name-title">Do you call it soccer or football?</h2>
         <p className="sport-name-sub">Your choice sets what this game is called for you.</p>
         <div className="sport-name-choices">
           <button

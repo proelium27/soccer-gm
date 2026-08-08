@@ -1,0 +1,20 @@
+# World Soccer Simulator
+
+> A free soccer (football) management simulation that runs entirely in the
+> browser. You take over a club and run it season after season: pick the
+> starting XI and formation, buy and sell players across two transfer windows,
+> develop youth prospects, keep the budget balanced, and chase promotion, the
+> league title, a continental cup and the World Cup. No account, no download,
+> no server. Every save is stored locally in the player's own browser.
+
+The game is a single-page app, so most URLs render the same shell and need a
+loaded save to show anything. The two pages below are the real documentation.
+
+## Docs
+
+- [Manual](https://worldsoccersim.org/manual): Full explanation of every system. Player ratings and potential, formations and tactics, the match engine, transfers and negotiation, loans, contracts and free agents, the youth academy, scouting, club finances, promotion and relegation, the continental cup, and international football.
+- [Changelog](https://worldsoccersim.org/changelog): Every player-visible change, newest first, with dates.
+
+## Optional
+
+- [Play](https://worldsoccersim.org/): Start or resume a league. Requires JavaScript and a browser with IndexedDB.

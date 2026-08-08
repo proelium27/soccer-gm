@@ -4,12 +4,97 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/favicon.png" />
-  <title>World Soccer Simulator</title>
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <!-- Matches --sg-green-deep, the top bar band, so mobile browser chrome
+       blends into the app instead of banding against it. -->
+  <meta name="theme-color" content="#1d3f2a" />
+
+  <!-- These are the defaults a crawler sees before React boots. Once the app
+       mounts, src/ui/seo.ts rewrites title / description / canonical / robots
+       per route, so the app-only pages (which need a loaded save and bounce to
+       /leagues) mark themselves noindex instead of piling up as duplicates. -->
+  <title>World Soccer Simulator | Free Online Soccer Manager Game</title>
+  <meta name="description" content="Free browser soccer manager game. Take over a club, sign players, work the transfer market, run a youth academy and chase the title across 12 leagues and 240 clubs." />
+  <link rel="canonical" href="https://worldsoccersim.org/" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="World Soccer Simulator" />
+  <meta property="og:title" content="World Soccer Simulator | Free Online Soccer Manager Game" />
+  <meta property="og:description" content="Free browser soccer manager game. Take over a club, sign players, work the transfer market, run a youth academy and chase the title across 12 leagues and 240 clubs." />
+  <meta property="og:url" content="https://worldsoccersim.org/" />
+  <meta property="og:image" content="https://worldsoccersim.org/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="World Soccer Simulator, a free browser soccer management game" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="World Soccer Simulator | Free Online Soccer Manager Game" />
+  <meta name="twitter:description" content="Free browser soccer manager game. Take over a club, sign players, work the transfer market, run a youth academy and chase the title." />
+  <meta name="twitter:image" content="https://worldsoccersim.org/og-image.png" />
+
+  <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin />
+  <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "World Soccer Simulator",
+    "url": "https://worldsoccersim.org/",
+    "image": "https://worldsoccersim.org/og-image.png",
+    "description": "A free browser-based soccer management simulation. Manage a club across 12 leagues and 240 clubs: pick your starting XI and formation, buy and sell players in two transfer windows, run a youth academy, balance the budget, and play a continental cup and a four-year international cycle.",
+    "genre": ["Sports", "Simulation", "Management"],
+    "gamePlatform": "Web browser",
+    "playMode": "SinglePlayer",
+    "applicationCategory": "Game",
+    "operatingSystem": "Any",
+    "browserRequirements": "Requires JavaScript",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+      "availability": "https://schema.org/InStock"
+    }
+  }
+  </script>
+
   <!-- Google AdSense -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9261720959859333" crossorigin="anonymous"></script>
 </head>
 <body>
-  <div id="root"></div>
+  <!--
+    React replaces this the moment it mounts. It exists so the page is never a
+    blank div: it doubles as the loading state on a slow connection and as the
+    only thing a crawler that doesn't run JavaScript will ever see. Styles are
+    inline because the stylesheet ships inside the JS bundle.
+  -->
+  <div id="root">
+    <main style="max-width:44rem;margin:0 auto;padding:3rem 1.25rem;font-family:system-ui,sans-serif;color:#e8ede9;background:#0a100c;min-height:100vh">
+      <h1 style="font-size:1.75rem;margin:0 0 1rem">World Soccer Simulator</h1>
+      <p style="line-height:1.6;margin:0 0 1rem">
+        A free soccer management game that runs entirely in your browser. Take
+        charge of a club and run it season after season: pick the starting XI and
+        formation, buy and sell in two transfer windows, scout and develop youth
+        prospects, keep the budget in the black, and chase promotion, the title,
+        the continental cup and a World Cup on a four-year cycle.
+      </p>
+      <p style="line-height:1.6;margin:0 0 1.5rem">
+        Twelve leagues, 240 clubs, no account and no download. Saves live in your
+        own browser.
+      </p>
+      <p style="line-height:1.6">
+        <a href="/leagues" style="color:#6ed889">Start a league</a> &middot;
+        <a href="/manual" style="color:#6ed889">Read the manual</a> &middot;
+        <a href="/changelog" style="color:#6ed889">See what is new</a>
+      </p>
+      <noscript>
+        <p style="line-height:1.6;margin-top:1.5rem">
+          This game needs JavaScript to run. Please turn it on and reload.
+        </p>
+      </noscript>
+    </main>
+  </div>
   <script type="module" src="/src/ui/main.tsx"></script>
 </body>
 </html>

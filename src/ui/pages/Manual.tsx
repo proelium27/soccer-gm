@@ -50,7 +50,10 @@ export function Manual() {
   const sport = term.toLowerCase();
   return (
     <div className="container-fluid p-3">
-      <h4>Manual</h4>
+      {/* h1, styled as an h4. The manual is reachable (and indexable) without a
+          save loaded, so it needs one real top-level heading — but it should
+          still look like every other page title in the app. */}
+      <h1 className="h4">Manual</h1>
       <div style={{ maxWidth: "56rem" }}>
         <p className="text-muted">
           Everything about how the game works, in one place. It won't spoil anything hidden.
