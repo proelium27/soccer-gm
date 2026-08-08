@@ -171,7 +171,7 @@ export function countryStrengthOffset(country: string): number {
  */
 export const COUNTRY_BUDGET_SCALE: Record<string, number> = {
   France: 0.7,
-  Portugal: 0.5,
+  Portugal: 0.55,
   Belgium: 0.45,
   Turkey: 0.4,
 };
