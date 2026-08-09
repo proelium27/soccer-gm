@@ -32,14 +32,6 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    date: "2026-08-09",
-    title: "The AI import prompt no longer assumes you want real clubs",
-    items: [
-      "\"Copy AI Prompt to Customize\" produces a prompt that teaches ChatGPT or Claude the roster-file format for your save. It opened by describing the feature as overlaying real club names and real squads, and closed by instructing the assistant to build the file \"using real clubs and players\". Both lines were wrong about the feature's scope: Import Teams accepts any clubs and any players, and an assistant reading that prompt would steer a request for invented or themed teams back toward real ones.",
-      "The prompt now states up front that the clubs and players can be anything asked for, and lists examples: a present-day league, a past season, all-time XIs, a themed or fictional world. It ends with a section that hands control to whatever description follows it, falling back to real present-day clubs only when nothing was specified. The file format itself is unchanged, so prompts already saved elsewhere still work. The Manual's Import Teams section was reworded to match.",
-    ],
-  },
-  {
     date: "2026-08-08",
     title: "Transfers now behave like football: stars stay put, and won't drop to small clubs",
     items: [
