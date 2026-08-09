@@ -17,6 +17,8 @@ npm run cli        # scripts/cli.ts (headless sim harness for audits)
 
 Audit scripts live in `scripts/` (e.g. `divisionAudit.ts`, `weakLeaguesAudit.ts`) — run with `tsx`.
 
+**EA FC roster converter** (`scripts/eafcRosterConvert.ts` + `scripts/eafc/`, docs in `docs/eafc-import.md`): turns an EA FC player CSV into a roster file for the existing Leagues → Import roster file flow, for playing with real clubs/players. Dev-only and **never shipped or committed** — the CSV and generated JSON are gitignored, the game keeps shipping fictional clubs (trademark caution). The load-bearing part is the rescale: EA overalls are **rank-matched onto a freshly generated world's OVR distribution** rather than used raw (a generated world spans ~23-81 and only reaches 90+ via progression; EA's top flights run 47-91), so the imported world carries the same OVR distribution a generated one does and the anti-inflation equilibrium is untouched. Per-skill ratings come from EA's attributes (the two sets are both 1-99 and mostly namesakes) then get uniformly shifted to hit the rescaled overall, so players keep their individuality. Known gap, documented not fixed: `applyRosterFile` doesn't realign each slot's shuffled `academyBase`, so an imported superclub can inherit a weak youth anchor and drift over a long dynasty.
+
 The first `npm test` after any `src/core` change rebuilds the cached test worlds (see `test/` below); later runs reuse them. `SOCCER_GM_NO_FIXTURE_CACHE=1 npm test` skips the cache.
 
 ## Git workflow

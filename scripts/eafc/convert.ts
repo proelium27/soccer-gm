@@ -1,0 +1,413 @@
+/**
+ * EA FC player CSV -> a soccer-gm roster file.
+ *
+ * Pipeline, in order:
+ *   1. detect the file's columns (see schema.ts — the exports disagree wildly)
+ *   2. keep only rows in the twelve leagues the game models, mapping each
+ *      row's EA position onto one of soccer-gm's eight roles
+ *   3. rank each league's clubs by squad strength and keep the top 20 (the
+ *      game has exactly 20 slots per competition)
+ *   4. pick each club a squad shaped like ROSTER_COMPOSITION
+ *   5. rank-match EA overalls onto a freshly generated world's OVR
+ *      distribution (see scale.ts — this is the anti-inflation step)
+ *   6. build each player's per-skill ratings from his EA attributes and shift
+ *      them to land on his rescaled overall
+ *
+ * The output is a plain roster file, loaded through the game's existing import
+ * UI — no engine changes, and nothing EA-derived is committed to the repo.
+ */
+import { readCsvTable } from "./csv.js";
+import { resolveColumns, num, str, type ResolvedColumns } from "./schema.js";
+import { mapPosition } from "./positions.js";
+import { mapLeague } from "./leagues.js";
+import { mapNation } from "./nations.js";
+import { ratingShapeFromEa, applySpread, shiftToOverall } from "./ratings.js";
+import { buildRescaler, type Rescaler } from "./scale.js";
+import { deriveColors, uniquifyAbbrevs, type IdentityOverrides } from "./identity.js";
+
+import type { Position } from "../../src/core/players/types.js";
+import { POSITIONS } from "../../src/core/players/types.js";
+import { HEIGHT_RANGES } from "../../src/core/players/templates.js";
+import { computeOvr } from "../../src/core/players/ovr.js";
+import { ROSTER_COMPOSITION, NUM_TEAMS, RATING_MIN, RATING_MAX } from "../../src/core/constants.js";
+import { worldCompetitions } from "../../src/core/competitions.js";
+import { generateWorld } from "../../src/core/league/generate.js";
+import { mulberry32 } from "../../src/engine/rng.js";
+import type {
+  RosterFile, RosterFileClub, RosterFileCompetition, RosterFilePlayer,
+} from "../../src/core/teams/rosterFile.js";
+import { ROSTER_FILE_FORMAT, ROSTER_FILE_VERSION } from "../../src/core/teams/rosterFile.js";
+
+export interface ConvertOptions {
+  /** Players per club before the game tops the squad up with filler. */
+  squadSize: number;
+  /** Multiplier on each player's spread of skills around his own mean (1 = keep EA's). */
+  spread: number;
+  /**
+   * "competition" rank-matches each league onto its own soccer-gm counterpart;
+   * "global" pools all twelve. See the note on scaleMode in the CLI help — the
+   * default preserves the game's designed country-strength gaps.
+   */
+  scaleMode: "competition" | "global";
+  /** Seed for the reference world whose OVR distribution we match onto. */
+  referenceSeed: number;
+  /** Per-club abbrev/colors/name overrides, keyed by the club name in the CSV. */
+  identityOverrides: IdentityOverrides;
+  /** Cap on clubs taken per competition (the game has NUM_TEAMS slots). */
+  clubsPerCompetition: number;
+}
+
+export const DEFAULT_OPTIONS: ConvertOptions = {
+  squadSize: 25,
+  spread: 1,
+  scaleMode: "competition",
+  referenceSeed: 12345,
+  identityOverrides: {},
+  clubsPerCompetition: NUM_TEAMS,
+};
+
+interface EaPlayer {
+  name: string;
+  pos: Position;
+  age: number;
+  clubName: string;
+  competition: string;
+  eaOverall: number;
+  eaPotential?: number;
+  nationality?: string;
+  heightCm: number;
+  row: Record<string, string>;
+}
+
+export interface ConvertReport {
+  rowsRead: number;
+  rowsKept: number;
+  skipped: {
+    unmappedLeague: number;
+    unmappedPosition: number;
+    missingOverall: number;
+    missingClub: number;
+    missingName: number;
+    unparseableAge: number;
+  };
+  /** League cells seen that mapped to nothing, with counts — surfaces naming drift. */
+  unmappedLeagues: { league: string; rows: number }[];
+  competitions: {
+    name: string;
+    clubsAvailable: number;
+    clubsUsed: number;
+    playersEmitted: number;
+    /** A few (EA overall -> soccer-gm overall) pairs so the rescale is inspectable. */
+    scaleSamples: { ea: number; gm: number }[];
+  }[];
+  missingColumns: string[];
+  warnings: string[];
+}
+
+const clampInt = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(x)));
+
+function defaultHeight(pos: Position): number {
+  const [lo, hi] = HEIGHT_RANGES[pos];
+  return Math.round((lo + hi) / 2);
+}
+
+/** Parse every usable row into an EaPlayer, tallying why the rest were dropped. */
+function readPlayers(
+  rows: Record<string, string>[],
+  cols: ResolvedColumns,
+): { players: EaPlayer[]; report: Pick<ConvertReport, "skipped" | "unmappedLeagues"> } {
+  const skipped: ConvertReport["skipped"] = {
+    unmappedLeague: 0, unmappedPosition: 0, missingOverall: 0,
+    missingClub: 0, missingName: 0, unparseableAge: 0,
+  };
+  const unmapped = new Map<string, number>();
+  const players: EaPlayer[] = [];
+
+  for (const row of rows) {
+    const leagueRaw = str(row, cols, "league");
+    const competition = mapLeague(leagueRaw);
+    if (competition === null) {
+      skipped.unmappedLeague++;
+      if (leagueRaw) unmapped.set(leagueRaw, (unmapped.get(leagueRaw) ?? 0) + 1);
+      continue;
+    }
+    const pos = mapPosition(str(row, cols, "position"));
+    if (pos === null) { skipped.unmappedPosition++; continue; }
+
+    const name = str(row, cols, "name");
+    if (!name) { skipped.missingName++; continue; }
+
+    const clubName = str(row, cols, "club");
+    if (!clubName) { skipped.missingClub++; continue; }
+
+    const eaOverall = num(row, cols, "overall");
+    if (eaOverall === undefined) { skipped.missingOverall++; continue; }
+
+    const age = num(row, cols, "age");
+    // The game's own parser rejects ages outside 15-45, so clamp rather than
+    // emit a file it will refuse.
+    if (age === undefined) { skipped.unparseableAge++; continue; }
+
+    players.push({
+      name,
+      pos,
+      age: clampInt(age, 15, 45),
+      clubName,
+      competition,
+      eaOverall,
+      eaPotential: num(row, cols, "potential"),
+      nationality: mapNation(str(row, cols, "nationality")),
+      heightCm: clampInt(num(row, cols, "height") ?? defaultHeight(pos), 150, 220),
+      row,
+    });
+  }
+
+  const unmappedLeagues = [...unmapped]
+    .map(([league, rows]) => ({ league, rows }))
+    .sort((a, b) => b.rows - a.rows);
+
+  return { players, report: { skipped, unmappedLeagues } };
+}
+
+/**
+ * Pick a club's squad: the best players at each position up to
+ * ROSTER_COMPOSITION, then the best remaining regardless of position until
+ * `squadSize`. Shaping by position matters — taking the flat top 25 by overall
+ * can leave a club with one goalkeeper and seven strikers, and while the game's
+ * importer would paper over that with filler, the filler is deliberately weak
+ * and would end up in the XI.
+ */
+export function pickSquad(players: EaPlayer[], squadSize: number): EaPlayer[] {
+  const byPos = new Map<Position, EaPlayer[]>();
+  for (const p of players) {
+    if (!byPos.has(p.pos)) byPos.set(p.pos, []);
+    byPos.get(p.pos)!.push(p);
+  }
+  for (const list of byPos.values()) list.sort((a, b) => b.eaOverall - a.eaOverall);
+
+  const picked: EaPlayer[] = [];
+  const used = new Set<EaPlayer>();
+  for (const pos of POSITIONS as readonly Position[]) {
+    for (const p of (byPos.get(pos) ?? []).slice(0, ROSTER_COMPOSITION[pos])) {
+      picked.push(p);
+      used.add(p);
+    }
+  }
+  if (picked.length < squadSize) {
+    const rest = players
+      .filter((p) => !used.has(p))
+      .sort((a, b) => b.eaOverall - a.eaOverall)
+      .slice(0, squadSize - picked.length);
+    picked.push(...rest);
+  }
+  return picked.slice(0, squadSize);
+}
+
+/** Squad strength used to rank clubs for the 20 available slots. */
+function clubStrength(players: EaPlayer[]): number {
+  const top = [...players].sort((a, b) => b.eaOverall - a.eaOverall).slice(0, 11);
+  if (top.length === 0) return 0;
+  return top.reduce((a, p) => a + p.eaOverall, 0) / top.length;
+}
+
+interface ReferenceDistribution {
+  byCompetition: Map<string, number[]>;
+  all: number[];
+}
+
+/**
+ * Generating the 240-club reference world costs ~4s, and it depends on nothing
+ * but the seed, so it is memoized — converting twice in one process (the tests
+ * do) should not pay for it twice.
+ */
+const referenceCache = new Map<number, ReferenceDistribution>();
+
+/** OVR distribution of a freshly generated world, per competition name and pooled. */
+function referenceDistribution(seed: number): ReferenceDistribution {
+  const cached = referenceCache.get(seed);
+  if (cached) return cached;
+  const world = generateWorld(mulberry32(seed), seed);
+  const comps = worldCompetitions();
+  const nameById = new Map(comps.map((c) => [c.id, c.name]));
+  const ovrByPid = new Map(world.players.map((p) => [p.pid, p.ovr]));
+  const byCompetition = new Map<string, number[]>();
+  for (const t of world.teams) {
+    const name = nameById.get(t.compId);
+    if (!name) continue;
+    if (!byCompetition.has(name)) byCompetition.set(name, []);
+    byCompetition.get(name)!.push(...t.roster.map((pid) => ovrByPid.get(pid)!));
+  }
+  const dist = { byCompetition, all: world.players.map((p) => p.ovr) };
+  referenceCache.set(seed, dist);
+  return dist;
+}
+
+/** Turn one EA row into a roster-file player at his rescaled overall. */
+function materialize(
+  p: EaPlayer,
+  cols: ResolvedColumns,
+  rescale: Rescaler,
+  spread: number,
+): RosterFilePlayer {
+  const target = clampInt(rescale(p.eaOverall), RATING_MIN, RATING_MAX);
+  const shape = applySpread(ratingShapeFromEa(p.row, cols, p.pos, target), spread);
+  const ratings = shiftToOverall(shape, p.pos, p.heightCm, target);
+  const ovr = computeOvr(p.pos, ratings, p.heightCm);
+
+  // Potential rides the same scale as overall, so it goes through the same
+  // curve; the game clamps it to >= ovr on import, and we pre-clamp so the
+  // emitted file is self-consistent.
+  const potential =
+    p.eaPotential !== undefined
+      ? clampInt(Math.max(rescale(p.eaPotential), ovr), RATING_MIN, RATING_MAX)
+      : undefined;
+
+  return {
+    name: p.name,
+    pos: p.pos,
+    age: p.age,
+    nationality: p.nationality,
+    heightCm: p.heightCm,
+    potential,
+    ratings,
+  };
+}
+
+export function convert(csvText: string, opts: Partial<ConvertOptions> = {}): {
+  file: RosterFile;
+  report: ConvertReport;
+} {
+  const o: ConvertOptions = { ...DEFAULT_OPTIONS, ...opts };
+  const table = readCsvTable(csvText);
+  const cols = resolveColumns(table);
+  if (cols.missingRequired.length > 0) {
+    throw new Error(
+      `This CSV is missing required column(s): ${cols.missingRequired.join(", ")}. ` +
+        `Found headers: ${table.headers.slice(0, 40).join(", ")}${table.headers.length > 40 ? ", ..." : ""}`,
+    );
+  }
+
+  const { players, report: readReport } = readPlayers(table.rows, cols);
+  const warnings: string[] = [];
+
+  // --- Group into competitions and clubs, and choose which clubs get slots ---
+  const byComp = new Map<string, Map<string, EaPlayer[]>>();
+  for (const p of players) {
+    if (!byComp.has(p.competition)) byComp.set(p.competition, new Map());
+    const clubs = byComp.get(p.competition)!;
+    if (!clubs.has(p.clubName)) clubs.set(p.clubName, []);
+    clubs.get(p.clubName)!.push(p);
+  }
+
+  interface ChosenClub { clubName: string; squad: EaPlayer[] }
+  const chosen = new Map<string, ChosenClub[]>();
+  for (const [comp, clubs] of byComp) {
+    const ranked = [...clubs]
+      .map(([clubName, roster]) => ({ clubName, roster, strength: clubStrength(roster) }))
+      .sort((a, b) => b.strength - a.strength || a.clubName.localeCompare(b.clubName));
+
+    if (ranked.length > o.clubsPerCompetition) {
+      warnings.push(
+        `"${comp}" has ${ranked.length} clubs in the CSV but the game has ${o.clubsPerCompetition} slots — ` +
+          `kept the strongest ${o.clubsPerCompetition}, dropped ${ranked.length - o.clubsPerCompetition}.`,
+      );
+    } else if (ranked.length < o.clubsPerCompetition) {
+      warnings.push(
+        `"${comp}" has only ${ranked.length} clubs in the CSV — the remaining ` +
+          `${o.clubsPerCompetition - ranked.length} slot(s) keep their existing fictional club and squad.`,
+      );
+    }
+
+    chosen.set(
+      comp,
+      ranked.slice(0, o.clubsPerCompetition).map((c) => ({
+        clubName: c.clubName,
+        squad: pickSquad(c.roster, o.squadSize),
+      })),
+    );
+  }
+
+  // --- Build the rescale curves ---
+  const reference = referenceDistribution(o.referenceSeed);
+  const globalSource = [...chosen.values()].flatMap((cs) => cs.flatMap((c) => c.squad.map((p) => p.eaOverall)));
+  const globalRescaler = buildRescaler(globalSource, reference.all);
+
+  const rescalerFor = (comp: string): Rescaler => {
+    if (o.scaleMode === "global") return globalRescaler;
+    const ref = reference.byCompetition.get(comp);
+    const src = (chosen.get(comp) ?? []).flatMap((c) => c.squad.map((p) => p.eaOverall));
+    if (!ref || ref.length === 0 || src.length === 0) return globalRescaler;
+    return buildRescaler(src, ref);
+  };
+
+  // --- Emit, in the game's own competition order ---
+  const competitionsOut: RosterFileCompetition[] = [];
+  const reportComps: ConvertReport["competitions"] = [];
+
+  for (const comp of worldCompetitions()) {
+    const clubs = chosen.get(comp.name);
+    if (!clubs || clubs.length === 0) continue;
+    const rescale = rescalerFor(comp.name);
+
+    const displayNames = clubs.map((c) => o.identityOverrides[c.clubName]?.name ?? c.clubName);
+    const abbrevs = uniquifyAbbrevs(displayNames);
+
+    const outClubs: RosterFileClub[] = clubs.map((c, i) => {
+      const override = o.identityOverrides[c.clubName] ?? {};
+      return {
+        name: displayNames[i],
+        abbrev: override.abbrev ?? abbrevs[i],
+        colors: override.colors ?? deriveColors(displayNames[i]),
+        players: c.squad.map((p) => materialize(p, cols, rescale, o.spread)),
+      };
+    });
+
+    competitionsOut.push({ match: comp.name, clubs: outClubs });
+
+    const seen = new Map<number, number>();
+    for (const c of clubs) for (const p of c.squad) {
+      if (!seen.has(p.eaOverall)) seen.set(p.eaOverall, clampInt(rescale(p.eaOverall), RATING_MIN, RATING_MAX));
+    }
+    const eaVals = [...seen.keys()].sort((a, b) => a - b);
+    const sampleAt = [0, 0.25, 0.5, 0.75, 1].map((q) => eaVals[Math.floor(q * (eaVals.length - 1))]);
+    reportComps.push({
+      name: comp.name,
+      clubsAvailable: byComp.get(comp.name)?.size ?? 0,
+      clubsUsed: clubs.length,
+      playersEmitted: outClubs.reduce((a, c) => a + (c.players?.length ?? 0), 0),
+      scaleSamples: [...new Set(sampleAt)].map((ea) => ({ ea, gm: seen.get(ea)! })),
+    });
+  }
+
+  if (competitionsOut.length === 0) {
+    throw new Error(
+      "No rows in this CSV mapped onto any of the game's twelve leagues. " +
+        `Check the league column${cols.found.league ? ` ("${cols.found.league}")` : " (not found)"}` +
+        `; the most common unmatched values were: ${readReport.unmappedLeagues.slice(0, 5).map((u) => u.league).join(", ") || "(none)"}.`,
+    );
+  }
+
+  const file: RosterFile = {
+    format: ROSTER_FILE_FORMAT,
+    formatVersion: ROSTER_FILE_VERSION,
+    competitions: competitionsOut,
+  };
+
+  const rowsKept = competitionsOut.reduce(
+    (a, c) => a + c.clubs.reduce((b, k) => b + (k.players?.length ?? 0), 0),
+    0,
+  );
+
+  return {
+    file,
+    report: {
+      rowsRead: table.rows.length,
+      rowsKept,
+      skipped: readReport.skipped,
+      unmappedLeagues: readReport.unmappedLeagues,
+      competitions: reportComps,
+      missingColumns: cols.missingOptional,
+      warnings,
+    },
+  };
+}
