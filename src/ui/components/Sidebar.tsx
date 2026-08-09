@@ -58,7 +58,7 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
       <NavLink to="/manual" className="nav-link" onClick={onNavigate}>Manual</NavLink>
       <NavLink to="/changelog" className="nav-link" onClick={onNavigate}>Changelog</NavLink>
       <a
-        href="https://discord.gg/9rpBHaeqh"
+        href="https://discord.gg/PJTumZU3nk"
         className="nav-link"
         target="_blank"
         rel="noopener noreferrer"
