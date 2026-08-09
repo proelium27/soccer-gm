@@ -54,6 +54,14 @@ export function runAIContractRenewals(
 
       const terms = contractTerms(player, nextSeason);
       const jitter = mulberry32(hashInts(seed, pid));
+      // Deliberately the buy-side valuation, not the keep-side one, even though
+      // this is a club judging a player it already has. AI_RENEWAL_MARGIN is
+      // calibrated against these numbers, and keep-side values are much higher
+      // (see ValuationSide) — feeding them in here re-signs essentially every
+      // player in the world, so nobody's contract ever runs down and free
+      // agency dries up completely. Measured: the AI free-agent pool collapsed
+      // and offseason.ts step 4 signed nobody at all. Renewal realism is worth
+      // revisiting on its own terms, with AI_RENEWAL_MARGIN retuned to match.
       const value = perceivedValueToClub(player, ctx, jitter);
       if (value >= terms.salary * AI_RENEWAL_MARGIN) {
         updatedPlayers = extendContract(updatedPlayers, pid, nextSeason);

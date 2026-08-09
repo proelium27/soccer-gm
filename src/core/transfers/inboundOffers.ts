@@ -9,7 +9,8 @@ import {
   windowSeed, departsAtRollover, acquisitionWageCharge, hasRosterRoom, executeTransfer,
 } from "./negotiation.js";
 import { deriveLeagueContexts } from "../ai/clubContext.js";
-import { valueToClub, perceivedValueToClub } from "../ai/evaluate.js";
+import { keepValueToClub, valueToClub, perceivedValueToClub } from "../ai/evaluate.js";
+import { moveAppealBetween, settledMultiplier, joinedSeasons } from "./playerWill.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { tierOf } from "../competitions.js";
 import {
@@ -128,6 +129,8 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
       .map((o) => o.buyerTid),
   );
 
+  const joined = joinedSeasons(league.transfers);
+
   const candidates: InboundOfferCandidate[] = [];
   for (const pid of user.roster) {
     const player = playerMap.get(pid);
@@ -137,7 +140,12 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
     // no club can bid on him until it clears (see faTransferLocked).
     if (faTransferLocked(player, league.season)) continue;
 
-    const reservation = valueToClub(player, userCtx);
+    // Keep-side, exactly as an AI seller prices its own players, plus the
+    // settling-in premium (see ValuationSide / playerWill.ts). The user's stars
+    // used to be priced by the buy-side formula, which valued them against
+    // themselves and so lowballed the asking price badly.
+    const reservation =
+      keepValueToClub(player, userCtx) * settledMultiplier(joined.get(pid), ws.season);
     const wageCharge = acquisitionWageCharge(league, player);
     const jitter = mulberry32(windowSeed(league.lid, ws.season, ws.window, pid, 4));
     // Listing lowers the surplus a buyer needs to clear — see
@@ -164,7 +172,12 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
       // A buyer only shows up as a candidate if it can actually pay a fair
       // fee without dipping into its cash reserve — otherwise the offer
       // would just fail affordability at accept time (see buyerSpendable).
-      const ceiling = Math.min(rawCeiling, buyerSpendable(buyer, buyerCtx, wageCharge));
+      // The player's own say, applied after the jitter draw like the Division 2
+      // guard above (RNG-stream-order lesson). A club much smaller than the
+      // user's won't get anywhere near his reservation, so no more insulting
+      // bids from minnows for the user's best player.
+      const appealed = rawCeiling * moveAppealBetween(player, userCtx, buyerCtx);
+      const ceiling = Math.min(appealed, buyerSpendable(buyer, buyerCtx, wageCharge));
       if (ceiling < reservation * (1 + minSurplus)) continue;
       const candidate: InboundOfferCandidate = {
         player,
@@ -253,14 +266,29 @@ export type InboundResponse =
  * directions of the market haggle at the same pace and give up at the same
  * point.
  */
-export function respondToAsk(ceiling: number, ask: number, priorAsks: number[]): InboundResponse {
+export function respondToAsk(
+  ceiling: number,
+  ask: number,
+  priorAsks: number[],
+  standingOffer = 0,
+): InboundResponse {
   if (ask <= ceiling) return { kind: "accepted", fee: ask };
   if (ask > ceiling / NEGOTIATION_LOWBALL_FACTOR) return { kind: "collapsed" };
   const bestPrior = priorAsks.length > 0 ? Math.min(...priorAsks) : null;
   if (bestPrior !== null && ask >= bestPrior) return { kind: "collapsed" };
   if (priorAsks.length + 1 >= NEGOTIATION_MAX_ROUNDS) return { kind: "collapsed" };
   const padding = COUNTER_PADDING_START * COUNTER_PADDING_DECAY ** priorAsks.length;
-  return { kind: "countered", offer: Math.round(ceiling * (1 - padding)) };
+  // The buyer concedes ground from what it has already offered toward its
+  // ceiling, holding back `padding` of the remaining gap and giving up more of
+  // it each round. Anchoring on the standing offer keeps counters monotonically
+  // rising; padding down from the ceiling alone does not, because the opening
+  // bid is built by splitting the reservation-to-ceiling gap. While sellers
+  // lowballed their own players that opening bid sat far below the ceiling and
+  // the flaw was invisible, but once a club prices its own player properly the
+  // opening bid lands near the ceiling and a ceiling-padded "counter" comes in
+  // *below* the offer already on the table.
+  const floor = Math.max(0, Math.min(standingOffer, ceiling));
+  return { kind: "countered", offer: Math.round(ceiling - padding * (ceiling - floor)) };
 }
 
 /**
@@ -336,14 +364,27 @@ export function counterInboundOffer(league: LeagueStore, pid: number, askAmount:
     competitions: league.competitions,
   });
   const buyerCtx = contexts.get(resolved.buyerTid);
-  if (!buyerCtx) return league;
+  const userCtx = contexts.get(league.meta.userTid);
+  if (!buyerCtx || !userCtx) return league;
   const wageCharge = acquisitionWageCharge(league, player);
   // Re-derived live (no jitter — that's only for opening-offer variety), but
-  // still capped by what the buyer can actually spend without dipping into
-  // its reserve, same as at candidate-generation time.
-  const ceiling = Math.min(valueToClub(player, buyerCtx), buyerSpendable(buyer, buyerCtx, wageCharge));
+  // still carrying the same move-appeal scaling and spendable cap the candidate
+  // used, so a buyer's ceiling can't silently grow between offer and counter.
+  const liveCeiling = Math.min(
+    valueToClub(player, buyerCtx) * moveAppealBetween(player, userCtx, buyerCtx),
+    buyerSpendable(buyer, buyerCtx, wageCharge),
+  );
+  // A buyer never bids *below* what it has already put on the table. The
+  // opening offer is built from a jittered valuation while this one isn't, so
+  // the live ceiling can land under the standing offer and the club would
+  // appear to haggle backwards. That was invisible while reservations were
+  // being lowballed (the opening offer sat far below the ceiling); now that a
+  // seller prices its own player properly, the opening offer sits close to the
+  // ceiling and the gap shows. Its own prior offer is a floor it has already
+  // demonstrated it can pay.
+  const ceiling = Math.max(liveCeiling, resolved.offers.at(-1) ?? 0);
 
-  const response = respondToAsk(ceiling, ask, resolved.asks);
+  const response = respondToAsk(ceiling, ask, resolved.asks, resolved.offers.at(-1) ?? 0);
   const offers = response.kind === "countered" ? [...resolved.offers, response.offer] : resolved.offers;
   const asks = [...resolved.asks, ask];
 

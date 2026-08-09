@@ -9,6 +9,8 @@ import { teamSlots } from "../lineup/formations.js";
 import { mulberry32, gaussian } from "../../engine/rng.js";
 import { wouldRefuseExtension } from "../ai/breakoutRefusal.js";
 import { protectedStarPids, lastCompletedSeason } from "./protectedStars.js";
+import { refusesMove } from "./playerWill.js";
+import { clubStatures } from "../ai/clubContext.js";
 import {
   RECOMMENDED_TRANSFERS_MIN, RECOMMENDED_TRANSFERS_MAX,
   RECOMMENDED_OVR_BELOW, RECOMMENDED_OVR_ABOVE, RECOMMENDED_BAND_WIDEN,
@@ -89,6 +91,10 @@ export function recommendedTransfers(
     lastCompletedSeason(league), league.teams, league.players, league.competitions, user.tid,
   );
 
+  // Precomputed once — see clubStatures; calling per player would be quadratic.
+  const statures = clubStatures(league.teams, league.players);
+  const userStature = statures.get(user.tid) ?? 0;
+
   const candidates: TransferTarget[] = [];
   for (const team of league.teams) {
     if (team.tid === user.tid) continue;
@@ -96,6 +102,9 @@ export function recommendedTransfers(
       const player = playerMap.get(pid);
       if (!player) continue;
       if (protectedPids.has(pid)) continue;
+      // Nor does anyone who'd simply turn this club down (see playerWill.ts) —
+      // recommending a target the offer engine will refuse is just a dead end.
+      if (refusesMove(player.ovr, statures.get(team.tid) ?? 0, userStature)) continue;
       if (!isForSale(team, playerMap, pid) && !wouldRefuseExtension(player, team, league.competitions)) continue;
       if (departsAtRollover(league, player)) continue;
       // Hard user constraints — these narrow *which* players the search
@@ -264,6 +273,9 @@ export function searchWorldPlayers(
     lastCompletedSeason(league), league.teams, league.players, league.competitions, user.tid,
   );
 
+  const searchStatures = clubStatures(league.teams, league.players);
+  const searchUserStature = searchStatures.get(user.tid) ?? 0;
+
   const results: PlayerSearchResult[] = [];
   for (const { player, team } of candidates) {
     if (results.length >= PLAYER_SEARCH_LIMIT) break;
@@ -277,6 +289,12 @@ export function searchWorldPlayers(
     else if (protectedPids.has(player.pid)) notForSaleReason = "Club won't sell their star";
     else if (!isForSaleOrRefusing(team, playerMap, player.pid, league.competitions)) {
       notForSaleReason = "Club needs him for depth";
+    } else if (
+      refusesMove(player.ovr, searchStatures.get(team.tid) ?? 0, searchUserStature)
+    ) {
+      // Mirrors makeTransferOffer's playerWill gate, so a player who'd turn the
+      // move down says so instead of silently swallowing the offer.
+      notForSaleReason = "Wouldn't drop to a club this size";
     }
 
     results.push({

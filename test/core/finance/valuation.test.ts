@@ -53,25 +53,37 @@ describe("trueTransferValue", () => {
     expect(trueTransferValue(longDeal, 2026)).toBeGreaterThan(trueTransferValue(shortDeal, 2026));
   });
 
-  it("applies a steep elite premium above the threshold, capped at the value ceiling", () => {
+  it("applies an accelerating elite premium above the threshold, without saturating", () => {
     // At/below the elite threshold (VALUATION_ELITE_THRESHOLD, currently 76) the
-    // premium is zero; above it, value climbs far faster than the base curve.
-    // But it no longer runs off to infinity — the final value is clamped at
-    // MAX_TRANSFER_VALUE so quoted fees stay believable. "You can't buy the
-    // very best" is enforced by the not-for-sale gate (protectedStars.ts), not
-    // by an unpayable price (see VALUATION_ELITE_* / MAX_TRANSFER_VALUE).
+    // premium is zero; above it, value climbs faster and faster.
+    //
+    // Rebased 2026-08-08. This test used to assert that value hit
+    // MAX_TRANSFER_VALUE by ovr 80 and stayed pinned there — which was true, and
+    // was precisely the bug: the whole elite band priced identically, so an 80
+    // and an 87 both cost $350M and (via AI_MARKET_FEE_FLOOR_FRACTION) every
+    // elite deal opened at $175M. What the curve owes us is a *gradient* across
+    // the elite band, with the clamp reserved for the genuine freak — so that's
+    // what's asserted now. See VALUATION_ELITE_* / VALUATION_OVR_COEFF.
     const prime = { born: 2026 - 26, contract: { salary: 1000, expiresSeason: 2027 } };
     const at76 = trueTransferValue(makePlayer({ ovr: 76, potential: 76, ...prime }), 2026);
     const at78 = trueTransferValue(makePlayer({ ovr: 78, potential: 78, ...prime }), 2026);
     const at80 = trueTransferValue(makePlayer({ ovr: 80, potential: 80, ...prime }), 2026);
     const at82 = trueTransferValue(makePlayer({ ovr: 82, potential: 82, ...prime }), 2026);
-    // Just above the threshold the premium already bites hard.
-    expect(at78).toBeGreaterThan(at76 * 1.5); // a 2-point step above the knee lifts value sharply
-    // By ovr 80 the premium has driven value up to the ceiling and it stays
-    // there — no player's value ever exceeds MAX_TRANSFER_VALUE.
-    expect(at78).toBeLessThanOrEqual(MAX_TRANSFER_VALUE);
-    expect(at80).toBe(MAX_TRANSFER_VALUE);
-    expect(at82).toBe(MAX_TRANSFER_VALUE);
+    const at85 = trueTransferValue(makePlayer({ ovr: 85, potential: 85, ...prime }), 2026);
+
+    // Strictly increasing across the elite band — no flat, saturated top end.
+    expect(at78).toBeGreaterThan(at76);
+    expect(at80).toBeGreaterThan(at78);
+    expect(at82).toBeGreaterThan(at80);
+    expect(at85).toBeGreaterThan(at82);
+
+    // ...and accelerating: each equal step up in ovr costs more than the last,
+    // which is what keeps the genuine difference-makers expensive.
+    expect(at80 - at78).toBeGreaterThan(at78 - at76);
+    expect(at82 - at80).toBeGreaterThan(at80 - at78);
+
+    // The clamp still holds, but is not reached by a merely elite player.
+    expect(at85).toBeLessThan(MAX_TRANSFER_VALUE);
   });
 
   it("never exceeds the value ceiling, even for an extreme player", () => {

@@ -10,6 +10,7 @@ import { mulberry32 } from "../../engine/rng.js";
 import { keepsDepthFloor } from "../freeAgency.js";
 import { wouldRefuseExtension } from "../ai/breakoutRefusal.js";
 import { isProtectedStar, lastCompletedSeason } from "./protectedStars.js";
+import { refusesMoveToClub } from "./playerWill.js";
 import {
   ROSTER_CAP, MAX_TRANSFER_VALUE,
   RESERVATION_FACTOR_MIN, RESERVATION_FACTOR_MAX,
@@ -305,6 +306,10 @@ export function makeTransferOffer(
   if (!isForSaleOrRefusing(seller, playerMap, pid, league.competitions)) return league;
   // A top club's star from a big season simply isn't for sale (see protectedStars.ts).
   if (isProtectedStar(lastCompletedSeason(league), league.competitions, seller.tid, player)) return league;
+  // ...and even a selling club's willingness isn't enough on its own: a good
+  // player won't drop to a much smaller club, whoever is managing it (see
+  // playerWill.ts). The user is gated here exactly like an AI buyer.
+  if (refusesMoveToClub(player, seller, user, league.players)) return league;
   if (departsAtRollover(league, player)) return league;
 
   const existing = league.negotiations.find(
@@ -371,6 +376,10 @@ export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStor
   if (!isForSaleOrRefusing(seller, playerMap, pid, league.competitions)) return league;
   // A top club's star from a big season simply isn't for sale (see protectedStars.ts).
   if (isProtectedStar(lastCompletedSeason(league), league.competitions, seller.tid, player)) return league;
+  // ...and even a selling club's willingness isn't enough on its own: a good
+  // player won't drop to a much smaller club, whoever is managing it (see
+  // playerWill.ts). The user is gated here exactly like an AI buyer.
+  if (refusesMoveToClub(player, seller, user, league.players)) return league;
   if (departsAtRollover(league, player)) return league;
 
   const accepted: TransferNegotiation = { ...negotiation, status: "accepted" };
