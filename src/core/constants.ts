@@ -1740,8 +1740,8 @@ export const CUP_NAME = "Continental Cup";
 /**
  * Cup slots per tier-1 league, by league strength. A "strong" league (a big-
  * four league — countryStrengthOffset 0) sends its top CUP_STRONG_LEAGUE_SLOTS;
- * a "weak" league (France/Portugal — offset > 0) sends its top
- * CUP_WEAK_LEAGUE_SLOTS. With 4 strong × 4 + 2 weak × 2 = 20 qualifiers, the
+ * a "weak" league (France/Portugal/Belgium/Turkey — offset > 0) sends its top
+ * CUP_WEAK_LEAGUE_SLOTS. With 4 strong × 4 + 4 weak × 2 = 24 qualifiers, the
  * cup opens with a Swiss-style league phase (see CUP_LEAGUE_PHASE_* below)
  * rather than a straight bracket. CUP_TEAMS_PER_LEAGUE is kept as the strong
  * default for any code/tests that predate the weak-league split.
@@ -1775,8 +1775,9 @@ export const CUP_LEAGUE_PHASE_GAMES = 6;
  * Number of strength pots the league-phase field is split into for the draw.
  * Each club plays CUP_LEAGUE_PHASE_GAMES / CUP_LEAGUE_PHASE_POTS opponents from
  * each pot, guaranteeing a balanced spread of tough and winnable games. Must
- * divide the field evenly (20 / 2 = 10 per pot) and divide the game count
- * evenly (6 / 2 = 3 per pot) — the only clean split for a 20-team, 6-game phase.
+ * divide the field evenly (24 / 2 = 12 per pot) and divide the game count
+ * evenly (6 / 2 = 3 per pot). Note a 22-club field would be invalid: pots of 11
+ * are odd, and the draw builds each round as a perfect matching within pots.
  */
 export const CUP_LEAGUE_PHASE_POTS = 2;
 

@@ -307,7 +307,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const signingOrder = [...standings].sort((a, b) => a.points - b.points).map((s) => s.tid);
   let faSignings: { pid: number; toTid: number }[];
   ({ teams, players, signings: faSignings } = runAIFreeAgency(
-    teams, players, nextSeason, rng, league.meta.userTid, signingOrder, activeLoans,
+    teams, players, nextSeason, rng, league.meta.userTid, signingOrder, league.competitions, activeLoans,
   ));
   // Log each free-agent arrival as a fee-0 transfer FROM the sentinel so the
   // player's club-by-season history registers the move (an unrecorded free

@@ -8,7 +8,7 @@ import type { ActiveLoan } from "../loans.js";
 import { deriveLeagueContexts } from "./clubContext.js";
 import { valueToClub, perceivedValueToClub, hasPositionalGap } from "./evaluate.js";
 import { trueTransferValue } from "../finance/valuation.js";
-import { clampBudget, financeScale } from "../finance/budget.js";
+import { clampBudget, financeScale, staysSolvent } from "../finance/budget.js";
 import { tierOf } from "../competitions.js";
 import { keepsDepthFloor } from "../freeAgency.js";
 import { mulberry32 } from "../../engine/rng.js";
@@ -175,6 +175,17 @@ export function runAITransferMarket(
   const roster = new Map(teams.map((t) => [t.tid, [...t.roster]]));
   const budget = new Map(teams.map((t) => [t.tid, t.budget]));
   const hypeByTid = new Map(teams.map((t) => [t.tid, t.hype]));
+  const teamByTid = new Map(teams.map((t) => [t.tid, t]));
+  /**
+   * A club's current season wage bill off live roster state — the same basis
+   * chargeSeasonStart bills on (senior roster plus academy), so the solvency
+   * projection below matches what the club will actually be charged.
+   */
+  const wagesOf = (tid: number): number => {
+    const t = teamByTid.get(tid)!;
+    return [...(roster.get(tid) ?? t.roster), ...t.academyRoster]
+      .reduce((sum, pid) => sum + (playerMap.get(pid)?.contract.salary ?? 0), 0);
+  };
   const buys = new Map<number, number>();
   const sells = new Map<number, number>();
   const moved = new Set<number>();
@@ -238,6 +249,22 @@ export function runAITransferMarket(
     const affordableFee = spendable - wageCharge;
     if (affordableFee < fee) fee = affordableFee;
     if (fee < c.reservation) continue;
+
+    // Solvency: the reserve above only asks whether the *fee* fits. A signing
+    // also adds his salary to every future season-start charge, and in the
+    // summer window (wageCharge 0) nothing else was checking that at all — a
+    // club could buy comfortably inside its reserve and be driven negative at
+    // offseason step 6.5 by the wage bill it had just grown. Project the charge
+    // with him on the books and decline the deal if it goes under.
+    const buyerTeam = teamByTid.get(c.buyerTid)!;
+    const solvent = staysSolvent(
+      (budget.get(c.buyerTid) ?? 0) - fee - wageCharge,
+      wagesOf(c.buyerTid),
+      player.contract.salary,
+      financeScale(competitions, buyerTeam.compId),
+      buyerTeam.hype,
+    );
+    if (!solvent) continue;
 
     // Execute: rosters swap, fee moves buyer→seller, buyer also eats any
     // mid-season wage charge. Money is conserved between the two clubs.

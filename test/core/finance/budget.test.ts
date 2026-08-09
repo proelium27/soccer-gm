@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   seasonRevenue, settleSeasonEnd, chargeSeasonStart, successPayout, wageBill, budgetCap,
+  staysSolvent,
 } from "../../../src/core/finance/budget.js";
 import {
   BASE_SEASON_BUDGET, NUM_TEAMS, MAX_BUDGET, MAX_BUDGET_FLOOR, HYPE_MAX,
@@ -165,5 +166,47 @@ describe("chargeSeasonStart", () => {
     );
     expect(chargeSeasonStart(0, maxWages, 1, 50)).toBeGreaterThan(0);
     expect(BASE_SEASON_BUDGET).toBeGreaterThan(maxWages);
+  });
+});
+
+describe("staysSolvent", () => {
+  it("allows a signing the club's income still covers", () => {
+    expect(staysSolvent(0, BASE_SEASON_BUDGET * 0.5, BASE_SEASON_BUDGET * 0.1, 1, 50)).toBe(true);
+  });
+
+  it("refuses a signing that tips the season-start charge negative", () => {
+    expect(staysSolvent(0, BASE_SEASON_BUDGET * 0.9, BASE_SEASON_BUDGET * 0.2, 1, 50)).toBe(false);
+  });
+
+  it("counts savings, not just income — a banked budget can fund the gap", () => {
+    const wages = BASE_SEASON_BUDGET * 0.9;
+    const extra = BASE_SEASON_BUDGET * 0.2;
+    expect(staysSolvent(0, wages, extra, 1, 50)).toBe(false);
+    expect(staysSolvent(BASE_SEASON_BUDGET, wages, extra, 1, 50)).toBe(true);
+  });
+
+  it("agrees exactly with the charge it is projecting", () => {
+    // It must never disagree with chargeSeasonStart, or a club is gated on one
+    // number and billed by another.
+    for (const wages of [0, BASE_SEASON_BUDGET * 0.5, BASE_SEASON_BUDGET, BASE_SEASON_BUDGET * 1.5]) {
+      for (const scale of [1, DIVISION_2_BUDGET_SCALE, 0.4]) {
+        expect(staysSolvent(0, wages, 0, scale, 50))
+          .toBe(chargeSeasonStart(0, wages, scale, 50) >= 0);
+      }
+    }
+  });
+
+  it("is stricter in a poorer league, because wages are country-independent", () => {
+    // THE weak-league finance asymmetry, and the reason a per-acquisition gate
+    // is needed at all: financeScale multiplies income (BASE_SEASON_BUDGET,
+    // prize money, hype revenue) while seasonSalaryForOvr does not scale by
+    // country. So a wage bill a big-four club carries comfortably is insolvent
+    // in Turkey, and the "never sinks an AI-reachable squad" invariant above
+    // only ever proved itself at scale 1. Weak-league clubs stay solvent by
+    // fielding cheaper squads — which this gate now enforces rather than
+    // assumes.
+    const wages = BASE_SEASON_BUDGET * 0.8;
+    expect(staysSolvent(0, wages, 0, 1, 50)).toBe(true);
+    expect(staysSolvent(0, wages, 0, 0.4, 50)).toBe(false);
   });
 });

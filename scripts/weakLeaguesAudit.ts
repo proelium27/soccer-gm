@@ -134,9 +134,7 @@ for (const seed of SEEDS) {
   let minBudgetSeason = 0;
   let minBudgetCountry = "";
 
-  const measure = () => {
-    const byCountry = new Map<string, number>();
-    for (const c of [...BIG_FOUR, ...WEAK_LADDER]) byCountry.set(c, d1MeanOvr(league, c));
+  const trackBudget = () => {
     const mb = minAIBudget(league);
     if (mb < minBudget) {
       minBudget = mb;
@@ -144,6 +142,12 @@ for (const seed of SEEDS) {
       const worst = league.teams.filter((t) => t.tid !== USER_TID).sort((a, b) => a.budget - b.budget)[0];
       minBudgetCountry = competitionOf(league.competitions, worst.compId).country;
     }
+  };
+
+  const measure = () => {
+    const byCountry = new Map<string, number>();
+    for (const c of [...BIG_FOUR, ...WEAK_LADDER]) byCountry.set(c, d1MeanOvr(league, c));
+    trackBudget();
     return byCountry;
   };
 
@@ -194,7 +198,15 @@ for (const seed of SEEDS) {
   report("gen ", gen, false);
   for (let s = 0; s < SEASONS; s++) {
     league = simThrough(league, "season", mulberry32(seed * 1000 + s));
+    // Sample the budget at BOTH points in the cycle, every season. This used to
+    // run only at generation and at the end, while reporting itself as "min AI
+    // budget over dynasty" — so a club that dipped negative in season 9 and
+    // recovered by season 20 was reported as solvent, and an in-season deficit
+    // (regular-window buys charge a full season's salary up front) was never
+    // sampled at all.
+    trackBudget();
     league = simOffseason(league, mulberry32(seed * 2000 + s));
+    trackBudget();
   }
   const end = measure();
   report("end ", end, true);

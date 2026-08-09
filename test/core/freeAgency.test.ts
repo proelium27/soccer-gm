@@ -8,7 +8,10 @@ import {
 } from "../../src/core/freeAgency.js";
 import {
   ROSTER_COMPOSITION, ROSTER_CAP, ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR,
+  BASE_SEASON_BUDGET,
 } from "../../src/core/constants.js";
+import { financeScale, wageBill } from "../../src/core/finance/budget.js";
+import { seasonSalaryForOvr } from "../../src/core/contracts.js";
 
 describe("freeAgentPids", () => {
   it("is empty when every player is rostered", () => {
@@ -49,7 +52,7 @@ describe("runAIFreeAgency", () => {
     const signingOrder = teams.map((t) => t.tid);
     const rng = mulberry32(3);
     const { teams: updatedTeams, players: updatedPlayers } = runAIFreeAgency(
-      teams, league.players, 2, rng, /* userTid */ -1, signingOrder,
+      teams, league.players, 2, rng, /* userTid */ -1, signingOrder, league.competitions,
     );
 
     const updatedTarget = updatedTeams.find((t) => t.tid === targetTid)!;
@@ -71,7 +74,7 @@ describe("runAIFreeAgency", () => {
     const signingOrder = teams.map((t) => t.tid);
 
     const { teams: updatedTeams } = runAIFreeAgency(
-      teams, players, 2, mulberry32(5), userTid, signingOrder,
+      teams, players, 2, mulberry32(5), userTid, signingOrder, league.competitions,
     );
     const updatedUser = updatedTeams.find((t) => t.tid === userTid)!;
     // Every pid still on the user's roster was there before; nothing new was signed.
@@ -82,7 +85,7 @@ describe("runAIFreeAgency", () => {
     const league = makeLeague(0, 1);
     const signingOrder = league.teams.map((t) => t.tid);
     const { teams } = runAIFreeAgency(
-      league.teams, league.players, 2, mulberry32(7), -1, signingOrder,
+      league.teams, league.players, 2, mulberry32(7), -1, signingOrder, league.competitions,
     );
     const allPids = teams.flatMap((t) => t.roster);
     expect(new Set(allPids).size).toBe(allPids.length);
@@ -102,7 +105,7 @@ describe("runAIFreeAgency", () => {
     const rosterBefore = new Map(teams.map((t) => [t.tid, new Set(t.roster)]));
 
     const { teams: updatedTeams, signings } = runAIFreeAgency(
-      teams, league.players, 2, mulberry32(3), -1, teams.map((t) => t.tid),
+      teams, league.players, 2, mulberry32(3), -1, teams.map((t) => t.tid), league.competitions,
     );
 
     expect(signings.length).toBeGreaterThan(0);
@@ -224,7 +227,7 @@ describe("runAIFreeAgency quality poaching", () => {
 
     const signingOrder = league.teams.map((t) => t.tid);
     const { teams } = runAIFreeAgency(
-      league.teams, players, 2, mulberry32(11), /* userTid */ -1, signingOrder,
+      league.teams, players, 2, mulberry32(11), /* userTid */ -1, signingOrder, league.competitions,
     );
 
     const stillFree = freeAgentPids(teams, players);
@@ -232,6 +235,126 @@ describe("runAIFreeAgency quality poaching", () => {
     // the scrub is worse than every club's weakest CM, so he's left behind.
     expect(stillFree.has(star.pid)).toBe(false);
     expect(stillFree.has(scrub.pid)).toBe(true);
+  });
+
+  it("never poaches a star no club can pay the wages for", () => {
+    // Same setup as the poaching test above (which proves he IS taken when the
+    // clubs can afford him) — but every club is deep underwater, so the
+    // solvency gate must leave him in the pool. A free signing has no fee, so
+    // before the gate existed nothing in this pass looked at money at all.
+    const league = makeLeague(0, 1);
+    const star = { ...structuredClone(league.players[0]), pid: 999_004, pos: "CM" as const, ovr: 99 };
+    const players = [...league.players, star];
+    const broke = league.teams.map((t) => ({ ...t, budget: -1_000_000_000 }));
+
+    const { teams } = runAIFreeAgency(
+      broke, players, 2, mulberry32(11), /* userTid */ -1, broke.map((t) => t.tid), league.competitions,
+    );
+    expect(freeAgentPids(teams, players).has(star.pid)).toBe(true);
+  });
+
+  it("signs a cheaper player at the same position rather than abandoning the shortfall", () => {
+    // Regression: the gate originally `break`ed on the single best candidate,
+    // so a club that couldn't afford the top man at a position filled NONE of
+    // that shortfall — even with cheap players of the same position sitting in
+    // the pool. Salary is cubic in ovr, so "can't afford the best" is a long way
+    // from "can't afford anyone".
+    const league = makeLeague(0, 1);
+    const targetTid = 1;
+    const target = league.teams.find((t) => t.tid === targetTid)!;
+    const gkPids = new Set(
+      league.players.filter((p) => p.pos === "GK" && target.roster.includes(p.pid)).map((p) => p.pid),
+    );
+    // Leave one GK so the have===0 exemption is NOT what's being tested here.
+    const keptGk = [...gkPids][0];
+    gkPids.delete(keptGk);
+    const expensive = { ...structuredClone(league.players[0]), pid: 999_010, pos: "GK" as const, ovr: 90 };
+    const cheap = { ...structuredClone(league.players[0]), pid: 999_011, pos: "GK" as const, ovr: 45 };
+    const players = [...league.players, expensive, cheap];
+
+    const salaryMap = new Map(players.map((p) => [p.pid, p.contract.salary]));
+    const teams = league.teams.map((t) =>
+      t.tid === targetTid
+        ? { ...t, roster: t.roster.filter((pid) => !gkPids.has(pid)) }
+        : t,
+    );
+    const stagedTarget = teams.find((t) => t.tid === targetTid)!;
+    const scale = financeScale(league.competitions, target.compId);
+    // Must match what the gate bills on: senior roster PLUS academy.
+    const wages = wageBill([...stagedTarget.roster, ...stagedTarget.academyRoster], salaryMap);
+    const headroom = BASE_SEASON_BUDGET * scale - wages;
+    const cheapSalary = seasonSalaryForOvr(cheap.ovr, cheap.pid, 2);
+    const expensiveSalary = seasonSalaryForOvr(expensive.ovr, expensive.pid, 2);
+    expect(expensiveSalary).toBeGreaterThan(cheapSalary);
+    // A budget that covers the cheap keeper's wages but not the expensive one's.
+    const budget = cheapSalary - headroom + (expensiveSalary - cheapSalary) / 2;
+    const staged = teams.map((t) => (t.tid === targetTid ? { ...t, budget } : { ...t, budget: -1e12 }));
+
+    const gkCount = (roster: number[]): number => {
+      const posByPid = new Map(players.map((p) => [p.pid, p.pos]));
+      return roster.filter((pid) => posByPid.get(pid) === "GK").length;
+    };
+    const before = gkCount(stagedTarget.roster);
+
+    const { teams: updated } = runAIFreeAgency(
+      staged, players, 2, mulberry32(23), /* userTid */ -1, [targetTid], league.competitions,
+    );
+    const after = updated.find((t) => t.tid === targetTid)!;
+    // The point of the regression: it signs SOMETHING it can afford (the pool
+    // also holds this club's own released keepers, so which affordable one it
+    // lands on is not the assertion) and never the unaffordable star. Before
+    // the fix it broke on the star and signed nobody at all.
+    expect(gkCount(after.roster)).toBeGreaterThan(before);
+    expect(after.roster).not.toContain(expensive.pid);
+  });
+
+  it("fills a position with nobody in it even when the club cannot afford it", () => {
+    // A club with zero GKs must sign one whatever it costs: selectXI fills an
+    // empty GK slot with an outfielder, leaving the keeping composite at its
+    // neutral default while still counting him as an attacker — a corrupted
+    // match sim, not merely a weak team. The roster stays above the safety
+    // floor here, so the whole-squad exemption is not what's doing the work.
+    const league = makeLeague(0, 1);
+    const targetTid = 1;
+    const target = league.teams.find((t) => t.tid === targetTid)!;
+    const gkPids = new Set(
+      league.players.filter((p) => p.pos === "GK" && target.roster.includes(p.pid)).map((p) => p.pid),
+    );
+    const teams = league.teams.map((t) =>
+      t.tid === targetTid
+        ? { ...t, roster: t.roster.filter((pid) => !gkPids.has(pid)), budget: -1e12 }
+        : { ...t, budget: -1e12 },
+    );
+    const stripped = teams.find((t) => t.tid === targetTid)!;
+    expect(stripped.roster.length).toBeGreaterThanOrEqual(ROSTER_SAFETY_FLOOR);
+
+    const { teams: updated, players } = runAIFreeAgency(
+      teams, league.players, 2, mulberry32(29), /* userTid */ -1, [targetTid], league.competitions,
+    );
+    const after = updated.find((t) => t.tid === targetTid)!;
+    const posByPid = new Map(players.map((p) => [p.pid, p.pos]));
+    expect(after.roster.filter((pid) => posByPid.get(pid) === "GK").length).toBeGreaterThan(0);
+  });
+
+  it("still fills a shortfall for a broke club below the roster safety floor", () => {
+    // Fielding a legal XI outranks the budget: a club that can't sign at all
+    // would shrink until the match engine has nobody to pick. The shortfall
+    // pass keeps signing below ROSTER_SAFETY_FLOOR however broke the club is.
+    const league = makeLeague(0, 1);
+    const targetTid = 1;
+    const target = league.teams.find((t) => t.tid === targetTid)!;
+    const stripped = target.roster.slice(0, ROSTER_SAFETY_FLOOR - 4);
+    const teams = league.teams.map((t) =>
+      t.tid === targetTid
+        ? { ...t, roster: stripped, budget: -1_000_000_000 }
+        : { ...t, budget: -1_000_000_000 },
+    );
+
+    const { teams: updated } = runAIFreeAgency(
+      teams, league.players, 2, mulberry32(17), /* userTid */ -1, [targetTid], league.competitions,
+    );
+    const after = updated.find((t) => t.tid === targetTid)!;
+    expect(after.roster.length).toBeGreaterThan(stripped.length);
   });
 
   it("never poaches onto the user's club", () => {
@@ -242,7 +365,7 @@ describe("runAIFreeAgency quality poaching", () => {
     const players = [...league.players, star];
 
     const { teams } = runAIFreeAgency(
-      league.teams, players, 2, mulberry32(13), userTid, league.teams.map((t) => t.tid),
+      league.teams, players, 2, mulberry32(13), userTid, league.teams.map((t) => t.tid), league.competitions,
     );
     const after = teams.find((t) => t.tid === userTid)!;
     for (const pid of after.roster) expect(before.has(pid)).toBe(true);

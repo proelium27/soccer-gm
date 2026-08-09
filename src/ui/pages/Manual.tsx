@@ -128,8 +128,8 @@ export function Manual() {
           </p>
           <p>
             England's and Spain's clubs all have real crest art that shows up wherever the club's
-            name does. Every club without one yet (Italy, Germany, France and Portugal) just shows a
-            two-color swatch until it gets a crest of its own.
+            name does. Every club without one yet (Italy, Germany, France, Portugal, Belgium and
+            Turkey) just shows a two-color swatch until it gets a crest of its own.
           </p>
         </Section>
 
@@ -288,9 +288,10 @@ export function Manual() {
             fixtures show up on your <strong>Schedule</strong> page alongside your league games.
           </p>
           <p className="text-muted small">
-            This is deliberately a fairer road in for France and Portugal than a one-off qualifier
-            would be: their clubs get in with more places, are guaranteed six games, and only need a
-            mid-table league-phase finish to reach the playoff. That said, don't expect miracles.
+            This is deliberately a fairer road in for France, Portugal, Belgium and Turkey than a
+            one-off qualifier would be: their clubs get in with more places, are guaranteed six
+            games, and only need a mid-table league-phase finish to reach the playoff. That said,
+            don't expect miracles.
             The cup reads a weak-league side as genuinely weaker than a big-four side with the same
             league position, not as an equal, so those clubs go in as underdogs and usually have to
             scrap for a playoff spot.
@@ -1008,7 +1009,12 @@ export function Manual() {
             cap themselves at 3 buys and 3 sells per window, always respect the depth floor and
             roster cap, and hold back a cash reserve instead of spending to zero (so even a
             gap-filling club never bankrupts itself, and the genuine superstars stay unbuyable at any
-            price). Expect roughly a hundred AI transfers league-wide per season, and you can watch
+            price). On top of the fee, a club checks whether it can actually pay the player's wages
+            season after season, and walks away if it can't. A signing it can't afford is a signing
+            it doesn't make, whether that's a transfer, a loan or a free agent, so you'll see poorer
+            clubs in the weaker leagues shop further down the list rather than spend themselves
+            under. The one thing that overrides it is fielding a team: a club short of bodies, or
+            with nobody at all in a position, still signs. Expect roughly a hundred AI transfers league-wide per season, and you can watch
             them in the News Feed.
           </p>
           <p>
