@@ -17,6 +17,18 @@ import { App } from "./App.js";
 posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   api_host: import.meta.env.VITE_POSTHOG_HOST,
   defaults: "2026-05-30",
+  // Autocapture fires an event on essentially every click, which in a game
+  // this click-heavy meant 685k events in 30 days: 67% of all volume, and
+  // ~170 events per visitor per day. That exhausted the 1M-events/month free
+  // allowance on 2026-08-03, at which point PostHog stopped ingesting and we
+  // lost all analytics (only $exception kept flowing, on its own quota).
+  //
+  // Nothing reads that data. Every dashboard and insight is built on the
+  // explicit events in analytics.ts, whose own rule is "a handful of
+  // meaningful moments, not one event per click". Turning autocapture off
+  // does NOT affect $pageview (documented on the config option itself), so
+  // web analytics, referrers and acquisition reporting are unchanged.
+  autocapture: false,
   // Crash reports were previously invisible: error tracking had zero issues
   // recorded because exceptions were never captured, so a "the transfers page
   // keeps crashing" report came with no stack trace to work from. This sends
