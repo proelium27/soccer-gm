@@ -48,8 +48,16 @@ export const LEAGUE_RULES: LeagueRule[] = [
 
 /**
  * Resolve an EA league cell to a soccer-gm competition name, or null when the
- * league is not one of the twelve the game models (the datasets carry 30+
- * leagues; everything outside our six countries' two tiers is simply skipped).
+ * league is not one this converter covers (the datasets carry 30+ leagues;
+ * everything else is simply skipped).
+ *
+ * **Coverage is twelve competitions across six countries, while the game now
+ * models sixteen across eight.** Belgium and Turkey have no rules here, so their
+ * clubs are skipped and those four divisions keep their generated identities
+ * after an import — the same behaviour as any club a roster file does not cover,
+ * not a failure. Adding them means adding a rule below *and* a verified id in
+ * LEAGUE_IDS; the ids must be confirmed against a real dataset with
+ * scripts/eafc/inspectLeagues.ts, since names alone collide across federations.
  *
  * Name matching alone is NOT sufficient on real data — see resolveByRow below.
  */

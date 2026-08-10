@@ -108,8 +108,11 @@ estimate), but it is the number that tells you who is worth developing, so it is
 worth getting right. With its own curve, a 17-year-old Lamine Yamal comes out
 78 now / 82 ceiling while a 33-year-old Van Dijk is 79 / 80.
 
-**Leagues and clubs.** Only the twelve competitions the game models are kept;
-everything else in the dataset is skipped and reported. Each league's clubs are
+**Leagues and clubs.** Only the twelve competitions this converter covers are
+kept; everything else in the dataset is skipped and reported. Note the game
+models sixteen — Belgium's and Turkey's four divisions have no rules yet, so
+their clubs are skipped and keep their generated identities after an import
+(see `scripts/eafc/leagues.ts` for what adding them takes). Each league's clubs are
 ranked by squad strength and the top 20 take the game's 20 slots — leagues with
 18 real clubs (Bundesliga, Ligue 1, Primeira Liga) leave two fictional clubs in
 place, and leagues with more (the Championship's 24) drop the weakest. Squads

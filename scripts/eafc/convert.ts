@@ -3,8 +3,9 @@
  *
  * Pipeline, in order:
  *   1. detect the file's columns (see schema.ts — the exports disagree wildly)
- *   2. keep only rows in the twelve leagues the game models, mapping each
- *      row's EA position onto one of soccer-gm's eight roles
+ *   2. keep only rows in the twelve leagues this converter covers, mapping each
+ *      row's EA position onto one of soccer-gm's eight roles (the game itself
+ *      models sixteen — Belgium and Turkey have no rules yet, see leagues.ts)
  *   3. rank each league's clubs by squad strength and keep the top 20 (the
  *      game has exactly 20 slots per competition)
  *   4. pick each club a squad shaped like ROSTER_COMPOSITION
@@ -442,7 +443,7 @@ export function convert(csvText: string, opts: Partial<ConvertOptions> = {}): {
 
   if (competitionsOut.length === 0) {
     throw new Error(
-      "No rows in this CSV mapped onto any of the game's twelve leagues. " +
+      "No rows in this CSV mapped onto any of the twelve leagues this converter reads. " +
         `Check the league column${cols.found.league ? ` ("${cols.found.league}")` : " (not found)"}` +
         `; the most common unmatched values were: ${readReport.unmappedLeagues.slice(0, 5).map((u) => u.league).join(", ") || "(none)"}.`,
     );
