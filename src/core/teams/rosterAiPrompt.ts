@@ -44,7 +44,7 @@ export function buildImportPromptText(league: LeagueStore): string {
 
   return [
     "I want you to create a roster file for the soccer management game soccer-gm.",
-    "It overlays real club names and (optionally) real squads onto my save. Output ONE valid JSON file in exactly the format described below — no prose, no markdown fences, just the JSON.",
+    "It overlays club names and (optionally) whole squads onto my save. The clubs and players can be anything I ask for: real present-day leagues, a historical season, all-time XIs, a made-up world, a themed or fictional league, whatever. Output ONE valid JSON file in exactly the format described below — no prose, no markdown fences, just the JSON.",
     "",
     "== My world's competitions ==",
     "Use these EXACT competition names in the `match` field (case doesn't matter). Each has this many club slots; the clubs you list fill them in order (first entry = first slot). List up to that many; you can list fewer and leave the rest as they are.",
@@ -60,8 +60,8 @@ export function buildImportPromptText(league: LeagueStore): string {
     "A <club> is:",
     '  { "name": string, "abbrev": string (2-4 letters), "colors": [primaryHex, secondaryHex], "players"?: [ <player>, ... ] }',
     "- Omit `players` to change only the club's name/abbrev/colors and keep its existing squad.",
-    "- Include `players` to give it a real squad. That REPLACES the club's current players, so do this on a fresh save.",
-    "- You don't have to list a full squad — whatever positions you leave short are auto-filled with lower-rated reserves so the team is always playable. A realistic first XI plus a few subs is plenty.",
+    "- Include `players` to give it a squad of your own. That REPLACES the club's current players, so do this on a fresh save.",
+    "- You don't have to list a full squad — whatever positions you leave short are auto-filled with lower-rated reserves so the team is always playable. A first XI plus a few subs is plenty.",
     "",
     "A <player> is:",
     '  { "name": string, "pos": <position>, "age": number 15-45, ...ability, "nationality"?: string, "heightCm"?: number, "potential"?: number }',
@@ -74,6 +74,7 @@ export function buildImportPromptText(league: LeagueStore): string {
     "== Example ==",
     JSON.stringify(example, null, 2),
     "",
-    "Now build the file for the competition(s) I ask for, using real clubs and players. Output only the JSON.",
+    "== What I want ==",
+    "Below this line I'll tell you which competition(s) to fill and what to fill them with. Follow that description, whatever it is — real clubs, a past season, invented clubs, a crossover of teams from something else. Only fall back to real present-day clubs if I haven't said. If what I asked for is unclear, ask me before writing the file; otherwise output only the JSON.",
   ].join("\n");
 }

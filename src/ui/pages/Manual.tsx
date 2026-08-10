@@ -100,32 +100,34 @@ export function Manual() {
             any existing save does the same thing later.
           </p>
           <p>
-            If you'd rather bring in real teams in bulk, use "Import" on the Leagues screen and give
-            it a roster file — a plain text (JSON) file listing clubs by league. It starts a brand
-            new save with those clubs in place of the fictional ones. You pick your club from the
-            imported teams, so you're choosing between real names rather than guessing which
-            fictional slot is about to become which. Clubs match to leagues by slot, and anything the
-            file doesn't cover keeps its original name and squad, so you can bring in only the
-            leagues you care about.
+            Saves live in your browser, so they don't follow you to another browser or another
+            computer on their own. Each save on the Leagues screen has "Export Save", which downloads
+            that whole save as a file — every club, player, stat and transfer, exactly as it stands —
+            and "Import" at the bottom of the same screen loads one back. An import always comes in
+            as a new save alongside what you already have, so bringing in a file can't overwrite a
+            league you're in the middle of; if you meant to replace one, delete the old one
+            afterwards. Worth knowing: the file is a snapshot, not a live backup, so re-importing an
+            old export gives you the save exactly as it was the day you exported it.
           </p>
           <p>
-            This only works when you're starting a league, on purpose. A roster file can replace whole
+            That same "Import" button also takes a roster file — a plain text (JSON) file listing
+            clubs by league — and works out which kind of file you gave it from the file itself. Give
+            it one of those and it starts a brand new save with those clubs in place of the fictional
+            ones. You pick your club from the imported teams, so you're choosing between the real
+            names rather than guessing which fictional slot is about to become which. Clubs match to
+            leagues by slot, and anything the file doesn't cover keeps its original name and squad,
+            so you can bring in only the leagues you care about and leave the rest alone. It's the
+            easiest way to turn the fictional default world into whatever you want, real leagues or
+            otherwise.
+          </p>
+          <p>
+            Roster files only work when you're starting a league, on purpose. One can replace whole
             squads, and doing that to a save you've been playing would delete the careers, stats and
-            transfer history of every player it overwrote. So imports happen at creation and nowhere
+            transfer history of every player it overwrote. So they're applied at creation and nowhere
             else.
           </p>
           <p>
-            The same "Import" button also takes a save file, and works out which kind you gave it
-            from the file itself. Each save on the Leagues screen has "Export Save", which downloads
-            the entire save — every club, player, stat and transfer, exactly as it stands. That's the
-            one for backing a league up, moving it to another computer, or handing it to someone else
-            to carry on. It's a snapshot rather than a roster file, so it isn't meant to be edited by
-            hand and can't start a fresh league. Importing one always adds a new league rather than
-            writing over an existing one, so loading an old backup can never cost you the save you've
-            been playing — if you meant to replace it, delete the old one afterwards.
-          </p>
-          <p>
-            A club entry can also carry a <em>players</em> list to bring in a real squad, not just a
+            A club entry can also carry a <em>players</em> list to bring in a whole squad, not just a
             name. Each player needs a name, position, and age, plus either an <em>overall</em> (the
             game builds position-appropriate ratings to match it) or an exact <em>ratings</em> block
             if you want full control; nationality, height, and potential are optional. You don't have
@@ -137,15 +139,19 @@ export function Manual() {
             Writing all that JSON by hand is tedious, so the easiest route is to let an AI build it.
             The "Copy AI Prompt to Customize" button in the top bar (once you're in a save) copies a ready-made
             prompt to your clipboard, already filled in with your world's exact league names and sizes.
-            Paste it into ChatGPT or Claude, tell it which leagues you want and how real to make them,
-            and save its reply as a <code>.json</code> file. Then head back to the Leagues screen and
-            start it with "Import" on the Leagues screen. (If your browser blocks clipboard access, the button
+            Paste it into ChatGPT or Claude and tell it what you want in there. Real present-day
+            leagues are the obvious use, but nothing about it is limited to that: ask for a 2004
+            throwback league, all-time national XIs, clubs from a show you like, or a world you made
+            up entirely. Then save its reply as a <code>.json</code> file and start a league with it
+            using "Import" on the Leagues screen. (If your browser blocks clipboard access, the button
             downloads the prompt as a text file instead.)
           </p>
           <p>
             England's and Spain's clubs all have real crest art that shows up wherever the club's
             name does. Every club without one yet (Italy, Germany, France and Portugal) just shows a
-            two-color swatch until it gets a crest of its own.
+            two-color swatch until it gets a crest of its own. Clubs that came in from a roster file
+            always show their colors rather than a crest: the artwork belongs to the club that
+            shipped in that slot, not to the one you imported over it.
           </p>
         </Section>
 
