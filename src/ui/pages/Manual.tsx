@@ -100,6 +100,17 @@ export function Manual() {
             any existing save does the same thing later.
           </p>
           <p>
+            Saves live in your browser, so they don't follow you to another browser or another
+            computer on their own. "Export" in the top bar downloads the save you're in as a file,
+            and "Import League" on the New League screen loads one of those files back. An import
+            always comes in as a new save alongside what you already have, so bringing in a file
+            can't overwrite a league you're in the middle of. Worth knowing: the file is a snapshot,
+            not a live backup, so re-importing an old export gives you the save as it was the day
+            you exported it. Also note this is a different thing from the teams files below.
+            "Import League" wants a whole saved game, and it'll tell you if you hand it the wrong
+            file.
+          </p>
+          <p>
             If you'd rather replace teams in bulk, the Leagues screen has "Export Teams" and
             "Import Teams" on each save. Export hands you a plain text (JSON) file listing every club,
             grouped by league; edit it however you like (or ask an AI to fill it in) and

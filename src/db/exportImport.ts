@@ -1,4 +1,5 @@
 import type { LeagueStore } from "../core/leagueState.js";
+import { ROSTER_FILE_FORMAT } from "../core/teams/rosterFile.js";
 import { migrateLeague } from "./migrate.js";
 
 /**
@@ -45,6 +46,16 @@ export async function importLeagueJSON(file: File): Promise<LeagueStore> {
   }
 
   const obj = parsed as Record<string, unknown>;
+
+  // The game has two JSON imports and their files are easy to mix up: this one
+  // takes a whole saved game (from Export), while a teams file (from Export
+  // Teams, or the AI prompt) belongs to "Import Teams" on the Leagues page.
+  // Name that mistake rather than reporting a missing "players" array.
+  if (obj.format === ROSTER_FILE_FORMAT) {
+    throw new Error(
+      `"${file.name}" is a teams file, not a saved game. To use it, go to the Leagues page and press "Import Teams" on the league you want it applied to.`,
+    );
+  }
 
   // Validate required top-level fields
   const requiredArrays = ["teams", "players", "schedule", "played"] as const;

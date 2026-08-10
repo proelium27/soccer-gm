@@ -29,6 +29,7 @@ export function NewLeague() {
   const [selectedTid, setSelectedTid] = useState<number | null>(null);
   const [pending, setPending] = useState<LeagueStore | null>(null);
   const [saving, setSaving] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const { setLeague, importJSON } = useLeague();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -80,12 +81,20 @@ export function NewLeague() {
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) {
-      trackEvent("league_imported");
+    e.target.value = ""; // reset so the same file can be picked again after a fix
+    if (!file) return;
+    setImportError(null);
+    try {
       await importJSON(file);
-      e.target.value = "";
-      navigate("/dashboard");
+    } catch (err) {
+      // Without this the whole import was a silent no-op: the error went to the
+      // browser console, the navigate below never ran, and the page just sat
+      // there looking like the button did nothing.
+      setImportError(err instanceof Error ? err.message : String(err));
+      return;
     }
+    trackEvent("league_imported");
+    navigate("/dashboard");
   }
 
   if (pending) {
@@ -181,6 +190,13 @@ export function NewLeague() {
         </div>
       ))}
 
+      {importError && (
+        <div className="alert alert-danger py-2" role="alert">
+          <div>Couldn't import that file.</div>
+          <div className="small">{importError}</div>
+        </div>
+      )}
+
       <div className="d-flex gap-2">
         <button
           className="btn btn-primary"
@@ -190,7 +206,11 @@ export function NewLeague() {
           {customize ? "Next: Customize Teams" : "Start League"}
         </button>
 
-        <button className="btn btn-outline-secondary" onClick={handleImportClick}>
+        <button
+          className="btn btn-outline-secondary"
+          onClick={handleImportClick}
+          title="Load a saved game you downloaded with Export"
+        >
           Import League
         </button>
         <input
