@@ -10,7 +10,7 @@ describe("buildImportPromptText", () => {
   const prompt = buildImportPromptText(league);
 
   it("names the format and version", () => {
-    expect(prompt).toContain("soccer-gm-roster");
+    expect(prompt).toContain("world-soccer-sim-roster");
     expect(prompt).toContain("formatVersion");
   });
 

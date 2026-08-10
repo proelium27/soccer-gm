@@ -1,5 +1,5 @@
 import type { LeagueStore } from "../core/leagueState.js";
-import { ROSTER_FILE_FORMAT } from "../core/teams/rosterFile.js";
+import { isRosterFileFormat } from "../core/teams/rosterFile.js";
 import { migrateLeague } from "./migrate.js";
 
 /**
@@ -47,13 +47,19 @@ export async function importLeagueJSON(file: File): Promise<LeagueStore> {
 
   const obj = parsed as Record<string, unknown>;
 
-  // The game has two JSON imports and their files are easy to mix up: this one
-  // takes a whole saved game (from Export), while a teams file (from Export
-  // Teams, or the AI prompt) belongs to "Import Teams" on the Leagues page.
-  // Name that mistake rather than reporting a missing "players" array.
-  if (obj.format === ROSTER_FILE_FORMAT) {
+  // The game reads two kinds of JSON and their files are easy to mix up: this
+  // one takes a whole saved game (from Export Save), while a roster file (from
+  // the AI prompt, or hand-written) starts a new league. Name that mistake
+  // rather than reporting a missing "players" array.
+  //
+  // Reachable only from the New League screen's "Import League": the Leagues
+  // page's Import button sniffs the same field first and routes a roster file
+  // to the club picker, so it never gets here. isRosterFileFormat rather than a
+  // bare equality check, so a file written before the format was renamed is
+  // still recognized and still gets the helpful message.
+  if (isRosterFileFormat(obj.format)) {
     throw new Error(
-      `"${file.name}" is a teams file, not a saved game. To use it, go to the Leagues page and press "Import Teams" on the league you want it applied to.`,
+      `"${file.name}" is a roster file, not a saved game. To use it, go to the Leagues page and press "Import" — it starts a new league from the clubs in the file.`,
     );
   }
 

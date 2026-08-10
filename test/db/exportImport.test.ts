@@ -20,14 +20,22 @@ describe("importLeagueJSON", () => {
     expect(imported.teams).toHaveLength(league.teams.length);
   });
 
-  it("names the mix-up when handed a teams file instead of a saved game", async () => {
-    // The two imports take different files and their buttons sit one page
-    // apart, so this is the easy mistake to make. Before, it surfaced as a
-    // confusing 'missing "players" array'.
+  it("names the mix-up when handed a roster file instead of a saved game", async () => {
+    // Reachable from the New League screen's "Import League", which takes only
+    // a save. Before, this surfaced as a confusing 'missing "players" array'.
     const rosterFile = buildRosterFile(makeLeague(0, 1));
     await expect(
       importLeagueJSON(jsonFile("soccer-gm-teams-england.json", rosterFile)),
-    ).rejects.toThrow(/teams file, not a saved game/i);
+    ).rejects.toThrow(/roster file, not a saved game/i);
+  });
+
+  it("recognizes a roster file written before the format was renamed", async () => {
+    // Files carrying the old tag are already in people's hands, so they must
+    // still get the helpful message rather than a field-validation error.
+    const legacy = { ...buildRosterFile(makeLeague(0, 1)), format: "soccer-gm-roster" };
+    await expect(
+      importLeagueJSON(jsonFile("old-teams-file.json", legacy)),
+    ).rejects.toThrow(/roster file, not a saved game/i);
   });
 
   it("rejects a file that is not JSON", async () => {

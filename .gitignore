@@ -4,3 +4,11 @@ dist/
 .DS_Store
 .playwright-mcp/
 .env
+
+# Real-player roster imports (see docs/eafc-import.md). The game ships
+# fictional clubs on purpose; source datasets and anything generated from them
+# stay local and are never committed or bundled into a build.
+*.csv
+eafc-roster.json
+*-roster.json
+roster-identities.json

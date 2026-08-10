@@ -1,31 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listLeagues, deleteLeague, loadLeague } from "../../db/leagueDb.js";
+import { exportLeagueJSON } from "../../db/exportImport.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { useSportName } from "../sportName.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
-import { buildRosterFile, parseRosterFile } from "../../core/teams/rosterFile.js";
+import { parseRosterFile, isRosterFileFormat } from "../../core/teams/rosterFile.js";
+import { setPendingRoster } from "../pendingRoster.js";
 
 interface LeagueSummary {
   lid: number;
   name: string;
   created: number;
-}
-
-type StatusMsg = { kind: "ok" | "warn" | "err"; text: string };
-
-/** Serialize `data` to pretty JSON and trigger a browser download. */
-function downloadJSON(filename: string, data: unknown): void {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 interface TeamEditor {
@@ -74,10 +60,9 @@ export function Leagues() {
   const [leagues, setLeagues] = useState<LeagueSummary[] | null>(null);
   const [editor, setEditor] = useState<TeamEditor | null>(null);
   const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState<StatusMsg | null>(null);
-  const importLidRef = useRef<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { loadLeagueAction, customizeTeamsAction, importRosterAction } = useLeague();
+  const [importError, setImportError] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const { loadLeagueAction, customizeTeamsAction, importJSON } = useLeague();
   const navigate = useNavigate();
   const { brand } = useSportName();
 
@@ -124,59 +109,52 @@ export function Leagues() {
     });
   }
 
-  async function handleExportNames(lid: number) {
-    setStatus(null);
+  /** Download the whole save (the same file the in-game "Export Save" writes). */
+  async function handleExportSave(lid: number) {
     const league = await loadLeague(lid);
     if (!league) return;
-    const slug = league.meta.name.trim().replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "league";
-    downloadJSON(`soccer-gm-teams-${slug}.json`, buildRosterFile(league));
+    exportLeagueJSON(league);
   }
 
-  function triggerImport(lid: number) {
-    setStatus(null);
-    importLidRef.current = lid;
-    fileInputRef.current?.click();
-  }
-
-  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+  /**
+   * One Import button for both kinds of file the game reads, because two
+   * similarly-named import buttons is what made this confusing in the first
+   * place. Which one it is is unambiguous from the contents: a roster file
+   * declares a `format` the game recognizes (isRosterFileFormat, which also
+   * accepts the pre-rename string), an exported save has no such field.
+   *
+   * They do quite different things — a roster file *starts* a league and hands
+   * off to the club picker, a save file restores one — so the button routes
+   * rather than tries to unify them.
+   */
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    const lid = importLidRef.current;
-    e.target.value = ""; // allow re-selecting the same file later
-    if (!file || lid === null) return;
+    e.target.value = ""; // allow re-picking the same file after an error
+    if (!file) return;
+    setImportError(null);
 
-    let parsed;
+    let looksLikeRoster = false;
     try {
-      parsed = parseRosterFile(await file.text());
+      const parsed = JSON.parse(await file.text()) as { format?: unknown };
+      looksLikeRoster = isRosterFileFormat(parsed?.format);
+    } catch {
+      setImportError(`"${file.name}" isn't a valid JSON file.`);
+      return;
+    }
+
+    try {
+      if (looksLikeRoster) {
+        // Re-read through the real parser so a malformed roster file reports
+        // exactly which field is wrong, the same as it would on /new-league.
+        setPendingRoster({ file: parseRosterFile(await file.text()), filename: file.name });
+        navigate("/new-league?roster=1");
+      } else {
+        await importJSON(file);
+        navigate("/dashboard");
+      }
     } catch (err) {
-      setStatus({ kind: "err", text: err instanceof Error ? err.message : String(err) });
-      return;
+      setImportError(err instanceof Error ? err.message : String(err));
     }
-
-    const summary = await importRosterAction(lid, parsed);
-    refresh();
-
-    if (summary.clubsRenamed === 0 && summary.squadsReplaced === 0) {
-      setStatus({
-        kind: "warn",
-        text: summary.warnings.length
-          ? `Nothing applied. ${summary.warnings.join(" ")}`
-          : "The file didn't match any teams in this save, so nothing changed.",
-      });
-      return;
-    }
-
-    const parts = [`Imported ${summary.clubsRenamed} team ${summary.clubsRenamed === 1 ? "name" : "names"}`];
-    if (summary.squadsReplaced > 0) {
-      parts.push(
-        `replaced ${summary.squadsReplaced} squad${summary.squadsReplaced === 1 ? "" : "s"} (${summary.playersAdded} players)`,
-      );
-    }
-    const applied = `${parts.join(" and ")}.`;
-    setStatus(
-      summary.warnings.length
-        ? { kind: "warn", text: `${applied} ${summary.warnings.join(" ")}` }
-        : { kind: "ok", text: applied },
-    );
   }
 
   async function handleSaveTeams(teams: EditableTeam[]) {
@@ -216,20 +194,9 @@ export function Leagues() {
     <div className="container py-4" style={{ maxWidth: 720 }}>
       {firstRun ? <FirstRunIntro brand={brand} /> : <h1 className="h2 mb-3">Your Leagues</h1>}
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".json,application/json"
-        className="d-none"
-        onChange={handleImportFile}
-      />
-
-      {status && (
-        <div
-          className={`alert py-2 ${status.kind === "err" ? "alert-danger" : status.kind === "warn" ? "alert-warning" : "alert-success"}`}
-          role="alert"
-        >
-          {status.text}
+      {importError && (
+        <div className="alert alert-danger py-2" role="alert">
+          {importError}
         </div>
       )}
 
@@ -266,18 +233,10 @@ export function Leagues() {
                 <button
                   type="button"
                   className="btn btn-outline-secondary btn-sm"
-                  onClick={() => triggerImport(l.lid)}
-                  title="Overlay club names, colors, and (optionally) squads from a roster file"
+                  onClick={() => handleExportSave(l.lid)}
+                  title="Download this whole save as a file you can back up or move to another device"
                 >
-                  Import Teams
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary btn-sm"
-                  onClick={() => handleExportNames(l.lid)}
-                  title="Download this save's clubs as an editable roster template"
-                >
-                  Export Teams
+                  Export Save
                 </button>
                 <button
                   type="button"
@@ -292,7 +251,7 @@ export function Leagues() {
         </div>
       )}
 
-      <div className="d-flex gap-2">
+      <div className="d-flex gap-2 flex-wrap">
         <button
           type="button"
           className="btn btn-outline-secondary"
@@ -307,7 +266,27 @@ export function Leagues() {
         >
           Start Customized League
         </button>
+        <button
+          type="button"
+          className="btn btn-outline-secondary"
+          onClick={() => importInputRef.current?.click()}
+          title="Load a roster file to start a league with real clubs, or a save file to restore a backup"
+        >
+          Import
+        </button>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".json,application/json"
+          className="d-none"
+          onChange={handleImport}
+        />
       </div>
+
+      <p className="text-muted small mt-2 mb-0">
+        Import takes either a roster file, which starts a new league with real clubs and
+        squads, or a save file from Export Save, which loads that save back.
+      </p>
     </div>
   );
 }
