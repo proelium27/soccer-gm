@@ -1285,6 +1285,387 @@ a:hover {
 }
 
 /* =========================================================================
+   Box score — the match report. Three stacked movements: a broadcast-style
+   scoreboard, a head-to-head stat strip, then the two full-width box score
+   tables and a centre-spine play-by-play timeline. Home reads left, away
+   reads right, consistently, all the way down the page.
+   ========================================================================= */
+.bs-back {
+  font-size: var(--sg-text-sm);
+  color: var(--sg-text-muted);
+}
+.bs-back:hover {
+  color: var(--sg-green-bright);
+}
+
+/* ---- Scoreboard --------------------------------------------------------- */
+.bs-scoreboard {
+  margin: 0.85rem 0 1.1rem;
+  padding: 1.1rem 1rem 0.9rem;
+  background: var(--sg-surface);
+  border: 1px solid var(--sg-border);
+  border-radius: var(--sg-radius);
+  text-align: center;
+}
+.bs-eyebrow {
+  font-size: var(--sg-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sg-text-faint);
+  margin-bottom: 0.65rem;
+}
+.bs-scoreline {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+}
+.bs-club {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.bs-club--home {
+  justify-content: flex-end;
+}
+.bs-club--away {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+.bs-club-name {
+  font-size: var(--sg-text-md);
+  font-weight: var(--sg-weight-medium);
+  color: var(--sg-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The Signal Rule: the winner is marked by weight, not colour alone. */
+.bs-club-name--won {
+  font-weight: var(--sg-weight-bold);
+}
+.bs-club-name--lost {
+  color: var(--sg-text-muted);
+}
+.bs-goals {
+  font-family: var(--sg-font-mono);
+  font-size: var(--sg-text-xl);
+  font-weight: var(--sg-weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--sg-text);
+}
+.bs-goals--lost {
+  color: var(--sg-text-muted);
+}
+.bs-score-sep {
+  width: 10px;
+  height: 2px;
+  background: var(--sg-border-strong);
+}
+.bs-motm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--sg-border);
+  font-size: var(--sg-text-sm);
+}
+/* Shared by the scoreboard's man-of-the-match line and the star that marks
+   his row in the box score below. */
+.bs-motm-mark {
+  color: var(--sg-warn);
+  line-height: 1;
+}
+.bs-motm-label {
+  font-size: var(--sg-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sg-text-faint);
+}
+.bs-motm-name {
+  font-weight: var(--sg-weight-semibold);
+}
+.bs-motm-meta {
+  color: var(--sg-text-muted);
+  font-size: var(--sg-text-xs);
+}
+
+/* ---- Head-to-head stat strip -------------------------------------------
+   Two bars growing outward from a centred label, so the longer bar is the
+   side that did more of it. Home keeps the pitch green it carries in the
+   scoreboard; away takes the cup teal, which reads as "the other side"
+   rather than as win/loss. */
+.bs-compare {
+  display: grid;
+  gap: 0.4rem;
+  max-width: 46rem;
+  margin: 0 auto 1.5rem;
+}
+.bs-compare-row {
+  display: grid;
+  grid-template-columns: 3rem 1fr 6.5rem 1fr 3rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+.bs-compare-val {
+  font-size: var(--sg-text-sm);
+  color: var(--sg-text);
+}
+.bs-compare-row > .bs-compare-val:first-child {
+  text-align: right;
+}
+.bs-compare-label {
+  font-size: var(--sg-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sg-text-faint);
+  text-align: center;
+  white-space: nowrap;
+}
+.bs-compare-track {
+  display: flex;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--sg-surface-2);
+  overflow: hidden;
+}
+.bs-compare-track--home {
+  justify-content: flex-end;
+}
+.bs-compare-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+.bs-compare-track--home .bs-compare-fill {
+  background: var(--sg-green);
+}
+.bs-compare-track--away .bs-compare-fill {
+  background: var(--sg-cup);
+}
+
+/* ---- Team box score tables ---------------------------------------------
+   Stacked full width, never two-up: the line is nineteen stat columns wide
+   and half a viewport cannot hold it without clipping the rating column. */
+.bs-team-block {
+  margin-bottom: 1.5rem;
+}
+.bs-team-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.4rem;
+}
+.bs-table {
+  margin-bottom: 0;
+}
+.bs-table > thead > tr.bs-group-row > th {
+  border-bottom: none;
+  padding-bottom: 0.1rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.09em;
+  color: var(--sg-text-faint);
+  text-align: center;
+  font-weight: var(--sg-weight-medium);
+}
+/* Group boundary: a hairline, only ever 1px, only between stat blocks. */
+.bs-table th.bs-group,
+.bs-table td.bs-group {
+  border-left: 1px solid var(--sg-border);
+}
+.bs-player-cell {
+  white-space: nowrap;
+}
+.bs-player-cell .player-flag-wrap,
+.bs-player-cell .player-flag {
+  margin-left: 0.35rem;
+}
+.bs-pos {
+  color: var(--sg-text-muted);
+  font-size: var(--sg-text-xs);
+}
+/* Man of the match, matching the champion-highlight technique: an inset
+   box-shadow rather than a per-cell background, which leaves seams at the
+   column boundaries. The star in the name cell is the non-colour signal. */
+.bs-row-motm > td {
+  box-shadow: inset 0 0 0 9999px var(--sg-warn-wash);
+}
+.bs-player-cell .bs-motm-mark {
+  margin-right: 0.3rem;
+}
+
+/* ---- Play-by-play timeline ---------------------------------------------- */
+.bs-timeline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+.bs-timeline-head h6 {
+  margin: 0;
+}
+.bs-timeline {
+  position: relative;
+  border: 1px solid var(--sg-border);
+  border-radius: var(--sg-radius);
+  background: var(--sg-surface);
+  padding: 0.6rem 0;
+  max-height: 32rem;
+  overflow-y: auto;
+}
+/* The spine: one continuous rule the clock chips sit on. */
+.bs-timeline::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--sg-border);
+}
+.bs-ev {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 4rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.18rem 0.75rem;
+}
+.bs-ev-cell {
+  min-width: 0;
+  font-size: var(--sg-text-sm);
+}
+.bs-ev-cell--home {
+  text-align: right;
+}
+.bs-ev-cell--away {
+  text-align: left;
+}
+.bs-ev-spine {
+  display: flex;
+  justify-content: center;
+}
+.bs-ev-chip {
+  display: inline-block;
+  min-width: 2.6rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: var(--sg-surface-2);
+  border: 1px solid var(--sg-border);
+  color: var(--sg-text-muted);
+  font-size: var(--sg-text-xs);
+  text-align: center;
+}
+.bs-ev-chip.bs-chip--goal {
+  background: var(--sg-green);
+  border-color: var(--sg-green);
+  color: var(--sg-on-green);
+  font-weight: var(--sg-weight-bold);
+}
+.bs-ev-chip.bs-chip--warn {
+  border-color: var(--sg-warn);
+  color: var(--sg-warn);
+}
+.bs-ev-chip.bs-chip--danger {
+  border-color: var(--sg-loss);
+  color: var(--sg-loss);
+}
+/* Bodies mirror: home stacks toward the spine from the left, away from the
+   right, so both sides' icons hug the timeline. */
+.bs-ev-body {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+.bs-ev-cell--home .bs-ev-body {
+  flex-direction: row-reverse;
+}
+.bs-ev-body--quiet {
+  color: var(--sg-text-muted);
+}
+.bs-ev-body--goal {
+  font-size: var(--sg-text-base);
+}
+.bs-ev-icon {
+  color: var(--sg-text-faint);
+  line-height: 1;
+  flex: none;
+}
+.bs-ev-body--goal .bs-ev-icon {
+  color: var(--sg-green-bright);
+}
+.bs-ev-icon--yellow {
+  color: var(--sg-warn);
+}
+.bs-ev-icon--red {
+  color: var(--sg-loss);
+}
+.bs-ev-icon--warn {
+  color: var(--sg-warn);
+}
+.bs-ev-headline {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sg-green-bright);
+  margin-right: 0.15rem;
+}
+.bs-ev-kind {
+  color: var(--sg-text-faint);
+}
+.bs-ev-sub {
+  color: var(--sg-text-muted);
+  font-size: var(--sg-text-xs);
+  margin-left: 0.35rem;
+}
+.bs-sub-pair {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+.bs-sub-on {
+  color: var(--sg-text);
+}
+.bs-sub-on svg {
+  color: var(--sg-green-bright);
+}
+.bs-sub-off {
+  color: var(--sg-text-muted);
+}
+.bs-sub-off svg {
+  color: var(--sg-text-faint);
+}
+@media (max-width: 767.98px) {
+  .bs-scoreline {
+    gap: 0.4rem;
+  }
+  .bs-club-name {
+    font-size: var(--sg-text-sm);
+  }
+  .bs-compare-row {
+    grid-template-columns: 2.4rem 1fr 5rem 1fr 2.4rem;
+    gap: 0.3rem;
+  }
+  .bs-ev {
+    grid-template-columns: 1fr 3.4rem 1fr;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+    /* Narrow columns wrap the longer events over two or three lines; anchor
+       the clock to the first of them so the chip still marks where the event
+       starts rather than floating against its middle. */
+    align-items: start;
+  }
+  .bs-ev-cell {
+    font-size: var(--sg-text-xs);
+  }
+}
+
+/* =========================================================================
    Continental Cup bracket
    ========================================================================= */
 .cup-bracket {
