@@ -1002,7 +1002,28 @@ export const SCOUT_POT_FOG_SHIFT_FRACTION = 0.5;
  * 65 ~= 35M, 70 ~= 57M, 75 ~= 84M, 80 ~= 117M, 85 ~= 156M, 90 ~= 201M.
  */
 export const VALUATION_OVR_FLOOR = 45;
-export const VALUATION_OVR_COEFF = 56_000;
+/**
+ * Rescaled 56_000 -> 32_000 on 2026-08-08 (see the elite constants below for
+ * the matching change at the top of the curve).
+ *
+ * The old numbers were pinned to real 2025 Premier League *fees*, which read
+ * correctly in isolation but not against this game's own economy: a club's base
+ * season allocation is BASE_SEASON_BUDGET ($88M), where a real PL club turns
+ * over several times that. So a "realistic" $120M fee was ~1.4 seasons of a
+ * club's entire income, against roughly 0.2 for the real deal it was copied
+ * from — every transfer was proportionally about eight times more expensive
+ * than the real market it was modelled on. A 12-season audit measured 42 fees
+ * of $100M+ per season across the world, which is more nine-figure transfers
+ * every year than football has had in its history.
+ *
+ * Values are now proportionate to what clubs actually earn here. Base ("current
+ * ability") value, before the age/potential/contract multipliers:
+ *   65 ~= $21M   70 ~= $32M   75 ~= $48M   78 ~= $59M
+ *   80 ~= $86M   83 ~= $134M  85 ~= $186M  87 ~= $241M
+ * so a nine-figure fee once again means a genuinely elite player, rather than
+ * being the going rate for a decent 22-year-old.
+ */
+export const VALUATION_OVR_COEFF = 32_000;
 export const VALUATION_OVR_EXPONENT = 2.15;
 export const VALUATION_CONTRACT_YEAR_BONUS = 0.08;
 export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
@@ -1030,8 +1051,26 @@ export const VALUATION_CONTRACT_YEAR_BONUS_CAP = 0.4;
  * best player at any price.
  */
 export const VALUATION_ELITE_THRESHOLD = 76;
-export const VALUATION_ELITE_COEFF = 11_000_000;
-export const VALUATION_ELITE_EXPONENT = 2.5;
+/**
+ * Softened 2026-08-08 (was COEFF 11_000_000 / EXPONENT 2.5). The old curve was
+ * so steep it *saturated*: at ovr 80 the elite term alone was $352M, so every
+ * single player at 80 or above priced at the MAX_TRANSFER_VALUE clamp and the
+ * top of the market went completely flat — an 80 and an 87 cost the same $350M,
+ * and since AI_MARKET_FEE_FLOOR_FRACTION floors a fee at half of market value,
+ * *every* elite deal opened at $175M. A 12-season audit measured 42 fees of
+ * $100M+ per season, which is roughly the number football has seen in total.
+ *
+ * These values restore a gradient across the elite band instead (base + elite,
+ * before the age/potential/contract multipliers — the totals quoted in
+ * VALUATION_OVR_COEFF above already include this term):
+ *   76 -> ~$53M   78 -> ~$59M   80 -> ~$86M   83 -> ~$134M   85 -> ~$186M
+ * so the clamp now binds only for the genuinely once-in-a-generation player,
+ * which is the case it was written for. "You can't buy a champion" is enforced
+ * by the not-for-sale gates (protectedStars.ts) and by the player himself
+ * refusing a step down (playerWill.ts) — never by a fake price tag.
+ */
+export const VALUATION_ELITE_COEFF = 1_200_000;
+export const VALUATION_ELITE_EXPONENT = 2.0;
 
 /**
  * Hard ceiling on any player's transfer value / asking price (trueTransferValue,
@@ -1216,6 +1255,74 @@ export const AI_NEED_MIN = 0.35;
 export const AI_NEED_MAX = 1.8;
 
 /**
+ * Club stature, [0,1] — "how big a club is this in world terms". Squad quality
+ * measured against an ABSOLUTE band, blended with fame. See ClubContext.stature
+ * for why this is the one normalization that isn't scoped to a competition.
+ *
+ * The band is set so a bottom-of-a-weak-league squad sits near 0 and a genuine
+ * superclub near 1, with typical top-flight sides spread across the middle.
+ */
+export const STATURE_STRENGTH_LO = 55;
+export const STATURE_STRENGTH_HI = 78;
+export const STATURE_W_STRENGTH = 0.65;
+export const STATURE_W_HYPE = 0.35;
+
+/**
+ * Player will: how much a player's own preference gates where he'll move
+ * (core/transfers/playerWill.ts). Added 2026-08-08 to fix the single worst
+ * transfer-realism bug in the game.
+ *
+ * The problem it solves: valuation is driven by how much a player would UPGRADE
+ * the buyer, so the worse a club is, the more it values a star. Measured on a
+ * real world, the five highest bidders for the best player alive were among the
+ * weakest clubs in it — one with a squad-strength of 51.9 valued an 85-ovr
+ * player at $538M while his own (squad 75.0) club valued him at $132M. That is
+ * exactly how a Mbappe ends up at a Sociedad. Football has no salary cap to
+ * explain such a move (unlike basketball, where cap space genuinely can send a
+ * star to a small market), so nothing in the sim was pushing back.
+ *
+ * The fix is the missing half of a transfer: the player has to want it. Appeal
+ * scales the buyer's valuation down when the buyer is a smaller club than the
+ * one he's leaving, and a *good* player weighs that far more heavily than a
+ * squad filler — a 62-ovr backup will go wherever the work is, a 80-ovr star
+ * will not drop down. Big enough a step down and he refuses outright.
+ */
+/** Below this ovr a player is indifferent to club size — he just wants to play. */
+export const PLAYER_WILL_CARE_FLOOR = 62;
+/** At/above this ovr he weighs club stature at full strength. */
+export const PLAYER_WILL_CARE_CEILING = 78;
+/**
+ * How hard a step down bites. A fully-caring player looking at a club a full
+ * 1.0 of stature below his own has the buyer's valuation scaled by
+ * 1 − this, i.e. effectively nothing — he simply won't entertain it.
+ */
+export const PLAYER_WILL_DROP_STRENGTH = 1.6;
+/**
+ * Stature drop a fully-caring player refuses outright, no matter the money.
+ * Below this the move is merely unattractive (scaled down), not impossible.
+ */
+export const PLAYER_WILL_REFUSAL_DROP = 0.18;
+/**
+ * A genuine step *up* is its own draw: a fully-caring player moving to a club
+ * this much bigger gives the buyer this much of a valuation bonus per 1.0 of
+ * stature gained. Deliberately far weaker than the drop penalty — ambition
+ * nudges a move along, it doesn't manufacture one out of nothing.
+ */
+export const PLAYER_WILL_RISE_BONUS = 0.35;
+
+/**
+ * Settling-in friction: a player who has only just joined is much harder to
+ * prise away again, scaling his club's keep-value up by this much in his first
+ * season and decaying to nothing over PLAYER_SETTLED_SEASONS.
+ *
+ * Without it the market has no memory at all, and the audit showed exactly what
+ * that produces: the median gap between one move and a player's next move was a
+ * single season, so squads had no identity from year to year.
+ */
+export const PLAYER_SETTLED_BONUS = 0.6;
+export const PLAYER_SETTLED_SEASONS = 3;
+
+/**
  * Timeline multiplier: how age fits the club's ambition. Win-now clubs (high
  * ambition) pay a premium for prime-age readiness and discount teenage
  * projects; developer clubs (low ambition) do the reverse. The two "neutral"
@@ -1259,8 +1366,14 @@ export const AI_MARKET_MIN_VALUE = 1_000_000;
  * open-market value — i.e. players it doesn't rate above the cash they'd
  * fetch (surplus, aging, replaceable). This keeps clubs from auctioning off
  * a genuinely irreplaceable core player just because a rich rival bids.
+ *
+ * Tightened 1.05 -> 0.95 on 2026-08-08. Above 1.0 a club would put up players
+ * it rated MORE highly than the open market did, which is the opposite of what
+ * "surplus to requirements" means; combined with keep-side valuation now
+ * pricing a club's own players properly (see ValuationSide), the honest reading
+ * is that a club sells only what it rates below the cash on offer.
  */
-export const AI_MARKET_AVAILABILITY = 1.05;
+export const AI_MARKET_AVAILABILITY = 0.95;
 
 /**
  * A buyer bothers only when its valueToClub for the player clears the

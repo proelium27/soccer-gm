@@ -100,15 +100,16 @@ export function Manual() {
             any existing save does the same thing later.
           </p>
           <p>
-            If you'd rather bring in real teams in bulk, the Leagues screen has "Export Teams" and
+            If you'd rather replace teams in bulk, the Leagues screen has "Export Teams" and
             "Import Teams" on each save. Export hands you a plain text (JSON) file listing every club,
-            grouped by league; edit it however you like (or ask an AI to fill in a real league) and
+            grouped by league; edit it however you like (or ask an AI to fill it in) and
             load it back with "Import Teams". The file matches clubs to your existing leagues by slot,
-            so it's the easiest way to turn the fictional default world into real ones, and you can
-            list only the leagues you care about and leave the rest alone.
+            so it's the easiest way to turn the fictional default world into whatever you want, real
+            leagues or otherwise, and you can list only the leagues you care about and leave the rest
+            alone.
           </p>
           <p>
-            A club entry can also carry a <em>players</em> list to bring in a real squad, not just a
+            A club entry can also carry a <em>players</em> list to bring in a whole squad, not just a
             name. Each player needs a name, position, and age, plus either an <em>overall</em> (the
             game builds position-appropriate ratings to match it) or an exact <em>ratings</em> block
             if you want full control; nationality, height, and potential are optional. You don't have
@@ -121,8 +122,10 @@ export function Manual() {
             Writing all that JSON by hand is tedious, so the easiest route is to let an AI build it.
             The "Copy AI Prompt to Customize" button in the top bar (once you're in a save) copies a ready-made
             prompt to your clipboard, already filled in with your world's exact league names and sizes.
-            Paste it into ChatGPT or Claude, tell it which leagues you want and how real to make them,
-            save its reply as a <code>.json</code> file, and load it with Import Teams back on the
+            Paste it into ChatGPT or Claude and tell it what you want in there. Real present-day
+            leagues are the obvious use, but nothing about it is limited to that: ask for a 2004
+            throwback league, all-time national XIs, clubs from a show you like, or a world you made
+            up entirely. Then save its reply as a <code>.json</code> file and load it with Import Teams back on the
             Leagues screen. (If your browser blocks clipboard access, the button downloads the prompt as
             a text file instead.)
           </p>
@@ -751,6 +754,22 @@ export function Manual() {
             that would go nowhere.
           </p>
           <p>
+            <strong>The player has to want it.</strong> Money isn't the whole story, and this is the
+            big way football differs from basketball: there's no salary cap here, so nothing would
+            otherwise stop a superstar dropping into a small club that happened to have cash. So
+            players have a say. The better a player is, the more he cares about the size of the club
+            he's joining, judged on squad quality and fame together. A fringe squad player will go
+            wherever the game time is. A genuine star will move sideways or up, but won't drop to a
+            much smaller club at any price, and a row that says "Wouldn't drop to a club this size"
+            means exactly that. This applies to you the same as to every AI club, so building your
+            own reputation is what opens up the top of the market.
+          </p>
+          <p>
+            <strong>Settling in.</strong> A player who's only just joined somewhere is much harder to
+            prise away again, and gets easier over about three seasons. Squads hold their shape from
+            year to year instead of reshuffling every summer.
+          </p>
+          <p>
             <strong>Selling.</strong> During a window, AI clubs that rate your players will come in
             with offers, up to 4 at a time, from whichever club values each player most (
             <a href="#ai">how they decide</a>). You can accept (immediate sale, fee into your
@@ -995,6 +1014,14 @@ export function Manual() {
             looking at the same player genuinely value him differently.
           </p>
           <p>
+            Pricing its <em>own</em> players is a different question, and the club asks it
+            differently: not "how much would he improve us" (he's already here) but "how far would we
+            fall back without him". A star with no ready deputy behind him is priced brutally
+            &mdash; that's the whole gap between his level and his replacement's &mdash; while one
+            with a good understudy is easier to prise loose. A club also won't write off its own
+            young talent just because it's chasing the title this season.
+          </p>
+          <p>
             <strong>The AI-to-AI market</strong> runs once per window on a single rule: a player's
             asking price is what he's worth <em>to his own club</em>, and he moves to whichever club
             values him meaningfully more than that and can afford the fee (which splits the
@@ -1014,8 +1041,11 @@ export function Manual() {
             it doesn't make, whether that's a transfer, a loan or a free agent, so you'll see poorer
             clubs in the weaker leagues shop further down the list rather than spend themselves
             under. The one thing that overrides it is fielding a team: a club short of bodies, or
-            with nobody at all in a position, still signs. Expect roughly a hundred AI transfers league-wide per season, and you can watch
-            them in the News Feed.
+            with nobody at all in a position, still signs. On top of all that, players won't drop to
+            much smaller clubs and won't be shifted easily in their first seasons somewhere (see{" "}
+            <a href="#transfers">Transfers</a>), so the very best players change club rarely &mdash;
+            roughly one in ten in a season &mdash; and when they do it's sideways or upward, for a
+            fee that makes the news. You can watch every deal in the News Feed.
           </p>
           <p>
             <strong>Contract renewals.</strong> Before contracts expire each offseason, every AI club

@@ -6,7 +6,8 @@ import type { TransferWindowKind } from "../transfers/window.js";
 import type { Competition } from "../competitions.js";
 import type { ActiveLoan } from "../loans.js";
 import { deriveLeagueContexts } from "./clubContext.js";
-import { valueToClub, perceivedValueToClub, hasPositionalGap } from "./evaluate.js";
+import { keepValueToClub, perceivedValueToClub, hasPositionalGap } from "./evaluate.js";
+import { moveAppealBetween, settledMultiplier, joinedSeasons } from "../transfers/playerWill.js";
 import { trueTransferValue } from "../finance/valuation.js";
 import { clampBudget, financeScale, staysSolvent } from "../finance/budget.js";
 import { tierOf } from "../competitions.js";
@@ -98,6 +99,11 @@ export function runAITransferMarket(
   // currently out on loan (keyed by pid, so this holds whoever the parent is).
   const onLoanPids = new Set(activeLoans.map((l) => l.pid));
 
+  // When each player last arrived somewhere, for the settling-in premium on his
+  // reservation. Derived from the transfer log, so no persisted field and no
+  // migration; a player with no record has never moved and is fully settled.
+  const joined = joinedSeasons(transfers);
+
   // Assemble every deal that looks worthwhile at window open. Valuations are
   // read from this snapshot; live roster/budget state is applied later.
   const candidates: Candidate[] = [];
@@ -117,12 +123,15 @@ export function runAITransferMarket(
       const market = trueTransferValue(player, season);
       if (market < AI_MARKET_MIN_VALUE) continue;
 
-      // Reservation = what the player is worth to his current club. Only
-      // shop players the club doesn't value above their market price.
+      // Reservation = what it would take to prise the player away from his
+      // current club (keep-side valuation — see ValuationSide), scaled up if he
+      // has only just arrived and hasn't settled. Only shop players the club
+      // doesn't value above their market price.
       // (Division 2's strength ceiling is enforced separately and
       // deterministically — see enforceDivision2Ceiling — so this market
       // doesn't need any Division-2-specific carve-out of its own.)
-      const reservation = valueToClub(player, sellerCtx);
+      const reservation =
+        keepValueToClub(player, sellerCtx) * settledMultiplier(joined.get(pid), season);
       if (reservation > market * AI_MARKET_AVAILABILITY) continue;
 
       for (const buyer of teams) {
@@ -130,7 +139,14 @@ export function runAITransferMarket(
         const buyerCtx = contexts.get(buyer.tid);
         if (!buyerCtx) continue;
 
-        const jittered = perceivedValueToClub(player, buyerCtx, jitter);
+        const rawJittered = perceivedValueToClub(player, buyerCtx, jitter);
+        // The player's own say. Applied AFTER the jitter draw, like the
+        // Division 2 guard below, so filtering a buyer out can never shift the
+        // next buyer's draw (see the documented RNG-stream-order lesson).
+        // A club materially smaller than the one he's at gets scaled toward
+        // zero here and simply never clears the reservation — this is what
+        // stops world-class players pouring downhill into weak clubs.
+        const jittered = rawJittered * moveAppealBetween(player, sellerCtx, buyerCtx);
         // A tier-2 club never buys a player at or above the Division 2
         // ceiling threshold — the ceiling sweep would just confiscate him
         // back to a tier-1 club the same offseason (summer) or he'd sit

@@ -17,6 +17,33 @@ function clamp(x: number, lo: number, hi: number): number {
 }
 
 /**
+ * Which side of a deal a valuation is for.
+ *
+ * Two things vary independently, so there are three useful combinations:
+ *
+ *   - Whose squad is he measured against? An *acquirer* compares him to the
+ *     players it has; an *incumbent* has to ask the counterfactual — how far
+ *     would we fall back without him — or it ends up measuring him against
+ *     himself and concluding he adds nothing.
+ *   - Is money leaving the club? If so, affordability discounts him.
+ *
+ * "buy"   — acquirer, spending. What he'd be worth to a club that doesn't have
+ *           him.
+ * "keep"  — incumbent, not spending. His reservation price: what it would take
+ *           to give him up. Affordability must NOT apply — the club isn't
+ *           buying anything. Charging a purchase-affordability discount against
+ *           a player already on the books priced clubs' own stars at a fraction
+ *           of market (measured: an 85-ovr player's own club valued him at
+ *           $132M against a $350M market), which is what made every star cheap
+ *           and permanently available.
+ * Contract renewals deliberately stay on "buy" despite being an incumbent
+ * decision: AI_RENEWAL_MARGIN is calibrated against those numbers, and switching
+ * them to "keep" re-signs virtually every player in the world and starves free
+ * agency (measured — see runAIContractRenewals).
+ */
+export type ValuationSide = "buy" | "keep";
+
+/**
  * The full breakdown of what a player is worth to a specific club: the
  * market anchor (`base`), each club-relative multiplier applied to it, and
  * the resulting `value`. Returned so the reasoning is transparent (usable
@@ -41,21 +68,37 @@ export interface ClubValuation {
  *    up (scarcity); above it scales value down (surplus).
  *  - upgrade: how much he'd raise the club's best ovr at that position — a
  *    clear upgrade is worth more, a clear downgrade less.
+ *
+ * On the KEEP side both signals must be asked counterfactually — "where would
+ * we be without him" — rather than as-is, because as-is a club is measuring the
+ * player against himself. He *is* its best at the position, so the upgrade term
+ * reads 0, and he is one of the bodies making it look well-stocked, so the
+ * depth term reads surplus. The result was a club systematically valuing its
+ * own best players at a fraction of what any weaker club would pay, which is
+ * what made every star permanently available. So on the keep side we compare
+ * him to the man who'd actually replace him (posSecondBestOvr) and count the
+ * depth he'd be leaving behind.
  */
-function needMultiplier(player: Player, ctx: ClubContext): number {
+function needMultiplier(player: Player, ctx: ClubContext, side: ValuationSide): number {
   const pos = player.pos;
   const target = ROSTER_COMPOSITION[pos];
-  const depth = ctx.posDepth[pos];
-  const depthRatio = target > 0 ? depth / target : 1;
+  const keep = side === "keep";
+  const depth = keep ? ctx.posDepth[pos] - 1 : ctx.posDepth[pos];
+  const depthRatio = target > 0 ? Math.max(0, depth) / target : 1;
 
   const depthMult =
     depthRatio <= 1
       ? 1 + AI_NEED_SCARCITY * (1 - depthRatio)
       : 1 / (1 + AI_NEED_SURPLUS * (depthRatio - 1));
 
-  // Best they currently have at the position (0 if the slot is empty, which
-  // makes any incumbent-less signing read as a big upgrade — as it should).
-  const upgrade = player.ovr - ctx.posBestOvr[pos];
+  // Who he's measured against: on the buy side, the best they currently have
+  // (0 if the slot is empty, which makes an incumbent-less signing read as a
+  // big upgrade — as it should). On the keep side, whoever would step up if he
+  // left: the second best, unless he isn't their best anyway.
+  const incumbent = keep && player.ovr >= ctx.posBestOvr[pos]
+    ? ctx.posSecondBestOvr[pos]
+    : ctx.posBestOvr[pos];
+  const upgrade = player.ovr - incumbent;
   const upgradeMult = clamp(
     1 + AI_NEED_UPGRADE_SLOPE * upgrade,
     AI_NEED_UPGRADE_MIN,
@@ -81,11 +124,20 @@ function youthScore(age: number): number {
  * upside; a developer club (low ambition) weights youth/upside. The neutral
  * references keep a typical mid-20s player near 1.0 at any ambition.
  */
-function timelineMultiplier(player: Player, ctx: ClubContext): number {
+function timelineMultiplier(player: Player, ctx: ClubContext, side: ValuationSide): number {
   const age = ctx.season - player.born;
-  const primeTerm = ctx.ambition * (primeScore(age) - AI_PRIME_NEUTRAL);
-  const youthTerm = (1 - ctx.ambition) * (youthScore(age) - AI_YOUTH_NEUTRAL);
-  return 1 + AI_TIMELINE_STRENGTH * (primeTerm + youthTerm);
+  const prime = primeScore(age) - AI_PRIME_NEUTRAL;
+  const youth = youthScore(age) - AI_YOUTH_NEUTRAL;
+  if (side === "keep") {
+    // Keeping is not the mirror of buying. A club weighs its buying by what it
+    // needs *now* versus later, but it holds on to a player if he's useful now
+    // OR he's the future — a win-now club does not sell its best 21-year-old
+    // just because its priority is this season. Taking the better of the two
+    // views (rather than the ambition-weighted blend) is what stops the market
+    // stripping clubs of exactly the young talent they should be building on.
+    return 1 + AI_TIMELINE_STRENGTH * Math.max(prime, youth);
+  }
+  return 1 + AI_TIMELINE_STRENGTH * (ctx.ambition * prime + (1 - ctx.ambition) * youth);
 }
 
 /**
@@ -111,11 +163,18 @@ function affordabilityMultiplier(player: Player, ctx: ClubContext, base: number)
  * clubs. This is the primitive every future AI transfer/contract decision is
  * meant to build on (buy if value ≥ asking, sell if value < market, etc.).
  */
-export function evaluatePlayerForClub(player: Player, ctx: ClubContext): ClubValuation {
+export function evaluatePlayerForClub(
+  player: Player,
+  ctx: ClubContext,
+  side: ValuationSide = "buy",
+): ClubValuation {
   const base = trueTransferValue(player, ctx.season);
-  const needMult = needMultiplier(player, ctx);
-  const timelineMult = timelineMultiplier(player, ctx);
-  const affordabilityMult = affordabilityMultiplier(player, ctx, base);
+  const needMult = needMultiplier(player, ctx, side);
+  const timelineMult = timelineMultiplier(player, ctx, side);
+  // Only an acquirer has a purchase to afford; a reservation price is not a
+  // spending decision at all — see ValuationSide.
+  const affordabilityMult =
+    side === "keep" ? 1 : affordabilityMultiplier(player, ctx, base);
   const value = Math.max(0, base * needMult * timelineMult * affordabilityMult);
   return { base, needMult, timelineMult, affordabilityMult, value };
 }
@@ -123,6 +182,15 @@ export function evaluatePlayerForClub(player: Player, ctx: ClubContext): ClubVal
 /** Convenience: just the club-relative value (see evaluatePlayerForClub). */
 export function valueToClub(player: Player, ctx: ClubContext): number {
   return evaluatePlayerForClub(player, ctx).value;
+}
+
+/**
+ * What the club that owns him would need to be paid to let him go — his
+ * reservation price. Every "should we sell / should we renew" decision should
+ * use this rather than valueToClub; see ValuationSide for why the two differ.
+ */
+export function keepValueToClub(player: Player, ctx: ClubContext): number {
+  return evaluatePlayerForClub(player, ctx, "keep").value;
 }
 
 /**
@@ -161,8 +229,13 @@ export function scoutNoiseFraction(ctx: ClubContext): number {
  * valuation used to decide a transfer/renewal should go through this instead
  * of the raw valueToClub, so richer/better-scouted clubs make sharper calls.
  */
-export function perceivedValueToClub(player: Player, ctx: ClubContext, jitter: () => number): number {
-  const value = valueToClub(player, ctx);
+export function perceivedValueToClub(
+  player: Player,
+  ctx: ClubContext,
+  jitter: () => number,
+  side: ValuationSide = "buy",
+): number {
+  const value = evaluatePlayerForClub(player, ctx, side).value;
   const noise = scoutNoiseFraction(ctx);
   return value * (1 + (jitter() * 2 - 1) * noise);
 }

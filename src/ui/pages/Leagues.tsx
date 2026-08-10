@@ -267,7 +267,7 @@ export function Leagues() {
                   type="button"
                   className="btn btn-outline-secondary btn-sm"
                   onClick={() => triggerImport(l.lid)}
-                  title="Overlay real club names, colors, and (optionally) squads from a roster file"
+                  title="Overlay club names, colors, and (optionally) squads from a roster file"
                 >
                   Import Teams
                 </button>
