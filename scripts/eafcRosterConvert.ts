@@ -146,6 +146,14 @@ function main(argv: string[]): void {
     console.log("\nWarnings:");
     for (const w of report.warnings) console.log(`  - ${w}`);
   }
+  if (report.ambiguousLeagues.length > 0) {
+    console.log(
+      "\nLeague names shared by more than one competition (matched by league id instead):",
+    );
+    for (const a of report.ambiguousLeagues) {
+      console.log(`  "${a.name}" spans league ids ${a.ids.join(", ")}`);
+    }
+  }
   if (report.unmappedLeagues.length > 0) {
     const top = report.unmappedLeagues.slice(0, 8);
     console.log(

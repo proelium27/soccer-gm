@@ -23,6 +23,15 @@ export const FIELD_ALIASES: Record<string, string[]> = {
   age: ["age"],
   club: ["club_name", "club", "team_name", "club_team", "team"],
   league: ["league_name", "league", "club_league_name", "league_name_1"],
+  /** 1 = top flight, 2 = second tier. Present in the sofifa-style exports. */
+  league_level: ["league_level", "league_tier", "division"],
+  /**
+   * Stable numeric league id. Far more reliable than the name: several
+   * federations use identical league names ("Bundesliga" for both Germany and
+   * Austria, "Serie A" for Italy and Brazil), and some exports strip the
+   * country prefix that would otherwise separate them.
+   */
+  league_id: ["league_id"],
   overall: ["overall", "overall_rating", "ovr", "rating"],
   potential: ["potential", "potential_rating", "pot"],
   nationality: ["nationality_name", "nationality", "nation", "country", "nation_name"],

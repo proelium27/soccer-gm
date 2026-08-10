@@ -50,9 +50,12 @@ So overalls are **rank-matched** rather than fitted to a hand-tuned curve: a
 player at the Nth percentile of the imported set is assigned the OVR at the Nth
 percentile of a freshly generated reference world. The imported world therefore
 has the same OVR distribution as a generated one, with no tuned constants to
-drift. The practical consequence is that the best player in the world reads
-about 86 rather than 91 — the ordering and the gaps are faithful, the absolute
-numbers are on soccer-gm's scale.
+drift. The practical consequence is that the best players in the world read
+around 80 rather than 91 (on the FC26 dataset: Mbappé, Lautaro, Kimmich and
+Kane at 80; Van Dijk, Salah, Rodri, Haaland and Bellingham at 79) — the
+ordering and the gaps are faithful, the absolute numbers are on soccer-gm's
+scale, and the very top is left where the sim leaves it: reachable only through
+progression.
 
 `--scale` picks how leagues are matched:
 
@@ -81,6 +84,15 @@ right number.
 one is width: LM/RM and LW/RW all become `W`, since there is no wide-midfield
 role and `W` is the closer fit for both.
 
+**Potential** gets its own curve rather than reusing the overall one, because
+it is a different distribution — a 94-potential teenager sits above every
+*current* overall in the dataset, so the overall curve clamped him to the top of
+its range and gave every wonderkid in the world an identical ceiling. Potential
+is display-only in this game (progression never reads it; it is a scout
+estimate), but it is the number that tells you who is worth developing, so it is
+worth getting right. With its own curve, a 17-year-old Lamine Yamal comes out
+78 now / 82 ceiling while a 33-year-old Van Dijk is 79 / 80.
+
 **Leagues and clubs.** Only the twelve competitions the game models are kept;
 everything else in the dataset is skipped and reported. Each league's clubs are
 ranked by squad strength and the top 20 take the game's 20 slots — leagues with
@@ -88,6 +100,45 @@ ranked by squad strength and the top 20 take the game's 20 slots — leagues wit
 place, and leagues with more (the Championship's 24) drop the weakest. Squads
 are picked to match `ROSTER_COMPOSITION` rather than taking a flat top 25, so
 nobody ends up with one keeper and seven strikers.
+
+**Leagues are matched by id, not by name — this matters more than it looks.**
+League names collide across federations, and the exports strip the country
+prefix that would separate them. In the FC26 dataset, "Bundesliga" is both
+Germany's (id 19) and Austria's (id 80), "Premier League" is both England's (13)
+and Ukraine's (332), "Serie A" is both Italy's (31) and Ecuador's (2018), and
+"Primera Division" is Chile's and Venezuela's but *not* Spain's (which is "La
+Liga", 53). Name matching alone put twelve Austrian clubs into the German top
+flight and let Shakhtar Donetsk compete for a Premier League slot.
+
+So `LEAGUE_IDS` in `leagues.ts` maps the ids, each one verified by inspecting
+the clubs it actually contains rather than taken from memory. A league name is
+only trusted when it maps to exactly one id in the file, which keeps unfamiliar
+datasets working without reopening the hole.
+
+**Before trusting a new dataset, inspect it:**
+
+```bash
+npx tsx scripts/eafc/inspectLeagues.ts --in players.csv
+```
+
+It lists every (league name, id) group with its club count, says which
+competition each resolves to, and flags any name that would have been imported
+into the wrong competition. Sanity-check the club counts: 20 for the Premier
+League, La Liga, Serie A; 18 for the Bundesliga, Ligue 1 and Primeira Liga.
+Anything higher means a foreign league is leaking in.
+
+To check the result afterwards:
+
+```bash
+npx tsx scripts/eafc/inspectRosterFile.ts --in eafc-roster.json --clubs
+```
+
+It prints the clubs, the strongest players, and the OVR distribution — which
+should look like a generated world's (p50 ~55, p95 ~71, p99 ~75, max ~81).
+
+Note that datasets don't necessarily carry all twelve leagues. The FC26 export
+has no Liga Portugal 2, so Portuguese Division 2 keeps all 20 fictional clubs;
+the converter says so in its warnings rather than leaving you to notice.
 
 **Club colors and abbreviations** aren't in the datasets, so both are
 synthesized deterministically from the club name. Override the ones you care
@@ -128,7 +179,9 @@ academies to drift toward their slot's anchor rather than their reputation.
 | `scripts/eafc/csv.ts` | RFC 4180 reader (no dependency) |
 | `scripts/eafc/schema.ts` | column detection across dataset naming conventions |
 | `scripts/eafc/positions.ts` | EA position → soccer-gm position |
-| `scripts/eafc/leagues.ts` | EA league name → competition |
+| `scripts/eafc/leagues.ts` | EA league id/name → competition |
+| `scripts/eafc/inspectLeagues.ts` | audit a dataset's leagues before converting |
+| `scripts/eafc/inspectRosterFile.ts` | audit a generated roster file after |
 | `scripts/eafc/nations.ts` | EA nation name → nationality key |
 | `scripts/eafc/ratings.ts` | EA attributes → `PlayerRatings`, shift-to-overall |
 | `scripts/eafc/scale.ts` | rank-matching rescale |

@@ -19,7 +19,7 @@
 import { readCsvTable } from "./csv.js";
 import { resolveColumns, num, str, type ResolvedColumns } from "./schema.js";
 import { mapPosition } from "./positions.js";
-import { mapLeague } from "./leagues.js";
+import { buildLeagueResolver } from "./leagues.js";
 import { mapNation } from "./nations.js";
 import { ratingShapeFromEa, applySpread, shiftToOverall } from "./ratings.js";
 import { buildRescaler, type Rescaler } from "./scale.js";
@@ -92,6 +92,12 @@ export interface ConvertReport {
   };
   /** League cells seen that mapped to nothing, with counts — surfaces naming drift. */
   unmappedLeagues: { league: string; rows: number }[];
+  /**
+   * League names covering more than one league id (e.g. Germany's and
+   * Austria's "Bundesliga"). Rows under an id we don't recognise are dropped
+   * rather than guessed at, so these are worth showing.
+   */
+  ambiguousLeagues: { name: string; ids: string[] }[];
   competitions: {
     name: string;
     clubsAvailable: number;
@@ -115,7 +121,10 @@ function defaultHeight(pos: Position): number {
 function readPlayers(
   rows: Record<string, string>[],
   cols: ResolvedColumns,
-): { players: EaPlayer[]; report: Pick<ConvertReport, "skipped" | "unmappedLeagues"> } {
+): {
+  players: EaPlayer[];
+  report: Pick<ConvertReport, "skipped" | "unmappedLeagues" | "ambiguousLeagues">;
+} {
   const skipped: ConvertReport["skipped"] = {
     unmappedLeague: 0, unmappedPosition: 0, missingOverall: 0,
     missingClub: 0, missingName: 0, unparseableAge: 0,
@@ -123,9 +132,15 @@ function readPlayers(
   const unmapped = new Map<string, number>();
   const players: EaPlayer[] = [];
 
+  // League ids beat names: several federations share a league name, and the
+  // exports drop the country prefix that would tell them apart.
+  const resolver = buildLeagueResolver(
+    rows.map((row) => ({ name: str(row, cols, "league"), id: str(row, cols, "league_id") })),
+  );
+
   for (const row of rows) {
     const leagueRaw = str(row, cols, "league");
-    const competition = mapLeague(leagueRaw);
+    const competition = resolver.resolve(leagueRaw, str(row, cols, "league_id"));
     if (competition === null) {
       skipped.unmappedLeague++;
       if (leagueRaw) unmapped.set(leagueRaw, (unmapped.get(leagueRaw) ?? 0) + 1);
@@ -166,7 +181,7 @@ function readPlayers(
     .map(([league, rows]) => ({ league, rows }))
     .sort((a, b) => b.rows - a.rows);
 
-  return { players, report: { skipped, unmappedLeagues } };
+  return { players, report: { skipped, unmappedLeagues, ambiguousLeagues: resolver.ambiguous } };
 }
 
 /**
@@ -213,6 +228,17 @@ function clubStrength(players: EaPlayer[]): number {
 interface ReferenceDistribution {
   byCompetition: Map<string, number[]>;
   all: number[];
+  /**
+   * Potentials get their own distribution, and therefore their own curve.
+   * Pushing EA potentials through the *overall* curve was measurably wrong:
+   * a 94-potential teenager sits above every current overall in the source, so
+   * he clamped to the top of the overall range and every wonderkid in the world
+   * came out with the same ceiling. Potential is display-only in this game
+   * (progression never reads it — it's a scout estimate), but flattening it
+   * loses the one number that tells you who is worth developing.
+   */
+  potentialByCompetition: Map<string, number[]>;
+  allPotential: number[];
 }
 
 /**
@@ -229,15 +255,26 @@ function referenceDistribution(seed: number): ReferenceDistribution {
   const world = generateWorld(mulberry32(seed), seed);
   const comps = worldCompetitions();
   const nameById = new Map(comps.map((c) => [c.id, c.name]));
-  const ovrByPid = new Map(world.players.map((p) => [p.pid, p.ovr]));
+  const byPid = new Map(world.players.map((p) => [p.pid, p]));
   const byCompetition = new Map<string, number[]>();
+  const potentialByCompetition = new Map<string, number[]>();
   for (const t of world.teams) {
     const name = nameById.get(t.compId);
     if (!name) continue;
     if (!byCompetition.has(name)) byCompetition.set(name, []);
-    byCompetition.get(name)!.push(...t.roster.map((pid) => ovrByPid.get(pid)!));
+    if (!potentialByCompetition.has(name)) potentialByCompetition.set(name, []);
+    for (const pid of t.roster) {
+      const p = byPid.get(pid)!;
+      byCompetition.get(name)!.push(p.ovr);
+      potentialByCompetition.get(name)!.push(p.potential);
+    }
   }
-  const dist = { byCompetition, all: world.players.map((p) => p.ovr) };
+  const dist: ReferenceDistribution = {
+    byCompetition,
+    all: world.players.map((p) => p.ovr),
+    potentialByCompetition,
+    allPotential: world.players.map((p) => p.potential),
+  };
   referenceCache.set(seed, dist);
   return dist;
 }
@@ -247,6 +284,7 @@ function materialize(
   p: EaPlayer,
   cols: ResolvedColumns,
   rescale: Rescaler,
+  rescalePotential: Rescaler,
   spread: number,
 ): RosterFilePlayer {
   const target = clampInt(rescale(p.eaOverall), RATING_MIN, RATING_MAX);
@@ -254,12 +292,13 @@ function materialize(
   const ratings = shiftToOverall(shape, p.pos, p.heightCm, target);
   const ovr = computeOvr(p.pos, ratings, p.heightCm);
 
-  // Potential rides the same scale as overall, so it goes through the same
-  // curve; the game clamps it to >= ovr on import, and we pre-clamp so the
-  // emitted file is self-consistent.
+  // Potential goes through its own curve (see ReferenceDistribution) — it is a
+  // different distribution from overall, and reusing the overall curve
+  // collapsed every wonderkid onto the same ceiling. The game clamps potential
+  // to >= ovr on import; we pre-clamp so the emitted file is self-consistent.
   const potential =
     p.eaPotential !== undefined
-      ? clampInt(Math.max(rescale(p.eaPotential), ovr), RATING_MIN, RATING_MAX)
+      ? clampInt(Math.max(rescalePotential(p.eaPotential), ovr), RATING_MIN, RATING_MAX)
       : undefined;
 
   return {
@@ -329,15 +368,31 @@ export function convert(csvText: string, opts: Partial<ConvertOptions> = {}): {
 
   // --- Build the rescale curves ---
   const reference = referenceDistribution(o.referenceSeed);
-  const globalSource = [...chosen.values()].flatMap((cs) => cs.flatMap((c) => c.squad.map((p) => p.eaOverall)));
-  const globalRescaler = buildRescaler(globalSource, reference.all);
+  const squads = [...chosen.values()].flatMap((cs) => cs.flatMap((c) => c.squad));
+  const globalRescaler = buildRescaler(squads.map((p) => p.eaOverall), reference.all);
+  const globalPotentialRescaler = buildRescaler(
+    squads.map((p) => p.eaPotential).filter((x): x is number => x !== undefined),
+    reference.allPotential,
+  );
 
-  const rescalerFor = (comp: string): Rescaler => {
-    if (o.scaleMode === "global") return globalRescaler;
-    const ref = reference.byCompetition.get(comp);
-    const src = (chosen.get(comp) ?? []).flatMap((c) => c.squad.map((p) => p.eaOverall));
-    if (!ref || ref.length === 0 || src.length === 0) return globalRescaler;
-    return buildRescaler(src, ref);
+  /** The overall and potential curves for one competition. */
+  const rescalersFor = (comp: string): { ovr: Rescaler; pot: Rescaler } => {
+    if (o.scaleMode === "global") return { ovr: globalRescaler, pot: globalPotentialRescaler };
+    const squad = (chosen.get(comp) ?? []).flatMap((c) => c.squad);
+
+    const refOvr = reference.byCompetition.get(comp);
+    const srcOvr = squad.map((p) => p.eaOverall);
+    const ovr = !refOvr || refOvr.length === 0 || srcOvr.length === 0
+      ? globalRescaler
+      : buildRescaler(srcOvr, refOvr);
+
+    const refPot = reference.potentialByCompetition.get(comp);
+    const srcPot = squad.map((p) => p.eaPotential).filter((x): x is number => x !== undefined);
+    const pot = !refPot || refPot.length === 0 || srcPot.length === 0
+      ? globalPotentialRescaler
+      : buildRescaler(srcPot, refPot);
+
+    return { ovr, pot };
   };
 
   // --- Emit, in the game's own competition order ---
@@ -346,8 +401,14 @@ export function convert(csvText: string, opts: Partial<ConvertOptions> = {}): {
 
   for (const comp of worldCompetitions()) {
     const clubs = chosen.get(comp.name);
-    if (!clubs || clubs.length === 0) continue;
-    const rescale = rescalerFor(comp.name);
+    if (!clubs || clubs.length === 0) {
+      // Worth saying out loud: the whole competition keeps its fictional clubs.
+      warnings.push(
+        `"${comp.name}" has no clubs in the CSV — all ${o.clubsPerCompetition} slots keep their existing fictional club and squad.`,
+      );
+      continue;
+    }
+    const { ovr: rescale, pot: rescalePotential } = rescalersFor(comp.name);
 
     const displayNames = clubs.map((c) => o.identityOverrides[c.clubName]?.name ?? c.clubName);
     const abbrevs = uniquifyAbbrevs(displayNames);
@@ -358,7 +419,7 @@ export function convert(csvText: string, opts: Partial<ConvertOptions> = {}): {
         name: displayNames[i],
         abbrev: override.abbrev ?? abbrevs[i],
         colors: override.colors ?? deriveColors(displayNames[i]),
-        players: c.squad.map((p) => materialize(p, cols, rescale, o.spread)),
+        players: c.squad.map((p) => materialize(p, cols, rescale, rescalePotential, o.spread)),
       };
     });
 
@@ -405,6 +466,7 @@ export function convert(csvText: string, opts: Partial<ConvertOptions> = {}): {
       rowsKept,
       skipped: readReport.skipped,
       unmappedLeagues: readReport.unmappedLeagues,
+      ambiguousLeagues: readReport.ambiguousLeagues,
       competitions: reportComps,
       missingColumns: cols.missingOptional,
       warnings,

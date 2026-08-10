@@ -14,13 +14,14 @@ import { makeLeague } from "../helpers/league.js";
 import { parseCsv, readCsvTable, normalizeHeader } from "../../scripts/eafc/csv.js";
 import { resolveColumns } from "../../scripts/eafc/schema.js";
 import { mapPosition } from "../../scripts/eafc/positions.js";
-import { mapLeague } from "../../scripts/eafc/leagues.js";
+import { mapLeague, buildLeagueResolver } from "../../scripts/eafc/leagues.js";
 import { mapNation } from "../../scripts/eafc/nations.js";
 import { buildRescaler } from "../../scripts/eafc/scale.js";
 import { deriveAbbrev, uniquifyAbbrevs } from "../../scripts/eafc/identity.js";
 import { convert } from "../../scripts/eafc/convert.js";
 import { parseRosterFile } from "../../src/core/teams/rosterFile.js";
 import { applyRosterFile } from "../../src/core/teams/rosterImport.js";
+import { computeOvr } from "../../src/core/players/ovr.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 
 // --- Synthetic EA-style fixture -------------------------------------------
@@ -191,6 +192,56 @@ describe("league mapping", () => {
   });
 });
 
+describe("league resolution by id", () => {
+  // Mirrors the real FC26 dataset: several federations share a league name and
+  // the export has dropped the country prefix that would separate them.
+  const rows = [
+    { name: "Premier League", id: "13" },   // England
+    { name: "Premier League", id: "332" },  // Ukraine
+    { name: "Bundesliga", id: "19" },       // Germany
+    { name: "Bundesliga", id: "80" },       // Austria
+    { name: "Serie A", id: "31" },          // Italy
+    { name: "Serie A", id: "2018" },        // Ecuador
+    { name: "Liga Portugal 2", id: "9999" },// unknown id, unambiguous name
+  ];
+
+  it("uses the id, so a shared name cannot import the wrong country", () => {
+    const r = buildLeagueResolver(rows);
+    expect(r.resolve("Premier League", "13")).toBe("English Division 1");
+    expect(r.resolve("Bundesliga", "19")).toBe("German Division 1");
+    expect(r.resolve("Serie A", "31")).toBe("Italian Division 1");
+  });
+
+  it("drops a shared name under an id it does not recognise", () => {
+    const r = buildLeagueResolver(rows);
+    // Austria's Bundesliga and Ukraine's Premier League must not be imported.
+    expect(r.resolve("Bundesliga", "80")).toBeNull();
+    expect(r.resolve("Premier League", "332")).toBeNull();
+    expect(r.resolve("Serie A", "2018")).toBeNull();
+  });
+
+  it("still trusts an unknown id when the name identifies one league", () => {
+    const r = buildLeagueResolver(rows);
+    expect(r.resolve("Liga Portugal 2", "9999")).toBe("Portuguese Division 2");
+  });
+
+  it("reports which names were ambiguous", () => {
+    const r = buildLeagueResolver(rows);
+    const names = r.ambiguous.map((a) => a.name).sort();
+    expect(names).toEqual(["Bundesliga", "Premier League", "Serie A"]);
+  });
+
+  it("falls back to name matching when the file carries no ids at all", () => {
+    const r = buildLeagueResolver([
+      { name: "Premier League", id: undefined },
+      { name: "Bundesliga", id: undefined },
+    ]);
+    expect(r.resolve("Premier League", undefined)).toBe("English Division 1");
+    expect(r.resolve("Bundesliga", undefined)).toBe("German Division 1");
+    expect(r.ambiguous).toEqual([]);
+  });
+});
+
 describe("nation mapping", () => {
   it("renames EA spellings onto the game's nationality keys", () => {
     expect(mapNation("Korea Republic")).toBe("South Korea");
@@ -317,16 +368,35 @@ describe("rescaling into soccer-gm's band", () => {
     c.clubs.flatMap((k) => k.players!),
   );
 
+  const ovrOf = (p: (typeof all)[number]) => computeOvr(p.pos, p.ratings!, p.heightCm ?? 180);
+
   it("does not import EA's inflated top end", () => {
-    // A fresh soccer-gm world tops out around 81; EA's fixture peaks at 88.
-    // Nothing imported should reach the 90s that only progression produces.
-    const ovrs = all.map((p) => {
-      const r = p.ratings!;
-      return r;
-    });
-    expect(ovrs.length).toBeGreaterThan(0);
+    // A fresh soccer-gm world tops out around 81 and only reaches 90+ through
+    // progression; the fixture's EA overalls peak at 88. Nothing imported
+    // should land in the band the game reserves for developed players.
+    const ovrs = all.map(ovrOf);
+    expect(Math.max(...ovrs)).toBeLessThanOrEqual(85);
+    expect(Math.max(...ovrs)).toBeGreaterThan(70);
+  });
+
+  it("never emits a potential below the player's own overall", () => {
+    for (const p of all) {
+      if (p.potential === undefined) continue;
+      expect(p.potential).toBeGreaterThanOrEqual(ovrOf(p));
+    }
+  });
+
+  it("gives potential its own curve rather than reusing the overall one", () => {
+    // Potential is a different distribution from overall. Pushing it through
+    // the overall curve clamped every high-ceiling player to the top of the
+    // overall range, so they all came out with an identical potential.
     const potentials = all.map((p) => p.potential!).filter((x) => x !== undefined);
-    expect(Math.max(...potentials)).toBeLessThanOrEqual(90);
+    expect(Math.max(...potentials)).toBeGreaterThan(Math.max(...all.map(ovrOf)));
+
+    // And the ceiling must not be a single flat value shared by everyone.
+    const top = Math.max(...potentials);
+    const atCeiling = potentials.filter((x) => x === top).length;
+    expect(atCeiling).toBeLessThan(potentials.length * 0.1);
   });
 
   it("puts the second tier below the first", () => {
