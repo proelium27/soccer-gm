@@ -65,9 +65,21 @@ export interface RosterFile {
 export const ROSTER_FILE_FORMAT = "soccer-gm-roster";
 export const ROSTER_FILE_VERSION = 1;
 
+/**
+ * The parts of a world that decide which club slot a file entry lands on. A
+ * LeagueStore satisfies this structurally, and so does the slot layout of a
+ * save that hasn't been generated yet (see worldTeamSlots in competitions.ts) —
+ * which is what lets the new-league importer show real club names in its picker
+ * without generating a world first.
+ */
+export interface RosterSlotWorld {
+  competitions: { id: number; name: string }[];
+  teams: { tid: number; compId: number }[];
+}
+
 /** The competition's teams, in the game's stable slot order (ascending tid). */
-function teamsInCompetition(league: LeagueStore, compId: number) {
-  return league.teams
+function teamsInCompetition(world: RosterSlotWorld, compId: number) {
+  return world.teams
     .filter((t) => t.compId === compId)
     .sort((a, b) => a.tid - b.tid);
 }
@@ -86,11 +98,16 @@ export function buildRosterFile(league: LeagueStore): RosterFile {
     formatVersion: ROSTER_FILE_VERSION,
     competitions: league.competitions.map((comp) => ({
       match: comp.name,
-      clubs: teamsInCompetition(league, comp.id).map((t) => ({
-        name: t.name,
-        abbrev: t.abbrev,
-        colors: [...t.colors] as [string, string],
-      })),
+      // Same filter/sort as teamsInCompetition, but over the full StoredTeams —
+      // the template needs each club's identity, not just its slot.
+      clubs: league.teams
+        .filter((t) => t.compId === comp.id)
+        .sort((a, b) => a.tid - b.tid)
+        .map((t) => ({
+          name: t.name,
+          abbrev: t.abbrev,
+          colors: [...t.colors] as [string, string],
+        })),
     })),
   };
 }
@@ -255,9 +272,9 @@ export interface RosterSlotResolution {
  * file still applies what it can. Shared by both the identity-edit path and the
  * roster-replacement path so the "which club goes where" rule lives once.
  */
-export function resolveRosterSlots(league: LeagueStore, file: RosterFile): RosterSlotResolution {
+export function resolveRosterSlots(world: RosterSlotWorld, file: RosterFile): RosterSlotResolution {
   const byName = new Map(
-    league.competitions.map((c) => [c.name.trim().toLowerCase(), c.id]),
+    world.competitions.map((c) => [c.name.trim().toLowerCase(), c.id]),
   );
   const slots: RosterSlot[] = [];
   const warnings: string[] = [];
@@ -268,7 +285,7 @@ export function resolveRosterSlots(league: LeagueStore, file: RosterFile): Roste
       warnings.push(`No competition named "${fc.match}" in this save — skipped.`);
       continue;
     }
-    const targets = teamsInCompetition(league, compId);
+    const targets = teamsInCompetition(world, compId);
     if (fc.clubs.length > targets.length) {
       warnings.push(
         `"${fc.match}" lists ${fc.clubs.length} clubs but has ${targets.length} slots — the extra ${fc.clubs.length - targets.length} were ignored.`,

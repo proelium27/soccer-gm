@@ -1,5 +1,5 @@
 import type { LeagueStore } from "../leagueState.js";
-import type { StoredTeam } from "./clubs.js";
+import { assignAIFormations, type StoredTeam } from "./clubs.js";
 import type { Player, PlayerRatings, Position } from "../players/types.js";
 import { SKILL_KEYS, POSITIONS } from "../players/types.js";
 import type { RosterFile, RosterFilePlayer } from "./rosterFile.js";
@@ -10,6 +10,7 @@ import { computeOvr } from "../players/ovr.js";
 import { estimatePotential } from "../players/progression.js";
 import { seasonSalaryForOvr } from "../contracts.js";
 import { competitionOf } from "../competitions.js";
+import { reconcileScoutingObserved } from "../scouting/potentialFog.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
 import {
   LEAGUE_BASE, RATING_MIN, RATING_MAX, ROSTER_COMPOSITION,
@@ -240,4 +241,38 @@ export function applyRosterFile(league: LeagueStore, file: RosterFile): RosterFi
     squadsReplaced,
     playersAdded,
   };
+}
+
+/**
+ * Apply a roster file to a league that was generated a moment ago and hasn't
+ * been saved or played yet — the "Import Custom League" path.
+ *
+ * The two extra steps are the reason this exists rather than callers using
+ * applyRosterFile directly. createLeagueState does two things that read a
+ * club's squad, and both were done against the *generated* players that the
+ * import then throws away:
+ *
+ *  - every AI club is put in the formation that fields its strongest XI, which
+ *    is meaningless once its squad is eleven different people;
+ *  - the user's roster is stamped as first-observed in season 1 so scouting's
+ *    potential fog clears normally, and applyRosterFile prunes those stamps
+ *    with the players they pointed at, leaving the imported squad unstamped.
+ *
+ * Both are cheap pure recomputations, so redo them against the squad that
+ * actually exists. Safe only on a fresh league: re-stamping scouting resets
+ * every player's observation date to season 1, which on a save in progress
+ * would hand the user a fully-scouted squad.
+ */
+export function applyRosterFileToNewLeague(
+  league: LeagueStore,
+  file: RosterFile,
+  userTid: number,
+): RosterFileApplyResult {
+  const applied = applyRosterFile(league, file);
+  const teams = assignAIFormations(applied.league.teams, applied.league.players, userTid);
+  const userTeam = teams.find((t) => t.tid === userTid);
+  if (userTeam) {
+    userTeam.scoutingObserved = reconcileScoutingObserved({}, userTeam.roster, league.season);
+  }
+  return { ...applied, league: { ...applied.league, teams } };
 }

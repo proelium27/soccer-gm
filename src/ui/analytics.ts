@@ -18,8 +18,8 @@ import posthog from "posthog-js";
 
 /** Every gameplay event and the exact shape of its properties. */
 export interface GameEvents {
-  /** A brand-new save was created. */
-  league_created: { country: string; tier: 1 | 2 };
+  /** A brand-new save was created. `roster` marks one started from a roster file. */
+  league_created: { country: string; tier: 1 | 2; roster?: boolean };
   /** The user simulated forward. `through` is how far (one game … a season). */
   season_simmed: { through: "game" | "month" | "deadline" | "season" };
   /** The user advanced past the offseason into a new season. */

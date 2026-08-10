@@ -32,6 +32,15 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-08-10",
+    title: "Roster files now start a league instead of overwriting one",
+    items: [
+      "The Leagues screen has a new \"Import Custom League\" button. It takes a roster file — the JSON format listing real clubs and, optionally, their squads — and starts a brand new save with those clubs in place of the fictional ones. The club picker shows the imported names, so you choose between real teams rather than guessing which fictional slot is about to become which, and any club the file doesn't cover keeps its original name and squad.",
+      "The old per-save \"Import Teams\" button is gone. A roster file can replace entire squads, and running one against a save in progress deleted the careers, statistics and transfer history of every player it overwrote, with no warning and no way back. Imports now happen only at creation, where there is nothing to destroy. \"Export Teams\" is unchanged and still available on each save, so a world's clubs can still be exported as a template to edit.",
+      "Importing at creation also fixes two things that were quietly wrong before. Every AI club is put in the formation that suits the squad it actually has, rather than the shape picked for the auto-generated players the import discarded; and the imported squad at your own club is registered with your scouts on day one, so potential estimates sharpen over the first few seasons the way they do in any other save instead of staying permanently vague.",
+    ],
+  },
+  {
     date: "2026-08-08",
     title: "Transfers now behave like football: stars stay put, and won't drop to small clubs",
     items: [

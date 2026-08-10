@@ -29,12 +29,21 @@ page.
    skipped, and the EA→soccer-gm overall mapping per league, so you can see
    what it did before loading anything.
 
-3. In-game: **Leagues → Import roster file →** pick `eafc-roster.json`.
+3. In-game: **Leagues → Import Custom League →** pick `eafc-roster.json`, then
+   choose your club from the imported teams and start.
 
 Import replaces each listed club's identity *and* squad, and tops any short
 position up with deliberately-weak filler so every squad is legal. Slots the
 file doesn't cover keep their existing fictional club untouched — so a partial
 import is fine.
+
+**A roster file can only be loaded when a league is created**, not into a save
+in progress: replacing a squad deletes the careers, stats and transfer history
+of everyone it overwrites, which is fine on a world that is one second old and
+destructive on one you've played. `applyRosterFileToNewLeague` is the entry
+point, and it redoes the two things `createLeagueState` derives from a squad —
+AI formations, and the user's scouting observation stamps — against the
+imported players rather than the generated ones it threw away.
 
 ## What the converter has to reconcile
 
@@ -141,8 +150,11 @@ has no Liga Portugal 2, so Portuguese Division 2 keeps all 20 fictional clubs;
 the converter says so in its warnings rather than leaving you to notice.
 
 **Club colors and abbreviations** aren't in the datasets, so both are
-synthesized deterministically from the club name. Override the ones you care
-about with `--identities`:
+synthesized deterministically from the club name. **Crest art doesn't follow an
+import** — `ClubCrest` keys the England/Spain crest images by tid, which is a
+slot, so an imported club inherits whatever crest that slot already had. The
+colors do follow, so clubs without art show the imported pair. Override the
+identities you care about with `--identities`:
 
 ```json
 {
