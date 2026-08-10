@@ -6,6 +6,8 @@ export {
   loadLeague,
   listLeagues,
   deleteLeague,
+  resetWriteCache,
+  storedPlayerRows,
 } from "./leagueDb.js";
 
 export { exportLeagueJSON, importLeagueJSON } from "./exportImport.js";
