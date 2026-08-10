@@ -534,7 +534,13 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
 
   const doImport = useCallback(async (file: File) => {
     const imported = await importLeagueJSON(file);
-    const lid = await saveLeague(imported);
+    // An import always lands as a NEW save. The file still carries the lid it
+    // held in whatever browser exported it, and saveLeague keys off that lid —
+    // so keeping it silently overwrote whatever league already sat at that key
+    // (someone else's save, or your own from another browser), destroying it
+    // with no warning and no way back. lid 0 makes saveLeague autoIncrement a
+    // fresh key instead, leaving every existing league untouched.
+    const lid = await saveLeague({ ...imported, lid: 0 });
     setActiveLid(lid);
     commitLeague({ ...imported, lid });
   }, [commitLeague]);
