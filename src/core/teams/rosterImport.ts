@@ -11,6 +11,7 @@ import { estimatePotential } from "../players/progression.js";
 import { seasonSalaryForOvr } from "../contracts.js";
 import { competitionOf } from "../competitions.js";
 import { reconcileScoutingObserved } from "../scouting/potentialFog.js";
+import { computeTeamRating } from "./teamRating.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
 import {
   LEAGUE_BASE, RATING_MIN, RATING_MAX, ROSTER_COMPOSITION,
@@ -155,6 +156,68 @@ function materializeSquad(
   return { players: [...real, ...filler], nextPid: pid };
 }
 
+/**
+ * Give the strongest imported squad the strongest youth anchor available to it.
+ *
+ * Every club carries an `academyBase`, a strength anchor fixed at generation
+ * that drives its youth intake for the life of the save. It exists to stop the
+ * inflation ratchet: intake anchors to it rather than to the club's current
+ * roster, so a good squad can't bootstrap itself into a better one. Generation
+ * *shuffles* those anchors across a competition's slots, so slot order carries
+ * no information about slot strength — and import overwrites a slot's identity
+ * and squad but not its anchor. A superclub could therefore land on a slot
+ * anchored well below the league's best and drift down over a long dynasty,
+ * producing youth intakes that made no sense for who it was.
+ *
+ * The fix is a permutation, not a recalculation, and the distinction is the
+ * whole safety argument: the competition's existing multiset of anchors is
+ * reassigned among the same clubs, once, at import. Nothing is derived from the
+ * imported ratings, so the total stays exactly what generation produced and the
+ * anti-inflation equilibrium is untouched — this cannot ratchet, because there
+ * is no new value to ratchet with.
+ *
+ * Only clubs whose squad was actually replaced take part. A club the file left
+ * alone keeps both its players and its anchor, so a partial import can't
+ * degrade the clubs it didn't touch — which also means an imported club can
+ * only claim an anchor already held by another imported club, never the best in
+ * the division if an untouched club holds it.
+ */
+function realignAcademyBases(
+  teams: StoredTeam[],
+  players: Player[],
+  replacedTids: number[],
+): void {
+  const byPid = new Map(players.map((p) => [p.pid, p]));
+  const byTid = new Map(teams.map((t) => [t.tid, t]));
+
+  const byComp = new Map<number, StoredTeam[]>();
+  for (const tid of replacedTids) {
+    const team = byTid.get(tid);
+    if (!team) continue;
+    byComp.set(team.compId, [...(byComp.get(team.compId) ?? []), team]);
+  }
+
+  for (const group of byComp.values()) {
+    if (group.length < 2) continue; // nothing to swap with
+    const anchors = group.map((t) => t.academyBase).sort((a, b) => b - a);
+    const strengthOf = (t: StoredTeam): number => {
+      const roster = t.roster
+        .map((pid) => byPid.get(pid))
+        .filter((p): p is Player => p !== undefined);
+      // starters=null: the imported squad has no saved XI, so let it auto-pick.
+      return computeTeamRating(roster, null).ovr;
+    };
+    const strength = new Map(group.map((t) => [t.tid, strengthOf(t)]));
+    // tid breaks ties so the result is deterministic, same as everything else here.
+    const ranked = [...group].sort(
+      (a, b) => strength.get(b.tid)! - strength.get(a.tid)! || a.tid - b.tid,
+    );
+    ranked.forEach((team, i) => {
+      team.academyBase = anchors[i];
+    });
+  }
+}
+
 export interface RosterFileApplyResult {
   league: LeagueStore;
   warnings: string[];
@@ -201,6 +264,7 @@ export function applyRosterFile(league: LeagueStore, file: RosterFile): RosterFi
   const season = withIdentities.season;
 
   const removedPids = new Set<number>();
+  const replacedTids: number[] = [];
   let squadsReplaced = 0;
   let playersAdded = 0;
 
@@ -225,6 +289,7 @@ export function applyRosterFile(league: LeagueStore, file: RosterFile): RosterFi
 
     players.push(...built.players);
     playersAdded += built.players.length;
+    replacedTids.push(tid);
     squadsReplaced++;
   }
 
@@ -233,6 +298,10 @@ export function applyRosterFile(league: LeagueStore, file: RosterFile): RosterFi
     // the rest so a fresh-save import doesn't leave hundreds of orphans.
     players = players.filter((p) => !removedPids.has(p.pid) || p.stats.length > 0);
   }
+
+  // After the pool is final, so squad strength is measured on who actually
+  // ended up on each roster.
+  realignAcademyBases(teams, players, replacedTids);
 
   return {
     league: { ...withIdentities, teams, players, nextPid },

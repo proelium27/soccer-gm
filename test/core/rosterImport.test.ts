@@ -141,6 +141,107 @@ describe("applyRosterFile — squad import", () => {
   });
 });
 
+describe("academy anchor realignment", () => {
+  /** A file importing squads of the given overalls onto the first N D1 slots. */
+  function fileWithSquads(overalls: number[]): RosterFile {
+    return parseRosterFile(
+      JSON.stringify({
+        format: "world-soccer-sim-roster",
+        formatVersion: 1,
+        competitions: [
+          {
+            match: "English Division 1",
+            clubs: overalls.map((ovr, i) => ({
+              name: `Club ${i}`,
+              abbrev: `C${i}`,
+              colors: ["#111111", "#eeeeee"],
+              players: POSITIONS.flatMap((pos) =>
+                Array.from({ length: 3 }, (_, n) => ({
+                  name: `${pos}${n} of ${i}`,
+                  pos,
+                  age: 25,
+                  overall: ovr,
+                })),
+              ),
+            })),
+          },
+        ],
+      }),
+    );
+  }
+
+  const d1Teams = (l: typeof league) =>
+    l.teams.filter((t) => t.compId === d1.id).sort((a, b) => a.tid - b.tid);
+
+  it("is a permutation — the competition's anchors are reassigned, never changed", () => {
+    const before = d1Teams(league).map((t) => t.academyBase).sort((a, b) => a - b);
+    const { league: out } = applyRosterFile(league, fileWithSquads([80, 55, 70, 62, 75]));
+    const after = d1Teams(out).map((t) => t.academyBase).sort((a, b) => a - b);
+    // Same multiset: nothing invented, nothing lost, so no inflation pressure.
+    expect(after).toEqual(before);
+  });
+
+  it("hands the strongest imported squad the strongest anchor available", () => {
+    const overalls = [55, 80, 62, 75, 70];
+    const before = d1Teams(league).slice(0, overalls.length).map((t) => t.academyBase);
+    const { league: out } = applyRosterFile(league, fileWithSquads(overalls));
+    const imported = d1Teams(out).slice(0, overalls.length);
+
+    // Generation shuffles anchors across slots, so on this fixture they start
+    // out of order and the realignment has real work to do. Asserted so the
+    // test can't quietly pass by the anchors having been sorted already.
+    expect(imported.map((t) => t.academyBase)).not.toEqual(before);
+
+    // Anchors, ranked, should follow squad strength, ranked.
+    const byStrength = [...imported].sort(
+      (a, b) => overalls[imported.indexOf(b)] - overalls[imported.indexOf(a)],
+    );
+    const anchors = byStrength.map((t) => t.academyBase);
+    expect(anchors).toEqual([...anchors].sort((a, b) => b - a));
+    // And the 80-ovr club specifically holds the best of the five.
+    const best = imported[overalls.indexOf(80)];
+    expect(best.academyBase).toBe(Math.max(...imported.map((t) => t.academyBase)));
+  });
+
+  it("leaves clubs the file didn't touch completely alone", () => {
+    const importedCount = 5;
+    const before = d1Teams(league);
+    const { league: out } = applyRosterFile(league, fileWithSquads([80, 55, 70, 62, 75]));
+    const after = d1Teams(out);
+    for (let i = importedCount; i < before.length; i++) {
+      expect(after[i].academyBase).toBe(before[i].academyBase);
+      expect(after[i].roster).toEqual(before[i].roster);
+    }
+  });
+
+  it("does not touch anchors for an identity-only import (no squads replaced)", () => {
+    const before = d1Teams(league).map((t) => t.academyBase);
+    const file = parseRosterFile(
+      JSON.stringify({
+        format: "world-soccer-sim-roster",
+        formatVersion: 1,
+        competitions: [
+          {
+            match: "English Division 1",
+            clubs: [{ name: "Renamed", abbrev: "RNM", colors: ["#000000", "#ffffff"] }],
+          },
+        ],
+      }),
+    );
+    const { league: out } = applyRosterFile(league, file);
+    expect(d1Teams(out).map((t) => t.academyBase)).toEqual(before);
+  });
+
+  it("is deterministic across identical imports", () => {
+    const file = fileWithSquads([80, 55, 70, 62, 75]);
+    const a = applyRosterFile(league, file);
+    const b = applyRosterFile(league, file);
+    expect(d1Teams(a.league).map((t) => t.academyBase)).toEqual(
+      d1Teams(b.league).map((t) => t.academyBase),
+    );
+  });
+});
+
 describe("pre-generation slot resolution", () => {
   // The new-league importer resolves a roster file against a world that hasn't
   // been generated yet, so the club picker can show real club names without

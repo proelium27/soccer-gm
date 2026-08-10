@@ -215,25 +215,32 @@ identities you care about with `--identities`:
 }
 ```
 
-## Known gap: club strength anchors are not realigned
+## Club strength anchors are realigned on import
 
 Each club slot carries an `academyBase` — a fixed generation-time strength
 anchor that drives its youth intake for the rest of the save — and generation
 *shuffles* those anchors, so slot order has nothing to do with slot strength.
-Import overwrites a club's identity and squad but not its anchor, so a
-superclub can land on a slot anchored 18 points below the league's strongest
-and drift down over a long save.
+Import overwrites a club's identity and squad, so without realignment a
+superclub could land on a slot anchored well below the league's strongest and
+drift down over a long save, producing youth intakes that made no sense for who
+it was.
 
-This predates the EA FC converter (it applies to any hand-authored roster file)
-and fixing it means a change in `applyRosterFile` — permuting each
-competition's existing anchors so the strongest imported squad gets the
-strongest anchor. That is zero-sum by construction (same multiset of values,
-just reassigned, applied once rather than derived per-season), so it cannot
-reopen the inflation ratchet, but it changes shared engine behaviour for the
-existing roster-import feature too and hasn't been made yet.
+`realignAcademyBases` (in `rosterImport.ts`, run at the end of
+`applyRosterFile`) sorts each competition's *imported* clubs by squad strength
+(`computeTeamRating`, XI auto-picked) and hands them that same group's existing
+anchors in descending order.
 
-For a short save it doesn't bite. For a long dynasty, expect imported clubs'
-academies to drift toward their slot's anchor rather than their reputation.
+**It is a permutation, not a recalculation, and that distinction is the whole
+safety argument.** The competition's existing multiset of anchors is reassigned
+among the same clubs, once, at import; nothing is derived from the imported
+ratings. The total is exactly what generation produced, so the anti-inflation
+equilibrium is untouched — it cannot ratchet, because there is no new value to
+ratchet with. A test asserts the multiset is unchanged.
+
+Only clubs whose squad was actually *replaced* take part, so a partial import
+can't degrade the clubs it didn't touch. The corollary is that an imported club
+can only claim an anchor already held by another imported club — never the best
+in the division, if an untouched club happens to hold it.
 
 ## Layout
 

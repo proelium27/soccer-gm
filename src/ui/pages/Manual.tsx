@@ -120,8 +120,9 @@ export function Manual() {
             the entire save — every club, player, stat and transfer, exactly as it stands. That's the
             one for backing a league up, moving it to another computer, or handing it to someone else
             to carry on. It's a snapshot rather than a roster file, so it isn't meant to be edited by
-            hand and can't start a fresh league. One thing to watch: a save file remembers which save
-            it came from, so importing one replaces that save rather than adding a copy.
+            hand and can't start a fresh league. Importing one always adds a new league rather than
+            writing over an existing one, so loading an old backup can never cost you the save you've
+            been playing — if you meant to replace it, delete the old one afterwards.
           </p>
           <p>
             A club entry can also carry a <em>players</em> list to bring in a real squad, not just a
