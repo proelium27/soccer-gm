@@ -141,6 +141,67 @@ describe("applyRosterFile — squad import", () => {
   });
 });
 
+describe("imported clubs are flagged so their slot's crest art is dropped", () => {
+  // Crest images are keyed by tid — a slot — so once a slot becomes a real club
+  // the badge belongs to the fictional club it displaced. The flag is what the
+  // UI reads to fall back to the club's colours instead.
+  it("flags every club the file named, squads or not", () => {
+    const file = parseRosterFile(
+      JSON.stringify({
+        format: "world-soccer-sim-roster",
+        formatVersion: 1,
+        competitions: [
+          {
+            match: "English Division 1",
+            clubs: [
+              // With a squad...
+              {
+                name: "With Squad",
+                abbrev: "WSQ",
+                colors: ["#111111", "#eeeeee"],
+                players: [{ name: "A Player", pos: "ST", age: 25, overall: 75 }],
+              },
+              // ...and identity-only, which is exactly the case where the name
+              // changed and the crest went stale without any squad involved.
+              { name: "Name Only", abbrev: "NMO", colors: ["#222222", "#dddddd"] },
+            ],
+          },
+        ],
+      }),
+    );
+    const { league: out } = applyRosterFile(league, file);
+    const d1Teams = out.teams.filter((t) => t.compId === d1.id).sort((a, b) => a.tid - b.tid);
+
+    expect(d1Teams[0].importedIdentity).toBe(true);
+    expect(d1Teams[1].importedIdentity).toBe(true);
+    // A club the file never mentioned keeps its own identity and its crest.
+    expect(d1Teams[2].importedIdentity).toBeUndefined();
+    // ...as does every club in a competition the file didn't cover.
+    const d2 = out.competitions.find((c) => c.name === "English Division 2")!;
+    expect(out.teams.filter((t) => t.compId === d2.id).every((t) => !t.importedIdentity)).toBe(true);
+  });
+
+  it("carries the file's colors onto the flagged club", () => {
+    const file = parseRosterFile(
+      JSON.stringify({
+        format: "world-soccer-sim-roster",
+        formatVersion: 1,
+        competitions: [
+          {
+            match: "English Division 1",
+            clubs: [{ name: "Colored", abbrev: "COL", colors: ["#6cabdd", "#ffffff"] }],
+          },
+        ],
+      }),
+    );
+    const { league: out } = applyRosterFile(league, file);
+    const team = out.teams.find((t) => t.tid === d1Slot0.tid)!;
+    // The swatch the UI draws in place of the crest comes from these.
+    expect(team.colors).toEqual(["#6cabdd", "#ffffff"]);
+    expect(team.importedIdentity).toBe(true);
+  });
+});
+
 describe("academy anchor realignment", () => {
   /** A file importing squads of the given overalls onto the first N D1 slots. */
   function fileWithSquads(overalls: number[]): RosterFile {

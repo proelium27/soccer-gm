@@ -171,6 +171,18 @@ Names only: a filled slot keeps its generated squad. On the FC26 export plus a
 hand-named file this takes the world from 210 real clubs to 233, with 210 of
 them carrying real players.
 
+**It also adopts the names file's colors** for clubs the base already has —
+matched by the same comparison used for dedupe, so "Bayern Munich" recolors "FC
+Bayern München". The converter hashes a color pair out of the club name (the
+datasets carry none), which was invisible while clubs drew crest art and became
+the whole visual identity once imported clubs stopped. On the FC26 export that
+recolored 184 of 233 clubs: Liverpool goes from purple/gold to `#c8102e`.
+Colors only, never abbreviations — the converter already ran those through a
+uniqueness pass and a hand-written one could reintroduce a collision. The
+recolor pass runs *before* filling, so an entry describing a club already in the
+world is spent recoloring it rather than left to fill some other slot with a
+second copy.
+
 **Sourcing the names file got harder on 2026-08-10**: the Leagues page's "Export
 Teams" button (which emitted exactly this — `buildRosterFile`, identities only)
 was replaced by "Export Save", so the game no longer writes one. `buildRosterFile`
@@ -202,11 +214,24 @@ prints every rejection with the club it matched**. Read that list; it is the
 check on the heuristic.
 
 **Club colors and abbreviations** aren't in the datasets, so both are
-synthesized deterministically from the club name. **Crest art doesn't follow an
-import** — `ClubCrest` keys the England/Spain crest images by tid, which is a
-slot, so an imported club inherits whatever crest that slot already had. The
-colors do follow, so clubs without art show the imported pair. Override the
-identities you care about with `--identities`:
+synthesized deterministically from the club name — which makes Liverpool purple
+and gold.
+
+**Imported clubs draw no crest art, only their colors.** `ClubCrest` keys the
+England/Spain crest images by tid, i.e. by *slot*, which is right for the
+shipped fictional clubs (a name is editable, a tid isn't) and wrong the instant
+a slot becomes a real club — Real Madrid would wear an English club's badge.
+`applyRosterFile` therefore flags every slot the file named with
+`StoredTeam.importedIdentity`, and `CrestArtProvider` (wrapped around the
+in-league shell in `Layout.tsx`, and around the new-league club picker so the
+preview matches) suppresses art for those tids. It is a context rather than a
+prop because `ClubCrest` is rendered from fourteen places, most holding only a
+tid; any one of them forgetting to pass a flag would show a wrong badge on that
+surface alone.
+
+That makes the colors the club's entire visual identity, which is why
+`mergeRosterFiles` adopts real colors from the names file (see below) and why
+`--identities` is worth using for the clubs you care about:
 
 ```json
 {

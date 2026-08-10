@@ -21,7 +21,7 @@ import {
 import { applyRosterFileToNewLeague } from "../../core/teams/rosterImport.js";
 import { takePendingRoster } from "../pendingRoster.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
-import { ClubCrest } from "../components/ClubCrest.js";
+import { ClubCrest, CrestArtProvider } from "../components/ClubCrest.js";
 import { CountryFlag } from "../components/CountryFlag.js";
 import { trackEvent } from "../analytics.js";
 
@@ -277,6 +277,10 @@ export function NewLeague() {
   }
 
   return (
+    // The picker previews the world the import will produce, so it has to hide
+    // the same crests the league itself will — otherwise a club shows a badge
+    // here and a colour swatch the moment the save opens.
+    <CrestArtProvider tids={roster ? [...roster.byTid.keys()] : []}>
     <div className="container py-4" style={{ maxWidth: 600 }}>
       <h2 className="mb-3">{roster ? "Import Custom League" : "New League"}</h2>
       <p className="text-muted">
@@ -382,5 +386,6 @@ export function NewLeague() {
         />
       </div>
     </div>
+    </CrestArtProvider>
   );
 }

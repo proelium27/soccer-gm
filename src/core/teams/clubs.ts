@@ -365,6 +365,17 @@ export interface StoredTeam {
    * an empty object for every AI team.
    */
   scoutingObserved: Record<number, number>;
+  /**
+   * This club's identity came from an imported roster file, so the built-in
+   * crest art for its slot is not its crest and must not be drawn (see
+   * ClubCrest). Crest images are keyed by tid — a slot — not by club, because a
+   * club's name is editable while its tid never changes; that is right for the
+   * shipped fictional clubs and wrong the moment a slot becomes a real club,
+   * which would otherwise show Real Madrid wearing an English club's badge.
+   * Such a club falls back to its two-color swatch, which the roster file
+   * supplies. Absent on old saves and on every club an import didn't touch.
+   */
+  importedIdentity?: boolean;
 }
 
 /**

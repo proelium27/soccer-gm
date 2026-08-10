@@ -502,9 +502,12 @@ describe("mergeRosterFiles — filling uncovered slots from a names file", () =>
       { match: "German Division 1", clubs: ["Bayern Munich", "Schalke 04"] },
       { match: "German Division 2", clubs: ["FC Schalke 04", "Hertha BSC"] },
     ]);
-    const { file, rejected } = mergeRosterFiles(base, names);
+    const { file } = mergeRosterFiles(base, names);
     expect(clubNames(file, "German Division 1")).toEqual(["FC Bayern München"]);
-    expect(rejected.map((r) => r.candidate)).toContain("Schalke 04");
+    // The invariant that matters: Schalke exists once in the whole world, not
+    // once per division the two files disagree about.
+    const everyClub = file.competitions.flatMap((c) => c.clubs.map((k) => k.name));
+    expect(everyClub.filter((n) => /Schalke/.test(n))).toHaveLength(1);
   });
 
   it("carries over a competition the base file omits entirely", () => {
@@ -515,6 +518,50 @@ describe("mergeRosterFiles — filling uncovered slots from a names file", () =>
     ]);
     const { file } = mergeRosterFiles(base, names);
     expect(clubNames(file, "Portuguese Division 2")).toEqual(["Varzim SC", "UD Leiria"]);
+  });
+
+  it("takes the names file's colors for a club the base already has", () => {
+    // The converter has no color data and hashes the club name into a pair, so
+    // Liverpool comes out purple. Once imported clubs stopped drawing their
+    // slot's crest, those colors became the club's whole visual identity.
+    const base = roster([{ match: "English Division 1", clubs: ["Liverpool"] }]);
+    base.competitions[0].clubs[0].colors = ["#8e44ad", "#f1c40f"]; // synthesized
+    const names = roster([{ match: "English Division 1", clubs: ["Liverpool"] }]);
+    names.competitions[0].clubs[0].colors = ["#c8102e", "#ffffff"]; // real
+
+    const { file, recolored } = mergeRosterFiles(base, names);
+    expect(file.competitions[0].clubs[0].colors).toEqual(["#c8102e", "#ffffff"]);
+    expect(recolored.map((r) => r.club)).toEqual(["Liverpool"]);
+  });
+
+  it("recolors through the same fuzzy match used for dedupe", () => {
+    const base = roster([{ match: "German Division 1", clubs: ["FC Bayern München"] }]);
+    base.competitions[0].clubs[0].colors = ["#8e44ad", "#f1c40f"];
+    const names = roster([{ match: "German Division 1", clubs: ["Bayern Munich"] }]);
+    names.competitions[0].clubs[0].colors = ["#dc052d", "#ffffff"];
+
+    const { file } = mergeRosterFiles(base, names);
+    expect(file.competitions[0].clubs[0].colors).toEqual(["#dc052d", "#ffffff"]);
+    // The base club's own name is kept — only the colors are adopted.
+    expect(file.competitions[0].clubs[0].name).toBe("FC Bayern München");
+  });
+
+  it("spends a names entry on recoloring, so it can't also fill a slot", () => {
+    // Without this ordering, the entry that describes Liverpool would recolor
+    // nothing and instead be dropped into the empty slot as a second Liverpool.
+    const base = roster([{ match: "English Division 1", clubs: ["Liverpool"] }]);
+    const names = roster([{ match: "English Division 1", clubs: ["Liverpool", "Everton"] }]);
+    const { file } = mergeRosterFiles(base, names);
+    expect(clubNames(file, "English Division 1")).toEqual(["Liverpool", "Everton"]);
+  });
+
+  it("leaves a club the names file doesn't recognize alone", () => {
+    const base = roster([{ match: "English Division 1", clubs: ["Some Unknown FC"] }]);
+    base.competitions[0].clubs[0].colors = ["#8e44ad", "#f1c40f"];
+    const names = roster([{ match: "English Division 1", clubs: ["Liverpool"] }]);
+    const { file, recolored } = mergeRosterFiles(base, names);
+    expect(file.competitions[0].clubs[0].colors).toEqual(["#8e44ad", "#f1c40f"]);
+    expect(recolored).toEqual([]);
   });
 
   it("adds names only — a filled slot never gains players", () => {
@@ -537,14 +584,15 @@ describe("mergeRosterFiles — filling uncovered slots from a names file", () =>
     ["FC Bayern München", "Bayern Munich"],
     ["1. FC Nürnberg", "Nuremberg"],
   ])("treats %s and %s as the same club", (a, b) => {
-    // The base must be SHORT of the names file, or there is no empty slot and
-    // no candidate is ever considered.
-    const { file, rejected } = mergeRosterFiles(
+    // The base is SHORT of the names file, so there is an empty slot a second
+    // copy could wrongly land in if the two names weren't recognized as one.
+    const { file, recolored } = mergeRosterFiles(
       roster([{ match: "German Division 1", clubs: [a] }]),
       roster([{ match: "German Division 1", clubs: [b, "Only Spare Club"] }]),
     );
-    expect(rejected.map((r) => r.candidate)).toContain(b);
-    // ...and the slot went to the spare instead, not to a second copy of `a`.
+    // Recognized: b's entry is spent recoloring a...
+    expect(recolored.map((r) => r.from)).toContain(b);
+    // ...and the empty slot went to the spare, not to a second copy of a.
     expect(clubNames(file, "German Division 1")).toEqual([a, "Only Spare Club"]);
   });
 

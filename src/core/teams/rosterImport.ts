@@ -249,7 +249,15 @@ export function applyRosterFile(league: LeagueStore, file: RosterFile): RosterFi
     slots.map(({ tid, club }) => ({ tid, name: club.name, abbrev: club.abbrev, colors: club.colors })),
   );
 
-  const teams = withIdentities.teams.map((t) => ({ ...t }));
+  // Every slot the file named is flagged so the UI stops drawing the built-in
+  // crest for it: that art is keyed by tid (a slot), so once a slot becomes a
+  // real club the badge belongs to somebody else entirely. Flagged on rename,
+  // not on squad replacement — an identity-only entry is exactly the case where
+  // the name changed and the crest went stale.
+  const renamedTids = new Set(slots.map((s) => s.tid));
+  const teams = withIdentities.teams.map((t) =>
+    renamedTids.has(t.tid) ? { ...t, importedIdentity: true } : { ...t },
+  );
   const teamByTid = new Map(teams.map((t) => [t.tid, t]));
   let players = [...withIdentities.players];
   // Take the stored monotonic cursor, not max(pid) + 1. Players get removed

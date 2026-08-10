@@ -116,12 +116,23 @@ export interface MergeResult {
   unfilled: { competition: string; slots: number }[];
   /** Candidates rejected as duplicates, so a bad match can be spotted. */
   rejected: { candidate: string; duplicateOf: string }[];
+  /** Clubs that took their colors from the names file. */
+  recolored: { club: string; from: string; colors: [string, string] }[];
 }
 
 /**
- * Merge `names` into `base`, filling each competition up to the slot count the
- * names file implies. Base clubs always win their slots; names only ever land
- * in slots the base file left empty.
+ * Merge `names` into `base`: adopt the names file's colors for clubs the base
+ * already has, then fill each competition up to the slot count the names file
+ * implies. Base clubs always win their slots; names only ever land in slots the
+ * base file left empty.
+ *
+ * The colors matter more than they sound. The EA FC converter has no color data
+ * — the datasets carry none — so it synthesizes a pair by hashing the club name,
+ * which makes Liverpool purple and gold. That was invisible while clubs showed
+ * the game's built-in crest art, and became the entire visual identity the
+ * moment imported clubs stopped drawing a crest (their slot's badge belongs to
+ * the fictional club they displaced). A hand-built names file has real colors,
+ * so anything it recognizes gets them.
  */
 export function mergeRosterFiles(base: RosterFile, names: RosterFile): MergeResult {
   const namesByComp = new Map(names.competitions.map((c) => [c.match.trim().toLowerCase(), c]));
@@ -143,12 +154,35 @@ export function mergeRosterFiles(base: RosterFile, names: RosterFile): MergeResu
   const filled: Filled[] = [];
   const rejected: { candidate: string; duplicateOf: string }[] = [];
   const unfilled: { competition: string; slots: number }[] = [];
+  const recolored: MergeResult["recolored"] = [];
+
+  // Pass one: hand every base club the names file's colors for it, and consume
+  // that entry. Runs BEFORE any filling, because an entry that describes a club
+  // already in the world must be spent recoloring it rather than left lying
+  // around as a candidate to fill some other slot with a second copy.
+  const recolor = new Map<RosterFileClub, [string, string]>();
+  const allNamesClubs = names.competitions.flatMap((c) => c.clubs);
+  for (const comp of base.competitions) {
+    for (const club of comp.clubs) {
+      const match = allNamesClubs.find((n) => !used.has(n) && sameClub(n.name, club.name));
+      if (!match) continue;
+      used.add(match);
+      // Colors only, never the abbreviation: the converter already ran its
+      // abbreviations through a uniqueness pass, and adopting a hand-written
+      // one could reintroduce a collision inside a competition.
+      recolor.set(club, match.colors);
+      recolored.push({ club: club.name, from: match.name, colors: match.colors });
+    }
+  }
 
   const competitions = order.map((match) => {
     const key = match.trim().toLowerCase();
     const baseComp = baseByComp.get(key);
     const nameComp = namesByComp.get(key);
-    const clubs = [...(baseComp?.clubs ?? [])];
+    const clubs = (baseComp?.clubs ?? []).map((c) => {
+      const colors = recolor.get(c);
+      return colors ? { ...c, colors } : c;
+    });
     const slots = Math.max(clubs.length, nameComp?.clubs.length ?? 0);
 
     /** Take unused, non-duplicate candidates from a pool until the slots fill. */
@@ -189,6 +223,7 @@ export function mergeRosterFiles(base: RosterFile, names: RosterFile): MergeResu
     filled,
     unfilled,
     rejected,
+    recolored,
   };
 }
 
@@ -210,7 +245,7 @@ function main(): void {
 
   const base = parseRosterFile(readFileSync(values.base, "utf8"));
   const names = parseRosterFile(readFileSync(values.names, "utf8"));
-  const { file, filled, unfilled, rejected } = mergeRosterFiles(base, names);
+  const { file, filled, unfilled, rejected, recolored } = mergeRosterFiles(base, names);
 
   const squads = file.competitions.reduce(
     (n, c) => n + c.clubs.filter((k) => k.players && k.players.length > 0).length,
@@ -220,6 +255,9 @@ function main(): void {
 
   console.log(`\n${clubs} clubs across ${file.competitions.length} competitions, ${squads} with a real squad.\n`);
 
+  if (recolored.length) {
+    console.log(`Took real colors from the names file for ${recolored.length} club(s).\n`);
+  }
   if (filled.length) {
     console.log(`Filled ${filled.length} empty slot(s) with names only (they keep a generated squad):`);
     const byComp = new Map<string, string[]>();
