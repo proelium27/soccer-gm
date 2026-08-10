@@ -4,12 +4,13 @@ import type { PlayerRatings, Position } from "../players/types.js";
 import { POSITIONS, SKILL_KEYS } from "../players/types.js";
 
 /**
- * A compact, human/AI-authorable file describing real clubs to overlay onto an
+ * A compact, human/AI-authorable file describing clubs to overlay onto an
  * existing save's fixed world structure. Unlike the full-save export
  * (src/db/exportImport.ts, which round-trips the entire internal LeagueStore),
- * this format carries only what someone would want to hand-edit to bring real
- * teams into the game — club identities and, optionally, real squads — keyed by
- * which competition to overlay.
+ * this format carries only what someone would want to hand-edit to bring their
+ * own teams into the game — club identities and, optionally, squads — keyed by
+ * which competition to overlay. Real-world leagues are the common case but not
+ * the only one; nothing here assumes the clubs or players exist.
  *
  * It is deliberately partial-friendly: list only the competitions (and, within
  * one, only the leading clubs) you care about; every unlisted slot keeps its

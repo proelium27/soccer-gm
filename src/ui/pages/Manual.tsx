@@ -100,15 +100,16 @@ export function Manual() {
             any existing save does the same thing later.
           </p>
           <p>
-            If you'd rather bring in real teams in bulk, the Leagues screen has "Export Teams" and
+            If you'd rather replace teams in bulk, the Leagues screen has "Export Teams" and
             "Import Teams" on each save. Export hands you a plain text (JSON) file listing every club,
-            grouped by league; edit it however you like (or ask an AI to fill in a real league) and
+            grouped by league; edit it however you like (or ask an AI to fill it in) and
             load it back with "Import Teams". The file matches clubs to your existing leagues by slot,
-            so it's the easiest way to turn the fictional default world into real ones, and you can
-            list only the leagues you care about and leave the rest alone.
+            so it's the easiest way to turn the fictional default world into whatever you want, real
+            leagues or otherwise, and you can list only the leagues you care about and leave the rest
+            alone.
           </p>
           <p>
-            A club entry can also carry a <em>players</em> list to bring in a real squad, not just a
+            A club entry can also carry a <em>players</em> list to bring in a whole squad, not just a
             name. Each player needs a name, position, and age, plus either an <em>overall</em> (the
             game builds position-appropriate ratings to match it) or an exact <em>ratings</em> block
             if you want full control; nationality, height, and potential are optional. You don't have
@@ -121,8 +122,10 @@ export function Manual() {
             Writing all that JSON by hand is tedious, so the easiest route is to let an AI build it.
             The "Copy AI Prompt to Customize" button in the top bar (once you're in a save) copies a ready-made
             prompt to your clipboard, already filled in with your world's exact league names and sizes.
-            Paste it into ChatGPT or Claude, tell it which leagues you want and how real to make them,
-            save its reply as a <code>.json</code> file, and load it with Import Teams back on the
+            Paste it into ChatGPT or Claude and tell it what you want in there. Real present-day
+            leagues are the obvious use, but nothing about it is limited to that: ask for a 2004
+            throwback league, all-time national XIs, clubs from a show you like, or a world you made
+            up entirely. Then save its reply as a <code>.json</code> file and load it with Import Teams back on the
             Leagues screen. (If your browser blocks clipboard access, the button downloads the prompt as
             a text file instead.)
           </p>
