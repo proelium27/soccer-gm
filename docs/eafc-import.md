@@ -153,9 +153,8 @@ the converter says so in its warnings rather than leaving you to notice.
 
 A converted file can't cover every slot: the 18-club leagues (Bundesliga,
 Ligue 1, Primeira Liga) leave 2 slots each, and a division the dataset omits
-leaves all 20. `mergeRosterFiles.ts` fills those from a second roster file —
-typically one the game's own **Export Teams** button produced after renaming
-clubs by hand:
+leaves all 20. `mergeRosterFiles.ts` fills those from a second roster file
+carrying the missing club names:
 
 ```bash
 npx tsx scripts/eafc/mergeRosterFiles.ts \
@@ -165,6 +164,13 @@ npx tsx scripts/eafc/mergeRosterFiles.ts \
 Names only: a filled slot keeps its generated squad. On the FC26 export plus a
 hand-named file this takes the world from 210 real clubs to 233, with 210 of
 them carrying real players.
+
+**Sourcing the names file got harder on 2026-08-10**: the Leagues page's "Export
+Teams" button (which emitted exactly this — `buildRosterFile`, identities only)
+was replaced by "Export Save", so the game no longer writes one. `buildRosterFile`
+still exists and is still tested, just unreachable from the UI. Until something
+re-exposes it, a names file has to be hand-written or AI-generated (the "Copy AI
+Prompt to Customize" button still produces a prompt for one).
 
 **Duplicate clubs are the entire difficulty, and they are not hypothetical.** A
 hand-built names file routinely disagrees with the dataset about which division

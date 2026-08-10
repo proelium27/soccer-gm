@@ -200,9 +200,9 @@ export function NewLeague() {
         </p>
         <p className="text-muted">
           A roster file is a plain text (JSON) file listing clubs by league, each one
-          optionally carrying a squad. You can write one yourself, generate one with the
-          "Copy AI Prompt to Customize" button inside any save, or start from the file
-          "Export Teams" hands you on the Leagues screen.
+          optionally carrying a squad. You can write one yourself, or generate one with
+          the "Copy AI Prompt to Customize" button in the top bar of any save, which hands
+          you a ready-made prompt to paste into ChatGPT or Claude.
         </p>
         <p className="text-muted">
           This is the only place a roster file can be loaded. Bringing real squads into a

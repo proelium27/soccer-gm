@@ -87,10 +87,17 @@ function teamsInCompetition(world: RosterSlotWorld, compId: number) {
 /**
  * Serialize a save's current club identities to a roster file — one entry per
  * competition (in the competitions-table order), each listing its clubs in
- * slot order. This is the editable template authors start from. It emits
- * identities only (no `players`): the template's job is to show the club/slot
- * structure to rename, and exporting the fictional squads would (a) bloat the
- * file and (b) make a rename-only round-trip destructively replace rosters.
+ * slot order. It emits identities only (no `players`): the template's job is to
+ * show the club/slot structure to rename, and exporting the fictional squads
+ * would (a) bloat the file and (b) make a rename-only round-trip destructively
+ * replace rosters.
+ *
+ * NOTE: no longer reachable from the UI. It backed the Leagues page's "Export
+ * Teams" button, which was replaced by "Export Save" (2026-08-10, user call),
+ * so nothing in the app calls it and Vite drops it from the bundle. Kept
+ * because it is the roster format's writer — the counterpart to
+ * parseRosterFile, still covered by rosterFile.test.ts, and the shape any
+ * future template export would emit. Delete it only alongside the format.
  */
 export function buildRosterFile(league: LeagueStore): RosterFile {
   return {

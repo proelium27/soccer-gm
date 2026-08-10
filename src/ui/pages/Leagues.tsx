@@ -1,29 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listLeagues, deleteLeague, loadLeague } from "../../db/leagueDb.js";
+import { exportLeagueJSON } from "../../db/exportImport.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { useSportName } from "../sportName.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
-import { buildRosterFile } from "../../core/teams/rosterFile.js";
 
 interface LeagueSummary {
   lid: number;
   name: string;
   created: number;
-}
-
-/** Serialize `data` to pretty JSON and trigger a browser download. */
-function downloadJSON(filename: string, data: unknown): void {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 interface TeamEditor {
@@ -72,7 +58,9 @@ export function Leagues() {
   const [leagues, setLeagues] = useState<LeagueSummary[] | null>(null);
   const [editor, setEditor] = useState<TeamEditor | null>(null);
   const [saving, setSaving] = useState(false);
-  const { loadLeagueAction, customizeTeamsAction } = useLeague();
+  const [importError, setImportError] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const { loadLeagueAction, customizeTeamsAction, importJSON } = useLeague();
   const navigate = useNavigate();
   const { brand } = useSportName();
 
@@ -119,11 +107,24 @@ export function Leagues() {
     });
   }
 
-  async function handleExportNames(lid: number) {
+  /** Download the whole save (the same file the in-game "Export Save" writes). */
+  async function handleExportSave(lid: number) {
     const league = await loadLeague(lid);
     if (!league) return;
-    const slug = league.meta.name.trim().replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "league";
-    downloadJSON(`soccer-gm-teams-${slug}.json`, buildRosterFile(league));
+    exportLeagueJSON(league);
+  }
+
+  async function handleImportSave(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file after an error
+    if (!file) return;
+    setImportError(null);
+    try {
+      await importJSON(file);
+      navigate("/dashboard");
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : String(err));
+    }
   }
 
   async function handleSaveTeams(teams: EditableTeam[]) {
@@ -163,6 +164,12 @@ export function Leagues() {
     <div className="container py-4" style={{ maxWidth: 720 }}>
       {firstRun ? <FirstRunIntro brand={brand} /> : <h1 className="h2 mb-3">Your Leagues</h1>}
 
+      {importError && (
+        <div className="alert alert-danger py-2" role="alert">
+          {importError}
+        </div>
+      )}
+
       {leagues === null && <p className="text-muted">Loading...</p>}
 
       {leagues !== null && leagues.length > 0 && (
@@ -196,10 +203,10 @@ export function Leagues() {
                 <button
                   type="button"
                   className="btn btn-outline-secondary btn-sm"
-                  onClick={() => handleExportNames(l.lid)}
-                  title="Download this save's clubs as an editable roster template"
+                  onClick={() => handleExportSave(l.lid)}
+                  title="Download this whole save as a file you can back up or move to another device"
                 >
-                  Export Teams
+                  Export Save
                 </button>
                 <button
                   type="button"
@@ -237,6 +244,21 @@ export function Leagues() {
         >
           Import Custom League
         </button>
+        <button
+          type="button"
+          className="btn btn-outline-secondary"
+          onClick={() => importInputRef.current?.click()}
+          title="Load a save file exported from this game"
+        >
+          Import Save
+        </button>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".json,application/json"
+          className="d-none"
+          onChange={handleImportSave}
+        />
       </div>
     </div>
   );

@@ -112,8 +112,15 @@ export function Manual() {
             This only works when you're starting a league, on purpose. A roster file can replace whole
             squads, and doing that to a save you've been playing would delete the careers, stats and
             transfer history of every player it overwrote. So imports happen at creation and nowhere
-            else. "Export Teams" is still on each save if you want a template of that world's clubs to
-            edit.
+            else.
+          </p>
+          <p>
+            Separately from all of that, each save on the Leagues screen has "Export Save", which
+            downloads the entire save as a file — every club, player, stat and transfer, exactly as it
+            stands. "Import Save" at the bottom of the same screen loads one back. That's the one to
+            use for backing a league up, moving it to another computer, or handing it to someone else
+            to carry on. It's a snapshot of a save rather than a roster file, so it isn't meant to be
+            edited by hand and can't be used to start a fresh league.
           </p>
           <p>
             A club entry can also carry a <em>players</em> list to bring in a real squad, not just a
