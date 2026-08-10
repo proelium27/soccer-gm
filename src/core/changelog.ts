@@ -33,18 +33,6 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-08-10",
-    title: "Saves are faster, and stay faster as a league ages",
-    items: [
-      "Everyday actions no longer rewrite your entire save. Until now the whole league was stored as a single lump, so signing one player, dragging your lineup or nudging the scouting slider all rewrote every club, player, transfer and season of history you had accumulated. That meant the longer you played, the slower every button got. Players are now stored separately, one record each, and only the ones that actually changed get written.",
-      "On an eight-season save this takes a routine action from about 280ms to about 120ms, and the gap widens the longer a save runs. Actions that touch no players at all, like setting your lineup or changing scouting spend, now write no player data whatsoever.",
-      "Simming is not much changed by this. A matchday genuinely updates most of the league, so there is little to skip; the cost there is in handing the league to the simulator rather than in saving it, which is a separate piece of work.",
-      "This is the first half of the fix. What remains is the running history a save accumulates: power rankings, transfer records, news and past seasons. Those are about 8MB on an eight-season save and are still rewritten in full each time, which is why a routine action is faster but not yet instant.",
-      "Existing saves are upgraded automatically the first time you load each one. The upgrade happens in the background as the save opens, so there is nothing to do and nothing to confirm; that one load does about one extra save's worth of work, and every load after it is on the faster path. If it is interrupted the save is left exactly as it was and the next load simply tries again.",
-      "One caveat worth knowing: the upgrade changes the storage format for the whole game, not just the save you opened. Once you have loaded this version, an older version of the game can no longer open any of your saves. Nothing is lost — returning to the current version restores access to everything — but if you keep your own backups, export a fresh one after upgrading.",
-    ],
-  },
-  {
-    date: "2026-08-10",
     title: "Roster files now start a league instead of overwriting one",
     items: [
       "The Leagues screen has a new \"Import\" button. Give it a roster file — the JSON format listing real clubs and, optionally, their squads — and it starts a brand new save with those clubs in place of the fictional ones. The club picker shows the imported names, so you choose between real teams rather than guessing which fictional slot is about to become which, and any club the file doesn't cover keeps its original name and squad. The same button also accepts a save file and works out which kind you gave it from the file itself, so there is one import to remember rather than two similarly named ones.",
