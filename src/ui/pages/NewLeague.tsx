@@ -19,6 +19,7 @@ import {
   type RosterFileClub,
 } from "../../core/teams/rosterFile.js";
 import { applyRosterFileToNewLeague } from "../../core/teams/rosterImport.js";
+import { takePendingRoster } from "../pendingRoster.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { CountryFlag } from "../components/CountryFlag.js";
@@ -48,8 +49,7 @@ interface LoadedRoster {
   warnings: string[];
 }
 
-function loadRoster(text: string, filename: string): LoadedRoster {
-  const file = parseRosterFile(text);
+function describeRoster(file: RosterFile, filename: string): LoadedRoster {
   const { slots, warnings } = resolveRosterSlots(SLOT_WORLD, file);
   return {
     file,
@@ -60,6 +60,9 @@ function loadRoster(text: string, filename: string): LoadedRoster {
     warnings,
   };
 }
+
+const loadRoster = (text: string, filename: string): LoadedRoster =>
+  describeRoster(parseRosterFile(text), filename);
 
 /** Competition name for a country's given tier (e.g. "English Division 1"). */
 function divisionName(country: string, tier: 1 | 2): string {
@@ -74,7 +77,14 @@ export function NewLeague() {
   const [selectedTid, setSelectedTid] = useState<number | null>(null);
   const [pending, setPending] = useState<LeagueStore | null>(null);
   const [saving, setSaving] = useState(false);
-  const [roster, setRoster] = useState<LoadedRoster | null>(null);
+  // A file handed over by the Leagues page's Import button is picked up on the
+  // first render, so arriving here skips straight to the club picker. useState's
+  // initializer (not an effect) because takePendingRoster clears as it reads,
+  // and an effect would run twice under StrictMode and lose it.
+  const [roster, setRoster] = useState<LoadedRoster | null>(() => {
+    const handed = takePendingRoster();
+    return handed ? describeRoster(handed.file, handed.filename) : null;
+  });
   const [rosterError, setRosterError] = useState<string | null>(null);
   const { setLeague, importJSON } = useLeague();
   const navigate = useNavigate();

@@ -100,13 +100,13 @@ export function Manual() {
             any existing save does the same thing later.
           </p>
           <p>
-            If you'd rather bring in real teams in bulk, use "Import Custom League" on the Leagues
-            screen. You hand it a roster file — a plain text (JSON) file listing clubs by league —
-            and it starts a brand new save with those clubs in place of the fictional ones. You pick
-            your club from the imported teams, so you're choosing between real names rather than
-            guessing which fictional slot is about to become which. Clubs match to leagues by slot,
-            and anything the file doesn't cover keeps its original name and squad, so you can bring
-            in only the leagues you care about.
+            If you'd rather bring in real teams in bulk, use "Import" on the Leagues screen and give
+            it a roster file — a plain text (JSON) file listing clubs by league. It starts a brand
+            new save with those clubs in place of the fictional ones. You pick your club from the
+            imported teams, so you're choosing between real names rather than guessing which
+            fictional slot is about to become which. Clubs match to leagues by slot, and anything the
+            file doesn't cover keeps its original name and squad, so you can bring in only the
+            leagues you care about.
           </p>
           <p>
             This only works when you're starting a league, on purpose. A roster file can replace whole
@@ -115,12 +115,13 @@ export function Manual() {
             else.
           </p>
           <p>
-            Separately from all of that, each save on the Leagues screen has "Export Save", which
-            downloads the entire save as a file — every club, player, stat and transfer, exactly as it
-            stands. "Import Save" at the bottom of the same screen loads one back. That's the one to
-            use for backing a league up, moving it to another computer, or handing it to someone else
-            to carry on. It's a snapshot of a save rather than a roster file, so it isn't meant to be
-            edited by hand and can't be used to start a fresh league.
+            The same "Import" button also takes a save file, and works out which kind you gave it
+            from the file itself. Each save on the Leagues screen has "Export Save", which downloads
+            the entire save — every club, player, stat and transfer, exactly as it stands. That's the
+            one for backing a league up, moving it to another computer, or handing it to someone else
+            to carry on. It's a snapshot rather than a roster file, so it isn't meant to be edited by
+            hand and can't start a fresh league. One thing to watch: a save file remembers which save
+            it came from, so importing one replaces that save rather than adding a copy.
           </p>
           <p>
             A club entry can also carry a <em>players</em> list to bring in a real squad, not just a

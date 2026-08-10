@@ -5,6 +5,8 @@ import { exportLeagueJSON } from "../../db/exportImport.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { useSportName } from "../sportName.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
+import { parseRosterFile, ROSTER_FILE_FORMAT } from "../../core/teams/rosterFile.js";
+import { setPendingRoster } from "../pendingRoster.js";
 
 interface LeagueSummary {
   lid: number;
@@ -114,14 +116,41 @@ export function Leagues() {
     exportLeagueJSON(league);
   }
 
-  async function handleImportSave(e: React.ChangeEvent<HTMLInputElement>) {
+  /**
+   * One Import button for both kinds of file the game reads, because two
+   * similarly-named import buttons is what made this confusing in the first
+   * place. Which one it is is unambiguous from the contents: a roster file
+   * declares `format: "soccer-gm-roster"`, an exported save has no such field.
+   *
+   * They do quite different things — a roster file *starts* a league and hands
+   * off to the club picker, a save file restores one — so the button routes
+   * rather than tries to unify them.
+   */
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-picking the same file after an error
     if (!file) return;
     setImportError(null);
+
+    let looksLikeRoster = false;
     try {
-      await importJSON(file);
-      navigate("/dashboard");
+      const parsed = JSON.parse(await file.text()) as { format?: unknown };
+      looksLikeRoster = parsed?.format === ROSTER_FILE_FORMAT;
+    } catch {
+      setImportError(`"${file.name}" isn't a valid JSON file.`);
+      return;
+    }
+
+    try {
+      if (looksLikeRoster) {
+        // Re-read through the real parser so a malformed roster file reports
+        // exactly which field is wrong, the same as it would on /new-league.
+        setPendingRoster({ file: parseRosterFile(await file.text()), filename: file.name });
+        navigate("/new-league?roster=1");
+      } else {
+        await importJSON(file);
+        navigate("/dashboard");
+      }
     } catch (err) {
       setImportError(err instanceof Error ? err.message : String(err));
     }
@@ -239,27 +268,24 @@ export function Leagues() {
         <button
           type="button"
           className="btn btn-outline-secondary"
-          onClick={() => navigate("/new-league?roster=1")}
-          title="Start a new league from a roster file of real clubs and squads"
-        >
-          Import Custom League
-        </button>
-        <button
-          type="button"
-          className="btn btn-outline-secondary"
           onClick={() => importInputRef.current?.click()}
-          title="Load a save file exported from this game"
+          title="Load a roster file to start a league with real clubs, or a save file to restore a backup"
         >
-          Import Save
+          Import
         </button>
         <input
           ref={importInputRef}
           type="file"
           accept=".json,application/json"
           className="d-none"
-          onChange={handleImportSave}
+          onChange={handleImport}
         />
       </div>
+
+      <p className="text-muted small mt-2 mb-0">
+        Import takes either a roster file, which starts a new league with real clubs and
+        squads, or a save file from Export Save, which loads that save back.
+      </p>
     </div>
   );
 }
