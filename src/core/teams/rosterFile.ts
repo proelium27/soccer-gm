@@ -57,13 +57,40 @@ export interface RosterFileCompetition {
 }
 
 export interface RosterFile {
-  format: "soccer-gm-roster";
+  format: RosterFileFormat;
   formatVersion: 1;
   competitions: RosterFileCompetition[];
 }
 
-export const ROSTER_FILE_FORMAT = "soccer-gm-roster";
+/** What newly written roster files declare. */
+export const ROSTER_FILE_FORMAT = "world-soccer-sim-roster";
+
+/**
+ * Format strings still accepted on read. `soccer-gm-roster` was what the format
+ * announced itself as before the game settled on its name, and files carrying
+ * it are already in people's hands — including every file the EA FC converter
+ * has produced so far — so it is read forever. Only the value written changes.
+ */
+export const LEGACY_ROSTER_FILE_FORMATS = ["soccer-gm-roster"] as const;
+
+export type RosterFileFormat =
+  | typeof ROSTER_FILE_FORMAT
+  | (typeof LEGACY_ROSTER_FILE_FORMATS)[number];
+
 export const ROSTER_FILE_VERSION = 1;
+
+/**
+ * Is this a roster file's format string? Shared by the parser and by the
+ * Leagues page's Import button, which sniffs the same field to tell a roster
+ * file from an exported save — the two must agree on what counts, or a file the
+ * parser would happily read gets routed as a save.
+ */
+export function isRosterFileFormat(value: unknown): value is RosterFileFormat {
+  return (
+    value === ROSTER_FILE_FORMAT ||
+    (LEGACY_ROSTER_FILE_FORMATS as readonly unknown[]).includes(value)
+  );
+}
 
 /**
  * The parts of a world that decide which club slot a file entry lands on. A
@@ -195,7 +222,7 @@ export function parseRosterFile(text: string): RosterFile {
     throw new Error("Invalid roster file: expected a JSON object.");
   }
   const obj = parsed as Record<string, unknown>;
-  if (obj.format !== ROSTER_FILE_FORMAT) {
+  if (!isRosterFileFormat(obj.format)) {
     throw new Error(
       `Invalid roster file: "format" must be "${ROSTER_FILE_FORMAT}" (got ${JSON.stringify(obj.format)}).`,
     );

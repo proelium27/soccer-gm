@@ -29,13 +29,19 @@ page.
    skipped, and the EA→soccer-gm overall mapping per league, so you can see
    what it did before loading anything.
 
-3. In-game: **Leagues → Import Custom League →** pick `eafc-roster.json`, then
+3. In-game: **Leagues → Import →** pick `eafc-roster.json`, then
    choose your club from the imported teams and start.
 
 Import replaces each listed club's identity *and* squad, and tops any short
 position up with deliberately-weak filler so every squad is legal. Slots the
 file doesn't cover keep their existing fictional club untouched — so a partial
 import is fine.
+
+**The format tag is `world-soccer-sim-roster`** (renamed from `soccer-gm-roster`
+on 2026-08-10 to match the game's name). The old tag is still accepted on read
+and always will be — files carrying it are already in people's hands — so an
+older converted file keeps loading; `parseRosterFile` upgrades the tag as it
+reads, so anything re-serialized comes out on the new one.
 
 **A roster file can only be loaded when a league is created**, not into a save
 in progress: replacing a squad deletes the careers, stats and transfer history

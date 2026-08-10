@@ -3,7 +3,7 @@
  *
  *   npx tsx scripts/eafcRosterConvert.ts --in players_25.csv --out eafc-roster.json
  *
- * Then load the result in-game via Leagues -> Import roster file. Nothing here
+ * Then load the result in-game via Leagues -> Import. Nothing here
  * runs in the shipped build, and the generated file is gitignored: the game
  * continues to ship its own fictional clubs, and real names/ratings stay a
  * local overlay you bring yourself.
@@ -161,7 +161,7 @@ function main(argv: string[]): void {
         top.map((u) => `  ${u.league} (${u.rows} rows)`).join("\n"),
     );
   }
-  console.log(`\nNext: in-game, Leagues -> Import roster file -> ${values.out}`);
+  console.log(`\nNext: in-game, Leagues -> Import -> ${values.out}`);
 }
 
 try {

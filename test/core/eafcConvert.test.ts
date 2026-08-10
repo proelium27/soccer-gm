@@ -460,7 +460,7 @@ describe("mergeRosterFiles — filling uncovered slots from a names file", () =>
   const roster = (competitions: { match: string; clubs: string[] }[]): RosterFile =>
     parseRosterFile(
       JSON.stringify({
-        format: "soccer-gm-roster",
+        format: "world-soccer-sim-roster",
         formatVersion: 1,
         competitions: competitions.map((c) => ({
           match: c.match,

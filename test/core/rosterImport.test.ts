@@ -17,7 +17,7 @@ const d1Slot0 = league.teams.filter((t) => t.compId === d1.id).sort((a, b) => a.
 function fileWithSquad(players: unknown[]): RosterFile {
   return parseRosterFile(
     JSON.stringify({
-      format: "soccer-gm-roster",
+      format: "world-soccer-sim-roster",
       formatVersion: 1,
       competitions: [
         { match: "English Division 1", clubs: [{ name: "Real Import", abbrev: "IMP", colors: ["#111111", "#eeeeee"], players }] },
@@ -89,7 +89,7 @@ describe("applyRosterFile — squad import", () => {
   it("leaves a club's roster untouched when it supplies no players (identity-only)", () => {
     const file = parseRosterFile(
       JSON.stringify({
-        format: "soccer-gm-roster",
+        format: "world-soccer-sim-roster",
         formatVersion: 1,
         competitions: [
           { match: "English Division 1", clubs: [{ name: "Renamed Only", abbrev: "RNO", colors: ["#000000", "#ffffff"] }] },
@@ -119,7 +119,7 @@ describe("applyRosterFile — squad import", () => {
   it("passes warnings through for an unmatched competition and applies nothing", () => {
     const file = parseRosterFile(
       JSON.stringify({
-        format: "soccer-gm-roster",
+        format: "world-soccer-sim-roster",
         formatVersion: 1,
         competitions: [
           { match: "Martian League", clubs: [{ name: "X", abbrev: "X", colors: ["#000000", "#ffffff"], players: [{ name: "y", pos: "GK", age: 24, overall: 70 }] }] },
@@ -191,7 +191,7 @@ describe("applyRosterFileToNewLeague", () => {
     }));
     return parseRosterFile(
       JSON.stringify({
-        format: "soccer-gm-roster",
+        format: "world-soccer-sim-roster",
         formatVersion: 1,
         competitions: [{ match: comp.name, clubs }],
       }),

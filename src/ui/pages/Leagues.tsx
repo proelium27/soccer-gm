@@ -5,7 +5,7 @@ import { exportLeagueJSON } from "../../db/exportImport.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { useSportName } from "../sportName.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
-import { parseRosterFile, ROSTER_FILE_FORMAT } from "../../core/teams/rosterFile.js";
+import { parseRosterFile, isRosterFileFormat } from "../../core/teams/rosterFile.js";
 import { setPendingRoster } from "../pendingRoster.js";
 
 interface LeagueSummary {
@@ -120,7 +120,8 @@ export function Leagues() {
    * One Import button for both kinds of file the game reads, because two
    * similarly-named import buttons is what made this confusing in the first
    * place. Which one it is is unambiguous from the contents: a roster file
-   * declares `format: "soccer-gm-roster"`, an exported save has no such field.
+   * declares a `format` the game recognizes (isRosterFileFormat, which also
+   * accepts the pre-rename string), an exported save has no such field.
    *
    * They do quite different things — a roster file *starts* a league and hands
    * off to the club picker, a save file restores one — so the button routes
@@ -135,7 +136,7 @@ export function Leagues() {
     let looksLikeRoster = false;
     try {
       const parsed = JSON.parse(await file.text()) as { format?: unknown };
-      looksLikeRoster = parsed?.format === ROSTER_FILE_FORMAT;
+      looksLikeRoster = isRosterFileFormat(parsed?.format);
     } catch {
       setImportError(`"${file.name}" isn't a valid JSON file.`);
       return;

@@ -138,7 +138,7 @@ export function Manual() {
             prompt to your clipboard, already filled in with your world's exact league names and sizes.
             Paste it into ChatGPT or Claude, tell it which leagues you want and how real to make them,
             and save its reply as a <code>.json</code> file. Then head back to the Leagues screen and
-            start it with "Import Custom League". (If your browser blocks clipboard access, the button
+            start it with "Import" on the Leagues screen. (If your browser blocks clipboard access, the button
             downloads the prompt as a text file instead.)
           </p>
           <p>
