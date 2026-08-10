@@ -100,13 +100,31 @@ export function Manual() {
             any existing save does the same thing later.
           </p>
           <p>
-            If you'd rather replace teams in bulk, the Leagues screen has "Export Teams" and
-            "Import Teams" on each save. Export hands you a plain text (JSON) file listing every club,
-            grouped by league; edit it however you like (or ask an AI to fill it in) and
-            load it back with "Import Teams". The file matches clubs to your existing leagues by slot,
-            so it's the easiest way to turn the fictional default world into whatever you want, real
-            leagues or otherwise, and you can list only the leagues you care about and leave the rest
-            alone.
+            Saves live in your browser, so they don't follow you to another browser or another
+            computer on their own. Each save on the Leagues screen has "Export Save", which downloads
+            that whole save as a file — every club, player, stat and transfer, exactly as it stands —
+            and "Import" at the bottom of the same screen loads one back. An import always comes in
+            as a new save alongside what you already have, so bringing in a file can't overwrite a
+            league you're in the middle of; if you meant to replace one, delete the old one
+            afterwards. Worth knowing: the file is a snapshot, not a live backup, so re-importing an
+            old export gives you the save exactly as it was the day you exported it.
+          </p>
+          <p>
+            That same "Import" button also takes a roster file — a plain text (JSON) file listing
+            clubs by league — and works out which kind of file you gave it from the file itself. Give
+            it one of those and it starts a brand new save with those clubs in place of the fictional
+            ones. You pick your club from the imported teams, so you're choosing between the real
+            names rather than guessing which fictional slot is about to become which. Clubs match to
+            leagues by slot, and anything the file doesn't cover keeps its original name and squad,
+            so you can bring in only the leagues you care about and leave the rest alone. It's the
+            easiest way to turn the fictional default world into whatever you want, real leagues or
+            otherwise.
+          </p>
+          <p>
+            Roster files only work when you're starting a league, on purpose. One can replace whole
+            squads, and doing that to a save you've been playing would delete the careers, stats and
+            transfer history of every player it overwrote. So they're applied at creation and nowhere
+            else.
           </p>
           <p>
             A club entry can also carry a <em>players</em> list to bring in a whole squad, not just a
@@ -114,9 +132,8 @@ export function Manual() {
             game builds position-appropriate ratings to match it) or an exact <em>ratings</em> block
             if you want full control; nationality, height, and potential are optional. You don't have
             to list a full 25 — whatever you leave short gets topped up with lower-rated reserves so
-            the squad is always legal to field. Importing a squad replaces that club's existing
-            players, so it's best done on a fresh save. Leave the players list off a club and only its
-            name and colors change, exactly like Customize Teams.
+            the squad is always legal to field. Leave the players list off a club and only its name
+            and colors change, exactly like Customize Teams.
           </p>
           <p>
             Writing all that JSON by hand is tedious, so the easiest route is to let an AI build it.
@@ -125,14 +142,16 @@ export function Manual() {
             Paste it into ChatGPT or Claude and tell it what you want in there. Real present-day
             leagues are the obvious use, but nothing about it is limited to that: ask for a 2004
             throwback league, all-time national XIs, clubs from a show you like, or a world you made
-            up entirely. Then save its reply as a <code>.json</code> file and load it with Import Teams back on the
-            Leagues screen. (If your browser blocks clipboard access, the button downloads the prompt as
-            a text file instead.)
+            up entirely. Then save its reply as a <code>.json</code> file and start a league with it
+            using "Import" on the Leagues screen. (If your browser blocks clipboard access, the button
+            downloads the prompt as a text file instead.)
           </p>
           <p>
             England's and Spain's clubs all have real crest art that shows up wherever the club's
             name does. Every club without one yet (Italy, Germany, France, Portugal, Belgium and
-            Turkey) just shows a two-color swatch until it gets a crest of its own.
+            Turkey) just shows a two-color swatch until it gets a crest of its own. Clubs that came
+            in from a roster file always show their colors rather than a crest: the artwork belongs
+            to the club that shipped in that slot, not to the one you imported over it.
           </p>
         </Section>
 
@@ -1179,7 +1198,8 @@ export function Manual() {
           <p><strong>How does a player earn a "League Champion" trophy?</strong> He has to have been in the squad that won it. The credit comes from his own season record at the club, so signing for a club with a trophy cabinet doesn't hand him anything he wasn't there for. The one rough edge is mid-season movers: a title counts for whoever's squad he finished the season in, so a January arrival at the champions gets it and a January departure doesn't.</p>
           <p><strong>Why does the transfers page only show some of the completed deals?</strong> Because drawing all of them is what used to freeze the page. A full world moves thousands of players in a summer window, and rendering every one (each with a flag) was over 10,000 elements and about a megabyte of flag art. You now get all of your own club's business plus the 50 biggest deals elsewhere; the News Feed has the complete record.</p>
           <p><strong>My player's cup stats suddenly went up a lot.</strong> They were wrong before, and now they're right. The Continental Cup has three stages, and cup stats used to count only the knockout ties, so league-phase and playoff games never showed up on anyone's profile at all. They all count now, including for past seasons, so appearances and goals jump for anyone who played group games. Nothing was inflated, it was under-counted.</p>
-          <p><strong>Where did all the free agents go?</strong> Once a free agent turns 24, has never been any good in his career, and isn't projected to become good, he's permanently removed from the game. Nothing ever cleared these players out before, so a long save built up thousands of them, which is what made the game freeze up (the whole save gets rewritten every time anything happens, so its size is what costs you). Anyone under 24 is kept, so your incoming talent list is unaffected, as is anyone with real potential left and any former star who's since declined.</p>
+          <p><strong>Where did all the free agents go?</strong> Once a free agent turns 24, has never been any good in his career, and isn't projected to become good, he's permanently removed from the game. Nothing ever cleared these players out before, so a long save built up thousands of them, which bloated saves badly. Anyone under 24 is kept, so your incoming talent list is unaffected, as is anyone with real potential left and any former star who's since declined.</p>
+          <p><strong>Why does the game get slower the longer I play?</strong> It used to be because the entire save was rewritten every time anything happened, so the more history you'd built up, the more every single click cost. Players are now stored individually and only the ones that actually changed get written, so signing someone or setting your lineup no longer depends on how long you've been playing. What's left is the running history a save keeps (power rankings, transfers, news, past seasons), which is still rewritten in full, so there's still some growth. Simming is a separate cost and is unchanged.</p>
           <p><strong>A page showed me an error box instead of the page.</strong> Something in the game broke while drawing that page. Your save isn't affected and nothing was written to it, so you can use the menu to go somewhere else, or hit Try again to have another go at the page. The error details are there to copy into a bug report, and the crash is reported automatically too. There's a known one on the Transfers page that hasn't been pinned down yet, so if you hit it there, the details are genuinely useful.</p>
         </Section>
       </div>

@@ -32,6 +32,28 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-08-10",
+    title: "Roster files now start a league instead of overwriting one",
+    items: [
+      "The Leagues screen has a new \"Import\" button. Give it a roster file — the JSON format listing real clubs and, optionally, their squads — and it starts a brand new save with those clubs in place of the fictional ones. The club picker shows the imported names, so you choose between real teams rather than guessing which fictional slot is about to become which, and any club the file doesn't cover keeps its original name and squad. The same button also accepts a save file and works out which kind you gave it from the file itself, so there is one import to remember rather than two similarly named ones.",
+      "The old per-save \"Import Teams\" button is gone. A roster file can replace entire squads, and running one against a save in progress deleted the careers, statistics and transfer history of every player it overwrote, with no warning and no way back. Imports now happen only at creation, where there is nothing to destroy.",
+      "\"Export Teams\" has been replaced by \"Export Save\", which downloads the entire save — every club, player, stat and transfer — rather than a list of club names, and which Import loads back. Together they cover backing a league up, moving it between computers, and handing it to someone else to continue. A save file is a snapshot rather than an editable roster file, so it isn't meant to be hand-edited and can't seed a fresh league. Importing one always adds a new league rather than writing over an existing one, so loading an old backup can never cost you the save you have been playing; if you meant to replace it, delete the old one afterwards. To author a roster file, use the \"Copy AI Prompt to Customize\" button in the top bar of any save.",
+      "Clubs that came from a roster file no longer show a crest. The crest artwork is tied to a slot in the world rather than to a club, which is correct for the clubs the game ships but wrong once a slot has been handed to a real team, so importing a league put the wrong badge on nearly every club that had one. Imported clubs now show their two colours instead, taken straight from the file.",
+      "Imported clubs now inherit a youth academy that matches their standing. Every club has a hidden strength anchor, fixed when the world is generated, that sets the quality of the youngsters it produces for the rest of the save, and those anchors are scattered across a league at random. Importing real clubs replaced the squads but left the anchors where they were, so a superclub could end up on the anchor meant for a mid-table side and slowly decline over a long dynasty as its academy failed to keep up. The anchors within a league are now dealt out again by squad strength, strongest to strongest. They are only reshuffled, never raised, so overall youth quality across the league is exactly what it was, and clubs the import didn't touch keep theirs.",
+    ],
+  },
+  {
+    date: "2026-08-09",
+    title: "Importing a save reports what went wrong, and can no longer overwrite another league",
+    items: [
+      "Importing a saved game did nothing visible when the file wasn't one. The import checked the file and raised a clear complaint, but nothing displayed it: the error went only to the browser's developer console, the screen never changed, and the button read as broken. Both import buttons, \"Import League\" on the New League screen and \"Import\" in the top bar, now show what was wrong with the file and leave the rest of the game alone.",
+      "The most common cause was handing \"Import League\" a teams file rather than a saved game. The two take different files: \"Import League\" wants a whole save downloaded with Export, while a teams file made by \"Export Teams\" or the AI prompt is applied with \"Import Teams\" on the Leagues screen. That case is now recognized by name and says which button to use instead.",
+      "A separate fault in the same import destroyed saves. A save file carries the internal slot it occupied in the browser that exported it, and the import wrote it back to that same slot, replacing whatever league already sat there without warning. Importing a file from another browser, another computer, or someone else could therefore erase a league in progress. Imports now always arrive as a new save and never write over an existing one.",
+      "The manual now covers exporting and importing saves, which it previously left undocumented.",
+    ],
+    list: true,
+  },
+  {
     date: "2026-08-09",
     title: "AI clubs no longer sign players they cannot pay the wages for",
     items: [

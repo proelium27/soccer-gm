@@ -21,8 +21,6 @@ import {
 } from "../../core/loans.js";
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { applyTeamIdentities, type TeamIdentityEdit } from "../../core/teams/customize.js";
-import { applyRosterFile, type RosterFileApplyResult } from "../../core/teams/rosterImport.js";
-import type { RosterFile } from "../../core/teams/rosterFile.js";
 import {
   movePlayerToClub, detachPlayer, applyPlayerEdit, createCustomPlayer, setClubFinances,
   type PlayerEdit, type NewPlayerSpec,
@@ -40,7 +38,6 @@ interface LeagueContextValue {
   switchLeagueAction: () => void;
   customizeTeamsAction: (lid: number, edits: TeamIdentityEdit[]) => Promise<void>;
   /** Overlay a parsed roster file onto a save (identities + optional real squads). Returns a summary of what changed. */
-  importRosterAction: (lid: number, file: RosterFile) => Promise<Omit<RosterFileApplyResult, "league">>;
   simAction: (through: SimThrough) => Promise<void>;
   offseasonAction: () => Promise<void>;
   /** Play the next staged international stage ("stage") or every remaining one ("through"). */
@@ -186,20 +183,6 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         const updated = applyTeamIdentities(target, edits);
         await saveLeague(updated);
         if (active?.lid === lid) commitLeague(updated);
-      }),
-    [runExclusive, commitLeague],
-  );
-
-  const importRosterAction = useCallback(
-    (lid: number, file: RosterFile) =>
-      runExclusive(async () => {
-        const active = leagueRef.current;
-        const target = active?.lid === lid ? active : await loadLeague(lid);
-        if (!target) return { warnings: [], clubsRenamed: 0, squadsReplaced: 0, playersAdded: 0 };
-        const { league: updated, ...summary } = applyRosterFile(target, file);
-        await saveLeague(updated);
-        if (active?.lid === lid) commitLeague(updated);
-        return summary;
       }),
     [runExclusive, commitLeague],
   );
@@ -534,7 +517,13 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
 
   const doImport = useCallback(async (file: File) => {
     const imported = await importLeagueJSON(file);
-    const lid = await saveLeague(imported);
+    // An import always lands as a NEW save. The file still carries the lid it
+    // held in whatever browser exported it, and saveLeague keys off that lid —
+    // so keeping it silently overwrote whatever league already sat at that key
+    // (someone else's save, or your own from another browser), destroying it
+    // with no warning and no way back. lid 0 makes saveLeague autoIncrement a
+    // fresh key instead, leaving every existing league untouched.
+    const lid = await saveLeague({ ...imported, lid: 0 });
     setActiveLid(lid);
     commitLeague({ ...imported, lid });
   }, [commitLeague]);
@@ -554,7 +543,6 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     loadLeagueAction,
     switchLeagueAction,
     customizeTeamsAction,
-    importRosterAction,
     simAction,
     offseasonAction,
     intlStageAction,
@@ -592,7 +580,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     importJSON: doImport,
   }), [
     league, loadingActiveLeague, setLeague, loadLeagueAction, switchLeagueAction,
-    customizeTeamsAction, importRosterAction, simAction, offseasonAction, intlStageAction, signFreeAgentAction,
+    customizeTeamsAction, simAction, offseasonAction, intlStageAction, signFreeAgentAction,
     releasePlayerAction, signToAcademyAction, promoteFromAcademyAction,
     releaseAcademyPlayerAction, extendAcademyContractAction, setScoutingSpendAction,
     makeOfferAction, acceptCounterAction, acceptInboundOfferAction,

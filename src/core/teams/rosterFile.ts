@@ -58,17 +58,56 @@ export interface RosterFileCompetition {
 }
 
 export interface RosterFile {
-  format: "soccer-gm-roster";
+  format: RosterFileFormat;
   formatVersion: 1;
   competitions: RosterFileCompetition[];
 }
 
-export const ROSTER_FILE_FORMAT = "soccer-gm-roster";
+/** What newly written roster files declare. */
+export const ROSTER_FILE_FORMAT = "world-soccer-sim-roster";
+
+/**
+ * Format strings still accepted on read. `soccer-gm-roster` was what the format
+ * announced itself as before the game settled on its name, and files carrying
+ * it are already in people's hands — including every file the EA FC converter
+ * has produced so far — so it is read forever. Only the value written changes.
+ */
+export const LEGACY_ROSTER_FILE_FORMATS = ["soccer-gm-roster"] as const;
+
+export type RosterFileFormat =
+  | typeof ROSTER_FILE_FORMAT
+  | (typeof LEGACY_ROSTER_FILE_FORMATS)[number];
+
 export const ROSTER_FILE_VERSION = 1;
 
+/**
+ * Is this a roster file's format string? Shared by the parser and by the
+ * Leagues page's Import button, which sniffs the same field to tell a roster
+ * file from an exported save — the two must agree on what counts, or a file the
+ * parser would happily read gets routed as a save.
+ */
+export function isRosterFileFormat(value: unknown): value is RosterFileFormat {
+  return (
+    value === ROSTER_FILE_FORMAT ||
+    (LEGACY_ROSTER_FILE_FORMATS as readonly unknown[]).includes(value)
+  );
+}
+
+/**
+ * The parts of a world that decide which club slot a file entry lands on. A
+ * LeagueStore satisfies this structurally, and so does the slot layout of a
+ * save that hasn't been generated yet (see worldTeamSlots in competitions.ts) —
+ * which is what lets the new-league importer show real club names in its picker
+ * without generating a world first.
+ */
+export interface RosterSlotWorld {
+  competitions: { id: number; name: string }[];
+  teams: { tid: number; compId: number }[];
+}
+
 /** The competition's teams, in the game's stable slot order (ascending tid). */
-function teamsInCompetition(league: LeagueStore, compId: number) {
-  return league.teams
+function teamsInCompetition(world: RosterSlotWorld, compId: number) {
+  return world.teams
     .filter((t) => t.compId === compId)
     .sort((a, b) => a.tid - b.tid);
 }
@@ -76,10 +115,17 @@ function teamsInCompetition(league: LeagueStore, compId: number) {
 /**
  * Serialize a save's current club identities to a roster file — one entry per
  * competition (in the competitions-table order), each listing its clubs in
- * slot order. This is the editable template authors start from. It emits
- * identities only (no `players`): the template's job is to show the club/slot
- * structure to rename, and exporting the fictional squads would (a) bloat the
- * file and (b) make a rename-only round-trip destructively replace rosters.
+ * slot order. It emits identities only (no `players`): the template's job is to
+ * show the club/slot structure to rename, and exporting the fictional squads
+ * would (a) bloat the file and (b) make a rename-only round-trip destructively
+ * replace rosters.
+ *
+ * NOTE: no longer reachable from the UI. It backed the Leagues page's "Export
+ * Teams" button, which was replaced by "Export Save" (2026-08-10, user call),
+ * so nothing in the app calls it and Vite drops it from the bundle. Kept
+ * because it is the roster format's writer — the counterpart to
+ * parseRosterFile, still covered by rosterFile.test.ts, and the shape any
+ * future template export would emit. Delete it only alongside the format.
  */
 export function buildRosterFile(league: LeagueStore): RosterFile {
   return {
@@ -87,11 +133,16 @@ export function buildRosterFile(league: LeagueStore): RosterFile {
     formatVersion: ROSTER_FILE_VERSION,
     competitions: league.competitions.map((comp) => ({
       match: comp.name,
-      clubs: teamsInCompetition(league, comp.id).map((t) => ({
-        name: t.name,
-        abbrev: t.abbrev,
-        colors: [...t.colors] as [string, string],
-      })),
+      // Same filter/sort as teamsInCompetition, but over the full StoredTeams —
+      // the template needs each club's identity, not just its slot.
+      clubs: league.teams
+        .filter((t) => t.compId === comp.id)
+        .sort((a, b) => a.tid - b.tid)
+        .map((t) => ({
+          name: t.name,
+          abbrev: t.abbrev,
+          colors: [...t.colors] as [string, string],
+        })),
     })),
   };
 }
@@ -172,7 +223,7 @@ export function parseRosterFile(text: string): RosterFile {
     throw new Error("Invalid roster file: expected a JSON object.");
   }
   const obj = parsed as Record<string, unknown>;
-  if (obj.format !== ROSTER_FILE_FORMAT) {
+  if (!isRosterFileFormat(obj.format)) {
     throw new Error(
       `Invalid roster file: "format" must be "${ROSTER_FILE_FORMAT}" (got ${JSON.stringify(obj.format)}).`,
     );
@@ -256,9 +307,9 @@ export interface RosterSlotResolution {
  * file still applies what it can. Shared by both the identity-edit path and the
  * roster-replacement path so the "which club goes where" rule lives once.
  */
-export function resolveRosterSlots(league: LeagueStore, file: RosterFile): RosterSlotResolution {
+export function resolveRosterSlots(world: RosterSlotWorld, file: RosterFile): RosterSlotResolution {
   const byName = new Map(
-    league.competitions.map((c) => [c.name.trim().toLowerCase(), c.id]),
+    world.competitions.map((c) => [c.name.trim().toLowerCase(), c.id]),
   );
   const slots: RosterSlot[] = [];
   const warnings: string[] = [];
@@ -269,7 +320,7 @@ export function resolveRosterSlots(league: LeagueStore, file: RosterFile): Roste
       warnings.push(`No competition named "${fc.match}" in this save — skipped.`);
       continue;
     }
-    const targets = teamsInCompetition(league, compId);
+    const targets = teamsInCompetition(world, compId);
     if (fc.clubs.length > targets.length) {
       warnings.push(
         `"${fc.match}" lists ${fc.clubs.length} clubs but has ${targets.length} slots — the extra ${fc.clubs.length - targets.length} were ignored.`,

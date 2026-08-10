@@ -5,6 +5,7 @@ import { useSportName } from "../sportName.js";
 import { TopBar } from "./TopBar.js";
 import { Sidebar } from "./Sidebar.js";
 import { ErrorBoundary } from "./ErrorBoundary.js";
+import { CrestArtProvider } from "./ClubCrest.js";
 
 interface LayoutProps {
   /**
@@ -56,8 +57,14 @@ export function Layout({ allowNoLeague = false }: LayoutProps) {
     return <Navigate to="/leagues" replace />;
   }
 
+  // Clubs an imported roster file renamed must not show the built-in crest for
+  // their slot — that badge belongs to the fictional club they replaced. Scoped
+  // to the whole in-league shell so every surface agrees, rather than each of
+  // the fourteen ClubCrest call sites having to remember.
+  const importedTids = league.teams.filter((t) => t.importedIdentity).map((t) => t.tid);
+
   return (
-    <>
+    <CrestArtProvider tids={importedTids}>
       <TopBar onToggleNav={() => setNavOpen((o) => !o)} />
       <div className="app-layout">
         <Sidebar open={navOpen} onNavigate={() => setNavOpen(false)} />
@@ -75,7 +82,7 @@ export function Layout({ allowNoLeague = false }: LayoutProps) {
           </ErrorBoundary>
         </main>
       </div>
-    </>
+    </CrestArtProvider>
   );
 }
 

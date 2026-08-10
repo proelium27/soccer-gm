@@ -17,6 +17,7 @@ export function TopBar({ onToggleNav }: TopBarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const [promptCopied, setPromptCopied] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   function handleSwitchLeague() {
     switchLeagueAction();
@@ -68,14 +69,24 @@ export function TopBar({ onToggleNav }: TopBarProps) {
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) {
+    // Reset so the same file can be re-imported
+    e.target.value = "";
+    if (!file) return;
+    setImportError(null);
+    try {
       await importJSON(file);
-      // Reset so the same file can be re-imported
-      e.target.value = "";
+    } catch (err) {
+      // A rejected import used to surface nowhere but the browser console, so a
+      // bad file read as "the button does nothing".
+      setImportError(err instanceof Error ? err.message : String(err));
+      // The banner renders under the (sticky) top bar, so on a page scrolled
+      // down it would appear off-screen and still read as nothing happening.
+      window.scrollTo({ top: 0 });
     }
   }
 
   return (
+    <>
     <nav className="navbar navbar-dark app-topbar px-2 px-md-3">
       <button
         className="btn btn-sm mobile-nav-toggle d-md-none"
@@ -194,5 +205,21 @@ export function TopBar({ onToggleNav }: TopBarProps) {
         />
       </div>
     </nav>
+
+    {importError && (
+      <div className="alert alert-danger rounded-0 mb-0 py-2 px-3 d-flex align-items-start gap-3" role="alert">
+        <div className="flex-grow-1">
+          <div>Couldn't import that file.</div>
+          <div className="small">{importError}</div>
+        </div>
+        <button
+          type="button"
+          className="btn-close"
+          aria-label="Dismiss"
+          onClick={() => setImportError(null)}
+        />
+      </div>
+    )}
+    </>
   );
 }

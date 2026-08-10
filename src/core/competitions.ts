@@ -92,6 +92,34 @@ export interface CountryClubRange {
   end: number;
 }
 
+/** One club slot in a freshly generated world: which competition a tid lands in. */
+export interface TeamSlot {
+  tid: number;
+  compId: number;
+}
+
+/**
+ * Every club slot a fresh world will have, tid -> competition, laid out exactly
+ * the way generateWorld() assigns tids (tier1Pairs() order, a country's tier-1
+ * block then its tier-2 block). Lets a caller reason about the slot structure
+ * of a save that doesn't exist yet — the new-league roster-file preview needs
+ * to know which competition each tid belongs to before paying the cost of
+ * generating 6000 players.
+ */
+export function worldTeamSlots(
+  competitions: Competition[],
+  teamsPerTier1: number,
+  teamsPerTier2: number,
+): TeamSlot[] {
+  const slots: TeamSlot[] = [];
+  let tid = 0;
+  for (const { d1, d2 } of tier1Pairs(competitions)) {
+    for (let i = 0; i < teamsPerTier1; i++) slots.push({ tid: tid++, compId: d1.id });
+    for (let i = 0; i < teamsPerTier2; i++) slots.push({ tid: tid++, compId: d2.id });
+  }
+  return slots;
+}
+
 /**
  * The tid/CLUBS-index range each country occupies, derived the same way
  * generateWorld() assigns tids (tier1Pairs() order, tier-1 block then

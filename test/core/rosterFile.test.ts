@@ -5,6 +5,8 @@ import {
   buildRosterFile,
   parseRosterFile,
   rosterFileToEdits,
+  isRosterFileFormat,
+  ROSTER_FILE_FORMAT,
 } from "../../src/core/teams/rosterFile.js";
 
 const base = makeLeague(0, 7, 7);
@@ -14,7 +16,7 @@ const league = { ...base, meta: { ...base.meta, name: base.teams[0].name } };
 describe("buildRosterFile", () => {
   it("emits one competition entry per league competition, in table order", () => {
     const file = buildRosterFile(league);
-    expect(file.format).toBe("soccer-gm-roster");
+    expect(file.format).toBe("world-soccer-sim-roster");
     expect(file.formatVersion).toBe(1);
     expect(file.competitions.map((c) => c.match)).toEqual(
       league.competitions.map((c) => c.name),
@@ -53,7 +55,7 @@ describe("rosterFileToEdits", () => {
     const comp = league.competitions[0];
     const file = parseRosterFile(
       JSON.stringify({
-        format: "soccer-gm-roster",
+        format: "world-soccer-sim-roster",
         formatVersion: 1,
         competitions: [
           {
@@ -86,7 +88,7 @@ describe("rosterFileToEdits", () => {
     const comp = league.competitions[0];
     const file = parseRosterFile(
       JSON.stringify({
-        format: "soccer-gm-roster",
+        format: "world-soccer-sim-roster",
         formatVersion: 1,
         competitions: [
           { match: comp.name.toUpperCase(), clubs: [{ name: "X", abbrev: "X", colors: ["#000000", "#ffffff"] }] },
@@ -101,7 +103,7 @@ describe("rosterFileToEdits", () => {
   it("warns and skips an unknown competition name", () => {
     const file = parseRosterFile(
       JSON.stringify({
-        format: "soccer-gm-roster",
+        format: "world-soccer-sim-roster",
         formatVersion: 1,
         competitions: [
           { match: "Martian Premier League", clubs: [{ name: "X", abbrev: "X", colors: ["#000000", "#ffffff"] }] },
@@ -123,7 +125,7 @@ describe("rosterFileToEdits", () => {
       colors: ["#000000", "#ffffff"] as [string, string],
     }));
     const file = parseRosterFile(
-      JSON.stringify({ format: "soccer-gm-roster", formatVersion: 1, competitions: [{ match: comp.name, clubs }] }),
+      JSON.stringify({ format: "world-soccer-sim-roster", formatVersion: 1, competitions: [{ match: comp.name, clubs }] }),
     );
     const { edits, warnings } = rosterFileToEdits(league, file);
     expect(edits).toHaveLength(slotCount);
@@ -138,17 +140,44 @@ describe("parseRosterFile validation", () => {
   it("rejects a wrong format tag", () => {
     expect(() => parseRosterFile(JSON.stringify({ format: "nope", formatVersion: 1, competitions: [] }))).toThrow(/format/);
   });
+
+  // The format announced itself as "soccer-gm-roster" before the game settled
+  // on its name. Files carrying it are already in people's hands, so they have
+  // to keep loading — only what we WRITE changed.
+  it("still reads a file written before the rename", () => {
+    const file = parseRosterFile(
+      JSON.stringify({
+        format: "soccer-gm-roster",
+        formatVersion: 1,
+        competitions: [
+          { match: "English Division 1", clubs: [{ name: "Old File FC", abbrev: "OLD", colors: ["#111111", "#eeeeee"] }] },
+        ],
+      }),
+    );
+    expect(file.competitions[0].clubs[0].name).toBe("Old File FC");
+    // Parsing upgrades the tag, so anything re-serialized carries the new one.
+    expect(file.format).toBe(ROSTER_FILE_FORMAT);
+  });
+
+  it("recognizes both format tags, and nothing else", () => {
+    expect(isRosterFileFormat(ROSTER_FILE_FORMAT)).toBe(true);
+    expect(isRosterFileFormat("soccer-gm-roster")).toBe(true);
+    expect(isRosterFileFormat("nope")).toBe(false);
+    // An exported save has no `format` field at all — this is what the Leagues
+    // page's Import button relies on to tell the two files apart.
+    expect(isRosterFileFormat(undefined)).toBe(false);
+  });
   it("rejects an unsupported version", () => {
-    expect(() => parseRosterFile(JSON.stringify({ format: "soccer-gm-roster", formatVersion: 99, competitions: [] }))).toThrow(/version/);
+    expect(() => parseRosterFile(JSON.stringify({ format: "world-soccer-sim-roster", formatVersion: 99, competitions: [] }))).toThrow(/version/);
   });
   it("rejects a missing competitions array", () => {
-    expect(() => parseRosterFile(JSON.stringify({ format: "soccer-gm-roster", formatVersion: 1 }))).toThrow(/competitions/);
+    expect(() => parseRosterFile(JSON.stringify({ format: "world-soccer-sim-roster", formatVersion: 1 }))).toThrow(/competitions/);
   });
   it("names the offending path on a malformed club", () => {
     expect(() =>
       parseRosterFile(
         JSON.stringify({
-          format: "soccer-gm-roster",
+          format: "world-soccer-sim-roster",
           formatVersion: 1,
           competitions: [{ match: "English Division 1", clubs: [{ name: "ok", abbrev: "OK", colors: ["#000000"] }] }],
         }),
