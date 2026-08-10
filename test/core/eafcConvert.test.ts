@@ -19,8 +19,9 @@ import { mapNation } from "../../scripts/eafc/nations.js";
 import { buildRescaler } from "../../scripts/eafc/scale.js";
 import { deriveAbbrev, uniquifyAbbrevs } from "../../scripts/eafc/identity.js";
 import { convert } from "../../scripts/eafc/convert.js";
-import { parseRosterFile } from "../../src/core/teams/rosterFile.js";
+import { parseRosterFile, type RosterFile } from "../../src/core/teams/rosterFile.js";
 import { applyRosterFile } from "../../src/core/teams/rosterImport.js";
+import { mergeRosterFiles } from "../../scripts/eafc/mergeRosterFiles.js";
 import { computeOvr } from "../../src/core/players/ovr.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 
@@ -452,5 +453,112 @@ describe("applying the converted file to a real save", () => {
     const mean = importedOvrs.reduce((a, b) => a + b, 0) / importedOvrs.length;
     expect(mean).toBeGreaterThan(50);
     expect(mean).toBeLessThan(72);
+  });
+});
+
+describe("mergeRosterFiles — filling uncovered slots from a names file", () => {
+  const roster = (competitions: { match: string; clubs: string[] }[]): RosterFile =>
+    parseRosterFile(
+      JSON.stringify({
+        format: "soccer-gm-roster",
+        formatVersion: 1,
+        competitions: competitions.map((c) => ({
+          match: c.match,
+          clubs: c.clubs.map((name) => ({
+            name,
+            abbrev: name.slice(0, 3).toUpperCase(),
+            colors: ["#111111", "#eeeeee"],
+          })),
+        })),
+      }),
+    );
+
+  const clubNames = (file: RosterFile, match: string): string[] =>
+    file.competitions.find((c) => c.match === match)!.clubs.map((k) => k.name);
+
+  it("fills a short competition from the names file", () => {
+    const base = roster([{ match: "German Division 1", clubs: ["FC Bayern München", "Borussia Dortmund"] }]);
+    const names = roster([
+      { match: "German Division 1", clubs: ["Bayern Munich", "Borussia Dortmund", "SSV Ulm 1846", "Jahn Regensburg"] },
+    ]);
+    const { file, filled } = mergeRosterFiles(base, names);
+    expect(clubNames(file, "German Division 1")).toEqual([
+      "FC Bayern München",
+      "Borussia Dortmund",
+      "SSV Ulm 1846",
+      "Jahn Regensburg",
+    ]);
+    expect(filled.map((f) => f.club)).toEqual(["SSV Ulm 1846", "Jahn Regensburg"]);
+  });
+
+  it("never places a club that already exists in ANOTHER division", () => {
+    // The case this whole tool exists for: a names file that disagrees about
+    // tiers would otherwise put Schalke in both divisions at once.
+    const base = roster([
+      { match: "German Division 1", clubs: ["FC Bayern München"] },
+      { match: "German Division 2", clubs: ["FC Schalke 04", "Hertha BSC"] },
+    ]);
+    const names = roster([
+      { match: "German Division 1", clubs: ["Bayern Munich", "Schalke 04"] },
+      { match: "German Division 2", clubs: ["FC Schalke 04", "Hertha BSC"] },
+    ]);
+    const { file, rejected } = mergeRosterFiles(base, names);
+    expect(clubNames(file, "German Division 1")).toEqual(["FC Bayern München"]);
+    expect(rejected.map((r) => r.candidate)).toContain("Schalke 04");
+  });
+
+  it("carries over a competition the base file omits entirely", () => {
+    const base = roster([{ match: "Portuguese Division 1", clubs: ["SL Benfica"] }]);
+    const names = roster([
+      { match: "Portuguese Division 1", clubs: ["Benfica"] },
+      { match: "Portuguese Division 2", clubs: ["Varzim SC", "UD Leiria"] },
+    ]);
+    const { file } = mergeRosterFiles(base, names);
+    expect(clubNames(file, "Portuguese Division 2")).toEqual(["Varzim SC", "UD Leiria"]);
+  });
+
+  it("adds names only — a filled slot never gains players", () => {
+    const base = roster([{ match: "German Division 1", clubs: ["FC Bayern München"] }]);
+    const names = roster([{ match: "German Division 1", clubs: ["SSV Ulm 1846", "Jahn Regensburg"] }]);
+    const { file } = mergeRosterFiles(base, names);
+    expect(file.competitions[0].clubs.every((k) => k.players === undefined)).toBe(true);
+  });
+
+  it.each([
+    ["Casa Pia", "Casa Pia AC"],
+    ["Alverca", "FC Alverca"],
+    ["VfL Bochum 1848", "VfL Bochum"],
+    ["ESTAC Troyes", "Troyes Aubois"],
+    ["Vitória SC", "Vitoria de Guimaraes"],
+    ["AVS Futebol SAD", "AVS"],
+    ["SpVgg Greuther Fürth", "Greuther Fürth"],
+    ["En Avant Guingamp", "EA Guingamp"],
+    // Cross-language spellings, which no general string rule recovers.
+    ["FC Bayern München", "Bayern Munich"],
+    ["1. FC Nürnberg", "Nuremberg"],
+  ])("treats %s and %s as the same club", (a, b) => {
+    // The base must be SHORT of the names file, or there is no empty slot and
+    // no candidate is ever considered.
+    const { file, rejected } = mergeRosterFiles(
+      roster([{ match: "German Division 1", clubs: [a] }]),
+      roster([{ match: "German Division 1", clubs: [b, "Only Spare Club"] }]),
+    );
+    expect(rejected.map((r) => r.candidate)).toContain(b);
+    // ...and the slot went to the spare instead, not to a second copy of `a`.
+    expect(clubNames(file, "German Division 1")).toEqual([a, "Only Spare Club"]);
+  });
+
+  it.each([
+    ["Borussia Dortmund", "Borussia Mönchengladbach"],
+    ["Stade Rennais FC", "Stade Brestois 29"],
+    ["Olympique de Marseille", "Olympique Lyonnais"],
+    ["1. FC Köln", "1. FC Kaiserslautern"],
+    ["AS Saint-Étienne", "Paris Saint-Germain"],
+  ])("keeps %s and %s apart", (a, b) => {
+    const { file } = mergeRosterFiles(
+      roster([{ match: "German Division 1", clubs: [a] }]),
+      roster([{ match: "German Division 1", clubs: [a, b] }]),
+    );
+    expect(clubNames(file, "German Division 1")).toEqual([a, b]);
   });
 });

@@ -149,6 +149,46 @@ Note that datasets don't necessarily carry all twelve leagues. The FC26 export
 has no Liga Portugal 2, so Portuguese Division 2 keeps all 20 fictional clubs;
 the converter says so in its warnings rather than leaving you to notice.
 
+## Filling the gaps with a second file
+
+A converted file can't cover every slot: the 18-club leagues (Bundesliga,
+Ligue 1, Primeira Liga) leave 2 slots each, and a division the dataset omits
+leaves all 20. `mergeRosterFiles.ts` fills those from a second roster file —
+typically one the game's own **Export Teams** button produced after renaming
+clubs by hand:
+
+```bash
+npx tsx scripts/eafc/mergeRosterFiles.ts \
+  --base eafc-roster.json --names soccer-gm-teams-x.json --out merged-roster.json
+```
+
+Names only: a filled slot keeps its generated squad. On the FC26 export plus a
+hand-named file this takes the world from 210 real clubs to 233, with 210 of
+them carrying real players.
+
+**Duplicate clubs are the entire difficulty, and they are not hypothetical.** A
+hand-built names file routinely disagrees with the dataset about which division
+a club is in. The two clubs spare in one file's Bundesliga list were Bochum,
+Kiel and Schalke — all of which FC26 places in the 2. Bundesliga — and its Liga
+Portugal 2 list contained Rio Ave, Nacional, Casa Pia and Chaves, all of which
+sit in its own top flight. Fill by slot position and the same club ends up in
+two divisions at once, which promotion/relegation then has to make sense of. So
+every candidate is checked against every club already in the merged world, not
+just the ones in its own competition.
+
+The name comparison has to survive "Casa Pia" vs "Casa Pia AC", "Alverca" vs
+"FC Alverca", "VfL Bochum 1848" vs "VfL Bochum", "ESTAC Troyes" vs "Troyes
+Aubois" and "Vitória SC" vs "Vitoria de Guimaraes". It strips accents, club-type
+words and founding years, then requires the shorter name's remaining tokens to
+be *contained* in the longer's. Containment rather than overlap is deliberate:
+overlap matched AS Saint-Étienne to Paris Saint-Germain on the shared "saint".
+Cross-language spellings ("Bayern Munich" vs "FC Bayern München") get a small
+explicit table, since no general string rule recovers them. The residual false
+positive is a single-token name contained in a longer unrelated one — "Paris FC"
+still reads as a subset of "Paris Saint-Germain" — which is why **the tool
+prints every rejection with the club it matched**. Read that list; it is the
+check on the heuristic.
+
 **Club colors and abbreviations** aren't in the datasets, so both are
 synthesized deterministically from the club name. **Crest art doesn't follow an
 import** — `ClubCrest` keys the England/Spain crest images by tid, which is a
@@ -194,6 +234,7 @@ academies to drift toward their slot's anchor rather than their reputation.
 | `scripts/eafc/leagues.ts` | EA league id/name → competition |
 | `scripts/eafc/inspectLeagues.ts` | audit a dataset's leagues before converting |
 | `scripts/eafc/inspectRosterFile.ts` | audit a generated roster file after |
+| `scripts/eafc/mergeRosterFiles.ts` | fill uncovered slots from a second roster file |
 | `scripts/eafc/nations.ts` | EA nation name → nationality key |
 | `scripts/eafc/ratings.ts` | EA attributes → `PlayerRatings`, shift-to-overall |
 | `scripts/eafc/scale.ts` | rank-matching rescale |
