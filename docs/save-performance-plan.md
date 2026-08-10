@@ -1,7 +1,9 @@
 # Save performance: split `players` into its own IndexedDB store
 
-Status: **proposed, not started.** Needs a user call before coding — it changes the
-on-disk format of existing saves.
+Status: **phases 0–2 implemented.** Phase 3 is measured and recommended *against*;
+phase 4 is untouched. See "Results" below for what shipped and what it bought.
+
+This changes the on-disk format of existing saves (see "Migration").
 
 ## The problem in one sentence
 
@@ -134,9 +136,22 @@ write-back path (`shrankOnLoad`), so this follows an established pattern and is 
 easier to test than doing bulk work inside a `versionchange` transaction. One-time
 cost of a few seconds on the largest save, once.
 
-**One-way door.** Once a save is split, a build from before this change cannot read
-it. Two accounts share this repo, so a teammate on an older build would find their
-saves broken. Export JSON is the escape hatch and should be called out in the PR.
+**One-way door, and it is wider than "the migrated save".** Verified, not reasoned
+about: once a `DB_VERSION` 2 build has opened the database even once, a version-1
+build's `openDB` fails outright with `VersionError` — IndexedDB refuses to open at
+a version below the stored one. So the blast radius is **the whole database, every
+save, migrated or not**, per browser profile.
+
+Two consequences worth planning around:
+
+- **Deploy rollback is not free.** Ship this, have a user load it once, then roll
+  back, and that user cannot open *any* save until you roll forward again. No data
+  is lost — going back to the newer build restores everything — but the outage is
+  total while it lasts.
+- **Two accounts share this repo**, so whoever is on the older branch will hit this
+  the moment they load a save after running the new build once.
+
+Export JSON is the escape hatch and should be called out in the PR.
 
 ## Phasing
 
@@ -147,22 +162,73 @@ Ordered so the risky part lands last, on top of something already proven.
 | **0** | Baseline harness: extend `leagueSizeTiming` to time individual actions, not just full saves. Write the dirty-set verification test *first*, against current behaviour. | Numbers to judge the rest by | ~0.5 day |
 | **1** | Schema v2, two stores, one transaction, lazy migration, reassembly in `loadLeague`. **Still writes every player on every save.** | Proves split + migration with zero correctness risk. Fixes `listLeagues` outright. Little else. | ~2 days |
 | **2** | Reference-identity dirty set + deletions + the verification test from phase 0. | **The actual win.** Non-sim actions drop from ~64 MB to a few KB. | ~2 days |
-| **3** | *Optional.* Lazy copy in `simThrough` so untouched players keep identity. | ~2× on sim writes | ~1 day |
+| **3** | ~~Lazy copy in `simThrough`~~ **Dropped.** Measured ceiling is 26%, on the one action users already accept as a pause, for a change to the hot path. | — | — |
+| **3b** | *New, replaces 3.* Split the append-only logs (`powerRankingHistory`, `transfers`, `newsEvents`, `seasonHistory`, `cupHistory`) into their own stores, appending rather than rewriting. | Small actions go flat; removes the remaining 7.8 MB floor | ~2–3 days |
 | **4** | *Separate piece of work.* Keep the league resident in the sim worker; pass commands and deltas instead of the world. | Kills cost (2), the sim bottleneck | ~1–2 weeks |
 
 Phase 1 on its own delivers almost nothing user-visible — it exists purely to
 de-risk phase 2. Worth knowing before it is judged on its own merits.
 
+## Results
+
+Measured with `scripts/savePerfProbe.ts` (320-club world, seed 7). `dirty` is what
+a save writes; `changed` is what genuinely differs by content.
+
+**The reference-identity assumption holds.** At both 3 and 8 seasons, across every
+action tried, no player ever changed content without also getting a new identity —
+the probe fails loudly if one does. Single-player actions are as cheap as hoped:
+
+| action | dirty | changed | of the save |
+|--------|-------|---------|-------------|
+| extend contract | 1 | 1 | 0.01% |
+| sign free agent | 1 | 1 | 0.01% |
+| release player / set lineup / set scouting spend | 0 | 0 | 0.00% |
+| sim one matchday | 8,076 | 5,992 | 82% |
+| offseason | 8,045 | 8,045 | 82% |
+
+**Save cost, 8-season save (34.6 MB).** Small actions **281 ms → ~118 ms**; at a
+3-season save, 99 ms → ~35 ms.
+
+**Three findings that change the plan:**
+
+1. **Phase 1 alone is a regression, as predicted but worse than expected** —
+   writing ~8,000 rows individually took a full save from 99 ms to 335 ms. It must
+   never ship without phase 2. (It didn't; both are on the same branch.)
+
+2. **Phase 3 is not worth doing.** Its entire ceiling is the gap between `dirty`
+   and `changed` on a sim: 8,076 vs 5,992, so ~26%. That is a modest gain on the
+   one operation users already accept as a pause, in exchange for touching
+   `simThrough`'s hot path in a repo with a history of RNG-order accidents.
+   **Recommendation: drop it**, and spend the effort on the append-only split below.
+
+3. **The win is real but not flat, and the remaining floor is now visible.** Small
+   actions cost 35 ms at 3 seasons and 118 ms at 8, because the league record still
+   holds everything that is not a player. At 8 seasons that is 7.8 MB, and it is
+   almost entirely **append-only**: `powerRankingHistory` 2.3 MB, `transfers`
+   1.7 MB, `newsEvents` 1.3 MB, `seasonHistory` 0.7 MB, `cupHistory` 0.6 MB.
+   Append-only is the easiest case there is — new rows are written, old rows are
+   never rewritten — so splitting these is both the next-biggest win and cheaper
+   than the players work was. **This, not phase 3, is the follow-up.**
+
 ## Files that change
 
 - `src/db/database.ts` — schema, `DB_VERSION`, second store
-- `src/db/leagueDb.ts` — save/load/list, the transaction, the split
-- `src/ui/context/LeagueContext.tsx` — hold the last-written map (9 save sites)
-- `test/db/leagueDb.test.ts` — round-trip, migration, dirty-set verification
-- `scripts/leagueSizeTiming.ts` — per-action timings
+- `src/db/leagueDb.ts` — save/load/list, the transaction, the split, the dirty set
+- `test/db/leagueDb.test.ts` — round-trip, incremental write, deletion, stale-writer
+  fallback, v1→v2 split
+- `test/db/playerIdentity.test.ts` — the invariant gate
+- `scripts/savePerfProbe.ts` — per-action dirty set and timings
 
-Deliberately unchanged: `migrate.ts`, `exportImport.ts`, `src/worker/*`, and all
-50 files that read `league.players`.
+**`LeagueContext.tsx` did not need to change**, which the plan expected it would.
+Keeping the last-written pool inside the db layer (keyed by lid) instead of asking
+the caller to track it means no call site can forget, and the whole feature stays
+in one file. The cross-tab hazard that created — another tab writing between our
+saves, leaving our idea of the pool stale — is handled by a `writeSeq` counter on
+the league record: if it does not match what we last wrote, the save falls back to
+a full rewrite.
+
+Deliberately unchanged: `migrate.ts`, `exportImport.ts`, `src/worker/*`, and every
+file that reads `league.players`.
 
 ## Expected outcome
 
@@ -183,8 +249,14 @@ Deliberately unchanged: `migrate.ts`, `exportImport.ts`, `src/worker/*`, and all
 - Splitting `seasonHistory` / `cupHistory` / `transfers` / `newsEvents` into their own stores. They are a much smaller share of the save post-`archiveCup`, and they are append-only, so a later phase can do it cheaply if measurement says it is worth it.
 - Any change to what data we retain. This plan explicitly does **not** delete history; it stops us from rewriting it on every click.
 
-## Open question for the user
+## Open questions
 
-Phase 3 touches `simThrough`'s hot path. It is a pure refactor and cannot move
-results, but this repo has a documented history of RNG-order accidents, so it may
-be worth deferring until phases 1–2 are merged and measured.
+**Answered:** phase 3 was the open question, and the measurement settled it — a 26%
+ceiling on sims does not justify touching `simThrough`. Dropped in favour of 3b.
+
+**Still open — needs a real browser.** The save now does its reads and writes inside
+a single IndexedDB transaction. That is required for correctness, but IDB
+transactions auto-commit once they go idle, and `fake-indexeddb` (what the tests
+use) is more forgiving about this than Safari is. Every `await` in the save path is
+on a request belonging to that transaction, which should keep it alive, but this
+wants confirming by playing a save in an actual browser before it is trusted.
