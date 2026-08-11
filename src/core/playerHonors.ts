@@ -1,4 +1,5 @@
 import type { Player } from "./players/types.js";
+import type { ArchivedPlayer } from "./players/archive.js";
 import type { SeasonHistoryEntry } from "./standings.js";
 
 /** A player's career honours, each a list of the seasons he won it. */
@@ -52,6 +53,36 @@ export function computePlayerHonors(
   player: Player,
   seasonHistory: SeasonHistoryEntry[],
 ): PlayerHonors {
+  return honorsOf(player.pid, (season) => squadTidForSeason(player, season), seasonHistory);
+}
+
+/**
+ * The same honours, for a player retirement has already deleted from the pool.
+ *
+ * `ArchivedPlayer.seasons` is the archive's stand-in for `Player.stats` — it
+ * keeps one `{season, tid}` line per season he was in a squad, precisely so
+ * this stays derivable. Routing both through `honorsOf` is what stops a
+ * retiree's honours from drifting away from what his profile showed the season
+ * before he retired (the same pairing `frivolities/goat.ts` maintains).
+ */
+export function computeArchivedHonors(
+  archived: ArchivedPlayer,
+  seasonHistory: SeasonHistoryEntry[],
+): PlayerHonors {
+  const tidBySeason = new Map(archived.seasons.map((s) => [s.season, s.tid]));
+  return honorsOf(archived.pid, (season) => tidBySeason.get(season), seasonHistory);
+}
+
+/**
+ * The shared walk over `seasonHistory`, parameterised only by how the caller
+ * answers "which squad was he in that season" — the one thing a living player
+ * and an archived retiree store differently.
+ */
+function honorsOf(
+  pid: number,
+  squadTid: (season: number) => number | undefined,
+  seasonHistory: SeasonHistoryEntry[],
+): PlayerHonors {
   const ballonDOr: number[] = [];
   const worldTeamOfYear: number[] = [];
   const playerOfSeason: number[] = [];
@@ -61,17 +92,17 @@ export function computePlayerHonors(
 
   for (const entry of seasonHistory) {
     for (const compAwards of Object.values(entry.awards)) {
-      if (compAwards.playerOfSeasonPid === player.pid) playerOfSeason.push(entry.season);
-      if (compAwards.goldenBootPid === player.pid) goldenBoot.push(entry.season);
-      if (compAwards.teamOfSeason.includes(player.pid)) teamOfSeason.push(entry.season);
+      if (compAwards.playerOfSeasonPid === pid) playerOfSeason.push(entry.season);
+      if (compAwards.goldenBootPid === pid) goldenBoot.push(entry.season);
+      if (compAwards.teamOfSeason.includes(pid)) teamOfSeason.push(entry.season);
     }
     // Optional-chained because a save written before worldwide awards only gets
     // `world` once migrateLeague has run over it.
-    if (entry.world?.ballonDOr[0]?.pid === player.pid) ballonDOr.push(entry.season);
-    if (entry.world?.worldTeamOfYear.includes(player.pid)) worldTeamOfYear.push(entry.season);
+    if (entry.world?.ballonDOr[0]?.pid === pid) ballonDOr.push(entry.season);
+    if (entry.world?.worldTeamOfYear.includes(pid)) worldTeamOfYear.push(entry.season);
 
-    const squadTid = squadTidForSeason(player, entry.season);
-    if (squadTid !== undefined && Object.values(entry.championTidByCompId).includes(squadTid)) {
+    const tid = squadTid(entry.season);
+    if (tid !== undefined && Object.values(entry.championTidByCompId).includes(tid)) {
       leagueTitles.push(entry.season);
     }
   }

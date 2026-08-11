@@ -17,6 +17,8 @@ import {
   type GoatComponent, type PlayerGoatRow, type TeamGoatRow,
 } from "../../core/frivolities/goat.js";
 import { ALL_TIME_STAT_KEYS, type AllTimeStatKey } from "../../core/frivolities/stats.js";
+import { STAT_LABELS, formatStat } from "../statLabels.js";
+import { usePlayerRefs } from "../components/PlayerRefLink.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { Flag } from "../components/Flag.js";
 import { currency, seasonYear } from "../format.js";
@@ -31,33 +33,6 @@ const TAB_LABELS: Record<Tab, string> = {
   bios: "Player Bios",
   clubs: "Club Records",
 };
-
-/** Display labels for the ranked stats, matching the per-season Stat Leaders page's wording. */
-const STAT_LABELS: Record<AllTimeStatKey, string> = {
-  goals: "Goals",
-  assists: "Assists",
-  shots: "Shots",
-  shotsOnTarget: "Shots on Target",
-  xg: "xG",
-  saves: "Saves",
-  tackles: "Tackles",
-  interceptions: "Interceptions",
-  passes: "Passes",
-  crosses: "Crosses",
-  foulsCommitted: "Fouls",
-  minutesPlayed: "Minutes",
-  appearances: "Appearances",
-  avgRating: "Match Rating",
-};
-
-/** Stats that read better with a decimal than as a whole number. */
-const DECIMAL_STATS = new Set<AllTimeStatKey>(["xg", "avgRating"]);
-
-function formatStat(stat: AllTimeStatKey, value: number): string {
-  return DECIMAL_STATS.has(stat)
-    ? value.toFixed(stat === "avgRating" ? 2 : 1)
-    : Math.round(value).toLocaleString();
-}
 
 /** A titled card wrapping one list, with an optional line of explanation under the heading. */
 function Panel({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
@@ -94,10 +69,12 @@ function ClubCell({ tid }: { tid: number | null }) {
 }
 
 /**
- * A player's name, linked to his profile only while he still exists.
+ * A player's name, linked to his profile.
  *
- * A retiree is deleted from the pool, so his profile route would render an
- * empty page — the archive keeps his name and record, not a page to visit.
+ * A retiree is deleted from the pool, but his archived career record still has
+ * a page of its own (`RetiredPlayerProfile`, reached through the same
+ * `/player/:pid` route), so these link too — the badge just says which kind of
+ * page you're about to get.
  */
 function PlayerCell({ pid, name, nationality, active }: {
   pid: number;
@@ -105,14 +82,16 @@ function PlayerCell({ pid, name, nationality, active }: {
   nationality?: string;
   active?: boolean;
 }) {
+  // Some rows (the biggest-fees board) carry a pid the save has no record of at
+  // all — neither pool nor archive — and their `name` is already a "Player 4821"
+  // placeholder. Those stay unlinked; there's no page to send them to.
+  const known = usePlayerRefs()(pid) !== undefined;
   return (
     <span className="d-inline-flex align-items-center gap-1">
       {/* Falsy for a player the save no longer knows (see TransferRecord.nationality) —
           the Flag fallback swatch would imply a country we don't actually have. */}
       {nationality ? <Flag nationality={nationality} tip={false} /> : null}
-      {active === false
-        ? <span>{name}</span>
-        : <Link to={`/player/${pid}`}>{name}</Link>}
+      {known ? <Link to={`/player/${pid}`}>{name}</Link> : <span>{name}</span>}
       {active === false && <span className="badge text-bg-secondary">Retired</span>}
     </span>
   );

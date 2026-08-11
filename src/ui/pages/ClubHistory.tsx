@@ -9,6 +9,7 @@ import { worldHasCup } from "../../core/cup/cup.js";
 import type { Player } from "../../core/players/types.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
+import { PlayerRefLink } from "../components/PlayerRefLink.js";
 import { seasonYear, ordinal } from "../format.js";
 
 /** A small inline trophy mark — no emoji in the UI (icons are hand-drawn SVG). */
@@ -38,9 +39,14 @@ function StatCard({ label, value, sub }: { label: string; value: ReactNode; sub?
   );
 }
 
+/**
+ * An honour-winner's name. `player` is the live record when he's still around;
+ * `PlayerRefLink` falls back to the retiree archive, so a club's own honours
+ * board keeps naming the man who won them after he retires.
+ */
 function PlayerName({ player, pid }: { player: Player | undefined; pid: number }) {
-  if (!player) return <span className="text-muted">Player #{pid} (departed)</span>;
-  return <Link to={`/player/${player.pid}`}>{player.name}</Link>;
+  if (player) return <Link to={`/player/${player.pid}`}>{player.name}</Link>;
+  return <PlayerRefLink pid={pid} fallback={`Player #${pid} (departed)`} />;
 }
 
 /** Group a flat list of honours by season, newest first. */

@@ -1152,6 +1152,19 @@ export function Manual() {
             keeps the save file from growing without limit. On an older save the record starts
             from your next offseason, because players who retired earlier left nothing to recover.
           </p>
+          <p>
+            Anyone with that record kept is still clickable. His name links to a career page, the
+            same way a current player's does, from the all-time lists and from anywhere else he
+            comes up: an old transfer, a news item, your own transfer history, an awards board. The
+            page carries the season he retired and the age he did it at, his peak rating and when
+            he hit it, the clubs he played for, career totals with his best single season in each
+            stat beside them, his trophies and awards, his caps and international goals, and a
+            season-by-season line with the club and rating for each year. It shows less than a
+            current player's profile because that's all that was kept: no attribute ratings, and no
+            per-season goals and assists behind the career totals. An appearance count of zero in
+            the seasons list means he was in the squad that year but never got on the pitch. A
+            retiree the game didn't keep is still just a name.
+          </p>
         </Section>
 
         <Section id="godmode" title="God Mode">

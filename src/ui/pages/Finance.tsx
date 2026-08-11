@@ -11,6 +11,7 @@ import { clubDisplayName, currency, formatWeeklyWage, ordinal, seasonYear, trans
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { ClubCrest } from "../components/ClubCrest.js";
+import { PlayerRefLink, usePlayerRefs } from "../components/PlayerRefLink.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 
 export function Finance() {
@@ -28,6 +29,7 @@ export function Finance() {
   // every tick: without it each tick rebuilt two ~6000-entry maps and recomputed
   // the division table.
   const playerMap = usePlayerMap(league?.players);
+  const refOf = usePlayerRefs();
   const salaryMap = useMemo(
     () => new Map((league?.players ?? []).map((p) => [p.pid, p.contract.salary])),
     [league?.players],
@@ -294,15 +296,17 @@ export function Finance() {
                 </thead>
                 <tbody>
                   {userTransfers.map((t, i) => {
-                    const p = playerMap.get(t.pid);
+                    // Not playerMap: your own transfer history should still name
+                    // the striker you bought in 2031 after he's retired.
+                    const ref = refOf(t.pid);
                     const bought = t.toTid === league.meta.userTid;
                     return (
                       <tr key={i}>
                         <td className="text-end">{seasonYear(t.season)}</td>
                         <td>{t.window === "summer" ? "Summer" : "Winter"}</td>
                         <td>
-                          {p ? <Link to={`/player/${p.pid}`}>{p.name}</Link> : `Player ${t.pid}`}{" "}
-                          {p && <Flag nationality={p.nationality} />}
+                          <PlayerRefLink pid={t.pid} fallback={`Player ${t.pid}`} />{" "}
+                          {ref && <Flag nationality={ref.nationality} />}
                         </td>
                         <td>
                           {bought ? (
