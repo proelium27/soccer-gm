@@ -20,7 +20,10 @@ import { simOffseason } from "../src/core/offseason.js";
 import { competitionOf } from "../src/core/competitions.js";
 
 const SEASONS = Number(process.env.SEASONS ?? 20);
-const SEEDS = [1, 2];
+// Overridable so a tuning change can be checked against worlds it was not
+// tuned on — fitting a constant to seeds 1 and 2 and then reporting seeds 1
+// and 2 measures the sample, not the mechanism.
+const SEEDS = (process.env.SEEDS ?? "1,2").split(",").map(Number);
 const USER_TID = 0;
 
 function avg(xs: number[]): number {

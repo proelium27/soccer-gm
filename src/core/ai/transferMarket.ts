@@ -15,7 +15,7 @@ import { keepsDepthFloor } from "../freeAgency.js";
 import { mulberry32 } from "../../engine/rng.js";
 import {
   ROSTER_CAP, ROSTER_SAFETY_FLOOR,
-  AI_MARKET_MIN_VALUE, AI_MARKET_AVAILABILITY, AI_MARKET_MIN_SURPLUS,
+  AI_MARKET_MIN_VALUE, AI_MARKET_MIN_SURPLUS,
   AI_MARKET_FEE_SHARE, AI_MARKET_FEE_FLOOR_FRACTION,
   AI_MARKET_MAX_BUYS, AI_MARKET_MAX_SELLS,
   AI_MARKET_RESERVE_FRACTION_MIN, AI_MARKET_RESERVE_FRACTION_MAX,
@@ -125,14 +125,26 @@ export function runAITransferMarket(
 
       // Reservation = what it would take to prise the player away from his
       // current club (keep-side valuation — see ValuationSide), scaled up if he
-      // has only just arrived and hasn't settled. Only shop players the club
-      // doesn't value above their market price.
+      // has only just arrived and hasn't settled.
+      //
+      // Every player his club would rather keep is priced, not excluded. There
+      // used to be an AI_MARKET_AVAILABILITY pre-filter here that skipped anyone
+      // whose reservation exceeded his open-market value, but that compares two
+      // things which are not commensurable — a club-relative keep value against
+      // a club-blind market price — and keep-side valuation is *built* to exceed
+      // market for a club's own best player. Measured: it excluded 0 of 239
+      // clubs' best players from ever being offered, which shut off the upward
+      // drain of talent and inverted the league strength ladder outright
+      // (docs/transfer-mobility.md). What it was meant to protect — "don't let a
+      // rich rival walk off with our irreplaceable core player" — is exactly
+      // what the reservation now expresses, enforced below by requiring a buyer
+      // to clear it by AI_MARKET_MIN_SURPLUS. Protection by price, not by veto.
+      //
       // (Division 2's strength ceiling is enforced separately and
       // deterministically — see enforceDivision2Ceiling — so this market
       // doesn't need any Division-2-specific carve-out of its own.)
       const reservation =
         keepValueToClub(player, sellerCtx) * settledMultiplier(joined.get(pid), season);
-      if (reservation > market * AI_MARKET_AVAILABILITY) continue;
 
       for (const buyer of teams) {
         if (buyer.tid === seller.tid || buyer.tid === userTid) continue;
