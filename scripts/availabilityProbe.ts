@@ -1,16 +1,20 @@
 /**
- * How far out of reach is the market's availability pre-filter?
+ * The probe that found the 2026-08-11 ladder inversion. **The screen it measures
+ * is gone** — runAITransferMarket no longer filters on availability at all — so
+ * this does not describe live behaviour. It is kept because the distribution it
+ * prints is the evidence for that deletion, and because any *replacement* prune
+ * has to be judged against these same numbers.
  *
- * runAITransferMarket only ever *shops* a player when
- *     keepValueToClub(player, sellerCtx) <= trueTransferValue(player) * AI_MARKET_AVAILABILITY
- * and skips him entirely otherwise — before any buyer is consulted.
+ * The market used to shop a player only when
+ *     keepValueToClub(player, sellerCtx) <= trueTransferValue(player) * 0.95
+ * skipping him entirely otherwise, before any buyer was consulted. Keep-side
+ * valuation exists to price a club's own best player properly ("how far would we
+ * fall without him"), so for a club's best player that ratio is high by
+ * construction and the screen excluded him permanently. This prints the
+ * reservation/market distribution, separating each club's best player from the
+ * rest — they were the population being silently removed.
  *
- * Keep-side valuation exists to price a club's own best player properly ("how
- * far would we fall without him"), so for a club's best player that ratio is
- * high by construction and the filter excludes him permanently. This prints the
- * actual distribution of reservation/market so the threshold can be set from
- * data rather than guessed, and separates each club's best player from the rest
- * — they are the population the filter is silently removing.
+ * See docs/transfer-mobility.md.
  *
  *   npx tsx scripts/availabilityProbe.ts [seasons]
  */

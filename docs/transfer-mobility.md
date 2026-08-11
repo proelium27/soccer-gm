@@ -141,10 +141,41 @@ So three of four seeds are clean and the fourth is inside tolerance, against
 `main` being fully inverted on both seeds tested. `SEEDS=` on the audit is now
 overridable precisely so a change can be checked on worlds it was not fitted to.
 
-Cost: moves to a weaker squad go 3% → 8%, still far below the 17% that motivated
-the original rework, and the market stays calm otherwise (554 paid moves/season
-against 430 now and 889 pre-rework; 6.2 nine-figure fees against 42.4).
-Removing the prune had no measurable runtime cost.
+With the audit's own gate applied (0.5 inversion tolerance, non-zero exit — see
+below), all four seeds report `ordering OK` and `SOLVENT`, and the script exits
+0. On `main` the same script exits 0 too, while printing `**BROKEN**` — which is
+the point of fixing it here.
+
+Cost, measured over four seeds rather than asserted from one:
+
+```
+              seed 1   seed 2   seed 3   seed 4      main   pre-rework
+paid moves      554      566      554      557        430      889
+star moves      11%      12%      11%      13%        10%      56%
+downhill         8%       8%       6%       5%         3%      17%
+fees >=$100M    6.2      5.6      5.3      6.5        5.7     42.4
+lowest budget  $17M     $19M     $16M     $16M       $17M        —
+```
+
+Moves to a weaker squad settle at **5–8%** — stable across seeds, not climbing,
+and well under the 17% that motivated the original rework. Everything else is
+flat: paid moves vary by 2%, star mobility by 2 points, and no club's budget goes
+anywhere near zero.
+
+**Runtime cost is real and was initially reported wrong here.** The deleted line
+was also the only early-out ahead of the O(teams) buyer loop, and only ~15.6% of
+rostered players passed it, so removing it makes the loop ~7× more expensive: one
+market run goes **~52ms → ~357ms** on a 320-club world (`scripts/marketTiming.ts`,
+best of 5, same world both sides). That is roughly 0.7s per simulated season
+across two windows, in the sim worker rather than on the main thread. An earlier
+draft of this doc claimed "no measurable runtime cost" — that was inferred from
+audit wall-clock rather than measured, and it was false.
+
+A replacement prune is worth having, but it must bound the **best possible buyer
+valuation** against the reservation. Anything that compares the reservation to
+club-blind market value reintroduces exactly this bug, and an unsound bound
+silently re-excludes players — the same failure mode, harder to see. Deliberately
+left as a follow-up rather than rushed into this change.
 
 ### Three things that were measured and rejected
 
@@ -174,11 +205,19 @@ More transfers is not the goal. Selective transfers are.
 
 `scripts/weakLeaguesAudit.ts` on `main` prints `ordering **BROKEN**` and then
 **exits 0**. It detected this regression correctly and reported success, so CI
-stayed green through a fully inverted ladder. The stricter version on the
-Belgium/Turkey branch (exits non-zero, plus an inversion tolerance for seed
-noise) is what surfaced it. Whichever lands first, that script must fail when it
-says it failed — otherwise the next regression here is exactly as invisible as
-this one was.
+stayed green through a fully inverted ladder. A gate that reports failure and
+returns success is worse than no gate — it reads as positive evidence that the
+invariant holds.
+
+**Fixed here rather than deferred.** The script now collects failures (ladder
+inversions beyond `INVERSION_TOLERANCE` 0.5, and any AI club in deficit) and
+exits non-zero with a summary. The tolerance exists because adjacent weak rungs
+are ~0.9 ovr apart at generation and ~40% of that erodes, so their order
+genuinely coin-flips between seeds; it is sized far below the failure it guards
+against, which ran to 2.5 ovr with England finishing *below* Portugal. `SEEDS` is
+also parsed defensively — `SEEDS=` is an empty string rather than nullish so `??`
+alone would not fall back, and `Number("")` is 0 rather than NaN, so a stray
+comma would otherwise have quietly run seed 0 and printed a confident verdict.
 
 ## What is deliberately not changed
 
@@ -192,6 +231,42 @@ this one was.
   regression, and it is not the thing to tune.
 - **Keep-side valuation is untouched.** It is correct, and it fixed a real bug
   (a club valuing its own 85-ovr player at $132M against a $350M market).
+
+## The gap this exposes: no need-to-sell term
+
+`AI_NEED_BUY_MIN_SURPLUS` is 0, so a buyer with a genuine positional gap clears
+at the seller's bare reservation with no margin at all. That was safe while the
+availability screen kept a club's best players out of the buyer loop entirely;
+they now reach it, so a favourable scouting-noise draw alone can move one. This
+is the most likely source of the 3% → 5-8% rise in downhill moves.
+
+The underlying asymmetry is worth naming, because it is the better fix:
+
+**The market models the buyer's urgency and gives the seller no way to express
+theirs.** A club with a hole gets its required margin dropped to zero; a club
+under no pressure whatsoever to sell prices the player identically to one that
+desperately needs the cash. In real football that is the whole negotiation — a
+content selling club simply says no, at any sane price, and the buyer's need is
+the buyer's problem.
+
+Every input for a need-to-sell term already exists: financial pressure, genuine
+surplus at the position, final contract year, age past peak. And because
+`COUNTRY_BUDGET_SCALE` makes weak leagues poor by construction while wages are
+country-independent, keying it on financial pressure would make weak-league clubs
+the willing sellers and rich clubs the reluctant ones — the selling-league
+dynamic, emergent rather than scripted.
+
+**One trap, and it is severe.** There are two ways to write such a term and only
+one is safe:
+
+- *content clubs demand more* — raises reservations broadly, so **fewer deals
+  clear**, which is exactly the mechanism that inverted the ladder. This would
+  re-break the world while looking like a realism improvement.
+- *pressured clubs discount* — lowers reservations for clubs that need to move
+  him, leaving overall volume intact.
+
+Same relative ordering, opposite effect on mobility. It must be a discount on
+pressured sellers, never a premium on content ones.
 
 ## Residual, known
 

@@ -132,13 +132,21 @@ export function runAITransferMarket(
       // whose reservation exceeded his open-market value, but that compares two
       // things which are not commensurable — a club-relative keep value against
       // a club-blind market price — and keep-side valuation is *built* to exceed
-      // market for a club's own best player. Measured: it excluded 0 of 239
-      // clubs' best players from ever being offered, which shut off the upward
-      // drain of talent and inverted the league strength ladder outright
+      // market for a club's own best player. Measured: of 239 clubs, the number
+      // whose best player could ever be offered was **zero** — the screen was an
+      // absolute exclusion, not a preference. That shut off the upward drain of
+      // talent and inverted the league strength ladder outright
       // (docs/transfer-mobility.md). What it was meant to protect — "don't let a
       // rich rival walk off with our irreplaceable core player" — is exactly
       // what the reservation now expresses, enforced below by requiring a buyer
       // to clear it by AI_MARKET_MIN_SURPLUS. Protection by price, not by veto.
+      //
+      // Cost of removing it: this was also the only early-out ahead of the
+      // O(teams) buyer loop, so one market run goes ~52ms -> ~357ms on a
+      // 320-club world (scripts/marketTiming.ts). It runs in the sim worker, so
+      // it doesn't block paint. A replacement prune must bound the *best
+      // possible buyer valuation* against the reservation — anything comparing
+      // to club-blind market value reintroduces exactly this bug.
       //
       // (Division 2's strength ceiling is enforced separately and
       // deterministically — see enforceDivision2Ceiling — so this market
@@ -175,7 +183,21 @@ export function runAITransferMarket(
         // A club filling a genuine positional gap doesn't hold out for the usual
         // bargain margin — it'll pay a fair price (down to the seller's full
         // reservation) to address a real hole. Everything else about the deal
-        // (availability, fee floor, affordability, reserve) still applies.
+        // (fee floor, affordability, reserve) still applies.
+        //
+        // NOTE (2026-08-11): AI_NEED_BUY_MIN_SURPLUS is 0, so a need buy clears
+        // at the seller's bare reservation with no margin at all. That was
+        // written when the availability screen above kept a club's best players
+        // out of this loop entirely; they now reach it, so a buyer with a hole
+        // can take a seller's best man on a favourable scouting-noise draw
+        // alone. moveAppealBetween still damps a step down, and the measured
+        // effect is contained and stable: moves to a weaker squad run 5-8%
+        // across four seeds, against 3% before this change and 17% before the
+        // rework. The real gap it exposes is that the market models the buyer's
+        // urgency (this path) with no mirror for the seller's — a club under no
+        // pressure to sell cannot express that, so it accepts a bare
+        // reservation. A need-to-sell term is the principled fix; flooring this
+        // above 0 is the patch. See docs/transfer-mobility.md.
         const needBuy = hasPositionalGap(player, buyerCtx);
         const minSurplus = needBuy ? AI_NEED_BUY_MIN_SURPLUS : AI_MARKET_MIN_SURPLUS;
         if (jittered < reservation * (1 + minSurplus)) continue;

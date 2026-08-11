@@ -1331,7 +1331,6 @@ export const AI_AFFORD_BUDGET_FLOOR = 5_000_000;
 /** A player isn't worth an AI club's time to trade below this market value. */
 export const AI_MARKET_MIN_VALUE = 1_000_000;
 
-
 /**
  * A buyer bothers only when its valueToClub for the player clears the
  * seller's reservation (the seller's own keep-value) by at least this margin
@@ -1528,7 +1527,11 @@ export const LOAN_AI_MAX_AGE = 23;
  * error exists in this comparison, but it bites far less: loan candidates are
  * already restricted to buried under-24s (LOAN_AI_MAX_AGE, outside the XI), who
  * are genuinely surplus and whose keep-side value is low, so the screen is
- * rarely the binding constraint. Worth revisiting on its own terms, with its own
+ * rarely the binding constraint. **That last sentence is reasoning, not a
+ * measurement** — which is precisely the kind of unchecked assumption that let
+ * the permanent market's version of this screen go inert for three days.
+ * `scripts/availabilityProbe.ts` would settle it in one run if pointed at the
+ * loan-eligible population. Worth revisiting on its own terms, with its own
  * measurements, rather than as a side effect of the market fix.
  */
 export const LOAN_AVAILABILITY = 0.95;
