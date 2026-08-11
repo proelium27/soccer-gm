@@ -78,12 +78,20 @@ describe("Season Preview retirements", () => {
     expect(html).toContain("Free agent");
   });
 
-  it("never tries to link a retiree's profile — he no longer exists", () => {
+  it("doesn't link a retiree the archive didn't keep — he has no page", () => {
     const html = render(leagueWithRetirements({
       total: 5, rostered: 5, notable: [retiree({ pid: 9003, name: "Gone Forever" })],
     }));
     expect(html).toContain("Gone Forever");
     expect(html).not.toContain('href="/player/9003"');
+  });
+
+  it("links one the archive did keep, since his career page exists", () => {
+    const league = leagueWithRetirements({
+      total: 5, rostered: 5, notable: [retiree({ pid: 9004, name: "Kept Forever" })],
+    });
+    league.retiredPlayers = [{ pid: 9004, name: "Kept Forever" } as never];
+    expect(render(league)).toContain('href="/player/9004"');
   });
 
   it("says so plainly when the save has no record for that offseason", () => {

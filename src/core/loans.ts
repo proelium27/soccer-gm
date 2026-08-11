@@ -289,8 +289,10 @@ export interface AILoanResult {
 /**
  * AI↔AI loans, one round per open window: a young, buried player at one AI
  * club (surplus at his position, valued by his own club at no more than
- * LOAN_AVAILABILITY × market — same "would rather free the slot" screen the
- * permanent AI↔AI market uses) moves on a 1-season loan to whichever other
+ * LOAN_AVAILABILITY × market — a screen the permanent AI↔AI market no longer
+ * has; it was deleted on 2026-08-11 for comparing a club-relative keep value
+ * against a club-blind market price, see transferMarket.ts) moves on a
+ * 1-season loan to whichever other
  * AI club values him meaningfully more (LOAN_MIN_SURPLUS). Deterministic
  * given `seed`; the user's club is never a party on either side (loaning the
  * user's own players in/out is a manual action — see loanOfferCandidates /

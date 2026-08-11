@@ -19,6 +19,7 @@ import { clubDisplayName, formatWeeklyWage, seasonYear, transferFeeLabel } from 
 import { INTL_TOURNAMENT_NAME } from "../../core/constants.js";
 import { PlayerEditModal } from "../components/PlayerEditModal.js";
 import { computePlayerHonors } from "../../core/playerHonors.js";
+import { RetiredPlayerProfile } from "./RetiredPlayerProfile.js";
 
 /** One career-honor badge, e.g. "3x Golden Boot" — omits the count for a single win. */
 function AwardPill({ label, seasons, icon }: { label: string; seasons: number[]; icon?: ReactNode }) {
@@ -81,6 +82,11 @@ export function PlayerProfile() {
   const player = league.players.find((p) => p.pid === targetPid);
 
   if (!player) {
+    // Retirement deletes a player from the pool, so a link from anywhere
+    // historical (all-time lists, an old transfer, a news item) lands here for
+    // anyone who has hung up his boots. His archived career is the page to show.
+    const archived = (league.retiredPlayers ?? []).find((a) => a.pid === targetPid);
+    if (archived) return <RetiredPlayerProfile archived={archived} league={league} />;
     return (
       <div className="container-fluid p-3">
         <p>Player not found.</p>
@@ -467,7 +473,9 @@ export function PlayerProfile() {
             <div className="card-body">
               <h6 className="card-title">OVR History</h6>
               <OvrHistoryChart
-                player={player}
+                pid={player.pid}
+                name={player.name}
+                points={player.hist}
                 league={league}
                 teamTidForSeason={(season) => {
                   if (!team) return inAcademy ? inAcademy.tid : null;

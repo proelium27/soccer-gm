@@ -178,7 +178,7 @@ export function Manual() {
             <li><strong>Incoming Talent</strong>. Unsigned prospects age 21 or younger. Sign them to your senior team or into your academy.</li>
             <li><strong>Free Agents</strong>. Every other unsigned player, sign straight to your senior team. The default view shows the best across every position but caps how many of any one position it lists, so a spot that always has lots of free agents (defensive and attacking mids only get two roster spots per club, so their good extras spill into free agency more often) can't crowd out the rest. Pick a position from the dropdown to see that position's full list.</li>
             <li><strong>Academy</strong>. Your club's youth-academy holding pool: extend, release, or promote to the senior team.</li>
-            <li><strong>Box Score</strong>. Per-match detail: goals, cards, substitutions, injuries, and a stat line (including xG, passes completed/attempted, crosses and fouls, plus goals against and xG against on the goalkeeper's row) plus a 0&ndash;10 match rating for every player who appeared, with each side's total xG next to the score. The highest-rated player among those who actually played gets starred as Man of the Match.</li>
+            <li><strong>Box Score</strong>. Per-match detail, in three parts. The scoreboard at the top names the competition and matchday and starts the Man of the Match, the highest-rated player among those who actually played. Under it, a head-to-head strip compares the two sides on possession, shots, shots on target, xG, corners and fouls. Then a full-width stat table per club (xG, passes completed/attempted, crosses and fouls, goals against and xG against on the goalkeeper's row, and a 0&ndash;10 match rating for everyone who appeared), grouped into attacking, keeping, defending, passing and discipline blocks. The play-by-play at the bottom runs down a timeline with one club on each side, showing goals, cards, substitutions, penalties and injuries by default; switch it to "Every event" to add every shot and corner too.</li>
             <li><strong>Leagues</strong>. Your saved leagues. Create, enter, or delete saves. Each one is fully independent.</li>
             <li><strong>Player Profile</strong>. Click any player's name anywhere in the game (Roster, Stat Leaders, Awards, Transfers, News Feed) to open his full career page: every attribute rating, individual and team honors (Ballon d'Or, World Team of the Year, Player of the Season, Golden Boot, Team of the Season, league titles), a season-by-season stat line with columns you won't see elsewhere (shots on target, xG, goals against/xG against for keepers), full transfer history, an OVR-over-time chart (the line is colored by whichever club he was at each season and changes color when he transfers, with club crests marking transfers, and you can hover any point for that season's club and exact OVR, where a youth-academy year reads as "Club (Academy)"), and a season-by-season OVR/POT/attribute history.</li>
           </ul>
@@ -1154,6 +1154,19 @@ export function Manual() {
             That is what lets the all-time lists cover them. The rest are still deleted, which
             keeps the save file from growing without limit. On an older save the record starts
             from your next offseason, because players who retired earlier left nothing to recover.
+          </p>
+          <p>
+            Anyone with that record kept is still clickable. His name links to a career page, the
+            same way a current player's does, from the all-time lists and from anywhere else he
+            comes up: an old transfer, a news item, your own transfer history, an awards board. The
+            page carries the season he retired and the age he did it at, his peak rating and when
+            he hit it, the clubs he played for, career totals with his best single season in each
+            stat beside them, his trophies and awards, his caps and international goals, and a
+            season-by-season line with the club and rating for each year. It shows less than a
+            current player's profile because that's all that was kept: no attribute ratings, and no
+            per-season goals and assists behind the career totals. An appearance count of zero in
+            the seasons list means he was in the squad that year but never got on the pitch. A
+            retiree the game didn't keep is still just a name.
           </p>
         </Section>
 

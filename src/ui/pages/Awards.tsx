@@ -5,7 +5,8 @@ import { useLeague } from "../context/LeagueContext.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import { HelpHint } from "../components/HelpHint.js";
 import type { BallonDOrEntry } from "../../core/worldAwards.js";
-import type { Player } from "../../core/players/types.js";
+import type { Player, Position } from "../../core/players/types.js";
+import type { LeagueStore } from "../../core/leagueState.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
 import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
@@ -23,16 +24,76 @@ function shortName(name: string): string {
   return parts[parts.length - 1];
 }
 
-function AwardCard({ title, player, subtitle }: { title: ReactNode; player: Player | undefined; subtitle: string }) {
+/**
+ * A winner as this page needs him — live or long retired.
+ *
+ * An honours board is the surface a retirement hurts most: these entries are
+ * keyed by pid and never change, but the player behind them is deleted from the
+ * pool a few seasons later, which used to blank the card out entirely. The
+ * archive carries his name, position and the rating he played that season, so
+ * the board keeps reading the same. `player` is present only while he's still
+ * around, and gates the things only a live record can answer (the attribute
+ * tooltip, that season's stat line).
+ */
+interface AwardSubject {
+  pid: number;
+  name: string;
+  nationality: string;
+  pos: Position;
+  /** The rating he carried that season. */
+  ovr: number;
+  /** The club he was at that season, if it's on record. */
+  tid: number | undefined;
+  player: Player | undefined;
+}
+
+/** Resolves an award's pid against the live pool first, then the retiree archive. */
+function subjectResolver(
+  league: LeagueStore,
+  playersByPid: Map<number, Player>,
+  season: number,
+): (pid: number) => AwardSubject | undefined {
+  return (pid) => {
+    const player = playersByPid.get(pid);
+    if (player) {
+      return {
+        pid,
+        name: player.name,
+        nationality: player.nationality,
+        pos: player.pos,
+        // Present-day ovr, which is what these chips have always shown for a
+        // living player. A retiree has no present day, so his archived record
+        // supplies the rating he played that season at instead.
+        ovr: player.ovr,
+        tid: player.stats.find((s) => s.season === season)?.tid,
+        player,
+      };
+    }
+    const archived = (league.retiredPlayers ?? []).find((a) => a.pid === pid);
+    if (!archived) return undefined;
+    const line = archived.seasons.find((s) => s.season === season);
+    return {
+      pid,
+      name: archived.name,
+      nationality: archived.nationality,
+      pos: archived.pos,
+      ovr: line?.ovr ?? archived.finalOvr,
+      tid: line?.tid,
+      player: undefined,
+    };
+  };
+}
+
+function AwardCard({ title, subject, subtitle }: { title: ReactNode; subject: AwardSubject | undefined; subtitle: string }) {
   return (
     <div className="card h-100">
       <div className="card-body">
         <h6 className="card-title text-muted text-uppercase small d-flex align-items-center gap-1">{title}</h6>
-        {player ? (
+        {subject ? (
           <>
             <div className="d-flex align-items-center gap-2 fs-5 fw-semibold">
-              <Flag nationality={player.nationality} />
-              <Link to={`/player/${player.pid}`}>{player.name}</Link>
+              <Flag nationality={subject.nationality} />
+              <Link to={`/player/${subject.pid}`}>{subject.name}</Link>
             </div>
             <div className="text-muted small mt-1">{subtitle}</div>
           </>
@@ -46,13 +107,11 @@ function AwardCard({ title, player, subtitle }: { title: ReactNode; player: Play
 
 function TeamOfSeasonField({
   pids,
-  playersByPid,
-  season,
+  subjectOf,
   userTid,
 }: {
   pids: (number | null)[];
-  playersByPid: Map<number, Player>;
-  season: number;
+  subjectOf: (pid: number) => AwardSubject | undefined;
   userTid: number | undefined;
 }) {
   return (
@@ -61,34 +120,39 @@ function TeamOfSeasonField({
       <div className="pitch-goal pitch-goal--right" />
       {SLOTS.map((_, i) => {
         const pid = pids[i] ?? null;
-        const player = pid !== null ? playersByPid.get(pid) : undefined;
+        const subject = pid !== null ? subjectOf(pid) : undefined;
         const coord = COORDS[i];
         const isUserPlayer =
-          player !== undefined &&
-          userTid !== undefined &&
-          player.stats.find((s) => s.season === season)?.tid === userTid;
+          subject !== undefined && userTid !== undefined && subject.tid === userTid;
+        // The attribute tooltip needs live ratings, which a retiree doesn't
+        // keep — his chip is the same chip without the hover.
+        const chip = subject && (
+          <span
+            className={
+              "pitch-chip" +
+              (subject.pos === "GK" ? " pitch-chip--gk" : "") +
+              (isUserPlayer ? " pitch-chip--user" : "")
+            }
+            style={{ borderColor: getRatingColor(subject.ovr) }}
+          >
+            <Link to={`/player/${subject.pid}`} className="pitch-chip-name">
+              {shortName(subject.name)}
+            </Link>
+            <span className="pitch-chip-ovr">{subject.ovr}</span>
+          </span>
+        );
         return (
           <div
             key={i}
             className="pitch-slot"
             style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
           >
-            {player ? (
-              <PlayerRatingsTooltip player={player}>
-                <span
-                  className={
-                    "pitch-chip" +
-                    (player.pos === "GK" ? " pitch-chip--gk" : "") +
-                    (isUserPlayer ? " pitch-chip--user" : "")
-                  }
-                  style={{ borderColor: getRatingColor(player.ovr) }}
-                >
-                  <Link to={`/player/${player.pid}`} className="pitch-chip-name">
-                    {shortName(player.name)}
-                  </Link>
-                  <span className="pitch-chip-ovr">{player.ovr}</span>
-                </span>
-              </PlayerRatingsTooltip>
+            {subject ? (
+              subject.player ? (
+                <PlayerRatingsTooltip player={subject.player}>{chip}</PlayerRatingsTooltip>
+              ) : (
+                chip
+              )
             ) : (
               <span className="pitch-chip" style={{ opacity: 0.4, cursor: "default" }}>—</span>
             )}
@@ -106,13 +170,13 @@ function TeamOfSeasonField({
  */
 function BallonDOrTable({
   ballonDOr,
-  playersByPid,
+  subjectOf,
   clubName,
   leagueName,
   season,
 }: {
   ballonDOr: BallonDOrEntry[];
-  playersByPid: Map<number, Player>;
+  subjectOf: (pid: number) => AwardSubject | undefined;
   clubName: (tid: number) => string;
   leagueName: (tid: number) => string;
   season: number;
@@ -138,15 +202,18 @@ function BallonDOrTable({
         </thead>
         <tbody>
           {ballonDOr.map((e, i) => {
-            const player = playersByPid.get(e.pid);
-            const stats = player?.stats.find((s) => s.season === season);
+            const subject = subjectOf(e.pid);
+            // Only a live player keeps the season's own stat line; a retiree's
+            // per-season rows are dropped when he's archived, so those columns
+            // fall back to the same "—" an un-migrated old save shows.
+            const stats = subject?.player?.stats.find((s) => s.season === season);
             return (
               <tr key={e.pid}>
                 <td className="text-muted">{i + 1}</td>
                 <td>
                   <span className="d-inline-flex align-items-center gap-2">
-                    {player && <Flag nationality={player.nationality} />}
-                    <Link to={`/player/${e.pid}`}>{player?.name ?? `#${e.pid}`}</Link>
+                    {subject && <Flag nationality={subject.nationality} />}
+                    <Link to={`/player/${e.pid}`}>{subject?.name ?? `#${e.pid}`}</Link>
                   </span>
                 </td>
                 <td>{clubName(e.tid)}</td>
@@ -194,12 +261,16 @@ export function Awards() {
   const activeSeason = season ?? seasonOptions[0];
   const entry = league.seasonHistory.find((h) => h.season === activeSeason)!;
 
-  const divisionAwards = entry.awards[compId];
-  const potd = divisionAwards.playerOfSeasonPid !== null ? playersByPid.get(divisionAwards.playerOfSeasonPid) : undefined;
-  const goldenBoot = divisionAwards.goldenBootPid !== null ? playersByPid.get(divisionAwards.goldenBootPid) : undefined;
+  // Winners resolve through the retiree archive as well as the live pool, so an
+  // old season's honours board doesn't empty out as its winners retire.
+  const subjectOf = subjectResolver(league, playersByPid, activeSeason);
 
-  const potdStats = potd?.stats.find((s) => s.season === activeSeason);
-  const goldenBootStats = goldenBoot?.stats.find((s) => s.season === activeSeason);
+  const divisionAwards = entry.awards[compId];
+  const potd = divisionAwards.playerOfSeasonPid !== null ? subjectOf(divisionAwards.playerOfSeasonPid) : undefined;
+  const goldenBoot = divisionAwards.goldenBootPid !== null ? subjectOf(divisionAwards.goldenBootPid) : undefined;
+
+  const potdStats = potd?.player?.stats.find((s) => s.season === activeSeason);
+  const goldenBootStats = goldenBoot?.player?.stats.find((s) => s.season === activeSeason);
 
   // Clubs are looked up by the competition they were in *that* season, so a
   // since-relegated or since-promoted club is still labelled with the league it
@@ -215,8 +286,8 @@ export function Awards() {
   // before worldwide awards existed and not yet migrated.
   const world = entry.world ?? { ballonDOr: [], worldTeamOfYear: [] };
   const winner = world.ballonDOr[0];
-  const winnerPlayer = winner ? playersByPid.get(winner.pid) : undefined;
-  const winnerStats = winnerPlayer?.stats.find((s) => s.season === activeSeason);
+  const winnerSubject = winner ? subjectOf(winner.pid) : undefined;
+  const winnerStats = winnerSubject?.player?.stats.find((s) => s.season === activeSeason);
 
   return (
     <div className="container-fluid p-3">
@@ -277,7 +348,7 @@ export function Awards() {
               <div className="col-md-6">
                 <AwardCard
                   title="Ballon d'Or"
-                  player={winnerPlayer}
+                  subject={winnerSubject}
                   subtitle={
                     winnerStats
                       ? `${clubName(winner.tid)} · ${winnerStats.goals}G ${winnerStats.assists}A · ${winnerStats.avgRating.toFixed(2)} avg rating`
@@ -324,7 +395,7 @@ export function Awards() {
             </h5>
             <BallonDOrTable
               ballonDOr={world.ballonDOr}
-              playersByPid={playersByPid}
+              subjectOf={subjectOf}
               clubName={clubName}
               leagueName={leagueName}
               season={activeSeason}
@@ -333,8 +404,7 @@ export function Awards() {
             <h5 className="mt-4">World Team of the Year</h5>
             <TeamOfSeasonField
               pids={world.worldTeamOfYear}
-              playersByPid={playersByPid}
-              season={activeSeason}
+              subjectOf={subjectOf}
               userTid={league.meta.userTid}
             />
           </>
@@ -345,7 +415,7 @@ export function Awards() {
         <div className="col-md-6">
           <AwardCard
             title="Player of the Season"
-            player={potd}
+            subject={potd}
             subtitle={
               potdStats
                 ? `${potdStats.goals}G ${potdStats.assists}A · ${potdStats.avgRating.toFixed(2)} avg rating`
@@ -356,7 +426,7 @@ export function Awards() {
         <div className="col-md-6">
           <AwardCard
             title={<><GoldenBootIcon /> Golden Boot</>}
-            player={goldenBoot}
+            subject={goldenBoot}
             subtitle={goldenBootStats ? `${goldenBootStats.goals} goals in ${goldenBootStats.appearances} appearances` : ""}
           />
         </div>
@@ -365,8 +435,7 @@ export function Awards() {
       <h5>Team of the Season</h5>
       <TeamOfSeasonField
         pids={divisionAwards.teamOfSeason}
-        playersByPid={playersByPid}
-        season={activeSeason}
+        subjectOf={subjectOf}
         userTid={league.meta.userTid}
       />
       </>

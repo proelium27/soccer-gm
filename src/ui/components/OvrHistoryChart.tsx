@@ -1,5 +1,4 @@
 import { useState, type MouseEvent } from "react";
-import type { Player } from "../../core/players/types.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import { ClubCrest } from "./ClubCrest.js";
 import { seasonYear, currency } from "../format.js";
@@ -69,27 +68,42 @@ function readableText(hex: string): string {
   return rgb && lum(rgb) > 0.6 ? "#14211a" : "#ffffff";
 }
 
+/** One plotted season: the rating he carried, and whether it was an academy year. */
+export interface OvrHistoryPoint {
+  season: number;
+  ovr: number;
+  academy?: boolean;
+}
+
 /**
  * A player's career OVR plotted against season (Transfermarkt-style area
  * chart). The line/area is colored by the club the player was at each season,
  * so it changes color when he transfers; club crests mark transfers. Whether a
  * season was an academy or senior year is surfaced on hover (the tooltip reads
  * "Club (Academy)" vs just "Club"), not by line color. Everything is derived
- * from `player.hist` (per-season OVR + academy flag) and `league.transfers` —
+ * from `points` (per-season OVR + academy flag) and `league.transfers` —
  * `teamTidForSeason` resolves which club the player was on in a given season.
+ *
+ * Takes loose points rather than a `Player` so a retiree can be charted too:
+ * retirement deletes him from the pool, and his archived record keeps a
+ * per-season rating line but no `hist` (see core/players/archive.ts).
  */
 export function OvrHistoryChart({
-  player,
+  pid,
+  name,
+  points,
   league,
   teamTidForSeason,
 }: {
-  player: Player;
+  pid: number;
+  name: string;
+  points: readonly OvrHistoryPoint[];
   league: LeagueStore;
   teamTidForSeason: (season: number) => number | null;
 }) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
-  const hist = [...player.hist].sort((a, b) => a.season - b.season);
+  const hist = [...points].sort((a, b) => a.season - b.season);
 
   if (hist.length < 2) {
     return <p className="text-muted mb-0">Not enough history yet to chart.</p>;
@@ -174,7 +188,7 @@ export function OvrHistoryChart({
   const rightBoundPct = ((W - M.right) / W) * 100;
   const bySeasonTransfers = new Map<number, typeof league.transfers>();
   for (const t of league.transfers) {
-    if (t.pid !== player.pid || !ovrBySeason.has(t.season)) continue;
+    if (t.pid !== pid || !ovrBySeason.has(t.season)) continue;
     const arr = bySeasonTransfers.get(t.season) ?? [];
     arr.push(t);
     bySeasonTransfers.set(t.season, arr);
@@ -234,7 +248,7 @@ export function OvrHistoryChart({
       <p className="ovr-chart-caption">Line colored by club — hover for club &amp; OVR.</p>
       <div className="ovr-chart" onMouseMove={handleMove} onMouseLeave={() => setHoverIdx(null)}>
         <svg viewBox={`0 0 ${W} ${H}`} role="img"
-          aria-label={`OVR history for ${player.name}`}>
+          aria-label={`OVR history for ${name}`}>
           <defs>
             {colorRuns.map((run, ri) => (
               <linearGradient key={ri} id={`ovr-fill-${ri}`} x1="0" y1="0" x2="0" y2="1">

@@ -54,7 +54,23 @@ import { simOffseason } from "../src/core/offseason.js";
 import { competitionOf } from "../src/core/competitions.js";
 
 const SEASONS = Number(process.env.SEASONS ?? 20);
-const SEEDS = (process.env.SEEDS ?? "1,2").split(",").map(Number);
+// Overridable so a tuning change can be checked against worlds it was not
+// tuned on — fitting a constant to seeds 1 and 2 and then reporting seeds 1
+// and 2 measures the sample, not the mechanism.
+// Parsed defensively: the whole point of this knob is checking a tuning change
+// on unseen seeds, so a typo must not silently produce a confident verdict about
+// a world nobody meant to run. Note `SEEDS=` is an empty string, not nullish, so
+// `??` alone would not fall back — and Number("") is 0, not NaN, so an empty
+// segment (or a trailing comma) would quietly add seed 0 rather than be rejected.
+const seedsRaw = process.env.SEEDS?.trim();
+const SEEDS = (seedsRaw || "1,2")
+  .split(",")
+  .map((s) => s.trim())
+  .filter((s) => s.length > 0)
+  .map(Number);
+if (!SEEDS.length || !SEEDS.every(Number.isFinite)) {
+  throw new Error(`SEEDS must be a comma-separated list of numbers; got "${process.env.SEEDS}"`);
+}
 const USER_TID = 0;
 
 /**
@@ -96,7 +112,9 @@ const MIN_END_SPREAD = 1.0;
  * a real inversion rather than seed noise. Rungs one offset point apart end a
  * few tenths apart, so their order genuinely coin-flips between seeds and a
  * strict `gap > 0` check would be flaky. Sized well under the failure this
- * exists to catch: the Belgium/Turkey budget inversion measured 2.23.
+ * exists to catch: the Belgium/Turkey budget inversion measured 2.23, and the
+ * 2026-08-11 transfer-market inversion ran to 2.5 with England finishing
+ * *below* Portugal.
  */
 const INVERSION_TOLERANCE = 0.5;
 
@@ -229,5 +247,9 @@ for (const seed of SEEDS) {
   );
 }
 
+// Exit non-zero on failure. An earlier version of this script printed
+// "**BROKEN**" and exited 0, so a fully inverted strength ladder shipped to main
+// with green CI (see docs/transfer-mobility.md). A gate that reports failure and
+// returns success is worse than no gate — it reads as evidence the invariant holds.
 console.log(anyFailure ? "\nRESULT: **FAILURES ABOVE**" : "\nRESULT: all checks passed");
 process.exit(anyFailure ? 1 : 0);

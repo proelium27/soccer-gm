@@ -32,6 +32,27 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-08-11",
+    title: "Retired players are clickable and have a career page",
+    items: [
+      "A retired player used to be a dead end. His name showed up on the all-time lists with a \"Retired\" tag next to it and nothing to click, and everywhere else that pointed at him by name, an old transfer, a news item, a club's honours board, he showed up as \"Player 4821\" or as a blank space. Retired names now link to a career page like anyone else's.",
+      "The page shows what the game kept when he retired: the season he hung up his boots and the age he did it at, his peak rating and the season he hit it in, the clubs he played for, his career totals in every stat with his best single season in each alongside them, every trophy and individual award he won, his transfer history, his international caps and goals, and a season-by-season line with the club and rating for each year plus the rating chart that goes with it.",
+      "It shows less than a current player's profile, and deliberately so. Retirement keeps a career record rather than a full match-by-match history, so there are no attribute ratings and no per-season goals and assists behind those career totals. The seasons list shows appearances, and an appearance count of zero means he was in the squad that year without getting on the pitch.",
+      "The awards pages benefit most. A Player of the Season or Team of the Season from ten years ago used to empty out as its winners retired, one blank slot at a time. Those boards now name the winners for good.",
+      "Only players the game kept a record for get a page. Around 660 players retire per offseason once unsigned players are counted, so the record covers those who either reached a high rating or played a long career. Anyone else still shows as a name without a link. On an existing save the record starts from the offseason it began being kept, so players who retired before then are not recoverable.",
+    ],
+  },
+  {
+    date: "2026-08-10",
+    title: "The box score page has been rebuilt",
+    items: [
+      "The two team stat tables no longer sit side by side. Each one is nineteen columns wide, so at half the width of the page the columns overflowed: names wrapped onto three lines and the match rating, the last column, was cut off the right edge of the away side entirely. The tables now run full width, stacked one above the other, and every column fits. The columns are also grouped under attacking, keeping, defending, passing and discipline headings, so nineteen numbers read as five blocks rather than one wall.",
+      "The top of the page is now a scoreboard: the competition and matchday, both clubs with their crests, and the score at display size, with the losing side's name and score in a lighter weight so the result is readable at a glance. Under it, a head-to-head strip compares the sides on possession, shots, shots on target, xG, corners and fouls as bars that grow out from the middle, replacing the three lines of small text that carried possession and xG before.",
+      "The play-by-play is now a timeline. Events run down a centre line with the clock on it, one club's events to the left and the other's to the right, and goals, cards, substitutions and injuries carry their own marks and colours. It also opens filtered to the events that decided the match: goals, cards, substitutions, penalties and injuries. A full match generates around thirty events, most of them shots that went nowhere, which buried the handful that mattered. \"Every event\" switches the shots and corners back on.",
+      "Man of the Match was previously marked with a pale yellow band that came from the underlying stylesheet rather than the game's own palette and read as a rendering fault on the dark page. He is now marked in the game's own gold, with a star on his row.",
+    ],
+  },
+  {
     date: "2026-08-10",
     title: "Roster files now start a league instead of overwriting one",
     items: [

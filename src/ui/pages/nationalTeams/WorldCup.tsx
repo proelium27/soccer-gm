@@ -6,6 +6,7 @@ import type {
   IntlTournament, IntlTournamentSummary,
 } from "../../../core/international/index.js";
 import { tournamentGoals } from "../../../core/international/index.js";
+import { PlayerRefLink } from "../../components/PlayerRefLink.js";
 import { INTL_TOURNAMENT_NAME, INTL_QUALIFY_PER_GROUP } from "../../../core/constants.js";
 import {
   NationalTeamsLayout, NationName, GroupStandings, liveGroupRows, KnockoutColumns, SeasonSelect,
@@ -62,12 +63,19 @@ function LiveTournament({ tournament }: { tournament: IntlTournament }) {
   const scorers = useMemo(() => {
     const goals = tournamentGoals(tournament);
     const byPid = new Map((league?.players ?? []).map((p) => [p.pid, p]));
+    // Nationality comes off the live record when there is one and the archive
+    // otherwise, so a retired top scorer keeps his flag as well as his name.
+    const retiredByPid = new Map((league?.retiredPlayers ?? []).map((a) => [a.pid, a]));
     return [...goals.entries()]
       .filter(([, n]) => n > 0)
       .sort((a, b) => b[1] - a[1] || a[0] - b[0])
       .slice(0, 10)
-      .map(([pid, n]) => ({ pid, goals: n, player: byPid.get(pid) }));
-  }, [tournament, league?.players]);
+      .map(([pid, n]) => ({
+        pid,
+        goals: n,
+        nationality: byPid.get(pid)?.nationality ?? retiredByPid.get(pid)?.nationality,
+      }));
+  }, [tournament, league?.players, league?.retiredPlayers]);
 
   return (
     <>
@@ -83,11 +91,11 @@ function LiveTournament({ tournament }: { tournament: IntlTournament }) {
               {scorers.map((s) => (
                 <tr key={s.pid}>
                   <td>
-                    {s.player
-                      ? <Link to={`/player/${s.pid}`}>{s.player.name}</Link>
-                      : <span className="text-muted">(retired)</span>}
+                    {/* A tournament outlives its scorers; the archive keeps the
+                        retired ones nameable and clickable. */}
+                    <PlayerRefLink pid={s.pid} fallback="(retired)" />
                   </td>
-                  <td>{s.player && <NationName nation={s.player.nationality} />}</td>
+                  <td>{s.nationality && <NationName nation={s.nationality} />}</td>
                   <td className="text-end fw-bold">{s.goals}</td>
                 </tr>
               ))}
