@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { StoredTeam } from "../../core/leagueState.js";
 import type { NewsEvent, NewsEventType } from "../../core/newsEvents.js";
@@ -9,6 +8,7 @@ import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { clubDisplayName, currency, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
+import { PlayerRefLink, usePlayerRefs } from "../components/PlayerRefLink.js";
 
 type ClubFilter = "all" | "user";
 
@@ -44,6 +44,7 @@ export function NewsFeed() {
     () => new Map((league?.players ?? []).map((p) => [p.pid, p])),
     [league?.players],
   );
+  const refOf = usePlayerRefs();
   const teamMap = useMemo(
     () => new Map((league?.teams ?? []).map((t) => [t.tid, t])),
     [league?.teams],
@@ -117,12 +118,15 @@ export function NewsFeed() {
     );
   };
 
+  // Old news outlives its subject: a retiree is gone from `playerMap` but his
+  // name and career page survive in the archive, which is what `refOf` covers.
   const playerCell = (pid: number) => {
     const p = playerMap.get(pid);
+    const ref = refOf(pid);
     return (
       <>
-        {p ? <Link to={`/player/${p.pid}`}>{p.name}</Link> : `Player ${pid}`}{" "}
-        {p && <Flag nationality={p.nationality} />}
+        <PlayerRefLink pid={pid} fallback={`Player ${pid}`} />{" "}
+        {ref && <Flag nationality={ref.nationality} />}
         {p && <span className="text-muted small"> ({p.pos})</span>}
       </>
     );

@@ -21,6 +21,7 @@ import { clubDisplayName, currency, formatWeeklyWage, talksCollapsedMessage } fr
 import { Flag } from "../components/Flag.js";
 import { OfferAmountInput } from "../components/OfferAmountInput.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { PlayerRefLink, usePlayerRefs } from "../components/PlayerRefLink.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 import { ROSTER_CAP, WINDOW_TRANSFER_LIMIT } from "../../core/constants.js";
@@ -250,6 +251,8 @@ export function Transfers() {
     () => new Map((league?.players ?? []).map((p) => [p.pid, p])),
     [league?.players],
   );
+  // Covers retirees too — the completed-transfer log outlives the players in it.
+  const refOf = usePlayerRefs();
   const teamNameByTid = useMemo(
     () => new Map((league?.teams ?? []).map((t) => [t.tid, t.name])),
     [league?.teams],
@@ -721,11 +724,11 @@ export function Transfers() {
             )}
             <ul className="mb-0">
               {windowTransfers.map((t, i) => {
-                const p = playerMap.get(t.pid);
+                const ref = refOf(t.pid);
                 return (
                   <li key={i}>
-                    {p ? <Link to={`/player/${p.pid}`}>{p.name}</Link> : `Player ${t.pid}`}{" "}
-                    {p && <Flag nationality={p.nationality} />} — {teamName(t.fromTid)} →{" "}
+                    <PlayerRefLink pid={t.pid} fallback={`Player ${t.pid}`} />{" "}
+                    {ref && <Flag nationality={ref.nationality} />} — {teamName(t.fromTid)} →{" "}
                     {teamName(t.toTid)} for {currency.format(t.fee)}
                   </li>
                 );
