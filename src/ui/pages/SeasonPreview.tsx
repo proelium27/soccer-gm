@@ -12,12 +12,14 @@ import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
+import { usePlayerRefs } from "../components/PlayerRefLink.js";
 
 const TOP_N = 10;
 
 export function SeasonPreview() {
   const { league } = useLeague();
   const playersByPid = usePlayerMap(league?.players);
+  const refOf = usePlayerRefs();
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -192,11 +194,16 @@ export function SeasonPreview() {
             <tbody>
               {retirements.notable.map((r) => (
                 <tr key={r.pid} className={r.tid === league.meta.userTid ? "team-highlight" : undefined}>
-                  {/* No profile link: a retiree is deleted from the save, so his page would have nothing to show. */}
+                  {/* Linked only when the archive kept his career (see
+                      isArchiveWorthy) — the farewell list names every notable
+                      retiree, but a page only exists for the ones with a record
+                      behind it. */}
                   <td>
                     <span className="d-inline-flex align-items-center gap-1">
                       <Flag nationality={r.nationality} />
-                      {r.name}
+                      {refOf(r.pid)
+                        ? <Link to={`/player/${r.pid}`}>{r.name}</Link>
+                        : r.name}
                     </span>
                   </td>
                   <td>{r.pos}</td>
