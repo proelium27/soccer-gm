@@ -121,6 +121,14 @@ export function Manual() {
             otherwise.
           </p>
           <p>
+            You can hand it more than one file. Select as many as you like at once, or load one and
+            then use "Add another file" on the club picker, and they all go into the same league. A
+            file per league is usually the sane way to do it, since asking an AI for twelve leagues
+            of real squads in a single answer tends to end badly. Files are stacked in the order you
+            load them, so if two of them cover the same league, the later one wins and the game tells
+            you which it used.
+          </p>
+          <p>
             Roster files only work when you're starting a league, on purpose. One can replace whole
             squads, and doing that to a save you've been playing would delete the careers, stats and
             transfer history of every player it overwrote. So they're applied at creation and nowhere

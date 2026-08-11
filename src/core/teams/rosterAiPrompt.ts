@@ -48,6 +48,7 @@ export function buildImportPromptText(league: LeagueStore): string {
     "",
     "== My world's competitions ==",
     "Use these EXACT competition names in the `match` field (case doesn't matter). Each has this many club slots; the clubs you list fill them in order (first entry = first slot). List up to that many; you can list fewer and leave the rest as they are.",
+    "If I ask for more leagues than you can fit in one answer, do as many as you can fit properly and tell me which ones are left, rather than thinning out the squads to cram them all in. The game loads several roster files into one league, so I can come back for the rest and import them together.",
     ...comps,
     "",
     "== File shape ==",

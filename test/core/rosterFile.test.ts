@@ -6,6 +6,8 @@ import {
   parseRosterFile,
   rosterFileToEdits,
   isRosterFileFormat,
+  combineRosterFiles,
+  resolveRosterSlots,
   ROSTER_FILE_FORMAT,
 } from "../../src/core/teams/rosterFile.js";
 
@@ -183,5 +185,90 @@ describe("parseRosterFile validation", () => {
         }),
       ),
     ).toThrow(/competitions\[0\]\.clubs\[0\]\.colors/);
+  });
+});
+
+describe("combineRosterFiles", () => {
+  const fileFor = (match: string, clubName: string, players?: unknown[]) =>
+    parseRosterFile(
+      JSON.stringify({
+        format: ROSTER_FILE_FORMAT,
+        formatVersion: 1,
+        competitions: [
+          {
+            match,
+            clubs: [{ name: clubName, abbrev: "ABC", colors: ["#000000", "#ffffff"], players }],
+          },
+        ],
+      }),
+    );
+
+  it("keeps every competition, in load order, when files cover different leagues", () => {
+    const { file, warnings } = combineRosterFiles([
+      { name: "england 1.json", file: fileFor("English Division 1", "Eng One") },
+      { name: "england 2.json", file: fileFor("English Division 2", "Eng Two") },
+      { name: "spain 1.json", file: fileFor("Spanish Division 1", "Spa One") },
+    ]);
+    expect(file.competitions.map((c) => c.match)).toEqual([
+      "English Division 1",
+      "English Division 2",
+      "Spanish Division 1",
+    ]);
+    expect(warnings).toEqual([]);
+  });
+
+  it("carries squads through untouched", () => {
+    const players = [{ name: "Star", pos: "ST", age: 25, overall: 85 }];
+    const { file } = combineRosterFiles([
+      { name: "a.json", file: fileFor("English Division 1", "With Squad", players) },
+      { name: "b.json", file: fileFor("Spanish Division 1", "No Squad") },
+    ]);
+    expect(file.competitions[0].clubs[0].players).toHaveLength(1);
+    expect(file.competitions[0].clubs[0].players![0].name).toBe("Star");
+    expect(file.competitions[1].clubs[0].players).toBeUndefined();
+  });
+
+  it("lets a later file win a competition an earlier one already covered, and says so", () => {
+    const { file, warnings } = combineRosterFiles([
+      { name: "old.json", file: fileFor("English Division 1", "Old Name") },
+      { name: "new.json", file: fileFor("english division 1", "New Name") },
+    ]);
+    expect(file.competitions).toHaveLength(1);
+    expect(file.competitions[0].clubs[0].name).toBe("New Name");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("old.json");
+    expect(warnings[0]).toContain("new.json");
+  });
+
+  it("holds a replaced competition's original position in the order", () => {
+    const { file } = combineRosterFiles([
+      { name: "a.json", file: fileFor("English Division 1", "First") },
+      { name: "b.json", file: fileFor("Spanish Division 1", "Second") },
+      { name: "c.json", file: fileFor("English Division 1", "Redo") },
+    ]);
+    expect(file.competitions.map((c) => c.match)).toEqual([
+      "English Division 1",
+      "Spanish Division 1",
+    ]);
+    expect(file.competitions[0].clubs[0].name).toBe("Redo");
+  });
+
+  it("combines to an empty (but valid) file when handed nothing", () => {
+    const { file, warnings } = combineRosterFiles([]);
+    expect(file.format).toBe(ROSTER_FILE_FORMAT);
+    expect(file.competitions).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
+  it("resolves a combined file onto the slots of every league it covers", () => {
+    const { file } = combineRosterFiles([
+      { name: "england 1.json", file: fileFor(league.competitions[0].name, "Eng One") },
+      { name: "england 2.json", file: fileFor(league.competitions[1].name, "Eng Two") },
+    ]);
+    const { slots, warnings } = resolveRosterSlots(league, file);
+    expect(warnings).toEqual([]);
+    expect(slots).toHaveLength(2);
+    expect(new Set(slots.map((s) => s.tid)).size).toBe(2);
+    expect(slots.map((s) => s.club.name)).toEqual(["Eng One", "Eng Two"]);
   });
 });

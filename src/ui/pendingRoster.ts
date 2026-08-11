@@ -1,8 +1,8 @@
-import type { RosterFile } from "../core/teams/rosterFile.js";
+import type { NamedRosterFile } from "../core/teams/rosterFile.js";
 
 /**
- * One-shot handoff of a parsed roster file from the Leagues page's Import
- * button to the new-league flow that consumes it.
+ * One-shot handoff of the parsed roster files from the Leagues page's Import
+ * button to the new-league flow that consumes them.
  *
  * A module variable rather than router state because a roster file carrying
  * real squads runs to several megabytes (the FC26 world is ~3.6 MB), and
@@ -10,11 +10,14 @@ import type { RosterFile } from "../core/teams/rosterFile.js";
  * exactly once so a later visit to /new-league can't pick up a stale file; if
  * the handoff is missed — a hard refresh drops it — the page just shows its own
  * file picker, which is the same screen the user would have seen anyway.
+ *
+ * Several files rather than one: a world is normally authored a league at a
+ * time (see combineRosterFiles), so the picker takes as many as the user
+ * selected and the next screen can keep adding to them.
  */
 export interface PendingRoster {
-  file: RosterFile;
-  /** The name the user picked it by, so the next screen can name it back. */
-  filename: string;
+  /** In load order — later files win a competition listed twice. */
+  files: NamedRosterFile[];
 }
 
 let pending: PendingRoster | null = null;
