@@ -1332,20 +1332,6 @@ export const AI_AFFORD_BUDGET_FLOOR = 5_000_000;
 export const AI_MARKET_MIN_VALUE = 1_000_000;
 
 /**
- * A club only shops a player it values at no more than this multiple of his
- * open-market value — i.e. players it doesn't rate above the cash they'd
- * fetch (surplus, aging, replaceable). This keeps clubs from auctioning off
- * a genuinely irreplaceable core player just because a rich rival bids.
- *
- * Tightened 1.05 -> 0.95 on 2026-08-08. Above 1.0 a club would put up players
- * it rated MORE highly than the open market did, which is the opposite of what
- * "surplus to requirements" means; combined with keep-side valuation now
- * pricing a club's own players properly (see ValuationSide), the honest reading
- * is that a club sells only what it rates below the cash on offer.
- */
-export const AI_MARKET_AVAILABILITY = 0.95;
-
-/**
  * A buyer bothers only when its valueToClub for the player clears the
  * seller's reservation (the seller's own keep-value) by at least this margin
  * — the player must be meaningfully more useful to the buyer than the seller.
@@ -1527,11 +1513,28 @@ export const LOAN_AI_MAX_AGE = 23;
 /**
  * A loan-out is worthwhile to an AI seller only if the player isn't clearly
  * needed at his current club: reservation (valueToClub to the parent) must
- * be no more than this multiple of true market value — mirrors
- * AI_MARKET_AVAILABILITY, reused as-is since "would this club rather cash in
- * / free a slot than keep him" is the same question for a loan as a sale.
+ * be no more than this multiple of true market value.
+ *
+ * This used to be defined as `= AI_MARKET_AVAILABILITY`, on the reasoning that
+ * "would this club rather free the slot than keep him" is the same question for
+ * a loan as for a sale. That constant is gone — the permanent market's version
+ * of this screen compared a club-relative keep value against a club-blind market
+ * price, excluded every club's best player outright, and inverted the league
+ * strength ladder (see transferMarket.ts and docs/transfer-mobility.md).
+ *
+ * The literal 0.95 is kept here **deliberately, to hold loan behaviour exactly
+ * where it was** rather than change two markets in one go. The same category
+ * error exists in this comparison, but it bites far less: loan candidates are
+ * already restricted to buried under-24s (LOAN_AI_MAX_AGE, outside the XI), who
+ * are genuinely surplus and whose keep-side value is low, so the screen is
+ * rarely the binding constraint. **That last sentence is reasoning, not a
+ * measurement** — which is precisely the kind of unchecked assumption that let
+ * the permanent market's version of this screen go inert for three days.
+ * `scripts/availabilityProbe.ts` would settle it in one run if pointed at the
+ * loan-eligible population. Worth revisiting on its own terms, with its own
+ * measurements, rather than as a side effect of the market fix.
  */
-export const LOAN_AVAILABILITY = AI_MARKET_AVAILABILITY;
+export const LOAN_AVAILABILITY = 0.95;
 
 /**
  * A prospective loanee club bothers only if the player would be meaningfully
