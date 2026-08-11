@@ -15,6 +15,8 @@ import {
 import {
   parseRosterFile,
   resolveRosterSlots,
+  combineRosterFiles,
+  type NamedRosterFile,
   type RosterFile,
   type RosterFileClub,
 } from "../../core/teams/rosterFile.js";
@@ -40,8 +42,10 @@ const SLOT_WORLD = {
 };
 
 interface LoadedRoster {
+  /** Every file loaded so far, in load order, so more can be added to them. */
+  sources: NamedRosterFile[];
+  /** The sources folded into the one file the importer applies. */
   file: RosterFile;
-  filename: string;
   /** Which club each slot becomes, so the picker can show real names. */
   byTid: Map<number, RosterFileClub>;
   clubs: number;
@@ -49,20 +53,24 @@ interface LoadedRoster {
   warnings: string[];
 }
 
-function describeRoster(file: RosterFile, filename: string): LoadedRoster {
+/**
+ * Fold the loaded files into one world and work out what it will look like.
+ * Files are combined rather than replacing each other because a world is
+ * normally authored a league at a time, so loading england.json and spain.json
+ * has to mean both leagues, not whichever was picked last.
+ */
+function describeRoster(sources: NamedRosterFile[]): LoadedRoster {
+  const { file, warnings: combineWarnings } = combineRosterFiles(sources);
   const { slots, warnings } = resolveRosterSlots(SLOT_WORLD, file);
   return {
+    sources,
     file,
-    filename,
     byTid: new Map(slots.map((s) => [s.tid, s.club])),
     clubs: slots.length,
     squads: slots.filter((s) => s.club.players && s.club.players.length > 0).length,
-    warnings,
+    warnings: [...combineWarnings, ...warnings],
   };
 }
-
-const loadRoster = (text: string, filename: string): LoadedRoster =>
-  describeRoster(parseRosterFile(text), filename);
 
 /** Competition name for a country's given tier (e.g. "English Division 1"). */
 function divisionName(country: string, tier: 1 | 2): string {
@@ -83,7 +91,7 @@ export function NewLeague() {
   // and an effect would run twice under StrictMode and lose it.
   const [roster, setRoster] = useState<LoadedRoster | null>(() => {
     const handed = takePendingRoster();
-    return handed ? describeRoster(handed.file, handed.filename) : null;
+    return handed ? describeRoster(handed.files) : null;
   });
   const [rosterError, setRosterError] = useState<string | null>(null);
   // Failures from "Import League" (a whole exported save), kept separate from
@@ -152,18 +160,36 @@ export function NewLeague() {
     fileInputRef.current?.click();
   }
 
-  async function handleRosterFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  /**
+   * Load one or more roster files, adding them to any already loaded so a world
+   * can be built up a league at a time (either by selecting every file at once
+   * or by coming back for the next one).
+   *
+   * A file that won't parse takes only itself out: the rest still load and the
+   * error names the offending file, because re-picking eleven good files to fix
+   * a twelfth is the exact tedium this is meant to remove.
+   */
+  async function handleRosterFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []);
     e.target.value = ""; // allow re-picking the same file after an error
-    if (!file) return;
+    if (picked.length === 0) return;
     setRosterError(null);
-    try {
-      setRoster(loadRoster(await file.text(), file.name));
-      setSelectedTid(null);
-    } catch (err) {
-      setRoster(null);
-      setRosterError(err instanceof Error ? err.message : String(err));
+
+    const loaded: NamedRosterFile[] = [];
+    const errors: string[] = [];
+    for (const file of picked) {
+      try {
+        loaded.push({ name: file.name, file: parseRosterFile(await file.text()) });
+      } catch (err) {
+        errors.push(`${file.name}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
+
+    if (loaded.length > 0) {
+      setRoster((prev) => describeRoster([...(prev?.sources ?? []), ...loaded]));
+      setSelectedTid(null);
+    }
+    setRosterError(errors.length > 0 ? errors.join(" ") : null);
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -226,6 +252,12 @@ export function NewLeague() {
           you a ready-made prompt to paste into ChatGPT or Claude.
         </p>
         <p className="text-muted">
+          You can pick several files at once, or add more after the first, and they'll all
+          go into the same league. That's the easy way to do a whole world: one file per
+          league is a much more manageable thing to ask an AI for than every league at
+          once.
+        </p>
+        <p className="text-muted">
           This is the only place a roster file can be loaded. Bringing real squads into a
           save already in progress would wipe out the careers and stats of everyone they
           replaced, so imports happen at creation and nowhere else.
@@ -243,7 +275,7 @@ export function NewLeague() {
             className="btn btn-primary"
             onClick={() => rosterInputRef.current?.click()}
           >
-            Choose Roster File
+            Choose Roster Files
           </button>
           <button
             type="button"
@@ -256,8 +288,9 @@ export function NewLeague() {
             ref={rosterInputRef}
             type="file"
             accept=".json,application/json"
+            multiple
             className="d-none"
-            onChange={handleRosterFile}
+            onChange={handleRosterFiles}
           />
         </div>
       </div>
@@ -305,24 +338,46 @@ export function NewLeague() {
       {roster && (
         <div className="alert alert-secondary py-2">
           <div>
-            Loaded <strong>{roster.filename}</strong> — {roster.clubs}{" "}
-            {roster.clubs === 1 ? "club" : "clubs"}, {roster.squads} with a full squad.
+            Loaded <strong>{roster.sources.map((s) => s.name).join(", ")}</strong> —{" "}
+            {roster.clubs} {roster.clubs === 1 ? "club" : "clubs"}, {roster.squads} with a
+            full squad.
           </div>
           {roster.warnings.map((w) => (
             <div key={w} className="small text-muted mt-1">
               {w}
             </div>
           ))}
-          <button
-            type="button"
-            className="btn btn-link btn-sm p-0 mt-1"
-            onClick={() => {
-              setRoster(null);
-              setSelectedTid(null);
-            }}
-          >
-            Choose a different file
-          </button>
+          {rosterError && (
+            <div className="small text-danger mt-1">{rosterError}</div>
+          )}
+          <div className="d-flex gap-3 mt-1">
+            <button
+              type="button"
+              className="btn btn-link btn-sm p-0"
+              onClick={() => rosterInputRef.current?.click()}
+            >
+              Add another file
+            </button>
+            <button
+              type="button"
+              className="btn btn-link btn-sm p-0"
+              onClick={() => {
+                setRoster(null);
+                setRosterError(null);
+                setSelectedTid(null);
+              }}
+            >
+              Start over
+            </button>
+          </div>
+          <input
+            ref={rosterInputRef}
+            type="file"
+            accept=".json,application/json"
+            multiple
+            className="d-none"
+            onChange={handleRosterFiles}
+          />
         </div>
       )}
 

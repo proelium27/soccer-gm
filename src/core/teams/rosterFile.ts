@@ -287,6 +287,63 @@ export function parseRosterFile(text: string): RosterFile {
   return { format: ROSTER_FILE_FORMAT, formatVersion: ROSTER_FILE_VERSION, competitions };
 }
 
+/** A parsed roster file with the name the user picked it by. */
+export interface NamedRosterFile {
+  name: string;
+  file: RosterFile;
+}
+
+export interface CombinedRosterFile {
+  file: RosterFile;
+  /** Non-fatal issues (the same competition listed twice) worth showing the user. */
+  warnings: string[];
+}
+
+/**
+ * Fold several roster files into the single one the importer applies.
+ *
+ * Authoring a whole world in one file is impractical when squads are involved
+ * — an AI answer covering twelve competitions runs to megabytes — so the normal
+ * workflow is a file per league. Each file names the competitions it covers, and
+ * competitions are independent of each other, so combining them is just
+ * concatenation in load order.
+ *
+ * The one ambiguous case is two files claiming the same competition: clubs map
+ * *positionally* onto slots, so their club lists can't be interleaved into
+ * anything meaningful. The later file wins outright (it is the one the user
+ * picked most recently, so it is likely the redo) and the collision is reported
+ * rather than silently resolved.
+ */
+export function combineRosterFiles(files: NamedRosterFile[]): CombinedRosterFile {
+  const byMatch = new Map<string, { comp: RosterFileCompetition; from: string }>();
+  const order: string[] = [];
+  const warnings: string[] = [];
+
+  for (const { name, file } of files) {
+    for (const comp of file.competitions) {
+      const key = comp.match.trim().toLowerCase();
+      const existing = byMatch.get(key);
+      if (existing) {
+        warnings.push(
+          `"${comp.match}" is listed in both ${existing.from} and ${name}, so the one from ${name} was used.`,
+        );
+      } else {
+        order.push(key);
+      }
+      byMatch.set(key, { comp, from: name });
+    }
+  }
+
+  return {
+    file: {
+      format: ROSTER_FILE_FORMAT,
+      formatVersion: ROSTER_FILE_VERSION,
+      competitions: order.map((key) => byMatch.get(key)!.comp),
+    },
+    warnings,
+  };
+}
+
 /** One resolved file club paired with the save tid it maps onto. */
 export interface RosterSlot {
   tid: number;

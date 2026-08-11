@@ -126,32 +126,67 @@ export function Leagues() {
    * They do quite different things — a roster file *starts* a league and hands
    * off to the club picker, a save file restores one — so the button routes
    * rather than tries to unify them.
+   *
+   * Roster files come in batches (a world is normally authored a league at a
+   * time, so twelve files is a normal selection); a save is one whole league, so
+   * several at once has no meaning and is refused rather than half-honoured.
    */
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const picked = Array.from(e.target.files ?? []);
     e.target.value = ""; // allow re-picking the same file after an error
-    if (!file) return;
+    if (picked.length === 0) return;
     setImportError(null);
 
-    let looksLikeRoster = false;
-    try {
-      const parsed = JSON.parse(await file.text()) as { format?: unknown };
-      looksLikeRoster = isRosterFileFormat(parsed?.format);
-    } catch {
-      setImportError(`"${file.name}" isn't a valid JSON file.`);
+    const texts: { file: File; text: string }[] = [];
+    for (const file of picked) {
+      const text = await file.text();
+      try {
+        JSON.parse(text);
+      } catch {
+        setImportError(`"${file.name}" isn't a valid JSON file.`);
+        return;
+      }
+      texts.push({ file, text });
+    }
+
+    const isRoster = ({ text }: { text: string }) =>
+      isRosterFileFormat((JSON.parse(text) as { format?: unknown })?.format);
+    const rosters = texts.filter(isRoster);
+
+    if (rosters.length > 0 && rosters.length < texts.length) {
+      setImportError(
+        "That selection mixes roster files with a save file. Import the save on its own.",
+      );
       return;
     }
 
-    try {
-      if (looksLikeRoster) {
-        // Re-read through the real parser so a malformed roster file reports
-        // exactly which field is wrong, the same as it would on /new-league.
-        setPendingRoster({ file: parseRosterFile(await file.text()), filename: file.name });
-        navigate("/new-league?roster=1");
-      } else {
-        await importJSON(file);
-        navigate("/dashboard");
+    if (rosters.length > 0) {
+      // Re-read through the real parser so a malformed roster file reports
+      // exactly which field is wrong, the same as it would on /new-league.
+      // A bad file stops the whole batch here rather than being skipped: this
+      // screen is left behind on the way to the picker, so an error it raised
+      // would go with it. Nothing has been created yet, so re-picking is cheap.
+      const files = [];
+      for (const { file, text } of rosters) {
+        try {
+          files.push({ name: file.name, file: parseRosterFile(text) });
+        } catch (err) {
+          setImportError(`${file.name}: ${err instanceof Error ? err.message : String(err)}`);
+          return;
+        }
       }
+      setPendingRoster({ files });
+      navigate("/new-league?roster=1");
+      return;
+    }
+
+    if (texts.length > 1) {
+      setImportError("Import one save file at a time.");
+      return;
+    }
+    try {
+      await importJSON(texts[0].file);
+      navigate("/dashboard");
     } catch (err) {
       setImportError(err instanceof Error ? err.message : String(err));
     }
@@ -270,7 +305,7 @@ export function Leagues() {
           type="button"
           className="btn btn-outline-secondary"
           onClick={() => importInputRef.current?.click()}
-          title="Load a roster file to start a league with real clubs, or a save file to restore a backup"
+          title="Load roster files to start a league with real clubs, or a save file to restore a backup"
         >
           Import
         </button>
@@ -278,14 +313,17 @@ export function Leagues() {
           ref={importInputRef}
           type="file"
           accept=".json,application/json"
+          multiple
           className="d-none"
           onChange={handleImport}
         />
       </div>
 
       <p className="text-muted small mt-2 mb-0">
-        Import takes either a roster file, which starts a new league with real clubs and
-        squads, or a save file from Export Save, which loads that save back.
+        Import takes either roster files, which start a new league with real clubs and
+        squads, or a save file from Export Save, which loads that save back. You can pick as
+        many roster files as you like (one per league is the usual way) and they all go into
+        the same league.
       </p>
     </div>
   );
