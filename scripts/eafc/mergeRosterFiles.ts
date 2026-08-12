@@ -32,6 +32,7 @@
 import { parseArgs } from "node:util";
 import { readFileSync, writeFileSync } from "node:fs";
 import { parseRosterFile, type RosterFile, type RosterFileClub } from "../../src/core/teams/rosterFile.js";
+import { uniqueAbbrev } from "./identity.js";
 
 /**
  * Club-type words, legal-form suffixes and founding years, none of which
@@ -185,6 +186,11 @@ export function mergeRosterFiles(base: RosterFile, names: RosterFile): MergeResu
     });
     const slots = Math.max(clubs.length, nameComp?.clubs.length ?? 0);
 
+    // Abbrevs a filled slot must not reuse. Base clubs hold their codes (the
+    // converter already made those unique among themselves); a names file has
+    // had no such pass, so its codes are the ones that get re-derived.
+    const takenAbbrevs = new Set(clubs.map((c) => c.abbrev));
+
     /** Take unused, non-duplicate candidates from a pool until the slots fill. */
     const drawFrom = (pool: RosterFileClub[]) => {
       for (const cand of pool) {
@@ -197,7 +203,9 @@ export function mergeRosterFiles(base: RosterFile, names: RosterFile): MergeResu
           continue;
         }
         // Identity only: a filled slot keeps the squad the game generated for it.
-        clubs.push({ name: cand.name, abbrev: cand.abbrev, colors: cand.colors });
+        const abbrev = uniqueAbbrev(cand.name, cand.abbrev, takenAbbrevs);
+        takenAbbrevs.add(abbrev);
+        clubs.push({ name: cand.name, abbrev, colors: cand.colors });
         claimed.push(cand.name);
         used.add(cand);
         filled.push({ competition: match, club: cand.name, from: nameComp?.match ?? "" });

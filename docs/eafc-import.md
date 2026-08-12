@@ -78,7 +78,7 @@ progression.
   counterpart. This preserves the game's designed country-strength gaps (France
   and Portugal are deliberately weaker — see `COUNTRY_STRENGTH_OFFSET`) and
   keeps second-tier stars below the division-2 ceiling.
-- `global` pools all twelve leagues, so real cross-league gaps carry over
+- `global` pools all sixteen leagues, so real cross-league gaps carry over
   instead. More faithful to reality, but the strongest second-tier players can
   then clear the division-2 ceiling (70) and get swept up to a top flight in
   the first offseason by `enforceDivision2Ceiling`.
@@ -108,12 +108,14 @@ estimate), but it is the number that tells you who is worth developing, so it is
 worth getting right. With its own curve, a 17-year-old Lamine Yamal comes out
 78 now / 82 ceiling while a 33-year-old Van Dijk is 79 / 80.
 
-**Leagues and clubs.** Only the twelve competitions this converter covers are
-kept; everything else in the dataset is skipped and reported. Note the game
-models sixteen — Belgium's and Turkey's four divisions have no rules yet, so
-their clubs are skipped and keep their generated identities after an import
-(see `scripts/eafc/leagues.ts` for what adding them takes). Each league's clubs are
-ranked by squad strength and the top 20 take the game's 20 slots — leagues with
+**Leagues and clubs.** Only the competitions this converter covers are kept;
+everything else in the dataset is skipped and reported. It now covers **all
+sixteen the game models**, Belgium and Turkey included. Coverage is not the same
+as presence, though: the FC26 export carries the Belgian Pro League (16 clubs)
+and the Süper Lig (18) but *no* second tier for Belgium, Turkey or Portugal, so
+those three divisions keep their generated identities after an import unless a
+names file fills them. Each league's clubs are ranked by squad strength and the
+top 20 take the game's 20 slots — leagues with
 18 real clubs (Bundesliga, Ligue 1, Primeira Liga) leave two fictional clubs in
 place, and leagues with more (the Championship's 24) drop the weakest. Squads
 are picked to match `ROSTER_COMPOSITION` rather than taking a flat top 25, so
@@ -132,6 +134,23 @@ So `LEAGUE_IDS` in `leagues.ts` maps the ids, each one verified by inspecting
 the clubs it actually contains rather than taken from memory. A league name is
 only trusted when it maps to exactly one id in the file, which keeps unfamiliar
 datasets working without reopening the hole.
+
+**Belgium is the sharpest case, and it is why Belgium has no bare name rule at
+all.** FC26 carries *three* leagues named exactly "Pro League": Belgium's (id 4),
+Saudi Arabia's (350) and the UAE's (2013). The name carries no country
+whatsoever, so a `pro_league` pattern would have claimed Al Hilal and Al Nassr
+for the Belgian top flight. Belgium is reached by id alone; only qualified forms
+("Jupiler Pro League", "Belgian First Division A") are matched by name.
+
+**Turkey is why accents are deliberately not folded in `normalizeLeague`.**
+"Süper Lig" normalizes to `s_per_lig`, since every non-alphanumeric character
+becomes a separator — which looks like a bug, and the obvious fix is to strip
+diacritics first. That was tried and measured against FC26: it silently hands
+Brazil's "Série A" (id 7, 14 clubs) to Italy and "Primera División" (id 338) to
+Spain, because both then fold onto a pattern and both are unique names within
+the file, so the unambiguous-name fallback trusts them. 19 foreign clubs, no
+warning. The accents are load-bearing; Turkey carries the mangled `s_per_lig`
+as a pattern instead.
 
 **Before trusting a new dataset, inspect it:**
 
@@ -154,7 +173,7 @@ npx tsx scripts/eafc/inspectRosterFile.ts --in eafc-roster.json --clubs
 It prints the clubs, the strongest players, and the OVR distribution — which
 should look like a generated world's (p50 ~55, p95 ~71, p99 ~75, max ~81).
 
-Note that datasets don't necessarily carry all twelve leagues. The FC26 export
+Note that datasets don't necessarily carry all sixteen leagues. The FC26 export
 has no Liga Portugal 2, so Portuguese Division 2 keeps all 20 fictional clubs;
 the converter says so in its warnings rather than leaving you to notice.
 
