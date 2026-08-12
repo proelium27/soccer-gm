@@ -75,17 +75,6 @@ export const CHANGELOG: ChangelogEntry[] = [
     list: true,
   },
   {
-    date: "2026-08-09",
-    title: "AI clubs no longer sign players they cannot pay the wages for",
-    items: [
-      "Every way an AI club can acquire a player now checks whether the club can still cover its wage bill next season, not just whether it can cover the fee. That applies to the transfer market, loans and free agency alike. A club that would be pushed under its income walks away and shops further down the list instead.",
-      "Free agency previously had no money check of any kind. A free signing costs no fee, so nothing looked at the club's finances at all, even though the player's salary is charged every season afterwards. It was the only acquisition path with no financial limit on it.",
-      "Two things override the check, both so the match engine always has a team to pick. A club short of bodies, or with nobody at all in a position, still signs. An empty goalkeeper slot is filled with an outfielder, which quietly breaks the match sim, so that hole gets filled whatever it costs.",
-      "The effect is largest in the weaker leagues. League income is scaled down by country while wages are not, so Belgian, Turkish and Portuguese clubs run closer to their limit than the big four and will now visibly buy further down the market rather than spend past it. Measured over twenty-season saves the change is close to neutral for squad quality: average top-flight rating moved by about a tenth of a point, and squad sizes held.",
-      "No AI club was observed going into debt before this change, and none does now. This closes the gap by construction rather than by luck: the margin in the poorest leagues was small enough that it depended on squads happening to be cheap.",
-    ],
-  },
-  {
     date: "2026-08-08",
     title: "Belgium and Turkey join the world",
     items: [

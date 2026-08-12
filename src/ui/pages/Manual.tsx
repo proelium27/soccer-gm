@@ -310,10 +310,9 @@ export function Manual() {
             fixtures show up on your <strong>Schedule</strong> page alongside your league games.
           </p>
           <p className="text-muted small">
-            This is deliberately a fairer road in for France, Portugal, Belgium and Turkey than a
-            one-off qualifier would be: their clubs get in with more places, are guaranteed six
-            games, and only need a mid-table league-phase finish to reach the playoff. That said,
-            don't expect miracles.
+            This is deliberately a fairer road in for France and Portugal than a one-off qualifier
+            would be: their clubs get in with more places, are guaranteed six games, and only need a
+            mid-table league-phase finish to reach the playoff. That said, don't expect miracles.
             The cup reads a weak-league side as genuinely weaker than a big-four side with the same
             league position, not as an equal, so those clubs go in as underdogs and usually have to
             scrap for a playoff spot.
@@ -1055,13 +1054,8 @@ export function Manual() {
             cap themselves at 3 buys and 3 sells per window, always respect the depth floor and
             roster cap, and hold back a cash reserve instead of spending to zero (so even a
             gap-filling club never bankrupts itself, and the genuine superstars stay unbuyable at any
-            price). On top of the fee, a club checks whether it can actually pay the player's wages
-            season after season, and walks away if it can't. A signing it can't afford is a signing
-            it doesn't make, whether that's a transfer, a loan or a free agent, so you'll see poorer
-            clubs in the weaker leagues shop further down the list rather than spend themselves
-            under. The one thing that overrides it is fielding a team: a club short of bodies, or
-            with nobody at all in a position, still signs. On top of all that, players won't drop to
-            much smaller clubs and won't be shifted easily in their first seasons somewhere (see{" "}
+            price). On top of all that, players won't drop to much smaller clubs and won't be
+            shifted easily in their first seasons somewhere (see{" "}
             <a href="#transfers">Transfers</a>), so the very best players change club rarely &mdash;
             roughly one in ten in a season &mdash; and when they do it's sideways or upward, for a
             fee that makes the news. You can watch every deal in the News Feed.

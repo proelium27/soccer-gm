@@ -9,7 +9,7 @@ import {
   windowSeed, departsAtRollover, acquisitionWageCharge, hasRosterRoom,
 } from "./transfers/negotiation.js";
 import { trueTransferValue } from "./finance/valuation.js";
-import { clampBudget, financeScale, staysSolvent } from "./finance/budget.js";
+import { clampBudget, financeScale } from "./finance/budget.js";
 import { keepsDepthFloor } from "./freeAgency.js";
 import { resolveXI } from "./lineup/resolveXI.js";
 import { teamSlots } from "./lineup/formations.js";
@@ -367,13 +367,6 @@ export function runAILoanMarket(
 
   const roster = new Map(teams.map((t) => [t.tid, [...t.roster]]));
   const budget = new Map(teams.map((t) => [t.tid, t.budget]));
-  const teamByTid = new Map(teams.map((t) => [t.tid, t]));
-  /** Live wage bill on the same basis chargeSeasonStart bills (roster + academy). */
-  const wagesOf = (tid: number): number => {
-    const t = teamByTid.get(tid)!;
-    return [...(roster.get(tid) ?? t.roster), ...t.academyRoster]
-      .reduce((sum, pid) => sum + (playerMap.get(pid)?.contract.salary ?? 0), 0);
-  };
   const takes = new Map<number, number>();
   const sends = new Map<number, number>();
   const moved = new Set<number>();
@@ -398,20 +391,6 @@ export function runAILoanMarket(
     const player = playerMap.get(c.pid)!;
     const fee = computeLoanFee(player, season, 1);
     if ((budget.get(c.buyerTid) ?? 0) < fee) continue;
-
-    // A loan-in is a wage transfer as much as a fee: wages key off roster
-    // membership, so the borrower pays this player's salary at every
-    // season-start charge for the length of the loan. Decline if that would
-    // put the borrower under (same projection every AI buy path uses).
-    const buyerTeam = teamByTid.get(c.buyerTid)!;
-    const solvent = staysSolvent(
-      (budget.get(c.buyerTid) ?? 0) - fee,
-      wagesOf(c.buyerTid),
-      player.contract.salary,
-      financeScale(competitions, buyerTeam.compId),
-      buyerTeam.hype,
-    );
-    if (!solvent) continue;
 
     roster.set(c.sellerTid, sellerRoster.filter((p) => p !== c.pid));
     buyerRoster.push(c.pid);

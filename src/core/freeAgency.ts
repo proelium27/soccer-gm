@@ -2,8 +2,6 @@ import type { Player, Position } from "./players/types.js";
 import { POSITIONS } from "./players/types.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import type { ActiveLoan } from "./loans.js";
-import type { Competition } from "./competitions.js";
-import { financeScale, staysSolvent } from "./finance/budget.js";
 import {
   ROSTER_COMPOSITION, ROSTER_CAP, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
   ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR, PROSPECT_AGE_MAX,
@@ -88,16 +86,6 @@ function positionCounts(roster: number[], players: Map<number, Player>): Record<
  * enforced separately and deterministically by enforceDivision2Ceiling
  * (offseason.ts), so a strong player who lands as a free agent from a
  * Division 2 club can be signed by anyone here without undoing that.
- *
- * SOLVENCY: a free signing costs no fee but adds a salary the club pays at
- * every season-start charge from now on, and for a long time nothing here
- * checked that at all — this was the only AI acquisition path with no money
- * gate whatsoever, and the largest contributor to weak-league clubs reaching a
- * deficit. Both passes now decline a signing that would put the club under
- * (staysSolvent). The single exception is a club below ROSTER_SAFETY_FLOOR in
- * the shortfall pass: fielding a legal XI outranks the budget, and a club that
- * can't sign at all would otherwise shrink until the match engine has nobody to
- * pick (see the known <11 gap in the lower-severity leftovers).
  */
 export function runAIFreeAgency(
   teams: StoredTeam[],
@@ -106,7 +94,6 @@ export function runAIFreeAgency(
   rng: () => number,
   userTid: number,
   signingOrderTids: number[],
-  competitions: Competition[],
   activeLoans: ActiveLoan[] = [],
 ): { teams: StoredTeam[]; players: Player[]; signings: { pid: number; toTid: number }[] } {
   const playerMap = new Map(players.map((p) => [p.pid, { ...p }]));
@@ -129,51 +116,22 @@ export function runAIFreeAgency(
     pool = pool.filter((pid) => pid !== signing.pid);
   };
 
-  /** Wage bill on the same basis chargeSeasonStart bills (roster + academy). */
-  const wagesOf = (team: StoredTeam & { roster: number[] }): number =>
-    [...team.roster, ...team.academyRoster]
-      .reduce((sum, pid) => sum + (playerMap.get(pid)?.contract.salary ?? 0), 0);
-
   for (const tid of signingOrderTids) {
     if (tid === userTid) continue;
     const team = teamMap.get(tid);
     if (!team) continue;
 
-    const scale = financeScale(competitions, team.compId);
-    let wages = wagesOf(team);
     const counts = positionCounts(team.roster, playerMap);
     for (const pos of POSITIONS as readonly Position[]) {
-      let have = counts[pos];
-      let shortfall = ROSTER_COMPOSITION[pos] - have;
+      let shortfall = ROSTER_COMPOSITION[pos] - counts[pos];
       while (shortfall > 0) {
         const candidates = pool
           .map((pid) => playerMap.get(pid)!)
           .filter((p) => p.pos === pos)
           .sort((a, b) => b.ovr - a.ovr);
-        // Two exemptions from the solvency gate, both correctness rather than
-        // finance. A squad below ROSTER_SAFETY_FLOOR can't field an XI. And a
-        // position with nobody in it at all must be filled whatever it costs:
-        // selectXI fills an empty GK slot with an outfielder, which leaves the
-        // keeping composite at its neutral default while still counting him as
-        // an attacker — a silently corrupted match sim, not just a weak team.
-        const mustSign = team.roster.length < ROSTER_SAFETY_FLOOR || have === 0;
-        // Otherwise take the best player the club can actually pay for, walking
-        // down from the top rather than giving up at the first one it can't.
-        // Salary is cubic in ovr, so a club that can't afford a 74-ovr CB can
-        // very often afford a 58-ovr one; stopping at the most expensive
-        // candidate would leave the hole entirely unfilled and send the club
-        // into the season a man short at that position.
-        // seasonSalaryForOvr is what `sign` will stamp on the contract, and is
-        // a pure function of (ovr, pid, season) — no rng draw, so asking for it
-        // early here can't perturb the shared stream.
-        const signing = mustSign
-          ? candidates[0]
-          : candidates.find((p) =>
-              staysSolvent(team.budget, wages, seasonSalaryForOvr(p.ovr, p.pid, season), scale, team.hype));
+        const signing = candidates[0];
         if (!signing) break;
         sign(team, signing);
-        wages += seasonSalaryForOvr(signing.ovr, signing.pid, season);
-        have++;
         shortfall--;
       }
     }
@@ -212,8 +170,6 @@ export function runAIFreeAgency(
     const team = teamMap.get(tid);
     if (!team) continue;
 
-    const scale = financeScale(competitions, team.compId);
-    let wages = wagesOf(team);
     for (const pos of POSITIONS as readonly Position[]) {
       if (team.roster.length >= ROSTER_CAP) break;
       const atPos = team.roster
@@ -223,22 +179,11 @@ export function runAIFreeAgency(
       // upgrade; genuine shortfalls were filled in the first pass above.
       if (atPos.length < ROSTER_COMPOSITION[pos]) continue;
       const weakest = Math.min(...atPos.map((p) => p.ovr));
-      // No exemption here: this pass is a luxury upgrade on a position already
-      // at target depth, so a club that can't pay simply doesn't shop.
-      // (trimRosterSurplus will later release the now-weakest, giving some of
-      // this wage back — the projection deliberately ignores that and stays
-      // conservative rather than betting on the trim.) As in the shortfall pass,
-      // walk down to the best *affordable* upgrade rather than abandoning the
-      // position because the very best one is out of reach.
       const best = pool
         .map((pid) => playerMap.get(pid)!)
         .filter((p) => p.pos === pos)
-        .sort((a, b) => b.ovr - a.ovr)
-        .find((p) => p.ovr > weakest
-          && staysSolvent(team.budget, wages, seasonSalaryForOvr(p.ovr, p.pid, season), scale, team.hype));
-      if (!best) continue;
-      poachSign(team, best);
-      wages += seasonSalaryForOvr(best.ovr, best.pid, season);
+        .sort((a, b) => b.ovr - a.ovr)[0];
+      if (best && best.ovr > weakest) poachSign(team, best);
     }
   }
 

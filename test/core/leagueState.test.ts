@@ -61,25 +61,4 @@ describe("createLeagueState", () => {
   it("meta.userTid matches the input", () => {
     expect(state.meta.userTid).toBe(3);
   });
-
-  it("generates no club already in deficit, in any country", () => {
-    // A club's opening budget is chargeSeasonStart(0, wageBill, ...) — income
-    // minus its generated wage bill — and the per-acquisition solvency gate
-    // (staysSolvent) cannot help here, because no acquisition has happened yet.
-    // Generation is the only thing that sets this number.
-    //
-    // It matters most for the weak leagues: financeScale multiplies income
-    // (Turkey 0.4) while seasonSalaryForOvr is country-independent, so they
-    // stay solvent only because COUNTRY_STRENGTH_OFFSET hands them cheaper
-    // squads. Nothing links those two knobs, so retuning an offset, a budget
-    // scale or the wage curve far enough apart would eventually birth a club in
-    // debt.
-    //
-    // Headroom, measured with scripts/genBudgetProbe.ts: the poorest club opens
-    // at £15.8M (Belgium, seed 1) / £12.6M (Turkey, seed 2). So this is a
-    // backstop against a large mistake, NOT a tight tripwire — a moderate
-    // retune will pass it. Run the probe if you need the actual margin.
-    const negative = state.teams.filter((t) => t.budget < 0);
-    expect(negative).toEqual([]);
-  });
 });
