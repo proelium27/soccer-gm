@@ -62,8 +62,12 @@ const SEASONS = Number(process.env.SEASONS ?? 20);
 // a world nobody meant to run. Note `SEEDS=` is an empty string, not nullish, so
 // `??` alone would not fall back — and Number("") is 0, not NaN, so an empty
 // segment (or a trailing comma) would quietly add seed 0 rather than be rejected.
+// Four seeds by default, not two: the adjacent-rung check below gates a MEAN
+// across seeds, and a mean of two draws from a quantity whose per-seed noise is
+// ~±1 OVR is not worth gating on. This is a manual audit run before touching
+// country constants, not CI, so it can afford the wall-clock (~45 min).
 const seedsRaw = process.env.SEEDS?.trim();
-const SEEDS = (seedsRaw || "1,2")
+const SEEDS = (seedsRaw || "1,2,3,4")
   .split(",")
   .map((s) => s.trim())
   .filter((s) => s.length > 0)
@@ -98,25 +102,46 @@ const WEAK_LADDER = ["France", "Portugal", "Belgium", "Turkey"];
  *  - The weak ladder's own ends stay apart (MIN_END_SPREAD) — France must still
  *    be clearly stronger than Turkey even if the middle rungs blur.
  *
- * Per-rung gaps are printed for information, not gated. If a future change
- * needs the rungs individually resolvable across a dynasty, widen the offsets
- * to 2-point steps (e.g. Portugal 10 / Belgium 12 / Turkey 14) rather than
- * tightening these numbers.
+ * ORDER IS GATED AT TWO DIFFERENT SCALES, and the split is the whole point
+ * (2026-08-11). An earlier version stated all of the above and *then* gated
+ * adjacent-rung order per seed at 0.5 — a tolerance below the noise it had just
+ * described, so the gate contradicted its own header and failed on seed choice
+ * alone. Measured over 4 seeds × 20 seasons:
+ *
+ *     Portugal→Belgium  +0.24  -0.44  +1.51  +1.75   mean +0.77
+ *     Belgium→Turkey    -1.33  +0.48  -0.45  +0.06   mean -0.31
+ *
+ * Per-seed values straddle zero with ~±1 OVR of spread; the means sit near it.
+ * That is noise, not a ladder failure — so a single seed can only resolve a
+ * GROSS inversion (SEED_INVERSION_TOLERANCE), while a SYSTEMATIC one shows up
+ * in the mean across seeds (MEAN_INVERSION_TOLERANCE), where the noise averages
+ * down. Both real failures are caught twice over: the Belgium/Turkey budget
+ * inversion ran -2.23 on every seed, and the 2026-08-11 transfer-market
+ * inversion ran -2.5 with England below Portugal.
+ *
+ * Per-rung *magnitudes* remain printed for information, not gated. If a future
+ * change needs the rungs individually resolvable across a dynasty, widen the
+ * offsets to 2-point steps (e.g. Portugal 10 / Belgium 12 / Turkey 14) rather
+ * than tightening these numbers.
  */
 /** Minimum surviving gap between the big-four mean and the weakest league. */
 const MIN_SPREAD = 3.0;
 /** Minimum surviving gap between the strongest and weakest weak league. */
 const MIN_END_SPREAD = 1.0;
 /**
- * How far an adjacent rung may sit *below* where it belongs before it counts as
- * a real inversion rather than seed noise. Rungs one offset point apart end a
- * few tenths apart, so their order genuinely coin-flips between seeds and a
- * strict `gap > 0` check would be flaky. Sized well under the failure this
- * exists to catch: the Belgium/Turkey budget inversion measured 2.23, and the
- * 2026-08-11 transfer-market inversion ran to 2.5 with England finishing
- * *below* Portugal.
+ * How far a rung may sit below where it belongs ON A SINGLE SEED before that
+ * alone is a failure. Sits above the ~±1 OVR of measured per-seed noise, and
+ * below both real failures (2.23 and 2.5) — so one bad seed still fails loudly,
+ * but a coin-flip between two rungs a tenth apart does not.
  */
-const INVERSION_TOLERANCE = 0.5;
+const SEED_INVERSION_TOLERANCE = 2.0;
+/**
+ * Same, applied to the MEAN across seeds, where noise averages down and a
+ * systematic inversion cannot hide. This is the sensitive gate: a real
+ * inversion is present on every seed and so survives averaging, while the
+ * measured noise means sit at +0.77 and -0.31.
+ */
+const MEAN_INVERSION_TOLERANCE = 1.0;
 
 function avg(xs: number[]): number {
   return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
@@ -143,6 +168,8 @@ function minAIBudget(league: LeagueStore): number {
 }
 
 let anyFailure = false;
+/** Each rung gap, collected across seeds, so the mean gate can run at the end. */
+const gapsAcrossSeeds = new Map<string, number[]>();
 
 for (const seed of SEEDS) {
   console.log(`\n=== seed ${seed} (${SEASONS} seasons) ===`);
@@ -177,14 +204,21 @@ for (const seed of SEEDS) {
 
     const problems: string[] = [];
 
-    // 1. Order must never invert — the real failure mode (see the header).
+    // 1. Order must never invert — the real failure mode (see the header). Only
+    //    a GROSS inversion is resolvable on one seed; the sensitive test is the
+    //    cross-seed mean, run after every seed completes.
     let prev = big;
     let prevName = "BIG4";
     const gaps: string[] = [];
     for (const c of WEAK_LADDER) {
       const gap = prev - m.get(c)!;
       gaps.push(`${prevName}→${c} ${gap >= 0 ? "+" : ""}${gap.toFixed(2)}`);
-      if (gap < -INVERSION_TOLERANCE) problems.push(`${prevName}→${c} INVERTED (${gap.toFixed(2)})`);
+      const key = `${prevName}→${c}`;
+      if (!gapsAcrossSeeds.has(key)) gapsAcrossSeeds.set(key, []);
+      gapsAcrossSeeds.get(key)!.push(gap);
+      if (gap < -SEED_INVERSION_TOLERANCE) {
+        problems.push(`${prevName}→${c} GROSSLY INVERTED (${gap.toFixed(2)})`);
+      }
       prev = m.get(c)!;
       prevName = c;
     }
@@ -206,7 +240,7 @@ for (const seed of SEEDS) {
       console.log(`  → ladder **BROKEN**: ${problems.join("; ")}`);
     } else {
       console.log(
-        `  → ladder OK (no inversion beyond ${INVERSION_TOLERANCE}; BIG4→${weakest} ${spread.toFixed(2)} ≥ ${MIN_SPREAD}; ` +
+        `  → ladder OK (no inversion beyond ${SEED_INVERSION_TOLERANCE}; BIG4→${weakest} ${spread.toFixed(2)} ≥ ${MIN_SPREAD}; ` +
         `${WEAK_LADDER[0]}→${weakest} ${endSpread.toFixed(2)} ≥ ${MIN_END_SPREAD})`,
       );
     }
@@ -245,6 +279,31 @@ for (const seed of SEEDS) {
     `  → min AI budget over dynasty: £${(minBudget / 1e6).toFixed(1)}M ` +
     `(season ${minBudgetSeason}, ${minBudgetCountry}) — ${solvent ? "SOLVENT" : "**DEFICIT**"}`,
   );
+}
+
+// The sensitive order gate: each rung gap averaged over every seed. Per-seed
+// noise is ~±1 OVR and straddles zero, so a single seed can only catch a gross
+// inversion; a systematic one is present on every seed and survives averaging.
+console.log(`\n=== rung gaps, mean over ${SEEDS.length} seed(s) ===`);
+const meanProblems: string[] = [];
+for (const [key, gaps] of gapsAcrossSeeds) {
+  const m = avg(gaps);
+  const detail = gaps.map((g) => `${g >= 0 ? "+" : ""}${g.toFixed(2)}`).join(" ");
+  console.log(`  ${key.padEnd(20)} mean ${m >= 0 ? "+" : ""}${m.toFixed(2)}   (${detail})`);
+  if (m < -MEAN_INVERSION_TOLERANCE) {
+    meanProblems.push(`${key} INVERTED on the mean (${m.toFixed(2)} < -${MEAN_INVERSION_TOLERANCE})`);
+  }
+}
+if (meanProblems.length) {
+  anyFailure = true;
+  console.log(`  → **BROKEN**: ${meanProblems.join("; ")}`);
+} else {
+  console.log(`  → OK (no mean inversion beyond ${MEAN_INVERSION_TOLERANCE})`);
+}
+if (SEEDS.length < 3) {
+  // Not a failure, but the mean gate above is the sensitive one and it is weak
+  // on one or two draws — say so rather than letting a thin run read as a pass.
+  console.log(`  NOTE: only ${SEEDS.length} seed(s); the mean gate is under-powered below 3.`);
 }
 
 // Exit non-zero on failure. An earlier version of this script printed
