@@ -47,9 +47,14 @@ for (let i = 0; i < 5; i++) {
   const t0 = performance.now();
   const res = run();
   times.push(performance.now() - t0);
-  moves = res.transfers.length;
+  // runAITransferMarket returns `[...transfers, ...executed]`, i.e. the whole
+  // league log with this run's deals appended — NOT the deals it just made. An
+  // earlier version printed the raw length under a "transfers" heading, which
+  // read as moves-per-run and was ~10x too high (6636 vs the real few hundred).
+  moves = res.transfers.length - league.transfers.length;
 }
 times.sort((a, b) => a - b);
 console.log(
-  `season ${league.season}: runAITransferMarket ${times[0].toFixed(0)}ms (best of 5, median ${times[2].toFixed(0)}ms), ${moves} transfers`,
+  `season ${league.season}: ${league.teams.length} clubs, runAITransferMarket ` +
+  `${times[0].toFixed(0)}ms (best of 5, median ${times[2].toFixed(0)}ms), ${moves} deals this run`,
 );

@@ -247,6 +247,25 @@ Belgium/Turkey budget inversion at -2.23 and the market inversion at -2.5.
   regression, and it is not the thing to tune.
 - **Keep-side valuation is untouched.** It is correct, and it fixed a real bug
   (a club valuing its own 85-ovr player at $132M against a $350M market).
+- **`LOAN_AVAILABILITY` still makes the same comparison, and is deliberately
+  left alone for now — but it is not clean.** `runAILoanMarket` screens on
+  `keepValueToClub(p) > market * 0.95`, the identical club-relative-vs-club-blind
+  test. Measured with `scripts/loanAvailabilityProbe.ts` at season 6:
+
+      loan-eligible (outside XI, age <= 23)   median ratio 1.12   passes: 33.7%
+      best loan-eligible player per club      median ratio 1.30   passes: 28.9%
+
+  The catastrophic form does **not** reproduce (28.9% vs the market's 0.0%),
+  because the loan market pre-filters to players outside the starting XI and
+  aged <= LOAN_AI_MAX_AGE, so a club's best player — the population the market
+  screen silently removed — never reaches this test. But the distortion is the
+  same and in the same direction: keep-side is *built* to exceed market, so the
+  median eligible youngster sits at 1.12x and a 0.95 threshold excludes about
+  two thirds of them by construction, biting harder on the better ones. The
+  consequence is only "fewer loans happen", with no feedback loop into league
+  strength, which is why this is a separate follow-up rather than part of the
+  market fix. **If it is changed, measure loan volume against the existing
+  guardrails first — removing the screen could roughly triple it.**
 
 ## The gap this exposes: no need-to-sell term
 
