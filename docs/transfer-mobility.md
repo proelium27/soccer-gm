@@ -303,6 +303,57 @@ one is safe:
 Same relative ordering, opposite effect on mobility. It must be a discount on
 pressured sellers, never a premium on content ones.
 
+## But is the term necessary? Measured 2026-08-12 — no, and the probe found worse
+
+`scripts/needBuyMarginProbe.ts` mirrors the candidate loop of
+`runAITransferMarket` on the same seeded jitter stream and reports the margin
+each executed deal actually cleared by. It is self-checking: every executed deal
+must be found among the mirrored candidates or it says the numbers are
+unreliable. (It cannot answer this by editing `AI_NEED_BUY_MIN_SURPLUS` and
+re-running — the constant is live during the warm-up seasons too, so the two
+runs would be probing different worlds.) Season 6, seeds 1 and 2, all 389 / 378
+deals reproduced:
+
+|                                     | seed 1        | seed 2        |
+| ----------------------------------- | ------------- | ------------- |
+| deals executed                      | 389           | 378           |
+| **need buys (relaxed bar)**         | **359 (92%)** | **351 (93%)** |
+| cleared by under 5% margin          | 59 (15%)      | 69 (18%)      |
+| …of those, downhill by squad ovr    | 31            | 47            |
+| …of those, rated 78+                | 3             | 2             |
+
+Three separate things get bundled under "need to sell", and they have different
+answers:
+
+1. **Sell to survive.** Not necessary — the condition does not occur. 0 deficits
+   across 4 seeds × 20 seasons, worst-case minimum AI budget +£0.01M. The
+   insolvency this was queued for was a *symptom* of the availability bug (a
+   club could not shed wages by selling its highest earner), and that is fixed.
+2. **Sell the surplus.** Already in `keepValueToClub` — incumbent is
+   `posSecondBestOvr`, depth counted as `depth-1`, so a club deep at a position
+   already prices its fourth-choice low. A depth-driven term double-counts it.
+3. **Express the *absence* of pressure** — the real gap, and the narrow one. A
+   need buy clears at the bare reservation, so the seller captures nothing and
+   the noise draw decides. That is 15-18% of deals, of which the star component
+   is 2-3 per window out of ~380.
+
+**The unplanned finding is the one to act on: the exception is the rule.** 92-93%
+of executed deals are need buys, so `hasPositionalGap` fires for nearly every
+buyer and `AI_MARKET_MIN_SURPLUS` (0.15, the "only buy bargains" bar) is close to
+inert — the market effectively runs at a 0% margin bar, which is not what that
+constant's documentation describes. Order of work therefore: check whether
+`hasPositionalGap` is too loose first, since tightening it restores
+`AI_MARKET_MIN_SURPLUS`'s intended role *and* shrinks the zero-margin population
+as a side effect; only if the thin-margin deals still look wrong, floor
+`AI_NEED_BUY_MIN_SURPLUS` at something small. A need-to-sell term is a new
+mechanic that raises mobility, and it should not be built to fix a gap that a
+single loosened predicate is producing.
+
+Two caveats on the table. It is one window each on two seeds at season 6. And
+"downhill by squad ovr" here counts *all* deals (64%/70%), most of them squad
+players moving for game time — it is not comparable to the 5-8% figure quoted
+above for players rated 78+.
+
 ## Residual, known
 
 Seed 1's France/Portugal rungs still sit within ~0.7 of each other. Adjacent weak
