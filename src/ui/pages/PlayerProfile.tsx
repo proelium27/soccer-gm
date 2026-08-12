@@ -7,7 +7,8 @@ import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { SKILL_LABELS } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { PotHelp } from "../components/HelpHint.js";
-import { OvrHistoryChart } from "../components/OvrHistoryChart.js";
+import { ValueHistoryChart } from "../components/ValueHistoryChart.js";
+import { careerValueHistory } from "../../core/finance/valueHistory.js";
 import { potentialFog } from "../../core/scouting/potentialFog.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { Flag } from "../components/Flag.js";
@@ -136,6 +137,37 @@ export function PlayerProfile() {
   const scoutSpend = userTeamForFog?.scoutingSpend ?? 0;
   const seasonTeamAbbrev = (season: number) =>
     team ? teamAbbrev(teamForSeason(playerTransfers, season, team.tid)) : null;
+
+  // How a given season's POT should *read* — the same fogged band the history
+  // table below shows, evaluated on that season like the table does.
+  const potBandLabel = (potential: number, season: number): string => {
+    if (league.godMode) return String(potential);
+    const fog = potentialFog(potential, player.pid, season, scoutObserved, scoutSpend);
+    return fog.known ? String(potential) : `${fog.low}–${fog.high}`;
+  };
+  // The POT the value chart *prices* off. trueTransferValue pays a premium for
+  // an unfulfilled potential gap, so feeding it the true number would turn the
+  // dollar figure into an exact read on a hidden one — it gets the fogged
+  // band's midpoint instead. The band is taken once, at the current season, so
+  // its seeded off-center jitter is a single constant across the career and the
+  // value line stays smooth; the hover card still quotes each season's own band.
+  const pricedPotential = (potential: number): number => {
+    if (league.godMode) return potential;
+    const fog = potentialFog(potential, player.pid, league.season, scoutObserved, scoutSpend);
+    return fog.known ? potential : Math.round((fog.low + fog.high) / 2);
+  };
+
+  const valuePoints = careerValueHistory(player, league.season, (snap) =>
+    pricedPotential(snap.potential));
+  const statsBySeason = new Map(player.stats.map((s) => [s.season, s]));
+  // Two different lookups, because a snapshot's ratings and its academy flag
+  // describe different seasons. The ratings stamped at the end of season N are
+  // what he carried through N+1; the flag records where he *was* in N. So the
+  // POT shown for a played season comes from the snapshot before it, while the
+  // academy label comes from the snapshot for that same season — falling back
+  // to his live squad for the current one, which has no snapshot yet.
+  const histBySeasonPlayed = new Map(player.hist.map((h) => [h.season + 1, h]));
+  const academyBySeason = new Map(player.hist.map((h) => [h.season, h.academy]));
 
   return (
     <div className="container-fluid p-3">
@@ -471,17 +503,36 @@ export function PlayerProfile() {
 
           <div className="card mb-3">
             <div className="card-body">
-              <h6 className="card-title">OVR History</h6>
-              <OvrHistoryChart
+              <h6 className="card-title">Transfer Value</h6>
+              <ValueHistoryChart
                 pid={player.pid}
                 name={player.name}
-                points={player.hist}
+                points={valuePoints}
                 league={league}
-                teamTidForSeason={(season) => {
-                  if (!team) return inAcademy ? inAcademy.tid : null;
-                  // teamForSeason never hands back the free-agent sentinel, so
-                  // every season resolves to a real club to color by.
-                  return teamForSeason(playerTransfers, season, team.tid);
+                detailForSeason={(season) => {
+                  const stats = statsBySeason.get(season);
+                  const snap = histBySeasonPlayed.get(season);
+                  const apps = stats?.appearances ?? 0;
+                  return {
+                    // teamForSeason never hands back the free-agent sentinel, so
+                    // every season resolves to a real club to color by. It needs
+                    // a present-day club to walk back from, though, which an
+                    // unrostered player hasn't got — for him each season falls
+                    // back to SeasonStats.tid, the club he was at as of his last
+                    // appearance that year. Without it a released veteran's whole
+                    // career read "Free agent", including the seasons the very
+                    // same card credits him 17 goals for.
+                    tid: team
+                      ? teamForSeason(playerTransfers, season, team.tid)
+                      : inAcademy?.tid
+                        ?? (stats && !isFreeAgentTid(stats.tid) ? stats.tid : null),
+                    potentialLabel: snap ? potBandLabel(snap.potential, snap.season) : "?",
+                    academy: academyBySeason.get(season) ?? inAcademy !== undefined,
+                    goals: stats?.goals ?? 0,
+                    assists: stats?.assists ?? 0,
+                    appearances: apps,
+                    didNotPlay: apps === 0,
+                  };
                 }}
               />
             </div>
