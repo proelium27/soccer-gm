@@ -111,6 +111,8 @@ export interface ValueSeasonDetail {
   goals: number;
   assists: number;
   appearances: number;
+  /** Average match rating across that season's appearances (SeasonStats.avgRating). */
+  avgRating: number;
   /** True if he made no league appearances that season (so G/A read as a dash, not 0). */
   didNotPlay: boolean;
 }
@@ -413,6 +415,8 @@ export function ValueHistoryChart({
                 <dd>{d.didNotPlay ? "—" : `${d.goals} / ${d.assists}`}</dd>
                 <dt>Appearances</dt>
                 <dd>{d.didNotPlay ? "—" : d.appearances}</dd>
+                <dt>Match rating</dt>
+                <dd>{d.didNotPlay ? "—" : d.avgRating.toFixed(2)}</dd>
               </dl>
             </div>
           );

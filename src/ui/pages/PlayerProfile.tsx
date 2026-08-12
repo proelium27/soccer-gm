@@ -531,6 +531,7 @@ export function PlayerProfile() {
                     goals: stats?.goals ?? 0,
                     assists: stats?.assists ?? 0,
                     appearances: apps,
+                    avgRating: stats?.avgRating ?? 0,
                     didNotPlay: apps === 0,
                   };
                 }}
