@@ -33,6 +33,18 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-08-12",
+    title: "Playing a player out of position now costs you",
+    items: [
+      "Team strength used to be built from what your players are rather than where they were standing. Every position group was assembled by looking at each player's own position, so the formation only decided who got picked, and after that the slots were forgotten. A centre-back put in the striker slot still counted toward your defense at full strength and contributed nothing to your attack, which meant pushing a defender up the pitch made your back line better. A striker dropped into defense had the same problem in reverse.",
+      "Strength is now rolled up slot by slot from the shape you picked, and each player is judged on the job he is doing. A centre-back at centre-forward now takes the centre-forward's share of your attack, carries a penalty for being somewhere he doesn't play, and stops counting toward your defense entirely. How much it costs depends on the distance: covering a nearby position is a modest hit, and somewhere unrelated is a real downgrade. Roughly, a good player one position out of his own plays like an ordinary player in his proper spot. Match ratings and the box score follow the same rule, so a defender who spends twenty minutes at striker is rated as a striker for those minutes.",
+      "The substitution logic was the bigger problem in practice. Starting lineups almost never field anyone out of position, but the bench routinely did: when a tired centre-back came off and no centre-back was on the bench, the coach simply brought on the best player available, which was a striker more than a third of the time. Measured across three seasons, 37 percent of all substitutions put a player somewhere he doesn't play. The coach now prices the position into the decision, so he weighs a replacement against the specific hole he is filling. That figure is now under 1 percent, and roughly one substitution in five that used to happen no longer does, because holding a tired starter on beats wrecking the shape.",
+      "The exception is the chase-the-game substitution late on when you are losing. That one deliberately changes shape instead: the attacker coming on plays his own position and you line up with one fewer defender, so the gamble is a real trade rather than a striker stranded at centre-back.",
+      "One long-standing gap closed along the way. If a side ran out of fit goalkeepers, the outfielder who ended up in goal used to leave the team's goalkeeping at league average while still counting as an outfielder, which was quietly free. He is now treated as what he is, an outfielder in goal.",
+      "Match results across the league shift as a result, and title races are slightly less erratic than before, because fewer matches are decided by a team accidentally dismantling its own shape in the last half hour.",
+    ],
+  },
+  {
+    date: "2026-08-12",
     title: "Starting a league can no longer create several copies of it",
     items: [
       "Starting a new league could leave three or four identical saves in the list, all for the same club. Building a world means filling 240 clubs with players, which takes a few seconds and freezes the page while it runs. The Start League button stayed enabled and gave no sign anything was happening, so a second or third click was the natural response, and the browser held those clicks and delivered them once the page came back. Each one started another league.",

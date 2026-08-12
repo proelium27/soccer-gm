@@ -556,7 +556,7 @@ export function Manual() {
             <li><strong>Passes, crosses &amp; fouls</strong>. Every box score also carries per-player passing (completed / attempted), crosses, and fouls committed. Central and deep players move the ball most, wide players do most of the crossing. These are just stat-sheet detail, they don't change the scoreline.</li>
             <li><strong>Cards</strong>. Yellows, second yellows, and straight reds. Going a man down is a real hit to your side's strength for the rest of the match.</li>
             <li><strong>Set pieces</strong>. Corners, and penalty kicks resolved as a duel between the taker and the keeper (saved, scored, or dragged wide).</li>
-            <li><strong>Fatigue &amp; substitutions</strong>. Players tire as the match runs, and the coach makes subs around the 60th and 75th minutes, throwing on an attacker when chasing the game. Subs aren't automatic anymore: the coach weighs how good the fresh bench player is against the tired starter he'd replace, and also how that starter is actually playing on the day. A close-quality bench refreshes freely, but he won't pull a good starter for a much weaker reserve unless that starter is genuinely gassed, so a shallow bench leaves your tired legs on. A starter tearing the game up is harder to justify hooking than one having a stinker, even at the same fitness. Your matches use the same in-match sub logic. You can also flag any bench player for <strong>More minutes</strong> on the Roster page, which tips the coach toward bringing him on more often.</li>
+            <li><strong>Fatigue &amp; substitutions</strong>. Players tire as the match runs, and the coach makes subs around the 60th and 75th minutes, throwing on an attacker when chasing the game. Subs aren't automatic anymore: the coach weighs how good the fresh bench player is against the tired starter he'd replace, and also how that starter is actually playing on the day. A close-quality bench refreshes freely, but he won't pull a good starter for a much weaker reserve unless that starter is genuinely gassed, so a shallow bench leaves your tired legs on. A starter tearing the game up is harder to justify hooking than one having a stinker, even at the same fitness. The coach also cares where a replacement would have to play: he's filling a specific hole in the shape, so a bench striker who'd have to cover at centre-back has to be a lot better to be worth it, and if nobody on the bench fits, the tired starter stays on rather than the shape getting wrecked. The one exception is the chase-the-game sub late on when you're losing, where the coach deliberately changes shape instead, pulling a defender for an attacker who plays his own position. Your matches use the same in-match sub logic. You can also flag any bench player for <strong>More minutes</strong> on the Roster page, which tips the coach toward bringing him on more often.</li>
             <li><strong>Injuries</strong>. A player can go down mid-match and miss 1&ndash;6 matches. Recovery ticks down as you sim, and he comes back on his own. While he's hurt he shows a red cross on your Roster (both the pitch and the tables) and on his profile, and your Dashboard lists everyone currently sidelined. He's automatically left out of your XI until he's fit.</li>
             <li><strong>Stoppage time</strong>. Scaled to how eventful the half was.</li>
           </ul>
@@ -714,6 +714,20 @@ export function Manual() {
             flag a reserve you want to see on the pitch more and the coach will lean toward subbing
             him on during matches, even slightly ahead of a marginally better option. It nudges the
             sub decision, it won't force a clearly worse player on.
+          </p>
+          <p>
+            <strong>Playing someone out of position costs you.</strong> Your team's match strength is
+            built slot by slot from the shape you picked, so what matters is the job each player is
+            doing, not what kind of player he is. Put a centre-back in the striker slot and he
+            attacks like a centre-back who has been shoved up front: he drags your attack down, and
+            he stops helping your defense, because he isn't back there any more. How much it hurts
+            depends on how far you've moved him. Covering a nearby position (a full-back at
+            centre-back, a winger at striker) is a modest hit that a good player can absorb. Sticking
+            him somewhere unrelated is a real downgrade, and an outfielder in goal is a disaster,
+            which is why the game won't let you put one there. Roughly, a good player one position
+            out of his own plays like an ordinary player in his proper spot. The upshot is that a
+            balanced squad that fills its shape beats a collection of better players crammed into
+            the wrong slots, so it's worth checking your XI after injuries pile up.
           </p>
           <p>
             <strong>Roster cap: 30 players.</strong> Signings, transfer buys, and academy promotions

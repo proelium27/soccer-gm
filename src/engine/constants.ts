@@ -166,3 +166,27 @@ export const HALF_SECONDS = MATCH_SECONDS / 2;
 export const STOPPAGE_MIN_SECONDS_PER_HALF = 60; // 1 minute floor, per spec
 export const STOPPAGE_MAX_SECONDS_PER_HALF = 300; // 5 minute ceiling, per spec
 export const STOPPAGE_SECONDS_PER_EVENT = 20;
+
+// --- Out-of-position familiarity (slot-aware composites) ---
+// The cost, in raw rating points (the same 0-100 scale as a player's skills), of
+// fielding a player somewhere other than his own position. Composites bucket the
+// XI by the SLOT each player occupies, not by his natural position, and each
+// player's contribution to his slot's phase is docked by one of these.
+//
+// Calibrated against the OVR scale (65 average starter, 70 good, 75 a team's
+// best): a good player one position off should read roughly like an average
+// player in his own position, and a foreign-position emergency should be a
+// visible downgrade without being unplayable.
+//
+// The same penalty feeds the substitution decision (see pickReplacement /
+// worthSub in matchSim), which is what stops the bench logic from answering a
+// tired centre-back with its best available striker. Those two uses must stay
+// on one number: if the sub logic is cheaper about position than the rollup is,
+// the sim talks itself into swaps it then punishes.
+export const POSITION_ADJACENT_PENALTY = 6;
+export const POSITION_FOREIGN_PENALTY = 16;
+// An outfielder in goal (or a keeper stranded outfield) is categorically worse
+// than any outfield mismatch — the keeping composite is nearly all goalkeeping
+// rating, which an outfielder simply does not have. Only reachable when a side
+// runs out of fit keepers (an injured GK with no keeper on the bench).
+export const POSITION_KEEPER_PENALTY = 35;

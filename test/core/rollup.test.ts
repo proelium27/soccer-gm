@@ -3,19 +3,20 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { generatePlayer } from "../../src/core/players/generate.js";
 import { selectXI } from "../../src/core/lineup/selectXI.js";
 import { FORMATIONS } from "../../src/core/lineup/formations.js";
-import { rollupComposites } from "../../src/core/composites.js";
+import { rollupComposites, withSlots } from "../../src/core/composites.js";
 import { ROSTER_COMPOSITION } from "../../src/core/constants.js";
 import { POSITIONS } from "../../src/core/players/types.js";
 import type { Player } from "../../src/core/players/types.js";
 
-function xiFor(seed: number, base: number): Player[] {
+function xiFor(seed: number, base: number) {
   const rng = mulberry32(seed);
   const players: Player[] = [];
   let pid = 0;
   for (const pos of POSITIONS)
     for (let i = 0; i < ROSTER_COMPOSITION[pos]; i++)
       players.push(generatePlayer(rng, pos, base, pid++, 20, 1));
-  return selectXI(players, FORMATIONS["4-3-3"]);
+  const slots = FORMATIONS["4-3-3"];
+  return withSlots(selectXI(players, slots), slots);
 }
 
 describe("rollupComposites", () => {
