@@ -67,15 +67,15 @@ describe("generateTwoDivisionLeague", () => {
 });
 
 describe("generateWorld", () => {
-  it("produces 240 teams across 12 competitions, 20 per competition", () => {
+  it("produces 320 teams across 16 competitions, 20 per competition", () => {
     const world = generateWorld(mulberry32(42));
-    expect(world.teams).toHaveLength(240);
+    expect(world.teams).toHaveLength(320);
     for (const comp of worldCompetitions()) {
       expect(world.teams.filter((t) => t.compId === comp.id)).toHaveLength(20);
     }
   });
 
-  it("assigns tid blocks in country order: England 0-39 ... France 160-199, Portugal 200-239", () => {
+  it("assigns tid blocks in country order: England 0-39 ... Belgium 240-279, Turkey 280-319", () => {
     const world = generateWorld(mulberry32(42));
     const tidsFor = (compId: number) => world.teams.filter((t) => t.compId === compId).map((t) => t.tid);
     expect(Math.min(...tidsFor(0), ...tidsFor(1))).toBe(0);
@@ -90,25 +90,28 @@ describe("generateWorld", () => {
     expect(Math.max(...tidsFor(8), ...tidsFor(9))).toBe(199);
     expect(Math.min(...tidsFor(10), ...tidsFor(11))).toBe(200);
     expect(Math.max(...tidsFor(10), ...tidsFor(11))).toBe(239);
+    expect(Math.min(...tidsFor(12), ...tidsFor(13))).toBe(240);
+    expect(Math.max(...tidsFor(12), ...tidsFor(13))).toBe(279);
+    expect(Math.min(...tidsFor(14), ...tidsFor(15))).toBe(280);
+    expect(Math.max(...tidsFor(14), ...tidsFor(15))).toBe(319);
   });
 
-  it("has 6000 players (240 teams x 25)", () => {
+  it("has 8000 players (320 teams x 25)", () => {
     const world = generateWorld(mulberry32(42));
-    expect(world.players).toHaveLength(6000);
+    expect(world.players).toHaveLength(8000);
   });
 
-  it("generates France weaker than the big four, and Portugal weaker still", () => {
+  it("generates the weak leagues in coefficient order: England > France > Portugal > Belgium > Turkey", () => {
     const world = generateWorld(mulberry32(42));
     const d1Avg = (country: string) => {
       const comp = worldCompetitions().find((c) => c.country === country && c.tier === 1)!;
       const teams = world.teams.filter((t) => t.compId === comp.id);
       return teams.reduce((s, t) => s + t.avgOvr, 0) / teams.length;
     };
-    const england = d1Avg("England");
-    const france = d1Avg("France");
-    const portugal = d1Avg("Portugal");
-    expect(france).toBeLessThan(england);
-    expect(portugal).toBeLessThan(france);
+    const ladder = ["England", "France", "Portugal", "Belgium", "Turkey"].map(d1Avg);
+    for (let i = 1; i < ladder.length; i++) {
+      expect(ladder[i]).toBeLessThan(ladder[i - 1]);
+    }
   });
 
   it("has unique pids across the whole world", () => {

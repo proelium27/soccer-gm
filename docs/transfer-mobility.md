@@ -210,14 +210,30 @@ returns success is worse than no gate — it reads as positive evidence that the
 invariant holds.
 
 **Fixed here rather than deferred.** The script now collects failures (ladder
-inversions beyond `INVERSION_TOLERANCE` 0.5, and any AI club in deficit) and
-exits non-zero with a summary. The tolerance exists because adjacent weak rungs
-are ~0.9 ovr apart at generation and ~40% of that erodes, so their order
-genuinely coin-flips between seeds; it is sized far below the failure it guards
-against, which ran to 2.5 ovr with England finishing *below* Portugal. `SEEDS` is
-also parsed defensively — `SEEDS=` is an empty string rather than nullish so `??`
-alone would not fall back, and `Number("")` is 0 rather than NaN, so a stray
-comma would otherwise have quietly run seed 0 and printed a confident verdict.
+inversions, and any AI club in deficit) and exits non-zero with a summary.
+`SEEDS` is also parsed defensively — `SEEDS=` is an empty string rather than
+nullish so `??` alone would not fall back, and `Number("")` is 0 rather than NaN,
+so a stray comma would otherwise have quietly run seed 0 and printed a confident
+verdict.
+
+**A second calibration bug in the same gate, found when this landed on the
+8-country branch (2026-08-11).** The tolerance above was set at 0.5 on the
+reasoning that adjacent rungs coin-flip between seeds — which is true, and is
+exactly why 0.5 was the wrong number: it sits *below* the noise it was
+acknowledging. Measured 4 seeds × 20 seasons on the 16-competition world:
+
+    Portugal→Belgium   +0.24  -0.44  +1.51  +1.75    mean +0.77
+    Belgium→Turkey     -1.33  +0.48  -0.45  +0.06    mean -0.31
+
+Per-seed values straddle zero with ~±1 ovr of spread, so a 0.5 per-seed gate
+fails on seed choice alone. Order is now gated at two scales: a single seed can
+only resolve a **gross** inversion (`SEED_INVERSION_TOLERANCE` 2.0), while a
+**systematic** one shows up in the **mean across seeds**
+(`MEAN_INVERSION_TOLERANCE` 1.0), where the noise averages down. Both real
+failures are caught twice over, because both were present on every seed: the
+Belgium/Turkey budget inversion at -2.23 and the market inversion at -2.5.
+`SEEDS` defaults to four for that reason, and the script warns below three.
+**The wrong fix here is tightening the per-seed tolerance; that is the bug.**
 
 ## What is deliberately not changed
 
@@ -231,6 +247,25 @@ comma would otherwise have quietly run seed 0 and printed a confident verdict.
   regression, and it is not the thing to tune.
 - **Keep-side valuation is untouched.** It is correct, and it fixed a real bug
   (a club valuing its own 85-ovr player at $132M against a $350M market).
+- **`LOAN_AVAILABILITY` still makes the same comparison, and is deliberately
+  left alone for now — but it is not clean.** `runAILoanMarket` screens on
+  `keepValueToClub(p) > market * 0.95`, the identical club-relative-vs-club-blind
+  test. Measured with `scripts/loanAvailabilityProbe.ts` at season 6:
+
+      loan-eligible (outside XI, age <= 23)   median ratio 1.12   passes: 33.7%
+      best loan-eligible player per club      median ratio 1.30   passes: 28.9%
+
+  The catastrophic form does **not** reproduce (28.9% vs the market's 0.0%),
+  because the loan market pre-filters to players outside the starting XI and
+  aged <= LOAN_AI_MAX_AGE, so a club's best player — the population the market
+  screen silently removed — never reaches this test. But the distortion is the
+  same and in the same direction: keep-side is *built* to exceed market, so the
+  median eligible youngster sits at 1.12x and a 0.95 threshold excludes about
+  two thirds of them by construction, biting harder on the better ones. The
+  consequence is only "fewer loans happen", with no feedback loop into league
+  strength, which is why this is a separate follow-up rather than part of the
+  market fix. **If it is changed, measure loan volume against the existing
+  guardrails first — removing the screen could roughly triple it.**
 
 ## The gap this exposes: no need-to-sell term
 

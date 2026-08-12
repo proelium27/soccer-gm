@@ -80,36 +80,44 @@ export function uniquifyAbbrevs(names: string[]): string[] {
   const out: string[] = [];
 
   for (const name of names) {
-    const base = deriveAbbrev(name);
-    let abbrev = base;
-
-    if (taken.has(abbrev)) {
-      // Prefer a code still drawn from the club's own letters.
-      const letters = (deaccent(name).match(WORD_RE) ?? []).join("").toUpperCase();
-      for (let i = 2; i < letters.length && taken.has(abbrev); i++) {
-        abbrev = (base.slice(0, 2) + letters[i]).slice(0, 3);
-      }
-      // Otherwise sweep a bounded space. Keying off base[0] keeps the first
-      // letter recognisable; the sweep covers 1296 codes, far more than the
-      // 20 clubs a competition holds, so it cannot run out or spin.
-      if (taken.has(abbrev)) {
-        const head = base[0] ?? "C";
-        outer: for (const c1 of SUFFIX_ALPHABET) {
-          for (const c2 of SUFFIX_ALPHABET) {
-            const cand = head + c1 + c2;
-            if (!taken.has(cand)) {
-              abbrev = cand;
-              break outer;
-            }
-          }
-        }
-      }
-    }
-
+    const abbrev = uniqueAbbrev(name, deriveAbbrev(name), taken);
     taken.add(abbrev);
     out.push(abbrev);
   }
   return out;
+}
+
+/**
+ * Return `preferred` if it is free, otherwise a substitute that isn't in
+ * `taken`. Does not mutate `taken` — the caller claims the result.
+ *
+ * Split out of uniquifyAbbrevs so the merge step can reuse the same resolution
+ * on abbrevs it did not derive: a filled slot takes its code verbatim from a
+ * hand-written names file, which has no uniqueness pass of its own, and that is
+ * how "UD Leiria" and "Leixões SC" both ended up as LEI in one table.
+ */
+export function uniqueAbbrev(name: string, preferred: string, taken: ReadonlySet<string>): string {
+  if (!taken.has(preferred)) return preferred;
+
+  // Prefer a code still drawn from the club's own letters.
+  let abbrev = preferred;
+  const letters = (deaccent(name).match(WORD_RE) ?? []).join("").toUpperCase();
+  for (let i = 2; i < letters.length && taken.has(abbrev); i++) {
+    abbrev = (preferred.slice(0, 2) + letters[i]).slice(0, 3);
+  }
+  if (!taken.has(abbrev)) return abbrev;
+
+  // Otherwise sweep a bounded space. Keying off preferred[0] keeps the first
+  // letter recognisable; the sweep covers 1296 codes, far more than the
+  // 20 clubs a competition holds, so it cannot run out or spin.
+  const head = preferred[0] ?? "C";
+  for (const c1 of SUFFIX_ALPHABET) {
+    for (const c2 of SUFFIX_ALPHABET) {
+      const cand = head + c1 + c2;
+      if (!taken.has(cand)) return cand;
+    }
+  }
+  return abbrev;
 }
 
 /**

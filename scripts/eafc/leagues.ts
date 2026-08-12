@@ -19,7 +19,23 @@ export interface LeagueRule {
   patterns: string[];
 }
 
-/** Normalize a league cell the same way headers are normalized. */
+/**
+ * Normalize a league cell the same way headers are normalized.
+ *
+ * **Accents are deliberately NOT folded, and this is load-bearing.** Every
+ * non-`[a-z0-9]` character becomes a separator, so "Süper Lig" comes out
+ * `s_per_lig` — which looks like a bug and is the obvious thing to "fix" by
+ * NFD-stripping diacritics first. Doing that was measured against the FC26
+ * dataset and it silently breaks two competitions: Brazil's "Série A" (id 7,
+ * 14 clubs) folds onto `serie_a` and is claimed by Italy, and "Primera
+ * División" (id 338) folds onto `primera_division` and is claimed by Spain.
+ * Both are unique names within that file, so the unambiguous-name fallback
+ * trusts them and imports 19 foreign clubs — the exact failure LEAGUE_IDS
+ * exists to prevent. The accents are what keeps those names apart.
+ *
+ * A league whose real name carries an accent therefore needs the mangled form
+ * as a pattern (see Turkey's `s_per_lig`), which is the cheaper trade.
+ */
 export function normalizeLeague(s: string): string {
   return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
@@ -36,6 +52,14 @@ export const LEAGUE_RULES: LeagueRule[] = [
   { competition: "German Division 2", patterns: ["2_bundesliga", "german_2", "bundesliga_2"] },
   { competition: "French Division 2", patterns: ["ligue_2", "french_ligue_2", "domino_s_ligue_2"] },
   { competition: "Portuguese Division 2", patterns: ["liga_portugal_2", "segunda_liga", "liga_2", "portuguese_segunda"] },
+  // Belgium's and Turkey's second tiers are absent from every dataset checked
+  // so far, so neither has a verified id below — these resolve by name only,
+  // exactly like Portugal's. Bare "1_lig" is deliberately NOT a pattern: it is
+  // a substring of Poland's "Fortuna 1 Liga" (`fortuna_1_liga`), so it would
+  // import a third country's league. Only the sponsor/federation-qualified
+  // forms are listed.
+  { competition: "Belgian Division 2", patterns: ["challenger_pro_league", "belgian_first_division_b", "proximus_league"] },
+  { competition: "Turkish Division 2", patterns: ["tff_1_lig", "trendyol_1_lig", "turkish_1_lig"] },
 
   // --- First tiers ---
   { competition: "English Division 1", patterns: ["premier_league", "english_premier"] },
@@ -44,12 +68,33 @@ export const LEAGUE_RULES: LeagueRule[] = [
   { competition: "German Division 1", patterns: ["bundesliga"] },
   { competition: "French Division 1", patterns: ["ligue_1"] },
   { competition: "Portuguese Division 1", patterns: ["liga_portugal", "primeira_liga", "liga_nos", "liga_zon", "portuguese_liga"] },
+  // Belgium's top flight is the one competition here with NO safe bare name.
+  // The FC26 dataset carries three leagues called exactly "Pro League" —
+  // Belgium's (id 4), Saudi Arabia's (id 350) and the UAE's (id 2013) — so a
+  // "pro_league" pattern would claim all three. Only the qualified forms are
+  // listed, and Belgium is really identified by its id below; on this dataset
+  // the resolver reaches it that way and the Saudi/UAE rows fall through to
+  // null, which is what we want.
+  { competition: "Belgian Division 1", patterns: ["jupiler", "belgian_pro_league", "belgium_pro_league", "belgian_first_division_a"] },
+  // `s_per_lig` is "Süper Lig" after normalization — the ü becomes a separator.
+  // See the note on normalizeLeague for why that isn't fixed by folding accents.
+  { competition: "Turkish Division 1", patterns: ["super_lig", "s_per_lig", "turkish_super"] },
 ];
 
 /**
  * Resolve an EA league cell to a soccer-gm competition name, or null when the
- * league is not one of the twelve the game models (the datasets carry 30+
- * leagues; everything outside our six countries' two tiers is simply skipped).
+ * league is not one this converter covers (the datasets carry 30+ leagues;
+ * everything else is simply skipped).
+ *
+ * **Coverage is all sixteen competitions across the game's eight countries** —
+ * see COVERED_COMPETITIONS, which is derived from the rules rather than listed.
+ * Coverage is not the same as *presence*: no dataset checked so far carries
+ * Portugal's, Belgium's or Turkey's second tier, and those divisions simply keep
+ * their generated identities after an import, the same as any club a roster file
+ * does not cover. Adding a league means adding a rule below *and*, where the
+ * name is not unique, a verified id in LEAGUE_IDS — confirmed against a real
+ * dataset with scripts/eafc/inspectLeagues.ts, since names alone collide across
+ * federations.
  *
  * Name matching alone is NOT sufficient on real data — see resolveByRow below.
  */
@@ -72,10 +117,18 @@ export function mapLeague(raw: string | undefined): string | null {
  * (2018). Matching on name alone pulled 12 Austrian clubs into the German top
  * flight and let Shakhtar compete for a Premier League slot.
  *
+ * Belgium is the sharpest case in the file: "Pro League" is Belgium's (4),
+ * Saudi Arabia's (350) *and* the UAE's (2013) in that one dataset, so the name
+ * carries no country at all and the id is the only thing that separates them.
+ *
  * Every id below was verified against that dataset by inspecting the clubs it
- * contains (see scripts/eafc/inspectLeagues.ts), not taken from memory.
- * Portugal's second tier is absent from that dataset, so no id is listed for
- * it — it resolves by name instead, via the unambiguous-name rule.
+ * contains (see scripts/eafc/inspectLeagues.ts), not taken from memory: id 4
+ * holds Club Brugge, Anderlecht, Genk and Union Saint-Gilloise, id 68 holds
+ * Galatasaray, Fenerbahçe, Beşiktaş and Trabzonspor.
+ *
+ * Portugal's, Belgium's and Turkey's second tiers are absent from that dataset,
+ * so no id is listed for any of them — they resolve by name instead, via the
+ * unambiguous-name rule.
  */
 export const LEAGUE_IDS: Record<string, string> = {
   "13": "English Division 1",   // Premier League
@@ -89,7 +142,21 @@ export const LEAGUE_IDS: Record<string, string> = {
   "16": "French Division 1",    // Ligue 1
   "17": "French Division 2",    // Ligue 2
   "308": "Portuguese Division 1", // Primeira Liga
+  "4": "Belgian Division 1",    // Pro League (NOT 350 Saudi / 2013 UAE)
+  "68": "Turkish Division 1",   // Süper Lig
 };
+
+/**
+ * Every soccer-gm competition this converter can fill, by either route.
+ *
+ * Derived rather than written out, so a tool reporting "which divisions will
+ * keep their fictional clubs" cannot drift from the rules that decide it — the
+ * hand-maintained copy this replaced in inspectLeagues.ts still listed twelve
+ * after the world had grown to sixteen.
+ */
+export const COVERED_COMPETITIONS: string[] = [
+  ...new Set([...LEAGUE_RULES.map((r) => r.competition), ...Object.values(LEAGUE_IDS)]),
+];
 
 export interface LeagueResolver {
   /** Resolve one row's league, given its raw league name and id. */

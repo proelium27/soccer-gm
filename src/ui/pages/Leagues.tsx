@@ -38,7 +38,7 @@ function FirstRunIntro({ brand }: { brand: string }) {
         this device.
       </p>
       <ul className="text-muted">
-        <li>12 leagues across 6 countries, 240 clubs, promotion and relegation</li>
+        <li>16 leagues across 8 countries, 320 clubs, promotion and relegation</li>
         <li>A transfer market where rival clubs value players the same way you do</li>
         <li>A youth academy, scouting reports, contracts, and a budget that has to balance</li>
         <li>A continental cup, and a World Cup on a four year cycle</li>

@@ -38,7 +38,7 @@ Options:
                                       Portugal are deliberately weaker) and keeps
                                       second-tier stars under the division-2
                                       ceiling. Default.
-                         global       all twelve leagues are pooled and matched
+                         global       all sixteen leagues are pooled and matched
                                       together, so real cross-league gaps carry
                                       over instead. More faithful, but strong
                                       second-tier players may then exceed the

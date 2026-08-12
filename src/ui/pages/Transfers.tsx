@@ -243,7 +243,7 @@ export function Transfers() {
   }, [league, targets, pinnedBuys]);
 
   // Lookup maps over the whole world, memoized because they were being rebuilt
-  // on every render of this page — 6000-odd players and 240 clubs at a time,
+  // on every render of this page — 8000-odd players and 320 clubs at a time,
   // including on every keystroke in an offer box. `teamNameByTid` also replaces
   // a linear `teams.find` that the club-column sort accessor called once per
   // comparison.

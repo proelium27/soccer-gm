@@ -16,9 +16,9 @@ describe("createLeagueState", () => {
     expect(state).toHaveProperty("competitions");
   });
 
-  it("has 12 competitions (6 countries x 2 tiers) and 240 teams (20 per competition)", () => {
-    expect(state.competitions).toHaveLength(12);
-    expect(state.teams).toHaveLength(240);
+  it("has 16 competitions (8 countries x 2 tiers) and 320 teams (20 per competition)", () => {
+    expect(state.competitions).toHaveLength(16);
+    expect(state.teams).toHaveLength(320);
     const validCompIds = new Set(state.competitions.map((c) => c.id));
     for (const t of state.teams) {
       expect(typeof t.name).toBe("string");
@@ -36,12 +36,12 @@ describe("createLeagueState", () => {
     }
   });
 
-  it("has 6000 players (240 teams x 25 players)", () => {
-    expect(state.players).toHaveLength(6000);
+  it("has 8000 players (320 teams x 25 players)", () => {
+    expect(state.players).toHaveLength(8000);
   });
 
-  it("has 4560 scheduled games (380 per competition x 12), each within one competition", () => {
-    expect(state.schedule).toHaveLength(4560);
+  it("has 6080 scheduled games (380 per competition x 16), each within one competition", () => {
+    expect(state.schedule).toHaveLength(6080);
     const compByTid = new Map(state.teams.map((t) => [t.tid, t.compId]));
     for (const g of state.schedule) {
       expect(g).toHaveProperty("matchday");

@@ -69,7 +69,7 @@ export function Cup() {
         ) : (
           <p className="text-muted">
             The Continental Cup isn&apos;t contested in this league. It needs enough top-flight
-            leagues to fill its 20-club field.
+            leagues to fill its 24-club field.
           </p>
         )}
       </div>
@@ -157,9 +157,9 @@ export function Cup() {
       <h4>
         Continental Cup
         <HelpHint>
-          A 20-club competition played alongside the league. It opens with a league phase where
+          A 24-club competition played alongside the league. It opens with a league phase where
           everyone plays six games in one table; the top four skip to the quarter-finals, the next
-          eight play a one-off playoff round, and the bottom eight go out. From there it&apos;s a
+          eight play a one-off playoff round, and the bottom twelve go out. From there it&apos;s a
           straight knockout. If your club reaches the final, the sim pauses so you can play it.
         </HelpHint>
       </h4>

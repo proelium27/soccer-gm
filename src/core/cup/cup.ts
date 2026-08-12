@@ -68,7 +68,7 @@ export function koFinalRound(cup: CupState): number {
 
 /* ── Qualification ───────────────────────────────────────────────────────────
  * Strong (big-four) leagues send their top CUP_STRONG_LEAGUE_SLOTS; weak
- * (France/Portugal) leagues send their top CUP_WEAK_LEAGUE_SLOTS. The combined
+ * (France/Portugal/Belgium/Turkey) leagues send their top CUP_WEAK_LEAGUE_SLOTS. The combined
  * field opens the Swiss league phase. Everything is seeded purely by the league
  * tables — OVR never enters. */
 

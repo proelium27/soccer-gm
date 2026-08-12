@@ -156,10 +156,10 @@ export function Manual() {
           </p>
           <p>
             England's and Spain's clubs all have real crest art that shows up wherever the club's
-            name does. Every club without one yet (Italy, Germany, France and Portugal) just shows a
-            two-color swatch until it gets a crest of its own. Clubs that came in from a roster file
-            always show their colors rather than a crest: the artwork belongs to the club that
-            shipped in that slot, not to the one you imported over it.
+            name does. Every club without one yet (Italy, Germany, France, Portugal, Belgium and
+            Turkey) just shows a two-color swatch until it gets a crest of its own. Clubs that came
+            in from a roster file always show their colors rather than a crest: the artwork belongs
+            to the club that shipped in that slot, not to the one you imported over it.
           </p>
         </Section>
 
@@ -235,17 +235,21 @@ export function Manual() {
 
         <Section id="world" title="The World">
           <p>
-            A new save drops you into one shared world: six countries (<strong>England</strong>,{" "}
+            A new save drops you into one shared world: eight countries (<strong>England</strong>,{" "}
             <strong>Spain</strong>, <strong>Italy</strong>, <strong>Germany</strong>,{" "}
-            <strong>France</strong> and <strong>Portugal</strong>), each with its own two-division
-            pyramid (Division 1 and Division 2, 20 clubs apiece), for 12 leagues and 240 clubs total.
+            <strong>France</strong>, <strong>Portugal</strong>, <strong>Belgium</strong> and{" "}
+            <strong>Turkey</strong>), each with its own two-division
+            pyramid (Division 1 and Division 2, 20 clubs apiece), for 16 leagues and 320 clubs total.
             You pick any club in any country and division when you start.
           </p>
           <p>
             The big four (England, Spain, Italy and Germany) are all built to the same strength and
-            budget bands, so none of them is a flagship league above the others.{" "}
-            <strong>France</strong> and especially <strong>Portugal</strong> are deliberately weaker
-            and poorer: their clubs generate at lower OVR, and they earn and can bank less money. You
+            budget bands, so none of them is a flagship league above the others. The other four are
+            deliberately weaker and poorer: their clubs generate at lower OVR, and they earn and can
+            bank less money. They step down in that order —{" "}
+            <strong>France</strong>, then <strong>Portugal</strong>, then <strong>Belgium</strong>,
+            then <strong>Turkey</strong> weakest of all, and their budgets step down in that same
+            order. All four are selling leagues, and Turkey is the poorest as well as the weakest. You
             won't feel it inside their own matches (someone still wins Ligue 1), but it shows up
             wherever leagues meet. Their players are cheaper, so the big four steadily buy up their
             best talent, and they go into every Continental Cup tie at a real disadvantage. Division 2
@@ -267,7 +271,7 @@ export function Manual() {
             Promotion and relegation (3 up, 3 down) runs on its own within each country at the end
             of every season, so a rough season in Spain's top flight doesn't touch any other
             country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
-            grouped by country, so you can browse any of the 12 leagues. It defaults to
+            grouped by country, so you can browse any of the 16 leagues. It defaults to
             whichever one your own club is currently in.
           </p>
           <p className="text-muted small">
@@ -278,16 +282,17 @@ export function Manual() {
 
         <Section id="cup" title="The Continental Cup">
           <p>
-            The Continental Cup is a 20-club competition played alongside the league season.
+            The Continental Cup is a 24-club competition played alongside the league season.
             Qualification is purely about <strong>league position</strong>, not squad quality. The
             top four clubs in each of the four strongest top-flight leagues (England, Spain, Italy and
-            Germany) get in, plus the top two from each of the weaker leagues,{" "}
-            <strong>France</strong> and <strong>Portugal</strong>. That's 4×4 + 2×2 = 20 clubs. On
+            Germany) get in, plus the top two from each of the four weaker leagues,{" "}
+            <strong>France</strong>, <strong>Portugal</strong>, <strong>Belgium</strong> and{" "}
+            <strong>Turkey</strong>. That's 4×4 + 4×2 = 24 clubs. On
             the <a href="#pages">Standings</a> page the qualifying places are shaded as the
             qualification zone (top four in a strong league, top two in a weak one).
           </p>
           <p>
-            It opens with a <strong>league phase</strong>: all 20 clubs sit in one combined table and
+            It opens with a <strong>league phase</strong>: all 24 clubs sit in one combined table and
             each plays <strong>six games</strong> against six different opponents. The draw isn't
             random. The field is split into a stronger half and a weaker half, and everyone plays
             three from each half, so no club draws six giants or six minnows. You never play a club
@@ -298,7 +303,7 @@ export function Manual() {
             When the six rounds are done, the table splits three ways. The <strong>top four</strong>{" "}
             go straight to the quarter-finals. Clubs ranked <strong>5th to 12th</strong> drop into a
             single-leg <strong>playoff round</strong> (matchday 27) and the four winners take the last
-            four quarter-final places. Clubs finishing <strong>13th to 20th</strong> are knocked out.
+            four quarter-final places. Clubs finishing <strong>13th to 24th</strong> are knocked out.
             From there it's a straight knockout: quarter-finals, semi-finals and final.
           </p>
           <p>
@@ -1057,11 +1062,11 @@ export function Manual() {
             cap themselves at 3 buys and 3 sells per window, always respect the depth floor and
             roster cap, and hold back a cash reserve instead of spending to zero (so even a
             gap-filling club never bankrupts itself, and the genuine superstars stay unbuyable at any
-            price). On top of all that, players won't drop to much smaller clubs and won't be shifted
-            easily in their first seasons somewhere (see <a href="#transfers">Transfers</a>), so the
-            very best players change club rarely &mdash; roughly one in ten in a season &mdash; and
-            when they do it's sideways or upward, for a fee that makes the news. You can watch every
-            deal in the News Feed.
+            price). On top of all that, players won't drop to much smaller clubs and won't be
+            shifted easily in their first seasons somewhere (see{" "}
+            <a href="#transfers">Transfers</a>), so the very best players change club rarely &mdash;
+            roughly one in ten in a season &mdash; and when they do it's sideways or upward, for a
+            fee that makes the news. You can watch every deal in the News Feed.
           </p>
           <p>
             <strong>Contract renewals.</strong> Before contracts expire each offseason, every AI club

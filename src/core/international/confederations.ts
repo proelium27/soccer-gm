@@ -21,8 +21,10 @@ export type Confederation = (typeof CONFEDERATIONS)[number];
 
 export const CONFEDERATION_OF: Record<string, Confederation> = {
   // Europe
+  Albania: "Europe",
   Austria: "Europe",
   Belgium: "Europe",
+  "Bosnia-Herzegovina": "Europe",
   Croatia: "Europe",
   "Czech Republic": "Europe",
   Denmark: "Europe",
@@ -70,6 +72,7 @@ export const CONFEDERATION_OF: Record<string, Confederation> = {
   "Burkina Faso": "Africa",
   Cameroon: "Africa",
   "Cape Verde": "Africa",
+  Gambia: "Africa",
   "DR Congo": "Africa",
   Egypt: "Africa",
   Gabon: "Africa",

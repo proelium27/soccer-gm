@@ -191,6 +191,33 @@ describe("league mapping", () => {
     expect(mapLeague("Major League Soccer")).toBeNull();
     expect(mapLeague("Eredivisie")).toBeNull();
   });
+
+  it("matches Belgium and Turkey by their qualified names", () => {
+    expect(mapLeague("Jupiler Pro League")).toBe("Belgian Division 1");
+    expect(mapLeague("Belgian First Division A")).toBe("Belgian Division 1");
+    expect(mapLeague("Süper Lig")).toBe("Turkish Division 1");
+    expect(mapLeague("Trendyol Süper Lig")).toBe("Turkish Division 1");
+    expect(mapLeague("Super Lig")).toBe("Turkish Division 1");
+    expect(mapLeague("Challenger Pro League")).toBe("Belgian Division 2");
+    expect(mapLeague("TFF 1. Lig")).toBe("Turkish Division 2");
+  });
+
+  it("never claims a bare 'Pro League' — Saudi Arabia and the UAE share the name", () => {
+    // FC26 carries three leagues called exactly "Pro League": Belgium (id 4),
+    // Saudi Arabia (350) and the UAE (2013). Belgium is reached by id, so the
+    // name must stay unclaimed or Al Hilal ends up in the Belgian top flight.
+    expect(mapLeague("Pro League")).toBeNull();
+  });
+
+  it("leaves accented lookalikes to other countries", () => {
+    // These are the two names that folding diacritics in normalizeLeague would
+    // hand to Italy and Spain: Brazil's Série A (14 clubs) and Uruguay's
+    // Primera División. The accents are what keeps them apart.
+    expect(mapLeague("Série A")).toBeNull();
+    expect(mapLeague("Primera División")).toBeNull();
+    // And bare "1. Lig" is not a pattern, because Poland's league contains it.
+    expect(mapLeague("Fortuna 1 Liga")).toBeNull();
+  });
 });
 
 describe("league resolution by id", () => {
@@ -204,7 +231,19 @@ describe("league resolution by id", () => {
     { name: "Serie A", id: "31" },          // Italy
     { name: "Serie A", id: "2018" },        // Ecuador
     { name: "Liga Portugal 2", id: "9999" },// unknown id, unambiguous name
+    { name: "Pro League", id: "4" },        // Belgium
+    { name: "Pro League", id: "350" },      // Saudi Arabia
+    { name: "Pro League", id: "2013" },     // UAE
+    { name: "Süper Lig", id: "68" },        // Turkey
   ];
+
+  it("separates Belgium from the two other 'Pro League's by id alone", () => {
+    const r = buildLeagueResolver(rows);
+    expect(r.resolve("Pro League", "4")).toBe("Belgian Division 1");
+    expect(r.resolve("Pro League", "350")).toBeNull();
+    expect(r.resolve("Pro League", "2013")).toBeNull();
+    expect(r.resolve("Süper Lig", "68")).toBe("Turkish Division 1");
+  });
 
   it("uses the id, so a shared name cannot import the wrong country", () => {
     const r = buildLeagueResolver(rows);
@@ -489,6 +528,20 @@ describe("mergeRosterFiles — filling uncovered slots from a names file", () =>
       "Jahn Regensburg",
     ]);
     expect(filled.map((f) => f.club)).toEqual(["SSV Ulm 1846", "Jahn Regensburg"]);
+  });
+
+  it("re-derives a filled club's abbrev when it collides inside the competition", () => {
+    // A names file has had no uniqueness pass, so two of its clubs can carry
+    // the same code — "UD Leiria" and "Leixões SC" both abbreviate to LEI, and
+    // a table showing LEI twice is unreadable. The base club keeps its code.
+    const base = roster([{ match: "Portuguese Division 2", clubs: ["Leiria"] }]);
+    const names = roster([
+      { match: "Portuguese Division 2", clubs: ["Leiria", "Leixland", "Leixmore"] },
+    ]);
+    const { file } = mergeRosterFiles(base, names);
+    const abbrevs = file.competitions[0].clubs.map((k) => k.abbrev);
+    expect(abbrevs[0]).toBe("LEI"); // the base club is undisturbed
+    expect(new Set(abbrevs).size).toBe(abbrevs.length);
   });
 
   it("never places a club that already exists in ANOTHER division", () => {
