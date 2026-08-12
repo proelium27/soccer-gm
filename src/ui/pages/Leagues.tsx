@@ -12,6 +12,7 @@ interface LeagueSummary {
   lid: number;
   name: string;
   created: number;
+  season: number;
 }
 
 interface TeamEditor {
@@ -246,8 +247,12 @@ export function Leagues() {
             >
               <div>
                 <div>{l.name}</div>
+                {/* Season first, and the created time rather than just the date:
+                    saves are named after the club, so two of the same club are
+                    otherwise indistinguishable here. How far each one has got is
+                    what actually tells you which is the one you've been playing. */}
                 <small className="text-muted">
-                  Created {new Date(l.created).toLocaleDateString()}
+                  Season {l.season} · started {new Date(l.created).toLocaleString()}
                 </small>
               </div>
               <div className="d-flex gap-2 flex-wrap justify-content-end">

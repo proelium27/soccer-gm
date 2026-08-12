@@ -82,8 +82,11 @@ function playersToWrite(
  * always arrives as a new object. `test/db/playerIdentity.test.ts` is what holds
  * that invariant up; if it ever breaks, edits would silently stop persisting.
  *
- * If the league has lid === 0 (new league), the lid property is stripped so IDB's
- * autoIncrement generates a fresh key, which is then written back onto the record.
+ * If the league has no lid yet (0, or missing on a hand-made or imported record),
+ * the lid property is stripped so IDB's autoIncrement generates a fresh key, which
+ * is then written back onto the record. Note this is the ONE branch that can add a
+ * save rather than update one, so anything calling it has to be sure it means to
+ * create a league: a caller that fires twice makes two of them.
  */
 export async function saveLeague(league: LeagueStore): Promise<number> {
   const db = await getDb();
@@ -96,9 +99,11 @@ export async function saveLeague(league: LeagueStore): Promise<number> {
   let lid: number;
   let storedSeq: number | undefined;
   let seq: number;
-  if (league.lid === 0) {
+  if (!league.lid) {
     // Strip lid so autoIncrement assigns a new key; leaving lid: 0 in place
     // would make IDB store the record under key 0 instead of generating one.
+    // `!lid` rather than `=== 0` so an absent lid takes this path too — it used
+    // to fall through to the update branch and look up key `undefined`.
     const { lid: _stripped, ...fresh } = rest;
     seq = 1;
     lid = await leagues.add({ ...fresh, writeSeq: seq } as StoredLeague);
@@ -174,13 +179,17 @@ function shrankOnLoad(before: LeagueStore, after: LeagueStore): boolean {
 }
 
 /**
- * List all leagues with minimal metadata (lid, name, created).
+ * List all leagues with minimal metadata (lid, name, created, season).
  *
  * Cheap since the split: the league records no longer contain the player pool,
  * so this stopped deserializing tens of MB per save to render a few rows.
+ *
+ * `season` is here so the picker can tell two saves of the same club apart —
+ * they're named after the club, so a name and a date alone make near-identical
+ * rows out of anything started on the same day.
  */
 export async function listLeagues(): Promise<
-  Array<{ lid: number; name: string; created: number }>
+  Array<{ lid: number; name: string; created: number; season: number }>
 > {
   const db = await getDb();
   const all = await db.getAll("leagues");
@@ -188,6 +197,7 @@ export async function listLeagues(): Promise<
     lid: l.lid,
     name: l.meta.name,
     created: l.meta.created,
+    season: l.season,
   }));
 }
 
