@@ -71,8 +71,30 @@ describe("leagueDb", () => {
     expect(list[0]).toHaveProperty("lid");
     expect(list[0]).toHaveProperty("name");
     expect(list[0]).toHaveProperty("created");
+    // The picker shows the season so two saves of the same club (which share a
+    // name, since saves are named after the club) can be told apart.
+    expect(list[0].season).toBe(league1.season);
     expect(list.map((l) => l.name)).toContain("My League");
     expect(list.map((l) => l.name)).toContain("Second League");
+  });
+
+  /**
+   * Adding a record is the one thing that can duplicate a save, so it has to
+   * happen exactly when a caller means "create", and never as a side effect of
+   * a record arriving in an odd shape. An imported or hand-made league can turn
+   * up with no lid at all; that used to look up key `undefined` in the update
+   * branch instead of being recognized as new.
+   */
+  it("treats a league with no lid as new, then updates it in place", async () => {
+    const league = makeLeague();
+    const { lid: _dropped, ...noLid } = league;
+
+    const lid = await saveLeague(noLid as typeof league);
+    expect(lid).toBeGreaterThan(0);
+    expect(await listLeagues()).toHaveLength(1);
+
+    await saveLeague({ ...league, lid });
+    expect(await listLeagues()).toHaveLength(1);
   });
 
   it("deletes a league so subsequent load returns undefined", async () => {

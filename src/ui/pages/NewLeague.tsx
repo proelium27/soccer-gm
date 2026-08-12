@@ -24,6 +24,7 @@ import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentit
 import { ClubCrest, CrestArtProvider } from "../components/ClubCrest.js";
 import { CountryFlag } from "../components/CountryFlag.js";
 import { trackEvent } from "../analytics.js";
+import { createGate, yieldToPaint } from "../singleFlight.js";
 
 const WORLD_COMPETITIONS = worldCompetitions();
 const COUNTRY_RANGES = countryClubRanges(WORLD_COMPETITIONS, NUM_TEAMS, NUM_TEAMS_D2);
@@ -77,6 +78,12 @@ export function NewLeague() {
   const [selectedTid, setSelectedTid] = useState<number | null>(null);
   const [pending, setPending] = useState<LeagueStore | null>(null);
   const [saving, setSaving] = useState(false);
+  // Every path on this page that writes a save goes through one gate. Building a
+  // world is ~3 seconds of blocking work with no way to interrupt it, so the page
+  // freezes; the browser queues the clicks that land on it and delivers them all
+  // once it thaws, and each one used to create another league. That's where the
+  // duplicate saves came from: four impatient clicks, four identical leagues.
+  const gate = useRef(createGate()).current;
   // A file handed over by the Leagues page's Import button is picked up on the
   // first render, so arriving here skips straight to the club picker. useState's
   // initializer (not an effect) because takePendingRoster clears as it reads,
@@ -128,24 +135,40 @@ export function NewLeague() {
 
   async function handleStart() {
     if (selectedTid === null) return;
-    const league = buildLeague(selectedTid);
-    if (customize) {
-      // Hold the generated league in memory and let the user edit team
-      // identities before anything is persisted.
-      setPending(league);
-      return;
-    }
-    trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster });
-    await setLeague(league);
-    navigate("/dashboard");
+    await gate.run(async () => {
+      setSaving(true);
+      // Let the button repaint as disabled before the world generation locks the
+      // thread, so the wait looks like the game working rather than a dead page.
+      await yieldToPaint();
+      try {
+        const league = buildLeague(selectedTid);
+        if (customize) {
+          // Hold the generated league in memory and let the user edit team
+          // identities before anything is persisted.
+          setPending(league);
+          return;
+        }
+        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster });
+        await setLeague(league);
+        navigate("/dashboard");
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   async function handleSaveCustomized(teams: EditableTeam[]) {
     if (!pending || selectedTid === null) return;
-    setSaving(true);
-    trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster });
-    await setLeague(applyTeamIdentities(pending, teams));
-    navigate("/dashboard");
+    await gate.run(async () => {
+      setSaving(true);
+      try {
+        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster });
+        await setLeague(applyTeamIdentities(pending, teams));
+        navigate("/dashboard");
+      } finally {
+        setSaving(false);
+      }
+    });
   }
 
   function handleImportClick() {
@@ -171,17 +194,22 @@ export function NewLeague() {
     e.target.value = ""; // reset so the same file can be picked again after a fix
     if (!file) return;
     setImportError(null);
-    try {
-      await importJSON(file);
-    } catch (err) {
-      // Without this the whole import was a silent no-op: the error went to the
-      // browser console, the navigate below never ran, and the page just sat
-      // there looking like the button did nothing.
-      setImportError(err instanceof Error ? err.message : String(err));
-      return;
-    }
-    trackEvent("league_imported");
-    navigate("/dashboard");
+    // Through the same gate as creation: an import also lands as a brand new
+    // save, so a second one arriving while the first is still writing would be
+    // a second copy of it.
+    await gate.run(async () => {
+      try {
+        await importJSON(file);
+      } catch (err) {
+        // Without this the whole import was a silent no-op: the error went to the
+        // browser console, the navigate below never ran, and the page just sat
+        // there looking like the button did nothing.
+        setImportError(err instanceof Error ? err.message : String(err));
+        return;
+      }
+      trackEvent("league_imported");
+      navigate("/dashboard");
+    });
   }
 
   if (pending) {
@@ -378,13 +406,17 @@ export function NewLeague() {
         </div>
       )}
 
-      <div className="d-flex gap-2">
+      <div className="d-flex gap-2 align-items-center">
         <button
           className="btn btn-primary"
-          disabled={selectedTid === null}
+          disabled={selectedTid === null || saving}
           onClick={handleStart}
         >
-          {customize ? "Next: Customize Teams" : "Start League"}
+          {saving
+            ? "Building your world..."
+            : customize
+              ? "Next: Customize Teams"
+              : "Start League"}
         </button>
 
         {/* Loading a previously exported save, which has nothing to do with the
@@ -407,6 +439,17 @@ export function NewLeague() {
           onChange={handleFileChange}
         />
       </div>
+
+      {/* Generating 240 clubs and their squads blocks the browser for a few
+          seconds, and a frozen page with no explanation reads as a broken one.
+          Extra clicks are dropped either way (see the gate above), so this is
+          about the wait making sense, not about preventing anything. */}
+      {saving && (
+        <p className="text-muted small mt-2 mb-0">
+          Filling 240 clubs with players. This takes a few seconds, and the page
+          will sit still while it happens.
+        </p>
+      )}
     </div>
     </CrestArtProvider>
   );
