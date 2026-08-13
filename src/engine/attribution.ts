@@ -26,6 +26,15 @@ export interface MatchPlayer {
    * Bench players carry their natural position here until they come on.
    */
   slot: MatchPosition;
+  /**
+   * Other positions he genuinely plays, derived from his attributes (see
+   * core/players/positions.ts). Filling one of these costs him no familiarity
+   * penalty — a utility player really can slot in, where a specialist in the
+   * same slot is docked. Carried on the MatchPlayer rather than recomputed
+   * because the derivation needs the per-position OVR model from core, which
+   * the engine cannot import.
+   */
+  secondary: MatchPosition[];
   /** Overall rating — the substitution logic weighs a bench player's ovr against the tired starter's. */
   ovr: number;
   shooting: number;

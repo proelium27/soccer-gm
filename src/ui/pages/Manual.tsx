@@ -727,7 +727,29 @@ export function Manual() {
             which is why the game won't let you put one there. Roughly, a good player one position
             out of his own plays like an ordinary player in his proper spot. The upshot is that a
             balanced squad that fills its shape beats a collection of better players crammed into
-            the wrong slots, so it's worth checking your XI after injuries pile up.
+            the wrong slots, so it's worth checking your XI after injuries pile up. On the pitch view
+            anyone lined up somewhere he doesn't play is flagged in amber, showing his position and
+            the slot you've put him in, so you're never paying that cost without knowing.
+          </p>
+          <p>
+            <strong>Some players have more than one position.</strong> Look at a player profile and
+            you'll see what he'd be rated at each spot he can cover, with his listed position
+            highlighted. If he's genuinely good enough at a nearby position for his kind of player,
+            it counts as a real second position: it shows next to his name (like "W / FB"), it's
+            starred on his rating strip, and he plays there with no out-of-position penalty at all.
+            In a new world about a third of players have a second position and only a handful have a
+            third, so a proper utility man is worth holding on to. That share climbs over a long
+            save, to around half by season 20 or so, and then holds steady: players broaden as they
+            develop, and a squad full of veterans really is more flexible than a squad of kids.
+            Keepers are always keepers.
+          </p>
+          <p>
+            This matters when the team picks itself. A versatile player counts as a first-choice
+            option for every position he actually plays, so a better winger who also plays full-back
+            will now take the full-back slot ahead of a weaker specialist, where before the
+            specialist always got it. It works the same on the bench: he's a natural pick to come on
+            in any of his positions. Versatility isn't a hidden dice roll, it comes straight from his
+            attributes, so it can appear or fade as he develops.
           </p>
           <p>
             <strong>Roster cap: 30 players.</strong> Signings, transfer buys, and academy promotions

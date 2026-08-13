@@ -7,11 +7,23 @@ import {
   chooseBestFormation,
 } from "../../src/core/lineup/formations.js";
 import { selectXI } from "../../src/core/lineup/selectXI.js";
-import type { Player, Position } from "../../src/core/players/types.js";
+import { SKILL_KEYS, type Player, type PlayerRatings, type Position } from "../../src/core/players/types.js";
+
+/**
+ * Deliberately ability-free ratings. Selection reads attributes now (to work
+ * out which other positions a player genuinely plays), so a fixture carrying
+ * only pos/ovr would throw. Zeroing them keeps these tests about FORMATION
+ * SHAPE: every cross-position rating lands far below the secondary-position
+ * cutoffs, so each fixture is a pure specialist and fit stays strictly by
+ * listed position, which is what this file means to measure.
+ */
+const NO_ABILITY: PlayerRatings = Object.fromEntries(
+  SKILL_KEYS.map((k) => [k, 0]),
+) as PlayerRatings;
 
 let pidSeq = 0;
 const mk = (pos: Position, ovr: number): Player =>
-  ({ pid: pidSeq++, pos, ovr } as unknown as Player);
+  ({ pid: pidSeq++, pos, ovr, ratings: NO_ABILITY, heightCm: 0 } as unknown as Player);
 
 describe("formations", () => {
   it("defines every shape with 11 slots and exactly one GK, and no duplicate ids", () => {
@@ -38,7 +50,7 @@ describe("formations", () => {
     // A roster deep enough at every position that fit is never forced.
     let pid = 0;
     const make = (pos: Position, ovr: number): Player =>
-      ({ pid: pid++, pos, ovr } as unknown as Player);
+      ({ pid: pid++, pos, ovr, ratings: NO_ABILITY, heightCm: 0 } as unknown as Player);
     const roster: Player[] = [
       make("GK", 70),
       ...Array.from({ length: 4 }, () => make("CB", 68)),

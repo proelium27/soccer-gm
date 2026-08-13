@@ -30,22 +30,45 @@ interface AveragedMetrics {
 // change to potential estimation or name generation can nudge exactly which
 // ratings a fixed seed's median team gets, without the game actually being
 // any less balanced. See m1-table-spread.test.ts for the same pattern.
+//
+// Every team in each league plays itself, and ALL of them are averaged. This
+// used to sample one club per seed — `seedComps[len / 2]`, the middle ARRAY
+// index — which is not the average team at all: strength targets are shuffled
+// across tids at generation (the strong/weak pair above already sorts by
+// `avgOvr` "rather than array position" for exactly that reason), so it was an
+// arbitrary club whose standing moves whenever team selection changes.
+//
+// That made the gate report the sampled club rather than the league, and it sat
+// on its floor: measured on the commit this was written against, the old
+// estimator gave goals/game 2.6019 against a 2.6 floor. A change that provably
+// did NOT move scoring (2.8566 -> 2.8560 across all 100 teams, a difference of
+// 0.0006) failed it, purely because a different club landed at that index.
+//
+// Averaging every team fixes the estimator without touching a single band: all
+// six metrics land inside their existing ranges, on both that commit and the
+// change that exposed this. Deliberately NOT a widened band — the bands are the
+// realism targets from the spec and none of them moved. `scripts/midVsMidProbe.ts`
+// prints both estimators side by side.
 const LEAGUE_SEEDS = [1, 11, 21, 31, 41];
+/** Per-team match count. Lower than N because every club is simulated, not one. */
+const SELF_MATCH_N = 2_000;
 function averageMidVsMid(): AveragedMetrics {
   const sums: AveragedMetrics = {
     goalsPerGame: 0, shotsPerGame: 0, sotPerGame: 0,
     drawPct: 0, nilNilPct: 0, homeWinPct: 0,
   };
+  let teams = 0;
   for (const seed of LEAGUE_SEEDS) {
-    const seedComps = leagueComposites(generateLeague(mulberry32(seed)));
-    const seedMid = seedComps[Math.floor(seedComps.length / 2)];
-    const r = runScenario(seedMid, seedMid, N, 12345);
-    for (const key of Object.keys(sums) as (keyof AveragedMetrics)[]) {
-      sums[key] += r[key];
+    for (const comp of leagueComposites(generateLeague(mulberry32(seed)))) {
+      const r = runScenario(comp, comp, SELF_MATCH_N, 12345);
+      for (const key of Object.keys(sums) as (keyof AveragedMetrics)[]) {
+        sums[key] += r[key];
+      }
+      teams++;
     }
   }
   for (const key of Object.keys(sums) as (keyof AveragedMetrics)[]) {
-    sums[key] /= LEAGUE_SEEDS.length;
+    sums[key] /= teams;
   }
   return sums;
 }

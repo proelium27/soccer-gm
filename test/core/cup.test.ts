@@ -53,6 +53,7 @@ function fakeMatchData(tid: number, strength: number): TeamMatchData {
     pid: tid * 100 + i,
     pos,
     slot: pos,
+    secondary: [],
     ovr: 50 + strength * 40,
     shooting: 50 + strength * 40,
     dribbling: 50 + strength * 40,

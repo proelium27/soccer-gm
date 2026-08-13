@@ -20,6 +20,7 @@ import { ExtendControl } from "../components/ExtendControl.js";
 import { Flag } from "../components/Flag.js";
 import { InjuryBadge } from "../components/InjuryBadge.js";
 import { ROSTER_CAP } from "../../core/constants.js";
+import { PositionBadge } from "../components/PositionBadge.js";
 
 const DRAG_MIME = "application/x-soccer-gm-pid";
 
@@ -159,7 +160,7 @@ function RosterTable({
                 <Flag nationality={p.nationality} />
                 <InjuryBadge player={p} />
               </td>
-              <td>{p.pos}</td>
+              <td><PositionBadge player={p} /></td>
               <td className="text-end">{season - p.born}</td>
               <td className="text-end">
                 <RatingDelta value={p.ovr} previous={prev?.ovr ?? null} />

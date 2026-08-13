@@ -26,12 +26,50 @@ export const ADJACENCY: Record<MatchPosition, MatchPosition[]> = {
   ST: ["W", "AM"],
 };
 
+/**
+ * The slots a player of a given position can cover — the REVERSE of ADJACENCY.
+ *
+ * The distinction is easy to miss and matters: `ADJACENCY[X]` lists positions
+ * whose players can fill slot X, so asking "where else can this player play"
+ * means scanning for him in every other position's list, not reading his own.
+ * The table is not symmetric, so the two really do differ — a defensive mid can
+ * cover at full-back, but a full-back cannot cover in defensive midfield; a
+ * winger can play up front, but a striker is not thereby an attacking mid.
+ *
+ * Derived from ADJACENCY at module load rather than written out, so the pair
+ * cannot drift apart when the adjacency table is edited.
+ */
+export const COVERABLE: Record<MatchPosition, MatchPosition[]> = (() => {
+  const out = {} as Record<MatchPosition, MatchPosition[]>;
+  const slots = Object.keys(ADJACENCY) as MatchPosition[];
+  for (const pos of slots) out[pos] = [];
+  for (const slot of slots) {
+    for (const pos of ADJACENCY[slot]) out[pos].push(slot);
+  }
+  return out;
+})();
+
 /** How well a player's natural position covers a given slot. Lower is better. */
 export type FitTier = 0 | 1 | 2;
 
-/** 0 = his own position, 1 = a position he can cover, 2 = foreign to him. */
-export function fitTier(slot: MatchPosition, pos: MatchPosition): FitTier {
+/**
+ * 0 = a job he knows, 1 = a position he can cover, 2 = foreign to him.
+ *
+ * `secondary` is the list of other positions he genuinely plays (derived from
+ * his attributes — see core/players/positions.ts). A secondary counts as an
+ * exact fit, which is the whole point of the feature: a real utility player
+ * costs his side nothing for filling in, where a specialist pushed into the
+ * same slot does. It is passed in rather than derived here because computing it
+ * needs the per-position OVR model, which lives in core — and the engine never
+ * imports from core.
+ */
+export function fitTier(
+  slot: MatchPosition,
+  pos: MatchPosition,
+  secondary: readonly MatchPosition[] = [],
+): FitTier {
   if (pos === slot) return 0;
+  if (secondary.includes(slot)) return 0;
   if (ADJACENCY[slot].includes(pos)) return 1;
   return 2;
 }
@@ -49,11 +87,17 @@ export function fitTier(slot: MatchPosition, pos: MatchPosition): FitTier {
  * composite rollup (how well the XI actually plays) and the substitution
  * decision (whether bringing this man on for that slot is worth it).
  */
-export function familiarityPenalty(slot: MatchPosition, pos: MatchPosition): number {
+export function familiarityPenalty(
+  slot: MatchPosition,
+  pos: MatchPosition,
+  secondary: readonly MatchPosition[] = [],
+): number {
   // A keeper stranded outfield, or an outfielder stranded in goal, is a
-  // different order of problem from a winger at full-back.
+  // different order of problem from a winger at full-back. Checked ahead of
+  // `secondary` so no derivation can ever hand out a free pass into goal —
+  // keepers have no COVERABLE entry, so this is belt-and-braces.
   if ((slot === "GK") !== (pos === "GK")) return POSITION_KEEPER_PENALTY;
-  switch (fitTier(slot, pos)) {
+  switch (fitTier(slot, pos, secondary)) {
     case 0:
       return 0;
     case 1:
