@@ -12,6 +12,7 @@ function makeSquad(pidOffset: number, stamina = 50): MatchPlayer[] {
   return positions.map((pos, i) => ({
     pid: pidOffset + i + 1,
     pos,
+    slot: pos,
     ovr: pos === "ST" ? 68 : 62,
     shooting: pos === "ST" ? 80 : 40,
     dribbling: 50,
@@ -29,6 +30,7 @@ function makeBench(pidOffset: number, stamina = 50): MatchPlayer[] {
   return positions.map((pos, i) => ({
     pid: pidOffset + i + 1,
     pos,
+    slot: pos,
     ovr: pos === "ST" ? 68 : 62,
     shooting: pos === "ST" ? 85 : 45,
     dribbling: 50,

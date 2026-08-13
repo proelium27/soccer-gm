@@ -25,9 +25,12 @@ const SEASON = simSeason(mulberry32(12345));
  * late; once more when that gate became form-aware (SUB_GATE_RATING_INFLUENCE),
  * shifting which held-back subs fire; and again when SUB_QUALITY_MARGIN was
  * retuned 1→2.5 so the gate holds back its intended ~1 sub in ten rather than
- * ~1 in five — each a personnel/composite change, not an rng-stream shift.
+ * ~1 in five; and again when composites began bucketing by the SLOT a player
+ * fills rather than his natural position (see engine/positionFit.ts), which
+ * changes both every composite value and which substitutions the bench is
+ * willing to make — each a personnel/composite change, not an rng-stream shift.
  */
-const BASELINE_SCORELINE_HASH = 3023701295;
+const BASELINE_SCORELINE_HASH = 2156707946;
 
 function scorelineHash(matches: typeof SEASON.matches): number {
   const s = matches.map((m) => `${m.home}:${m.homeGoals}-${m.awayGoals}:${m.away}`).join("|");

@@ -46,7 +46,8 @@ import {
   STOPPAGE_SECONDS_PER_EVENT,
 } from "./constants.js";
 import type { Composites } from "./composites.js";
-import type { MatchPlayer, MatchEvent, BoxScore, PlayerMatchLine, TouchSide } from "./attribution.js";
+import { familiarityPenalty } from "./positionFit.js";
+import type { MatchPlayer, MatchPosition, MatchEvent, BoxScore, PlayerMatchLine, TouchSide } from "./attribution.js";
 import {
   pickShooter,
   pickAssister,
@@ -193,7 +194,7 @@ export function finisherAdj(
   onPitch: MatchPlayer[],
   key: "shooting" | "heading",
 ): number {
-  const outfield = onPitch.filter((p) => p.pos !== "GK");
+  const outfield = onPitch.filter((p) => p.slot !== "GK");
   if (outfield.length === 0) return 0;
   const avg = outfield.reduce((a, p) => a + p[key], 0) / outfield.length;
   return SHOOTER_FINISH_WEIGHT * ((finisher[key] - avg) / 100);
@@ -425,6 +426,15 @@ export function simMatchDetailed(
   const exitClock = new Map<number, number>();
   for (const p of [...homePlayers, ...awayPlayers]) enterClock.set(p.pid, MATCH_SECONDS);
 
+  /**
+   * The slot each player actually filled, by pid. Starters get their formation
+   * slot; a substitute records the slot he took over. Needed at full time
+   * because the box score is built from the ORIGINAL roster arrays, where a
+   * substitute still carries his bench slot (his own position).
+   */
+  const slotPlayed = new Map<number, MatchPosition>();
+  for (const p of [...homePlayers, ...awayPlayers]) slotPlayed.set(p.pid, p.slot);
+
   const other = (side: Side): Side => (side === "home" ? "away" : "home");
 
   const stat = {
@@ -497,25 +507,43 @@ export function simMatchDetailed(
     return p.ovr - SUB_FATIGUE_RELIEF * fatigue + SUB_GATE_RATING_INFLUENCE * form;
   }
 
-  /** Only sub when the fresh replacement roughly matches or beats the tired starter he'd replace. */
+  /**
+   * Only sub when the fresh replacement roughly matches or beats the tired
+   * starter he'd replace — priced for the SLOT he'd be filling, not in the
+   * abstract. A bench striker who'd have to cover at centre-back has to be
+   * better by more than that costs him, otherwise the tired centre-back stays
+   * on. This must use the same penalty the composite rollup does; if the gate
+   * were cheaper about position than the rollup, the sim would keep making
+   * swaps it then punishes.
+   */
   function worthSub(side: Side, on: MatchPlayer, off: MatchPlayer): boolean {
-    return benchValue(on) >= tiredValue(side, off) - SUB_QUALITY_MARGIN;
+    return benchValueAt(on, off.slot) >= tiredValue(side, off) - SUB_QUALITY_MARGIN;
   }
 
   /**
-   * Pick the *best* bench replacement (by benchValue) for a departing player,
-   * preferring his own position and never fielding a GK out of goal (or vice
-   * versa). Flagged "more minutes" players are favored via their benchValue bonus.
+   * A bench player's worth *for a particular slot*: his quality less what it
+   * costs him to play there. This is why the bench no longer answers a tired
+   * centre-back with its best available striker — a good striker is only worth
+   * putting at the back if he is better by more than the position costs him.
    */
-  function pickReplacement(side: Side, offPos: MatchPlayer["pos"]): MatchPlayer | undefined {
-    const samePos = bench[side].filter((p) => p.pos === offPos);
-    const pool = samePos.length > 0
-      ? samePos
-      : offPos === "GK"
-        ? bench[side]
-        : bench[side].filter((p) => p.pos !== "GK");
-    if (pool.length === 0) return undefined;
-    return pool.reduce((best, p) => (benchValue(p) > benchValue(best) ? p : best));
+  function benchValueAt(p: MatchPlayer, slot: MatchPlayer["slot"]): number {
+    return benchValue(p) - familiarityPenalty(slot, p.pos);
+  }
+
+  /**
+   * Pick the best bench replacement for a departing player's SLOT, trading
+   * quality off against positional fit rather than treating an exact fit as
+   * all-or-nothing. Keepers and outfielders never cover for each other unless
+   * the bench holds nothing else. Flagged "more minutes" players are favored
+   * via their benchValue bonus.
+   */
+  function pickReplacement(side: Side, slot: MatchPlayer["slot"]): MatchPlayer | undefined {
+    const pool = slot === "GK"
+      ? bench[side]
+      : bench[side].filter((p) => p.pos !== "GK");
+    const usable = pool.length > 0 ? pool : bench[side];
+    if (usable.length === 0) return undefined;
+    return usable.reduce((best, p) => (benchValueAt(p, slot) > benchValueAt(best, slot) ? p : best));
   }
 
   /** Minutes played so far by a still-on-pitch player, for a live (mid-match) rating estimate. */
@@ -528,7 +556,7 @@ export function simMatchDetailed(
   function liveRatingFor(side: Side, p: MatchPlayer): number {
     return computeMatchRating(
       lines.get(p.pid)!,
-      p.pos,
+      p.slot,
       liveMinutesFor(p.pid),
       stat[other(side)].goals,
     );
@@ -546,9 +574,25 @@ export function simMatchDetailed(
     return energyDeficit + SUB_RATING_INFLUENCE * ratingDeficit;
   }
 
-  /** Carry out a substitution: swap `off` for `on`, refresh energy, log the event. */
-  function commitSub(side: Side, off: MatchPlayer, on: MatchPlayer): void {
-    onPitch[side] = onPitch[side].filter((p) => p.pid !== off.pid).concat(on);
+  /**
+   * Carry out a substitution: swap `off` for `on`, refresh energy, log the event.
+   * The man coming on takes over the slot of the man going off — he is filling a
+   * hole in the shape, not importing his own. A COPY carries the new slot rather
+   * than mutating the bench MatchPlayer, because those objects are shared across
+   * every match a TeamMatchData is used for (season.ts builds it once for all 380
+   * fixtures); mutating one would leak a slot into unrelated matches.
+   */
+  function commitSub(side: Side, off: MatchPlayer, on: MatchPlayer, reshape = false): void {
+    // `reshape` marks a deliberate change of shape rather than a like-for-like
+    // swap: the man coming on plays his OWN position and the team simply lines
+    // up differently (one fewer defender, one more attacker). That is what a
+    // chase-the-game substitution actually is, and it keeps the gamble honest —
+    // you really do gain an attacker and really do lose a defender, instead of
+    // stranding a striker at centre-back and being penalized for both.
+    const slot = reshape ? on.pos : off.slot;
+    const arriving = on.slot === slot ? on : { ...on, slot };
+    slotPlayed.set(on.pid, slot);
+    onPitch[side] = onPitch[side].filter((p) => p.pid !== off.pid).concat(arriving);
     bench[side] = bench[side].filter((p) => p.pid !== on.pid);
     subsUsed[side]++;
     appeared[side].add(on.pid);
@@ -562,7 +606,7 @@ export function simMatchDetailed(
 
   function attemptSub(side: Side, checkpoint: number): void {
     if (subsUsed[side] >= MAX_SUBS || bench[side].length === 0) return;
-    const outfield = onPitch[side].filter((p) => p.pos !== "GK");
+    const outfield = onPitch[side].filter((p) => p.slot !== "GK");
     if (outfield.length === 0) return;
 
     const worstSubPriority = (candidates: MatchPlayer[]): MatchPlayer =>
@@ -575,13 +619,13 @@ export function simMatchDetailed(
     // bypasses the quality gate below (you accept a downgrade to add attack).
     const trailing = stat[side].goals < stat[other(side)].goals;
     if (checkpoint === SUB_CHECKPOINTS_ELAPSED[SUB_CHECKPOINTS_ELAPSED.length - 1] && trailing) {
-      const defensive = outfield.filter((p) => p.pos === "CB" || p.pos === "FB" || p.pos === "DM");
+      const defensive = outfield.filter((p) => p.slot === "CB" || p.slot === "FB" || p.slot === "DM");
       const off = worstSubPriority(defensive.length > 0 ? defensive : outfield);
       const outfieldBench = bench[side].filter((p) => p.pos !== "GK");
       const on = outfieldBench.length > 0
         ? outfieldBench.reduce((best, p) => (p.shooting > best.shooting ? p : best))
         : undefined;
-      if (on) commitSub(side, off, on);
+      if (on) commitSub(side, off, on, true);
       return;
     }
 
@@ -591,7 +635,7 @@ export function simMatchDetailed(
     const flagged = bench[side].filter((p) => p.pos !== "GK" && p.minutesBoost);
     if (flagged.length > 0) {
       const on = flagged.reduce((best, p) => (benchValue(p) > benchValue(best) ? p : best));
-      const samePos = outfield.filter((p) => p.pos === on.pos);
+      const samePos = outfield.filter((p) => p.slot === on.pos);
       const off = worstSubPriority(samePos.length > 0 ? samePos : outfield);
       if (worthSub(side, on, off)) {
         commitSub(side, off, on);
@@ -604,7 +648,7 @@ export function simMatchDetailed(
     // replacement is actually worth bringing on (a weak bench keeps the tired
     // starter on rather than downgrading itself).
     const off = worstSubPriority(outfield);
-    const on = pickReplacement(side, off.pos);
+    const on = pickReplacement(side, off.slot);
     if (on && worthSub(side, on, off)) commitSub(side, off, on);
   }
 
@@ -615,9 +659,11 @@ export function simMatchDetailed(
     onPitch[side] = onPitch[side].filter((p) => p.pid !== offPid);
     exitClock.set(off.pid, clock);
 
-    const on = subsUsed[side] < MAX_SUBS ? pickReplacement(side, off.pos) : undefined;
+    const on = subsUsed[side] < MAX_SUBS ? pickReplacement(side, off.slot) : undefined;
     if (on) {
-      onPitch[side] = onPitch[side].concat(on);
+      const arriving = on.slot === off.slot ? on : { ...on, slot: off.slot };
+      slotPlayed.set(on.pid, off.slot);
+      onPitch[side] = onPitch[side].concat(arriving);
       bench[side] = bench[side].filter((p) => p.pid !== on.pid);
       subsUsed[side]++;
       appeared[side].add(on.pid);
@@ -758,7 +804,7 @@ export function simMatchDetailed(
         // Conversion hinges on the actual taker vs. the actual keeper (both
         // 0..100 ratings), not the fatigue-adjusted team composites — the
         // taker picked by pickShooter is the one who shoots.
-        const gk = onPitch[defSide].find((p) => p.pos === "GK");
+        const gk = onPitch[defSide].find((p) => p.slot === "GK");
         const gkKeeping = gk ? gk.keeping : 50;
         const goalP = clamp(
           PENALTY_CONVERSION *
@@ -814,7 +860,7 @@ export function simMatchDetailed(
           shooterLine.shotsOnTarget++;
         }
         if (outcome === "saved") {
-          const gk = onPitch[defSide].find((p) => p.pos === "GK");
+          const gk = onPitch[defSide].find((p) => p.slot === "GK");
           if (gk) lines.get(gk.pid)!.saves++;
         }
         events.push({ clock, type: eventTypeFromShot(outcome), side: poss, pids: [shooter.pid] });
@@ -850,7 +896,7 @@ export function simMatchDetailed(
     }
 
     if (outcome === "saved") {
-      const gk = onPitch[defSide].find((p) => p.pos === "GK");
+      const gk = onPitch[defSide].find((p) => p.slot === "GK");
       if (gk) lines.get(gk.pid)!.saves++;
     }
 
@@ -895,7 +941,7 @@ export function simMatchDetailed(
         headerLine.shotsOnTarget++;
       }
       if (cornerOutcome === "saved") {
-        const gk = onPitch[defSide].find((p) => p.pos === "GK");
+        const gk = onPitch[defSide].find((p) => p.slot === "GK");
         if (gk) lines.get(gk.pid)!.saves++;
       }
 
@@ -983,11 +1029,15 @@ export function simMatchDetailed(
       .map((p) => {
         const line = lines.get(p.pid)!;
         line.minutesPlayed = minutesFor(p.pid);
-        if (p.pos === "GK") {
+        // Judge him on the job he actually did, not on what kind of player he
+        // is: a defender who spent 20 minutes at centre-forward is rated as a
+        // centre-forward for those minutes.
+        const slot = slotPlayed.get(p.pid) ?? p.slot;
+        if (slot === "GK") {
           line.goalsAgainst = teamGoalsAgainst;
           line.xga = teamXga;
         }
-        line.rating = computeMatchRating(line, p.pos, line.minutesPlayed, teamGoalsAgainst);
+        line.rating = computeMatchRating(line, slot, line.minutesPlayed, teamGoalsAgainst);
         return line;
       });
 

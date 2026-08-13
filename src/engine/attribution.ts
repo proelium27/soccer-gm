@@ -14,7 +14,18 @@ export type MatchPosition =
 
 export interface MatchPlayer {
   pid: number;
+  /** The player's natural position — what he actually is, regardless of where he's playing today. */
   pos: MatchPosition;
+  /**
+   * The formation slot he currently occupies. Starters get their slot from the
+   * team's formation; a substitute inherits the slot of the man he replaces.
+   * Everything that asks "what job is he doing in this match" keys off this —
+   * the composite rollup, the event attribution weights, the match rating —
+   * while `pos` stays the answer to "what kind of player is he".
+   *
+   * Bench players carry their natural position here until they come on.
+   */
+  slot: MatchPosition;
   /** Overall rating — the substitution logic weighs a bench player's ovr against the tired starter's. */
   ovr: number;
   shooting: number;
@@ -122,7 +133,10 @@ function weightedPick(
   let total = 0;
   const weights: number[] = [];
   for (const p of players) {
-    const w = posWeights[p.pos] * ((p[ratingKey] as number) + 10);
+    // Weighted by the slot he's filling, not what he is: the man playing centre
+    // forward takes the centre forward's share of the shots even if he's a
+    // centre-back doing an emergency job up there.
+    const w = posWeights[p.slot] * ((p[ratingKey] as number) + 10);
     weights.push(w);
     total += w;
   }
@@ -135,7 +149,7 @@ function weightedPick(
 }
 
 export function pickShooter(rng: () => number, players: MatchPlayer[]): MatchPlayer {
-  const outfield = players.filter((p) => p.pos !== "GK");
+  const outfield = players.filter((p) => p.slot !== "GK");
   if (outfield.length === 0) return players[0];
   return weightedPick(rng, outfield, SHOT_WEIGHTS, "shooting");
 }
@@ -145,7 +159,7 @@ export function pickAssister(
   players: MatchPlayer[],
   shooterPid: number,
 ): MatchPlayer | null {
-  const candidates = players.filter((p) => p.pos !== "GK" && p.pid !== shooterPid);
+  const candidates = players.filter((p) => p.slot !== "GK" && p.pid !== shooterPid);
   if (candidates.length === 0) return null;
   if (rng() < 0.25) return null;
   return weightedPick(rng, candidates, ASSIST_WEIGHTS, "dribbling");
@@ -161,7 +175,7 @@ function pickDefensiveAction(
   players: MatchPlayer[],
   ratingKey: "tackling" | "interceptions",
 ): MatchPlayer {
-  const outfield = players.filter((p) => p.pos !== "GK");
+  const outfield = players.filter((p) => p.slot !== "GK");
   if (outfield.length === 0) return players[0];
   return weightedPick(rng, outfield, TACKLE_WEIGHTS, ratingKey);
 }
@@ -177,21 +191,21 @@ export function pickInterceptor(rng: () => number, players: MatchPlayer[]): Matc
 
 /** Picks who commits a foul. Weighted toward tackling, like a tackler, but any outfielder can foul. */
 export function pickFouler(rng: () => number, players: MatchPlayer[]): MatchPlayer {
-  const outfield = players.filter((p) => p.pos !== "GK");
+  const outfield = players.filter((p) => p.slot !== "GK");
   if (outfield.length === 0) return players[0];
   return weightedPick(rng, outfield, FOUL_WEIGHTS, "tackling");
 }
 
 /** Picks who gets on the end of a corner. Weighted toward heading, favoring CBs/STs at set pieces. */
 export function pickHeader(rng: () => number, players: MatchPlayer[]): MatchPlayer {
-  const outfield = players.filter((p) => p.pos !== "GK");
+  const outfield = players.filter((p) => p.slot !== "GK");
   if (outfield.length === 0) return players[0];
   return weightedPick(rng, outfield, HEADER_WEIGHTS, "heading");
 }
 
 /** Picks who was carrying the ball when tackled, weighted toward ball-playing positions. */
 export function pickCarrier(rng: () => number, players: MatchPlayer[]): MatchPlayer {
-  const outfield = players.filter((p) => p.pos !== "GK");
+  const outfield = players.filter((p) => p.slot !== "GK");
   if (outfield.length === 0) return players[0];
   return weightedPick(rng, outfield, CARRIER_WEIGHTS, "dribbling");
 }

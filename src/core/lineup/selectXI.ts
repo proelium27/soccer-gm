@@ -1,22 +1,14 @@
 import type { Player, Position } from "../players/types.js";
+import { fitTier } from "../../engine/positionFit.js";
 
-/** Positions that can cover for each other when a natural fit is unavailable. */
-const ADJACENCY: Record<Position, Position[]> = {
-  GK: [],
-  CB: ["DM", "FB"],
-  FB: ["W", "CB", "DM"],
-  DM: ["CM", "CB"],
-  CM: ["DM", "AM"],
-  AM: ["CM", "W"],
-  W: ["AM", "FB", "ST"],
-  ST: ["W", "AM"],
-};
-
-/** Rank a candidate for a slot: 0 = exact, 1 = adjacent, 2 = anything. Lower is better. */
+/**
+ * Rank a candidate for a slot: 0 = exact, 1 = adjacent, 2 = anything. Lower is
+ * better. Shares one adjacency table with the in-match substitution logic (see
+ * engine/positionFit) so the XI picker and the bench can't disagree about who
+ * can cover where.
+ */
 function fitRank(slot: Position, candidate: Position): number {
-  if (candidate === slot) return 0;
-  if (ADJACENCY[slot].includes(candidate)) return 1;
-  return 2;
+  return fitTier(slot, candidate);
 }
 
 /**

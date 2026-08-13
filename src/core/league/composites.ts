@@ -1,10 +1,10 @@
 import type { Composites } from "../../engine/composites.js";
-import type { Player } from "../players/types.js";
+import type { Player, Position } from "../players/types.js";
 import type { MatchPlayer } from "../../engine/attribution.js";
 import type { League } from "./generate.js";
 import { resolveXI } from "../lineup/resolveXI.js";
 import { teamSlots } from "../lineup/formations.js";
-import { rollupComposites } from "../composites.js";
+import { rollupComposites, withSlots } from "../composites.js";
 import { normalizeLeague, computeNormStats, normalizeWith } from "./normalize.js";
 import { toMatchPlayers } from "./matchPlayers.js";
 import { BENCH_SIZE } from "../constants.js";
@@ -33,10 +33,13 @@ export function leagueMatchData(league: League): TeamMatchData[] {
   const xis: Player[][] = [];
   const benches: Player[][] = [];
   const boostSets: (Set<number> | undefined)[] = [];
+  const slotsByTeam: Position[][] = [];
   const raw = league.teams.map((t) => {
     const roster = t.roster.map((pid) => byPid.get(pid)!).filter((p) => !p.injury);
-    const xi = resolveXI(roster, teamSlots(t), t.starters);
+    const slots = teamSlots(t);
+    const xi = resolveXI(roster, slots, t.starters);
     xis.push(xi);
+    slotsByTeam.push(slots);
     const xiPids = new Set(xi.map((p) => p.pid));
     const bench = roster
       .filter((p) => !xiPids.has(p.pid))
@@ -44,19 +47,25 @@ export function leagueMatchData(league: League): TeamMatchData[] {
       .slice(0, BENCH_SIZE);
     benches.push(bench);
     boostSets.push(t.moreMinutes && t.moreMinutes.length > 0 ? new Set(t.moreMinutes) : undefined);
-    return rollupComposites(xi, t.name);
+    return rollupComposites(withSlots(xi, slots), t.name);
   });
   const stats = computeNormStats(raw);
   const normalized = normalizeLeague(raw);
   return normalized.map((c, i) => ({
     composites: c,
-    xi: toMatchPlayers(xis[i]),
+    xi: toMatchPlayers(xis[i], undefined, slotsByTeam[i]),
     bench: toMatchPlayers(benches[i], boostSets[i]),
+    // After a sub or a red card the on-pitch group no longer lines up with the
+    // formation array, so each MatchPlayer carries the slot it is currently
+    // filling (a substitute inherits the slot of the man he replaced).
     recompute: (onPitch: MatchPlayer[]) => {
-      const players = onPitch
-        .map((mp) => byPid.get(mp.pid))
-        .filter((p): p is Player => p !== undefined);
-      return normalizeWith(stats, rollupComposites(players, league.teams[i].name));
+      const slotted = onPitch
+        .map((mp) => {
+          const player = byPid.get(mp.pid);
+          return player ? { player, slot: mp.slot as Position } : undefined;
+        })
+        .filter((sp): sp is { player: Player; slot: Position } => sp !== undefined);
+      return normalizeWith(stats, rollupComposites(slotted, league.teams[i].name));
     },
   }));
 }
