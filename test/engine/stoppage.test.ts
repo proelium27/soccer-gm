@@ -17,6 +17,7 @@ function makeSquad(pidOffset: number): MatchPlayer[] {
     pid: pidOffset + i + 1,
     pos,
     slot: pos,
+    secondary: [],
     ovr: pos === "ST" ? 68 : 62,
     shooting: pos === "ST" ? 80 : 40,
     dribbling: 50,

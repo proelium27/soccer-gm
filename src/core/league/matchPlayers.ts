@@ -1,5 +1,6 @@
 import type { Player, Position } from "../players/types.js";
 import type { MatchPlayer } from "../../engine/attribution.js";
+import { secondaryPositions } from "../players/positions.js";
 
 /**
  * `slot` is the formation slot this player is filling. Starters get it from
@@ -11,6 +12,7 @@ export function toMatchPlayer(p: Player, slot: Position = p.pos): MatchPlayer {
     pid: p.pid,
     pos: p.pos,
     slot,
+    secondary: secondaryPositions(p),
     ovr: p.ovr,
     shooting: (p.ratings.finishing + p.ratings.longShot) / 2,
     dribbling: p.ratings.dribbling,

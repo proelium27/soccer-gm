@@ -13,6 +13,7 @@ import { canExtend } from "../../core/contracts.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { previousRatings } from "./RatingDelta.js";
 import { ExtendControl } from "./ExtendControl.js";
+import { slotFitNote } from "./PositionBadge.js";
 
 const DRAG_MIME = "application/x-soccer-gm-pid";
 
@@ -98,6 +99,10 @@ export function PitchField({
         const visualLeft = vertical ? coord.y : coord.x;
         const visualTop = vertical ? 100 - coord.x : coord.y;
         const backup = showDepthChart ? bestFit(slots[i], bench) : null;
+        // Null when he's in his listed position. Otherwise it says whether the
+        // move costs him (amber) or is a spot he genuinely plays (green), so a
+        // silent chip always means "he's where he belongs".
+        const fit = slotFitNote(slots[i], p);
         const isOpen = openPid === p.pid;
         const prev = previousRatings(p);
         const ovrDelta = prev ? p.ovr - prev.ovr : null;
@@ -179,7 +184,16 @@ export function PitchField({
                     </svg>
                   </span>
                 )}
-                <span className="pitch-chip-pos">{p.pos}</span>
+                {fit ? (
+                  <span
+                    className={`pitch-chip-pos pitch-chip-pos--${fit.tone === "warn" ? "misfit" : "covered"}`}
+                    title={fit.text}
+                  >
+                    {p.pos}&#8594;{slots[i]}
+                  </span>
+                ) : (
+                  <span className="pitch-chip-pos">{p.pos}</span>
+                )}
                 <PlayerRatingsTooltip player={p}>
                   <span className="pitch-chip-name">{shortName(p.name)}</span>
                 </PlayerRatingsTooltip>

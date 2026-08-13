@@ -6,6 +6,11 @@ export const currency = new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", maximumFractionDigits: 0,
 });
 
+/** Short money for tight spots like chart axis labels: "$48M", "$2.5M". */
+export const currencyCompact = new Intl.NumberFormat("en-US", {
+  style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1,
+});
+
 /**
  * Fee-cell text for a completed transfer, distinguishing loan moves from
  * permanent ones. A loan-out carries the (small) loan fee; a loan return is

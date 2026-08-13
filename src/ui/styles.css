@@ -494,7 +494,124 @@ a:hover {
 }
 
 /* =========================================================================
-   OVR history chart (Player Profile — career OVR over time, academy vs senior)
+   Transfer value chart (Player Profile — career market value over time)
+   ========================================================================= */
+.value-chart-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.value-chart-now {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--sg-text);
+  line-height: 1.1;
+}
+.value-chart-peak {
+  font-size: var(--sg-text-xs);
+  color: var(--sg-text-muted);
+}
+.value-chart-caption {
+  font-size: var(--sg-text-xs);
+  color: var(--sg-text-muted);
+  margin: 0.15rem 0 0.35rem;
+}
+.value-chart {
+  position: relative;
+  width: 100%;
+}
+.value-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.value-chart-crest {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  line-height: 0;
+  border-radius: 50%;
+  padding: 2px;
+  background: var(--sg-surface);
+  box-shadow: 0 0 0 1.5px var(--sg-border-strong);
+}
+.value-chart-crest .club-crest,
+.value-chart-crest .club-crest-fallback {
+  margin-right: 0;
+  border-radius: 50%;
+}
+.value-chart-tip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 16px));
+  min-width: 12rem;
+  padding: 0.45rem 0.55rem;
+  background: var(--sg-surface-2);
+  border: 1px solid var(--sg-border-strong);
+  border-radius: var(--sg-radius);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
+}
+.value-chart-tip-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.value-chart-tip-head .club-crest,
+.value-chart-tip-head .club-crest-fallback {
+  margin-right: 0;
+  border-radius: 50%;
+  flex: none;
+}
+.value-chart-tip-club {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  margin-right: auto;
+}
+.value-chart-tip-name {
+  font-weight: 600;
+  font-size: var(--sg-text-sm);
+  color: var(--sg-text);
+}
+.value-chart-tip-academy {
+  font-weight: 400;
+  color: var(--sg-text-muted);
+}
+.value-chart-tip-sub {
+  font-size: var(--sg-text-xs);
+  color: var(--sg-text-muted);
+}
+.value-chart-tip-badge {
+  font-size: var(--sg-text-xs);
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+}
+.value-chart-tip-rows {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0.1rem 0.75rem;
+  margin: 0.45rem 0 0;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--sg-border);
+  font-size: var(--sg-text-xs);
+}
+.value-chart-tip-rows dt {
+  color: var(--sg-text-muted);
+  font-weight: 400;
+}
+.value-chart-tip-rows dd {
+  margin: 0;
+  text-align: right;
+  color: var(--sg-text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================================
+   OVR history chart (Retired Player Profile — career OVR over time)
    ========================================================================= */
 .ovr-chart-caption {
   font-size: var(--sg-text-xs);
@@ -1188,6 +1305,22 @@ a:hover {
   font-weight: var(--sg-weight-semibold);
   opacity: 0.65;
   flex: none;
+}
+/* Playing someone in a slot he doesn't know. Amber rather than red: it's a
+   cost you may well be choosing to pay, not an error. Carries the arrow label
+   (his position, then the slot) so the warning names itself without color. */
+.pitch-chip-pos--misfit {
+  color: var(--sg-warn);
+  opacity: 1;
+  white-space: nowrap;
+}
+/* Away from his listed position, but somewhere he genuinely plays: no cost.
+   Shown rather than left blank so an unmarked chip reliably means "in his own
+   position" and a silent one is never mistaken for a missing warning. */
+.pitch-chip-pos--covered {
+  color: var(--sg-green-bright);
+  opacity: 1;
+  white-space: nowrap;
 }
 .pitch-chip-name {
   color: inherit;
@@ -2076,4 +2209,58 @@ body.nav-drawer-open {
   letter-spacing: 0.04em;
   color: var(--sg-text-muted);
   margin-bottom: 0.5rem;
+}
+
+/* ---- Positions: badge + per-position rating strip ----------------------- */
+/* A player's secondary positions ride alongside his listed one, dimmed so the
+   primary still reads first. The separator is CSS so the markup stays a plain
+   list of positions. */
+.position-badge-secondary {
+  opacity: 0.72;
+}
+.position-badge-secondary::before {
+  content: " / ";
+  opacity: 0.55;
+}
+
+/* What he'd be rated at each position he can cover. Only ever shown for
+   positions where the number means something (see players/positions.ts). */
+.position-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+.position-strip-cell {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--sg-border);
+  border-radius: var(--sg-radius);
+  background: var(--sg-surface);
+  color: var(--sg-text-faint);
+  font-size: var(--sg-text-xs);
+}
+.position-strip-cell--primary {
+  border-color: var(--sg-green);
+  background: var(--sg-green-wash);
+  color: var(--sg-text);
+}
+/* A position he also genuinely plays: marked so "he can play here for free" is
+   visible at a glance rather than only in the tooltip. */
+.position-strip-cell--secondary:not(.position-strip-cell--primary) {
+  border-color: var(--sg-border-strong);
+  color: var(--sg-text-muted);
+}
+.position-strip-cell--secondary:not(.position-strip-cell--primary) .position-strip-pos::after {
+  content: "*";
+  color: var(--sg-green-bright);
+}
+.position-strip-pos {
+  font-weight: var(--sg-weight-semibold);
+  letter-spacing: 0.03em;
+}
+.position-strip-ovr {
+  font-variant-numeric: tabular-nums;
 }

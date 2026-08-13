@@ -17,6 +17,7 @@ function player(pid: number, pos: MatchPlayer["pos"], ovr: number, stamina = 50)
     pid,
     pos,
     slot: pos,
+    secondary: [],
     ovr,
     shooting: pos === "ST" ? 85 : 35,
     dribbling: 50,

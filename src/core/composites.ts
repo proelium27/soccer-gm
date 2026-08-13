@@ -2,6 +2,7 @@ import type { Composites } from "../engine/composites.js";
 import type { Player, Position, SkillKey } from "./players/types.js";
 import { heightScore } from "./players/ovr.js";
 import { familiarityPenalty } from "../engine/positionFit.js";
+import { secondaryPositions } from "./players/positions.js";
 import { COMPOSITE_STAR_CONCENTRATION } from "./constants.js";
 
 const mean = (xs: number[]): number =>
@@ -33,7 +34,8 @@ function playerQuality(sp: SlottedPlayer, skills: SkillKey[]): number {
   let s = 0;
   for (const k of skills) s += sp.player.ratings[k];
   const raw = s / skills.length / 100;
-  return Math.max(0, raw - familiarityPenalty(sp.slot, sp.player.pos) / 100);
+  const penalty = familiarityPenalty(sp.slot, sp.player.pos, secondaryPositions(sp.player));
+  return Math.max(0, raw - penalty / 100);
 }
 
 /**
@@ -145,7 +147,8 @@ export function rollupComposites(xi: SlottedPlayer[], teamName: string): Composi
   // An outfielder pressed into goal takes the keeper penalty, which is large
   // enough to floor his goalkeeping contribution — as it should be.
   const keeping = keeper
-    ? 0.85 * Math.max(0, keeper.player.ratings.goalkeeping / 100 - familiarityPenalty("GK", keeper.player.pos) / 100)
+    ? 0.85 * Math.max(0, keeper.player.ratings.goalkeeping / 100
+        - familiarityPenalty("GK", keeper.player.pos, secondaryPositions(keeper.player)) / 100)
       + 0.15 * aerial(keeper.player)
     : 0.5;
 
