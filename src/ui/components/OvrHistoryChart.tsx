@@ -2,7 +2,7 @@ import { useState, type MouseEvent } from "react";
 import type { LeagueStore } from "../../core/leagueState.js";
 import { ClubCrest } from "./ClubCrest.js";
 import { NEUTRAL_COLOR, teamLineColor, readableText } from "./chartColors.js";
-import { seasonYear, currency } from "../format.js";
+import { seasonYear, transferFeeLabel } from "../format.js";
 
 // SVG coordinate space. The chart is rendered at width:100% / height:auto, so
 // these are just the aspect ratio + the units every position is computed in.
@@ -161,7 +161,10 @@ export function OvrHistoryChart({
         topPct,
         tid: t.toTid,
         colors: (team?.colors ?? ["#888", "#ccc"]) as [string, string],
-        title: `${seasonYear(t.season)} ${t.window} — to ${team?.name ?? `Team ${t.toTid}`}${t.fee > 0 ? ` (${currency.format(t.fee)})` : " (free)"}`,
+        // transferFeeLabel, not a bare fee test: a loan and a loan return both
+        // carry fee 0, so "(free)" read as a mystery free transfer on exactly
+        // the moves that weren't one.
+        title: `${seasonYear(t.season)} ${t.window} — to ${team?.name ?? `Team ${t.toTid}`} (${transferFeeLabel(t)})`,
       };
     });
   });

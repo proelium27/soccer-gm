@@ -1,10 +1,11 @@
 import { useState, type MouseEvent } from "react";
 import type { LeagueStore } from "../../core/leagueState.js";
 import type { ValueHistoryPoint } from "../../core/finance/valueHistory.js";
+import { peakValue } from "../../core/finance/valueHistory.js";
 import { ClubCrest } from "./ClubCrest.js";
 import { NEUTRAL_COLOR, teamLineColor, readableText } from "./chartColors.js";
 import { getRatingColor } from "../utils/ratingColor.js";
-import { seasonYear, currency, currencyCompact } from "../format.js";
+import { seasonYear, currency, currencyCompact, transferFeeLabel } from "../format.js";
 
 // SVG coordinate space. The chart is rendered at width:100% / height:auto, so
 // these are just the aspect ratio + the units every position is computed in.
@@ -108,6 +109,8 @@ export interface ValueSeasonDetail {
   potentialLabel: string;
   /** Was he in a youth academy that season, rather than the senior squad? */
   academy: boolean;
+  /** His age that season — the term that explains most of the curve's shape. */
+  age: number;
   goals: number;
   assists: number;
   appearances: number;
@@ -267,7 +270,10 @@ export function ValueHistoryChart({
         topPct,
         tid: t.toTid,
         colors: (team?.colors ?? ["#888", "#ccc"]) as [string, string],
-        title: `${seasonYear(t.season)} ${t.window} — to ${team?.name ?? `Team ${t.toTid}`}${t.fee > 0 ? ` (${currency.format(t.fee)})` : " (free)"}`,
+        // transferFeeLabel, not a bare fee test: a loan and a loan return both
+        // carry fee 0, so "(free)" read as a mystery free transfer on exactly
+        // the moves that weren't one.
+        title: `${seasonYear(t.season)} ${t.window} — to ${team?.name ?? `Team ${t.toTid}`} (${transferFeeLabel(t)})`,
       };
     });
   });
@@ -296,7 +302,7 @@ export function ValueHistoryChart({
     hovered && hovered.detail.tid !== null ? teamByTid.get(hovered.detail.tid) : undefined;
 
   const current = hist[hist.length - 1];
-  const best = hist.reduce((a, b) => (b.value > a.value ? b : a));
+  const best = peakValue(hist)!; // non-null: the early return guarantees ≥ 2 points
 
   return (
     <div>
@@ -376,17 +382,22 @@ export function ValueHistoryChart({
         ))}
 
         {/* Hover card — anchored left/center/right by where the point sits so it
-            never clips past the chart edges. */}
+            never clips past the chart edges, and flipped to hang *below* a point
+            in the upper half. It sits above by default, which for a peak-value
+            season put it outside the plot entirely, on top of the headline and
+            the Value/OVR toggle. */}
         {hovered && (() => {
           const leftRaw = (hovered.px / W) * 100;
+          const topRaw = (hovered.py / H) * 100;
           const tx = leftRaw < 32 ? "0" : leftRaw > 68 ? "-100%" : "-50%";
+          const below = topRaw < 50;
           const d = hovered.detail;
           return (
             <div className="value-chart-tip"
               style={{
                 left: `${leftRaw}%`,
-                top: `${(hovered.py / H) * 100}%`,
-                transform: `translate(${tx}, calc(-100% - 16px))`,
+                top: `${topRaw}%`,
+                transform: `translate(${tx}, ${below ? "16px" : "calc(-100% - 16px)"})`,
               }}>
               <div className="value-chart-tip-head">
                 {d.tid !== null && (
@@ -397,7 +408,12 @@ export function ValueHistoryChart({
                     {hoveredTeam?.name ?? "Free agent"}
                     {d.academy && <span className="value-chart-tip-academy"> (Academy)</span>}
                   </div>
-                  <div className="value-chart-tip-sub">{seasonYear(hovered.season)}</div>
+                  {/* Age rides alongside the season rather than taking a row of
+                      its own: it's the term that drives most of the curve, so
+                      it wants to read as part of "when", not as another stat. */}
+                  <div className="value-chart-tip-sub">
+                    {seasonYear(hovered.season)} &middot; age {d.age}
+                  </div>
                 </div>
                 <span className="value-chart-tip-badge"
                   style={{ background: hovered.color, color: readableText(hovered.color) }}>

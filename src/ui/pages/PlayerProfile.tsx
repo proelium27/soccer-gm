@@ -8,6 +8,7 @@ import { SKILL_LABELS } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { PotHelp } from "../components/HelpHint.js";
 import { ValueHistoryChart } from "../components/ValueHistoryChart.js";
+import { OvrHistoryChart } from "../components/OvrHistoryChart.js";
 import { careerValueHistory } from "../../core/finance/valueHistory.js";
 import { potentialFog } from "../../core/scouting/potentialFog.js";
 import { getRatingColor } from "../utils/ratingColor.js";
@@ -73,6 +74,7 @@ export function PlayerProfile() {
   const { pid } = useParams<{ pid: string }>();
   const { league, movePlayerToClubAction, releasePlayerGodModeAction } = useLeague();
   const [statsTab, setStatsTab] = useState<"league" | "cup" | "intl">("league");
+  const [careerChart, setCareerChart] = useState<"value" | "ovr">("value");
   const [editing, setEditing] = useState(false);
 
   if (!league || pid === undefined) {
@@ -503,7 +505,46 @@ export function PlayerProfile() {
 
           <div className="card mb-3">
             <div className="card-body">
-              <h6 className="card-title">Transfer Value</h6>
+              {/* Value and OVR answer different questions about the same
+                  career — what he was worth vs how good he was — and the two
+                  come apart (an aging star's rating holds while his value
+                  falls off the age curve). Both charts already exist, so they
+                  share the panel rather than one replacing the other. */}
+              <div className="d-flex align-items-center justify-content-between mb-2">
+                <h6 className="card-title mb-0">
+                  {careerChart === "ovr" ? "OVR History" : "Transfer Value"}
+                </h6>
+                <ul className="nav nav-pills nav-sm">
+                  <li className="nav-item">
+                    <button type="button"
+                      className={`nav-link py-0 px-2${careerChart === "value" ? " active" : ""}`}
+                      onClick={() => setCareerChart("value")}>
+                      Value
+                    </button>
+                  </li>
+                  <li className="nav-item">
+                    <button type="button"
+                      className={`nav-link py-0 px-2${careerChart === "ovr" ? " active" : ""}`}
+                      onClick={() => setCareerChart("ovr")}>
+                      OVR
+                    </button>
+                  </li>
+                </ul>
+              </div>
+              {careerChart === "ovr" ? (
+                <OvrHistoryChart
+                  pid={player.pid}
+                  name={player.name}
+                  points={player.hist}
+                  league={league}
+                  teamTidForSeason={(season) => {
+                    if (!team) return inAcademy ? inAcademy.tid : null;
+                    // teamForSeason never hands back the free-agent sentinel, so
+                    // every season resolves to a real club to color by.
+                    return teamForSeason(playerTransfers, season, team.tid);
+                  }}
+                />
+              ) : (
               <ValueHistoryChart
                 pid={player.pid}
                 name={player.name}
@@ -528,6 +569,7 @@ export function PlayerProfile() {
                         ?? (stats && !isFreeAgentTid(stats.tid) ? stats.tid : null),
                     potentialLabel: snap ? potBandLabel(snap.potential, snap.season) : "?",
                     academy: academyBySeason.get(season) ?? inAcademy !== undefined,
+                    age: season - player.born,
                     goals: stats?.goals ?? 0,
                     assists: stats?.assists ?? 0,
                     appearances: apps,
@@ -536,6 +578,7 @@ export function PlayerProfile() {
                   };
                 }}
               />
+              )}
             </div>
           </div>
 
