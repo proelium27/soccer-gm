@@ -123,10 +123,39 @@ const WEAK_LADDER = ["France", "Portugal", "Belgium", "Turkey"];
  * change needs the rungs individually resolvable across a dynasty, widen the
  * offsets to 2-point steps (e.g. Portugal 10 / Belgium 12 / Turkey 14) rather
  * than tightening these numbers.
+ *
+ * THE SPREADS ARE GATED AT THE SAME TWO SCALES (2026-08-13), after the
+ * per-seed MIN_END_SPREAD floor false-failed on a healthy main. Measured over
+ * 8 seeds × 20 seasons per build, France→Turkey end spread:
+ *
+ *     pre-#217   1.81  1.52  1.40  3.07  2.99  4.10  -1.11  2.65   mean 2.05, sd 1.47
+ *     post-#217  2.47  0.97  4.73  3.47  2.30  4.33   1.51  2.68   mean 2.81, sd 1.22
+ *
+ * Two lessons paid for there:
+ *  - A 4-SEED RANGE IS NOT A VARIANCE ESTIMATE. Seeds 1-4 alone read as
+ *    "#217 doubled the spread" (range 1.67 → 3.76); seeds 5-8 alone read the
+ *    opposite. On all 8, post-#217 is *tighter* (sd 1.22 vs 1.47) and stronger
+ *    (mean 2.81 vs 2.05). Before attributing a variance change to a PR, run
+ *    fresh seeds on both builds — the first 4-seed comparison measured its own
+ *    sample, exactly the trap the SEEDS knob comment warns about.
+ *  - Per-seed noise on this metric is ~±1.4 OVR: pre-#217 seed 7 lands at
+ *    -1.11 — an outright France-below-Turkey inversion on a build whose seeds
+ *    1-4 all cleared the old 1.0 floor. A per-seed floor of 1.0 was asserting
+ *    precision the metric never had; it passed by seed luck. So, as with
+ *    order: a single seed only resolves a GROSS end inversion (reusing
+ *    SEED_INVERSION_TOLERANCE; the worst healthy observation is -1.11), while
+ *    the design intent — France clearly above Turkey — is gated on the MEAN,
+ *    where healthy builds measure 2.05/2.81.
+ * BIG4→weakest gets the same split on principle (per-seed 3.0 is the gross
+ * floor; the mean catches systematic erosion): healthy per-seed values measure
+ * 4.86-6.72 with means 5.86/5.96, against a generation-time gap of ~11.
  */
-/** Minimum surviving gap between the big-four mean and the weakest league. */
+/** BIG4→weakest, PER SEED — only a gross collapse of the weak block. */
 const MIN_SPREAD = 3.0;
-/** Minimum surviving gap between the strongest and weakest weak league. */
+/** BIG4→weakest, on the CROSS-SEED MEAN — systematic erosion (healthy ≈ 5.9-6.2). */
+const MEAN_MIN_SPREAD = 4.0;
+/** France→Turkey, on the CROSS-SEED MEAN (healthy ≈ 2.0-2.8). Per seed, only a
+ * gross end inversion beyond SEED_INVERSION_TOLERANCE fails — see the header. */
 const MIN_END_SPREAD = 1.0;
 /**
  * How far a rung may sit below where it belongs ON A SINGLE SEED before that
@@ -170,6 +199,9 @@ function minAIBudget(league: LeagueStore): number {
 let anyFailure = false;
 /** Each rung gap, collected across seeds, so the mean gate can run at the end. */
 const gapsAcrossSeeds = new Map<string, number[]>();
+/** BIG4→weakest and France→Turkey spreads, collected for the mean gates. */
+const bigSpreadAcrossSeeds: number[] = [];
+const endSpreadAcrossSeeds: number[] = [];
 
 for (const seed of SEEDS) {
   console.log(`\n=== seed ${seed} (${SEASONS} seasons) ===`);
@@ -224,15 +256,22 @@ for (const seed of SEEDS) {
     }
     console.log(`       rungs: ${gaps.join("  ")}`);
 
-    // 2. The weak block must stay genuinely below the big four.
+    // 2. The weak block must stay genuinely below the big four. Per seed this
+    //    only catches a gross collapse; the sensitive check is the cross-seed
+    //    mean, run after every seed completes.
     const weakest = WEAK_LADDER[WEAK_LADDER.length - 1];
     const spread = big - m.get(weakest)!;
+    bigSpreadAcrossSeeds.push(spread);
     if (spread < MIN_SPREAD) problems.push(`BIG4→${weakest} spread only ${spread.toFixed(2)} (< ${MIN_SPREAD})`);
 
-    // 3. The weak ladder's own ends must stay apart.
+    // 3. The weak ladder's own ends must stay apart — but per-seed noise on
+    //    this spread is ~±1.4 OVR (a healthy build measured -1.11 on one seed,
+    //    see the header), so a single seed only resolves a GROSS end
+    //    inversion; the magnitude itself is gated on the cross-seed mean.
     const endSpread = m.get(WEAK_LADDER[0])! - m.get(weakest)!;
-    if (endSpread < MIN_END_SPREAD) {
-      problems.push(`${WEAK_LADDER[0]}→${weakest} spread only ${endSpread.toFixed(2)} (< ${MIN_END_SPREAD})`);
+    endSpreadAcrossSeeds.push(endSpread);
+    if (endSpread < -SEED_INVERSION_TOLERANCE) {
+      problems.push(`${WEAK_LADDER[0]}→${weakest} ends GROSSLY INVERTED (${endSpread.toFixed(2)})`);
     }
 
     if (problems.length) {
@@ -241,7 +280,7 @@ for (const seed of SEEDS) {
     } else {
       console.log(
         `  → ladder OK (no inversion beyond ${SEED_INVERSION_TOLERANCE}; BIG4→${weakest} ${spread.toFixed(2)} ≥ ${MIN_SPREAD}; ` +
-        `${WEAK_LADDER[0]}→${weakest} ${endSpread.toFixed(2)} ≥ ${MIN_END_SPREAD})`,
+        `${WEAK_LADDER[0]}→${weakest} ${endSpread.toFixed(2)})`,
       );
     }
   };
@@ -249,7 +288,20 @@ for (const seed of SEEDS) {
   const gen = measure();
   report("gen ", gen, false);
   for (let s = 0; s < SEASONS; s++) {
-    league = simThrough(league, "season", mulberry32(seed * 1000 + s));
+    const seasonRng = mulberry32(seed * 1000 + s);
+    league = simThrough(league, "season", seasonRng);
+    // simThrough halts before the user's cup final (a UI courtesy — the live
+    // player sims the final deliberately). Headlessly that leaves the phase
+    // "regular", and simOffseason SILENTLY RETURNS THE LEAGUE UNCHANGED on any
+    // phase but "offseason" — so a dynasty whose unmanaged user club reached a
+    // cup final quietly simmed one fewer season than reported (caught
+    // 2026-08-13: one seed of eight ended a "20-season" run at season 20, not
+    // 21). Resume until the season actually ends; a no-op for every other
+    // seed, so their results are bit-identical to before this guard.
+    for (let resumes = 0; (league.phase as string) !== "offseason"; resumes++) {
+      if (resumes >= 3) throw new Error(`season ${league.season} refuses to finish (phase ${league.phase})`);
+      league = simThrough(league, "season", seasonRng);
+    }
     // Sample the budget at BOTH points in the cycle, every season. This used to
     // run only at generation and at the end, while reporting itself as "min AI
     // budget over dynasty" — so a club that dipped negative in season 9 and
@@ -294,11 +346,26 @@ for (const [key, gaps] of gapsAcrossSeeds) {
     meanProblems.push(`${key} INVERTED on the mean (${m.toFixed(2)} < -${MEAN_INVERSION_TOLERANCE})`);
   }
 }
+// The spread magnitudes, gated on the same cross-seed mean (per seed they only
+// catch gross failures — see the 2026-08-13 header note for the measured noise).
+const weakestName = WEAK_LADDER[WEAK_LADDER.length - 1];
+const spreadGates: Array<[string, number[], number]> = [
+  [`BIG4→${weakestName}`, bigSpreadAcrossSeeds, MEAN_MIN_SPREAD],
+  [`${WEAK_LADDER[0]}→${weakestName}`, endSpreadAcrossSeeds, MIN_END_SPREAD],
+];
+for (const [key, values, floor] of spreadGates) {
+  const m = avg(values);
+  const detail = values.map((v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}`).join(" ");
+  console.log(`  ${key.padEnd(20)} mean ${m >= 0 ? "+" : ""}${m.toFixed(2)}   (${detail})`);
+  if (m < floor) meanProblems.push(`${key} mean spread only ${m.toFixed(2)} (< ${floor})`);
+}
 if (meanProblems.length) {
   anyFailure = true;
   console.log(`  → **BROKEN**: ${meanProblems.join("; ")}`);
 } else {
-  console.log(`  → OK (no mean inversion beyond ${MEAN_INVERSION_TOLERANCE})`);
+  console.log(
+    `  → OK (no mean inversion beyond ${MEAN_INVERSION_TOLERANCE}; mean spreads ≥ ${MEAN_MIN_SPREAD}/${MIN_END_SPREAD})`,
+  );
 }
 if (SEEDS.length < 3) {
   // Not a failure, but the mean gate above is the sensitive one and it is weak
