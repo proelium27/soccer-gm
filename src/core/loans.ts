@@ -19,7 +19,7 @@ import { keepValueToClub, perceivedValueToClub } from "./ai/evaluate.js";
 import { mulberry32 } from "../engine/rng.js";
 import {
   ROSTER_CAP, ROSTER_SAFETY_FLOOR,
-  LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, LOAN_AI_MAX_AGE, LOAN_AVAILABILITY,
+  LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, LOAN_AI_MAX_AGE,
   LOAN_MIN_SURPLUS, LOAN_OFFERS_MAX, AI_LOAN_MAX_MOVES,
   DIVISION_2_REFUSAL_OVR_THRESHOLD,
 } from "./constants.js";
@@ -290,11 +290,7 @@ export interface AILoanResult {
 
 /**
  * AI↔AI loans, one round per open window: a young, buried player at one AI
- * club (surplus at his position, valued by his own club at no more than
- * LOAN_AVAILABILITY × market — a screen the permanent AI↔AI market no longer
- * has; it was deleted on 2026-08-11 for comparing a club-relative keep value
- * against a club-blind market price, see transferMarket.ts) moves on a
- * 1-season loan to whichever other
+ * club moves on a 1-season loan to whichever other
  * AI club values him meaningfully more (LOAN_MIN_SURPLUS). Deterministic
  * given `seed`; the user's club is never a party on either side (loaning the
  * user's own players in/out is a manual action — see loanOfferCandidates /
@@ -362,9 +358,23 @@ export function runAILoanMarket(
       if (!player) continue;
       if (season - player.born > LOAN_AI_MAX_AGE) continue;
 
-      const market = trueTransferValue(player, season);
+      // No availability screen. There used to be one here — skip anyone whose
+      // keep-value to his parent exceeded LOAN_AVAILABILITY × his market value —
+      // and it made the same category error the permanent market's version made:
+      // it compares a club-relative keep value against a club-blind market price.
+      // The permanent market's copy excluded every club's best player outright
+      // and inverted the country strength ladder (docs/transfer-mobility.md); it
+      // was deleted on 2026-08-11 and this one was left in place deliberately, to
+      // avoid changing two markets at once, with a comment conceding its
+      // justification was "reasoning, not a measurement".
+      //
+      // Measured (scripts/loanAvailabilityProbe.ts): it excluded ~71% of clubs'
+      // best loan-eligible players, median keep/market 1.30. So it was a binding
+      // constraint, not the rarely-hit backstop it was argued to be. Protection
+      // is by price instead: LOAN_MIN_SURPLUS below still requires the borrower
+      // to value him above what he is worth to his parent, which is the sound
+      // form of the same question.
       const reservation = keepValueToClub(player, sellerCtx);
-      if (reservation > market * LOAN_AVAILABILITY) continue;
 
       for (const buyer of teams) {
         if (buyer.tid === seller.tid || buyer.tid === userTid) continue;

@@ -34,9 +34,11 @@ const rng = mulberry32(SEED);
 let league = createLeagueState(0, rng);
 
 console.log(`seed ${SEED}, threshold ovr ${DIVISION_2_REFUSAL_OVR_THRESHOLD}\n`);
-console.log("season  loans  onLoanInD2>=thr   allD2>=thr   share");
+console.log("season  loans  onLoanInD2>=thr   allD2>=thr   share   meanOvr  ovr65+");
 
 let worstLoanBreach = 0;
+const seasonMeanOvr: number[] = [];
+const seasonUseful: number[] = [];
 let totalLoanBreaches = 0;
 
 for (let s = 1; s <= SEASONS; s++) {
@@ -72,17 +74,37 @@ for (let s = 1; s <= SEASONS; s++) {
   }
   void teamById;
 
+  // Loan volume is cap-bound (AI_LOAN_MAX_MOVES), not screen-bound, so removing
+  // a candidate filter barely moves the count — it changes WHICH players move.
+  // Quality is therefore the metric that shows whether a filter change did
+  // anything useful, not the count.
+  const loanOvrs = league.activeLoans
+    .map((l) => byPid.get(l.pid)?.ovr)
+    .filter((o): o is number => o !== undefined);
+  const meanOvr = loanOvrs.length
+    ? loanOvrs.reduce((a, b) => a + b, 0) / loanOvrs.length
+    : 0;
+  const useful = loanOvrs.filter((o) => o >= 65).length;
+  seasonMeanOvr.push(meanOvr);
+  seasonUseful.push(useful);
+
   worstLoanBreach = Math.max(worstLoanBreach, loanBreaches);
   totalLoanBreaches += loanBreaches;
   const share = allBreaches > 0 ? `${((loanBreaches / allBreaches) * 100).toFixed(0)}%` : "—";
   console.log(
     `${String(league.season).padStart(6)}  ${String(league.activeLoans.length).padStart(5)}` +
-    `  ${String(loanBreaches).padStart(15)}  ${String(allBreaches).padStart(11)}  ${share.padStart(6)}`,
+    `  ${String(loanBreaches).padStart(15)}  ${String(allBreaches).padStart(11)}  ${share.padStart(6)}` +
+    `  ${meanOvr.toFixed(1).padStart(7)}  ${String(useful).padStart(6)}`,
   );
 }
 
+const avg = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
 console.log(
   `\nloan-planted D2 breaches: worst season ${worstLoanBreach}, ${totalLoanBreaches} total over ${SEASONS} seasons.`,
+);
+console.log(
+  `loaned-player quality across the run: mean ovr ${avg(seasonMeanOvr).toFixed(2)}, ` +
+  `mean ovr-65+ loans per season ${avg(seasonUseful).toFixed(1)}`,
 );
 console.log(
   worstLoanBreach === 0
