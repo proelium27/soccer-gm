@@ -4,6 +4,7 @@ import type { LeagueStore } from "./leagueState.js";
 import type { CompletedTransfer } from "./transfers/negotiation.js";
 import type { TransferWindowKind } from "./transfers/window.js";
 import type { Competition } from "./competitions.js";
+import { tierOf } from "./competitions.js";
 import { transferWindowState } from "./transfers/window.js";
 import {
   windowSeed, departsAtRollover, acquisitionWageCharge, hasRosterRoom,
@@ -20,6 +21,7 @@ import {
   ROSTER_CAP, ROSTER_SAFETY_FLOOR,
   LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, LOAN_AI_MAX_AGE, LOAN_AVAILABILITY,
   LOAN_MIN_SURPLUS, LOAN_OFFERS_MAX, AI_LOAN_MAX_MOVES,
+  DIVISION_2_REFUSAL_OVR_THRESHOLD,
 } from "./constants.js";
 
 /** A player's loan-out choice, before any club has agreed to take him. */
@@ -301,10 +303,21 @@ export interface AILoanResult {
  * "Buried" is literal, not just a valuation screen: a player in his club's
  * own starting XI is never loaned out, whatever his keep-value — the whole
  * point of a loan is real minutes for a young player who isn't getting them
- * at home, and a starter already is. This is also what keeps genuinely
- * elite youngsters out of the loan pool (a 75+ prospect is starting
- * somewhere), so Division 2 can't end up hosting a loaned-in star the
- * ceiling sweep can never touch.
+ * at home, and a starter already is.
+ *
+ * That was also once claimed to keep Division 2 from hosting a loaned-in star
+ * the ceiling sweep can never touch ("a 75+ prospect is starting somewhere").
+ * **It does not, and the arithmetic is the giveaway: the ceiling threshold is
+ * DIVISION_2_REFUSAL_OVR_THRESHOLD (70), not 75.** A 70-73 under-24 outside a
+ * strong club's XI is entirely ordinary. Measured over 12 seasons
+ * (scripts/loanCeilingProbe.ts): 0-3 such players per season sitting in tier 2
+ * on loan — and they were **100% of all over-threshold tier-2 players**, every
+ * season, i.e. the sweep handles owned players perfectly and this was the only
+ * remaining hole. It is also the worst kind of hole, because
+ * enforceDivision2Ceiling *cannot* clean it: it skips loaned pids deliberately
+ * (sweeping one would have processLoanReturns hand a copy back to the parent,
+ * putting the same pid on two rosters), so each breach sits for the loan's full
+ * 1-3 seasons. Hence the explicit tier-2 guard in the buyer loop below.
  */
 export function runAILoanMarket(
   teams: StoredTeam[],
@@ -322,6 +335,7 @@ export function runAILoanMarket(
   const playerMap = new Map(players.map((p) => [p.pid, p]));
   const jitter = mulberry32(seed);
   const onLoanPids = new Set(activeLoans.map((l) => l.pid));
+  const tierByTid = new Map(teams.map((t) => [t.tid, tierOf(competitions, t.compId)]));
 
   interface Candidate {
     pid: number; sellerTid: number; buyerTid: number; reservation: number; buyerValue: number; surplus: number;
@@ -357,6 +371,21 @@ export function runAILoanMarket(
         const buyerCtx = contexts.get(buyer.tid);
         if (!buyerCtx) continue;
         const value = perceivedValueToClub(player, buyerCtx, jitter);
+        // A tier-2 club never takes an at-or-over-threshold player, on loan or
+        // otherwise — the same prevention guard the two buy paths carry. It
+        // matters more here than there: a bought player the sweep can reclaim
+        // next offseason, a loaned one it cannot touch at all (it skips loaned
+        // pids, or processLoanReturns would duplicate him onto two rosters), so
+        // he sits illegally for the loan's full 1-3 seasons. Measured as 100% of
+        // all remaining over-threshold tier-2 residents — see the doc comment.
+        //
+        // Placed AFTER the jitter draw, like the market's identical guard:
+        // skipping the draw for a filtered buyer would shift every subsequent
+        // buyer's jitter (the documented RNG-stream-order lesson).
+        if (
+          tierByTid.get(buyer.tid) === 2 &&
+          player.ovr >= DIVISION_2_REFUSAL_OVR_THRESHOLD
+        ) continue;
         if (value < reservation * (1 + LOAN_MIN_SURPLUS)) continue;
         candidates.push({ pid, sellerTid: seller.tid, buyerTid: buyer.tid, reservation, buyerValue: value, surplus: value - reservation });
       }
