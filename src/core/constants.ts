@@ -1365,6 +1365,18 @@ export const AI_MARKET_MIN_VALUE = 1_000_000;
  * A buyer bothers only when its valueToClub for the player clears the
  * seller's reservation (the seller's own keep-value) by at least this margin
  * — the player must be meaningfully more useful to the buyer than the seller.
+ *
+ * **In practice this governs a minority of deals, and that is load-bearing
+ * rather than a bug (measured 2026-08-12).** The need-buy path below drops the
+ * margin to AI_NEED_BUY_MIN_SURPLUS whenever the buyer has a positional gap, and
+ * `hasPositionalGap` fires for **92-93% of executed deals** — so the market
+ * mostly runs at a 0% margin bar and this 15% one is close to vestigial. That
+ * looks like a loose predicate and it was tightened two different ways to check:
+ * one broke weak-league solvency outright (2 of 4 audit seeds into deficit), the
+ * other was inert. The volume the need-buy path carries is what funds the
+ * selling leagues — Belgium's transfer receipts exceed its whole league's base
+ * income for a season — so **do not "restore" this constant to being the rule.**
+ * Full measurements: docs/transfer-mobility.md, scripts/needBuyMarginProbe.ts.
  */
 export const AI_MARKET_MIN_SURPLUS = 0.15;
 

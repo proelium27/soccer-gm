@@ -303,6 +303,125 @@ one is safe:
 Same relative ordering, opposite effect on mobility. It must be a discount on
 pressured sellers, never a premium on content ones.
 
+## But is the term necessary? Measured 2026-08-12 — no, and the probe found worse
+
+`scripts/needBuyMarginProbe.ts` mirrors the candidate loop of
+`runAITransferMarket` on the same seeded jitter stream and reports the margin
+each executed deal actually cleared by. It is self-checking: every executed deal
+must be found among the mirrored candidates or it says the numbers are
+unreliable. (It cannot answer this by editing `AI_NEED_BUY_MIN_SURPLUS` and
+re-running — the constant is live during the warm-up seasons too, so the two
+runs would be probing different worlds.) Season 6, seeds 1 and 2, all 389 / 378
+deals reproduced:
+
+|                                     | seed 1        | seed 2        |
+| ----------------------------------- | ------------- | ------------- |
+| deals executed                      | 389           | 378           |
+| **need buys (relaxed bar)**         | **359 (92%)** | **351 (93%)** |
+| cleared by under 5% margin          | 59 (15%)      | 69 (18%)      |
+| …of those, downhill by squad ovr    | 31            | 47            |
+| …of those, rated 78+                | 3             | 2             |
+
+Three separate things get bundled under "need to sell", and they have different
+answers:
+
+1. **Sell to survive.** Not necessary — the condition does not occur. 0 deficits
+   across 4 seeds × 20 seasons, worst-case minimum AI budget +£0.01M. The
+   insolvency this was queued for was a *symptom* of the availability bug (a
+   club could not shed wages by selling its highest earner), and that is fixed.
+2. **Sell the surplus.** Already in `keepValueToClub` — incumbent is
+   `posSecondBestOvr`, depth counted as `depth-1`, so a club deep at a position
+   already prices its fourth-choice low. A depth-driven term double-counts it.
+3. **Express the *absence* of pressure** — the real gap, and the narrow one. A
+   need buy clears at the bare reservation, so the seller captures nothing and
+   the noise draw decides. That is 15-18% of deals, of which the star component
+   is 2-3 per window out of ~380.
+
+**The unplanned finding is the one to act on: the exception is the rule.** 92-93%
+of executed deals are need buys, so `hasPositionalGap` fires for nearly every
+buyer and `AI_MARKET_MIN_SURPLUS` (0.15, the "only buy bargains" bar) is close to
+inert — the market effectively runs at a 0% margin bar, which is not what that
+constant's documentation describes. Order of work therefore: check whether
+`hasPositionalGap` is too loose first, since tightening it restores
+`AI_MARKET_MIN_SURPLUS`'s intended role *and* shrinks the zero-margin population
+as a side effect; only if the thin-margin deals still look wrong, floor
+`AI_NEED_BUY_MIN_SURPLUS` at something small. A need-to-sell term is a new
+mechanic that raises mobility, and it should not be built to fix a gap that a
+single loosened predicate is producing.
+
+Two caveats on the table. It is one window each on two seeds at season 6. And
+"downhill by squad ovr" here counts *all* deals (64%/70%), most of them squad
+players moving for game time — it is not comparable to the 5-8% figure quoted
+above for players rated 78+.
+
+## …and tightening `hasPositionalGap` was tried and abandoned (2026-08-12)
+
+The section above ends "check whether `hasPositionalGap` is too loose first".
+That was done. **It should not be tried again without reading this.** Two
+tightenings were implemented and measured; one breaks the game and the other
+does nothing, and the reason they fail is the same fact about the economy.
+
+**The fact: the weak leagues run on transfer receipts.** The probe now prints
+selling receipts by league. Seed 1, season 6, **one summer window**:
+
+| seller  | sales | receipts |
+| ------- | ----- | -------- |
+| BIG4    | 219   | £7,408M  |
+| France  | 52    | £1,374M  |
+| Portugal| 38    | £657M    |
+| Belgium | 47    | £1,148M  |
+| Turkey  | 33    | £925M    |
+
+Belgium's twenty clubs take **£1.1bn in one window** against a base season income
+of roughly £40M per club (`BASE_SEASON_BUDGET` £88M × `COUNTRY_BUDGET_SCALE`
+0.45), i.e. ~£800M for the whole league across a whole season. Transfer income is
+**the larger half of a weak league's economy**, not a supplement. That is what
+the "worst-case AI budget +£0.01M" figure on the 8-country audit was really
+describing: not comfortable solvency, but a system balanced at exactly zero by a
+large income stream that nothing had characterised.
+
+**Attempt 1 — tighten the depth threshold. Breaks it.** `understaffed` tested
+`posDepth < ROSTER_COMPOSITION`, a *stocking* target; the composition sums to 25
+and AI squads are trimmed to 25, so any squad not distributed exactly to target
+is short somewhere and essentially every club always was. Requiring a club to be
+short of what it takes to *field* the position (half the target, floored at 1 —
+which is also exactly `keepsDepthFloor`'s threshold) worked on its own terms:
+need buys **92% → 34%**, thin-margin deals halved, and the ladder passed every
+per-seed check and the mean gate. It also put **2 of 4 seeds into deficit**
+(Belgium −£2.7M season 16, Turkey −£1.9M season 17) where main has none.
+
+Cause, straight off the receipts table: Belgium lost a **third of its sales but
+two thirds of its income** (£1,148M → £385M), Turkey −61%. A strong club buying a
+weak league's star qualifies through *understaffed* — it is strong everywhere, so
+the weak-starter branch does not fire for it — and once that route closed, an
+expensive star could no longer clear the 15% bargain bar. **Depth is
+quality-blind, so it cut the valuable upward sales and the filler alike.**
+
+**Attempt 2 — gate the same branch on player quality instead** (`player.ovr >=
+squadStrength - 3`: a shortage is only a hole if *this* player addresses it).
+Principled, and **inert**: need buys **92.3% → 91.5%**. `AI_MARKET_MIN_VALUE`
+already filters junk and a buyer only bids on players it rates, so the
+credibility test is nearly always already true of anyone reaching it. Raising the
+bar until it bites just converts it into attempt 1 — a volume cut — and lands on
+the same tripwire.
+
+**Conclusion: the 92% is not a defect to fix.** The observation is real — the
+need-buy exception is the rule, and `AI_MARKET_MIN_SURPLUS` is close to vestigial
+— but every route to making it rare is either inert or breaks the economy, and
+the outcomes the market currently produces are the validated ones (star churn
+9-10%, ladder holds, zero deficits). Reverted; only the probe and this note kept.
+
+**The generalisation worth carrying: anything that reduces market VOLUME lands
+here.** A replacement prune for the O(teams) buyer loop, a need-to-sell term, a
+floor on `AI_NEED_BUY_MIN_SURPLUS`. Two process notes for whoever tries:
+
+- **Deal count is the wrong yardstick; receipts into the poor leagues is the
+  right one.** Removing a hundred £1M filler deals is harmless, removing a few
+  large upward sales is not, and counts cannot tell them apart.
+- **It is the finance column that fails first, not the ladder.** The ladder
+  passed all four seeds on a change that put two of them into deficit. Watching
+  only the strength ladder would have shipped it.
+
 ## Residual, known
 
 Seed 1's France/Portugal rungs still sit within ~0.7 of each other. Adjacent weak
