@@ -10,7 +10,7 @@ const RATINGS: PlayerRatings = {
 };
 
 function snap(season: number, ovr: number, potential = ovr, academy = false): RatingsSnapshot {
-  return { season, ratings: RATINGS, ovr, potential, academy };
+  return { season, ratings: RATINGS, ovr, potential, academy, pos: "ST" };
 }
 
 function makePlayer(overrides: Partial<Player> = {}): Player {

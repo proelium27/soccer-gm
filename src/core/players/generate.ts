@@ -78,6 +78,6 @@ export function generatePlayer(
     // academy: false here is just the pre-career baseline snapshot — a
     // youth-intake player routed to the user's academy has his real academy
     // seasons recorded by progressPlayer each offseason from here on.
-    hist: [{ season: season - 1, ratings, ovr, potential, academy: false }],
+    hist: [{ season: season - 1, ratings, ovr, potential, academy: false, pos }],
   };
 }

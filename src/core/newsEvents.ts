@@ -1,4 +1,5 @@
-import type { Player } from "./players/types.js";
+import type { Player, Position } from "./players/types.js";
+import { POSITIONS } from "./players/types.js";
 import type { PlayedMatch } from "./standings.js";
 import { NEWS_STANDOUT_RATING_FLOOR, NEWS_GOAL_MILESTONE_STEP } from "./constants.js";
 
@@ -7,7 +8,8 @@ export type NewsEventType =
   | "standoutRating"
   | "goalMilestoneSeason"
   | "goalMilestoneCareer"
-  | "generationalTalent";
+  | "generationalTalent"
+  | "positionChange";
 
 /**
  * A player accomplishment surfaced on the News Feed, interleaved there with
@@ -25,9 +27,31 @@ export interface NewsEvent {
    * standoutRating = rating × 10 (integer); goalMilestoneSeason /
    * goalMilestoneCareer = the milestone crossed (10, 20, 30...);
    * generationalTalent = the player's age at arrival (matchday is 0 —
-   * announced with the new season's youth intake, before matchday 1).
+   * announced with the new season's youth intake, before matchday 1);
+   * positionChange = both positions packed by `packPositionChange` (matchday
+   * 0 — it happens in the offseason, with progression).
    */
   detail: number;
+}
+
+/**
+ * Pack a position change into the single `detail` number the event carries.
+ *
+ * Both ends have to be stored. Reading the "to" off the player's current
+ * position instead would be right only until his next move, at which point
+ * every older entry in the feed would silently rewrite itself to claim he
+ * converted to wherever he ended up.
+ */
+export function packPositionChange(from: Position, to: Position): number {
+  return POSITIONS.indexOf(from) * POSITIONS.length + POSITIONS.indexOf(to);
+}
+
+/** Inverse of `packPositionChange`. */
+export function unpackPositionChange(detail: number): { from: Position; to: Position } {
+  return {
+    from: POSITIONS[Math.floor(detail / POSITIONS.length)],
+    to: POSITIONS[detail % POSITIONS.length],
+  };
 }
 
 /** Each player's season-to-date and all-time (career) goal totals, as of a point in time. */

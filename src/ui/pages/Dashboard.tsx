@@ -14,6 +14,7 @@ import { isIntlStagePending } from "../../core/international/index.js";
 import { INTL_TOURNAMENT_NAME, INTL_QUAL_LEGS, qualifyingLeg } from "../../core/constants.js";
 import type { IntlStage } from "../../core/international/index.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
+import { unpackPositionChange } from "../../core/newsEvents.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { currency, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
@@ -243,6 +244,10 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
             {playerLink(player)}, a once-in-a-generation talent, joins {teamByTid.get(e.tid)?.name ?? "?"} (age {e.detail})
           </>
         );
+      case "positionChange": {
+        const { from, to } = unpackPositionChange(e.detail);
+        return <>{playerLink(player)} is now a {to}, after playing at {from}</>;
+      }
     }
   };
 

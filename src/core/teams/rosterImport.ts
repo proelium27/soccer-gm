@@ -102,7 +102,7 @@ function materializePlayer(spec: RosterFilePlayer, ctx: MaterializeCtx): Player 
     contract: { salary: seasonSalaryForOvr(ovr, ctx.pid, ctx.season), expiresSeason: ctx.season + length },
     injury: null,
     stats: [],
-    hist: [{ season: ctx.season - 1, ratings, ovr, potential, academy: false }],
+    hist: [{ season: ctx.season - 1, ratings, ovr, potential, academy: false, pos: spec.pos }],
   };
 }
 

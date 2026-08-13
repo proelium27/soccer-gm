@@ -58,6 +58,19 @@ export interface RatingsSnapshot {
   potential: number;
   /** Was the player in a club's youth academy (not the senior squad) during this season? Only ever true for the user's own youth — AI clubs have no academy. Old saves are migrated to `false` (all-senior). */
   academy: boolean;
+  /**
+   * The position he carried out of this season — so `ovr` above is his rating
+   * AT this position, and a career's worth of snapshots is a record of when he
+   * changed (see `changedPosition` in players/positions.ts).
+   *
+   * Load-bearing rather than decorative: it is what lets the sustained-gap test
+   * ask "has he been better elsewhere for N seasons *while listed here*",
+   * which is what gives a conversion its cooldown without a second stored
+   * field. Old saves backfill to the player's current position, which is exactly
+   * right — before this existed nothing ever changed a position, so every
+   * historical snapshot really was taken at the one he holds today.
+   */
+  pos: Position;
 }
 
 export interface Player {
