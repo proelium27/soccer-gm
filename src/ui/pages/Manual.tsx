@@ -855,9 +855,12 @@ export function Manual() {
             same deal he left with. AI clubs also loan players to each other in the background, and
             they stick strictly to real-football logic: <strong>only young players who aren't in
             their club's starting XI</strong> go out on loan. A starter is already getting his
-            minutes at home, so he's never loaned, whatever the numbers say. That background market
-            only ever moves players between AI clubs, so nothing happens to your own roster unless
-            you list a player yourself.
+            minutes at home, so he's never loaned, whatever the numbers say. A club will let a
+            prospect it rates highly go out, though, as long as someone else rates him more, so the
+            players moving are genuinely ones worth watching rather than only the ones nobody wanted.
+            Second-division clubs can't take a loan of a player good enough that the top flight would
+            claim him anyway. That background market only ever moves players between AI clubs, so
+            nothing happens to your own roster unless you list a player yourself.
           </p>
         </Section>
 
