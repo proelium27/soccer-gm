@@ -28,9 +28,13 @@ const SEASON = simSeason(mulberry32(12345));
  * ~1 in five; and again when composites began bucketing by the SLOT a player
  * fills rather than his natural position (see engine/positionFit.ts), which
  * changes both every composite value and which substitutions the bench is
- * willing to make — each a personnel/composite change, not an rng-stream shift.
+ * willing to make; and again when players gained derived secondary positions
+ * (core/players/positions.ts), which waive the familiarity penalty for a slot a
+ * player genuinely covers and let him win that slot in selectXI on his rating
+ * AT it — so both the XI and the composites move — each a personnel/composite
+ * change, not an rng-stream shift.
  */
-const BASELINE_SCORELINE_HASH = 2156707946;
+const BASELINE_SCORELINE_HASH = 2887243541;
 
 function scorelineHash(matches: typeof SEASON.matches): number {
   const s = matches.map((m) => `${m.home}:${m.homeGoals}-${m.awayGoals}:${m.away}`).join("|");

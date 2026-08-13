@@ -527,7 +527,7 @@ export function simMatchDetailed(
    * putting at the back if he is better by more than the position costs him.
    */
   function benchValueAt(p: MatchPlayer, slot: MatchPlayer["slot"]): number {
-    return benchValue(p) - familiarityPenalty(slot, p.pos);
+    return benchValue(p) - familiarityPenalty(slot, p.pos, p.secondary);
   }
 
   /**

@@ -258,6 +258,75 @@ export const ROSTER_COMPOSITION: Record<Position, number> = {
   GK: 3, CB: 4, FB: 4, DM: 2, CM: 4, AM: 2, W: 3, ST: 3,
 };
 
+/**
+ * Share of a position's players who pick up any one adjacent position as a
+ * second job (see players/positions.ts). A player qualifies by being unusually
+ * capable there *for a player of his position* — never by one threshold shared
+ * across positions, which cannot work at any value: the spread of "how close do
+ * I rate at the next position along" is a property of the position PAIR, so a
+ * flat gap makes every midfielder a three-position player before any striker is
+ * a two-position one (measured: at a 3-point gap, 100% of CMs and 6% of STs).
+ * `scripts/secondaryPositionProbe.ts` has the table showing that.
+ *
+ * Per pair, so a position with three coverable slots ends up more versatile
+ * than one with a single slot — which is the intent: a full-back genuinely is a
+ * more flexible job than a striker.
+ */
+export const SECONDARY_POSITION_RATE = 0.15;
+
+/**
+ * Per-pair OVR-difference cutoffs implementing SECONDARY_POSITION_RATE, as
+ * `primary: { adjacent: minimum (ovrAtAdjacent - ovr) }`. MEASURED, not tuned —
+ * regenerate with `npx tsx scripts/secondaryPositionProbe.ts` if the rate, the
+ * OVR weights or the adjacency table change, and paste the output here.
+ *
+ * Baking the percentile into a static table (rather than ranking against the
+ * live pool) keeps the derivation a pure function of one player: no population
+ * scan on every render, and a player's badge can't change because someone else
+ * was transferred.
+ *
+ * **Calibrated on a FRESH world, and the mature-world alternative was measured
+ * and rejected.** Versatility rises over a dynasty and then settles. Rostered
+ * players holding any second position: fresh 35.4%, then 45.5 / 51.5 / 53.6 /
+ * 54.7 / 54.9 / 54.8 at seasons 5/10/15/20/25/30 — flat from season 20, so this
+ * is an equilibrium, not a ratchet, which is the property that matters. Cause is
+ * progression flattening rating profiles: every OVR weight row sums to 100, so a
+ * *uniform* rating gain cancels out of the position difference exactly, and it
+ * is `growthDamping` compressing a player's strongest skills that pulls his
+ * adjacent-position ratings toward his own. It is NOT the accumulating
+ * free-agent tail — that was the first hypothesis and it is wrong; rostered
+ * squads drift the same as the whole pool.
+ *
+ * Recalibrating against the season-15 plateau (so the mature rate hit the
+ * target instead of the season-1 rate) was tried and measured: it leaves a NEW
+ * save at **9.3%**, with 3% of wingers and 4% of full-backs holding a second
+ * position — no utility players at all in the seasons a new player actually
+ * sees. The drift is bounded and reads as players broadening with experience,
+ * so the fresh-world calibration ships and the rise is intended behaviour.
+ *
+ * This matters beyond the badge: a secondary WAIVES the familiarity penalty, so
+ * letting the rate run high would quietly dissolve the positional discipline
+ * that slot-aware composites exist to enforce. That is the number to watch if
+ * these constants are ever retuned.
+ */
+export const SECONDARY_POSITION_CUTOFF: Record<Position, Partial<Record<Position, number>>> = {
+  GK: {},
+  CB: { FB: -6, DM: -3 },
+  FB: { CB: -1, W: -2 },
+  DM: { CB: 2, FB: -2, CM: -2 },
+  CM: { DM: 0, AM: 1 },
+  AM: { CM: -2, W: 0, ST: -3 },
+  W:  { FB: -6, AM: -3, ST: -4 },
+  ST: { W: -5 },
+};
+
+/**
+ * Most secondary positions a player can hold. Two (so at most a three-position
+ * player) because the adjacency table gives outfielders only 2-3 candidates
+ * anyway, and an unbounded list would print a badge nobody can read.
+ */
+export const MAX_SECONDARY_POSITIONS = 2;
+
 /** Matchday bench size: the best remaining roster players (by ovr) after the starting XI. */
 export const BENCH_SIZE = 7;
 

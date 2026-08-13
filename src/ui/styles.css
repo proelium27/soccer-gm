@@ -1306,6 +1306,22 @@ a:hover {
   opacity: 0.65;
   flex: none;
 }
+/* Playing someone in a slot he doesn't know. Amber rather than red: it's a
+   cost you may well be choosing to pay, not an error. Carries the arrow label
+   (his position, then the slot) so the warning names itself without color. */
+.pitch-chip-pos--misfit {
+  color: var(--sg-warn);
+  opacity: 1;
+  white-space: nowrap;
+}
+/* Away from his listed position, but somewhere he genuinely plays: no cost.
+   Shown rather than left blank so an unmarked chip reliably means "in his own
+   position" and a silent one is never mistaken for a missing warning. */
+.pitch-chip-pos--covered {
+  color: var(--sg-green-bright);
+  opacity: 1;
+  white-space: nowrap;
+}
 .pitch-chip-name {
   color: inherit;
   text-decoration: none;
@@ -2193,4 +2209,58 @@ body.nav-drawer-open {
   letter-spacing: 0.04em;
   color: var(--sg-text-muted);
   margin-bottom: 0.5rem;
+}
+
+/* ---- Positions: badge + per-position rating strip ----------------------- */
+/* A player's secondary positions ride alongside his listed one, dimmed so the
+   primary still reads first. The separator is CSS so the markup stays a plain
+   list of positions. */
+.position-badge-secondary {
+  opacity: 0.72;
+}
+.position-badge-secondary::before {
+  content: " / ";
+  opacity: 0.55;
+}
+
+/* What he'd be rated at each position he can cover. Only ever shown for
+   positions where the number means something (see players/positions.ts). */
+.position-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+.position-strip-cell {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--sg-border);
+  border-radius: var(--sg-radius);
+  background: var(--sg-surface);
+  color: var(--sg-text-faint);
+  font-size: var(--sg-text-xs);
+}
+.position-strip-cell--primary {
+  border-color: var(--sg-green);
+  background: var(--sg-green-wash);
+  color: var(--sg-text);
+}
+/* A position he also genuinely plays: marked so "he can play here for free" is
+   visible at a glance rather than only in the tooltip. */
+.position-strip-cell--secondary:not(.position-strip-cell--primary) {
+  border-color: var(--sg-border-strong);
+  color: var(--sg-text-muted);
+}
+.position-strip-cell--secondary:not(.position-strip-cell--primary) .position-strip-pos::after {
+  content: "*";
+  color: var(--sg-green-bright);
+}
+.position-strip-pos {
+  font-weight: var(--sg-weight-semibold);
+  letter-spacing: 0.03em;
+}
+.position-strip-ovr {
+  font-variant-numeric: tabular-nums;
 }
