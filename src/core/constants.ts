@@ -321,6 +321,65 @@ export const SECONDARY_POSITION_CUTOFF: Record<Position, Partial<Record<Position
 };
 
 /**
+ * How many OVR points better a player must be at another position before it
+ * becomes the one he is *listed* at — a career position change, as distinct
+ * from the second job `SECONDARY_POSITION_CUTOFF` grants him.
+ *
+ * A conversion is not cosmetic. `ovr` is position-relative by construction, so
+ * relisting a player where he rates higher RAISES his OVR, and wages are cubic
+ * in it while transfer value is steeper still. That makes this constant an
+ * inflation control first and a flavour knob second.
+ *
+ * Measured on a generated world (`scripts/positionChangeProbe.ts`), the share of
+ * players who have some better position at all, and what the move would pay:
+ *
+ *     margin | fresh world | after 10 seasons | mean gain
+ *     -------+-------------+------------------+----------
+ *          0 |        9.7% |            22.9% |      2.45
+ *          2 |        3.9% |            14.3% |      3.32
+ *          3 |        1.3% |             8.4% |      4.24
+ *          4 |        0.3% |             4.7% |      5.21
+ *          6 |        0.0% |             1.3% |      7.34
+ *
+ * A fresh world is already correctly listed — generation picks a position and
+ * then rolls ratings for it — so nothing fires on a new save, which is right.
+ * The backlog builds over a career instead, and the cause is development rather
+ * than aging: mean best-position gain by age runs 0.37 / 0.70 / 0.74 / 0.60 /
+ * 0.51 across <=20 / 21-24 / 25-28 / 29-32 / 33+, peaking in the mid-20s and
+ * FALLING for the oldest players. Decline barely moves it, because a uniform
+ * rating loss cancels exactly (every OVR weight row sums to 100); what tilts a
+ * profile is `growthDamping` compressing a player's strongest skills during his
+ * growth years — the same mechanism that raises versatility over a dynasty.
+ */
+export const POSITION_CHANGE_MARGIN = 4;
+
+/**
+ * How many consecutive seasons the margin above must hold before the position
+ * actually changes.
+ *
+ * This, not the margin, is what makes the feature viable. Measured, **5.9% to
+ * 8.0% of rostered players change which position they rate highest at EVERY
+ * SEASON** — so an instantaneous "play where you rate best" rule would relabel
+ * roughly 600 players a year, and a badge would mean nothing. Requiring the gap
+ * to survive several seasons filters for a real change in profile rather than a
+ * lucky noise draw.
+ *
+ * It is also the inflation control that matters, for the same reason. Taking a
+ * player's best-of-N positions is a maximum over noisy quantities, which sits
+ * systematically above any single fixed pick; demanding the same winner N
+ * seasons running strips out most of that selection bias, leaving the genuine
+ * profile drift behind it.
+ *
+ * The window is counted over snapshots taken *while he was listed at his
+ * current position* (`RatingsSnapshot.pos`), which hands the mechanic a
+ * cooldown for free: right after a conversion his history at the new position
+ * is empty, so he cannot move again until he has accumulated a fresh window.
+ * That is what stops a borderline player oscillating between two positions and
+ * collecting an OVR bump on each leg.
+ */
+export const POSITION_CHANGE_SEASONS = 3;
+
+/**
  * Most secondary positions a player can hold. Two (so at most a three-position
  * player) because the adjacency table gives outfielders only 2-3 candidates
  * anyway, and an unbounded list would print a badge nobody can read.
@@ -1911,6 +1970,17 @@ export const NEWS_STANDOUT_RATING_FLOOR = 8.0;
 
 /** Goal-milestone news items fire every time a player's season or career goal total crosses a multiple of this. */
 export const NEWS_GOAL_MILESTONE_STEP = 10;
+
+/**
+ * Minimum OVR for a career position change at an AI club to reach the News
+ * Feed. The user's own players are always reported regardless.
+ *
+ * Position changes are common enough across 320 clubs that reporting all of
+ * them would bury the feed, the same reason AI free-agent churn is kept out of
+ * it. A squad player quietly becoming a full-back in another country is not
+ * news; an established starter changing what he is, is.
+ */
+export const NEWS_POSITION_CHANGE_OVR = 72;
 
 /* ────────────────────────────────────────────────────────────────────────
  * Continental Cup (cross-country knockout tournament)

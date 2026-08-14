@@ -1,6 +1,6 @@
 import type { LeagueStore } from "../core/leagueState.js";
 import { CLUBS, type StoredTeam } from "../core/teams/clubs.js";
-import type { Player, SeasonStats, RatingsSnapshot } from "../core/players/types.js";
+import type { Player, SeasonStats, RatingsSnapshot, Position } from "../core/players/types.js";
 import type { PlayerMatchLine } from "../engine/attribution.js";
 import type { TeamSeasonStats } from "../core/standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "../core/awards.js";
@@ -147,9 +147,15 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
     // rating snapshots; there's no way to reconstruct which past seasons a
     // player spent in the academy, so they default to senior (false) and only
     // future seasons record the real value.
-    hist: (p.hist as (RatingsSnapshot & { academy?: boolean })[]).map((h) => ({
+    // Pre-position-change saves stamp no position on a rating snapshot. The
+    // backfill is exact rather than a guess: nothing could change a player's
+    // position before that feature existed, so every past snapshot was taken at
+    // the position he still holds. (Contrast the academy flag above, which
+    // genuinely can't be reconstructed.)
+    hist: (p.hist as (RatingsSnapshot & { academy?: boolean; pos?: Position })[]).map((h) => ({
       ...h,
       academy: h.academy ?? false,
+      pos: h.pos ?? p.pos,
     })),
     // Per-campaign international lines (added 2026-07-25). Saves from before
     // them keep their career totals, which stay the authoritative record; the

@@ -38,6 +38,7 @@ function addFreeAgent(
           ovr: over.peakOvr,
           potential: over.potential,
           academy: false,
+          pos: league.players[0].pos,
         }],
   };
   league.players.push(p);

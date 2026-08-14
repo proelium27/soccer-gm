@@ -1,8 +1,11 @@
-import type { Player, Position } from "./types.js";
+import type { Player, PlayerRatings, Position } from "./types.js";
 import { POSITIONS } from "./types.js";
 import { computeOvr } from "./ovr.js";
 import { COVERABLE } from "../../engine/positionFit.js";
-import { MAX_SECONDARY_POSITIONS, SECONDARY_POSITION_CUTOFF } from "../constants.js";
+import {
+  MAX_SECONDARY_POSITIONS, SECONDARY_POSITION_CUTOFF,
+  POSITION_CHANGE_MARGIN, POSITION_CHANGE_SEASONS,
+} from "../constants.js";
 
 /** What a player would be rated at one position, on the usual OVR scale. */
 export interface PositionRating {
@@ -143,4 +146,118 @@ export function ovrAtSlot(p: Player, slot: Position): number {
 export function positionLabel(p: Player): string {
   const sec = secondaryPositions(p);
   return sec.length === 0 ? p.pos : `${p.pos} / ${sec.join(" / ")}`;
+}
+
+/** One career position change, as recorded in a player's rating snapshots. */
+export interface PositionMove {
+  season: number;
+  from: Position;
+  to: Position;
+}
+
+/**
+ * Every position change in a player's recorded career, oldest first.
+ *
+ * Read straight off `hist`, so it needs nothing stored beyond the per-snapshot
+ * position and works unchanged for a save that pre-dates the feature — those
+ * snapshots all carry his current position (see migrate.ts), which correctly
+ * yields no moves.
+ */
+export function positionHistory(p: Player): PositionMove[] {
+  const out: PositionMove[] = [];
+  let prev: Position | null = null;
+  for (const h of p.hist) {
+    if (prev !== null && h.pos !== prev) out.push({ season: h.season, from: prev, to: h.pos });
+    prev = h.pos;
+  }
+  return out;
+}
+
+/** How much better he'd rate at `to` than at `from`, on one set of ratings. */
+function gapBetween(
+  ratings: PlayerRatings,
+  heightCm: number,
+  from: Position,
+  to: Position,
+): number {
+  return computeOvr(to, ratings, heightCm) - computeOvr(from, ratings, heightCm);
+}
+
+/**
+ * The position a player should now be LISTED at, or null to leave him where he
+ * is — a career position change, checked once per offseason.
+ *
+ * A secondary position (above) says "he can also do that job". This says "that
+ * job is now what he is", and unlike a secondary it is not free: `ovr` is
+ * position-relative, so relisting a player where he rates higher raises his
+ * rating, his wage (cubic in ovr) and his transfer value. Three gates keep that
+ * honest, and each one is load-bearing:
+ *
+ *  - **Coverable only.** The same COVERABLE set secondaries are drawn from, so
+ *    a conversion can only ever be one step across the pitch and keepers are
+ *    excluded in both directions. A striker cannot wake up a centre-back.
+ *
+ *  - **A real margin.** `POSITION_CHANGE_MARGIN` points better, not merely
+ *    better. Every player has *some* position he'd rate a fraction higher at,
+ *    so "play your best position" would relabel a fifth of the world on noise
+ *    alone and inflate the whole rating scale doing it.
+ *
+ *  - **Sustained, and measured only over seasons he spent at his current
+ *    position.** The gap must have held for `POSITION_CHANGE_SEASONS` seasons
+ *    running. This is the gate that does the real work: which position a player
+ *    rates highest at changes for 6-8% of rostered players *every season*, so
+ *    without it the badge would be noise. Restricting the window to snapshots
+ *    stamped at his current position also gives conversions a cooldown for
+ *    free — immediately after a move his history there is empty, so he cannot
+ *    bounce back and collect a second OVR bump.
+ *
+ * Pure, and deliberately draws nothing from the shared rng — position changes
+ * ride entirely on attributes the player already has, so introducing them does
+ * not shift the seeded stream (see the RNG-stream-order lesson). `ratings` is
+ * passed separately because the caller (`progressPlayer`) has already stepped
+ * them and has not rebuilt the player yet.
+ */
+export function changedPosition(
+  player: Player,
+  ratings: PlayerRatings,
+  margin: number = POSITION_CHANGE_MARGIN,
+  seasons: number = POSITION_CHANGE_SEASONS,
+): Position | null {
+  const from = player.pos;
+  const candidates = COVERABLE[from];
+  if (candidates.length === 0) return null;
+
+  // This season's gap, best candidate first. Ties break on position order so a
+  // dead heat resolves the same way every time it is evaluated.
+  let bestPos: Position | null = null;
+  let bestGap = -Infinity;
+  for (const to of candidates) {
+    const gap = gapBetween(ratings, player.heightCm, from, to);
+    if (gap > bestGap || (gap === bestGap && bestPos !== null
+      && POSITIONS.indexOf(to) < POSITIONS.indexOf(bestPos))) {
+      bestGap = gap;
+      bestPos = to;
+    }
+  }
+  if (bestPos === null || bestGap < margin) return null;
+
+  // ...and the same candidate must have cleared it in each of the previous
+  // seasons of his CURRENT spell at this position. Walking back until the
+  // position changes is what makes it a spell rather than a career total: a
+  // player who once played here, moved away and came back would otherwise be
+  // able to pair a fresh season with one from years ago and satisfy the window
+  // across the gap, which is precisely the case the cooldown exists for.
+  // Anything short of a full window — a youth-intake player, or one who just
+  // converted — is not enough history to move him on.
+  const need = seasons - 1;
+  const spell = [];
+  for (let i = player.hist.length - 1; i >= 0 && spell.length < need; i--) {
+    if (player.hist[i].pos !== from) break;
+    spell.push(player.hist[i]);
+  }
+  if (spell.length < need) return null;
+  for (const h of spell) {
+    if (gapBetween(h.ratings, player.heightCm, from, bestPos) < margin) return null;
+  }
+  return bestPos;
 }

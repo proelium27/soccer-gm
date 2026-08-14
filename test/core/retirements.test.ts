@@ -107,7 +107,7 @@ describe("summarizeRetirements", () => {
     // dropped 6 points in his final offseason should be remembered at 80.
     const player = makePlayer({ pid: 1, ovr: 74, age: 38 });
     player.hist = [{
-      season: SEASON - 1, ratings: player.ratings, ovr: 80, potential: 80, academy: false,
+      season: SEASON - 1, ratings: player.ratings, ovr: 80, potential: 80, academy: false, pos: player.pos,
     }];
 
     const [row] = summarizeRetirements([player], SEASON, new Map(), 0).notable;

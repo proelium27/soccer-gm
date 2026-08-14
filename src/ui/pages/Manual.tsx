@@ -752,6 +752,24 @@ export function Manual() {
             attributes, so it can appear or fade as he develops.
           </p>
           <p>
+            <strong>Players can change position for good.</strong> A second position says he can also
+            do that job. Sometimes a player stops being what he was: if he's been clearly better at a
+            nearby position for a few seasons running, not just in one good year, that position
+            becomes the one he's listed at. His rating is then worked out as that kind of player, so
+            it usually ticks up, and his wage and transfer value follow. You'll see it on the news
+            feed for your own players, and his profile keeps the record ("came through at W, moved to
+            AM in 2031").
+          </p>
+          <p>
+            You can't order a conversion, and it isn't random either. It comes out of how he's
+            developed: as players grow, their strongest attributes get harder to push, so a sharp
+            specialist gradually broadens, and now and then he broadens far enough that a different
+            job genuinely suits him better. It happens most in a player's early and middle twenties
+            and it's uncommon, a handful of players across the world each season, so a converted
+            player is worth noticing. New worlds start with nobody miscast, so nothing moves in your
+            first seasons. Keepers never convert, and nobody ever converts into a keeper.
+          </p>
+          <p>
             <strong>Roster cap: 30 players.</strong> Signings, transfer buys, and academy promotions
             are blocked once you're full (the Roster, Transfers, and Incoming Talent pages all show
             an x/30 count). Your academy has its own separate 10-player cap, covered in{" "}
