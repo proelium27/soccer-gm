@@ -32,6 +32,15 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-08-14",
+    title: "Attacking midfielders are no longer over-rewarded by the awards",
+    items: [
+      "Player of the Season, the Ballon d'Or and the Team of the Season all price goals and assists by position, on the principle that end product is worth more from a position that produces less of it. Attacking midfielders were grouped with the central and defensive midfielders for this, which paid them 0.10 a goal and 0.07 an assist against a winger's 0.08 and 0.05. That premium was not earned. Measured across eight seasons of a full world, an attacking midfielder averages 6.3 goals and 5.8 assists a season, a winger 7.9 and 5.6, and a central midfielder 4.3 and 5.4. An attacking midfielder is an attacker in this game, so he was being paid a scarcity rate for production that is not scarce.",
+      "Attacking midfielders are now scored at the same rate as wingers and strikers. The effect is on who fills out the shortlists rather than on the headline winner: over those same eight seasons the Ballon d'Or top ten went from 27 attacking-midfield places and 29 striker places to 17 and 34. A winger who outscores an attacking midfielder now finishes above him instead of below.",
+      "This does not change who won the award in those seasons, and the reason is worth stating plainly. The winner is decided mostly by how good the player is rather than by his statline, and a high overall rating simply lasts longer at attacking midfield than at centre forward: a player who reaches 80 holds it for around three seasons as an attacking midfielder and barely one as a striker, because so much more of a striker's rating rests on physical attributes that fade early. That is a property of how ratings are built, not of the awards, and it has been left alone.",
+    ],
+  },
+  {
     date: "2026-08-13",
     title: "Positions now decide how a team plays, and a player's position can change",
     items: [
