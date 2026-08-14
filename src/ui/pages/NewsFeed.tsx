@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import type { StoredTeam } from "../../core/leagueState.js";
-import type { NewsEvent, NewsEventType } from "../../core/newsEvents.js";
+import { unpackPositionChange, type NewsEvent, type NewsEventType } from "../../core/newsEvents.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
@@ -18,6 +18,9 @@ const EVENT_LABEL: Record<NewsEventType, string> = {
   goalMilestoneSeason: "🎯 Season milestone",
   goalMilestoneCareer: "🎯 Career milestone",
   generationalTalent: "💎 Generational talent",
+  // Deliberately no emoji: the project rule is that the UI carries none (real
+  // icons are hand-written inline SVG). The five above predate that rule.
+  positionChange: "Position change",
 };
 
 function eventDetail(e: NewsEvent): string {
@@ -32,6 +35,10 @@ function eventDetail(e: NewsEvent): string {
       return `${e.detail} career goals`;
     case "generationalTalent":
       return `once-in-a-generation prospect joins the academy, age ${e.detail}`;
+    case "positionChange": {
+      const { from, to } = unpackPositionChange(e.detail);
+      return `now plays at ${to}, after coming through at ${from}`;
+    }
   }
 }
 

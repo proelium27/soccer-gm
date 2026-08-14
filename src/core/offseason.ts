@@ -4,7 +4,7 @@ import type { StoredTeam } from "./teams/clubs.js";
 import { assignAIFormations } from "./teams/clubs.js";
 import type { Competition } from "./competitions.js";
 import { progressPlayer, rollRetirement, isGenerational } from "./players/progression.js";
-import type { NewsEvent } from "./newsEvents.js";
+import { packPositionChange, type NewsEvent } from "./newsEvents.js";
 import { generateYouthIntake } from "./players/youth.js";
 import { computeAcademyFormModifiers } from "./players/academyForm.js";
 import { cullFreeAgentPool } from "./players/freeAgentCull.js";
@@ -37,6 +37,7 @@ import { competitionOf } from "./competitions.js";
 import { simThroughInternational } from "./international/index.js";
 import { carryIntlInjuries } from "./injuries.js";
 import { hashInts, mulberry32 } from "../engine/rng.js";
+import { NEWS_POSITION_CHANGE_OVR } from "./constants.js";
 
 /** rng-stream tag for rolling carried-over international injury durations. */
 const INTL_INJURY_STREAM = 840;
@@ -147,9 +148,27 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //    Academy players have no senior appearances to read minutes from (they
   //    don't play senior matches), so they're assumed to play a full season
   //    rather than being penalized with the worst-case minutesFactor.
+  //    A season's development can also change what position a player is listed
+  //    at (see players/positions.ts). That is decided inside progressPlayer off
+  //    his attributes; detecting it here is just a before/after comparison, and
+  //    it is where the club he was at is still known.
   const academyPids = new Set(teams.flatMap((t) => t.academyRoster));
+  const positionChangeEvents: NewsEvent[] = [];
   let players: Player[] = renewals.players.map((p) => {
     const progressed = progressPlayer(rng, p, endingSeason, academyPids.has(p.pid));
+    const tid = tidLastSeason.get(p.pid);
+    // Only rostered players, and away from the user's own club only the ones
+    // good enough to be news. Every conversion in the world would bury the feed
+    // the same way AI free-agent churn would — the user's squad is always worth
+    // telling him about, a mid-table reserve in another country is not.
+    if (progressed.pos !== p.pos && tid !== undefined
+      && (tid === league.meta.userTid || progressed.ovr >= NEWS_POSITION_CHANGE_OVR)) {
+      positionChangeEvents.push({
+        type: "positionChange", pid: p.pid, tid,
+        season: nextSeason, matchday: 0,
+        detail: packPositionChange(p.pos, progressed.pos),
+      });
+    }
     return progressed.injury ? { ...progressed, injury: null } : progressed;
   });
 
@@ -501,7 +520,14 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     transfers: finalTransfers,
     activeLoans,
     loanListings,
-    newsEvents: [...league.newsEvents, ...generationalEvents],
+    // A player can convert at step 2 and then retire at step 3. Announcing a
+    // career move by someone who has just retired reads as a bug, and his pid is
+    // about to be deleted, so those events are dropped rather than kept.
+    newsEvents: [
+      ...league.newsEvents,
+      ...positionChangeEvents.filter((e) => !retiredPids.has(e.pid)),
+      ...generationalEvents,
+    ],
     winterMarketRunSeason: null,
     // Archive the season's completed Continental Cup and seed the next one
     // from the tier-1 tables just decided above (top CUP_TEAMS_PER_LEAGUE of

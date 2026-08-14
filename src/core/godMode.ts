@@ -165,7 +165,7 @@ export function createCustomPlayer(
     injury: null,
     stats: [],
     hist: [
-      { season: league.season - 1, ratings: spec.ratings, ovr, potential: spec.potential, academy: false },
+      { season: league.season - 1, ratings: spec.ratings, ovr, potential: spec.potential, academy: false, pos: spec.pos },
     ],
   };
   // Advance the cursor so this pid can never be handed out again.

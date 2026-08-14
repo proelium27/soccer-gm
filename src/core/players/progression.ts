@@ -1,5 +1,6 @@
 import type { Player, PlayerRatings, SkillKey } from "./types.js";
 import { computeOvr } from "./ovr.js";
+import { changedPosition } from "./positions.js";
 import { gaussian, hashInts, mulberry32 } from "../../engine/rng.js";
 import {
   BASE_AGE_CURVE, BASE_AGE_CURVE_PEAK, PHYSICAL_AGE_SHIFT, SKILL_AGE_SHIFT,
@@ -241,16 +242,21 @@ export function progressPlayer(
         * Math.max(0, Math.min(1, appearances / FULL_SEASON_APPEARANCES));
   }
 
+  // He trains as what he currently is, so the rating step reads his old
+  // position; only once the season's development has landed do we ask whether
+  // it has made him something else.
   const ratings = stepRatings(rng, player.ratings, age, player.pos, minutesFactor, player.pid, player.heightCm);
-  const ovr = computeOvr(player.pos, ratings, player.heightCm);
-  const potential = estimatePotential(rng, ratings, ovr, age, player.pos, player.heightCm, player.pid);
+  const pos = changedPosition(player, ratings) ?? player.pos;
+  const ovr = computeOvr(pos, ratings, player.heightCm);
+  const potential = estimatePotential(rng, ratings, ovr, age, pos, player.heightCm, player.pid);
 
   return {
     ...player,
+    pos,
     ratings,
     ovr,
     potential,
-    hist: [...player.hist, { season, ratings, ovr, potential, academy: inAcademy }],
+    hist: [...player.hist, { season, ratings, ovr, potential, academy: inAcademy, pos }],
   };
 }
 

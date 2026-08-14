@@ -22,7 +22,7 @@ import { INTL_TOURNAMENT_NAME } from "../../core/constants.js";
 import { PlayerEditModal } from "../components/PlayerEditModal.js";
 import { computePlayerHonors } from "../../core/playerHonors.js";
 import { RetiredPlayerProfile } from "./RetiredPlayerProfile.js";
-import { PositionBadge, PositionStrip } from "../components/PositionBadge.js";
+import { PositionBadge, PositionHistoryNote, PositionStrip } from "../components/PositionBadge.js";
 
 /** One career-honor badge, e.g. "3x Golden Boot" — omits the count for a single win. */
 function AwardPill({ label, seasons, icon }: { label: string; seasons: number[]; icon?: ReactNode }) {
@@ -205,6 +205,7 @@ export function PlayerProfile() {
       </p>
 
       <PositionStrip player={player} />
+      <PositionHistoryNote player={player} />
 
       {player.intl && player.intl.caps > 0 && (
         <p className="mb-3 small">

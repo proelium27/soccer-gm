@@ -1,6 +1,9 @@
 import type { Player, Position } from "../../core/players/types.js";
-import { positionLabel, positionRatings, secondaryPositions } from "../../core/players/positions.js";
+import {
+  positionHistory, positionLabel, positionRatings, secondaryPositions,
+} from "../../core/players/positions.js";
 import { fitTier } from "../../engine/positionFit.js";
+import { seasonYear } from "../format.js";
 
 /**
  * A player's position as the UI should name it: his listed position, plus any
@@ -84,5 +87,35 @@ export function PositionStrip({ player }: { player: Player }) {
         </div>
       ))}
     </div>
+  );
+}
+
+/**
+ * "Came through at W, moved to AM in 2031." — a player's career position
+ * changes, or nothing at all for the great majority who never move.
+ *
+ * Worth showing because his per-position ratings only describe him today: once
+ * he has converted, the strip above gives no hint that he spent his first eight
+ * seasons somewhere else, and his early stat lines were compiled there.
+ *
+ * Dated `season + 1`, the same convention the career chart uses and the same
+ * season the news event carries: a snapshot is stamped at the END of a season
+ * and describes what the player takes into the next one, so the season he first
+ * actually lines up at the new position is the one after the stamp. Using the
+ * stamp itself would date the same move a year earlier here than on the feed.
+ */
+export function PositionHistoryNote({ player }: { player: Player }) {
+  const moves = positionHistory(player);
+  if (moves.length === 0) return null;
+  return (
+    <p className="mb-3 small text-muted">
+      Came through at {moves[0].from},{" "}
+      {moves.map((m, i) => (
+        <span key={m.season}>
+          {i > 0 ? ", then " : "moved to "}
+          <strong>{m.to}</strong> in {seasonYear(m.season + 1)}
+        </span>
+      ))}.
+    </p>
   );
 }
