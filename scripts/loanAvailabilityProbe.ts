@@ -29,7 +29,16 @@ import { keepValueToClub } from "../src/core/ai/evaluate.js";
 import { trueTransferValue } from "../src/core/finance/valuation.js";
 import { resolveXI } from "../src/core/lineup/resolveXI.js";
 import { teamSlots } from "../src/core/lineup/formations.js";
-import { LOAN_AI_MAX_AGE, LOAN_AVAILABILITY } from "../src/core/constants.js";
+import { LOAN_AI_MAX_AGE } from "../src/core/constants.js";
+
+/**
+ * The screen this probe was written to measure. LOAN_AVAILABILITY was deleted
+ * from constants.ts on 2026-08-13 *because of* the numbers below, so the value
+ * is pinned here to keep the measurement reproducible — the same way
+ * cupUndercountDemo.ts keeps a removed behaviour runnable. Re-running this
+ * should still report ~28.9% of clubs' best loan-eligible players passing.
+ */
+const LOAN_AVAILABILITY = 0.95;
 
 const SEASONS = Number(process.argv[2] ?? 6);
 
