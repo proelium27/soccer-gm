@@ -11,7 +11,9 @@ import { allTimeInternational, cappedNationalities } from "../../src/core/frivol
 import {
   computeHonours, playerGoatRanking, teamGoatRanking, pointsOf,
 } from "../../src/core/frivolities/goat.js";
+import { computeAwardTrivia, sortAwardRows } from "../../src/core/frivolities/honours.js";
 import { computePlayerHonors } from "../../src/core/playerHonors.js";
+import type { BallonDOrEntry } from "../../src/core/worldAwards.js";
 import { FREE_AGENT_TID } from "../../src/core/transfers/negotiation.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
 import type { SeasonHistoryEntry, StandingsRow } from "../../src/core/standings.js";
@@ -670,5 +672,170 @@ describe("GOAT rankings", () => {
       // 178 points from 76 matches.
       expect(teamGoatRanking(store).find((r) => r.tid === 1)!.ppg).toBeCloseTo(178 / 76, 6);
     });
+  });
+});
+
+describe("awards trivia", () => {
+  /** A Ballon d'Or shortlist entry, defaulting every part into the league component. */
+  function bdo(pid: number, tid: number, score: number, parts: Partial<BallonDOrEntry> = {}): BallonDOrEntry {
+    return { pid, tid, score, league: score, cup: 0, intl: 0, title: 0, ...parts };
+  }
+
+  /** A season-history entry carrying only the award records these boards read. */
+  function awardHistory(season: number, o: {
+    ballonDOr?: BallonDOrEntry[];
+    worldXI?: (number | null)[];
+    poty?: number;
+    goldenBoot?: number;
+    tots?: (number | null)[];
+  }): SeasonHistoryEntry {
+    return {
+      season, table: [], teamStats: [], compsByTid: {}, championTidByCompId: {},
+      awards: {
+        0: {
+          playerOfSeasonPid: o.poty ?? null,
+          goldenBootPid: o.goldenBoot ?? null,
+          teamOfSeason: o.tots ?? [],
+        },
+      },
+      world: { ballonDOr: o.ballonDOr ?? [], worldTeamOfYear: o.worldXI ?? [] },
+    } as unknown as SeasonHistoryEntry;
+  }
+
+  it("counts every individual award per career and re-ranks on demand", () => {
+    const store = makeStore({
+      players: [
+        makePlayer({ pid: 1, lines: [[2028, 1, 38, 30, 5]], nationality: "bra" }),
+        makePlayer({ pid: 2, lines: [[2028, 2, 38, 25, 5]], nationality: "esp" }),
+      ],
+      seasonHistory: [
+        awardHistory(2028, {
+          ballonDOr: [bdo(1, 1, 9), bdo(2, 2, 8)],
+          worldXI: [2], poty: 2, goldenBoot: 2, tots: [1, 2],
+        }),
+      ],
+    });
+
+    const trivia = computeAwardTrivia(store);
+    const one = trivia.careers.find((r) => r.career.pid === 1)!;
+    const two = trivia.careers.find((r) => r.career.pid === 2)!;
+    expect(one.tally.ballonDOr).toBe(1);
+    expect(one.tally.total).toBe(2); // Ballon d'Or + a Team of the Season place.
+    expect(two.tally.total).toBe(4); // World XI, Player of the Season, Golden Boot, TOTS.
+    // Ranked by the whole haul the runner-up leads; ranked by the Ballon d'Or
+    // itself, the winner does.
+    expect(trivia.careers[0].career.pid).toBe(2);
+    expect(sortAwardRows(trivia.careers, "ballonDOr")[0].career.pid).toBe(1);
+    // A board ranked by one award never lists players who haven't won it.
+    expect(sortAwardRows(trivia.careers, "ballonDOr")).toHaveLength(1);
+  });
+
+  it("scores a career of near-misses on shares, and counts wins in a row", () => {
+    const store = makeStore({
+      players: [
+        makePlayer({ pid: 1, lines: [[2028, 1, 38, 30, 5]] }),
+        makePlayer({ pid: 2, lines: [[2028, 2, 38, 25, 5]] }),
+      ],
+      seasonHistory: [
+        awardHistory(2028, { ballonDOr: [bdo(1, 1, 9), bdo(2, 2, 8.5)] }),
+        awardHistory(2029, { ballonDOr: [bdo(1, 1, 9), bdo(2, 2, 8.4)] }),
+        // A gap year, so the streak below has to stop at two.
+        awardHistory(2031, { ballonDOr: [bdo(2, 2, 9), bdo(1, 1, 8)] }),
+      ],
+    });
+
+    const trivia = computeAwardTrivia(store);
+    const one = trivia.ballonDOr.find((r) => r.career.pid === 1)!;
+    const two = trivia.ballonDOr.find((r) => r.career.pid === 2)!;
+    expect(one.ballon.wins).toBe(2);
+    expect(one.ballon.runnerUp).toBe(1);
+    expect(one.ballon.bestRun).toBe(2);
+    expect(two.ballon.bestRun).toBe(1);
+    // A win is a whole share, a runner-up nine tenths of one.
+    expect(one.ballon.shares).toBeCloseTo(2.9, 6);
+    expect(two.ballon.shares).toBeCloseTo(2.8, 6);
+    expect(trivia.ballonDOr[0].career.pid).toBe(1);
+  });
+
+  it("ranks single seasons by score across the whole save, winners and losers alike", () => {
+    // A monster runner-up season must be allowed to outrank a weak winner from
+    // another year — that's the question this board answers.
+    const store = makeStore({
+      players: [
+        makePlayer({ pid: 1, lines: [[2028, 1, 38, 30, 5]] }),
+        makePlayer({ pid: 2, lines: [[2028, 2, 38, 25, 5]] }),
+      ],
+      seasonHistory: [
+        awardHistory(2028, { ballonDOr: [bdo(1, 1, 12, { cup: 3 }), bdo(2, 2, 11)] }),
+        awardHistory(2029, { ballonDOr: [bdo(2, 2, 7)] }),
+      ],
+    });
+
+    const seasons = computeAwardTrivia(store).dominantSeasons;
+    expect(seasons.map((s) => [s.pid, s.season, s.rank]))
+      .toEqual([[1, 2028, 1], [2, 2028, 2], [2, 2029, 1]]);
+    // The parts behind the top score survive for the breakdown.
+    expect(seasons[0].entry.cup).toBe(3);
+  });
+
+  it("credits an award to the club he was at that season, not the one he's at now", () => {
+    const store = makeStore({
+      players: [makePlayer({
+        pid: 1, nationality: "bra",
+        lines: [[2028, 1, 38, 30, 5], [2029, 2, 38, 20, 5]],
+      })],
+      seasonHistory: [awardHistory(2028, { poty: 1, tots: [1] })],
+    });
+
+    const trivia = computeAwardTrivia(store);
+    expect(trivia.clubs.map((c) => c.tid)).toEqual([1]);
+    expect(trivia.clubs[0].total).toBe(2);
+    expect(trivia.nations[0]).toMatchObject({ nationality: "bra", playerOfSeason: 1, total: 2 });
+  });
+
+  it("keeps a retiree's honours, and still shows an award nobody remembers winning", () => {
+    const store = makeStore({
+      players: [],
+      retiredPlayers: [makeArchived({
+        pid: 99, name: "Old Hand", born: 1998,
+        seasons: [{ season: 2028, tid: 1, ovr: 90, apps: 38 }],
+      })],
+      seasonHistory: [
+        awardHistory(2028, { ballonDOr: [bdo(99, 1, 10), bdo(7, 2, 9)], poty: 99 }),
+      ],
+    });
+
+    const trivia = computeAwardTrivia(store);
+    expect(trivia.careers[0].career.name).toBe("Old Hand");
+    expect(trivia.careers[0].tally.total).toBe(2);
+    // pid 7 is in neither the pool nor the archive: the award happened, so the
+    // row renders under a placeholder rather than disappearing.
+    const stranger = trivia.dominantSeasons.find((s) => s.pid === 7)!;
+    expect(stranger.name).toBe("Player 7");
+    expect(stranger.nationality).toBe("");
+    expect(stranger.age).toBeNull();
+    // ...and an unknown pid can't be filed under a country.
+    expect(trivia.nations.map((n) => n.nationality)).toEqual(["esp"]);
+  });
+
+  it("ages a winner by the season he won it, not by today", () => {
+    const store = makeStore({
+      season: 2040,
+      players: [
+        makePlayer({ pid: 1, age: 30, lines: [[2028, 1, 38, 30, 5]] }),
+        makePlayer({ pid: 2, age: 40, lines: [[2029, 2, 38, 25, 5]] }),
+      ],
+      seasonHistory: [
+        awardHistory(2028, { ballonDOr: [bdo(1, 1, 9)] }),
+        awardHistory(2029, { ballonDOr: [bdo(2, 2, 9)] }),
+      ],
+    });
+
+    const trivia = computeAwardTrivia(store);
+    // makePlayer dates a birth off season 2030, so these are 2000 and 1990.
+    expect(trivia.youngestWinners.map((w) => [w.pid, w.age])).toEqual([[1, 28], [2, 39]]);
+    expect(trivia.oldestWinners[0].pid).toBe(2);
+    expect(trivia.rollOfHonour.map((r) => r.season)).toEqual([2029, 2028]);
+    expect(trivia.rollOfHonour[0].runnerUp).toBeNull();
   });
 });

@@ -22,6 +22,8 @@ export interface CareerRow {
   pos: Position;
   /** Still in the world, i.e. not retired. */
   active: boolean;
+  /** The season he was born in — his age in any season is that season minus this. */
+  born: number;
   /** Club he's at now (active) or last played for (retired); null if neither. */
   tid: number | null;
   seasonsPlayed: number;
@@ -59,6 +61,7 @@ function rowFromArchived(a: ArchivedPlayer): CareerRow {
     nationality: a.nationality,
     pos: a.pos,
     active: false,
+    born: a.born,
     tid: a.clubs.length ? a.clubs[a.clubs.length - 1] : null,
     seasonsPlayed: a.seasonsPlayed,
     firstSeason: a.firstSeason,
@@ -105,6 +108,7 @@ function rowFromPlayer(
     nationality: p.nationality,
     pos: p.pos,
     active: true,
+    born: p.born,
     tid: tidOf(p.pid),
     seasonsPlayed: played.length,
     firstSeason: played.length ? played[0].season : 0,
