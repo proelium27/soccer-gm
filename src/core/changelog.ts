@@ -32,6 +32,15 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-08-15",
+    title: "Seven more formations",
+    items: [
+      "The formation dropdown on the Roster page now offers sixteen shapes instead of nine. The new ones are 4-4-1-1, 4-3-2-1, 4-2-2-2, 3-4-2-1, 3-5-1-1, 5-2-3 and 5-2-1-2. Each fields a different mix of positions from anything already on the list, so every one of them is a genuinely different eleven rather than the same team drawn differently: 4-2-2-2 starts two attacking mids behind two strikers, 4-3-2-1 puts two attacking mids behind a lone striker, 5-2-3 sits a back three behind two holding mids with a front three ahead, and so on.",
+      "Shapes that would have fielded exactly the same set of positions as an existing one were deliberately left out. 4-1-4-1 uses the same eleven positions as 4-3-3 and 4-2-4 the same as 4-4-2, so adding them would have padded the dropdown without changing which of your players get on the pitch.",
+      "AI clubs pick from the wider list too, and the effect is more variety rather than a new best shape: across a full world, all sixteen get used and the most popular shape now accounts for 19% of clubs where the most popular of the old nine accounted for 26%. About a third of clubs line up differently than they would have, and the strongest eleven they can field improves by about 0.16 of a rating point per starter, so this is a change in how teams look rather than how good they are.",
+    ],
+  },
+  {
     date: "2026-08-13",
     title: "Positions now decide how a team plays, and a player's position can change",
     items: [
