@@ -27,9 +27,11 @@
  */
 import { mulberry32, hashInts } from "../src/engine/rng.js";
 import { generatePlayer } from "../src/core/players/generate.js";
-import { progressPlayer } from "../src/core/players/progression.js";
+import { progressPlayer, retirementProbability } from "../src/core/players/progression.js";
 import { emptySeasonStats, type Player, type Position } from "../src/core/players/types.js";
-import { FULL_SEASON_APPEARANCES } from "../src/core/constants.js";
+import {
+  FULL_SEASON_APPEARANCES, PHYSICAL_AGE_SHIFT, SKILL_AGE_SHIFT, BASE_AGE_CURVE_PEAK,
+} from "../src/core/constants.js";
 
 const PER_POS = Number(process.argv[2] ?? 400);
 const SEED = Number(process.argv[3] ?? 7);
@@ -126,6 +128,44 @@ for (const pos of POSITIONS) {
     return mean(xs).toFixed(1).padStart(6);
   }).join(""));
 }
+
+// ── The anti-inflation guard ────────────────────────────────────────────────
+// PHYSICAL_AGE_SHIFT/SKILL_AGE_SHIFT's comment records that they are calibrated
+// so each rating group's *survival-weighted expected lifetime delta* lands at
+// ~0 or slightly negative for every position: a career must average out
+// flat-to-declining, or the rostered population inflates without bound over a
+// long dynasty. Any change to those shifts has to be read against this number,
+// not just against the peak distribution above.
+//
+// Weight each season's ovr step by the probability the player is still active
+// to take it (retirementProbability, rostered branch — an unrostered player is
+// not in the population that would inflate).
+console.log("\nSURVIVAL-WEIGHTED LIFETIME OVR DELTA (must stay ~0 or negative)");
+console.log(`  shifts in force: PHYSICAL_AGE_SHIFT ${PHYSICAL_AGE_SHIFT}, `
+  + `SKILL_AGE_SHIFT ${SKILL_AGE_SHIFT}, curve peak ${BASE_AGE_CURVE_PEAK}`);
+console.log("  (physical ratings peak near "
+  + `${BASE_AGE_CURVE_PEAK - PHYSICAL_AGE_SHIFT - 1}, technical near ${BASE_AGE_CURVE_PEAK - SKILL_AGE_SHIFT - 1})`);
+console.log("pos    lifetime delta");
+let worst = -Infinity;
+for (const pos of POSITIONS) {
+  const cs = careers.get(pos)!;
+  const perCareer = cs.map((c) => {
+    let survival = 1;
+    let acc = 0;
+    for (let age = START_AGE + 1; age <= END_AGE; age++) {
+      const prev = c.byAge.get(age - 1);
+      const cur = c.byAge.get(age);
+      if (prev === undefined || cur === undefined) continue;
+      survival *= 1 - retirementProbability(age - 1, true);
+      acc += survival * (cur - prev);
+    }
+    return acc;
+  });
+  const m = mean(perCareer);
+  worst = Math.max(worst, m);
+  console.log(`  ${pos.padEnd(3)} ${m.toFixed(2).padStart(14)}${m > 0.5 ? "   <-- INFLATING" : ""}`);
+}
+console.log(`  worst position: ${worst.toFixed(2)} (needs to stay <= ~0.5)`);
 
 console.log("\nPOSITION CONVERSION (changedPosition runs inside progressPlayer)");
 for (const pos of POSITIONS) {

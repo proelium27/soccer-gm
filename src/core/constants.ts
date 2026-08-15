@@ -601,9 +601,68 @@ export const BASE_AGE_CURVE: readonly [number, number][] = [
  * dynasty's rostered population inflates without bound over decades (a
  * bought-and-verified-empirically failure mode with the previous ±3/-3
  * values, worst for skill-heavy positions like GK/CM/AM/DM).
+ *
+ * **Narrowed 3 / -1.5 → 1 / -0.9 on 2026-08-14. What matters is the GAP
+ * between the two peaks, not either shift's absolute value.** At 3 / -1.5 the
+ * physical group peaked at 22 and the technical group at 26.5 — four and a
+ * half years apart — so a position's elite tail was set by how technical it
+ * was. A striker carries 30% declining-physical weight, so nearly a third of
+ * his rating stopped growing at 22 while an attacking midfielder's 92%
+ * technical share kept compounding to 26.5: measured on controlled cohorts
+ * (`scripts/positionCeilingAudit.ts`, 2500 careers/position), AM gained 11.1
+ * ovr from 18 to peak against ST's 8.4, which put AM ~1 ovr above ST across
+ * the whole upper distribution and — because the density near the 80 line is
+ * high — turned that single point into a **32.4% vs 22.1%** gap in how often
+ * each position ever reaches 80. That is why every individual award pooled at
+ * attacking midfield, and why it could not be fixed in the award formulas.
+ *
+ * Both shifts move toward each other, which is the load-bearing detail:
+ * cutting `PHYSICAL_AGE_SHIFT` alone lifts *every* position (it adds growth to
+ * a share everyone has) and closes only ~1 point of the gap per unit while
+ * spending the inflation budget — measured at 3 → 2: ST +1.9 but AM +0.9,
+ * gap 10.3 → 9.3, and the binding GK lifetime delta -1.00 → -0.57 against a
+ * ~0 ceiling. Raising `SKILL_AGE_SHIFT` at the same time pays for it, because
+ * the technical share is what the skill-heavy positions are made of: the pair
+ * moves ST +2.5 / FB +2.6 / CB +2.0 while AM -0.5 / CM -0.4 / GK -0.3,
+ * narrowing the gap to 7.3 with the overall level held (AM mean peak -0.2,
+ * ST +0.3) and every lifetime delta landing *more* negative than before
+ * (GK -1.00 → -1.97), i.e. further from the inflation ratchet, not closer.
+ *
+ * `-0.9` rather than a rounder number because the offset has to be weighted by
+ * how much technical share the average outfielder actually carries (~70%
+ * against ~25% physical); `-0.5` over-corrected and deflated the world (AM
+ * mean peak 76.2 → 75.8, GK lifetime delta -3.26).
+ *
+ * **GK is the constraint when tuning these, not the position you are aiming
+ * at.** It is the least negative lifetime delta of any position, so it crosses
+ * into inflation first; check it before anything else.
+ *
+ * Knock-on worth knowing: this also collapsed the one-way conversion pump into
+ * AM that `changedPosition` was running. A winger's ovr is 20% speed against an
+ * attacking midfielder's 8%, so once his pace started falling at 22 the ovr
+ * formula mechanically rated him higher as an AM and relisted him. Measured on
+ * the same cohorts, net conversions into AM fell **+674 → +84 per 2500-career
+ * cohort (-87%)**, with W→AM 570 → 229 and AM→W 167 → 298 — near balance
+ * instead of a drain. No second change was needed for it; one cause, two
+ * symptoms.
+ *
+ * **VERIFICATION STATUS — the live-world effect is NOT established.** The
+ * cohort evidence above is clean and mechanistic, but a controlled cohort is
+ * not a league: it has no transfers, squad selection, youth intake or
+ * retirement. Two 10-season dynasty runs (`scripts/agingDynastyProbe.ts`)
+ * disagree on the thing this change is *for* — the striker share of the tier-1
+ * 80+ population went 9.1% → 6.8% on seed 7 and 8.0% → 15.2% on seed 11, with
+ * AM 17.9% → 19.8% and 23.2% → 12.4% respectively. The two-seed mean moves the
+ * right way (ST 8.6% → 11.0%, AM 20.6% → 16.1%) but **the per-seed spread is
+ * several times the effect**, so this is suggestive, not proven. What *is*
+ * consistent on both seeds is the safety side: the 80+ population came out
+ * lower or level (71 → 63, 77 → 56) and tier-1 mean ovr slightly higher
+ * (50.74 → 51.48, 51.30 → 51.61), i.e. no inflation. Settling the positional
+ * claim needs ~8-10 seeds at 10+ seasons, per condition. Do not quote the
+ * positional numbers as fact until that runs.
  */
-export const PHYSICAL_AGE_SHIFT = 3;
-export const SKILL_AGE_SHIFT = -1.5;
+export const PHYSICAL_AGE_SHIFT = 1;
+export const SKILL_AGE_SHIFT = -0.9;
 /** Extra "younger" shift applied to every rating group for goalkeepers (mild career-long-keeper edge). */
 export const GK_AGE_SHIFT = -0.5;
 
