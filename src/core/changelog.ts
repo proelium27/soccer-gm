@@ -6,12 +6,19 @@
  * Keeping it in sync (same bar as the Manual — see CLAUDE.md):
  * - When a player-visible feature ships, changes, or is removed, PREPEND an
  *   entry here in the same PR. Newest entry goes first (top of the array).
- * - Write PURELY INFORMATIONALLY: state what changed, how it behaves, and why
- *   it was done. No first person, no addressing the reader as a friend, no
- *   rhetorical asides or jokes. Be specific and quote real numbers where they
- *   help; a known limitation is stated plainly rather than apologised for.
- *   (Entries dated before 2026-08-05 are in an older casual first-person voice
- *   and were left as a historical record; match the newest entries, not those.)
+ * - Write INFORMALLY and PERSONALLY (rule changed 2026-08-15): first person is
+ *   fine and wanted, and saying plainly what was wrong is better than a passive
+ *   summary — "As the world grew bigger I never expanded the name pool with it,
+ *   so a bunch of players ended up having the same name." Informal means PLAIN,
+ *   not performative: no jokes, no winking asides, no hype. Be specific and
+ *   quote real numbers where they help, and lead with the concrete thing a
+ *   player would have noticed before the statistic; a known limitation is
+ *   stated plainly rather than apologised for.
+ *   (Voice has changed twice. Entries before 2026-08-05 are casual first
+ *   person, 2026-08-05 to 2026-08-14 are impersonal and purely informational,
+ *   and neither was rewritten. Match the newest entries, not the old ones.)
+ * - The Discord announcement version uses this same voice, in a different
+ *   layout. Write one and adapt it.
  * - Group a batch of related changes shipped together under one dated entry.
  * - Formatting: entries render as prose paragraphs (one per `items` string) by
  *   default, which is what most entries should be. Only set `list: true` when
@@ -33,11 +40,11 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-08-15",
-    title: "Many more names, so far fewer players share one",
+    title: "Expanded the name pool",
     items: [
-      "The pools of first and last names each nationality draws from have been expanded, in most cases several times over. A player's name is one first name paired with one last name, so a country with ten of each could only ever produce a hundred names, against a world that generates 8,000 players. That was well short: in a new world, 17.7% of all players shared a name with someone else, and in the Turkish league four fifths of players did, with twelve separate men called Ahmet Ozturk. The same problem hit Senegal, Morocco, Ivory Coast, Italy and every small pool.",
-      "Pools are now sized by how many players a nationality actually produces rather than by how common it is in one league, which matters because nations like Senegal and Morocco appear in many leagues' rosters at once. The countries with their own league now carry around 90 first names and 96 last names each, the heaviest suppliers of foreign players around 52 of each, and the rarest nationalities at least 20. In a freshly generated world, players sharing a name fell from 17.7% to 2.7%, and no name appears more than three times anywhere.",
-      "Only names changed. Ratings, positions, nationalities and match results are all untouched, and existing saves keep the players they already have; the wider pools apply to players generated from here on, including youth intakes.",
+      "As the world grew bigger I never expanded the name pool with it, so a bunch of players ended up having the same name. A name is one first name plus one last name, so a country with ten of each could only ever produce a hundred people, and the world generates 8,000 players. In a fresh world 17.7% of players shared a name with someone else. Turkey was the worst of it: it only had 10 first names and 10 last names to draw from and it generates over 500 players, so twelve of them came out as Ahmet Ozturk. Senegal, Morocco, Ivory Coast and Italy had the same problem to a lesser degree.",
+      "The pools are now sized by how many players a country actually generates instead of how common it is in one league. That matters for places like Senegal and Morocco, which turn up in a lot of different leagues at once and so produce more players than any single league's share suggests. Countries with their own league now have around 90 first names and 96 last names, the biggest exporters have about 52, and the rarest have at least 20. Players sharing a name went from 17.7% to 2.7%, and no name appears more than three times in the world now.",
+      "Nothing else changed. Ratings, positions, nationalities and match results are all the same, and existing saves keep the players they already have. The bigger pools apply to players generated from here on, including youth intakes.",
     ],
   },
   {
