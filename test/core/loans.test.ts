@@ -15,7 +15,10 @@ import { trueTransferValue } from "../../src/core/finance/valuation.js";
 import { tierOf } from "../../src/core/competitions.js";
 import { resolveXI } from "../../src/core/lineup/resolveXI.js";
 import { teamSlots } from "../../src/core/lineup/formations.js";
-import { LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, ROSTER_CAP } from "../../src/core/constants.js";
+import {
+  LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, ROSTER_CAP,
+  DIVISION_2_REFUSAL_OVR_THRESHOLD,
+} from "../../src/core/constants.js";
 
 function windowLeague(seed = 1): LeagueStore {
   const league = makeLeague(0, seed);
@@ -340,6 +343,35 @@ describe("runAILoanMarket", () => {
     expect(result.activeLoans.length).toBeGreaterThan(0);
     for (const loan of result.activeLoans) {
       expect(xiByTid.get(loan.parentTid)!.has(loan.pid)).toBe(false);
+    }
+  });
+
+  it("never loans an over-threshold player in to a tier-2 club", () => {
+    // The Division-2 ceiling's prevention guard, which the loan market was
+    // missing. It matters more here than on the buy paths: enforceDivision2Ceiling
+    // deliberately skips loaned pids (sweeping one would have processLoanReturns
+    // duplicate him onto two rosters), so a loaned-in 70+ player sits illegally in
+    // tier 2 for the loan's whole 1-3 seasons. Measured before the guard existed
+    // (scripts/loanCeilingProbe.ts): 16 over 12 seasons, and 100% of every
+    // over-threshold tier-2 resident. The function's own doc comment used to claim
+    // this was impossible because "a 75+ prospect is starting somewhere" — the
+    // threshold is 70, not 75.
+    const league = windowLeague();
+    const playerMap = new Map(league.players.map((p) => [p.pid, p]));
+    const tierByTid = new Map(
+      league.teams.map((t) => [t.tid, tierOf(league.competitions, t.compId)]),
+    );
+
+    const result = runAILoanMarket(
+      league.teams, league.players, [], [], league.season, league.played,
+      "summer", league.meta.userTid, 42, league.competitions,
+    );
+
+    expect(result.activeLoans.length).toBeGreaterThan(0);
+    expect([...tierByTid.values()]).toContain(2); // tier 2 exists to guard against
+    for (const loan of result.activeLoans) {
+      if (tierByTid.get(loan.loaneeTid) !== 2) continue;
+      expect(playerMap.get(loan.pid)!.ovr).toBeLessThan(DIVISION_2_REFUSAL_OVR_THRESHOLD);
     }
   });
 
