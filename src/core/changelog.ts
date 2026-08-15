@@ -6,12 +6,16 @@
  * Keeping it in sync (same bar as the Manual — see CLAUDE.md):
  * - When a player-visible feature ships, changes, or is removed, PREPEND an
  *   entry here in the same PR. Newest entry goes first (top of the array).
- * - Write PURELY INFORMATIONALLY: state what changed, how it behaves, and why
- *   it was done. No first person, no addressing the reader as a friend, no
- *   rhetorical asides or jokes. Be specific and quote real numbers where they
- *   help; a known limitation is stated plainly rather than apologised for.
- *   (Entries dated before 2026-08-05 are in an older casual first-person voice
- *   and were left as a historical record; match the newest entries, not those.)
+ * - Write INFORMALLY and PERSONALLY (user call, 2026-08-15, reversing the
+ *   2026-08-05 "purely informational" rule): first person is wanted, say
+ *   plainly what was wrong and what it is now. Informal means *plain*, not
+ *   *performative* — no jokes, no winking asides, no hype words. Just tell
+ *   people what happened. Be specific and quote real numbers where they help;
+ *   state a known limitation outright rather than apologising for it.
+ *   The Discord-formatted version uses this same voice; only the layout
+ *   differs. Entries dated 2026-08-05 to 2026-08-14 are in the older
+ *   third-person voice and are left as a historical record — match this
+ *   instruction, not those.
  * - Group a batch of related changes shipped together under one dated entry.
  * - Formatting: entries render as prose paragraphs (one per `items` string) by
  *   default, which is what most entries should be. Only set `list: true` when
@@ -38,6 +42,14 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Export Save now writes a compressed file, ending in .json.gz instead of .json. Measured on an eight-season save, the file falls from 84 MB to 5.2 MB. Two things account for it: the file no longer carries the indentation whitespace that made it readable as text, which was about half of it, and what remains is compressed. A save is many thousands of records repeating the same field names, which compresses unusually well.",
       "Nothing is dropped to achieve this. Compression is fully reversible, so an imported save is identical in every detail to the one exported. The file should be imported exactly as it downloaded, without unzipping it first.",
       "Import accepts both forms, so saves exported by earlier versions still load, as do roster files, which are uncompressed.",
+    ],
+  },
+  {
+    date: "2026-08-15",
+    title: "Attacking midfielders were getting paid too much by the awards",
+    items: [
+      "The awards price goals and assists by position, on the idea that a goal counts for more from a position that scores fewer of them. I had attacking midfielders lumped in with the central and defensive midfielders, so they earned 0.10 a goal and 0.07 an assist while the winger next to them got 0.08 and 0.05. That premium wasn't earned. Over eight seasons of a full world an attacking midfielder averages 6.3 goals and 5.8 assists, a winger 7.9 and 5.6, and a central midfielder 4.3 and 5.4. An attacking midfielder is an attacker in this game, and I was paying him a scarcity rate for production that isn't scarce.",
+      "They're now scored at the same rate as wingers and strikers. It changes who fills out the shortlists more than who wins them: over those same eight seasons the Ballon d'Or top ten went from 27 attacking-midfield places and 29 striker places to 17 and 34. A winger who outscores an attacking midfielder now finishes above him instead of below.",
     ],
   },
   {

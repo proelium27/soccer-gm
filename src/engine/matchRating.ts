@@ -2,6 +2,20 @@ import type { MatchPosition, PlayerMatchLine } from "./attribution.js";
 
 type PositionGroup = "GK" | "DEF" | "MID" | "FWD";
 
+/**
+ * **Deliberately disagrees with `core/awards.ts`'s `positionGroup` about AM,
+ * which groups it with the forwards (2026-08-14) — do not "fix" this to match.**
+ * The same argument applies here (an attacking midfielder's output is a
+ * winger's, so 1.2/goal and 0.8/assist over-pay him), but this function is not
+ * award bookkeeping: `computeMatchRating` feeds `subPriority` and the
+ * `liveRatingFor` half of the substitution gate, so changing a weight here
+ * changes which substitutions get made, which changes match results, which
+ * rebases `touchStats.test.ts`'s scoreline hash and every number downstream of
+ * it. The awards change was measured and shipped on its own; this one needs a
+ * dynasty audit first, and the bias it carries is not the dominant one
+ * (measured, strikers still hold the highest mean season rating of any
+ * position: ST 6.58, W 6.48, AM 6.42).
+ */
 function positionGroup(pos: MatchPosition): PositionGroup {
   switch (pos) {
     case "GK": return "GK";
