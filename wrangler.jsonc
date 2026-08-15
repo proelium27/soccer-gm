@@ -1,0 +1,15 @@
+{
+  // Deploy target for Cloudflare. There is no Worker script here on purpose:
+  // the game is a static bundle, so this is an assets-only deploy. Declaring
+  // the config explicitly stops `wrangler deploy` from trying to auto-detect
+  // the framework and reach for @cloudflare/vite-plugin, which needs Vite 6+
+  // and would otherwise fail the build on our Vite 5.
+  "name": "soccer-gm",
+  "compatibility_date": "2026-08-15",
+  "assets": {
+    "directory": "./dist",
+    // Same SPA fallback as public/_redirects and the old vercel.json rewrite:
+    // deep links like /leagues have no file on disk and must serve index.html.
+    "not_found_handling": "single-page-application"
+  }
+}
