@@ -178,7 +178,7 @@ export function Manual() {
             <li><strong>Frivolities</strong>. All-time lists that don't affect play: GOAT rankings for players and clubs, all-time records (most dominant and worst team seasons, highest rating ever reached, longest careers, biggest transfer fees), All-Time Leaders (any stat, career totals or best single seasons, world-wide and including retired players), an international record book (most caps, international goals and World Cups won, filterable by country), player bios (oldest, youngest, where players come from, one-club men, name oddities), and club records (trophy cabinet, longest title droughts, biggest spenders and best traders). More in <a href="#frivolities">Frivolities</a>.</li>
             <li><strong>Season Preview</strong>. A snapshot of how the offseason shook out: the league's top 10 highest-rated players, top 10 highest-rated teams (both by OVR), the top 10 biggest transfers from the summer window ranked by fee, and who <a href="#development">retired</a>. It opens automatically the moment you advance past a season, with a link through to Awards.</li>
             <li><strong>News Feed</strong>. Every completed transfer in the league (AI-to-AI deals included) plus player accomplishments (hat-tricks, a standout performance each matchday, and goal milestones every 10, season and career) all woven into one timeline per season, with club and season filters. Your club's items are highlighted.</li>
-            <li><strong>Roster</strong>. Your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay), a stats table for the XI, and a bench table (both with ratings, ages, contracts, and season stats, and goalkeepers also show goals against and xG against). Drag a bench player onto a pitch slot to swap him into the XI, extend contracts, or release players.</li>
+            <li><strong>Roster</strong>. Your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay), a stats table for the XI, and a bench table (both with ratings, ages, contracts, and season stats, and goalkeepers also show goals against and xG against). Drag a bench player onto a pitch slot to swap him into the XI, drag one starter onto another to switch their positions, extend contracts, or release players.</li>
             <li><strong>Transfers</strong>. Recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
             <li><strong>Incoming Offers</strong>. AI clubs bidding for <em>your</em> players. Accept, reject, or counter to push the fee upward.</li>
             <li><strong>Loans</strong>. List your own players for a fixed-length loan, look over AI clubs' incoming loan offers, and keep track of who's currently out on loan.</li>
@@ -699,8 +699,11 @@ export function Manual() {
             whichever of the nine shapes fields its own strongest eleven, re-checked at the end of
             each transfer window as its squad changes. On the Roster page, your Starting XI sits on
             a pitch, one chip per slot. Drag a bench player from the bench table onto a slot to swap
-            him in, and the outgoing starter drops to the bench on its own. Click a chip to extend or
-            release that player. Below the pitch is a <strong>stats table for your Starting XI</strong>{" "}
+            him in, and the outgoing starter drops to the bench on its own. You can also drag one
+            starter straight onto another to have the two trade positions, so shifting a midfielder
+            out wide or pushing a full-back up the flank doesn't mean routing him through the bench
+            first. The one pairing the game won't allow is a keeper and an outfielder, since nobody
+            else can go in goal. Click a chip to extend or release that player. Below the pitch is a <strong>stats table for your Starting XI</strong>{" "}
             with the same columns the bench table has (appearances, minutes, goals, assists, tackles,
             rating, and so on), so you can read every starter's season at a glance without pulling
             him off the pitch. A <strong>Depth Chart</strong> toggle above the pitch shows each
