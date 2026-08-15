@@ -44,6 +44,44 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    date: "2026-08-15",
+    title: "Many more names, so far fewer players share one",
+    items: [
+      "The pools of first and last names each nationality draws from have been expanded, in most cases several times over. A player's name is one first name paired with one last name, so a country with ten of each could only ever produce a hundred names, against a world that generates 8,000 players. That was well short: in a new world, 17.7% of all players shared a name with someone else, and in the Turkish league four fifths of players did, with twelve separate men called Ahmet Ozturk. The same problem hit Senegal, Morocco, Ivory Coast, Italy and every small pool.",
+      "Pools are now sized by how many players a nationality actually produces rather than by how common it is in one league, which matters because nations like Senegal and Morocco appear in many leagues' rosters at once. The countries with their own league now carry around 90 first names and 96 last names each, the heaviest suppliers of foreign players around 52 of each, and the rarest nationalities at least 20. In a freshly generated world, players sharing a name fell from 17.7% to 2.7%, and no name appears more than three times anywhere.",
+      "Only names changed. Ratings, positions, nationalities and match results are all untouched, and existing saves keep the players they already have; the wider pools apply to players generated from here on, including youth intakes.",
+    ],
+  },
+  {
+    date: "2026-08-14",
+    title: "Frivolities has an Awards tab",
+    items: [
+      "Every individual honour the game hands out is now collected in one place, on a new Awards tab in Frivolities. The career board counts Ballon d'Ors, World Team of the Year places, Players of the Season, Golden Boots and Team of the Season places, side by side, and can be ranked by any one of them or by the total. Awards are recorded by player at the moment they're won, so a retired player keeps every one of his.",
+      "Single seasons are ranked by the Ballon d'Or score they earned, which is the board that answers which individual season the save has ever produced was the most dominant. Selecting a row breaks the score into its four parts: his league season, his Continental Cup, his international campaign, and whether he won his own title. A runner-up from a strong year can outrank a winner from a weak one, since the ranking is on the score rather than on the finish.",
+      "The Ballon d'Or record board goes deeper than wins. The whole top ten is stored every season, so second and third places are on record, and shares score each finish, with a win worth 1.00 down to 0.10 for tenth place. A long career of near-misses can therefore outrank a single win. The board also shows the longest run of consecutive wins.",
+      "Alongside those are a season-by-season roll of honour, the youngest and oldest Ballon d'Or winners with their age in the season they won it, and the same awards totalled by club and by country. A club is credited for the season the player was there, not for wherever he ended up afterwards. Team trophies aren't counted on this tab; they're already on GOAT and Club Records.",
+      "Any club's all-time award XI is laid out on a pitch, starting with your own. The Team of the Season and the World Team of the Year are both picked position by position, so this is a record rather than a ranking: each slot goes to whoever that club has had picked there most often, with a worldwide place counting above a domestic one, and the seasons behind each pick listed underneath. A player can only hold one slot, so someone picked at two positions across his career takes the stronger one and the next best man takes the other. A position nobody has ever been picked in is left empty.",
+      "Everything on the tab is worked out from award records the save already keeps, so an existing league gets its full history immediately.",
+    ],
+  },
+  {
+    date: "2026-08-14",
+    title: "Starters can trade positions with a single drag",
+    items: [
+      "Two players already in the Starting XI can now be dragged onto each other to trade positions, leaving the rest of the eleven untouched. Previously a drag only registered when it moved a player between the bench and the pitch, so switching two starters took a three-step detour: drop a spare bench player into the first man's slot to push him out, drag him onto the second man's slot, then bring the displaced second man back on in place of the spare. Tapping one player's handle and then another works the same way on touch devices. The one pairing still refused is a keeper and an outfielder, since nobody but a keeper can go in goal.",
+      "The restriction made sense until the previous update. While team strength was rolled up from what kind of player each man was, reordering two starters changed nothing at all, so there was nothing to allow. Team strength is now built slot by slot, so moving a midfielder up into an attacking slot, or dropping a winger back into a full-back slot, is a real tactical decision, and it should not require routing a player through the bench to make it. A player moved this way is judged on the slot he ends up in, and pays the usual out-of-position cost when it is not his own position.",
+    ],
+  },
+  {
+    date: "2026-08-13",
+    title: "AI clubs now loan out the prospects worth loaning",
+    items: [
+      "The background loan market between AI clubs was quietly filtering out almost everyone worth sending. A club would only let a young player go if it valued him below what he was worth on the open market, which is precisely backwards: the moment a club rates its own prospect, he became unloanable. Across a whole world of 320 clubs, only about four loans a season involved a player of any real quality. The rest were players nobody wanted.",
+      "That filter is gone. A club will now let a prospect go if another club rates him more highly than it does, which is the same test that governs a permanent transfer. Useful loans went from roughly 4 a season to roughly 30, and the total number of loans is unchanged, so the same amount of movement now involves players who are actually worth following. Expect to see recognisable young players out on loan and coming back with a season of football behind them.",
+      "Second-division clubs can no longer take a player on loan who is good enough that the top flight would claim him. They were never allowed to buy one, but the loan route was never closed, and a player who arrived that way was stuck there for the length of his loan because the mechanism that moves such players up is not allowed to touch a loaned player.",
+    ],
+  },
+  {
     date: "2026-08-13",
     title: "Positions now decide how a team plays, and a player's position can change",
     items: [

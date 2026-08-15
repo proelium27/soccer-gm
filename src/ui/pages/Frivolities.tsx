@@ -16,6 +16,12 @@ import {
   playerGoatRanking, teamGoatRanking,
   type GoatComponent, type PlayerGoatRow, type TeamGoatRow,
 } from "../../core/frivolities/goat.js";
+import {
+  computeAwardTrivia, sortAwardRows, awardXIForClub, AWARD_KEYS,
+  type AwardCareerRow, type AwardKey, type AwardTally, type AwardXISlot,
+  type BallonDOrSeason, type ClubAwardRow, type NationAwardRow, type RollOfHonourRow,
+} from "../../core/frivolities/honours.js";
+import { layoutSlots } from "../pitchLayout.js";
 import { ALL_TIME_STAT_KEYS, type AllTimeStatKey } from "../../core/frivolities/stats.js";
 import { STAT_LABELS, formatStat } from "../statLabels.js";
 import { usePlayerRefs } from "../components/PlayerRefLink.js";
@@ -23,10 +29,11 @@ import { ClubCrest } from "../components/ClubCrest.js";
 import { Flag } from "../components/Flag.js";
 import { currency, seasonYear } from "../format.js";
 
-type Tab = "goat" | "records" | "leaders" | "international" | "bios" | "clubs";
+type Tab = "goat" | "awards" | "records" | "leaders" | "international" | "bios" | "clubs";
 
 const TAB_LABELS: Record<Tab, string> = {
   goat: "GOAT",
+  awards: "Awards",
   records: "Records",
   leaders: "All-Time Leaders",
   international: "International",
@@ -347,6 +354,453 @@ function GoatTab() {
           />
         </Panel>
       )}
+    </>
+  );
+}
+
+// --- Awards ----------------------------------------------------------------
+
+/** Column wording for the five individual awards, plus the total that sums them. */
+const AWARD_LABELS: Record<AwardKey, string> = {
+  total: "Total",
+  ballonDOr: "Ballon d'Or",
+  worldXI: "World XI",
+  playerOfSeason: "Player of the Season",
+  goldenBoot: "Golden Boot",
+  teamOfSeason: "Team of the Season",
+};
+
+/** Short forms, for boards that need all six columns at once. */
+const AWARD_SHORT: Record<AwardKey, string> = {
+  total: "Total",
+  ballonDOr: "BdO",
+  worldXI: "World XI",
+  playerOfSeason: "POTS",
+  goldenBoot: "Boot",
+  teamOfSeason: "TOTS",
+};
+
+/** The parts of a Ballon d'Or score, in the order the entry stores them. */
+const BDO_PARTS: { key: "league" | "cup" | "intl" | "title"; label: string; help: string }[] = [
+  { key: "league", label: "League season", help: "his domestic season and rating, corrected for how strong his league is" },
+  { key: "cup", label: "Continental Cup", help: "his own end product and rating there, plus how far his club went" },
+  { key: "intl", label: "International", help: "the campaign played in the offseason right after, plus a World Cup winner's bonus" },
+  { key: "title", label: "League title", help: "winning his own league, scaled by how much of it he played" },
+];
+
+/** A tally row's six numbers, with the ranked one picked out. */
+function tallyCells(t: AwardTally, ranked: AwardKey): ReactNode[] {
+  return (["ballonDOr", "worldXI", "playerOfSeason", "goldenBoot", "teamOfSeason", "total"] as AwardKey[])
+    .map((k) => (
+      <span key={k} className={k === ranked ? "fw-bold" : undefined}>
+        {t[k] || <span className="text-muted">&ndash;</span>}
+      </span>
+    ));
+}
+
+/** The four parts behind one Ballon d'Or score, and what each of them is. */
+function BallonDOrBreakdown({ row }: { row: BallonDOrSeason }) {
+  return (
+    <div className="small">
+      <div className="text-muted mb-2">
+        What his score was made of. Every part is on the same scale, so you can see whether a
+        season was won at home, in Europe, or with his country.
+      </div>
+      <div className="row g-3">
+        {BDO_PARTS.map((p) => (
+          <div key={p.key} className="col-12 col-md-6 col-lg-3">
+            <div className="d-flex justify-content-between border-bottom mb-1">
+              <strong>{p.label}</strong>
+              <strong>{row.entry[p.key].toFixed(2)}</strong>
+            </div>
+            <div className="text-muted">{p.help}</div>
+          </div>
+        ))}
+      </div>
+      <div className="d-flex justify-content-between border-top mt-2 pt-1">
+        <strong>Total</strong>
+        <strong>{row.entry.score.toFixed(2)}</strong>
+      </div>
+    </div>
+  );
+}
+
+const XI_COORDS = layoutSlots("4-3-3");
+
+/** Surname only — a full name doesn't fit in a pitch chip. */
+function shortName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return parts[parts.length - 1];
+}
+
+/** How a slot's pick was selected, in words. */
+function selectionSummary(pick: AwardXISlot["pick"]): string {
+  if (!pick) return "";
+  const parts: string[] = [];
+  if (pick.worldXI > 0) parts.push(`${pick.worldXI} x World XI`);
+  if (pick.teamOfSeason > 0) parts.push(`${pick.teamOfSeason} x Team of the Season`);
+  return parts.join(", ");
+}
+
+/**
+ * A club's all-time award XI on a pitch, with the selections that earned each
+ * slot listed underneath.
+ *
+ * The pitch is the same 4-3-3 both team-of-the-year awards are picked in, which
+ * is what lets this be a record rather than an opinion: a slot's occupant is
+ * simply whoever this club has had picked there most often.
+ */
+function ClubAwardXI({ slots }: { slots: AwardXISlot[] }) {
+  const picked = slots.filter((s) => s.pick !== null);
+  return (
+    <>
+      <div className="pitch-field">
+        <div className="pitch-goal pitch-goal--left" />
+        <div className="pitch-goal pitch-goal--right" />
+        {slots.map((s) => {
+          const coord = XI_COORDS[s.slot];
+          return (
+            <div
+              key={s.slot}
+              className="pitch-slot"
+              style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
+            >
+              {s.pick ? (
+                <span className={`pitch-chip${s.pos === "GK" ? " pitch-chip--gk" : ""}`}>
+                  <Link to={`/player/${s.pick.pid}`} className="pitch-chip-name">
+                    {shortName(s.pick.name)}
+                  </Link>
+                  <span className="pitch-chip-ovr">{s.pick.worldXI + s.pick.teamOfSeason}</span>
+                </span>
+              ) : (
+                <span className="pitch-chip" style={{ opacity: 0.4, cursor: "default" }}>&mdash;</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {picked.length === 0 ? (
+        <p className="text-muted small mt-3 mb-0">
+          Nobody at this club has been picked in a Team of the Season or a World Team of the Year yet.
+        </p>
+      ) : (
+        <div className="table-responsive mt-3">
+          <table className="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th className="text-muted" style={{ width: "3.5rem" }}>Pos</th>
+                <th>Player</th>
+                <th>Picked</th>
+                <th className="text-end">Seasons</th>
+              </tr>
+            </thead>
+            <tbody>
+              {picked.map((s) => (
+                <tr key={s.slot}>
+                  <td className="text-muted">{s.pos}</td>
+                  <td>
+                    <PlayerCell
+                      pid={s.pick!.pid}
+                      name={s.pick!.name}
+                      nationality={s.pick!.nationality}
+                      active={s.pick!.active}
+                    />
+                  </td>
+                  <td className="small text-secondary">{selectionSummary(s.pick)}</td>
+                  <td className="text-end small text-secondary">
+                    {s.pick!.seasons.map(seasonYear).join(", ")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Every club in the world, grouped by country then competition. */
+function ClubPicker({ tid, onChange }: { tid: number; onChange: (tid: number) => void }) {
+  const { league } = useLeague();
+  if (!league) return null;
+  const countries = [...new Set(league.competitions.map((c) => c.country))];
+  return (
+    <select
+      className="form-select form-select-sm"
+      style={{ width: "auto" }}
+      value={tid}
+      onChange={(e) => onChange(Number(e.target.value))}
+      aria-label="Club"
+    >
+      {countries.map((country) => (
+        <optgroup key={country} label={country}>
+          {league.competitions
+            .filter((c) => c.country === country)
+            .flatMap((c) =>
+              league.teams
+                .filter((t) => t.compId === c.id)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((t) => (
+                  <option key={t.tid} value={t.tid}>{t.name} ({c.name})</option>
+                )),
+            )}
+        </optgroup>
+      ))}
+    </select>
+  );
+}
+
+function ballonDOrSeasonCells(r: BallonDOrSeason, showFinish: boolean): ReactNode[] {
+  return [
+    <PlayerCell pid={r.pid} name={r.name} nationality={r.nationality} active={r.active} />,
+    <ClubCell tid={r.tid} />,
+    seasonYear(r.season),
+    ...(showFinish
+      ? [r.rank === 1 ? <span className="fw-bold">Won it</span> : `#${r.rank}`]
+      : []),
+    <strong>{r.entry.score.toFixed(2)}</strong>,
+  ];
+}
+
+/**
+ * Exported for the render harness (`test/ui/frivolitiesAwards.test.tsx`): the
+ * tab is reached by a click, and there is no DOM test environment in this repo,
+ * so a static render of the page itself would only ever exercise the GOAT tab.
+ */
+export function AwardsTab() {
+  const { league } = useLeague();
+  const [rank, setRank] = useState<AwardKey>("total");
+  // Defaults to the user's own club, which is the one he wants to see first.
+  const [xiTid, setXiTid] = useState<number | null>(null);
+  const trivia = useMemo(() => (league ? computeAwardTrivia(league) : null), [league]);
+  const ranked = useMemo(
+    () => (trivia ? sortAwardRows(trivia.careers, rank) : []),
+    [trivia, rank],
+  );
+  if (!league || !trivia) return null;
+
+  const shownTid = xiTid ?? league.meta.userTid;
+
+  if (trivia.seasonsRecorded === 0) {
+    return (
+      <div className="alert alert-secondary small mb-0">
+        No awards have been handed out yet. Finish a season and come back.
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <p className="text-secondary small">
+        Every individual honour the game has ever handed out, added up across careers, clubs and
+        countries. Awards are recorded by player when they're won, so a retired player keeps every
+        one of them.
+      </p>
+
+      <Row>
+        <Col wide>
+          <Panel
+            title="Most decorated careers"
+            note="Pick an award to rank by. The Ballon d'Or and the World XI are worldwide; Player of the Season, the Golden Boot and the Team of the Season are won league by league."
+          >
+            <div className="mb-3">
+              <select
+                className="form-select form-select-sm"
+                style={{ width: "auto" }}
+                value={rank}
+                onChange={(e) => setRank(e.target.value as AwardKey)}
+                aria-label="Award to rank by"
+              >
+                {AWARD_KEYS.map((k) => (
+                  <option key={k} value={k}>
+                    {k === "total" ? "Every honour" : AWARD_LABELS[k]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <RankTable
+              rows={ranked}
+              headers={[
+                "Player", "Club",
+                ...(["ballonDOr", "worldXI", "playerOfSeason", "goldenBoot", "teamOfSeason", "total"] as AwardKey[])
+                  .map((k) => AWARD_SHORT[k]),
+              ]}
+              render={(r: AwardCareerRow) => [
+                <PlayerCell
+                  pid={r.career.pid}
+                  name={r.career.name}
+                  nationality={r.career.nationality}
+                  active={r.career.active}
+                />,
+                <ClubCell tid={r.career.tid} />,
+                ...tallyCells(r.tally, rank),
+              ]}
+              empty="awards"
+            />
+          </Panel>
+        </Col>
+      </Row>
+
+      <Row>
+        <Col wide>
+          <Panel
+            title="Most dominant seasons"
+            note="Every season ranked by the Ballon d'Or score it earned, so the best individual season the save has ever seen sits at the top. Click a row for the breakdown."
+          >
+            <RankTable
+              rows={trivia.dominantSeasons}
+              headers={["Player", "Club", "Season", "Finish", "Score"]}
+              render={(r: BallonDOrSeason) => ballonDOrSeasonCells(r, true)}
+              expand={(r: BallonDOrSeason) => <BallonDOrBreakdown row={r} />}
+              empty="Ballon d'Or seasons"
+            />
+          </Panel>
+        </Col>
+      </Row>
+
+      <Row>
+        <Col wide>
+          <Panel
+            title="Ballon d'Or record"
+            note="The whole top ten is kept every season, so a career of near-misses counts. Shares score each finish: a win is 1.00, tenth place 0.10."
+          >
+            <RankTable
+              rows={trivia.ballonDOr}
+              headers={["Player", "Club", "Won", "2nd", "3rd", "Top 10", "In a row", "Shares"]}
+              render={(r: AwardCareerRow) => [
+                <PlayerCell
+                  pid={r.career.pid}
+                  name={r.career.name}
+                  nationality={r.career.nationality}
+                  active={r.career.active}
+                />,
+                <ClubCell tid={r.career.tid} />,
+                r.ballon.wins || <span className="text-muted">&ndash;</span>,
+                r.ballon.runnerUp || <span className="text-muted">&ndash;</span>,
+                r.ballon.third || <span className="text-muted">&ndash;</span>,
+                r.ballon.shortlists,
+                r.ballon.bestRun > 1 ? r.ballon.bestRun : <span className="text-muted">&ndash;</span>,
+                <strong>{r.ballon.shares.toFixed(2)}</strong>,
+              ]}
+              empty="Ballon d'Or shortlists"
+            />
+          </Panel>
+        </Col>
+      </Row>
+
+      <Row>
+        <Col>
+          <Panel title="Ballon d'Or roll of honour" note="Every winner, newest first.">
+            <RankTable
+              rows={trivia.rollOfHonour}
+              headers={["Season", "Winner", "Score", "Runner-up"]}
+              render={(r: RollOfHonourRow) => [
+                seasonYear(r.season),
+                <PlayerCell
+                  pid={r.winner.pid}
+                  name={r.winner.name}
+                  nationality={r.winner.nationality}
+                  active={r.winner.active}
+                />,
+                r.winner.entry.score.toFixed(2),
+                r.runnerUp
+                  ? <PlayerCell
+                      pid={r.runnerUp.pid}
+                      name={r.runnerUp.name}
+                      nationality={r.runnerUp.nationality}
+                      active={r.runnerUp.active}
+                    />
+                  : <span className="text-muted">None</span>,
+              ]}
+              empty="Ballon d'Or winners"
+            />
+          </Panel>
+        </Col>
+        <Col>
+          <Panel title="Youngest and oldest winners" note="Age in the season he won it.">
+            <div className="row g-3">
+              <div className="col-12 col-xl-6">
+                <div className="text-muted small mb-1">Youngest</div>
+                <RankTable
+                  rows={trivia.youngestWinners}
+                  headers={["Player", "Season", "Age"]}
+                  render={(r: BallonDOrSeason) => [
+                    <PlayerCell pid={r.pid} name={r.name} nationality={r.nationality} active={r.active} />,
+                    seasonYear(r.season),
+                    r.age,
+                  ]}
+                  empty="Ballon d'Or winners"
+                />
+              </div>
+              <div className="col-12 col-xl-6">
+                <div className="text-muted small mb-1">Oldest</div>
+                <RankTable
+                  rows={trivia.oldestWinners}
+                  headers={["Player", "Season", "Age"]}
+                  render={(r: BallonDOrSeason) => [
+                    <PlayerCell pid={r.pid} name={r.name} nationality={r.nationality} active={r.active} />,
+                    seasonYear(r.season),
+                    r.age,
+                  ]}
+                  empty="Ballon d'Or winners"
+                />
+              </div>
+            </div>
+          </Panel>
+        </Col>
+      </Row>
+
+      <Row>
+        <Col wide>
+          <Panel
+            title="A club's all-time award XI"
+            note="Both team-of-the-year awards are picked position by position, so this is a record rather than an opinion: each slot goes to whoever this club has had picked there most often, with a worldwide place counting for more than a domestic one. A player can only hold one slot."
+          >
+            <div className="mb-3 d-flex align-items-center gap-2 flex-wrap">
+              <ClubPicker tid={shownTid} onChange={setXiTid} />
+              <ClubCell tid={shownTid} />
+            </div>
+            <ClubAwardXI slots={awardXIForClub(trivia, shownTid)} />
+          </Panel>
+        </Col>
+      </Row>
+
+      <Row>
+        <Col>
+          <Panel
+            title="Awards by club"
+            note="Credited to the club he was at that season, not the one he plays for now."
+          >
+            <RankTable
+              rows={trivia.clubs}
+              headers={["Club", "BdO", "World XI", "POTS", "Boot", "TOTS", "Total"]}
+              render={(r: ClubAwardRow) => [
+                <ClubCell tid={r.tid} />,
+                ...tallyCells(r, "total"),
+              ]}
+              empty="awards"
+            />
+          </Panel>
+        </Col>
+        <Col>
+          <Panel title="Awards by country" note="Where the winners were born, wherever they play.">
+            <RankTable
+              rows={trivia.nations}
+              headers={["Country", "BdO", "World XI", "POTS", "Boot", "TOTS", "Total"]}
+              render={(r: NationAwardRow) => [
+                <span className="d-inline-flex align-items-center gap-1">
+                  <Flag nationality={r.nationality} tip={false} />
+                  {r.nationality}
+                </span>,
+                ...tallyCells(r, "total"),
+              ]}
+              empty="awards"
+            />
+          </Panel>
+        </Col>
+      </Row>
     </>
   );
 }
@@ -857,6 +1311,7 @@ export function Frivolities() {
       </ul>
 
       {tab === "goat" && <GoatTab />}
+      {tab === "awards" && <AwardsTab />}
       {tab === "records" && <RecordsTab />}
       {tab === "leaders" && <LeadersTab />}
       {tab === "international" && <InternationalTab />}

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  LEAGUE_NATIONALITY_WEIGHTS, NATIONALITIES, OTHER_NATIONS, namePoolFor, pickNationality,
+  LEAGUE_NATIONALITY_WEIGHTS, NATIONALITIES, OTHER_NATIONS, UNLISTED_NATIONALITIES,
+  namePoolFor, pickNationality,
 } from "../../src/core/players/nationalities.js";
 import { flagCodeFor } from "../../src/core/players/flags.js";
 import { mulberry32 } from "../../src/engine/rng.js";
@@ -48,6 +49,60 @@ describe("per-league nationality tables", () => {
           expect(homeCount, `${country} out-drew ${home} in ${home}'s league`).toBeGreaterThan(count);
         }
       }
+    }
+  });
+});
+
+describe("name pools", () => {
+  // Every pool the generator can reach, keyed by nationality. OTHER_NATIONS'
+  // "Ivory Coast" is shadowed by the NATIONALITIES entry (see namePoolFor), so
+  // going through namePoolFor is what tests the pool actually used.
+  const ALL_NATIONS = [...new Set([
+    ...Object.keys(NATIONALITIES),
+    ...Object.keys(OTHER_NATIONS),
+    ...Object.keys(UNLISTED_NATIONALITIES),
+  ])];
+
+  it("has no duplicate name within any list", () => {
+    for (const nation of ALL_NATIONS) {
+      const pool = namePoolFor(nation)!;
+      for (const field of ["first", "last"] as const) {
+        const seen = new Set<string>();
+        const dupes: string[] = [];
+        for (const name of pool[field]) {
+          const key = name.toLowerCase();
+          if (seen.has(key)) dupes.push(name);
+          seen.add(key);
+        }
+        expect(dupes, `${nation}.${field} has duplicates`).toEqual([]);
+      }
+    }
+  });
+
+  it("is ASCII-only (the file's accent-free convention)", () => {
+    for (const nation of ALL_NATIONS) {
+      const pool = namePoolFor(nation)!;
+      const bad = [...pool.first, ...pool.last].filter((n) => /[^\x20-\x7E]/.test(n));
+      expect(bad, `${nation} has non-ASCII names`).toEqual([]);
+    }
+  });
+
+  // A name is one first x one last draw, so pool size squared is the whole
+  // namespace. The floors below are what keeps a generated world from handing
+  // a dozen players the same name (scripts/namePoolProbe.ts measures the rate).
+  it("every pool clears the 20x20 floor", () => {
+    for (const nation of ALL_NATIONS) {
+      const pool = namePoolFor(nation)!;
+      expect(pool.first.length, `${nation} first names`).toBeGreaterThanOrEqual(20);
+      expect(pool.last.length, `${nation} last names`).toBeGreaterThanOrEqual(20);
+    }
+  });
+
+  it("home-league countries clear 80x80 (they generate ~500 players each)", () => {
+    for (const home of Object.keys(LEAGUE_NATIONALITY_WEIGHTS)) {
+      const pool = namePoolFor(home)!;
+      expect(pool.first.length, `${home} first names`).toBeGreaterThanOrEqual(80);
+      expect(pool.last.length, `${home} last names`).toBeGreaterThanOrEqual(80);
     }
   });
 });
