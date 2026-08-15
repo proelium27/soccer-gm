@@ -6,17 +6,16 @@
  * Keeping it in sync (same bar as the Manual — see CLAUDE.md):
  * - When a player-visible feature ships, changes, or is removed, PREPEND an
  *   entry here in the same PR. Newest entry goes first (top of the array).
- * - Write INFORMALLY and PERSONALLY (rule current as of 2026-08-15): first
- *   person is fine and wanted, and you say plainly what was wrong and what it
- *   is now. Informal means PLAIN, not performative: no jokes, no winking
- *   asides, no hype words. Own the cause when there was one ("as the world grew
- *   I never grew the name pool with it") rather than writing round it. Still
- *   specific and honest with real numbers, and a known limitation is stated
- *   plainly rather than apologised for. The Discord-formatted version of an
- *   entry uses this same voice; only its layout differs.
- *   (Voice has flipped more than once. Entries dated 2026-08-05 to 2026-08-14
- *   are purely informational and earlier ones casual; both were left as a
- *   historical record. Match this rule, not the entries around it.)
+ * - Write INFORMALLY and PERSONALLY (user call, 2026-08-15, reversing the
+ *   2026-08-05 "purely informational" rule): first person is wanted, say
+ *   plainly what was wrong and what it is now. Informal means *plain*, not
+ *   *performative* — no jokes, no winking asides, no hype words. Just tell
+ *   people what happened. Be specific and quote real numbers where they help;
+ *   state a known limitation outright rather than apologising for it.
+ *   The Discord-formatted version uses this same voice; only the layout
+ *   differs. Entries dated 2026-08-05 to 2026-08-14 are in the older
+ *   third-person voice and are left as a historical record — match this
+ *   instruction, not those.
  * - Group a batch of related changes shipped together under one dated entry.
  * - Formatting: entries render as prose paragraphs (one per `items` string) by
  *   default, which is what most entries should be. Only set `list: true` when
@@ -43,6 +42,52 @@ export const CHANGELOG: ChangelogEntry[] = [
       "There are sixteen formations in the dropdown now instead of nine. The new ones are 4-4-1-1, 4-3-2-1, 4-2-2-2, 3-4-2-1, 3-5-1-1, 5-2-3 and 5-2-1-2, and each of them fields a different mix of positions from anything already on the list, so they are all genuinely different elevens rather than the same team drawn differently. 4-2-2-2 plays two attacking mids behind two strikers, 4-3-2-1 puts two attacking mids behind a lone striker, 5-2-3 sits a back three behind two holding mids with a front three ahead.",
       "I left out some shapes you might expect to see. Your team's strength is built from the positions you field, and the game has no idea where on the pitch I have drawn them, so 4-1-4-1 uses exactly the same eleven positions as 4-3-3, and 4-2-4 the same as 4-4-2. Putting those in the list would have made it longer without changing a single thing about your team, so they are not there.",
       "AI clubs pick from the same sixteen. I checked four different worlds before shipping this, because the thing that would have gone wrong is one new shape turning out to suit how squads are stocked and getting picked by everybody. It went the other way: all sixteen get used in every world, and the most popular shape's share of clubs drops by four or five points each time. About a third of clubs line up differently than they used to, and the best eleven they can field goes up by around 0.15 to 0.2 of a rating point per starter, so this changes how teams look more than how good they are.",
+    ],
+  },
+  {
+    date: "2026-08-15",
+    title: "Attacking midfielders were getting paid too much by the awards",
+    items: [
+      "The awards price goals and assists by position, on the idea that a goal counts for more from a position that scores fewer of them. I had attacking midfielders lumped in with the central and defensive midfielders, so they earned 0.10 a goal and 0.07 an assist while the winger next to them got 0.08 and 0.05. That premium wasn't earned. Over eight seasons of a full world an attacking midfielder averages 6.3 goals and 5.8 assists, a winger 7.9 and 5.6, and a central midfielder 4.3 and 5.4. An attacking midfielder is an attacker in this game, and I was paying him a scarcity rate for production that isn't scarce.",
+      "They're now scored at the same rate as wingers and strikers. It changes who fills out the shortlists more than who wins them: over those same eight seasons the Ballon d'Or top ten went from 27 attacking-midfield places and 29 striker places to 17 and 34. A winger who outscores an attacking midfielder now finishes above him instead of below.",
+    ],
+  },
+  {
+    date: "2026-08-15",
+    title: "Many more names, so far fewer players share one",
+    items: [
+      "The pools of first and last names each nationality draws from have been expanded, in most cases several times over. A player's name is one first name paired with one last name, so a country with ten of each could only ever produce a hundred names, against a world that generates 8,000 players. That was well short: in a new world, 17.7% of all players shared a name with someone else, and in the Turkish league four fifths of players did, with twelve separate men called Ahmet Ozturk. The same problem hit Senegal, Morocco, Ivory Coast, Italy and every small pool.",
+      "Pools are now sized by how many players a nationality actually produces rather than by how common it is in one league, which matters because nations like Senegal and Morocco appear in many leagues' rosters at once. The countries with their own league now carry around 90 first names and 96 last names each, the heaviest suppliers of foreign players around 52 of each, and the rarest nationalities at least 20. In a freshly generated world, players sharing a name fell from 17.7% to 2.7%, and no name appears more than three times anywhere.",
+      "Only names changed. Ratings, positions, nationalities and match results are all untouched, and existing saves keep the players they already have; the wider pools apply to players generated from here on, including youth intakes.",
+    ],
+  },
+  {
+    date: "2026-08-14",
+    title: "Frivolities has an Awards tab",
+    items: [
+      "Every individual honour the game hands out is now collected in one place, on a new Awards tab in Frivolities. The career board counts Ballon d'Ors, World Team of the Year places, Players of the Season, Golden Boots and Team of the Season places, side by side, and can be ranked by any one of them or by the total. Awards are recorded by player at the moment they're won, so a retired player keeps every one of his.",
+      "Single seasons are ranked by the Ballon d'Or score they earned, which is the board that answers which individual season the save has ever produced was the most dominant. Selecting a row breaks the score into its four parts: his league season, his Continental Cup, his international campaign, and whether he won his own title. A runner-up from a strong year can outrank a winner from a weak one, since the ranking is on the score rather than on the finish.",
+      "The Ballon d'Or record board goes deeper than wins. The whole top ten is stored every season, so second and third places are on record, and shares score each finish, with a win worth 1.00 down to 0.10 for tenth place. A long career of near-misses can therefore outrank a single win. The board also shows the longest run of consecutive wins.",
+      "Alongside those are a season-by-season roll of honour, the youngest and oldest Ballon d'Or winners with their age in the season they won it, and the same awards totalled by club and by country. A club is credited for the season the player was there, not for wherever he ended up afterwards. Team trophies aren't counted on this tab; they're already on GOAT and Club Records.",
+      "Any club's all-time award XI is laid out on a pitch, starting with your own. The Team of the Season and the World Team of the Year are both picked position by position, so this is a record rather than a ranking: each slot goes to whoever that club has had picked there most often, with a worldwide place counting above a domestic one, and the seasons behind each pick listed underneath. A player can only hold one slot, so someone picked at two positions across his career takes the stronger one and the next best man takes the other. A position nobody has ever been picked in is left empty.",
+      "Everything on the tab is worked out from award records the save already keeps, so an existing league gets its full history immediately.",
+    ],
+  },
+  {
+    date: "2026-08-14",
+    title: "Starters can trade positions with a single drag",
+    items: [
+      "Two players already in the Starting XI can now be dragged onto each other to trade positions, leaving the rest of the eleven untouched. Previously a drag only registered when it moved a player between the bench and the pitch, so switching two starters took a three-step detour: drop a spare bench player into the first man's slot to push him out, drag him onto the second man's slot, then bring the displaced second man back on in place of the spare. Tapping one player's handle and then another works the same way on touch devices. The one pairing still refused is a keeper and an outfielder, since nobody but a keeper can go in goal.",
+      "The restriction made sense until the previous update. While team strength was rolled up from what kind of player each man was, reordering two starters changed nothing at all, so there was nothing to allow. Team strength is now built slot by slot, so moving a midfielder up into an attacking slot, or dropping a winger back into a full-back slot, is a real tactical decision, and it should not require routing a player through the bench to make it. A player moved this way is judged on the slot he ends up in, and pays the usual out-of-position cost when it is not his own position.",
+    ],
+  },
+  {
+    date: "2026-08-13",
+    title: "AI clubs now loan out the prospects worth loaning",
+    items: [
+      "The background loan market between AI clubs was quietly filtering out almost everyone worth sending. A club would only let a young player go if it valued him below what he was worth on the open market, which is precisely backwards: the moment a club rates its own prospect, he became unloanable. Across a whole world of 320 clubs, only about four loans a season involved a player of any real quality. The rest were players nobody wanted.",
+      "That filter is gone. A club will now let a prospect go if another club rates him more highly than it does, which is the same test that governs a permanent transfer. Useful loans went from roughly 4 a season to roughly 30, and the total number of loans is unchanged, so the same amount of movement now involves players who are actually worth following. Expect to see recognisable young players out on loan and coming back with a season of football behind them.",
+      "Second-division clubs can no longer take a player on loan who is good enough that the top flight would claim him. They were never allowed to buy one, but the loan route was never closed, and a player who arrived that way was stuck there for the length of his loan because the mechanism that moves such players up is not allowed to touch a loaned player.",
     ],
   },
   {

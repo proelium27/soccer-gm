@@ -5,6 +5,7 @@ import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import { POSITIONS } from "../../core/players/types.js";
 import type { Player } from "../../core/players/types.js";
 import { resolveXI } from "../../core/lineup/resolveXI.js";
+import { swapStarters } from "../../core/lineup/swapStarters.js";
 import { teamSlots, teamFormation, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { canExtend } from "../../core/contracts.js";
@@ -310,7 +311,7 @@ export function Roster() {
       players.filter((p) => keepsDepthFloor(userTeam, playerMap, p.pid)).map((p) => p.pid),
     );
     return {
-      players, slots, xi, starterPids, starterPidSet, bench, teamRating,
+      players, slots, xi, starterPids, bench, teamRating,
       playerMap, releasablePids,
     };
   }, [league]);
@@ -325,7 +326,7 @@ export function Roster() {
   }
 
   const {
-    players, slots, xi, starterPids, starterPidSet, bench, teamRating,
+    players, slots, xi, starterPids, bench, teamRating,
     playerMap, releasablePids,
   } = derived;
 
@@ -337,21 +338,10 @@ export function Roster() {
   const moreMinutesPids = new Set(userTeam.moreMinutes);
 
   function handleSwap(draggedPid: number, targetPid: number) {
-    if (draggedPid === targetPid) return;
-    const draggedIsStarter = starterPidSet.has(draggedPid);
-    const targetIsStarter = starterPidSet.has(targetPid);
-    if (draggedIsStarter === targetIsStarter) return; // dropped within the same list; nothing to swap
-    const dragged = playerMap.get(draggedPid);
-    const target = playerMap.get(targetPid);
-    if (!dragged || !target) return;
-    // Keepers only swap with keepers: an outfielder in the GK slot (or a GK
-    // outfield) would corrupt the composite rollup, which buckets by position.
-    if ((dragged.pos === "GK") !== (target.pos === "GK")) return;
-    const newStarters = starterPids.map((pid) => {
-      if (pid === targetPid) return draggedPid;
-      if (pid === draggedPid) return targetPid;
-      return pid;
-    });
+    // Covers bench <-> XI both ways *and* two starters trading slots; returns
+    // null for a no-op or an XI the keeper rule forbids.
+    const newStarters = swapStarters(players, slots, starterPids, draggedPid, targetPid);
+    if (!newStarters) return;
     void setLineupAction(newStarters);
   }
 
@@ -386,8 +376,9 @@ export function Roster() {
         </small>
         <HelpHint>
           Your squad. Pick your formation, then drag players between the pitch and the bench to set
-          your Starting XI (or, on touch devices, tap a player's &#8942;&#8942; handle to pick him
-          up, then tap another player's handle to swap). Click a player to extend or release him.
+          your Starting XI, or drag one starter onto another to have them trade positions (or, on
+          touch devices, tap a player's &#8942;&#8942; handle to pick him up, then tap another
+          player's handle to swap). Click a player to extend or release him.
           Team OVR/POT and your bench update as you go. The cap is {ROSTER_CAP} players.
         </HelpHint>
       </h4>
@@ -412,9 +403,10 @@ export function Roster() {
             );
           })()}
           <p className="text-muted small mb-1">
-            Drag a bench player onto a pitch slot to swap him into the Starting XI, or tap a
-            player's &#8942;&#8942; handle to pick him up, then tap another player's handle to
-            swap.
+            Drag a bench player onto a pitch slot to swap him into the Starting XI, or drag one
+            starter onto another to switch their positions. On a touch device, tap a player's
+            &#8942;&#8942; handle to pick him up, then tap another player's handle to swap. Your
+            keeper can only trade places with another keeper.
           </p>
           {selectedPid !== null && (
             <div className="alert alert-info py-1 px-2 small d-flex justify-content-between align-items-center mb-2">

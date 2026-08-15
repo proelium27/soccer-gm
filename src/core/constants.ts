@@ -1680,31 +1680,22 @@ export const LOAN_MAX_SEASONS = 3;
  */
 export const LOAN_AI_MAX_AGE = 23;
 
-/**
- * A loan-out is worthwhile to an AI seller only if the player isn't clearly
- * needed at his current club: reservation (valueToClub to the parent) must
- * be no more than this multiple of true market value.
+/*
+ * LOAN_AVAILABILITY was deleted on 2026-08-13, for the same reason
+ * AI_MARKET_AVAILABILITY was deleted on 2026-08-11: it screened a loan out
+ * unless the parent's keep-value for the player was under 0.95 × his market
+ * value, which compares a club-relative quantity against a club-blind one.
  *
- * This used to be defined as `= AI_MARKET_AVAILABILITY`, on the reasoning that
- * "would this club rather free the slot than keep him" is the same question for
- * a loan as for a sale. That constant is gone — the permanent market's version
- * of this screen compared a club-relative keep value against a club-blind market
- * price, excluded every club's best player outright, and inverted the league
- * strength ladder (see transferMarket.ts and docs/transfer-mobility.md).
+ * It was kept when the market's copy went, deliberately, to avoid changing two
+ * markets in one PR — with a comment conceding that the argument for keeping it
+ * ("loan candidates are already buried under-24s, so the screen is rarely the
+ * binding constraint") was reasoning rather than measurement. Measured
+ * afterwards (scripts/loanAvailabilityProbe.ts): it excluded **~71% of clubs'
+ * best loan-eligible players**, median keep/market 1.30. Binding, not rare.
  *
- * The literal 0.95 is kept here **deliberately, to hold loan behaviour exactly
- * where it was** rather than change two markets in one go. The same category
- * error exists in this comparison, but it bites far less: loan candidates are
- * already restricted to buried under-24s (LOAN_AI_MAX_AGE, outside the XI), who
- * are genuinely surplus and whose keep-side value is low, so the screen is
- * rarely the binding constraint. **That last sentence is reasoning, not a
- * measurement** — which is precisely the kind of unchecked assumption that let
- * the permanent market's version of this screen go inert for three days.
- * `scripts/availabilityProbe.ts` would settle it in one run if pointed at the
- * loan-eligible population. Worth revisiting on its own terms, with its own
- * measurements, rather than as a side effect of the market fix.
+ * Loans are now protected by price alone: LOAN_MIN_SURPLUS requires the borrower
+ * to value the player above what he is worth to his parent.
  */
-export const LOAN_AVAILABILITY = 0.95;
 
 /**
  * A prospective loanee club bothers only if the player would be meaningfully
@@ -1759,7 +1750,15 @@ export const AWARD_MIN_APPEARANCES = 19;
 export const AWARD_OVR_BASELINE = 65;
 export const AWARD_OVR_WEIGHT = 0.06;
 
-/** Player of the Season: avgRating plus goals/assists weighted heavier than the match-rating baseline already does. */
+/**
+ * Player of the Season: avgRating plus goals/assists weighted heavier than the match-rating baseline already does.
+ *
+ * Which column a position reads is `positionGroup` in `core/awards.ts` — note
+ * that **AM reads FWD here, not MID**, because an attacking midfielder's
+ * measured output in this engine is a winger's, not a central midfielder's.
+ * The reasoning and the numbers are on that function; don't retune these values
+ * to compensate for a position sitting in the column you didn't expect.
+ */
 export const POTY_GOAL_WEIGHT: Record<"GK" | "DEF" | "MID" | "FWD", number> = {
   FWD: 0.08, MID: 0.1, DEF: 0.14, GK: 0.22,
 };

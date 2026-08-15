@@ -9,12 +9,40 @@ import {
 
 export type PositionGroup = "GK" | "DEF" | "MID" | "FWD";
 
+/**
+ * Which weight column an award scores a player under. The groups exist to price
+ * end product by how hard it is to come by at that position — a defender's goal
+ * is worth more than a striker's precisely because he gets so few.
+ *
+ * **AM is grouped with the forwards, not the midfielders (2026-08-14).** It
+ * looks wrong next to the position's name and is right by the engine's own
+ * numbers: an attacking midfielder is an attacker here. `SHOT_WEIGHTS.AM` is
+ * 1.5 (against W's 2 and CM's 1) and `ASSIST_WEIGHTS.AM` is 3, the highest on
+ * the pitch, so his output lands on the winger's side of the line rather than
+ * the midfielder's. Measured over 8 seasons of a 240-club world, per player
+ * season with 19+ appearances: AM 6.3 goals + 5.8 assists, W 7.9 + 5.6,
+ * CM 4.3 + 5.4. AM and W are near enough the same player; AM and CM are not.
+ *
+ * Grouped as a midfielder he was paid MID rates (0.10/goal, 0.07/assist) for
+ * winger production, a 25%/40% premium over the W beside him doing the same
+ * job, which inflated attacking midfielders throughout the shortlists. Over
+ * those same 8 seasons the correction moves the Ballon d'Or top ten from
+ * 27 AM / 29 ST slots to 17 AM / 34 ST.
+ *
+ * Note what this does *not* fix: it changed none of the 8 winners. Those are
+ * decided by the ovr terms (`AWARD_OVR_WEIGHT` + `WORLD_AWARD_OVR_WEIGHT`,
+ * 0.20/point together), and elite ovr simply persists longer at AM than at ST
+ * — a player who reaches 80 holds it for 3.1 seasons as an AM against 1.2 as a
+ * striker, so the 80+ population is AM-heavy no matter how end product is
+ * priced. That lives in `OVR_WEIGHTS` (ST is 35% physical/height, AM 8%), not
+ * here, and moving it would retune every rating in every save.
+ */
 export function positionGroup(pos: Position): PositionGroup {
   switch (pos) {
     case "GK": return "GK";
     case "CB": case "FB": return "DEF";
-    case "DM": case "CM": case "AM": return "MID";
-    case "W": case "ST": return "FWD";
+    case "DM": case "CM": return "MID";
+    case "AM": case "W": case "ST": return "FWD";
   }
 }
 
