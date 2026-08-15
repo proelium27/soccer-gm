@@ -88,9 +88,11 @@ describe("Frivolities awards tab", () => {
         goldenBoot: winner.pid,
       }),
     ] as SeasonHistoryEntry[];
-    // A career row only exists for a player with an appearance on record.
+    // A career row only exists for a player with an appearance on record. He
+    // sits at the user's club so the all-time XI panel, which opens on it,
+    // renders a real pick as well as its empty slots.
     winner.stats = [{
-      season: 2028, tid: 2, appearances: 38, goals: 30, assists: 8,
+      season: 2028, tid: league.meta.userTid, appearances: 38, goals: 30, assists: 8,
     }] as typeof winner.stats;
 
     const html = render(league);
@@ -99,8 +101,14 @@ describe("Frivolities awards tab", () => {
     expect(html).toContain("Ballon d&#x27;Or record");
     expect(html).toContain("Ballon d&#x27;Or roll of honour");
     expect(html).toContain("Youngest and oldest winners");
+    expect(html).toContain("A club&#x27;s all-time award XI");
     expect(html).toContain("Awards by club");
     expect(html).toContain("Awards by country");
+    // The XI renders as a pitch: the user's club has one selection (a Team of
+    // the Season place at the keeper slot), and the other ten slots are empty.
+    expect(html).toContain("pitch-field");
+    expect(html).toContain("1 x Team of the Season");
+    expect(html).toContain(winner.name.split(" ").at(-1));
     // The forgotten pid still gets a row, under a placeholder name.
     expect(html).toContain("Player 123456");
     expect(html).toContain("Old Hand");

@@ -17,10 +17,11 @@ import {
   type GoatComponent, type PlayerGoatRow, type TeamGoatRow,
 } from "../../core/frivolities/goat.js";
 import {
-  computeAwardTrivia, sortAwardRows, AWARD_KEYS,
-  type AwardCareerRow, type AwardKey, type AwardTally,
+  computeAwardTrivia, sortAwardRows, awardXIForClub, AWARD_KEYS,
+  type AwardCareerRow, type AwardKey, type AwardTally, type AwardXISlot,
   type BallonDOrSeason, type ClubAwardRow, type NationAwardRow, type RollOfHonourRow,
 } from "../../core/frivolities/honours.js";
+import { layoutSlots } from "../pitchLayout.js";
 import { ALL_TIME_STAT_KEYS, type AllTimeStatKey } from "../../core/frivolities/stats.js";
 import { STAT_LABELS, formatStat } from "../statLabels.js";
 import { usePlayerRefs } from "../components/PlayerRefLink.js";
@@ -424,6 +425,133 @@ function BallonDOrBreakdown({ row }: { row: BallonDOrSeason }) {
   );
 }
 
+const XI_COORDS = layoutSlots("4-3-3");
+
+/** Surname only — a full name doesn't fit in a pitch chip. */
+function shortName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return parts[parts.length - 1];
+}
+
+/** How a slot's pick was selected, in words. */
+function selectionSummary(pick: AwardXISlot["pick"]): string {
+  if (!pick) return "";
+  const parts: string[] = [];
+  if (pick.worldXI > 0) parts.push(`${pick.worldXI} x World XI`);
+  if (pick.teamOfSeason > 0) parts.push(`${pick.teamOfSeason} x Team of the Season`);
+  return parts.join(", ");
+}
+
+/**
+ * A club's all-time award XI on a pitch, with the selections that earned each
+ * slot listed underneath.
+ *
+ * The pitch is the same 4-3-3 both team-of-the-year awards are picked in, which
+ * is what lets this be a record rather than an opinion: a slot's occupant is
+ * simply whoever this club has had picked there most often.
+ */
+function ClubAwardXI({ slots }: { slots: AwardXISlot[] }) {
+  const picked = slots.filter((s) => s.pick !== null);
+  return (
+    <>
+      <div className="pitch-field">
+        <div className="pitch-goal pitch-goal--left" />
+        <div className="pitch-goal pitch-goal--right" />
+        {slots.map((s) => {
+          const coord = XI_COORDS[s.slot];
+          return (
+            <div
+              key={s.slot}
+              className="pitch-slot"
+              style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
+            >
+              {s.pick ? (
+                <span className={`pitch-chip${s.pos === "GK" ? " pitch-chip--gk" : ""}`}>
+                  <Link to={`/player/${s.pick.pid}`} className="pitch-chip-name">
+                    {shortName(s.pick.name)}
+                  </Link>
+                  <span className="pitch-chip-ovr">{s.pick.worldXI + s.pick.teamOfSeason}</span>
+                </span>
+              ) : (
+                <span className="pitch-chip" style={{ opacity: 0.4, cursor: "default" }}>&mdash;</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {picked.length === 0 ? (
+        <p className="text-muted small mt-3 mb-0">
+          Nobody at this club has been picked in a Team of the Season or a World Team of the Year yet.
+        </p>
+      ) : (
+        <div className="table-responsive mt-3">
+          <table className="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th className="text-muted" style={{ width: "3.5rem" }}>Pos</th>
+                <th>Player</th>
+                <th>Picked</th>
+                <th className="text-end">Seasons</th>
+              </tr>
+            </thead>
+            <tbody>
+              {picked.map((s) => (
+                <tr key={s.slot}>
+                  <td className="text-muted">{s.pos}</td>
+                  <td>
+                    <PlayerCell
+                      pid={s.pick!.pid}
+                      name={s.pick!.name}
+                      nationality={s.pick!.nationality}
+                      active={s.pick!.active}
+                    />
+                  </td>
+                  <td className="small text-secondary">{selectionSummary(s.pick)}</td>
+                  <td className="text-end small text-secondary">
+                    {s.pick!.seasons.map(seasonYear).join(", ")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Every club in the world, grouped by country then competition. */
+function ClubPicker({ tid, onChange }: { tid: number; onChange: (tid: number) => void }) {
+  const { league } = useLeague();
+  if (!league) return null;
+  const countries = [...new Set(league.competitions.map((c) => c.country))];
+  return (
+    <select
+      className="form-select form-select-sm"
+      style={{ width: "auto" }}
+      value={tid}
+      onChange={(e) => onChange(Number(e.target.value))}
+      aria-label="Club"
+    >
+      {countries.map((country) => (
+        <optgroup key={country} label={country}>
+          {league.competitions
+            .filter((c) => c.country === country)
+            .flatMap((c) =>
+              league.teams
+                .filter((t) => t.compId === c.id)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((t) => (
+                  <option key={t.tid} value={t.tid}>{t.name} ({c.name})</option>
+                )),
+            )}
+        </optgroup>
+      ))}
+    </select>
+  );
+}
+
 function ballonDOrSeasonCells(r: BallonDOrSeason, showFinish: boolean): ReactNode[] {
   return [
     <PlayerCell pid={r.pid} name={r.name} nationality={r.nationality} active={r.active} />,
@@ -444,12 +572,16 @@ function ballonDOrSeasonCells(r: BallonDOrSeason, showFinish: boolean): ReactNod
 export function AwardsTab() {
   const { league } = useLeague();
   const [rank, setRank] = useState<AwardKey>("total");
+  // Defaults to the user's own club, which is the one he wants to see first.
+  const [xiTid, setXiTid] = useState<number | null>(null);
   const trivia = useMemo(() => (league ? computeAwardTrivia(league) : null), [league]);
   const ranked = useMemo(
     () => (trivia ? sortAwardRows(trivia.careers, rank) : []),
     [trivia, rank],
   );
   if (!league || !trivia) return null;
+
+  const shownTid = xiTid ?? league.meta.userTid;
 
   if (trivia.seasonsRecorded === 0) {
     return (
@@ -616,6 +748,21 @@ export function AwardsTab() {
                 />
               </div>
             </div>
+          </Panel>
+        </Col>
+      </Row>
+
+      <Row>
+        <Col wide>
+          <Panel
+            title="A club's all-time award XI"
+            note="Both team-of-the-year awards are picked position by position, so this is a record rather than an opinion: each slot goes to whoever this club has had picked there most often, with a worldwide place counting for more than a domestic one. A player can only hold one slot."
+          >
+            <div className="mb-3 d-flex align-items-center gap-2 flex-wrap">
+              <ClubPicker tid={shownTid} onChange={setXiTid} />
+              <ClubCell tid={shownTid} />
+            </div>
+            <ClubAwardXI slots={awardXIForClub(trivia, shownTid)} />
           </Panel>
         </Col>
       </Row>

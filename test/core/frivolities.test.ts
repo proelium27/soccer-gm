@@ -11,7 +11,7 @@ import { allTimeInternational, cappedNationalities } from "../../src/core/frivol
 import {
   computeHonours, playerGoatRanking, teamGoatRanking, pointsOf,
 } from "../../src/core/frivolities/goat.js";
-import { computeAwardTrivia, sortAwardRows } from "../../src/core/frivolities/honours.js";
+import { computeAwardTrivia, sortAwardRows, awardXIForClub } from "../../src/core/frivolities/honours.js";
 import { computePlayerHonors } from "../../src/core/playerHonors.js";
 import type { BallonDOrEntry } from "../../src/core/worldAwards.js";
 import { FREE_AGENT_TID } from "../../src/core/transfers/negotiation.js";
@@ -816,6 +816,100 @@ describe("awards trivia", () => {
     expect(stranger.age).toBeNull();
     // ...and an unknown pid can't be filed under a country.
     expect(trivia.nations.map((n) => n.nationality)).toEqual(["esp"]);
+  });
+
+  describe("a club's all-time award XI", () => {
+    /** Selections for slot `slot`, as an 11-long team-of-the-year array. */
+    function atSlot(slot: number, pid: number): (number | null)[] {
+      const xi: (number | null)[] = Array(11).fill(null);
+      xi[slot] = pid;
+      return xi;
+    }
+
+    it("fills each slot with the club's most-selected player there", () => {
+      const store = makeStore({
+        players: [
+          makePlayer({ pid: 1, lines: [[2028, 1, 38, 30, 5], [2029, 1, 38, 28, 5]] }),
+          makePlayer({ pid: 2, lines: [[2028, 1, 38, 10, 5], [2029, 1, 38, 12, 5]] }),
+        ],
+        seasonHistory: [
+          awardHistory(2028, { tots: atSlot(10, 1), worldXI: atSlot(9, 2) }),
+          awardHistory(2029, { tots: atSlot(10, 1) }),
+        ],
+      });
+
+      const xi = awardXIForClub(computeAwardTrivia(store), 1);
+      expect(xi).toHaveLength(11);
+      expect(xi[10].pick).toMatchObject({ pid: 1, teamOfSeason: 2, worldXI: 0, seasons: [2028, 2029] });
+      expect(xi[9].pick).toMatchObject({ pid: 2, worldXI: 1 });
+      // Slots nobody has ever been picked in stay empty rather than being
+      // filled with whoever is nearest.
+      expect(xi.filter((s) => s.pick !== null)).toHaveLength(2);
+      expect(xi[0].pick).toBeNull();
+    });
+
+    it("gives a player only one slot, and hands the other to the next-best man", () => {
+      // He was picked up front one season and wide the next. Printing him twice
+      // in one XI reads as a bug, so the weaker slot falls to someone else.
+      const store = makeStore({
+        players: [
+          makePlayer({ pid: 1, lines: [[2028, 1, 38, 30, 5], [2029, 1, 38, 28, 5], [2030, 1, 38, 20, 5]] }),
+          makePlayer({ pid: 2, lines: [[2030, 1, 38, 15, 5]] }),
+        ],
+        seasonHistory: [
+          // Two selections at slot 10, one at slot 9.
+          awardHistory(2028, { tots: atSlot(10, 1) }),
+          awardHistory(2029, { tots: atSlot(10, 1) }),
+          awardHistory(2030, { tots: atSlot(9, 1) }),
+          awardHistory(2030, { tots: atSlot(9, 2) }),
+        ],
+      });
+
+      const xi = awardXIForClub(computeAwardTrivia(store), 1);
+      expect(xi[10].pick!.pid).toBe(1);
+      expect(xi[9].pick!.pid).toBe(2);
+    });
+
+    it("counts a worldwide place above a domestic one", () => {
+      const store = makeStore({
+        players: [
+          makePlayer({ pid: 1, lines: [[2028, 1, 38, 30, 5]] }),
+          makePlayer({ pid: 2, lines: [[2028, 1, 38, 20, 5], [2029, 1, 38, 20, 5]] }),
+        ],
+        seasonHistory: [
+          awardHistory(2028, { worldXI: atSlot(10, 1), tots: atSlot(10, 2) }),
+          awardHistory(2029, { tots: atSlot(10, 2) }),
+        ],
+      });
+
+      // Two Team of the Season places don't outweigh one World XI.
+      expect(awardXIForClub(computeAwardTrivia(store), 1)[10].pick!.pid).toBe(1);
+    });
+
+    it("credits the selection to the club he was at that season", () => {
+      const store = makeStore({
+        players: [makePlayer({
+          pid: 1, lines: [[2028, 1, 38, 30, 5], [2029, 2, 38, 28, 5]],
+        })],
+        seasonHistory: [
+          awardHistory(2028, { tots: atSlot(10, 1) }),
+          awardHistory(2029, { tots: atSlot(10, 1) }),
+        ],
+      });
+
+      const trivia = computeAwardTrivia(store);
+      expect(awardXIForClub(trivia, 1)[10].pick).toMatchObject({ pid: 1, seasons: [2028] });
+      expect(awardXIForClub(trivia, 2)[10].pick).toMatchObject({ pid: 1, seasons: [2029] });
+    });
+
+    it("gives a club with no selections the full empty shape", () => {
+      const store = makeStore({ seasonHistory: [awardHistory(2028, {})] });
+      const xi = awardXIForClub(computeAwardTrivia(store), 3);
+      expect(xi).toHaveLength(11);
+      expect(xi.every((s) => s.pick === null)).toBe(true);
+      // The shape is the 4-3-3 both awards are picked in.
+      expect(xi[0].pos).toBe("GK");
+    });
   });
 
   it("ages a winner by the season he won it, not by today", () => {

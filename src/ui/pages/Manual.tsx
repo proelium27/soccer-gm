@@ -1183,6 +1183,16 @@ export function Manual() {
             counted here; they're on GOAT and on Club Records.
           </p>
           <p>
+            The tab also builds any club's <strong>all-time award XI</strong>, laid out on a pitch,
+            starting with your own. Both the Team of the Season and the World Team of the Year are
+            picked position by position, so this is a record rather than a ranking: each slot goes
+            to whoever that club has had picked there most often, counting a worldwide place above
+            a domestic one. A player can only hold one slot, so someone picked at two positions over
+            his career takes his stronger one and the next best man gets the other. A position
+            nobody has ever been picked in is left empty rather than filled with the nearest
+            approximation.
+          </p>
+          <p>
             <strong>Records</strong> covers the most dominant and worst team seasons, the highest
             rating any player has reached, the longest careers, and the biggest transfer fees. Team
             seasons rank by points per game rather than raw points, so a season in a smaller league

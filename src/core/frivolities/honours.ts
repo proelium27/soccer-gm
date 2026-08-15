@@ -1,6 +1,8 @@
 import type { LeagueStore } from "../leagueState.js";
+import type { Position } from "../players/types.js";
 import type { BallonDOrEntry } from "../worldAwards.js";
-import { BALLON_DOR_SHORTLIST } from "../constants.js";
+import { BALLON_DOR_SHORTLIST, GOAT_WORLD_XI_WEIGHT, GOAT_TOTS_WEIGHT } from "../constants.js";
+import { FORMATIONS } from "../lineup/formations.js";
 import { allCareers, type CareerRow } from "./careers.js";
 import { computeHonours, type PlayerHonours } from "./goat.js";
 
@@ -117,6 +119,45 @@ export interface BallonDOrSeason {
 export interface ClubAwardRow extends AwardTally { tid: number }
 export interface NationAwardRow extends AwardTally { nationality: string }
 
+/**
+ * The shape every slot-keyed award is picked in.
+ *
+ * Both the World Team of the Year and every competition's Team of the Season
+ * are stored as 11 pids index-aligned with this formation, so a selection
+ * already carries the position it was made at — which is what makes a club's
+ * all-time XI derivable rather than invented.
+ */
+const XI_SLOTS: readonly Position[] = FORMATIONS["4-3-3"];
+
+/** One player's selections in a single slot, for a single club. */
+export interface AwardXICandidate {
+  pid: number;
+  name: string;
+  nationality: string;
+  active: boolean;
+  /** Index into the 4-3-3, i.e. which slot he was picked in. */
+  slot: number;
+  worldXI: number;
+  teamOfSeason: number;
+  /** The seasons he was picked there while at this club, oldest first. */
+  seasons: number[];
+  /**
+   * His selections converted to one number so slots can be filled in a sensible
+   * order. Uses the GOAT board's own World XI and Team of the Season weights
+   * rather than a fresh pair, so the two boards agree on what a worldwide place
+   * is worth against a domestic one.
+   */
+  score: number;
+}
+
+/** One position in a club's all-time award XI. */
+export interface AwardXISlot {
+  slot: number;
+  pos: Position;
+  /** Null when nobody at this club has ever been picked there. */
+  pick: AwardXICandidate | null;
+}
+
 /** One season's Ballon d'Or result, winner and runner-up. */
 export interface RollOfHonourRow {
   season: number;
@@ -145,6 +186,12 @@ export interface AwardTrivia {
   oldestWinners: BallonDOrSeason[];
   clubs: ClubAwardRow[];
   nations: NationAwardRow[];
+  /**
+   * Each club's all-time award XI, keyed by tid. Built for every club that has
+   * ever had a player picked in a Team of the Season or a World Team of the
+   * Year; read it through `awardXIForClub`, which fills in the empty slots.
+   */
+  xiByClub: Map<number, AwardXISlot[]>;
   /** Seasons of history this save has on record, so the UI can say so. */
   seasonsRecorded: number;
 }
@@ -218,6 +265,32 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
     if (nationality) addToTally(nationRow(nationality), key);
   };
 
+  // Slot-keyed selections, per club, per player, per slot — the raw material of
+  // the all-time XI below. A season hands out 11 world places plus 11 per
+  // competition, so this stays small even over a century.
+  const selections = new Map<number, Map<string, AwardXICandidate>>();
+  const select = (pid: number, season: number, slot: number, kind: "worldXI" | "teamOfSeason"): void => {
+    const tid = clubOf(pid, season);
+    if (tid == null || tid < 0) return;
+    let byKey = selections.get(tid);
+    if (!byKey) { byKey = new Map(); selections.set(tid, byKey); }
+    const key = `${pid}:${slot}`;
+    let cand = byKey.get(key);
+    if (!cand) {
+      const career = careerByPid.get(pid);
+      cand = {
+        pid, slot,
+        name: career?.name ?? `Player ${pid}`,
+        nationality: career?.nationality ?? "",
+        active: career?.active ?? false,
+        worldXI: 0, teamOfSeason: 0, seasons: [], score: 0,
+      };
+      byKey.set(key, cand);
+    }
+    cand[kind] += 1;
+    if (!cand.seasons.includes(season)) cand.seasons.push(season);
+  };
+
   const ballon = new Map<number, BallonDOrRecord>();
   const ballonRecord = (pid: number): BallonDOrRecord => {
     let r = ballon.get(pid);
@@ -273,15 +346,21 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
       });
     }
 
-    for (const pid of h.world?.worldTeamOfYear ?? []) {
-      if (pid != null) credit(pid, h.season, "worldXI");
-    }
+    // Both team-of-the-year lists are index-aligned with the 4-3-3, so the
+    // index a pid sits at is the position he was picked in.
+    (h.world?.worldTeamOfYear ?? []).forEach((pid, slot) => {
+      if (pid == null) return;
+      credit(pid, h.season, "worldXI");
+      select(pid, h.season, slot, "worldXI");
+    });
     for (const a of Object.values(h.awards ?? {})) {
       if (a.playerOfSeasonPid != null) credit(a.playerOfSeasonPid, h.season, "playerOfSeason");
       if (a.goldenBootPid != null) credit(a.goldenBootPid, h.season, "goldenBoot");
-      for (const pid of a.teamOfSeason ?? []) {
-        if (pid != null) credit(pid, h.season, "teamOfSeason");
-      }
+      (a.teamOfSeason ?? []).forEach((pid, slot) => {
+        if (pid == null) return;
+        credit(pid, h.season, "teamOfSeason");
+        select(pid, h.season, slot, "teamOfSeason");
+      });
     }
   }
 
@@ -326,6 +405,11 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
     .sort((a, b) => dir * (a.age! - b.age!) || a.season - b.season || a.pid - b.pid)
     .slice(0, AWARD_LIST_LIMIT);
 
+  const xiByClub = new Map<number, AwardXISlot[]>();
+  for (const [tid, byKey] of selections) {
+    xiByClub.set(tid, buildAwardXI([...byKey.values()]));
+  }
+
   const rankTally = <T extends AwardTally>(list: T[]): T[] =>
     list.filter((r) => r.total > 0).sort((a, b) =>
       b.total - a.total || b.ballonDOr - a.ballonDOr || b.worldXI - a.worldXI,
@@ -348,8 +432,57 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
     oldestWinners: byAge(-1),
     clubs: rankTally([...clubs.values()]),
     nations: rankTally([...nations.values()]),
+    xiByClub,
     seasonsRecorded: league.seasonHistory.length,
   };
+}
+
+/** The 11 slots of the shape both team-of-the-year awards are picked in, all empty. */
+function emptyAwardXI(): AwardXISlot[] {
+  return XI_SLOTS.map((pos, slot) => ({ slot, pos, pick: null }));
+}
+
+/**
+ * Fill each slot with the club's most-selected player there.
+ *
+ * **A player can hold only one slot.** He can genuinely be picked at more than
+ * one position across a career — a winger selected up front one season and wide
+ * the next — and letting him fill both would print the same name twice in an
+ * XI, which reads as a bug rather than as a record. So slots are filled greedily
+ * from the strongest selection down: the best candidate anywhere takes his slot,
+ * and the next-best player takes any slot he vacates. Deterministic, and
+ * dependent only on the selections themselves.
+ */
+function buildAwardXI(candidates: AwardXICandidate[]): AwardXISlot[] {
+  for (const c of candidates) {
+    c.seasons.sort((a, b) => a - b);
+    c.score = c.worldXI * GOAT_WORLD_XI_WEIGHT + c.teamOfSeason * GOAT_TOTS_WEIGHT;
+  }
+  const xi = emptyAwardXI();
+  const usedPids = new Set<number>();
+  const ranked = [...candidates].sort((a, b) =>
+    b.score - a.score
+    // A worldwide place breaks a tie against the same weight of domestic ones,
+    // then the longer run of selections, then pid so renders can't shuffle.
+    || b.worldXI - a.worldXI
+    || b.seasons.length - a.seasons.length
+    || a.pid - b.pid);
+  for (const c of ranked) {
+    if (usedPids.has(c.pid) || xi[c.slot] === undefined || xi[c.slot].pick !== null) continue;
+    xi[c.slot].pick = c;
+    usedPids.add(c.pid);
+  }
+  return xi;
+}
+
+/**
+ * One club's all-time award XI, always 11 slots.
+ *
+ * A club with no selections at all still gets the full empty shape, so the
+ * pitch renders the same either way.
+ */
+export function awardXIForClub(trivia: AwardTrivia, tid: number): AwardXISlot[] {
+  return trivia.xiByClub.get(tid) ?? emptyAwardXI();
 }
 
 /**
