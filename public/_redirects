@@ -1,5 +1,0 @@
-# Cloudflare Pages SPA fallback. Mirrors the rewrite in vercel.json: the app
-# owns its routing, so deep links like /leagues or /manual have no file on disk
-# and would 404 on a cold load without this. Static assets still win over this
-# rule, so /assets/* and the icons resolve normally.
-/*    /index.html   200
