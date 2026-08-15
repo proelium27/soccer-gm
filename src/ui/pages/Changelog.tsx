@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
-import { CHANGELOG } from "../../core/changelog.js";
+import { CHANGELOG } from "../../core/changelog/index.js";
 
 /**
  * Player-facing changelog: a reverse-chronological list of every player-visible
- * change, read straight from the hand-maintained CHANGELOG data (src/core/changelog.ts).
+ * change, read straight from the hand-maintained entry files
+ * (`src/core/changelog/entries/*.ts`, collected by `src/core/changelog/index.ts`).
  * Pure display — no game state involved. Sits under Help in the sidebar, next to
  * the Manual.
  */
