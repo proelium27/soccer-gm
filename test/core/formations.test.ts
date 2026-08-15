@@ -30,12 +30,26 @@ describe("formations", () => {
     expect(FORMATION_IDS).toEqual([
       "4-3-3", "4-4-2", "3-5-2", "5-3-2",
       "4-2-3-1", "4-5-1", "3-4-3", "5-4-1", "4-3-1-2",
+      "4-4-1-1", "4-3-2-1", "4-2-2-2", "3-4-2-1", "3-5-1-1", "5-2-3", "5-2-1-2",
     ]);
     expect(new Set(FORMATION_IDS).size).toBe(FORMATION_IDS.length);
     for (const id of FORMATION_IDS) {
       const slots = FORMATIONS[id];
       expect(slots).toHaveLength(11);
       expect(slots.filter((p) => p === "GK")).toHaveLength(1);
+    }
+  });
+
+  it("gives every shape a distinct slot multiset — the sim can't tell two identical ones apart", () => {
+    // Composites bucket by slot and know nothing about pitch coordinates, so a
+    // shape sharing another's slots (4-1-4-1 == 4-3-3, 4-2-4 == 4-4-2) would be
+    // the same team to the engine and only add ties to chooseBestFormation.
+    const key = (id: (typeof FORMATION_IDS)[number]) => [...FORMATIONS[id]].sort().join(",");
+    const seen = new Map<string, string>();
+    for (const id of FORMATION_IDS) {
+      const k = key(id);
+      expect(seen.get(k), `${id} duplicates ${seen.get(k)}`).toBeUndefined();
+      seen.set(k, id);
     }
   });
 
