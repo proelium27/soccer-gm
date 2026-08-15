@@ -6,12 +6,16 @@
  * Keeping it in sync (same bar as the Manual — see CLAUDE.md):
  * - When a player-visible feature ships, changes, or is removed, PREPEND an
  *   entry here in the same PR. Newest entry goes first (top of the array).
- * - Write PURELY INFORMATIONALLY: state what changed, how it behaves, and why
- *   it was done. No first person, no addressing the reader as a friend, no
- *   rhetorical asides or jokes. Be specific and quote real numbers where they
- *   help; a known limitation is stated plainly rather than apologised for.
- *   (Entries dated before 2026-08-05 are in an older casual first-person voice
- *   and were left as a historical record; match the newest entries, not those.)
+ * - Write INFORMALLY and PERSONALLY (user call, 2026-08-15, reversing the
+ *   2026-08-05 "purely informational" rule): first person is wanted, say
+ *   plainly what was wrong and what it is now. Informal means *plain*, not
+ *   *performative* — no jokes, no winking asides, no hype words. Just tell
+ *   people what happened. Be specific and quote real numbers where they help;
+ *   state a known limitation outright rather than apologising for it.
+ *   The Discord-formatted version uses this same voice; only the layout
+ *   differs. Entries dated 2026-08-05 to 2026-08-14 are in the older
+ *   third-person voice and are left as a historical record — match this
+ *   instruction, not those.
  * - Group a batch of related changes shipped together under one dated entry.
  * - Formatting: entries render as prose paragraphs (one per `items` string) by
  *   default, which is what most entries should be. Only set `list: true` when
@@ -32,12 +36,12 @@ export interface ChangelogEntry {
 /** Newest first. Prepend new entries at the top. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    date: "2026-08-14",
-    title: "Attacking midfielders are no longer over-rewarded by the awards",
+    date: "2026-08-15",
+    title: "Attacking midfielders were getting paid too much by the awards",
     items: [
-      "Player of the Season, the Ballon d'Or and the Team of the Season all price goals and assists by position, on the principle that end product is worth more from a position that produces less of it. Attacking midfielders were grouped with the central and defensive midfielders for this, which paid them 0.10 a goal and 0.07 an assist against a winger's 0.08 and 0.05. That premium was not earned. Measured across eight seasons of a full world, an attacking midfielder averages 6.3 goals and 5.8 assists a season, a winger 7.9 and 5.6, and a central midfielder 4.3 and 5.4. An attacking midfielder is an attacker in this game, so he was being paid a scarcity rate for production that is not scarce.",
-      "Attacking midfielders are now scored at the same rate as wingers and strikers. The effect is on who fills out the shortlists rather than on the headline winner: over those same eight seasons the Ballon d'Or top ten went from 27 attacking-midfield places and 29 striker places to 17 and 34. A winger who outscores an attacking midfielder now finishes above him instead of below.",
-      "This does not change who won the award in those seasons, and the reason is worth stating plainly. The winner is decided mostly by how good the player is rather than by his statline, and a high overall rating simply lasts longer at attacking midfield than at centre forward: a player who reaches 80 holds it for around three seasons as an attacking midfielder and barely one as a striker, because so much more of a striker's rating rests on physical attributes that fade early. That is a property of how ratings are built, not of the awards, and it has been left alone.",
+      "The awards price goals and assists by position, on the idea that a goal counts for more from a position that scores fewer of them. I had attacking midfielders lumped in with the central and defensive midfielders, so they earned 0.10 a goal and 0.07 an assist while the winger next to them got 0.08 and 0.05. That premium wasn't earned. Over eight seasons of a full world an attacking midfielder averages 6.3 goals and 5.8 assists, a winger 7.9 and 5.6, and a central midfielder 4.3 and 5.4. An attacking midfielder is an attacker in this game, and I was paying him a scarcity rate for production that isn't scarce.",
+      "They're now scored at the same rate as wingers and strikers. It changes who fills out the shortlists more than who wins them: over those same eight seasons the Ballon d'Or top ten went from 27 attacking-midfield places and 29 striker places to 17 and 34. A winger who outscores an attacking midfielder now finishes above him instead of below.",
+      "It doesn't change who actually won. The winner is decided mostly by how good the player is rather than by his stat line, and attacking midfielders are simply more likely to be among the highest-rated players in the world. I went looking for why, and I haven't found a fix. I tried changing how ratings age so that a striker's peak lasts longer, measured it across eight separate worlds over ten seasons each, and it made no real difference to who reaches the top. So the shortlists are fairer now, but the name on the trophy is the same one it would have been.",
     ],
   },
   {
