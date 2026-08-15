@@ -6,12 +6,17 @@
  * Keeping it in sync (same bar as the Manual — see CLAUDE.md):
  * - When a player-visible feature ships, changes, or is removed, PREPEND an
  *   entry here in the same PR. Newest entry goes first (top of the array).
- * - Write PURELY INFORMATIONALLY: state what changed, how it behaves, and why
- *   it was done. No first person, no addressing the reader as a friend, no
- *   rhetorical asides or jokes. Be specific and quote real numbers where they
- *   help; a known limitation is stated plainly rather than apologised for.
- *   (Entries dated before 2026-08-05 are in an older casual first-person voice
- *   and were left as a historical record; match the newest entries, not those.)
+ * - Write INFORMALLY and PERSONALLY (rule current as of 2026-08-15): first
+ *   person is fine and wanted, and you say plainly what was wrong and what it
+ *   is now. Informal means PLAIN, not performative: no jokes, no winking
+ *   asides, no hype words. Own the cause when there was one ("as the world grew
+ *   I never grew the name pool with it") rather than writing round it. Still
+ *   specific and honest with real numbers, and a known limitation is stated
+ *   plainly rather than apologised for. The Discord-formatted version of an
+ *   entry uses this same voice; only its layout differs.
+ *   (Voice has flipped more than once. Entries dated 2026-08-05 to 2026-08-14
+ *   are purely informational and earlier ones casual; both were left as a
+ *   historical record. Match this rule, not the entries around it.)
  * - Group a batch of related changes shipped together under one dated entry.
  * - Formatting: entries render as prose paragraphs (one per `items` string) by
  *   default, which is what most entries should be. Only set `list: true` when
@@ -35,9 +40,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-08-15",
     title: "Seven more formations",
     items: [
-      "The formation dropdown on the Roster page now offers sixteen shapes instead of nine. The new ones are 4-4-1-1, 4-3-2-1, 4-2-2-2, 3-4-2-1, 3-5-1-1, 5-2-3 and 5-2-1-2. Each fields a different mix of positions from anything already on the list, so every one of them is a genuinely different eleven rather than the same team drawn differently: 4-2-2-2 starts two attacking mids behind two strikers, 4-3-2-1 puts two attacking mids behind a lone striker, 5-2-3 sits a back three behind two holding mids with a front three ahead, and so on.",
-      "Shapes that would have fielded exactly the same set of positions as an existing one were deliberately left out. 4-1-4-1 uses the same eleven positions as 4-3-3 and 4-2-4 the same as 4-4-2, so adding them would have padded the dropdown without changing which of your players get on the pitch.",
-      "AI clubs pick from the wider list too, and the effect is more variety rather than a new best shape. Measured across four different worlds, all sixteen shapes get used in every one of them, and the most popular shape's share of clubs drops by four to five points each time (from around a fifth of the league to around a sixth). Roughly a third of clubs line up differently than they would have, and the strongest eleven they can field improves by about 0.15 to 0.2 of a rating point per starter, so this is a change in how teams look rather than how good they are.",
+      "There are sixteen formations in the dropdown now instead of nine. The new ones are 4-4-1-1, 4-3-2-1, 4-2-2-2, 3-4-2-1, 3-5-1-1, 5-2-3 and 5-2-1-2, and each of them fields a different mix of positions from anything already on the list, so they are all genuinely different elevens rather than the same team drawn differently. 4-2-2-2 plays two attacking mids behind two strikers, 4-3-2-1 puts two attacking mids behind a lone striker, 5-2-3 sits a back three behind two holding mids with a front three ahead.",
+      "I left out some shapes you might expect to see. Your team's strength is built from the positions you field, and the game has no idea where on the pitch I have drawn them, so 4-1-4-1 uses exactly the same eleven positions as 4-3-3, and 4-2-4 the same as 4-4-2. Putting those in the list would have made it longer without changing a single thing about your team, so they are not there.",
+      "AI clubs pick from the same sixteen. I checked four different worlds before shipping this, because the thing that would have gone wrong is one new shape turning out to suit how squads are stocked and getting picked by everybody. It went the other way: all sixteen get used in every world, and the most popular shape's share of clubs drops by four or five points each time. About a third of clubs line up differently than they used to, and the best eleven they can field goes up by around 0.15 to 0.2 of a rating point per starter, so this changes how teams look more than how good they are.",
     ],
   },
   {
