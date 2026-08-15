@@ -511,8 +511,8 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     if (leagueRef.current) await saveLeague(leagueRef.current);
   }, []);
 
-  const doExport = useCallback(() => {
-    if (league) exportLeagueJSON(league);
+  const doExport = useCallback(async () => {
+    if (league) await exportLeagueJSON(league);
   }, [league]);
 
   const doImport = useCallback(async (file: File) => {
