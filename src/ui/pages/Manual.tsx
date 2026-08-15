@@ -603,7 +603,11 @@ export function Manual() {
             from a player's season-long average match rating, then adds a bonus for his goals and
             assists, weighted heavier than the match rating alone already credits them, and heavier
             still for a defender or keeper who chips in goals, so end product genuinely tips a close
-            race and not just consistency. The <strong>Golden Boot</strong> is just the league's top
+            race and not just consistency. Central and defensive midfielders sit between the two.
+            An attacking midfielder counts as an attacker for this, not a midfielder, because in
+            this game he scores and creates about as much as a winger does, so his goals are priced
+            the same as a winger's rather than at the scarcer midfield rate. The{" "}
+            <strong>Golden Boot</strong> is just the league's top
             goalscorer. <strong>Team of the Season</strong> fills an 11-man pitch (one XI slot per
             position) with whoever rates highest at that position across the whole league, blending
             match rating with the stats that matter most for the role: goals and assists up front,

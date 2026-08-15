@@ -1750,7 +1750,15 @@ export const AWARD_MIN_APPEARANCES = 19;
 export const AWARD_OVR_BASELINE = 65;
 export const AWARD_OVR_WEIGHT = 0.06;
 
-/** Player of the Season: avgRating plus goals/assists weighted heavier than the match-rating baseline already does. */
+/**
+ * Player of the Season: avgRating plus goals/assists weighted heavier than the match-rating baseline already does.
+ *
+ * Which column a position reads is `positionGroup` in `core/awards.ts` — note
+ * that **AM reads FWD here, not MID**, because an attacking midfielder's
+ * measured output in this engine is a winger's, not a central midfielder's.
+ * The reasoning and the numbers are on that function; don't retune these values
+ * to compensate for a position sitting in the column you didn't expect.
+ */
 export const POTY_GOAL_WEIGHT: Record<"GK" | "DEF" | "MID" | "FWD", number> = {
   FWD: 0.08, MID: 0.1, DEF: 0.14, GK: 0.22,
 };
