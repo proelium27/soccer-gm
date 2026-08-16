@@ -909,6 +909,11 @@ export function Manual() {
           <p>
             From the Loans page, <strong>list</strong> a senior-roster player and pick a duration
             (the depth floor still applies, so you can't loan away your last cover at a position).
+            There's also a <strong>"List for Loan"</strong> button on the Roster page, in each
+            player's pitch popover and in his XI or bench row, which lists him for a single season
+            in one click &mdash; use the Loans page if you want a 2 or 3 season loan instead. Either
+            way the button only works while a transfer window is open, and the same listing shows up
+            on both pages.
             Interested AI clubs then make offers there, each with a flat, non-negotiable fee and the
             duration you picked. Accept one and the move goes through right away, or reject and keep
             looking. The <strong>loanee club pays the fee up front and covers his wages for the whole
