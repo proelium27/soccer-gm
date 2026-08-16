@@ -16,21 +16,21 @@
  *   default-exporting one `ChangelogEntry`. Copy the newest existing file for
  *   the shape. `NN` is a two-digit slot within that day, `01` being the newest;
  *   use `01` unless the day already has entries and you want to sit under them.
- * - Write INFORMALLY AND PERSONALLY (user call, 2026-08-15, reversing the
- *   2026-08-05 "purely informational, no first person" rule that this comment
- *   used to carry): first person is wanted, and own the cause when there was
- *   one — "as the world grew bigger I never expanded the name pool with it, so
- *   a bunch of players ended up sharing a name", not "the pools have been
- *   expanded". Lead with the concrete thing a player would have noticed, then
- *   the numbers, and give both together rather than the figure alone.
- *   Informal means PLAIN, not performative: no jokes, no winking asides, no
- *   hype. Still specific and honest with real numbers — the tone changed, the
- *   substance didn't, and a known limitation is stated plainly rather than
- *   apologised for. No em-dashes and no emoji (repo-wide rules).
- *   The voice has flipped twice now, so treat the newest entries as the live
- *   sample; entries written under an older rule were deliberately not
- *   rewritten. The Discord version of a release uses this same voice and only
- *   differs in layout.
+ * - Write INFORMALLY AND PERSONALLY: first person is wanted, and own the cause
+ *   when there was one ("as the world grew bigger I never expanded the name pool
+ *   with it") rather than reporting it from nowhere ("the pools have been
+ *   expanded"). Informal means *plain*, not *performative* — no jokes, no
+ *   winking asides, no hype. Lead with the concrete thing a player would have
+ *   noticed, then the numbers, and give both together: "twelve separate men
+ *   called Ahmet Ozturk" lands where "17.7% duplicate rate" alone doesn't.
+ *   Still specific and honest — informal replaces the tone, not the substance,
+ *   and a known limitation is stated plainly rather than apologised for.
+ *   (This voice was set 2026-08-15 and REVERSED a 2026-08-05 "purely
+ *   informational, no first person" rule, which had itself reversed a
+ *   2026-07-20 casual-voice one. Voice has flipped twice, so entries are in
+ *   whichever voice was live when they shipped and were never rewritten —
+ *   match the NEWEST entries, not older ones, and update this comment in the
+ *   same PR if it ever flips again.)
  * - Group a batch of related changes shipped together into one entry file.
  * - Formatting: entries render as prose paragraphs (one per `items` string) by
  *   default, which is what most entries should be. Only set `list: true` when

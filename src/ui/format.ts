@@ -1,6 +1,23 @@
 import { weeklyWage } from "../core/contracts.js";
 import type { CompletedTransfer } from "../core/transfers/negotiation.js";
 import { isFreeAgentTid } from "../core/transfers/negotiation.js";
+import { per90 } from "../core/stats/per90.js";
+
+/**
+ * Cell text for a per-90 rate, shared by every surface that shows one so the
+ * columns read alike.
+ *
+ * Two decimals below 10 and one at or above it: goals and assists per 90 live
+ * around 0.2-1.2, where the second decimal *is* the difference between players,
+ * while passes per 90 runs to ~50, where it is noise and hurts scanning. A
+ * player with no recorded minutes gets an em dash — his rate is unmeasurable,
+ * which is a different thing from a player who played and produced nothing.
+ */
+export function per90Text(value: number, minutesPlayed: number): string {
+  const rate = per90(value, minutesPlayed);
+  if (rate === null) return "—";
+  return rate >= 10 ? rate.toFixed(1) : rate.toFixed(2);
+}
 
 export const currency = new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", maximumFractionDigits: 0,
