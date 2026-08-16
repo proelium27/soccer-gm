@@ -4,7 +4,7 @@ import { useLeague } from "../context/LeagueContext.js";
 import { SKILL_KEYS } from "../../core/players/types.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
-import { SKILL_LABELS } from "../components/PlayerRatingsTooltip.js";
+import { SKILL_LABELS, SKILL_ABBREV } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { PotHelp } from "../components/HelpHint.js";
 import { ValueHistoryChart } from "../components/ValueHistoryChart.js";
@@ -211,7 +211,7 @@ export function PlayerProfile() {
         {isSuspended(player) && (
           <>
             {" "}&middot;{" "}
-            <span className="text-danger" title="League matches only — he can still play in the cup.">
+            <span className="text-danger" title="League matches only, so he can still play in the cup.">
               Suspended ({player.suspension!.reason}, {matchesLabel(player.suspension!.matchesRemaining)} remaining)
             </span>
           </>
@@ -416,63 +416,6 @@ export function PlayerProfile() {
               )}
             </div>
           </div>
-
-          <div className="card">
-            <div className="card-body">
-              <h6 className="card-title">OVR / POT / Attribute History</h6>
-              {histBySeasonDesc.length === 0 ? (
-                <p className="text-muted mb-0">No history recorded yet.</p>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-striped table-sm mb-0">
-                    <thead>
-                      <tr>
-                        <th>Season</th>
-                        <th className="text-end">Ovr</th>
-                        <th className="text-end">Pot <PotHelp /></th>
-                        {SKILL_KEYS.map((key) => (
-                          <th key={key} className="text-end" title={SKILL_LABELS[key]}>
-                            {SKILL_LABELS[key].split(" ").map((w) => w[0]).join("")}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {histBySeasonDesc.map((h) => (
-                        <tr key={h.season}>
-                          <td>
-                            {seasonYear(h.season)}
-                            {seasonTeamAbbrev(h.season) && (
-                              <span className="text-muted small"> ({seasonTeamAbbrev(h.season)})</span>
-                            )}
-                          </td>
-                          <td className="text-end fw-semibold" style={{ color: getRatingColor(h.ovr) }}>{h.ovr}</td>
-                          {(() => {
-                            const fog = potentialFog(h.potential, player.pid, h.season, scoutObserved, scoutSpend);
-                            const colorAt = fog.known ? h.potential : Math.round((fog.low + fog.high) / 2);
-                            return (
-                              <td className="text-end" style={{ color: getRatingColor(colorAt) }}>
-                                {fog.known ? h.potential : `${fog.low}–${fog.high}`}
-                              </td>
-                            );
-                          })()}
-                          {SKILL_KEYS.map((key) => (
-                            <td key={key} className="text-end" style={{ color: getRatingColor(h.ratings[key]) }}>
-                              {h.ratings[key]}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <p className="text-muted small mt-2 mb-0">
-                Each row is the player&apos;s ratings as of the end of that season (i.e. what he
-                carried into the following one).
-              </p>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -625,7 +568,7 @@ export function PlayerProfile() {
                         <td className="text-end">{v(s.assists)}</td>
                         <td className="text-end">{v(s.shots)}</td>
                         <td className="text-end">{v(s.shotsOnTarget)}</td>
-                        <td className="text-end">{v(s.saves)}</td>
+                        <td className="text-end">{player.pos === "GK" ? v(s.saves) : ""}</td>
                         <td className="text-end">{player.pos === "GK" ? v(s.goalsAgainst) : ""}</td>
                         <td className="text-end">{v(s.tackles)}</td>
                         <td className="text-end">{v(s.interceptions)}</td>
@@ -685,7 +628,11 @@ export function PlayerProfile() {
                       <td className="text-end">{v(s.shots)}</td>
                       <td className="text-end">{v(s.shotsOnTarget)}</td>
                       <td className="text-end">{vx(s.xg)}</td>
-                      <td className="text-end">{v(s.saves)}</td>
+                      {/* Saves reads as a keeper column here, like the GA/xGA
+                          beside it: a hard 0 on an outfielder is noise in a
+                          sixteen-column row. Stat Leaders still ranks it for
+                          everyone, where the whole point is comparing players. */}
+                      <td className="text-end">{player.pos === "GK" ? v(s.saves) : ""}</td>
                       <td className="text-end">{player.pos === "GK" ? v(s.goalsAgainst) : ""}</td>
                       <td className="text-end">{player.pos === "GK" ? vx(s.xga) : ""}</td>
                       <td className="text-end">{v(s.tackles)}</td>
@@ -700,6 +647,63 @@ export function PlayerProfile() {
               </table>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="card mt-3">
+        <div className="card-body">
+          <h6 className="card-title">OVR / POT / Attribute History</h6>
+          {histBySeasonDesc.length === 0 ? (
+            <p className="text-muted mb-0">No history recorded yet.</p>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-striped table-sm mb-0">
+                <thead>
+                  <tr>
+                    <th>Season</th>
+                    <th className="text-end">Ovr</th>
+                    <th className="text-end">Pot <PotHelp /></th>
+                    {SKILL_KEYS.map((key) => (
+                      <th key={key} className="text-end" title={SKILL_LABELS[key]}>
+                        {SKILL_ABBREV[key]}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {histBySeasonDesc.map((h) => (
+                    <tr key={h.season}>
+                      <td>
+                        {seasonYear(h.season)}
+                        {seasonTeamAbbrev(h.season) && (
+                          <span className="text-muted small"> ({seasonTeamAbbrev(h.season)})</span>
+                        )}
+                      </td>
+                      <td className="text-end fw-semibold" style={{ color: getRatingColor(h.ovr) }}>{h.ovr}</td>
+                      {(() => {
+                        const fog = potentialFog(h.potential, player.pid, h.season, scoutObserved, scoutSpend);
+                        const colorAt = fog.known ? h.potential : Math.round((fog.low + fog.high) / 2);
+                        return (
+                          <td className="text-end" style={{ color: getRatingColor(colorAt) }}>
+                            {fog.known ? h.potential : `${fog.low}–${fog.high}`}
+                          </td>
+                        );
+                      })()}
+                      {SKILL_KEYS.map((key) => (
+                        <td key={key} className="text-end" style={{ color: getRatingColor(h.ratings[key]) }}>
+                          {h.ratings[key]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-muted small mt-2 mb-0">
+            Each row is the player&apos;s ratings as of the end of that season (i.e. what he
+            carried into the following one).
+          </p>
         </div>
       </div>
     </div>
