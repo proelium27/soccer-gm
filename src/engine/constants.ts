@@ -56,11 +56,41 @@ export const FREE_KICK_CHANCE_BASE = 0.05; // bonus shot-chance prob for the fou
 
 // simMatch (composite-only, no player identity): a foul sends the fouling side a man down
 // with this flat probability, standing in for straight reds + accumulated second yellows.
+//
+// Deliberately NOT raised alongside YELLOW_GIVEN_FOUL below (2026-08-16), so the
+// two paths no longer imply the same red rate (~0.05 man-down events per match
+// here against 0.18 reds in simMatchDetailed). simMatch has no player identity
+// and so no box score anyone sees — its only callers are montecarlo.ts,
+// scripts/cli.ts and tests — while it *is* what the M1 benchmark bands are
+// calibrated against. Moving it would retune spec gates for no player-visible
+// gain. If these ever need to agree, re-derive this from the detailed path's
+// measured red rate and re-run the M1 benchmarks in the same change.
 export const RED_GIVEN_FOUL_SIMPLE = 0.004;
 
 // simMatchDetailed (player identity available): distinguish yellow/red so bookings persist
 // per player and a second yellow becomes a red, per spec.
-export const YELLOW_GIVEN_FOUL = 0.11;
+//
+// Raised 0.11 -> 0.18 on 2026-08-16, once suspensions gave cards a consequence
+// worth measuring (`scripts/cardRateSweep.ts`). At 0.11 the engine booked 1.42
+// players per match against a real top flight's ~3.5-4.5; this lands ~2.3,
+// closing about half the gap. Three things make this a tuning knob rather than
+// a free one, all measured in the sweep:
+//
+//   - REDS RISE FASTER THAN YELLOWS, roughly with the square of this number: a
+//     second yellow needs two bookings to land on one player. Straight reds are
+//     therefore left alone at 0.003 — total reds reach the real ~0.15-0.25 band
+//     on second yellows alone, and raising both would overshoot it.
+//   - CARDS COST GOALS, indirectly. Every card calls bumpEvent(), and stoppage
+//     time is STOPPAGE_SECONDS_PER_EVENT per event, so a busier card sheet makes
+//     matches marginally longer. Small (the M1 goals/game bands hold) but real,
+//     and it is the channel that would break a benchmark if this went much higher.
+//   - MORE REDS MEANS MORE MAN-DOWN COMPOSITES, which is a genuine on-pitch
+//     effect, not bookkeeping.
+//
+// Going the rest of the way to a real booking rate would need FOUL_BASE raised
+// too — at 13.0 fouls per match the engine already books a higher share of fouls
+// than referees do, so the shortfall is in fouls, not in cards per foul.
+export const YELLOW_GIVEN_FOUL = 0.18;
 export const RED_STRAIGHT_GIVEN_FOUL = 0.003;
 
 // Red card man-down penalty: recompute the short side's composites once, per spec §5.
