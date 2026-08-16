@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listLeagues, deleteLeague, loadLeague } from "../../db/leagueDb.js";
-import { exportLeagueJSON } from "../../db/exportImport.js";
+import { exportLeagueJSON, readLeagueFileText } from "../../db/exportImport.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { useSportName } from "../sportName.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
@@ -114,7 +114,7 @@ export function Leagues() {
   async function handleExportSave(lid: number) {
     const league = await loadLeague(lid);
     if (!league) return;
-    exportLeagueJSON(league);
+    await exportLeagueJSON(league);
   }
 
   /**
@@ -140,8 +140,12 @@ export function Leagues() {
 
     const texts: { file: File; text: string }[] = [];
     for (const file of picked) {
-      const text = await file.text();
+      // readLeagueFileText, not file.text(): an exported save is gzipped, and
+      // reading its bytes as text would fail the JSON.parse below and report a
+      // perfectly good save as corrupt.
+      let text: string;
       try {
+        text = await readLeagueFileText(file);
         JSON.parse(text);
       } catch {
         setImportError(`"${file.name}" isn't a valid JSON file.`);
@@ -317,7 +321,7 @@ export function Leagues() {
         <input
           ref={importInputRef}
           type="file"
-          accept=".json,application/json"
+          accept=".json,.gz,application/json,application/gzip"
           multiple
           className="d-none"
           onChange={handleImport}

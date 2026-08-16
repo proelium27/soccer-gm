@@ -110,6 +110,15 @@ export function Manual() {
             old export gives you the save exactly as it was the day you exported it.
           </p>
           <p>
+            Exported saves are compressed, so they come out as a <code>.json.gz</code> file that's
+            roughly sixteen times smaller than it would otherwise be — an eight-season save lands
+            around 5 MB instead of 84 MB, which is the difference between a file you can send someone
+            and one you can't. Nothing is left out to achieve that; compression is reversible, and
+            importing gives you back every last detail. There's no need to unzip it yourself, and you
+            shouldn't: Import takes the file exactly as it downloaded. Saves exported by older
+            versions of the game are plain <code>.json</code> and still import fine.
+          </p>
+          <p>
             That same "Import" button also takes a roster file — a plain text (JSON) file listing
             clubs by league — and works out which kind of file you gave it from the file itself. Give
             it one of those and it starts a brand new save with those clubs in place of the fictional

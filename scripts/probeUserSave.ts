@@ -7,6 +7,7 @@
 import { readFileSync } from "node:fs";
 import type { LeagueStore } from "../src/core/leagueState.js";
 import { migrateLeague } from "../src/db/migrate.js";
+import { readLeagueFileText } from "../src/db/exportImport.js";
 import { transferWindowState } from "../src/core/transfers/window.js";
 import {
   recommendedTransfers,
@@ -21,8 +22,12 @@ import { protectedStarPids, lastCompletedSeason } from "../src/core/transfers/pr
 const path = process.argv[2];
 if (!path) { console.error("pass the export path"); process.exit(1); }
 
+// Through the game's own reader, so a gzipped export (what Export Save writes
+// now) and a plain one from an older build both work here.
 const t0 = performance.now();
-const raw = JSON.parse(readFileSync(path, "utf8")) as LeagueStore;
+const raw = JSON.parse(
+  await readLeagueFileText(new Blob([readFileSync(path)])),
+) as LeagueStore;
 console.log(`parse: ${(performance.now() - t0).toFixed(0)}ms`);
 
 const t1 = performance.now();

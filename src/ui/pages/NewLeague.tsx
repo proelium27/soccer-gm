@@ -5,6 +5,7 @@ import { createLeagueState, type LeagueStore } from "../../core/leagueState.js";
 import { applyTeamIdentities } from "../../core/teams/customize.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { useLeague } from "../context/LeagueContext.js";
+import { readLeagueFileText } from "../../db/exportImport.js";
 import { NUM_TEAMS, NUM_TEAMS_D2 } from "../../core/constants.js";
 import {
   worldCompetitions,
@@ -202,7 +203,13 @@ export function NewLeague() {
     const errors: string[] = [];
     for (const file of picked) {
       try {
-        loaded.push({ name: file.name, file: parseRosterFile(await file.text()) });
+        // Roster files are hand-written or AI-authored and so never compressed,
+        // but every picked file goes through one reader so a gzipped one can't
+        // read as garbage on this screen alone.
+        loaded.push({
+          name: file.name,
+          file: parseRosterFile(await readLeagueFileText(file)),
+        });
       } catch (err) {
         errors.push(`${file.name}: ${err instanceof Error ? err.message : String(err)}`);
       }

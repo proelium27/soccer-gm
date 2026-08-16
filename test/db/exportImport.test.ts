@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { makeLeague } from "../helpers/league.js";
-import { importLeagueJSON } from "../../src/db/exportImport.js";
+import {
+  encodeLeagueFile,
+  importLeagueJSON,
+  readLeagueFileText,
+} from "../../src/db/exportImport.js";
 import { buildRosterFile } from "../../src/core/teams/rosterFile.js";
 
 /** A stand-in for the browser File the import UI hands over. */
@@ -9,8 +13,60 @@ function jsonFile(name: string, value: unknown): File {
   return new File([text], name, { type: "application/json" });
 }
 
+/** The file the export button now writes: compact JSON, gzipped. */
+async function exportedFile(league: unknown): Promise<File> {
+  const bytes = await encodeLeagueFile(league as never);
+  return new File([bytes], "save.json.gz", { type: "application/gzip" });
+}
+
+describe("encodeLeagueFile", () => {
+  it("writes gzip, not plain text", async () => {
+    const bytes = await encodeLeagueFile(makeLeague(0, 1));
+    // The two-byte gzip magic number. Import sniffs for exactly this, so if the
+    // encoder ever stops emitting it, every export silently becomes unreadable.
+    expect([bytes[0], bytes[1]]).toEqual([0x1f, 0x8b]);
+  });
+
+  it("writes compact JSON, not the pretty-printed form", async () => {
+    // Half the old file was indentation whitespace. Nothing reads the export as
+    // formatted text, so the indentation was pure cost.
+    const league = makeLeague(0, 1);
+    const text = await readLeagueFileText(await exportedFile(league));
+    expect(text).toBe(JSON.stringify(league));
+  });
+
+  it("is dramatically smaller than the pretty-printed JSON it replaces", async () => {
+    const league = makeLeague(0, 1);
+    const before = JSON.stringify(league, null, 2).length;
+    const after = (await encodeLeagueFile(league)).length;
+    expect(after).toBeLessThan(before / 5);
+  });
+});
+
+describe("readLeagueFileText", () => {
+  it("passes an uncompressed file through unchanged", async () => {
+    const text = await readLeagueFileText(jsonFile("plain.json", { a: 1 }));
+    expect(text).toBe('{"a":1}');
+  });
+
+  it("decompresses a gzipped file", async () => {
+    const gz = await encodeLeagueFile({ a: 1 } as never);
+    const text = await readLeagueFileText(new File([gz], "x.json.gz"));
+    expect(text).toBe('{"a":1}');
+  });
+});
+
 describe("importLeagueJSON", () => {
-  it("round-trips a full save export", async () => {
+  it("round-trips a gzipped save export", async () => {
+    const league = makeLeague(0, 1);
+    const imported = await importLeagueJSON(await exportedFile(league));
+    expect(imported.meta.name).toBe(league.meta.name);
+    expect(imported.season).toBe(league.season);
+    expect(imported.players).toHaveLength(league.players.length);
+    expect(imported.teams).toHaveLength(league.teams.length);
+  });
+
+  it("still reads an uncompressed save exported by an older build", async () => {
     const league = makeLeague(0, 1);
     const imported = await importLeagueJSON(jsonFile("save.json", league));
     expect(imported.meta.name).toBe(league.meta.name);
