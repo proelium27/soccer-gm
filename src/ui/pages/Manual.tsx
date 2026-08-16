@@ -884,10 +884,10 @@ export function Manual() {
             budget gives you a fuzzier, less reliable take.
           </p>
           <p>
-            <strong>List for Transfer.</strong> AI clubs already scout your whole roster on their
-            own, but the "List for Transfer" button on the Roster page (in each player's pitch
-            popover or bench row) lets you flag a player as available, a clearer signal that you're
-            open to selling. A listed player needs a much smaller edge in value to some AI club to
+            <strong>List for transfer.</strong> AI clubs already scout your whole roster on their
+            own, but the <strong>List</strong> menu on the Roster page (in each player's pitch
+            popover and in his XI or bench row) lets you flag a player as available, a clearer
+            signal that you're open to selling. The same menu is where you list him for loan. A listed player needs a much smaller edge in value to some AI club to
             draw a bid, and gets first claim on one of the 4 offer slots each window over an unlisted
             player. It's not a guarantee (a buyer still has to rate him above what he's worth to
             you), just better odds of a bite.
@@ -909,6 +909,13 @@ export function Manual() {
           <p>
             From the Loans page, <strong>list</strong> a senior-roster player and pick a duration
             (the depth floor still applies, so you can't loan away your last cover at a position).
+            You can also list him from the Roster page: the <strong>List</strong> menu on each
+            player (pitch popover, XI row or bench row) holds both listings, so
+            "List for loan (1 season)" is one click from the squad screen &mdash; use the Loans page
+            if you want a 2 or 3 season loan instead. It's the same listing either way, so it shows
+            up on both pages, and the loan half of the menu is only available while a transfer
+            window is open. A player listed for loan carries an <strong>L</strong> flag on his pitch
+            chip, the same way a transfer-listed player carries a <strong>$</strong>.
             Interested AI clubs then make offers there, each with a flat, non-negotiable fee and the
             duration you picked. Accept one and the move goes through right away, or reject and keep
             looking. The <strong>loanee club pays the fee up front and covers his wages for the whole

@@ -13,6 +13,7 @@ import { canExtend } from "../../core/contracts.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { previousRatings } from "./RatingDelta.js";
 import { ExtendControl } from "./ExtendControl.js";
+import { ListingMenu } from "./ListingMenu.js";
 import { slotFitNote } from "./PositionBadge.js";
 
 const DRAG_MIME = "application/x-soccer-gm-pid";
@@ -32,9 +33,13 @@ export interface PitchFieldProps {
   releasablePids: Set<number>;
   refusingPids: Set<number>;
   transferListedPids: Set<number>;
+  loanListedPids: Set<number>;
+  /** Loans can only be listed while a transfer window is open, same as the Loans page. */
+  windowOpen: boolean;
   onRelease: (pid: number) => void;
   onExtend: (pid: number, lengthSeasons: number) => void;
   onToggleTransferListed: (pid: number, listed: boolean) => void;
+  onToggleLoanListed: (pid: number, listed: boolean) => void;
   dragOverSlotIndex: number | null;
   setDragOverSlotIndex: (i: number | null) => void;
   onDropOnSlot: (slotIndex: number, draggedPid: number) => void;
@@ -52,9 +57,12 @@ export function PitchField({
   releasablePids,
   refusingPids,
   transferListedPids,
+  loanListedPids,
+  windowOpen,
   onRelease,
   onExtend,
   onToggleTransferListed,
+  onToggleLoanListed,
   dragOverSlotIndex,
   setDragOverSlotIndex,
   onDropOnSlot,
@@ -174,6 +182,11 @@ export function PitchField({
                     $
                   </span>
                 )}
+                {loanListedPids.has(p.pid) && (
+                  <span className="pitch-chip-listed-flag" title="Listed for loan">
+                    L
+                  </span>
+                )}
                 {p.injury && (
                   <span
                     className="pitch-chip-injury-flag"
@@ -257,16 +270,16 @@ export function PitchField({
                       />
                     )
                   )}
-                  <button
-                    className={
-                      "btn btn-sm text-nowrap " +
-                      (transferListedPids.has(p.pid) ? "btn-warning" : "btn-outline-warning")
-                    }
-                    onClick={() => onToggleTransferListed(p.pid, !transferListedPids.has(p.pid))}
-                    title="Listing signals AI clubs you're willing to sell, making an offer more likely."
-                  >
-                    {transferListedPids.has(p.pid) ? "Listed for Transfer" : "List for Transfer"}
-                  </button>
+                  <ListingMenu
+                    player={p}
+                    season={season}
+                    transferListed={transferListedPids.has(p.pid)}
+                    loanListed={loanListedPids.has(p.pid)}
+                    keepsDepthFloor={releasablePids.has(p.pid)}
+                    windowOpen={windowOpen}
+                    onToggleTransferListed={onToggleTransferListed}
+                    onToggleLoanListed={onToggleLoanListed}
+                  />
                   <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => {

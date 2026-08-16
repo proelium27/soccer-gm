@@ -252,6 +252,17 @@ a:hover {
   --bs-btn-hover-color: var(--sg-text);
 }
 
+/* Bootstrap 5's `.dropdown-menu-end` only sets `--bs-position: end`; the rules
+   that actually right-align the menu are its `[data-bs-popper]` ones, which
+   need the Bootstrap JS this app deliberately doesn't ship (see Dropdown.tsx).
+   So `alignEnd` was inert everywhere except the topbar, which carries its own
+   scoped copy of this — a menu opened near the right edge of the page (the
+   roster row's List menu) ran off-screen. Unscoped so any dropdown gets it. */
+.dropdown-menu-end {
+  right: 0;
+  left: auto;
+}
+
 /* =========================================================================
    Sidebar — green-tinted surface, green active state (replaces Bootstrap blue)
    ========================================================================= */
