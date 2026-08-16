@@ -17,7 +17,7 @@ import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { competitionOf } from "../../core/competitions.js";
 import { worldHasCup } from "../../core/cup/cup.js";
 import { cupStatsBySeasonForPlayer } from "../../core/cup/cupStats.js";
-import { clubDisplayName, formatWeeklyWage, seasonYear, transferFeeLabel } from "../format.js";
+import { clubDisplayName, formatWeeklyWage, per90Text, seasonYear, transferFeeLabel } from "../format.js";
 import { INTL_TOURNAMENT_NAME } from "../../core/constants.js";
 import { PlayerEditModal } from "../components/PlayerEditModal.js";
 import { computePlayerHonors } from "../../core/playerHonors.js";
@@ -75,6 +75,11 @@ export function PlayerProfile() {
   const { pid } = useParams<{ pid: string }>();
   const { league, movePlayerToClubAction, releasePlayerGodModeAction } = useLeague();
   const [statsTab, setStatsTab] = useState<"league" | "cup" | "intl">("league");
+  // Totals or per-90 rates, across both the league and cup stat tables (they
+  // record minutes in the same shape). No qualifier here, unlike the Stat
+  // Leaders board: you're deliberately looking at one player, so a low-minutes
+  // season reading high is information rather than a fake leader.
+  const [statsRate, setStatsRate] = useState(false);
   const [careerChart, setCareerChart] = useState<"value" | "ovr">("value");
   const [editing, setEditing] = useState(false);
 
@@ -334,41 +339,68 @@ export function PlayerProfile() {
                       ? "National Team Stats"
                       : "Season Stats"}
                 </h6>
-                {(showCupTab || showIntlTab) && (
-                  <ul className="nav nav-pills nav-sm">
-                    <li className="nav-item">
+                <div className="d-flex align-items-center gap-2">
+                  {/* The national-team table records caps, not minutes, so it has
+                      no per-90 reading and the toggle is hidden on that tab. */}
+                  {activeStatsTab !== "intl" && (
+                    <div
+                      className="btn-group btn-group-sm"
+                      role="group"
+                      aria-label="Totals or per 90 minutes"
+                    >
                       <button
                         type="button"
-                        className={`nav-link py-0 px-2${activeStatsTab === "league" ? " active" : ""}`}
-                        onClick={() => setStatsTab("league")}
+                        className={`btn ${statsRate ? "btn-outline-secondary" : "btn-secondary"}`}
+                        onClick={() => setStatsRate(false)}
                       >
-                        League
+                        Totals
                       </button>
-                    </li>
-                    {showCupTab && (
+                      <button
+                        type="button"
+                        className={`btn ${statsRate ? "btn-secondary" : "btn-outline-secondary"}`}
+                        onClick={() => setStatsRate(true)}
+                        title="Stats divided by 90-minute matches played"
+                      >
+                        Per 90
+                      </button>
+                    </div>
+                  )}
+                  {(showCupTab || showIntlTab) && (
+                    <ul className="nav nav-pills nav-sm">
                       <li className="nav-item">
                         <button
                           type="button"
-                          className={`nav-link py-0 px-2${activeStatsTab === "cup" ? " active" : ""}`}
-                          onClick={() => setStatsTab("cup")}
+                          className={`nav-link py-0 px-2${activeStatsTab === "league" ? " active" : ""}`}
+                          onClick={() => setStatsTab("league")}
                         >
-                          Cup
+                          League
                         </button>
                       </li>
-                    )}
-                    {showIntlTab && (
-                      <li className="nav-item">
-                        <button
-                          type="button"
-                          className={`nav-link py-0 px-2${activeStatsTab === "intl" ? " active" : ""}`}
-                          onClick={() => setStatsTab("intl")}
-                        >
-                          National Team
-                        </button>
-                      </li>
-                    )}
-                  </ul>
-                )}
+                      {showCupTab && (
+                        <li className="nav-item">
+                          <button
+                            type="button"
+                            className={`nav-link py-0 px-2${activeStatsTab === "cup" ? " active" : ""}`}
+                            onClick={() => setStatsTab("cup")}
+                          >
+                            Cup
+                          </button>
+                        </li>
+                      )}
+                      {showIntlTab && (
+                        <li className="nav-item">
+                          <button
+                            type="button"
+                            className={`nav-link py-0 px-2${activeStatsTab === "intl" ? " active" : ""}`}
+                            onClick={() => setStatsTab("intl")}
+                          >
+                            National Team
+                          </button>
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
               </div>
               {activeStatsTab === "intl" && intl ? (
                 <>
@@ -423,32 +455,36 @@ export function PlayerProfile() {
                           <th>Season</th>
                           <th className="text-end">Apps</th>
                           <th className="text-end">Min</th>
-                          <th className="text-end">G</th>
-                          <th className="text-end">A</th>
-                          <th className="text-end">Sh</th>
-                          <th className="text-end">SoT</th>
-                          <th className="text-end">Sv</th>
-                          <th className="text-end">GA</th>
-                          <th className="text-end">Tkl</th>
-                          <th className="text-end">Int</th>
+                          <th className="text-end">G{statsRate && "/90"}</th>
+                          <th className="text-end">A{statsRate && "/90"}</th>
+                          <th className="text-end">Sh{statsRate && "/90"}</th>
+                          <th className="text-end">SoT{statsRate && "/90"}</th>
+                          <th className="text-end">Sv{statsRate && "/90"}</th>
+                          <th className="text-end">GA{statsRate && "/90"}</th>
+                          <th className="text-end">Tkl{statsRate && "/90"}</th>
+                          <th className="text-end">Int{statsRate && "/90"}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {cupStatsBySeason.map((s) => (
+                        {cupStatsBySeason.map((s) => {
+                          const v = (value: number) =>
+                            statsRate ? per90Text(value, s.minutesPlayed) : String(value);
+                          return (
                           <tr key={s.season}>
                             <td>{seasonYear(s.season)}</td>
                             <td className="text-end">{s.appearances}</td>
                             <td className="text-end">{s.minutesPlayed}</td>
-                            <td className="text-end">{s.goals}</td>
-                            <td className="text-end">{s.assists}</td>
-                            <td className="text-end">{s.shots}</td>
-                            <td className="text-end">{s.shotsOnTarget}</td>
-                            <td className="text-end">{s.saves}</td>
-                            <td className="text-end">{player.pos === "GK" ? s.goalsAgainst : ""}</td>
-                            <td className="text-end">{s.tackles}</td>
-                            <td className="text-end">{s.interceptions}</td>
+                            <td className="text-end">{v(s.goals)}</td>
+                            <td className="text-end">{v(s.assists)}</td>
+                            <td className="text-end">{v(s.shots)}</td>
+                            <td className="text-end">{v(s.shotsOnTarget)}</td>
+                            <td className="text-end">{v(s.saves)}</td>
+                            <td className="text-end">{player.pos === "GK" ? v(s.goalsAgainst) : ""}</td>
+                            <td className="text-end">{v(s.tackles)}</td>
+                            <td className="text-end">{v(s.interceptions)}</td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -463,21 +499,29 @@ export function PlayerProfile() {
                         <th>Season</th>
                         <th className="text-end">Apps</th>
                         <th className="text-end">Min</th>
-                        <th className="text-end">G</th>
-                        <th className="text-end">A</th>
-                        <th className="text-end">Sh</th>
-                        <th className="text-end">SoT</th>
-                        <th className="text-end">xG</th>
-                        <th className="text-end">Sv</th>
-                        <th className="text-end">GA</th>
-                        <th className="text-end">xGA</th>
-                        <th className="text-end">Tkl</th>
-                        <th className="text-end">Int</th>
+                        <th className="text-end">G{statsRate && "/90"}</th>
+                        <th className="text-end">A{statsRate && "/90"}</th>
+                        <th className="text-end">Sh{statsRate && "/90"}</th>
+                        <th className="text-end">SoT{statsRate && "/90"}</th>
+                        <th className="text-end">xG{statsRate && "/90"}</th>
+                        <th className="text-end">Sv{statsRate && "/90"}</th>
+                        <th className="text-end">GA{statsRate && "/90"}</th>
+                        <th className="text-end">xGA{statsRate && "/90"}</th>
+                        <th className="text-end">Tkl{statsRate && "/90"}</th>
+                        <th className="text-end">Int{statsRate && "/90"}</th>
                         <th className="text-end">Rtg</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {statsBySeasonDesc.map((s) => (
+                      {statsBySeasonDesc.map((s) => {
+                        // Apps, Min and Rtg stay as they are in rate mode: the
+                        // first two are the denominator and its context, and a
+                        // match rating is already an average.
+                        const v = (value: number) =>
+                          statsRate ? per90Text(value, s.minutesPlayed) : String(value);
+                        const vx = (value: number) =>
+                          statsRate ? per90Text(value, s.minutesPlayed) : value.toFixed(2);
+                        return (
                         <tr key={s.season}>
                           <td>
                             {seasonYear(s.season)}
@@ -487,19 +531,19 @@ export function PlayerProfile() {
                           </td>
                           <td className="text-end">{s.appearances}</td>
                           <td className="text-end">{s.minutesPlayed}</td>
-                          <td className="text-end">{s.goals}</td>
-                          <td className="text-end">{s.assists}</td>
-                          <td className="text-end">{s.shots}</td>
-                          <td className="text-end">{s.shotsOnTarget}</td>
-                          <td className="text-end">{s.xg.toFixed(2)}</td>
-                          <td className="text-end">{s.saves}</td>
-                          <td className="text-end">{player.pos === "GK" ? s.goalsAgainst : ""}</td>
-                          <td className="text-end">{player.pos === "GK" ? s.xga.toFixed(2) : ""}</td>
-                          <td className="text-end">{s.tackles}</td>
-                          <td className="text-end">{s.interceptions}</td>
+                          <td className="text-end">{v(s.goals)}</td>
+                          <td className="text-end">{v(s.assists)}</td>
+                          <td className="text-end">{v(s.shots)}</td>
+                          <td className="text-end">{v(s.shotsOnTarget)}</td>
+                          <td className="text-end">{vx(s.xg)}</td>
+                          <td className="text-end">{player.pos === "GK" ? v(s.goalsAgainst) : ""}</td>
+                          <td className="text-end">{player.pos === "GK" ? vx(s.xga) : ""}</td>
+                          <td className="text-end">{v(s.tackles)}</td>
+                          <td className="text-end">{v(s.interceptions)}</td>
                           <td className="text-end">{s.avgRating.toFixed(2)}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

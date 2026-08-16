@@ -2171,6 +2171,24 @@ export const RATING_LEADER_MIN_CAREER_APPEARANCES = 10;
  * 38-match season, matching what the fraction would give on a full one.
  */
 export const RATING_LEADER_MIN_SEASON_APPEARANCES = 19;
+/**
+ * Minutes floor for the Stat Leaders board's **Per 90** mode, as a fraction of
+ * the minutes available across the matches played so far (fraction × 90 ×
+ * matches played).
+ *
+ * Same purpose as `RATING_LEADER_QUALIFY_FRACTION` and a sharper case of it: a
+ * rate stat lets a tiny sample top the board forever (a substitute who scores
+ * in a 12-minute cameo reads 7.5 goals/90 and is unbeatable), so a per-90 board
+ * is only meaningful behind a playing-time gate. Keyed off *minutes* rather
+ * than appearances because minutes are exactly what the rate divides by — an
+ * appearance floor would still admit a player with twenty of them off the bench.
+ *
+ * 0.3 follows the usual convention for real-world rate leaderboards (roughly
+ * 30% of a side's available minutes) and is deliberately looser than the Match
+ * Rating gate's 1/2, since a squad player's rate is a legitimate thing to rank
+ * where his season average is not.
+ */
+export const PER90_QUALIFY_FRACTION = 0.3;
 
 /* ── International football ───────────────────────────────────────────────────
  * A national-team competition run entirely inside the offseason, on a two-year
