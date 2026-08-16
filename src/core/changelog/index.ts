@@ -16,12 +16,18 @@
  *   default-exporting one `ChangelogEntry`. Copy the newest existing file for
  *   the shape. `NN` is a two-digit slot within that day, `01` being the newest;
  *   use `01` unless the day already has entries and you want to sit under them.
- * - Write PURELY INFORMATIONALLY: state what changed, how it behaves, and why
- *   it was done. No first person, no addressing the reader as a friend, no
- *   rhetorical asides or jokes. Be specific and quote real numbers where they
- *   help; a known limitation is stated plainly rather than apologised for.
- *   (Entries dated before 2026-08-05 are in an older casual first-person voice
- *   and were left as a historical record; match the newest entries, not those.)
+ * - Write INFORMALLY AND PERSONALLY (2026-08-15, user call, reversing the
+ *   2026-08-05 "purely informational" rule): first person is wanted, own the
+ *   cause when there was one ("As the world grew bigger I never expanded the
+ *   name pool with it"), and say plainly what was wrong and what it is now.
+ *   Informal means *plain*, not *performative* — no jokes, no winking asides,
+ *   no hype words. Still specific and honest with real numbers; informal
+ *   replaces the tone, not the substance, and a known limitation is stated
+ *   plainly rather than apologised for. Lead with the concrete thing a player
+ *   would have noticed, then the figure.
+ *   (Voice has flipped twice. Entries keep whichever rule was live when they
+ *   were written and are not rewritten, so treat the NEWEST entries as the
+ *   sample, not the older ones.)
  * - Group a batch of related changes shipped together into one entry file.
  * - Formatting: entries render as prose paragraphs (one per `items` string) by
  *   default, which is what most entries should be. Only set `list: true` when
