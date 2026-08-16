@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LeagueProvider } from "./context/LeagueContext.js";
 import { SportNameProvider, useSportName } from "./sportName.js";
@@ -37,7 +38,19 @@ import { ClubHistory } from "./pages/ClubHistory.js";
 import { SeasonPreview } from "./pages/SeasonPreview.js";
 import { SetScouting } from "./pages/SetScouting.js";
 import { Manual } from "./pages/Manual.js";
-import { Changelog } from "./pages/Changelog.js";
+/**
+ * The one lazily-loaded route. Changelog entries are markdown, and
+ * react-markdown plus remark-gfm is ~158 kB raw / ~48 kB gzipped — a real cost
+ * to put in front of every player for a page most open once, if ever. Split
+ * out, it is fetched only when someone actually opens /changelog.
+ *
+ * Nothing else here is lazy: the rest of the app shares the same handful of
+ * dependencies, so splitting those routes would trade one download for many
+ * without shrinking the total.
+ */
+const Changelog = lazy(() =>
+  import("./pages/Changelog.js").then((m) => ({ default: m.Changelog })),
+);
 import { PlayerProfile } from "./pages/PlayerProfile.js";
 
 function RootRedirect() {
@@ -118,7 +131,17 @@ export function App() {
               league picker. */}
           <Route element={<Layout allowNoLeague />}>
             <Route path="/manual" element={<Manual />} />
-            <Route path="/changelog" element={<Changelog />} />
+            <Route
+              path="/changelog"
+              element={
+                // Falls back to the page's own heading rather than a spinner,
+                // so the chunk arriving reads as the list filling in rather
+                // than the page replacing itself.
+                <Suspense fallback={<div className="container-fluid p-3"><h1 className="h4">Changelog</h1></div>}>
+                  <Changelog />
+                </Suspense>
+              }
+            />
           </Route>
           <Route path="*" element={<RootRedirect />} />
         </Routes>

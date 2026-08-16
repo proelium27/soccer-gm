@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { CHANGELOG } from "../../core/changelog/index.js";
+import { renderChangelogMarkdown, changelogSource } from "../changelogMarkdown.js";
 
 /**
  * Player-facing changelog: a reverse-chronological list of every player-visible
@@ -43,19 +44,9 @@ export function Changelog() {
                 <h5 className="mb-0">{entry.title}</h5>
                 <span className="small text-muted">{formatDate(entry.date)}</span>
               </div>
-              {entry.list ? (
-                <ul className="mb-0">
-                  {entry.items.map((item, j) => (
-                    <li key={j}>{item}</li>
-                  ))}
-                </ul>
-              ) : (
-                entry.items.map((item, j) => (
-                  <p key={j} className={j === entry.items.length - 1 ? "mb-0" : "mb-2"}>
-                    {item}
-                  </p>
-                ))
-              )}
+              <div className="changelog-body">
+                {renderChangelogMarkdown(changelogSource(entry.items, entry.list))}
+              </div>
             </div>
           </div>
         ))}
