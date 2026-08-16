@@ -7,12 +7,12 @@ import type { LeagueStore } from "../../src/core/leagueState.js";
 import { transferWindowState } from "../../src/core/transfers/window.js";
 
 /**
- * Render harness for the Roster page's List for Loan control (same pattern as
+ * Render harness for the Roster page's List menu (same pattern as
  * transfersRender: mock useLeague, render to static markup, a throw is a
- * failure). The button is a shortcut for the Loans page action, so what's
- * pinned here is that both roster surfaces offer it, that it reflects an
- * existing listing, and that it's disabled when the window is shut — the three
- * things a wiring slip would silently break.
+ * failure). Transfer and loan listings share one dropdown, so what's pinned
+ * here is that both actions are reachable from every squad row, that an
+ * existing listing reads back, and that a blocked loan states its reason as
+ * the item label — the things a wiring slip would silently break.
  */
 const leagueRef: { current: LeagueStore | null } = { current: null };
 
@@ -41,25 +41,36 @@ function render(league: LeagueStore): string {
 
 const base = makeLeague(0, 1);
 
-describe("Roster List for Loan", () => {
-  it("offers the button on every squad row while the window is open", () => {
+describe("Roster List menu", () => {
+  it("offers both listings from one control on every squad row", () => {
     expect(transferWindowState(base).open).toBe(true);
     const html = render(base);
-    // One per squad player: the XI table, the bench table and each pitch chip's
-    // popover all render the same control.
-    const count = (html.match(/List for Loan/g) ?? []).length;
-    expect(count).toBeGreaterThanOrEqual(base.teams[0].roster.length);
-    expect(html).toContain("Lists him for a 1 season loan");
-    expect(html).not.toContain("Loans can only be listed while a transfer window is open.");
+    // One menu per squad player: the XI table, the bench table and each pitch
+    // chip's popover all render the same control.
+    const menus = (html.match(/>List<\/button>/g) ?? []).length;
+    expect(menus).toBeGreaterThanOrEqual(base.teams[0].roster.length);
+    expect(html).toContain("List for transfer");
+    expect(html).toContain("List for loan (1 season)");
   });
 
-  it("shows an existing listing as listed, from the same league state the Loans page reads", () => {
+  it("reads an existing loan listing back from the same state the Loans page uses", () => {
     const pid = base.teams[0].roster[base.teams[0].roster.length - 1];
     const html = render({ ...base, loanListings: [{ pid, seasons: 1 }] });
-    expect(html).toContain("Listed for Loan");
+    expect(html).toContain("Remove loan listing");
+    expect(html).toContain("Listed for a 1 season loan.");
   });
 
-  it("disables the button when the transfer window is shut", () => {
+  it("reads an existing transfer listing back", () => {
+    const team = base.teams[0];
+    const pid = team.roster[0];
+    const html = render({
+      ...base,
+      teams: base.teams.map((t) => (t.tid === team.tid ? { ...t, transferListed: [pid] } : t)),
+    });
+    expect(html).toContain("Remove transfer listing");
+  });
+
+  it("says why the loan is unavailable when the transfer window is shut", () => {
     // Autumn, after the summer window shuts and before winter opens: the next
     // unplayed matchday is what decides it, so drop the early ones.
     const closed: LeagueStore = {
@@ -69,7 +80,9 @@ describe("Roster List for Loan", () => {
     };
     expect(transferWindowState(closed).open).toBe(false);
     const html = render(closed);
-    expect(html).toContain("List for Loan");
-    expect(html).toContain("Loans can only be listed while a transfer window is open.");
+    expect(html).toContain("Loans need an open window");
+    expect(html).not.toContain("List for loan (1 season)");
+    // Selling isn't window-gated in the UI, so that half stays available.
+    expect(html).toContain("List for transfer");
   });
 });

@@ -9,7 +9,7 @@ import { swapStarters } from "../../core/lineup/swapStarters.js";
 import { teamSlots, teamFormation, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { canExtend } from "../../core/contracts.js";
-import { keepsDepthFloor, faTransferLocked } from "../../core/freeAgency.js";
+import { keepsDepthFloor } from "../../core/freeAgency.js";
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { tierOf } from "../../core/competitions.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
@@ -18,7 +18,7 @@ import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { PitchField } from "../components/PitchField.js";
 import { ExtendControl } from "../components/ExtendControl.js";
-import { LoanListButton } from "../components/LoanListButton.js";
+import { ListingMenu } from "../components/ListingMenu.js";
 import { transferWindowState } from "../../core/transfers/window.js";
 import { Flag } from "../components/Flag.js";
 import { InjuryBadge } from "../components/InjuryBadge.js";
@@ -220,31 +220,15 @@ function RosterTable({
                       <ExtendControl player={p} season={season} onExtend={onExtend} />
                     )
                   )}
-                  {faTransferLocked(p, season) ? (
-                    <span
-                      className="text-muted small fst-italic text-nowrap"
-                      title={`You signed him from free agency, so he can't be sold until next season (${seasonYear(p.faSignedSeason! + 1)}).`}
-                    >
-                      Can't sell yet (just signed)
-                    </span>
-                  ) : (
-                    <button
-                      className={
-                        "btn btn-sm text-nowrap " +
-                        (transferListedPids.has(p.pid) ? "btn-warning" : "btn-outline-warning")
-                      }
-                      onClick={() => onToggleTransferListed(p.pid, !transferListedPids.has(p.pid))}
-                      title="Listing signals AI clubs you're willing to sell, making an offer more likely."
-                    >
-                      {transferListedPids.has(p.pid) ? "Listed" : "List for Transfer"}
-                    </button>
-                  )}
-                  <LoanListButton
+                  <ListingMenu
                     player={p}
-                    listed={loanListedPids.has(p.pid)}
+                    season={season}
+                    transferListed={transferListedPids.has(p.pid)}
+                    loanListed={loanListedPids.has(p.pid)}
                     keepsDepthFloor={releasablePids.has(p.pid)}
                     windowOpen={windowOpen}
-                    onToggle={onToggleLoanListed}
+                    onToggleTransferListed={onToggleTransferListed}
+                    onToggleLoanListed={onToggleLoanListed}
                   />
                   {onToggleMoreMinutes && p.pos !== "GK" && (
                     <button

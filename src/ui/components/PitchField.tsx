@@ -13,7 +13,7 @@ import { canExtend } from "../../core/contracts.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { previousRatings } from "./RatingDelta.js";
 import { ExtendControl } from "./ExtendControl.js";
-import { LoanListButton } from "./LoanListButton.js";
+import { ListingMenu } from "./ListingMenu.js";
 import { slotFitNote } from "./PositionBadge.js";
 
 const DRAG_MIME = "application/x-soccer-gm-pid";
@@ -182,6 +182,11 @@ export function PitchField({
                     $
                   </span>
                 )}
+                {loanListedPids.has(p.pid) && (
+                  <span className="pitch-chip-listed-flag" title="Listed for loan">
+                    L
+                  </span>
+                )}
                 {p.injury && (
                   <span
                     className="pitch-chip-injury-flag"
@@ -265,22 +270,15 @@ export function PitchField({
                       />
                     )
                   )}
-                  <button
-                    className={
-                      "btn btn-sm text-nowrap " +
-                      (transferListedPids.has(p.pid) ? "btn-warning" : "btn-outline-warning")
-                    }
-                    onClick={() => onToggleTransferListed(p.pid, !transferListedPids.has(p.pid))}
-                    title="Listing signals AI clubs you're willing to sell, making an offer more likely."
-                  >
-                    {transferListedPids.has(p.pid) ? "Listed for Transfer" : "List for Transfer"}
-                  </button>
-                  <LoanListButton
+                  <ListingMenu
                     player={p}
-                    listed={loanListedPids.has(p.pid)}
+                    season={season}
+                    transferListed={transferListedPids.has(p.pid)}
+                    loanListed={loanListedPids.has(p.pid)}
                     keepsDepthFloor={releasablePids.has(p.pid)}
                     windowOpen={windowOpen}
-                    onToggle={onToggleLoanListed}
+                    onToggleTransferListed={onToggleTransferListed}
+                    onToggleLoanListed={onToggleLoanListed}
                   />
                   <button
                     className="btn btn-sm btn-outline-danger"
