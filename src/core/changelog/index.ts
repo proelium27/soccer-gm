@@ -32,10 +32,17 @@
  *   match the NEWEST entries, not older ones, and update this comment in the
  *   same PR if it ever flips again.)
  * - Group a batch of related changes shipped together into one entry file.
- * - Formatting: entries render as prose paragraphs (one per `items` string) by
- *   default, which is what most entries should be. Only set `list: true` when
- *   the post genuinely enumerates a bunch of distinct features (e.g. God Mode,
- *   Import Teams); then `items` render as bullets.
+ * - Formatting: entries are **markdown** (GFM) as of 2026-08-16. Each `items`
+ *   string is one block and they are joined with a blank line, so the old
+ *   one-string-per-paragraph entries render exactly as before. Within a string
+ *   use whatever the entry actually calls for — `-` lists, `**bold**`,
+ *   `` `code` ``, tables — and mix lists with prose in the same entry rather
+ *   than writing four paragraphs in a row because that was once the only
+ *   option. Prose still carries the argument; a list is for things that are
+ *   genuinely a list (per-position numbers, several independent changes).
+ *   Raw HTML is not rendered, so angle brackets in prose are safe.
+ *   The legacy `list: true` flag (all items become bullets) is kept working for
+ *   the three entries that predate markdown; don't use it in new entries.
  *
  * Ordering is derived, not authored: newest `date` first, and within one date
  * by filename ascending (so the `NN` slot decides). Two PRs that both ship on

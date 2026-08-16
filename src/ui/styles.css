@@ -2285,3 +2285,22 @@ body.nav-drawer-open {
 .position-strip-ovr {
   font-variant-numeric: tabular-nums;
 }
+
+/* Changelog entries are markdown, so their block spacing comes from the
+   renderer rather than from per-element classes. Drop the trailing margin the
+   last block would otherwise add inside the card, and pull lists in tight
+   enough that a short bulleted entry doesn't read as a separate section. */
+.changelog-body > :last-child {
+  margin-bottom: 0;
+}
+.changelog-body ul,
+.changelog-body ol {
+  margin-bottom: 0.5rem;
+  padding-left: 1.25rem;
+}
+.changelog-body li + li {
+  margin-top: 0.25rem;
+}
+.changelog-body code {
+  color: var(--sg-green-bright);
+}
