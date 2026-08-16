@@ -68,4 +68,16 @@ describe("Stat Leaders per-90 control", () => {
     expect(html).toContain("Stat Leaders");
     expect(html).toContain("<tbody>");
   });
+
+  it("keeps the table in a horizontal scroll container", () => {
+    // Per-90 mode adds "/90" to eleven headers, which pushed the table from
+    // 892px to 945px inside a 924px container at a 1200px viewport — measured
+    // in a real browser, where the Rtg column was silently clipped off the
+    // right edge. Totals mode fits, so nothing caught it before. The table
+    // must own its overflow the way the Player Profile's tables already do.
+    const html = render(leagueWithStats());
+    const wrapper = html.indexOf('class="table-responsive"');
+    expect(wrapper).toBeGreaterThan(-1);
+    expect(html.indexOf("<table", wrapper)).toBeGreaterThan(wrapper);
+  });
 });

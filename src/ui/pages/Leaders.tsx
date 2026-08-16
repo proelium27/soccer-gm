@@ -274,79 +274,84 @@ function PlayerLeadersBody({
           to qualify, so a substitute can't top the board on one cameo.
         </p>
       )}
-      <table className="table table-striped table-sm">
-        <thead>
-          <tr>
-            <th className="text-end">#</th>
-            <th>Player</th>
-            <th>Team</th>
-            <th>Pos</th>
-            {showSeasonColumn && <th className="text-end">Season</th>}
-            <th className="text-end">Apps</th>
-            <th className="text-end">Min</th>
-            <th className="text-end">G{rate && "/90"}</th>
-            <th className="text-end">A{rate && "/90"}</th>
-            <th className="text-end">Sh{rate && "/90"}</th>
-            <th className="text-end">SoT{rate && "/90"}</th>
-            <th className="text-end">xG{rate && "/90"}</th>
-            <th className="text-end">Sv{rate && "/90"}</th>
-            <th className="text-end">Tkl{rate && "/90"}</th>
-            <th className="text-end">Int{rate && "/90"}</th>
-            <th className="text-end" title="Passes completed / attempted">Pass{rate && "/90"}</th>
-            <th className="text-end" title="Crosses">Crs{rate && "/90"}</th>
-            <th className="text-end" title="Fouls committed">Fls{rate && "/90"}</th>
-            <th className="text-end">Rtg</th>
-          </tr>
-        </thead>
-        <tbody>
-          {top.map((row, i) => {
-          const mins = row.stats.minutesPlayed;
-          // In rate mode every counting column becomes a per-90 figure; Apps,
-          // Min and Rtg stay as they are — the first two are the denominator
-          // and its context, the last is already an average.
-          const v = (value: number) => (rate ? per90Text(value, mins) : String(value));
-          return (
-            <tr
-              key={row.season === null ? row.player.pid : `${row.player.pid}-${row.season}`}
-              className={row.isUserTeam ? "text-primary fw-semibold" : undefined}
-            >
-              <td className="text-end">{i + 1}</td>
-              <td>
-                <PlayerRatingsTooltip player={row.player}>
-                  <Link to={`/player/${row.player.pid}`}>{row.player.name}</Link>
-                </PlayerRatingsTooltip>{" "}
-                <Flag nationality={row.player.nationality} />
-              </td>
-              <td>{row.teamName}</td>
-              <td>{row.player.pos}</td>
-              {showSeasonColumn && (
-                <td className="text-end">{row.season !== null ? seasonYear(row.season) : ""}</td>
-              )}
-              <td className="text-end">{row.stats.appearances}</td>
-              <td className="text-end">{mins}</td>
-              <td className="text-end">{v(row.stats.goals)}</td>
-              <td className="text-end">{v(row.stats.assists)}</td>
-              <td className="text-end">{v(row.stats.shots)}</td>
-              <td className="text-end">{v(row.stats.shotsOnTarget)}</td>
-              <td className="text-end">
-                {rate ? per90Text(row.stats.xg, mins) : row.stats.xg.toFixed(2)}
-              </td>
-              <td className="text-end">{v(row.stats.saves)}</td>
-              <td className="text-end">{v(row.stats.tackles)}</td>
-              <td className="text-end">{v(row.stats.interceptions)}</td>
-              <td className="text-end">
-                {row.stats.passes
-                  ? `${v(row.stats.passesCompleted)}/${v(row.stats.passes)}`
-                  : ""}
-              </td>
-              <td className="text-end">{v(row.stats.crosses)}</td>
-              <td className="text-end">{v(row.stats.foulsCommitted)}</td>
-              <td className="text-end">{row.stats.avgRating.toFixed(2)}</td>
+      {/* Per-90 mode adds "/90" to eleven headers, which is enough to push this
+          table past its container on a narrow window — let it scroll itself
+          rather than clipping the last column, as the Player Profile does. */}
+      <div className="table-responsive">
+        <table className="table table-striped table-sm">
+          <thead>
+            <tr>
+              <th className="text-end">#</th>
+              <th>Player</th>
+              <th>Team</th>
+              <th>Pos</th>
+              {showSeasonColumn && <th className="text-end">Season</th>}
+              <th className="text-end">Apps</th>
+              <th className="text-end">Min</th>
+              <th className="text-end">G{rate && "/90"}</th>
+              <th className="text-end">A{rate && "/90"}</th>
+              <th className="text-end">Sh{rate && "/90"}</th>
+              <th className="text-end">SoT{rate && "/90"}</th>
+              <th className="text-end">xG{rate && "/90"}</th>
+              <th className="text-end">Sv{rate && "/90"}</th>
+              <th className="text-end">Tkl{rate && "/90"}</th>
+              <th className="text-end">Int{rate && "/90"}</th>
+              <th className="text-end" title="Passes completed / attempted">Pass{rate && "/90"}</th>
+              <th className="text-end" title="Crosses">Crs{rate && "/90"}</th>
+              <th className="text-end" title="Fouls committed">Fls{rate && "/90"}</th>
+              <th className="text-end">Rtg</th>
             </tr>
-          );
-          })}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {top.map((row, i) => {
+            const mins = row.stats.minutesPlayed;
+            // In rate mode every counting column becomes a per-90 figure; Apps,
+            // Min and Rtg stay as they are — the first two are the denominator
+            // and its context, the last is already an average.
+            const v = (value: number) => (rate ? per90Text(value, mins) : String(value));
+            return (
+              <tr
+                key={row.season === null ? row.player.pid : `${row.player.pid}-${row.season}`}
+                className={row.isUserTeam ? "text-primary fw-semibold" : undefined}
+              >
+                <td className="text-end">{i + 1}</td>
+                <td>
+                  <PlayerRatingsTooltip player={row.player}>
+                    <Link to={`/player/${row.player.pid}`}>{row.player.name}</Link>
+                  </PlayerRatingsTooltip>{" "}
+                  <Flag nationality={row.player.nationality} />
+                </td>
+                <td>{row.teamName}</td>
+                <td>{row.player.pos}</td>
+                {showSeasonColumn && (
+                  <td className="text-end">{row.season !== null ? seasonYear(row.season) : ""}</td>
+                )}
+                <td className="text-end">{row.stats.appearances}</td>
+                <td className="text-end">{mins}</td>
+                <td className="text-end">{v(row.stats.goals)}</td>
+                <td className="text-end">{v(row.stats.assists)}</td>
+                <td className="text-end">{v(row.stats.shots)}</td>
+                <td className="text-end">{v(row.stats.shotsOnTarget)}</td>
+                <td className="text-end">
+                  {rate ? per90Text(row.stats.xg, mins) : row.stats.xg.toFixed(2)}
+                </td>
+                <td className="text-end">{v(row.stats.saves)}</td>
+                <td className="text-end">{v(row.stats.tackles)}</td>
+                <td className="text-end">{v(row.stats.interceptions)}</td>
+                <td className="text-end">
+                  {row.stats.passes
+                    ? `${v(row.stats.passesCompleted)}/${v(row.stats.passes)}`
+                    : ""}
+                </td>
+                <td className="text-end">{v(row.stats.crosses)}</td>
+                <td className="text-end">{v(row.stats.foulsCommitted)}</td>
+                <td className="text-end">{row.stats.avgRating.toFixed(2)}</td>
+              </tr>
+            );
+            })}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }
