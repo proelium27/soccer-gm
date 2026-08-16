@@ -14,6 +14,7 @@ import { formatWeeklyWage, seasonYear } from "../format.js";
 import { previousRatings } from "./RatingDelta.js";
 import { ExtendControl } from "./ExtendControl.js";
 import { slotFitNote } from "./PositionBadge.js";
+import { suspensionText } from "./SuspensionBadge.js";
 
 const DRAG_MIME = "application/x-soccer-gm-pid";
 
@@ -184,6 +185,16 @@ export function PitchField({
                     </svg>
                   </span>
                 )}
+                {suspensionText(p) && (
+                  <span
+                    className="pitch-chip-suspension-flag"
+                    title={`${suspensionText(p)}. He's still eligible for cup ties.`}
+                  >
+                    <svg width="7" height="9" viewBox="0 0 8 10" aria-hidden="true">
+                      <rect x="0" y="0" width="8" height="10" rx="1.5" fill="currentColor" />
+                    </svg>
+                  </span>
+                )}
                 {fit ? (
                   <span
                     className={`pitch-chip-pos pitch-chip-pos--${fit.tone === "warn" ? "misfit" : "covered"}`}
@@ -236,6 +247,9 @@ export function PitchField({
                     Injured: {p.injury.type}, out about {p.injury.gamesRemaining}{" "}
                     {p.injury.gamesRemaining === 1 ? "match" : "matches"}
                   </div>
+                )}
+                {suspensionText(p) && (
+                  <div className="pitch-chip-actions-meta text-danger">{suspensionText(p)}</div>
                 )}
                 <div className="d-flex flex-wrap gap-1 mt-2">
                   {canExtend(p, season) && (

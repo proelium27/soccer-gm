@@ -20,6 +20,8 @@ export type StatKey =
   | "passes"
   | "crosses"
   | "foulsCommitted"
+  | "yellowCards"
+  | "redCards"
   | "avgRating"
   | "minutesPlayed";
 
@@ -35,6 +37,8 @@ export const STAT_OPTIONS: { key: StatKey; label: string }[] = [
   { key: "passes", label: "Passes" },
   { key: "crosses", label: "Crosses" },
   { key: "foulsCommitted", label: "Fouls" },
+  { key: "yellowCards", label: "Yellow Cards" },
+  { key: "redCards", label: "Red Cards" },
   { key: "avgRating", label: "Match Rating" },
   { key: "minutesPlayed", label: "Minutes" },
 ];

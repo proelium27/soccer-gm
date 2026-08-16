@@ -13,6 +13,9 @@ export type SkillKey = (typeof SKILL_KEYS)[number];
 
 export type PlayerRatings = Record<SkillKey, number>;
 
+/** Why a player is banned — drives both the ban length and the wording the UI shows. */
+export type SuspensionReason = "red card" | "second yellow" | "yellow cards";
+
 export interface SeasonStats {
   season: number;
   /** Club the player was on as of his most recent appearance that season — not necessarily his club today. */
@@ -36,6 +39,10 @@ export interface SeasonStats {
   passesCompleted: number;
   crosses: number;
   foulsCommitted: number;
+  /** Yellow cards shown across league appearances. A second yellow in one match counts here twice AND as a red. */
+  yellowCards: number;
+  /** Red cards — straight reds and second-yellow dismissals both. */
+  redCards: number;
   minutesPlayed: number;
   /** Sum of per-match ratings across appearances; divide by `appearances` for the average. */
   ratingSum: number;
@@ -47,7 +54,7 @@ export function emptySeasonStats(season: number, tid: number = -1): SeasonStats 
   return {
     season, tid, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, xg: 0, goalsAgainst: 0, xga: 0,
     saves: 0, tackles: 0, interceptions: 0, passes: 0, passesCompleted: 0, crosses: 0, foulsCommitted: 0,
-    minutesPlayed: 0, ratingSum: 0, avgRating: 0,
+    yellowCards: 0, redCards: 0, minutesPlayed: 0, ratingSum: 0, avgRating: 0,
   };
 }
 
@@ -85,6 +92,21 @@ export interface Player {
   potential: number;
   contract: { salary: number; expiresSeason: number };
   injury: { gamesRemaining: number; type: string } | null;
+  /**
+   * A ban from league matches, ticking down one per league matchday exactly
+   * like an injury (see core/suspensions.ts). Cup and international matches are
+   * deliberately unaffected — bans are served in the competition they were
+   * earned in, and only league cards are tracked. Absent/null = available.
+   */
+  suspension?: { matchesRemaining: number; reason: SuspensionReason } | null;
+  /**
+   * Running league yellow-card tally toward the next accumulation ban. Reset by
+   * `SUSPENSION_YELLOW_THRESHOLD` each time one is triggered (not zeroed, so a
+   * booking in the same match as the fifth still counts toward the next ban),
+   * and wiped clean every offseason. Distinct from `SeasonStats.yellowCards`,
+   * which is the season's un-reset total.
+   */
+  yellowCount?: number;
   stats: SeasonStats[];
   hist: RatingsSnapshot[];
   /**

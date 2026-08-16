@@ -514,6 +514,27 @@ export const WINDOW_TRANSFER_LIMIT = 50;
 export const INJURY_GAMES_MIN = 1;
 export const INJURY_GAMES_MAX = 6;
 
+/**
+ * Suspensions (core/suspensions.ts). Cards were simulated per match long before
+ * they carried any consequence past the final whistle; these turn them into
+ * league bans, on the real game's standard tariff.
+ *
+ * League matches only, by design rather than omission: a ban is served in the
+ * competition it was earned in, and the engine only tracks league bookings
+ * (cup cards are aggregated onto the cup's own stat lines, and international
+ * football is watch-only). So a banned player still turns out in the cup, which
+ * is what actually happens.
+ *
+ * Ban lengths are deliberately *not* stacked: a player who is sent off in the
+ * same match that his fifth yellow lands serves the longer of the two, not the
+ * sum. Stacking is more realistic but reads as a pile-on for an outcome the
+ * manager has no lever over, and the difference is a single match.
+ */
+export const SUSPENSION_YELLOW_THRESHOLD = 5;
+export const SUSPENSION_YELLOW_MATCHES = 1;
+export const SUSPENSION_SECOND_YELLOW_MATCHES = 1;
+export const SUSPENSION_RED_MATCHES = 3;
+
 /** Generation-offset tier → additive offset (Table A). */
 export const TIER_OFFSET = { star: 18, H: 10, M: 2, L: -12, VL: -25 } as const;
 

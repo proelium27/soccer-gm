@@ -19,6 +19,7 @@ import { worldHasCup } from "../../core/cup/cup.js";
 import { cupStatsBySeasonForPlayer } from "../../core/cup/cupStats.js";
 import { clubDisplayName, formatWeeklyWage, per90Text, seasonYear, transferFeeLabel } from "../format.js";
 import { INTL_TOURNAMENT_NAME } from "../../core/constants.js";
+import { isSuspended, matchesLabel } from "../../core/suspensions.js";
 import { PlayerEditModal } from "../components/PlayerEditModal.js";
 import { computePlayerHonors } from "../../core/playerHonors.js";
 import { RetiredPlayerProfile } from "./RetiredPlayerProfile.js";
@@ -205,6 +206,14 @@ export function PlayerProfile() {
         {player.injury && (
           <>
             {" "}&middot; <span className="text-danger">Injured ({player.injury.type}, {player.injury.gamesRemaining} matches remaining)</span>
+          </>
+        )}
+        {isSuspended(player) && (
+          <>
+            {" "}&middot;{" "}
+            <span className="text-danger" title="League matches only — he can still play in the cup.">
+              Suspended ({player.suspension!.reason}, {matchesLabel(player.suspension!.matchesRemaining)} remaining)
+            </span>
           </>
         )}
       </p>
@@ -509,6 +518,8 @@ export function PlayerProfile() {
                         <th className="text-end">xGA{statsRate && "/90"}</th>
                         <th className="text-end">Tkl{statsRate && "/90"}</th>
                         <th className="text-end">Int{statsRate && "/90"}</th>
+                        <th className="text-end" title="Yellow cards">YC{statsRate && "/90"}</th>
+                        <th className="text-end" title="Red cards">RC{statsRate && "/90"}</th>
                         <th className="text-end">Rtg</th>
                       </tr>
                     </thead>
@@ -540,6 +551,8 @@ export function PlayerProfile() {
                           <td className="text-end">{player.pos === "GK" ? vx(s.xga) : ""}</td>
                           <td className="text-end">{v(s.tackles)}</td>
                           <td className="text-end">{v(s.interceptions)}</td>
+                          <td className="text-end">{s.yellowCards ? v(s.yellowCards) : ""}</td>
+                          <td className="text-end">{s.redCards ? v(s.redCards) : ""}</td>
                           <td className="text-end">{s.avgRating.toFixed(2)}</td>
                         </tr>
                         );

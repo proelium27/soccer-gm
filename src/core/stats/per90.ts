@@ -49,6 +49,8 @@ export const PER90_STAT_KEYS = [
   "passesCompleted",
   "crosses",
   "foulsCommitted",
+  "yellowCards",
+  "redCards",
 ] as const satisfies readonly (keyof SeasonStats)[];
 
 export type Per90StatKey = (typeof PER90_STAT_KEYS)[number];
