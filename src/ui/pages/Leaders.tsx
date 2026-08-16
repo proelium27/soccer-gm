@@ -7,41 +7,15 @@ import { computeTeamSeasonStats, type TeamSeasonStats } from "../../core/standin
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
-import { seasonYear } from "../format.js";
+import { seasonYear, per90Text } from "../format.js";
 import {
-  RATING_LEADER_QUALIFY_FRACTION,
-} from "../../core/constants.js";
-
-type StatKey =
-  | "goals"
-  | "assists"
-  | "shots"
-  | "shotsOnTarget"
-  | "xg"
-  | "saves"
-  | "tackles"
-  | "interceptions"
-  | "passes"
-  | "crosses"
-  | "foulsCommitted"
-  | "avgRating"
-  | "minutesPlayed";
-
-const STAT_OPTIONS: { key: StatKey; label: string }[] = [
-  { key: "goals", label: "Goals" },
-  { key: "assists", label: "Assists" },
-  { key: "shots", label: "Shots" },
-  { key: "shotsOnTarget", label: "Shots on Target" },
-  { key: "xg", label: "xG" },
-  { key: "saves", label: "Saves" },
-  { key: "tackles", label: "Tackles" },
-  { key: "interceptions", label: "Interceptions" },
-  { key: "passes", label: "Passes" },
-  { key: "crosses", label: "Crosses" },
-  { key: "foulsCommitted", label: "Fouls" },
-  { key: "avgRating", label: "Match Rating" },
-  { key: "minutesPlayed", label: "Minutes" },
-];
+  rankLeaders,
+  supportsPer90,
+  STAT_OPTIONS,
+  type LeaderMode,
+  type StatKey,
+} from "../leadersBoard.js";
+import { per90QualifyingMinutes } from "../../core/stats/per90.js";
 
 type LeadersTab = "players" | "teams";
 
@@ -137,6 +111,10 @@ function PlayerLeadersBody({
   seasonOptions: number[];
 }) {
   const [stat, setStat] = useState<StatKey>("goals");
+  // Totals or per-90 rates. Per 90 is what makes a squad player comparable to
+  // an ever-present; totals stay the default because they're what a league
+  // table of scorers means by "top scorer".
+  const [mode, setMode] = useState<LeaderMode>("totals");
   // This board is per-season only. The all-seasons career and best-season views
   // it used to carry now live on Frivolities' All-Time Leaders tab, which can
   // also rank archived retirees — something this page never could, since it
@@ -228,23 +206,19 @@ function PlayerLeadersBody({
     compByTidForSeason, teamNameByTid,
   ]);
 
-  // Match Rating is an average, so a player with only a game or two of data
-  // would otherwise sit atop the chart on a single hot cameo. Require him to
-  // have appeared in a fraction of the games played *so far* — scaling to
-  // games-played keeps the board honest ten games in as well as at season's
-  // end (counting stats like goals are unaffected).
-  const top = useMemo(() => {
-    const threshold = Math.max(
-      1,
-      Math.ceil(RATING_LEADER_QUALIFY_FRACTION * matchesPlayedInSeason(season)),
-    );
-    const qualified = stat === "avgRating"
-      ? rows.filter((r) => r.stats.appearances >= threshold)
-      : rows;
-    return [...qualified]
-      .sort((a, b) => b.stats[stat] - a.stats[stat] || a.player.pid - b.player.pid)
-      .slice(0, 30);
-  }, [rows, stat, season, matchesPlayedInSeason]);
+  // Ranking and both playing-time qualifiers live in ../leadersBoard.js — the
+  // Match Rating appearance gate (an average is meaningless on one hot cameo)
+  // and the per-90 minutes gate (a rate is worse: a 12-minute goal reads 7.5
+  // per 90 and owns the board forever). Both scale to games played so far.
+  const top = useMemo(
+    () => rankLeaders(rows, { stat, mode, matchesPlayed: matchesPlayedInSeason(season) }),
+    [rows, stat, mode, season, matchesPlayedInSeason],
+  );
+
+  // Whether the selected stat is actually being shown as a rate. Match Rating
+  // and Minutes have no per-90 meaning, so they ignore the toggle.
+  const rate = mode === "per90" && supportsPer90(stat);
+  const qualifyingMinutes = per90QualifyingMinutes(matchesPlayedInSeason(season));
 
   const showSeasonColumn = false;
 
@@ -271,7 +245,35 @@ function PlayerLeadersBody({
             <option key={o.key} value={o.key}>{o.label}</option>
           ))}
         </select>
+        <div className="btn-group" role="group" aria-label="Totals or per 90 minutes">
+          <button
+            type="button"
+            className={`btn btn-sm ${mode === "totals" ? "btn-secondary" : "btn-outline-secondary"}`}
+            onClick={() => setMode("totals")}
+          >
+            Totals
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${mode === "per90" ? "btn-secondary" : "btn-outline-secondary"}`}
+            onClick={() => setMode("per90")}
+            disabled={!supportsPer90(stat)}
+            title={
+              supportsPer90(stat)
+                ? "Stats divided by 90-minute matches played"
+                : "This stat is already an average, so it has no per-90 rate"
+            }
+          >
+            Per 90
+          </button>
+        </div>
       </div>
+      {rate && (
+        <p className="text-muted small mb-2">
+          Per 90 minutes played. Needs {qualifyingMinutes.toLocaleString()} minutes
+          to qualify, so a substitute can't top the board on one cameo.
+        </p>
+      )}
       <table className="table table-striped table-sm">
         <thead>
           <tr>
@@ -282,22 +284,28 @@ function PlayerLeadersBody({
             {showSeasonColumn && <th className="text-end">Season</th>}
             <th className="text-end">Apps</th>
             <th className="text-end">Min</th>
-            <th className="text-end">G</th>
-            <th className="text-end">A</th>
-            <th className="text-end">Sh</th>
-            <th className="text-end">SoT</th>
-            <th className="text-end">xG</th>
-            <th className="text-end">Sv</th>
-            <th className="text-end">Tkl</th>
-            <th className="text-end">Int</th>
-            <th className="text-end" title="Passes completed / attempted">Pass</th>
-            <th className="text-end" title="Crosses">Crs</th>
-            <th className="text-end" title="Fouls committed">Fls</th>
+            <th className="text-end">G{rate && "/90"}</th>
+            <th className="text-end">A{rate && "/90"}</th>
+            <th className="text-end">Sh{rate && "/90"}</th>
+            <th className="text-end">SoT{rate && "/90"}</th>
+            <th className="text-end">xG{rate && "/90"}</th>
+            <th className="text-end">Sv{rate && "/90"}</th>
+            <th className="text-end">Tkl{rate && "/90"}</th>
+            <th className="text-end">Int{rate && "/90"}</th>
+            <th className="text-end" title="Passes completed / attempted">Pass{rate && "/90"}</th>
+            <th className="text-end" title="Crosses">Crs{rate && "/90"}</th>
+            <th className="text-end" title="Fouls committed">Fls{rate && "/90"}</th>
             <th className="text-end">Rtg</th>
           </tr>
         </thead>
         <tbody>
-          {top.map((row, i) => (
+          {top.map((row, i) => {
+          const mins = row.stats.minutesPlayed;
+          // In rate mode every counting column becomes a per-90 figure; Apps,
+          // Min and Rtg stay as they are — the first two are the denominator
+          // and its context, the last is already an average.
+          const v = (value: number) => (rate ? per90Text(value, mins) : String(value));
+          return (
             <tr
               key={row.season === null ? row.player.pid : `${row.player.pid}-${row.season}`}
               className={row.isUserTeam ? "text-primary fw-semibold" : undefined}
@@ -315,21 +323,28 @@ function PlayerLeadersBody({
                 <td className="text-end">{row.season !== null ? seasonYear(row.season) : ""}</td>
               )}
               <td className="text-end">{row.stats.appearances}</td>
-              <td className="text-end">{row.stats.minutesPlayed}</td>
-              <td className="text-end">{row.stats.goals}</td>
-              <td className="text-end">{row.stats.assists}</td>
-              <td className="text-end">{row.stats.shots}</td>
-              <td className="text-end">{row.stats.shotsOnTarget}</td>
-              <td className="text-end">{row.stats.xg.toFixed(2)}</td>
-              <td className="text-end">{row.stats.saves}</td>
-              <td className="text-end">{row.stats.tackles}</td>
-              <td className="text-end">{row.stats.interceptions}</td>
-              <td className="text-end">{row.stats.passes ? `${row.stats.passesCompleted}/${row.stats.passes}` : ""}</td>
-              <td className="text-end">{row.stats.crosses}</td>
-              <td className="text-end">{row.stats.foulsCommitted}</td>
+              <td className="text-end">{mins}</td>
+              <td className="text-end">{v(row.stats.goals)}</td>
+              <td className="text-end">{v(row.stats.assists)}</td>
+              <td className="text-end">{v(row.stats.shots)}</td>
+              <td className="text-end">{v(row.stats.shotsOnTarget)}</td>
+              <td className="text-end">
+                {rate ? per90Text(row.stats.xg, mins) : row.stats.xg.toFixed(2)}
+              </td>
+              <td className="text-end">{v(row.stats.saves)}</td>
+              <td className="text-end">{v(row.stats.tackles)}</td>
+              <td className="text-end">{v(row.stats.interceptions)}</td>
+              <td className="text-end">
+                {row.stats.passes
+                  ? `${v(row.stats.passesCompleted)}/${v(row.stats.passes)}`
+                  : ""}
+              </td>
+              <td className="text-end">{v(row.stats.crosses)}</td>
+              <td className="text-end">{v(row.stats.foulsCommitted)}</td>
               <td className="text-end">{row.stats.avgRating.toFixed(2)}</td>
             </tr>
-          ))}
+          );
+          })}
         </tbody>
       </table>
     </>
