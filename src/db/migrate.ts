@@ -7,7 +7,7 @@ import { computeSeasonAwards, type SeasonAwards } from "../core/awards.js";
 import { computeWorldAwards, type WorldAwards } from "../core/worldAwards.js";
 import {
   HYPE_INITIAL, SCOUTING_SPEND_DEFAULT,
-  NUM_TEAMS,
+  NUM_TEAMS, DEFAULT_DIFFICULTY,
 } from "../core/constants.js";
 import { chargeSeasonStart, wageBill, financeScale } from "../core/finance/budget.js";
 import { englandCompetitions } from "../core/competitions.js";
@@ -55,8 +55,8 @@ function fallbackAcademyBase(tid: number): number {
 
 /** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking / cards. */
 type SeasonStatsAnyVersion =
@@ -429,6 +429,11 @@ function migrateFields(league: LeagueStore): LeagueStore {
         },
     // God Mode sandbox editing defaults off for any save that predates it.
     godMode: anyVersion.godMode ?? false,
+    // Difficulty is fixed at league creation, so a save that predates it was
+    // played on the shipped tuning — which is exactly what "normal" is (every
+    // lever in its profile is the identity value or the shipped constant). So
+    // this backfill changes nothing about a dynasty in progress.
+    difficulty: anyVersion.difficulty ?? DEFAULT_DIFFICULTY,
     // The pid allocator used to be derived as max(pid) + 1 at each use, so
     // seeding the stored cursor with exactly that value keeps every existing
     // save generating the same pids it would have anyway. From here it only

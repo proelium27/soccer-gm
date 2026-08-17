@@ -4,7 +4,9 @@ import type { LeagueStore } from "../leagueState.js";
 import type { Competition } from "../competitions.js";
 import type { SeasonHistoryEntry } from "../standings.js";
 import { tierOf } from "../competitions.js";
-import { PROTECTED_STAR_OVR, PROTECTED_STAR_TOP_FINISH } from "../constants.js";
+import {
+  PROTECTED_STAR_OVR, PROTECTED_STAR_TOP_FINISH, difficultyProfile, type Difficulty,
+} from "../constants.js";
 
 /**
  * "Protected star" not-for-sale gate. A top club simply won't sell its best
@@ -61,6 +63,24 @@ function finishingRank(last: CompletedSeasonInfo, tid: number): number {
 }
 
 /**
+ * How wide the gate is. Defaults to the shipped constants, which is what every
+ * AI↔AI caller uses and must keep using: widening it world-wide would cut
+ * market volume, and the weak leagues run on transfer receipts (see the
+ * DIFFICULTIES block in constants.ts). Only the user-facing call sites pass a
+ * difficulty-adjusted bar, so a hard level narrows what the *user* can buy
+ * without touching how the world trades.
+ */
+export interface ProtectedStarBar {
+  ovr: number;
+  topFinish: number;
+}
+
+const DEFAULT_BAR: ProtectedStarBar = {
+  ovr: PROTECTED_STAR_OVR,
+  topFinish: PROTECTED_STAR_TOP_FINISH,
+};
+
+/**
  * Whether `player`, currently on club `tid`, is a protected star — off the
  * market because his club had a big season last season and he's world-class.
  * `last` is the just-completed season's record (null before season 1 ends).
@@ -70,6 +90,7 @@ export function isProtectedStar(
   competitions: Competition[],
   tid: number,
   player: Player,
+  bar: ProtectedStarBar = DEFAULT_BAR,
 ): boolean {
   if (!last) return false;
   const compId = last.compsByTid[tid];
@@ -78,8 +99,14 @@ export function isProtectedStar(
   // the kind of season that takes a star off the market.
   if (tierOf(competitions, compId) !== 1) return false;
   const rank = finishingRank(last, tid);
-  if (rank < 0 || rank >= PROTECTED_STAR_TOP_FINISH) return false;
-  return player.ovr >= PROTECTED_STAR_OVR || wonHonorLastSeason(last, player.pid);
+  if (rank < 0 || rank >= bar.topFinish) return false;
+  return player.ovr >= bar.ovr || wonHonorLastSeason(last, player.pid);
+}
+
+/** The gate as the user sees it on this save's difficulty. */
+export function userProtectedStarBar(difficulty: Difficulty | undefined): ProtectedStarBar {
+  const profile = difficultyProfile(difficulty);
+  return { ovr: profile.protectedStarOvr, topFinish: profile.protectedStarTopFinish };
 }
 
 /**
@@ -93,6 +120,7 @@ export function protectedStarPids(
   players: Player[],
   competitions: Competition[],
   userTid: number,
+  bar: ProtectedStarBar = DEFAULT_BAR,
 ): Set<number> {
   const set = new Set<number>();
   if (!last) return set;
@@ -101,7 +129,7 @@ export function protectedStarPids(
     if (team.tid === userTid) continue;
     for (const pid of team.roster) {
       const player = playerMap.get(pid);
-      if (player && isProtectedStar(last, competitions, team.tid, player)) set.add(pid);
+      if (player && isProtectedStar(last, competitions, team.tid, player, bar)) set.add(pid);
     }
   }
   return set;

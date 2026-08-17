@@ -14,6 +14,7 @@ import { useSportName } from "../sportName.js";
 
 const SECTIONS: [id: string, title: string][] = [
   ["overview", "Overview"],
+  ["difficulty", "Difficulty"],
   ["pages", "The Pages"],
   ["season", "The Season & Simming"],
   ["world", "The World"],
@@ -169,6 +170,61 @@ export function Manual() {
             Turkey) just shows a two-color swatch until it gets a crest of its own. Clubs that came
             in from a roster file always show their colors rather than a crest: the artwork belongs
             to the club that shipped in that slot, not to the one you imported over it.
+          </p>
+        </Section>
+
+        <Section id="difficulty" title="Difficulty">
+          <p>
+            You pick a difficulty when you create a league, and it's fixed for that save. There are
+            four: <strong>Easy</strong>, <strong>Normal</strong>, <strong>Hard</strong> and{" "}
+            <strong>Brutal</strong>. Normal is the game exactly as it's tuned, so if you'd rather not
+            think about this, take Normal and skip the rest of this section.
+          </p>
+          <p>
+            The important thing to know is what difficulty <em>doesn't</em> do. It never touches the
+            rest of the world. AI clubs buy and sell each other's players at the same prices, their
+            academies produce the same players, and the leagues stay exactly as strong as they'd
+            otherwise be. Every knob below applies to your club and only your club, so a hard save is
+            a harder job in the same world, not a different world.
+          </p>
+          <p>Four things change:</p>
+          <ul>
+            <li>
+              <strong>Money</strong>. Your club earns more or less than it otherwise would, and can
+              bank more or less. Wages cost you exactly what they cost everyone else, which is the
+              part that bites: on the harder levels a big squad's wage bill can outrun what the club
+              brings in, and then you're losing money every season until you sell someone.
+            </li>
+            <li>
+              <strong>Your academy</strong>. Your youth intake comes through stronger or weaker.
+              Everyone else's is untouched, so on Brutal you're developing worse kids than the club
+              finishing next to you.
+            </li>
+            <li>
+              <strong>What you pay</strong>. Asking prices are marked up or down for you. Selling
+              isn't affected, and neither is what anything is worth on paper, just the fee you're
+              asked for when you go and buy someone.
+            </li>
+            <li>
+              <strong>Who'll sell to you</strong>. The best players at the best clubs are already off
+              the market (see <a href="#transfers">Transfers</a>). On the harder levels that net is
+              cast wider for you, so more of the game's best players simply aren't available and you
+              have to develop your own. On Easy it barely applies at all and you can go buy whoever
+              you like. When a player is out of reach because of your difficulty, the game says "not
+              available to you" rather than pretending his club won't sell, because his club might
+              well sell him to somebody else.
+            </li>
+          </ul>
+          <p>
+            Scouting is also fuzzier on the harder levels: potential estimate bands are wider and
+            take longer to sharpen up, so you're making decisions with worse information.
+          </p>
+          <p>
+            <strong>You can go broke.</strong> There's no debt system and nobody bails you out. If
+            your balance goes negative you simply can't sign anyone until it's positive again, and
+            your scouting is stuck at zero while you're overdrawn, which makes potential even harder
+            to read. It's recoverable, but you recover by selling. On Brutal that's less a warning
+            than a description of the job.
           </p>
         </Section>
 

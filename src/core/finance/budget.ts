@@ -3,6 +3,7 @@ import {
   HYPE_REVENUE_PER_POINT, HYPE_REVENUE_DAMPING,
   PRIZE_CHAMPION, PRIZE_TOP_5, PRIZE_TOP_10, PRIZE_TOP_5_CUTOFF, PRIZE_TOP_10_CUTOFF,
   DIVISION_2_BUDGET_SCALE, countryBudgetScale,
+  difficultyProfile, type Difficulty,
 } from "../constants.js";
 import type { Competition } from "../competitions.js";
 import { competitionOf } from "../competitions.js";
@@ -23,6 +24,33 @@ function tierScale(tier: 1 | 2): number {
 export function financeScale(competitions: Competition[], compId: number): number {
   const c = competitionOf(competitions, compId);
   return countryBudgetScale(c.country) * tierScale(c.tier);
+}
+
+/**
+ * A club's money scale with the save's difficulty folded in — the ONE seam
+ * difficulty uses for finance. Identical to `financeScale` for every AI club;
+ * the user's club additionally takes `budgetScale` from his difficulty profile
+ * (see the DIFFICULTIES block in constants.ts).
+ *
+ * Every site where the USER's budget can increase must call this rather than
+ * `financeScale`, and it matters that this scales the savings ceiling as well
+ * as income: `clampBudget` destroys anything banked above `budgetCap`, so an
+ * easier level that raised income but not the ceiling would hand a big club a
+ * bonus and then silently delete it.
+ *
+ * Wages are deliberately NOT scaled (they're country-independent already), so
+ * a hard level's squeeze reads as a real income-vs-wage-bill gap rather than a
+ * uniform shrinking of the whole economy — the user has to sell his way out.
+ */
+export function financeScaleFor(
+  competitions: Competition[],
+  compId: number,
+  tid: number,
+  userTid: number,
+  difficulty: Difficulty | undefined,
+): number {
+  const base = financeScale(competitions, compId);
+  return tid === userTid ? base * difficultyProfile(difficulty).budgetScale : base;
 }
 
 /**
