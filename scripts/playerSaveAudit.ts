@@ -393,8 +393,12 @@ if (hist.length) {
   const titleCount = new Map<number, number>();
   const champPts: number[] = [];
   for (const h of hist) {
-    for (const [, tid] of Object.entries(h.championTidByCompId ?? {})) {
-      if (compById.get(teamByTid.get(tid as number)?.compId ?? -1)?.tier !== 1) continue;
+    // Tier must come from the season's OWN competition id, never the club's
+    // current compId — a club that has since been relegated would otherwise have
+    // its entire top-flight history discarded (this read "Ipswich Town: 0 titles"
+    // for a club that had won 19 and dropped to tier 2).
+    for (const [cid, tid] of Object.entries(h.championTidByCompId ?? {})) {
+      if (compById.get(Number(cid))?.tier !== 1) continue;
       titleCount.set(tid as number, (titleCount.get(tid as number) ?? 0) + 1);
     }
     for (const [cid, tid] of Object.entries(h.championTidByCompId ?? {})) {

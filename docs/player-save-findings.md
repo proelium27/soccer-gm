@@ -436,8 +436,24 @@ only appears well beyond where it currently gates.
 - **Champion points reach 99–102** on four saves, against the M1 standings gate's 78–94 band.
   The gate samples five seasons and these are 20–75-season maxima, so a high tail is expected —
   but 102 is a long way outside.
-- **Not one player at ovr 90+ across all six saves**, spanning ~210 seasons of play, with 85+
-  ranging 0–4. Generational talents are meant to produce a 90+ legend roughly once per 30 seasons.
+- **Generational talents do appear, but the two longest dynasties never produced one.** Measured
+  as career *peak* ovr across living players' `hist` plus the retiree archive (an earlier pass
+  that read living players' *current* ovr wrongly concluded none existed anywhere):
+
+  | Save | Seasons | Best ever | 90+ | 88+ | 85+ |
+  |---|---|---|---|---|---|
+  | Arsenal | 27 | **93** (B. Bafdili, AM) | 1 | 5 | 19 |
+  | Real Madrid | 21 | **93** (Davide Russo, CM) | 2 | 2 | 11 |
+  | Tottenham | 30 | 90 (Toby White, CM) | 1 | 3 | 21 |
+  | Glastonbury | 47 | 89 | 0 | 2 | 23 |
+  | **Ipswich Town** | **75** | 89 | **0** | 5 | 23 |
+  | Birmingham | 10 | 87 | 0 | 0 | 5 |
+
+  The design target is a 90+ legend roughly once per 30 seasons. Arsenal and Real Madrid clear
+  it; **Ipswich went 75 seasons and Glastonbury 47 without one**, which is the opposite of what
+  more seasons should produce. Worth a look, with one caveat: `RETIREE_ARCHIVE_LIMIT` prunes by
+  career score, so a very long save may simply have dropped an old legend — check whether that
+  can happen to a 90+ player before treating this as a generation problem.
 
 ---
 
