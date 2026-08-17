@@ -3,7 +3,7 @@ import type { Player } from "./players/types.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import { assignAIFormations } from "./teams/clubs.js";
 import type { Competition } from "./competitions.js";
-import { progressPlayer, rollRetirement, isGenerational } from "./players/progression.js";
+import { progressPlayer, rollRetirement } from "./players/progression.js";
 import { packPositionChange, type NewsEvent } from "./newsEvents.js";
 import { generateYouthIntake } from "./players/youth.js";
 import { computeAcademyFormModifiers } from "./players/academyForm.js";
@@ -368,7 +368,6 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     Number.isFinite(league.nextPid) ? league.nextPid : 0,
     Math.max(0, ...players.map((p) => p.pid)) + 1,
   );
-  const generationalEvents: NewsEvent[] = [];
   teams = teams.map((t) => {
     const genSeed = hashInts(league.lid, nextSeason, t.tid, 2);
     const homeCountry = competitionOf(league.competitions, t.compId).country;
@@ -377,17 +376,10 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       nextSeason, nextPid, genSeed, homeCountry,
     );
     nextPid = updatedNextPid;
-    // A generational talent arriving through any club's youth intake is
-    // league-wide news — the pid-hash flag is checked here (not rolled), so
-    // this reads the same trait progression will use for his whole career.
-    for (const p of youth) {
-      if (isGenerational(p.pid)) {
-        generationalEvents.push({
-          type: "generationalTalent", pid: p.pid, tid: t.tid,
-          season: nextSeason, matchday: 0, detail: nextSeason - p.born,
-        });
-      }
-    }
+    // Note: a generational talent's arrival is deliberately NOT announced.
+    // The trait is meant to be hidden — a scout can infer it from an unusually
+    // high potential estimate, which is the only intended tell. See the
+    // generational-talent entry in CLAUDE.md.
     if (t.tid === league.meta.userTid) {
       const academyTerms = academyContractTerms(nextSeason);
       for (const p of youth) {
@@ -529,7 +521,6 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     newsEvents: [
       ...league.newsEvents,
       ...positionChangeEvents.filter((e) => !retiredPids.has(e.pid)),
-      ...generationalEvents,
     ],
     winterMarketRunSeason: null,
     // Archive the season's completed Continental Cup and seed the next one

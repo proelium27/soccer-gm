@@ -239,12 +239,6 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
         return <>{playerLink(player)} reaches {e.detail} goals this season</>;
       case "goalMilestoneCareer":
         return <>{playerLink(player)} reaches {e.detail} career goals</>;
-      case "generationalTalent":
-        return (
-          <>
-            {playerLink(player)}, a once-in-a-generation talent, joins {teamByTid.get(e.tid)?.name ?? "?"} (age {e.detail})
-          </>
-        );
       case "positionChange": {
         const { from, to } = unpackPositionChange(e.detail);
         return <>{playerLink(player)} is now a {to}, after playing at {from}</>;
