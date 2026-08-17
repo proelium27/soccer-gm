@@ -17,6 +17,7 @@ import { assignIdentities, assignAIFormations } from "./teams/clubs.js";
 import { generateSchedule } from "./schedule.js";
 import { worldCompetitions } from "./competitions.js";
 import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
+import { DEFAULT_DIFFICULTY, type Difficulty } from "./constants.js";
 
 export type { StoredTeam } from "./teams/clubs.js";
 export type { ScheduleGame } from "./schedule.js";
@@ -112,6 +113,14 @@ export interface LeagueStore {
    */
   godMode: boolean;
   /**
+   * How hard this save is (see the DIFFICULTIES block in constants.ts).
+   * Chosen on the New League screen and fixed for the save's lifetime — every
+   * lever it drives is user-club-only, so the world economy is identical on all
+   * four levels. Migrated to "normal" for old saves, which is exactly the
+   * shipped tuning, so no dynasty in progress changes behaviour.
+   */
+  difficulty: Difficulty;
+  /**
    * Monotonic pid allocator: the next pid a generated player will take.
    *
    * **Must never go backwards.** This used to be derived as
@@ -129,12 +138,19 @@ export interface LeagueStore {
   nextPid: number;
 }
 
-export function createLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
+export function createLeagueState(
+  userTid: number,
+  rng: () => number,
+  seed = 0,
+  difficulty: Difficulty = DEFAULT_DIFFICULTY,
+): LeagueStore {
   const league = generateWorld(rng, seed);
   const competitions = worldCompetitions();
   // Each AI club lines up in the formation that fields its strongest XI; the
   // user's club keeps the neutral 4-3-3 default and picks its own on the Roster page.
-  const teams = assignAIFormations(assignIdentities(league, competitions), league.players, userTid);
+  const teams = assignAIFormations(
+    assignIdentities(league, competitions, userTid, difficulty), league.players, userTid,
+  );
   const schedule = buildCompetitionSchedule(teams, competitions);
 
   // Fog-of-war: stamp the user's initial senior roster as first-observed in
@@ -176,6 +192,7 @@ export function createLeagueState(userTid: number, rng: () => number, seed = 0):
     cupHistory: [],
     international: emptyInternationalState(),
     godMode: false,
+    difficulty,
     // Same value the old derived `max(pid) + 1` produced at first use, so a
     // fresh world generates identically to before.
     nextPid: Math.max(0, ...league.players.map((p) => p.pid)) + 1,

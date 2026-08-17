@@ -4,9 +4,9 @@ import { useLeague } from "../context/LeagueContext.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings } from "../../core/standings.js";
-import { seasonRevenue, wageBill, financeScale } from "../../core/finance/budget.js";
+import { seasonRevenue, wageBill, financeScaleFor } from "../../core/finance/budget.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
-import { SCOUTING_SPEND_MAX } from "../../core/constants.js";
+import { SCOUTING_SPEND_MAX, difficultyProfile } from "../../core/constants.js";
 import { clubDisplayName, currency, formatWeeklyWage, ordinal, seasonYear, transferFeeLabel } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
@@ -81,7 +81,17 @@ export function Finance() {
   // the rank (and thus prize tier) is provisional; in the offseason it's
   // final. The wage line is an estimate either way — the actual charge uses
   // the new season's finalized roster (after retirements, expiries, youth).
-  const revenue = seasonRevenue(rank, userTeam.hype, financeScale(league.competitions, userTeam.compId));
+  const difficulty = difficultyProfile(league.difficulty);
+  const inTheRed = userTeam.budget < 0;
+  // The user's own projection, so it takes the difficulty-aware scale — the
+  // plain competition scale would promise income the offseason won't pay.
+  const revenue = seasonRevenue(
+    rank,
+    userTeam.hype,
+    financeScaleFor(
+      league.competitions, userTeam.compId, userTeam.tid, league.meta.userTid, league.difficulty,
+    ),
+  );
   const wages = wageBill([...userTeam.roster, ...userTeam.academyRoster], salaryMap);
   const net = revenue.total - wages - userTeam.scoutingSpend;
   const seasonOver = league.phase === "offseason";
@@ -124,12 +134,35 @@ export function Finance() {
       <div className="card mb-3">
         <div className="card-body">
           <h5 className="card-title">{userTeam.name}</h5>
+          {inTheRed && (
+            <div className="alert alert-danger py-2" role="alert">
+              <div className="fw-semibold">You're in the red.</div>
+              <div className="small mb-0">
+                You can't sign anyone until the balance is positive again, and your scouting
+                is stuck at zero while you're overdrawn, so potential estimates will get
+                vaguer. Sell someone, or get your wage bill under what the club earns.
+              </div>
+            </div>
+          )}
           <p className="card-text mb-2">
-            Budget: <strong>{currency.format(userTeam.budget)}</strong> &middot;{" "}
+            Budget:{" "}
+            <strong className={inTheRed ? "text-danger" : undefined}>
+              {currency.format(userTeam.budget)}
+            </strong> &middot;{" "}
             Season wage bill: <strong>{currency.format(wages)}</strong>{" "}
             ({formatWeeklyWage(wages)}, paid up front each season) &middot;{" "}
-            Hype: {Math.round(userTeam.hype)}/100
+            Hype: {Math.round(userTeam.hype)}/100 &middot;{" "}
+            Difficulty: {difficulty.label}
           </p>
+          {difficulty.budgetScale !== 1 && (
+            <p className="card-text text-muted small mb-2">
+              On {difficulty.label.toLowerCase()}, your club earns{" "}
+              {Math.round(Math.abs(1 - difficulty.budgetScale) * 100)}%{" "}
+              {difficulty.budgetScale < 1 ? "less" : "more"} than it otherwise would, and can
+              bank that much {difficulty.budgetScale < 1 ? "less" : "more"} too. Wages cost the
+              same as they do for everyone else.
+            </p>
+          )}
           <label className="form-label mb-1" htmlFor="finance-scouting-spend">
             {seasonOver
               ? <>Scouting budget for next season: {currency.format(scoutingDraft ?? userTeam.nextScoutingSpend)}</>

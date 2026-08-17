@@ -3,6 +3,7 @@ import {
   SCOUT_POT_FOG_HALFWIDTH_MAX, SCOUT_POT_FOG_HALFWIDTH_MIN,
   SCOUT_POT_CLEAR_SEASONS_MAX, SCOUT_POT_CLEAR_SEASONS_MIN,
   SCOUT_POT_FOG_SHIFT_FRACTION, RATING_MIN, RATING_MAX,
+  difficultyProfile, type Difficulty,
 } from "../constants.js";
 import { clamp } from "../util.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
@@ -39,15 +40,23 @@ export function potentialFog(
   currentSeason: number,
   observedSeason: number | null,
   scoutingSpend: number,
+  difficulty?: Difficulty,
 ): PotentialFog {
   const spendFrac = clamp(
     (scoutingSpend - SCOUTING_SPEND_MIN) / (SCOUTING_SPEND_MAX - SCOUTING_SPEND_MIN),
     0, 1,
   );
+  // Difficulty widens (or narrows) the band AND stretches how long it takes to
+  // clear — both axes, or an easier level would still leave the user waiting
+  // three seasons to learn something it means him to know at a glance. Purely
+  // informational: no sim effect and no rng draw, so this cannot move a result.
+  const fogScale = difficultyProfile(difficulty).fogScale;
   const halfWidth0 =
-    SCOUT_POT_FOG_HALFWIDTH_MAX + spendFrac * (SCOUT_POT_FOG_HALFWIDTH_MIN - SCOUT_POT_FOG_HALFWIDTH_MAX);
+    (SCOUT_POT_FOG_HALFWIDTH_MAX + spendFrac * (SCOUT_POT_FOG_HALFWIDTH_MIN - SCOUT_POT_FOG_HALFWIDTH_MAX))
+    * fogScale;
   const clearSeasons =
-    SCOUT_POT_CLEAR_SEASONS_MAX + spendFrac * (SCOUT_POT_CLEAR_SEASONS_MIN - SCOUT_POT_CLEAR_SEASONS_MAX);
+    (SCOUT_POT_CLEAR_SEASONS_MAX + spendFrac * (SCOUT_POT_CLEAR_SEASONS_MIN - SCOUT_POT_CLEAR_SEASONS_MAX))
+    * fogScale;
 
   const tenure = observedSeason === null ? 0 : Math.max(0, currentSeason - observedSeason);
   const tenureFrac = clamp(clearSeasons > 0 ? tenure / clearSeasons : 1, 0, 1);

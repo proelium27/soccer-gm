@@ -539,8 +539,19 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
 
               <h5 className="card-title text-start">Finances</h5>
               <div className="text-start">
+                {userTeam.budget < 0 && (
+                  <div className="alert alert-danger py-2 text-start" role="alert">
+                    You're in the red, so you can't sign anyone and your scouting is switched
+                    off until you're back in the black. <Link to="/finance">See the finances</Link>
+                    {" "}or sell someone you can do without.
+                  </div>
+                )}
                 <p className="card-text mb-2">
-                  Budget: {currency.format(userTeam.budget)} &middot; Hype: {Math.round(userTeam.hype)}/100
+                  Budget:{" "}
+                  <span className={userTeam.budget < 0 ? "text-danger fw-semibold" : undefined}>
+                    {currency.format(userTeam.budget)}
+                  </span>
+                  {" "}&middot; Hype: {Math.round(userTeam.hype)}/100
                   {" "}&middot; <Link to="/finance">Full breakdown</Link>
                 </p>
                 <p className="card-text mb-2">

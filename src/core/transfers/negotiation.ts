@@ -5,13 +5,14 @@ import type { TransferWindowKind } from "./window.js";
 import type { Competition } from "../competitions.js";
 import { transferWindowState } from "./window.js";
 import { trueTransferValue, perceivedTransferValue } from "../finance/valuation.js";
-import { clampBudget, financeScale } from "../finance/budget.js";
+import { clampBudget, financeScaleFor } from "../finance/budget.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { keepsDepthFloor } from "../freeAgency.js";
 import { wouldRefuseExtension } from "../ai/breakoutRefusal.js";
-import { isProtectedStar, lastCompletedSeason } from "./protectedStars.js";
+import { isProtectedStar, lastCompletedSeason, userProtectedStarBar } from "./protectedStars.js";
 import { refusesMoveToClub } from "./playerWill.js";
 import {
+  difficultyProfile,
   ROSTER_CAP, MAX_TRANSFER_VALUE,
   RESERVATION_FACTOR_MIN, RESERVATION_FACTOR_MAX,
   NEGOTIATION_LOWBALL_FACTOR, NEGOTIATION_MAX_ROUNDS,
@@ -142,19 +143,38 @@ export function departsAtRollover(
   return league.phase === "offseason" && player.contract.expiresSeason <= league.season;
 }
 
-/** The hidden fee a club will accept for a player, fixed for the whole window. */
+/**
+ * The hidden fee a club will accept for a player, fixed for the whole window.
+ *
+ * This is the ONLY call site of the difficulty buy-price lever, and that's
+ * what makes the lever safe: it prices what the *user* pays and nothing else.
+ * AI↔AI deals price through valueToClub/keepValueToClub and never come through
+ * here, so no difficulty level can move the world's transfer economy.
+ *
+ * The MAX_TRANSFER_VALUE clamp is applied AFTER the scale and is deliberately
+ * NOT scaled with it: that constant exists so no club ever quotes a fantasy
+ * number, and letting a hard level ask £560M for a striker would break exactly
+ * the promise it makes. The cost is that the tax compresses against the ceiling
+ * at the very top of the market — which is moot in practice, because those are
+ * the players a hard level's protected-star bar has already taken off the user's
+ * market entirely (measured: scripts/difficultyProbe.ts).
+ */
 export function reservationPrice(
   lid: number,
   season: number,
   window: TransferWindowKind,
   player: Player,
+  priceScale = 1,
 ): number {
   const rng = mulberry32(windowSeed(lid, season, window, player.pid, 1));
   const factor =
     RESERVATION_FACTOR_MIN + rng() * (RESERVATION_FACTOR_MAX - RESERVATION_FACTOR_MIN);
   // Clamp to the same believable ceiling as the value itself — the reservation
   // factor must not push a headline asking price past MAX_TRANSFER_VALUE.
-  return Math.min(MAX_TRANSFER_VALUE, Math.round(trueTransferValue(player, season) * factor));
+  return Math.min(
+    MAX_TRANSFER_VALUE,
+    Math.round(trueTransferValue(player, season) * factor * priceScale),
+  );
 }
 
 /**
@@ -167,9 +187,18 @@ export function scoutedValue(
   window: TransferWindowKind,
   player: Player,
   scoutingSpend: number,
+  priceScale = 1,
 ): number {
   const rng = mulberry32(windowSeed(lid, season, window, player.pid, 2));
-  return perceivedTransferValue(rng, player, season, scoutingSpend);
+  // Buy-side surfaces pass the difficulty price scale so the figure the user
+  // compares against his budget is the figure he'll actually be asked for —
+  // a valuation that ignored the tax would read as a bug, not a difficulty.
+  // Clamped like the reservation price it's meant to predict, and for the same
+  // reason: quoted figures stay believable.
+  return Math.min(
+    MAX_TRANSFER_VALUE,
+    Math.round(perceivedTransferValue(rng, player, season, scoutingSpend) * priceScale),
+  );
 }
 
 export type OfferOutcome =
@@ -232,7 +261,17 @@ export function executeTransfer(
     ...league,
     teams: league.teams.map((t) => {
       if (t.tid === fromTid) {
-        return { ...t, roster: t.roster.filter((p) => p !== pid), budget: clampBudget(t.budget + fee, financeScale(league.competitions, t.compId), t.hype) };
+        return {
+          ...t,
+          roster: t.roster.filter((p) => p !== pid),
+          // The seller here is an AI club when the user buys, and the user
+          // himself when he sells — so this takes the difficulty-aware scale.
+          budget: clampBudget(
+            t.budget + fee,
+            financeScaleFor(league.competitions, t.compId, t.tid, league.meta.userTid, league.difficulty),
+            t.hype,
+          ),
+        };
       }
       if (t.tid === toTid) {
         return { ...t, roster: [...t.roster, pid], budget: t.budget - fee - wageCharge };
@@ -304,8 +343,13 @@ export function makeTransferOffer(
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   if (!isForSaleOrRefusing(seller, playerMap, pid, league.competitions)) return league;
-  // A top club's star from a big season simply isn't for sale (see protectedStars.ts).
-  if (isProtectedStar(lastCompletedSeason(league), league.competitions, seller.tid, player)) return league;
+  // A top club's star from a big season simply isn't for sale (see
+  // protectedStars.ts). The bar the USER faces widens on the harder
+  // difficulties; the AI market keeps using the shipped one.
+  if (isProtectedStar(
+    lastCompletedSeason(league), league.competitions, seller.tid, player,
+    userProtectedStarBar(league.difficulty),
+  )) return league;
   // ...and even a selling club's willingness isn't enough on its own: a good
   // player won't drop to a much smaller club, whoever is managing it (see
   // playerWill.ts). The user is gated here exactly like an AI buyer.
@@ -318,7 +362,10 @@ export function makeTransferOffer(
   if (existing && existing.status !== "open") return league;
 
   const priorOffers = existing?.offers ?? [];
-  const reservation = reservationPrice(league.lid, ws.season, ws.window, player);
+  const reservation = reservationPrice(
+    league.lid, ws.season, ws.window, player,
+    difficultyProfile(league.difficulty).buyPriceScale,
+  );
   const outcome = respondToOffer(reservation, offer, priorOffers);
 
   const negotiation: TransferNegotiation = {
@@ -374,8 +421,13 @@ export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStor
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   if (!isForSaleOrRefusing(seller, playerMap, pid, league.competitions)) return league;
-  // A top club's star from a big season simply isn't for sale (see protectedStars.ts).
-  if (isProtectedStar(lastCompletedSeason(league), league.competitions, seller.tid, player)) return league;
+  // A top club's star from a big season simply isn't for sale (see
+  // protectedStars.ts). The bar the USER faces widens on the harder
+  // difficulties; the AI market keeps using the shipped one.
+  if (isProtectedStar(
+    lastCompletedSeason(league), league.competitions, seller.tid, player,
+    userProtectedStarBar(league.difficulty),
+  )) return league;
   // ...and even a selling club's willingness isn't enough on its own: a good
   // player won't drop to a much smaller club, whoever is managing it (see
   // playerWill.ts). The user is gated here exactly like an AI buyer.

@@ -1227,6 +1227,129 @@ export const PROTECTED_STAR_OVR = 80;
 export const PROTECTED_STAR_TOP_FINISH = 4;
 
 /**
+ * Difficulty (chosen on the New League screen, fixed for the save's lifetime).
+ *
+ * EVERY lever here applies to the USER'S CLUB ALONE. That is a hard design
+ * constraint, not a convenience: AI↔AI trading, the country strength ladder and
+ * the anti-inflation equilibrium are a single tuned system, and difficulty must
+ * not perturb it. Concretely, the tempting version of `protectedStarOvr` —
+ * widening the not-for-sale gate world-wide on the hard levels — would cut
+ * AI↔AI deal volume, and the weak leagues are documented to run on transfer
+ * receipts (Belgium's 20 clubs take ~£1.1bn in a single window against ~£800M
+ * of base income for the whole league across a season; the last change that
+ * reduced deal flow put 2 of 4 audited seeds into deficit while every strength
+ * check stayed green). Because every lever is user-only, the world economy runs
+ * identically on all four levels and no dynasty audit is required to change one.
+ *
+ * `normal` is EXACTLY the shipped game — every field is the identity value or
+ * the shipped constant — so old saves migrate onto it and nothing changes for a
+ * dynasty in progress. A test pins that.
+ *
+ * The levers, and where each one bites:
+ *  - budgetScale: multiplies the user's `financeScale`, i.e. BOTH his income
+ *    (base allocation, prize money, hype revenue) and his savings ceiling
+ *    (budgetCap). Both halves are load-bearing: raising income without raising
+ *    the ceiling would see Easy's bonus silently destroyed by clampBudget.
+ *    Wages are NOT scaled (they're country-independent), so a hard level's
+ *    squeeze is a genuine income-vs-wage-bill gap the user has to trade out of.
+ *  - academyOffset: OVR points added to the user's youth-intake anchor at
+ *    intake time. Applied as a modifier alongside academyFormModifiers, NEVER
+ *    written into the stored `academyBase` — that field is also read by
+ *    promotion convergence and roster-import realignment, which would drag a
+ *    baked-in offset back toward the competition centre or permute it onto
+ *    another club.
+ *  - buyPriceScale: multiplies what the user pays for a player (his asking
+ *    price and the displayed buy-side valuation). Sale proceeds, his own
+ *    squad's valuations and every AI↔AI price are untouched.
+ *  - protectedStarOvr / protectedStarTopFinish: the not-for-sale bar as the
+ *    USER sees it. The AI market keeps using PROTECTED_STAR_* above, so on a
+ *    hard level a player can be unbuyable by the user while still moving
+ *    between AI clubs. That asymmetry is deliberate (see the paragraph above);
+ *    the UI copy says "not available to you" rather than claiming the club
+ *    won't sell, so the game doesn't tell the user something untrue.
+ *  - fogScale: multiplies the potential fog's half-width AND its clearing time
+ *    (scouting/potentialFog.ts). Purely informational — no sim effect, no rng
+ *    draw — which makes it the cheapest lever here and the one that changes how
+ *    the game *feels* rather than what it costs.
+ *
+ * Calibrated with scripts/difficultyProbe.ts; re-run it after touching any
+ * value, in particular the protected-star bars (how many players a level
+ * removes from the user's market is not eyeballable).
+ */
+export type Difficulty = "easy" | "normal" | "hard" | "brutal";
+
+export interface DifficultyProfile {
+  id: Difficulty;
+  /** Player-facing name. */
+  label: string;
+  /** One-line description for the New League picker. */
+  blurb: string;
+  budgetScale: number;
+  academyOffset: number;
+  buyPriceScale: number;
+  protectedStarOvr: number;
+  protectedStarTopFinish: number;
+  fogScale: number;
+}
+
+export const DEFAULT_DIFFICULTY: Difficulty = "normal";
+
+/** Every difficulty, in presentation order (easiest first). */
+export const DIFFICULTY_ORDER: Difficulty[] = ["easy", "normal", "hard", "brutal"];
+
+export const DIFFICULTIES: Record<Difficulty, DifficultyProfile> = {
+  easy: {
+    id: "easy",
+    label: "Easy",
+    blurb: "More money, a stronger academy, cheaper signings, and you can buy almost anyone.",
+    budgetScale: 1.35,
+    academyOffset: 4,
+    buyPriceScale: 0.85,
+    protectedStarOvr: 85,
+    protectedStarTopFinish: 1,
+    fogScale: 0.5,
+  },
+  normal: {
+    id: "normal",
+    label: "Normal",
+    blurb: "The game as it's tuned. Your club plays by the same rules as everyone else.",
+    budgetScale: 1,
+    academyOffset: 0,
+    buyPriceScale: 1,
+    protectedStarOvr: PROTECTED_STAR_OVR,
+    protectedStarTopFinish: PROTECTED_STAR_TOP_FINISH,
+    fogScale: 1,
+  },
+  hard: {
+    id: "hard",
+    label: "Hard",
+    blurb: "Less money, a weaker academy, and the best clubs won't sell to you.",
+    budgetScale: 0.8,
+    academyOffset: -3,
+    buyPriceScale: 1.3,
+    protectedStarOvr: 78,
+    protectedStarTopFinish: 5,
+    fogScale: 1.25,
+  },
+  brutal: {
+    id: "brutal",
+    label: "Brutal",
+    blurb: "You will run out of money. Build from the academy or don't build at all.",
+    budgetScale: 0.6,
+    academyOffset: -6,
+    buyPriceScale: 1.6,
+    protectedStarOvr: 76,
+    protectedStarTopFinish: 6,
+    fogScale: 1.5,
+  },
+};
+
+/** The profile for a save's difficulty, falling back to normal for anything unrecognised. */
+export function difficultyProfile(difficulty: Difficulty | undefined): DifficultyProfile {
+  return DIFFICULTIES[difficulty ?? DEFAULT_DIFFICULTY] ?? DIFFICULTIES[DEFAULT_DIFFICULTY];
+}
+
+/**
  * Age's effect on transfer value, as a straight multiplier — [age,
  * multiplier] control points, linearly interpolated, clamped at the ends.
  * Unlike a player's on-field ability curve, transfer value peaks in the

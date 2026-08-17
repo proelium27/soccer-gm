@@ -30,14 +30,14 @@ import { buildCupState } from "./cup/cup.js";
 import { computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence } from "./promotion.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
-import { settleSeasonEnd, chargeSeasonStart, wageBill, financeScale } from "./finance/budget.js";
+import { settleSeasonEnd, chargeSeasonStart, wageBill, financeScaleFor } from "./finance/budget.js";
 import { academyContractTerms } from "./contracts.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
 import { competitionOf } from "./competitions.js";
 import { simThroughInternational } from "./international/index.js";
 import { carryIntlInjuries } from "./injuries.js";
 import { hashInts, mulberry32 } from "../engine/rng.js";
-import { NEWS_POSITION_CHANGE_OVR } from "./constants.js";
+import { NEWS_POSITION_CHANGE_OVR, difficultyProfile } from "./constants.js";
 
 /** rng-stream tag for rolling carried-over international injury durations. */
 const INTL_INJURY_STREAM = 840;
@@ -275,12 +275,16 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   });
 
   const settle = (rows: StandingsRow[], compId: number): void => {
-    const scale = financeScale(league.competitions, compId);
     const defaultRank = rows.length;
     const rankByTid = new Map(rows.map((row, i) => [row.tid, i + 1]));
     const rowByTid = new Map(rows.map((row) => [row.tid, row]));
     teams = teams.map((t) => {
       if (t.compId !== compId) return t;
+      // Difficulty scales the user's prize money, hype revenue and savings
+      // ceiling; every AI club takes the plain competition scale.
+      const scale = financeScaleFor(
+        league.competitions, compId, t.tid, league.meta.userTid, league.difficulty,
+      );
       const rank = rankByTid.get(t.tid) ?? defaultRank;
       const row = rowByTid.get(t.tid);
       const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, scale);
@@ -354,6 +358,7 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const academyFormModifiers = computeAcademyFormModifiers(
     tablesByCompId.values(), league.seasonHistory,
   );
+  const academyOffset = difficultyProfile(league.difficulty).academyOffset;
   // Monotonic, read from the store rather than derived from max(pid): players
   // get removed (retirement above, the free-agent cull below), and a derived
   // cursor would hand a removed player's pid to a new player, who'd inherit his
@@ -370,7 +375,16 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     const genSeed = hashInts(league.lid, nextSeason, t.tid, 2);
     const homeCountry = competitionOf(league.competitions, t.compId).country;
     const { players: youth, nextPid: updatedNextPid } = generateYouthIntake(
-      rng, t.academyBase + (academyFormModifiers.get(t.tid) ?? 0),
+      rng,
+      t.academyBase
+        + (academyFormModifiers.get(t.tid) ?? 0)
+        // Difficulty's academy lever, user's club only. Applied here as a
+        // modifier and NEVER written back into t.academyBase: that field is
+        // also read by promotion convergence (which would drag a baked-in
+        // offset toward the competition centre) and by roster-import
+        // realignment (which permutes anchors between clubs), so storing it
+        // would leak difficulty into two unrelated systems.
+        + (t.tid === league.meta.userTid ? academyOffset : 0),
       nextSeason, nextPid, genSeed, homeCountry,
     );
     nextPid = updatedNextPid;
@@ -474,12 +488,18 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   });
 
   // 6.5. Season-start finances on the finalized new-season rosters, scaled
-  //      by each club's (possibly just-changed) competition tier.
+  //      by each club's (possibly just-changed) competition tier — and, for the
+  //      user's club only, by his difficulty. This is where a hard level really
+  //      bites: the base allocation shrinks while the wage bill doesn't, so an
+  //      expensive squad runs at a loss until the user sells his way out of it.
   const salaryMap = new Map(players.map((p) => [p.pid, p.contract.salary]));
   teams = teams.map((t) => ({
     ...t,
     budget: chargeSeasonStart(
-      t.budget, wageBill([...t.roster, ...t.academyRoster], salaryMap), financeScale(league.competitions, t.compId), t.hype,
+      t.budget,
+      wageBill([...t.roster, ...t.academyRoster], salaryMap),
+      financeScaleFor(league.competitions, t.compId, t.tid, league.meta.userTid, league.difficulty),
+      t.hype,
     ),
   }));
 

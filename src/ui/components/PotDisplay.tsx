@@ -21,7 +21,7 @@ export function PotDisplay({ player }: { player: Player }) {
   const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
   const observed = userTeam?.scoutingObserved?.[player.pid] ?? null;
   const spend = userTeam?.scoutingSpend ?? 0;
-  const fog = potentialFog(player.potential, player.pid, league.season, observed, spend);
+  const fog = potentialFog(player.potential, player.pid, league.season, observed, spend, league.difficulty);
 
   if (fog.known) return <>{player.potential}</>;
   return (

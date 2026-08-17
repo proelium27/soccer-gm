@@ -6,7 +6,10 @@ import { applyTeamIdentities } from "../../core/teams/customize.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { readLeagueFileText } from "../../db/exportImport.js";
-import { NUM_TEAMS, NUM_TEAMS_D2 } from "../../core/constants.js";
+import {
+  NUM_TEAMS, NUM_TEAMS_D2,
+  DIFFICULTIES, DIFFICULTY_ORDER, DEFAULT_DIFFICULTY, type Difficulty,
+} from "../../core/constants.js";
 import {
   worldCompetitions,
   countryClubRanges,
@@ -85,6 +88,9 @@ function divisionName(country: string, tier: 1 | 2): string {
 export function NewLeague() {
   const [country, setCountry] = useState<string>(COUNTRIES[0]);
   const [selectedTid, setSelectedTid] = useState<number | null>(null);
+  // Fixed for the save's lifetime once it's created, so it is chosen here and
+  // nowhere else (see the DIFFICULTIES block in core/constants.ts).
+  const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
   const [pending, setPending] = useState<LeagueStore | null>(null);
   const [saving, setSaving] = useState(false);
   // Every path on this page that writes a save goes through one gate. Building a
@@ -127,7 +133,7 @@ export function NewLeague() {
   function buildLeague(tid: number): LeagueStore {
     const seed = Date.now();
     const rng = mulberry32(seed);
-    const generated = createLeagueState(tid, rng, seed);
+    const generated = createLeagueState(tid, rng, seed, difficulty);
     const league = roster
       ? applyRosterFileToNewLeague(generated, roster.file, tid).league
       : generated;
@@ -157,7 +163,7 @@ export function NewLeague() {
           setPending(league);
           return;
         }
-        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster });
+        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster, difficulty });
         await setLeague(league);
         navigate("/dashboard");
       } finally {
@@ -171,7 +177,7 @@ export function NewLeague() {
     await gate.run(async () => {
       setSaving(true);
       try {
-        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster });
+        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster, difficulty });
         await setLeague(applyTeamIdentities(pending, teams));
         navigate("/dashboard");
       } finally {
@@ -460,6 +466,26 @@ export function NewLeague() {
           </div>
         </div>
       ))}
+
+      <div className="mb-3">
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Difficulty</h6>
+        <div className="btn-group w-100" role="group" aria-label="Choose a difficulty">
+          {DIFFICULTY_ORDER.map((d) => (
+            <button
+              key={d}
+              type="button"
+              className={`btn btn-outline-secondary${d === difficulty ? " active" : ""}`}
+              onClick={() => setDifficulty(d)}
+            >
+              {DIFFICULTIES[d].label}
+            </button>
+          ))}
+        </div>
+        <p className="text-muted small mt-2 mb-0">
+          {DIFFICULTIES[difficulty].blurb} It only changes things for your club, and you
+          can't change it later, so pick one you'll want to live with.
+        </p>
+      </div>
 
       {importError && (
         <div className="alert alert-danger py-2" role="alert">
