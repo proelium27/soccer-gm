@@ -8,7 +8,6 @@ export type NewsEventType =
   | "standoutRating"
   | "goalMilestoneSeason"
   | "goalMilestoneCareer"
-  | "generationalTalent"
   | "positionChange";
 
 /**
@@ -26,8 +25,6 @@ export interface NewsEvent {
    * Interpreted per `type`: hattrick = goals scored this match;
    * standoutRating = rating × 10 (integer); goalMilestoneSeason /
    * goalMilestoneCareer = the milestone crossed (10, 20, 30...);
-   * generationalTalent = the player's age at arrival (matchday is 0 —
-   * announced with the new season's youth intake, before matchday 1);
    * positionChange = both positions packed by `packPositionChange` (matchday
    * 0 — it happens in the offseason, with progression).
    */
