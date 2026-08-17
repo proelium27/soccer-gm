@@ -153,7 +153,11 @@ for (const t of teams) {
 }
 if (smallSquads.length) add("ERROR", "squad below 11 (selectXI silently under-fills)", sample(smallSquads));
 if (bigSquads.length) add("WARN", `squad over ROSTER_CAP (${ROSTER_CAP})`, sample(bigSquads));
-if (bigAcademies.length) add("WARN", `academy over cap (${ACADEMY_ROSTER_CAP})`, sample(bigAcademies));
+// NOT a bug: ACADEMY_ROSTER_CAP gates `signToAcademy` only — youth intake is
+// deliberately ungated (same convention as ROSTER_CAP), and three live cohorts
+// of a 3-5 player intake on a 2-season deal is a steady state of 9-15. Reported
+// so an unusually large academy is still visible, but it is not a defect.
+if (bigAcademies.length) add("INFO", `academy over the signing cap (${ACADEMY_ROSTER_CAP}) — expected from youth intake`, sample(bigAcademies));
 
 // healthy-XI check: enough uninjured players to field 11, and a fit keeper
 const cantField: string[] = [];
@@ -226,12 +230,28 @@ for (const t of teams) {
 if (badNumbers.length) add("ERROR", "non-finite / impossible number", sample(badNumbers, 8));
 if (badRatings.length) add("WARN", "rating out of range or potential below ovr", sample(badRatings, 8));
 
-// expired contracts still on a roster mid-season
+// Expired contracts still on a roster. `expiresSeason === N` means the deal
+// covers season N and he leaves in the offseason after it, so anything strictly
+// below `league.season` is past the release point in offseason step 1.
+//
+// Known cause: step 1 (`releaseExpiredContracts`) runs BEFORE step 1.5
+// (`processLoanReturns`), so a player whose deal expired while out on loan is
+// dropped from the loanee's roster and then handed back to his parent carrying
+// the dead contract, which nothing re-checks. His owner also never gets to renew
+// him — step 0 renewals iterate `team.roster`, and he was on the loanee's.
 const expired = players.filter(
   (p) => onSenior.has(p.pid) && Number.isFinite(p.contract?.expiresSeason) && p.contract.expiresSeason < L.season,
 );
 if (expired.length) {
-  add("WARN", "rostered player whose contract already expired", `${expired.length} players, e.g. ${sample(expired.slice(0, 5).map((p) => `p${p.pid} expires ${p.contract.expiresSeason}`))}`);
+  const returned = new Set((L.transfers ?? []).filter((t) => t.loanReturn && t.season === L.season).map((t) => t.pid));
+  const fromLoan = expired.filter((p) => returned.has(p.pid)).length;
+  const worst = Math.max(...expired.map((p) => L.season - p.contract.expiresSeason));
+  add(
+    "ERROR",
+    "rostered player whose contract already expired",
+    `${expired.length} players (${pct(expired.length, onSenior.size)}% of all rostered), ` +
+      `${fromLoan} of them returned from loan this rollover, stalest by ${worst} seasons`,
+  );
 }
 
 // NOT-A-BUG but worth counting: history pointing at deleted players
@@ -332,6 +352,15 @@ const rostered = players.filter((p) => onSenior.has(p.pid));
 const free = players.filter((p) => !onSenior.has(p.pid) && !teams.some((t) => (t.academyRoster ?? []).includes(p.pid)));
 const meanOvr = (xs: Player[]) => (xs.length ? xs.reduce((a, b) => a + b.ovr, 0) / xs.length : 0);
 say(`\npool: ${rostered.length} rostered (mean ovr ${meanOvr(rostered).toFixed(2)}), ${free.length} free agents`);
+// Free-agent pool QUALITY is the leading indicator of transfer-market health.
+// A working market sells good players rather than releasing them, so the pool
+// holds only a handful at/over the tier-2 ceiling. A pool with hundreds of them
+// means clubs are shedding quality they cannot sell — check T1->T1 volume next.
+const faOver = free.filter((p) => p.ovr >= DIVISION_2_REFUSAL_OVR_THRESHOLD).length;
+say(
+  `  free agents at/over ovr ${DIVISION_2_REFUSAL_OVR_THRESHOLD}: ${faOver}` +
+    (faOver > 100 ? `  <-- market is not clearing; expect swept tier-2 squads` : ` (healthy is single/low double digits)`),
+);
 say(`elite: ${players.filter((p) => p.ovr >= 80).length} at 80+, ${players.filter((p) => p.ovr >= 85).length} at 85+, ${players.filter((p) => p.ovr >= 90).length} at 90+`);
 const ages = rostered.map(ageOf).sort((a, b) => a - b);
 say(`squad age: mean ${(ages.reduce((a, b) => a + b, 0) / ages.length).toFixed(1)}, median ${ages[ages.length >> 1]}, oldest ${ages[ages.length - 1]}`);
