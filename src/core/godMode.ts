@@ -77,6 +77,8 @@ export interface PlayerEdit {
   potential?: number;
   contract?: { salary?: number; expiresSeason?: number };
   clearInjury?: boolean;
+  /** Lift a league ban outright, along with the yellow tally behind it. */
+  clearSuspension?: boolean;
 }
 
 /**
@@ -111,6 +113,8 @@ export function applyPlayerEdit(
           }
         : p.contract,
       injury: edit.clearInjury ? null : p.injury,
+      suspension: edit.clearSuspension ? null : p.suspension,
+      yellowCount: edit.clearSuspension ? 0 : p.yellowCount,
     };
   });
 }

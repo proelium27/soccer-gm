@@ -33,8 +33,19 @@ const SEASON = simSeason(mulberry32(12345));
  * player genuinely covers and let him win that slot in selectXI on his rating
  * AT it — so both the XI and the composites move — each a personnel/composite
  * change, not an rng-stream shift.
+ *
+ * And most recently when YELLOW_GIVEN_FOUL was raised 0.11 -> 0.18, once
+ * suspensions gave cards a consequence and the booking rate was measured at
+ * roughly a third of a real top flight's. That one is worth distinguishing from
+ * the rest: the card roll is drawn on EVERY foul either way (`const cardRoll =
+ * rng()`), so the draw count and stream order are untouched, exactly as with the
+ * composite changes above. What moves is which branch it takes — more second
+ * yellows, so more men sent off, so more man-down composites, and marginally
+ * longer matches, since every card calls bumpEvent() and stoppage time scales
+ * with events. Measured, that last channel is worth ~+0.01 goals/match
+ * (scripts/cardRateSweep.ts), well inside seed noise.
  */
-const BASELINE_SCORELINE_HASH = 2887243541;
+const BASELINE_SCORELINE_HASH = 1951366502;
 
 function scorelineHash(matches: typeof SEASON.matches): number {
   const s = matches.map((m) => `${m.home}:${m.homeGoals}-${m.awayGoals}:${m.away}`).join("|");

@@ -58,10 +58,10 @@ type LeagueStoreAnyVersion =
   Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid"> &
   Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid">>;
 
-/** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking. */
+/** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking / cards. */
 type SeasonStatsAnyVersion =
-  Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga" | "tid" | "passes" | "passesCompleted" | "crosses" | "foulsCommitted"> &
-  Partial<Pick<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga" | "tid" | "passes" | "passesCompleted" | "crosses" | "foulsCommitted">>;
+  Omit<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga" | "tid" | "passes" | "passesCompleted" | "crosses" | "foulsCommitted" | "yellowCards" | "redCards"> &
+  Partial<Pick<SeasonStats, "minutesPlayed" | "ratingSum" | "avgRating" | "interceptions" | "xg" | "goalsAgainst" | "xga" | "tid" | "passes" | "passesCompleted" | "crosses" | "foulsCommitted" | "yellowCards" | "redCards">>;
 
 /** A team-season-stats row as it may exist in a save written before xG / xGA. */
 type TeamSeasonStatsAnyVersion = Omit<TeamSeasonStats, "xg" | "goalsAgainst" | "xga"> &
@@ -142,6 +142,13 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
       passesCompleted: s.passesCompleted ?? 0,
       crosses: s.crosses ?? 0,
       foulsCommitted: s.foulsCommitted ?? 0,
+      // Cards were simulated per match long before they were totalled per
+      // season, so a past season's real card count is sitting in box scores
+      // that archived cups have since discarded. Backfilling from what survives
+      // would under-count some seasons and not others, which reads worse than
+      // an honest zero — past seasons start blank and future ones are exact.
+      yellowCards: s.yellowCards ?? 0,
+      redCards: s.redCards ?? 0,
     })),
     // Pre-academy-tracking saves have no per-season academy flag on their
     // rating snapshots; there's no way to reconstruct which past seasons a
@@ -168,6 +175,12 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
     // signings would still be inside their hold, and "absent" is the correct
     // default — it means "not held," so nobody is retroactively locked. Only
     // free agents signed after this feature shipped carry the field.
+    //
+    // `suspension` / `yellowCount` are likewise left absent by design rather
+    // than backfilled. Both are optional and their absent state is already the
+    // correct one — nobody banned, nobody carrying bookings — so a pre-feature
+    // save simply starts the rest of its season with a clean disciplinary
+    // record instead of inventing bans out of box scores nobody was charged for.
   };
 }
 
