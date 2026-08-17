@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from "../types.js";
 
 const entry: ChangelogEntry = {
-  date: "2026-08-16",
+  date: "2026-08-17",
   title: "Difficulty levels",
   items: [
     "You now pick a difficulty when you create a league: **Easy**, **Normal**, **Hard** or **Brutal**. It's fixed for that save, so it's set on the New League screen and nowhere else. Normal is the game exactly as it has always been tuned, and every save you already have is on it, so nothing about a dynasty in progress changes.",
