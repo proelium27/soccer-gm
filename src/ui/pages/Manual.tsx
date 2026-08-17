@@ -549,8 +549,9 @@ export function Manual() {
             genuinely rare. But every once in a long while (think years, not seasons), a youth
             prospect shows up somewhere in the world who's just built different. That resistance
             barely applies to him, and he can genuinely climb to heights no ordinary player reaches.
-            His arrival makes the News Feed, and scouts will see the unusual ceiling in his potential
-            estimate. It's a trajectory, not a guarantee, and a rough run of seasons can still leave
+            Nothing announces him, and no badge marks him out. The only tell is the one your scouts
+            can actually earn: a potential estimate with a ceiling far beyond what any ordinary
+            prospect shows. It's a trajectory, not a guarantee, and a rough run of seasons can still leave
             him merely very good, but these are the players your true legends come from. If one lands
             in <em>your</em> academy, treat him accordingly.
           </p>

@@ -348,7 +348,15 @@ function migrateFields(league: LeagueStore): LeagueStore {
         championTidByCompId,
       };
     }),
-    newsEvents: anyVersion.newsEvents ?? [],
+    // Generational-talent arrivals used to be announced on the News Feed. The
+    // trait is hidden by design, so the announcement was giving away a number
+    // the player is meant to infer from a scout's potential estimate — and it
+    // is dropped from saves in progress too, not just new ones, or an existing
+    // save keeps leaking it forever. The type no longer exists, so these would
+    // otherwise render as a blank label.
+    newsEvents: (anyVersion.newsEvents ?? []).filter(
+      (e: { type: string }) => e.type !== "generationalTalent",
+    ),
     activeLoans: anyVersion.activeLoans ?? [],
     loanListings: anyVersion.loanListings ?? [],
     loanRejections: anyVersion.loanRejections ?? [],

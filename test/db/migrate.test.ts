@@ -124,6 +124,23 @@ describe("migrateLeague", () => {
     expect(migrateLeague(withEvents).newsEvents).toEqual(withEvents.newsEvents);
   });
 
+  it("strips generational-talent announcements from saves in progress", () => {
+    const league = makeLeague(0, 1);
+    const hattrick = { type: "hattrick" as const, pid: 1, tid: 0, season: 1, matchday: 3, detail: 3 };
+    const withEvents = {
+      ...league,
+      newsEvents: [
+        hattrick,
+        // The removed event type, as an older save would still hold it. The
+        // feed is append-only, so without this filter the announcement keeps
+        // giving away a hidden trait forever (and renders a blank label, since
+        // nothing maps the type any more).
+        { type: "generationalTalent", pid: 7, tid: 2, season: 1, matchday: 0, detail: 16 },
+      ],
+    } as unknown as LeagueStore;
+    expect(migrateLeague(withEvents).newsEvents).toEqual([hattrick]);
+  });
+
   it("backfills minutesPlayed/rating fields from pre-Match-Rating saves", () => {
     const league = simThrough(makeLeague(0, 1), "game", mulberry32(6));
     const preRating = {

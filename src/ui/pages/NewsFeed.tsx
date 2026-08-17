@@ -17,9 +17,8 @@ const EVENT_LABEL: Record<NewsEventType, string> = {
   standoutRating: "⭐ Standout performance",
   goalMilestoneSeason: "🎯 Season milestone",
   goalMilestoneCareer: "🎯 Career milestone",
-  generationalTalent: "💎 Generational talent",
   // Deliberately no emoji: the project rule is that the UI carries none (real
-  // icons are hand-written inline SVG). The five above predate that rule.
+  // icons are hand-written inline SVG). The four above predate that rule.
   positionChange: "Position change",
 };
 
@@ -33,8 +32,6 @@ function eventDetail(e: NewsEvent): string {
       return `${e.detail} goals this season`;
     case "goalMilestoneCareer":
       return `${e.detail} career goals`;
-    case "generationalTalent":
-      return `once-in-a-generation prospect joins the academy, age ${e.detail}`;
     case "positionChange": {
       const { from, to } = unpackPositionChange(e.detail);
       return `now plays at ${to}, after coming through at ${from}`;
