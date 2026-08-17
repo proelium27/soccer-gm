@@ -20,6 +20,7 @@ import { currency, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
+import { isSuspended, matchesLabel } from "../../core/suspensions.js";
 
 /** A pending staged international stage — every IntlStage that still has play left. */
 type PlayableStage = Exclude<IntlStage, null | "done">;
@@ -306,6 +307,15 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
       .sort((a, b) => (b.injury!.gamesRemaining - a.injury!.gamesRemaining));
   }, [league.players, userTeam.roster]);
 
+  // Banned players sit alongside the injured for the same reason: the sim
+  // leaves them out on its own, so this is the only warning before you advance.
+  const suspendedPlayers = useMemo(() => {
+    const roster = new Set(userTeam.roster);
+    return league.players
+      .filter((p) => roster.has(p.pid) && isSuspended(p))
+      .sort((a, b) => b.suspension!.matchesRemaining - a.suspension!.matchesRemaining);
+  }, [league.players, userTeam.roster]);
+
   const disableSim = simming || league.phase === "offseason";
   // Once the user is standing on deadline day (or past it), "sim to the
   // deadline" has nowhere left to go — simThrough treats it as a no-op.
@@ -395,6 +405,32 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                 </li>
               ))}
             </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Suspensions: who's banned, and for how much longer. */}
+      {suspendedPlayers.length > 0 && (
+        <div className="card mb-3">
+          <div className="card-body">
+            <h5 className="card-title">
+              Suspensions <span className="text-muted small">({suspendedPlayers.length} out)</span>
+            </h5>
+            <ul className="list-unstyled small mb-0">
+              {suspendedPlayers.map((p) => (
+                <li key={p.pid} className="mb-1">
+                  <Link to={`/player/${p.pid}`}>{p.name}</Link>{" "}
+                  <Flag nationality={p.nationality} />
+                  <span className="text-muted">
+                    {" "}({p.pos}) — {p.suspension!.reason}, out of the next{" "}
+                    {matchesLabel(p.suspension!.matchesRemaining)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="text-muted small mt-2">
+              Bans only cover league matches, so these players can still play in the cup.
+            </div>
           </div>
         </div>
       )}

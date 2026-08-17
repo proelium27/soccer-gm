@@ -13,7 +13,9 @@ import { canExtend } from "../../core/contracts.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { previousRatings } from "./RatingDelta.js";
 import { ExtendControl } from "./ExtendControl.js";
+import { ListingMenu } from "./ListingMenu.js";
 import { slotFitNote } from "./PositionBadge.js";
+import { suspensionText } from "./SuspensionBadge.js";
 
 const DRAG_MIME = "application/x-soccer-gm-pid";
 
@@ -32,9 +34,13 @@ export interface PitchFieldProps {
   releasablePids: Set<number>;
   refusingPids: Set<number>;
   transferListedPids: Set<number>;
+  loanListedPids: Set<number>;
+  /** Loans can only be listed while a transfer window is open, same as the Loans page. */
+  windowOpen: boolean;
   onRelease: (pid: number) => void;
   onExtend: (pid: number, lengthSeasons: number) => void;
   onToggleTransferListed: (pid: number, listed: boolean) => void;
+  onToggleLoanListed: (pid: number, listed: boolean) => void;
   dragOverSlotIndex: number | null;
   setDragOverSlotIndex: (i: number | null) => void;
   onDropOnSlot: (slotIndex: number, draggedPid: number) => void;
@@ -52,9 +58,12 @@ export function PitchField({
   releasablePids,
   refusingPids,
   transferListedPids,
+  loanListedPids,
+  windowOpen,
   onRelease,
   onExtend,
   onToggleTransferListed,
+  onToggleLoanListed,
   dragOverSlotIndex,
   setDragOverSlotIndex,
   onDropOnSlot,
@@ -174,6 +183,11 @@ export function PitchField({
                     $
                   </span>
                 )}
+                {loanListedPids.has(p.pid) && (
+                  <span className="pitch-chip-listed-flag" title="Listed for loan">
+                    L
+                  </span>
+                )}
                 {p.injury && (
                   <span
                     className="pitch-chip-injury-flag"
@@ -181,6 +195,16 @@ export function PitchField({
                   >
                     <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden="true">
                       <path d="M4 0h2v4h4v2H6v4H4V6H0V4h4z" fill="currentColor" />
+                    </svg>
+                  </span>
+                )}
+                {suspensionText(p) && (
+                  <span
+                    className="pitch-chip-suspension-flag"
+                    title={`${suspensionText(p)}. He's still eligible for cup ties.`}
+                  >
+                    <svg width="7" height="9" viewBox="0 0 8 10" aria-hidden="true">
+                      <rect x="0" y="0" width="8" height="10" rx="1.5" fill="currentColor" />
                     </svg>
                   </span>
                 )}
@@ -237,6 +261,9 @@ export function PitchField({
                     {p.injury.gamesRemaining === 1 ? "match" : "matches"}
                   </div>
                 )}
+                {suspensionText(p) && (
+                  <div className="pitch-chip-actions-meta text-danger">{suspensionText(p)}</div>
+                )}
                 <div className="d-flex flex-wrap gap-1 mt-2">
                   {canExtend(p, season) && (
                     refusingPids.has(p.pid) ? (
@@ -257,16 +284,16 @@ export function PitchField({
                       />
                     )
                   )}
-                  <button
-                    className={
-                      "btn btn-sm text-nowrap " +
-                      (transferListedPids.has(p.pid) ? "btn-warning" : "btn-outline-warning")
-                    }
-                    onClick={() => onToggleTransferListed(p.pid, !transferListedPids.has(p.pid))}
-                    title="Listing signals AI clubs you're willing to sell, making an offer more likely."
-                  >
-                    {transferListedPids.has(p.pid) ? "Listed for Transfer" : "List for Transfer"}
-                  </button>
+                  <ListingMenu
+                    player={p}
+                    season={season}
+                    transferListed={transferListedPids.has(p.pid)}
+                    loanListed={loanListedPids.has(p.pid)}
+                    keepsDepthFloor={releasablePids.has(p.pid)}
+                    windowOpen={windowOpen}
+                    onToggleTransferListed={onToggleTransferListed}
+                    onToggleLoanListed={onToggleLoanListed}
+                  />
                   <button
                     className="btn btn-sm btn-outline-danger"
                     onClick={() => {

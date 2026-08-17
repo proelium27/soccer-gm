@@ -5,6 +5,7 @@ import { NATIONALITIES } from "../../core/players/nationalities.js";
 import { SKILL_LABELS } from "./PlayerRatingsTooltip.js";
 import type { PlayerEdit } from "../../core/godMode.js";
 import { useLeague } from "../context/LeagueContext.js";
+import { isSuspended, matchesLabel } from "../../core/suspensions.js";
 
 const NATION_NAMES = Object.keys(NATIONALITIES);
 
@@ -27,6 +28,7 @@ export function PlayerEditModal({ player, onClose }: { player: Player; onClose: 
   const [expiresSeason, setExpiresSeason] = useState(player.contract.expiresSeason);
   const [ratings, setRatings] = useState({ ...player.ratings });
   const [clearInjury, setClearInjury] = useState(false);
+  const [clearBan, setClearBan] = useState(false);
 
   // Close on Escape, matching the app's other click-away popovers.
   useEffect(() => {
@@ -46,6 +48,7 @@ export function PlayerEditModal({ player, onClose }: { player: Player; onClose: 
       contract: { salary, expiresSeason },
       ratings,
       clearInjury: player.injury ? clearInjury : undefined,
+      clearSuspension: isSuspended(player) ? clearBan : undefined,
     };
     await editPlayerAction(player.pid, edit);
     onClose();
@@ -130,6 +133,22 @@ export function PlayerEditModal({ player, onClose }: { player: Player; onClose: 
             />
             <label className="form-check-label" htmlFor="gm-clear-injury">
               Clear injury ({player.injury.type}, {player.injury.gamesRemaining} games)
+            </label>
+          </div>
+        )}
+
+        {isSuspended(player) && (
+          <div className="form-check mb-3">
+            <input
+              type="checkbox"
+              className="form-check-input"
+              id="gm-clear-suspension"
+              checked={clearBan}
+              onChange={(e) => setClearBan(e.target.checked)}
+            />
+            <label className="form-check-label" htmlFor="gm-clear-suspension">
+              Clear suspension ({player.suspension!.reason},{" "}
+              {matchesLabel(player.suspension!.matchesRemaining)})
             </label>
           </div>
         )}

@@ -14,6 +14,8 @@ interface DropdownProps {
   className?: string;
   /** Optional accessible label when the trigger has no text (icon-only). */
   ariaLabel?: string;
+  /** Optional hover tooltip on the trigger. */
+  title?: string;
 }
 
 /**
@@ -32,6 +34,7 @@ export function Dropdown({
   children,
   className = "",
   ariaLabel,
+  title,
 }: DropdownProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -59,6 +62,7 @@ export function Dropdown({
         type="button"
         aria-expanded={open}
         aria-label={ariaLabel}
+        title={title}
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
       >

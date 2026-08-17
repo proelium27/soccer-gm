@@ -9,6 +9,7 @@ import { generateYouthIntake } from "./players/youth.js";
 import { computeAcademyFormModifiers } from "./players/academyForm.js";
 import { cullFreeAgentPool } from "./players/freeAgentCull.js";
 import { summarizeRetirements } from "./players/retirements.js";
+import { clearSuspension } from "./suspensions.js";
 import { extendRetireeArchive } from "./players/archive.js";
 import { archiveCup } from "./cup/archive.js";
 import {
@@ -144,7 +145,8 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   //      May still misses the tournament, one about to retire gets one last
   //      campaign — exactly as before, only now watchable.
 
-  // 2. Progress every remaining player's ratings; heal any lingering injury.
+  // 2. Progress every remaining player's ratings; heal any lingering injury and
+  //    wipe every suspension and yellow-card tally (bans don't cross seasons).
   //    Academy players have no senior appearances to read minutes from (they
   //    don't play senior matches), so they're assumed to play a full season
   //    rather than being penalized with the worst-case minutesFactor.
@@ -169,7 +171,8 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
         detail: packPositionChange(p.pos, progressed.pos),
       });
     }
-    return progressed.injury ? { ...progressed, injury: null } : progressed;
+    // Bans and yellow tallies expire with the season, alongside the injury heal.
+    return clearSuspension(progressed.injury ? { ...progressed, injury: null } : progressed);
   });
 
   // 3. Roll retirement; drop retirees from rosters and the player pool. Age

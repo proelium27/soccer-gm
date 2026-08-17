@@ -25,6 +25,34 @@ export const SKILL_LABELS: Record<SkillKey, string> = {
 };
 
 /**
+ * Column-header abbreviations for the attribute tables.
+ *
+ * These are spelled out rather than derived, because deriving them from
+ * SKILL_LABELS by initials — which the Player Profile did — gives **three
+ * columns all labelled "S"**: Speed, Strength and Stamina. Fourteen numeric
+ * columns where the first three headers are identical is unreadable, and a
+ * hover title is not a fix for a header you can't tell apart at a glance.
+ *
+ * Every value must stay unique; a test pins that.
+ */
+export const SKILL_ABBREV: Record<SkillKey, string> = {
+  speed: "SPD",
+  strength: "STR",
+  stamina: "STA",
+  jumping: "JMP",
+  shortPass: "SP",
+  longPass: "LP",
+  crosses: "CRO",
+  dribbling: "DRI",
+  longShot: "LS",
+  finishing: "FIN",
+  tackling: "TAC",
+  interceptions: "INT",
+  positioning: "POS",
+  goalkeeping: "GK",
+};
+
+/**
  * Wraps player name text; on hover or keyboard focus, shows a color-coded
  * breakdown of all attribute ratings. Rendered entirely with spans (the anchor
  * sits inside a table cell as inline content, where a div would be invalid).

@@ -22,20 +22,34 @@ export interface TeamMatchData {
   recompute: (onPitch: MatchPlayer[]) => Composites;
 }
 
+export interface MatchDataOptions {
+  /**
+   * Extra "he can't play today" test, on top of the injury filter every caller
+   * gets. Exists so a *league* ban can sideline a player for league matches
+   * without also keeping him out of the Continental Cup or a World Cup — the
+   * cup and international callers simply don't pass it. See core/suspensions.ts.
+   */
+  unavailable?: (p: Player) => boolean;
+}
+
 /**
  * Full pipeline: for each team, pick its XI in its chosen formation, roll up raw composites,
  * then z-normalize across the league. Returns composites, the XI, and a bench
  * (best remaining players by ovr, capped at BENCH_SIZE) for in-match substitutions.
- * Injured players (gamesRemaining > 0) are excluded from both XI and bench selection.
+ * Injured players (gamesRemaining > 0) are excluded from both XI and bench selection,
+ * as is anyone `opts.unavailable` rejects.
  */
-export function leagueMatchData(league: League): TeamMatchData[] {
+export function leagueMatchData(league: League, opts: MatchDataOptions = {}): TeamMatchData[] {
   const byPid = new Map<number, Player>(league.players.map((p) => [p.pid, p]));
+  const unavailable = opts.unavailable;
   const xis: Player[][] = [];
   const benches: Player[][] = [];
   const boostSets: (Set<number> | undefined)[] = [];
   const slotsByTeam: Position[][] = [];
   const raw = league.teams.map((t) => {
-    const roster = t.roster.map((pid) => byPid.get(pid)!).filter((p) => !p.injury);
+    const roster = t.roster
+      .map((pid) => byPid.get(pid)!)
+      .filter((p) => !p.injury && !(unavailable && unavailable(p)));
     const slots = teamSlots(t);
     const xi = resolveXI(roster, slots, t.starters);
     xis.push(xi);

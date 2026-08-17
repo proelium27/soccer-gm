@@ -9,7 +9,7 @@ import { swapStarters } from "../../core/lineup/swapStarters.js";
 import { teamSlots, teamFormation, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { canExtend } from "../../core/contracts.js";
-import { keepsDepthFloor, faTransferLocked } from "../../core/freeAgency.js";
+import { keepsDepthFloor } from "../../core/freeAgency.js";
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { tierOf } from "../../core/competitions.js";
 import { RatingDelta, previousRatings } from "../components/RatingDelta.js";
@@ -18,8 +18,11 @@ import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { PitchField } from "../components/PitchField.js";
 import { ExtendControl } from "../components/ExtendControl.js";
+import { ListingMenu } from "../components/ListingMenu.js";
+import { transferWindowState } from "../../core/transfers/window.js";
 import { Flag } from "../components/Flag.js";
 import { InjuryBadge } from "../components/InjuryBadge.js";
+import { SuspensionBadge } from "../components/SuspensionBadge.js";
 import { ROSTER_CAP } from "../../core/constants.js";
 import { PositionBadge } from "../components/PositionBadge.js";
 
@@ -45,6 +48,10 @@ interface RosterTableProps {
   refusingPids: Set<number>;
   transferListedPids: Set<number>;
   onToggleTransferListed: (pid: number, listed: boolean) => void;
+  loanListedPids: Set<number>;
+  onToggleLoanListed: (pid: number, listed: boolean) => void;
+  /** Loans can only be listed while a transfer window is open, same as the Loans page. */
+  windowOpen: boolean;
   /** Bench-only: pids flagged for more minutes, and the toggle. Omitted on the XI table. */
   moreMinutesPids?: Set<number>;
   onToggleMoreMinutes?: (pid: number, enabled: boolean) => void;
@@ -65,6 +72,9 @@ function RosterTable({
   refusingPids,
   transferListedPids,
   onToggleTransferListed,
+  loanListedPids,
+  onToggleLoanListed,
+  windowOpen,
   moreMinutesPids,
   onToggleMoreMinutes,
   dragOverPid,
@@ -160,6 +170,7 @@ function RosterTable({
                 </PlayerRatingsTooltip>{" "}
                 <Flag nationality={p.nationality} />
                 <InjuryBadge player={p} />
+                <SuspensionBadge player={p} />
               </td>
               <td><PositionBadge player={p} /></td>
               <td className="text-end">{season - p.born}</td>
@@ -211,25 +222,16 @@ function RosterTable({
                       <ExtendControl player={p} season={season} onExtend={onExtend} />
                     )
                   )}
-                  {faTransferLocked(p, season) ? (
-                    <span
-                      className="text-muted small fst-italic text-nowrap"
-                      title={`You signed him from free agency, so he can't be sold until next season (${seasonYear(p.faSignedSeason! + 1)}).`}
-                    >
-                      Can't sell yet (just signed)
-                    </span>
-                  ) : (
-                    <button
-                      className={
-                        "btn btn-sm text-nowrap " +
-                        (transferListedPids.has(p.pid) ? "btn-warning" : "btn-outline-warning")
-                      }
-                      onClick={() => onToggleTransferListed(p.pid, !transferListedPids.has(p.pid))}
-                      title="Listing signals AI clubs you're willing to sell, making an offer more likely."
-                    >
-                      {transferListedPids.has(p.pid) ? "Listed" : "List for Transfer"}
-                    </button>
-                  )}
+                  <ListingMenu
+                    player={p}
+                    season={season}
+                    transferListed={transferListedPids.has(p.pid)}
+                    loanListed={loanListedPids.has(p.pid)}
+                    keepsDepthFloor={releasablePids.has(p.pid)}
+                    windowOpen={windowOpen}
+                    onToggleTransferListed={onToggleTransferListed}
+                    onToggleLoanListed={onToggleLoanListed}
+                  />
                   {onToggleMoreMinutes && p.pos !== "GK" && (
                     <button
                       className={
@@ -266,6 +268,7 @@ export function Roster() {
   const {
     league, releasePlayerAction, extendContractAction, setTransferListedAction, setMoreMinutesAction,
     setLineupAction, setFormationAction, autoPickBestXIAction,
+    listPlayerForLoanAction, unlistPlayerForLoanAction,
   } = useLeague();
   const [dragOverPid, setDragOverPid] = useState<number | null>(null);
   const [dragOverSlotIndex, setDragOverSlotIndex] = useState<number | null>(null);
@@ -336,6 +339,14 @@ export function Roster() {
 
   const transferListedPids = new Set(userTeam.transferListed);
   const moreMinutesPids = new Set(userTeam.moreMinutes);
+  const loanListedPids = new Set(league.loanListings.map((l) => l.pid));
+  const windowOpen = transferWindowState(league).open;
+
+  // The Loans page owns the duration picker; from here a listing is always the
+  // 1-season default, which is what its own dropdown defaults to.
+  function handleToggleLoanListed(pid: number, listed: boolean) {
+    void (listed ? listPlayerForLoanAction(pid, 1) : unlistPlayerForLoanAction(pid));
+  }
 
   function handleSwap(draggedPid: number, targetPid: number) {
     // Covers bench <-> XI both ways *and* two starters trading slots; returns
@@ -481,6 +492,9 @@ export function Roster() {
             onRelease={releasePlayerAction}
             onExtend={extendContractAction}
             onToggleTransferListed={setTransferListedAction}
+            loanListedPids={loanListedPids}
+            onToggleLoanListed={handleToggleLoanListed}
+            windowOpen={windowOpen}
             dragOverSlotIndex={dragOverSlotIndex}
             setDragOverSlotIndex={setDragOverSlotIndex}
             onDropOnSlot={handleDropOnSlot}
@@ -497,6 +511,9 @@ export function Roster() {
             refusingPids={refusingPids}
             transferListedPids={transferListedPids}
             onToggleTransferListed={setTransferListedAction}
+            loanListedPids={loanListedPids}
+            onToggleLoanListed={handleToggleLoanListed}
+            windowOpen={windowOpen}
             dragOverPid={dragOverPid}
             setDragOverPid={setDragOverPid}
             onSwap={handleSwap}
@@ -517,6 +534,9 @@ export function Roster() {
               refusingPids={refusingPids}
               transferListedPids={transferListedPids}
               onToggleTransferListed={setTransferListedAction}
+              loanListedPids={loanListedPids}
+              onToggleLoanListed={handleToggleLoanListed}
+              windowOpen={windowOpen}
               moreMinutesPids={moreMinutesPids}
               onToggleMoreMinutes={setMoreMinutesAction}
               dragOverPid={dragOverPid}

@@ -252,6 +252,17 @@ a:hover {
   --bs-btn-hover-color: var(--sg-text);
 }
 
+/* Bootstrap 5's `.dropdown-menu-end` only sets `--bs-position: end`; the rules
+   that actually right-align the menu are its `[data-bs-popper]` ones, which
+   need the Bootstrap JS this app deliberately doesn't ship (see Dropdown.tsx).
+   So `alignEnd` was inert everywhere except the topbar, which carries its own
+   scoped copy of this — a menu opened near the right edge of the page (the
+   roster row's List menu) ran off-screen. Unscoped so any dropdown gets it. */
+.dropdown-menu-end {
+  right: 0;
+  left: auto;
+}
+
 /* =========================================================================
    Sidebar — green-tinted surface, green active state (replaces Bootstrap blue)
    ========================================================================= */
@@ -1307,6 +1318,22 @@ a:hover {
   margin-left: 0.25em;
   flex: none;
 }
+
+/* Suspension marker: the badge IS the red card, so it takes the card colour
+   directly rather than sitting on a coloured disc like the injury cross. */
+.suspension-badge,
+.pitch-chip-suspension-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sg-loss);
+  line-height: 1;
+  flex: none;
+}
+.suspension-badge {
+  vertical-align: text-bottom;
+  margin-left: 0.25em;
+}
 .pitch-chip .player-ratings-tooltip-anchor {
   border-bottom: none;
 }
@@ -2273,4 +2300,23 @@ body.nav-drawer-open {
 }
 .position-strip-ovr {
   font-variant-numeric: tabular-nums;
+}
+
+/* Changelog entries are markdown, so their block spacing comes from the
+   renderer rather than from per-element classes. Drop the trailing margin the
+   last block would otherwise add inside the card, and pull lists in tight
+   enough that a short bulleted entry doesn't read as a separate section. */
+.changelog-body > :last-child {
+  margin-bottom: 0;
+}
+.changelog-body ul,
+.changelog-body ol {
+  margin-bottom: 0.5rem;
+  padding-left: 1.25rem;
+}
+.changelog-body li + li {
+  margin-top: 0.25rem;
+}
+.changelog-body code {
+  color: var(--sg-green-bright);
 }

@@ -299,6 +299,8 @@ function PlayerLeadersBody({
               <th className="text-end" title="Passes completed / attempted">Pass{rate && "/90"}</th>
               <th className="text-end" title="Crosses">Crs{rate && "/90"}</th>
               <th className="text-end" title="Fouls committed">Fls{rate && "/90"}</th>
+              <th className="text-end" title="Yellow cards">YC{rate && "/90"}</th>
+              <th className="text-end" title="Red cards">RC{rate && "/90"}</th>
               <th className="text-end">Rtg</th>
             </tr>
           </thead>
@@ -345,6 +347,8 @@ function PlayerLeadersBody({
                 </td>
                 <td className="text-end">{v(row.stats.crosses)}</td>
                 <td className="text-end">{v(row.stats.foulsCommitted)}</td>
+                <td className="text-end">{v(row.stats.yellowCards)}</td>
+                <td className="text-end">{v(row.stats.redCards)}</td>
                 <td className="text-end">{row.stats.avgRating.toFixed(2)}</td>
               </tr>
             );

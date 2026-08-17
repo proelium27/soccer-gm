@@ -13,6 +13,7 @@ import {
 import { simMatchDetailed } from "../engine/matchSim.js";
 import { emptySeasonStats } from "./players/types.js";
 import { applyInjuries } from "./injuries.js";
+import { applySuspensions, isSuspended } from "./suspensions.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { protectedStarPids, lastCompletedSeason } from "./transfers/protectedStars.js";
 import { runAILoanMarket } from "./loans.js";
@@ -74,6 +75,8 @@ function accumulateStats(
       ss.passesCompleted += line.passesCompleted;
       ss.crosses += line.crosses;
       ss.foulsCommitted += line.foulsCommitted;
+      ss.yellowCards += line.yellowCards;
+      ss.redCards += line.redCards;
       ss.minutesPlayed += line.minutesPlayed;
       ss.ratingSum += line.rating;
       ss.avgRating = ss.ratingSum / ss.appearances;
@@ -255,7 +258,12 @@ export function simThrough(
     const matchData = new Map<number, TeamMatchData>();
     for (const comp of league.competitions) {
       const compTeams = currentTeams.filter((t) => t.compId === comp.id);
-      const compMatchData = leagueMatchData({ teams: toLeagueTeams(compTeams), players: currentPlayers });
+      // Suspended players are filtered out here and nowhere else: the ban is a
+      // *league* ban, so the cup baseline below deliberately doesn't pass it.
+      const compMatchData = leagueMatchData(
+        { teams: toLeagueTeams(compTeams), players: currentPlayers },
+        { unavailable: isSuspended },
+      );
       compTeams.forEach((t, i) => matchData.set(t.tid, withSeasonForm(t.tid, compMatchData[i])));
     }
 
@@ -373,6 +381,9 @@ export function simThrough(
     });
 
     currentPlayers = applyInjuries(rng, currentPlayers, mdResults);
+    // Bans from this matchday's cards, and a match served off every ban already
+    // running. rng-free, so it can't perturb the shared stream.
+    currentPlayers = applySuspensions(currentPlayers, mdResults);
 
     const goalTotalsAfter = playerGoalTotals(currentPlayers, league.season);
     newEvents.push(
