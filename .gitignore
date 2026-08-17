@@ -12,3 +12,8 @@ dist/
 eafc-roster.json
 *-roster.json
 roster-identities.json
+
+# Exported saves sent in by players, for debugging. Other people's game data —
+# large, and not ours to publish.
+leaguesaves/
+soccer-gm-league-*.json
