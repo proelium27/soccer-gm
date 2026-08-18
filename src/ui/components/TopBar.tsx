@@ -12,7 +12,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ onToggleNav }: TopBarProps) {
-  const { league, simAction, simming, exportJSON, importJSON, switchLeagueAction, setGodModeAction } = useLeague();
+  const { league, simAction, simLiveAction, simming, exportJSON, importJSON, switchLeagueAction, setGodModeAction } = useLeague();
   const { brand } = useSportName();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -109,6 +109,16 @@ export function TopBar({ onToggleNav }: TopBarProps) {
           <li>
             <button className="dropdown-item" onClick={() => simAction("game")} disabled={simDisabled}>
               Sim One Game
+            </button>
+          </li>
+          {/*
+            Same matchday as "Sim One Game", watched rather than skipped. Sits
+            here as well as on the Dashboard because this dropdown is the sim
+            control that's reachable from every page.
+          */}
+          <li>
+            <button className="dropdown-item" onClick={() => simLiveAction()} disabled={simDisabled}>
+              Watch Next Game
             </button>
           </li>
           <li>
