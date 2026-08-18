@@ -579,6 +579,68 @@ export const YOUTH_INTAKE_MAX = 5;
 export const YOUTH_BASE_OFFSET = 34;
 
 /**
+ * Soft floor under the youth-generation base (see `youthGenerationBase` in
+ * players/youth.ts), fixing a rating **underflow** at weak clubs.
+ *
+ * `academyBase - YOUTH_BASE_OFFSET` is a *flat* subtraction, but `academyBase`
+ * spans **18.8 to 63.0** across the 16-competition world, so for **73 of 320
+ * clubs** it comes out negative — as low as **-15.2**. Every rating is then
+ * generated below zero and clamped to `RATING_MIN` (1), which does not produce
+ * a weak player, it produces a destroyed one: an ST with speed/passing/
+ * dribbling/positioning all at 1 and a couple of survivors where a lucky roll
+ * or the position-independent "ABS" tier landed above the floor. Measured on a
+ * fresh world, one offseason: **472 of 1,268 new youth (37%) arrived at OVR
+ * 0-15, and 98% of those were released to free agency the same offseason**.
+ * A real user save surfaced one as a 16-year-old striker at **OVR 9**.
+ *
+ * **Why a soft floor and not a hard one, and not a proportional offset:**
+ * - The intended gap is ~33 OVR (measured: 32.0/32.3/33.8/33.3/31.8/33.8/32.9
+ *   across the healthy range), and `YOUTH_BASE_OFFSET` was swept to hold a
+ *   40-season mean flat (see above). It is an **anti-inflation constant**, so
+ *   healthy clubs must come out bit-identical. A proportional offset changes
+ *   every club and would need that whole sweep redone.
+ * - A *hard* floor (`Math.max`) makes every club below the cut generate
+ *   **identical** youth, erasing the academy gradient exactly where the country
+ *   strength ladder is most fragile (see COUNTRY_STRENGTH_OFFSET).
+ * - A ~33 OVR gap is simply unavailable to a club whose seniors average 29.4 —
+ *   the scale bottoms out — so the gap *has* to compress down there. Softplus
+ *   compresses it smoothly while staying strictly monotonic, so a weaker
+ *   academy still produces weaker youth than a stronger one.
+ *
+ * `YOUTH_BASE_SOFTNESS` sets how wide the bend is. **Both are deliberately
+ * tiny, and that is the whole point — this must be surgery, not a rescale.**
+ * Only **73 of 320** clubs are actually broken (raw base < 0), but 275 sit
+ * below raw base 20, so a bend wide enough to "look smooth" quietly lifts most
+ * of the world. Measured at a first attempt of FLOOR=4/SOFTNESS=5: **295 of
+ * 320 clubs lifted, mean +3.67 rating points world-wide**, which raised
+ * end-of-dynasty OVR by 1.3-3.1 in *every* league (the big four included, via
+ * their own tier 2 and the upward drain) and pushed the weak-league solvency
+ * audit from 1 failing seed to 4. At FLOOR=1/SOFTNESS=1 the lift at raw base
+ * 6.3 and 11.3 is **0.00** and only 110 clubs move at all.
+ *
+ * Why 1 is enough: counting how many of a 16-year-old's 14 ratings pin at
+ * RATING_MIN, base -15.2 pins **10.5** (the position-relevant ones die, which
+ * is the bug), base 1 pins **5.0**, and a perfectly healthy base of 11 still
+ * pins **2.4** — some pinning is normal, since a striker's tackling is
+ * generated 25 below his base. Going further to base 4 only moves 5.0 -> 4.1
+ * pinned and mean OVR 15.1 -> 17.6, buying almost nothing for several times
+ * the world-wide lift. The target is "the position-relevant ratings survive",
+ * not "no rating ever pins".
+ *
+ * Measured on a fresh 320-club world at the shipped values: strictly monotonic
+ * across every club, no club left below a raw base of 0, and the weakest club
+ * in the world goes from youth OVR min/mean/max **1/4.1/9 to 5/13.5/25** against seniors
+ * averaging 29.4.
+ *
+ * **Known cost, accepted:** any floor flattens the very bottom, so the weakest
+ * clubs generate near-identical youth and ACADEMY_FORM_SWING (added to
+ * academyBase *before* this transform) has less bite down there. Monotonicity
+ * is preserved, just compressed.
+ */
+export const YOUTH_BASE_FLOOR = 1;
+export const YOUTH_BASE_SOFTNESS = 1;
+
+/**
  * Dynamic academy attraction: a club's youth-intake quality gets a bonus or
  * penalty based on its league finishes over the last ACADEMY_FORM_SEASONS
  * completed seasons — better young players are drawn to clubs that have been

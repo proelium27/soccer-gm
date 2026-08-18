@@ -1130,7 +1130,9 @@ export function Manual() {
           </p>
           <p>
             Academy quality starts from a fixed trait each club has, set when the league is created,
-            so a big club's intake trends better than a small club's. On top of that anchor,{" "}
+            so a big club's intake trends better than a small club's. That slope has a floor under
+            it: the weakest clubs in the world turn out genuinely poor prospects, but never ones so
+            bad they aren't footballers. On top of that anchor,{" "}
             <strong>recent results move the needle</strong>: young players want to join a club that's
             been winning, so finishing high in your league over the last few seasons nudges your
             intake quality up, and finishing low nudges it down. It's a gentle pull, not a
