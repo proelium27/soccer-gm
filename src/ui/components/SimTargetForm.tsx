@@ -53,7 +53,9 @@ export function SimTargetForm({ current, last, disabled, onSim, compact }: SimTa
     <div className={compact ? "px-3 py-2" : ""} style={compact ? { minWidth: "18rem" } : undefined}>
       <div className="d-flex align-items-center gap-2 flex-wrap">
         <select
-          className="form-select form-select-sm w-auto"
+          // Full-size controls inline on the Dashboard so this row lines up
+          // with the green sim buttons beside it; small ones in the menu.
+          className={`form-select w-auto ${compact ? "form-select-sm" : ""}`}
           value={mode}
           disabled={disabled}
           aria-label="How far to sim"
@@ -67,7 +69,7 @@ export function SimTargetForm({ current, last, disabled, onSim, compact }: SimTa
         </select>
         <input
           type="number"
-          className={`form-control form-control-sm ${valid ? "" : "is-invalid"}`}
+          className={`form-control ${compact ? "form-control-sm" : ""} ${valid ? "" : "is-invalid"}`}
           style={{ width: "5.5rem" }}
           min={lo}
           max={hi}

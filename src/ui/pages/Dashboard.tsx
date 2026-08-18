@@ -344,6 +344,9 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
       <div className="card mb-3">
         <div className="card-body">
           <h5 className="card-title">Simulation</h5>
+          {/* One row: the two fixed jumps, then the pick-your-own control, so
+              the card doesn't leave a band of empty space to their right. */}
+          <div className="d-flex align-items-start gap-2 flex-wrap">
           <div className="btn-group" role="group">
             <button
               className="btn btn-primary"
@@ -361,15 +364,14 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
             </button>
           </div>
           {nextMd !== null && lastMd !== null && (
-            <div className="mt-3">
-              <SimTargetForm
-                current={nextMd}
-                last={lastMd}
-                disabled={disableSim}
-                onSim={(matchday) => simAction({ matchday })}
-              />
-            </div>
+            <SimTargetForm
+              current={nextMd}
+              last={lastMd}
+              disabled={disableSim}
+              onSim={(matchday) => simAction({ matchday })}
+            />
           )}
+          </div>
         </div>
       </div>
 
