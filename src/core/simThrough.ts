@@ -8,7 +8,7 @@ import { leagueMatchData } from "./league/composites.js";
 import type { TeamMatchData } from "./league/composites.js";
 import { teamSeasonFormDelta, applySeasonForm } from "./teamSeasonForm.js";
 import {
-  lastMatchdayOfMonth, TRANSFER_DEADLINE_MATCHDAY, WINTER_WINDOW_OPEN_MATCHDAY,
+  TRANSFER_DEADLINE_MATCHDAY, WINTER_WINDOW_OPEN_MATCHDAY,
 } from "./calendar.js";
 import { simMatchDetailed } from "../engine/matchSim.js";
 import { emptySeasonStats } from "./players/types.js";
@@ -123,9 +123,19 @@ export type MatchdayProgress = (
   cupTies: CupTie[],
 ) => void;
 
+/**
+ * How far a sim runs. `{ matchday }` is the general form — play everything up
+ * to and including that matchday — and the two named cases are the endpoints
+ * the UI offers without asking for a number.
+ *
+ * A target already in the past is a no-op (the league is returned unchanged),
+ * so a stale number in the UI can never quietly play a matchday.
+ */
+export type SimThrough = "game" | "season" | { matchday: number };
+
 export function simThrough(
   league: LeagueStore,
-  through: "game" | "month" | "deadline" | "season",
+  through: SimThrough,
   rng: () => number,
   onMatchday?: MatchdayProgress,
 ): LeagueStore {
@@ -136,26 +146,15 @@ export function simThrough(
   const currentMatchday = Math.min(...league.schedule.map((g) => g.matchday));
 
   let targetMatchday: number;
-  switch (through) {
-    case "game":
-      targetMatchday = currentMatchday;
-      break;
-    case "month":
-      targetMatchday = lastMatchdayOfMonth(currentMatchday);
-      break;
-    case "deadline":
-      // Stop just before deadline day so the winter window is still open.
-      // Already there (or past it): nothing to sim "to" — in particular,
-      // don't play deadline day itself and shut the window unasked.
-      targetMatchday = TRANSFER_DEADLINE_MATCHDAY - 1;
-      if (targetMatchday < currentMatchday) return league;
-      break;
-    case "season":
-      targetMatchday = 38;
-      break;
-  }
-  if (targetMatchday < currentMatchday) {
+  if (typeof through === "object") {
+    targetMatchday = Math.floor(through.matchday);
+    if (!Number.isFinite(targetMatchday) || targetMatchday < currentMatchday) {
+      return league;
+    }
+  } else if (through === "game") {
     targetMatchday = currentMatchday;
+  } else {
+    targetMatchday = 38;
   }
 
   const toLeagueTeams = (ts: StoredTeam[]): LeagueTeam[] =>

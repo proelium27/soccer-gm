@@ -6,7 +6,7 @@ import type { StoredTeam } from "../../core/teams/clubs.js";
 import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
-import { TRANSFER_DEADLINE_MATCHDAY } from "../../core/calendar.js";
+import { SimTargetForm } from "../components/SimTargetForm.js";
 import { SCOUTING_SPEND_MAX, RATING_LEADER_QUALIFY_FRACTION } from "../../core/constants.js";
 import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
@@ -311,10 +311,12 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
   }, [league.players, userTeam.roster]);
 
   const disableSim = simming || league.phase === "offseason";
-  // Once the user is standing on deadline day (or past it), "sim to the
-  // deadline" has nowhere left to go — simThrough treats it as a no-op.
+  // The matchday the club is standing on, and the last one left this season —
+  // the bounds the "sim to matchday" box accepts.
   const nextMd = nextMatchday(league);
-  const atOrPastDeadline = nextMd === null || nextMd >= TRANSFER_DEADLINE_MATCHDAY;
+  const lastMd = league.schedule.length > 0
+    ? Math.max(...league.schedule.map((g) => g.matchday))
+    : null;
 
   return (
     <div className="container-fluid p-3">
@@ -342,7 +344,10 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
       <div className="card mb-3">
         <div className="card-body">
           <h5 className="card-title">Simulation</h5>
-          <div className="btn-group" role="group">
+          {/* One row: the fixed jumps and the live viewer, then the
+              pick-your-own control, so the card doesn't leave a band of empty
+              space to their right. */}
+          <div className="d-flex align-items-start gap-2 flex-wrap">
             <button
               className="btn btn-primary"
               disabled={disableSim}
@@ -367,29 +372,18 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
             <button
               className="btn btn-primary"
               disabled={disableSim}
-              onClick={() => simAction("month")}
-            >
-              Sim to End of Month
-            </button>
-            <button
-              className="btn btn-primary"
-              disabled={disableSim || atOrPastDeadline}
-              title={
-                !disableSim && atOrPastDeadline
-                  ? "The transfer deadline has been reached this season"
-                  : undefined
-              }
-              onClick={() => simAction("deadline")}
-            >
-              Sim to Transfer Deadline
-            </button>
-            <button
-              className="btn btn-primary"
-              disabled={disableSim}
               onClick={() => simAction("season")}
             >
               Sim to End of Season
             </button>
+            {nextMd !== null && lastMd !== null && (
+              <SimTargetForm
+                current={nextMd}
+                last={lastMd}
+                disabled={disableSim}
+                onSim={(matchday) => simAction({ matchday })}
+              />
+            )}
           </div>
         </div>
       </div>

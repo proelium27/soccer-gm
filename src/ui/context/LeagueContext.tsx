@@ -265,7 +265,19 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       }
       pendingResultRef.current = result;
       setAnimDone(true);
-      trackEvent("season_simmed", { through });
+      // How far a "sim to matchday" run actually went — bucketed, since the
+      // raw number would be a high-cardinality property.
+      const matchdaysPlayed =
+        new Set(current.schedule.map((g) => g.matchday)).size -
+        new Set(result.schedule.map((g) => g.matchday)).size;
+      trackEvent("season_simmed", {
+        through: typeof through === "object" ? "matchday" : through,
+        matchdays:
+          matchdaysPlayed <= 1 ? "1"
+          : matchdaysPlayed <= 5 ? "2-5"
+          : matchdaysPlayed <= 15 ? "6-15"
+          : "16+",
+      });
     } catch (err) {
       pendingResultRef.current = null;
       closeOverlay();

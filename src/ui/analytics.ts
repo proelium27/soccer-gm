@@ -21,11 +21,17 @@ export interface GameEvents {
   /** A brand-new save was created. `roster` marks one started from a roster file. */
   league_created: { country: string; tier: 1 | 2; roster?: boolean; difficulty?: string };
   /**
-   * The user simulated forward. `through` is how far (one game … a season);
-   * `live` marks a matchday watched in the live viewer rather than simmed
-   * straight through, so the two ways of playing a game stay tellable apart.
+   * The user simulated forward. `through` is how far: a single game, a chosen
+   * target matchday, or the rest of the season. `matchdays` is how many were
+   * played, bucketed to keep the property low-cardinality. `live` marks a
+   * matchday watched in the live viewer rather than simmed straight through,
+   * so the two ways of playing the same game stay tellable apart.
    */
-  season_simmed: { through: "game" | "month" | "deadline" | "season"; live?: boolean };
+  season_simmed: {
+    through: "game" | "matchday" | "season";
+    matchdays?: "1" | "2-5" | "6-15" | "16+";
+    live?: boolean;
+  };
   /** The user advanced past the offseason into a new season. */
   offseason_advanced: Record<string, never>;
   /** The user played a staged international stage (one stage, or through the rest). */

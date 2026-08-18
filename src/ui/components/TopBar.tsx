@@ -5,6 +5,7 @@ import { useSportName } from "../sportName.js";
 import { seasonYear } from "../format.js";
 import { buildImportPromptText } from "../../core/teams/rosterAiPrompt.js";
 import { Dropdown } from "./Dropdown.js";
+import { SimTargetForm } from "./SimTargetForm.js";
 
 interface TopBarProps {
   /** Toggle the mobile navigation drawer (rendered as a hamburger, mobile only). */
@@ -49,18 +50,20 @@ export function TopBar({ onToggleNav }: TopBarProps) {
   const isOffseason = league?.phase === "offseason";
   const simDisabled = simming || isOffseason || !league;
 
-  // Derive current matchday from remaining schedule
+  // Derive the matchday bounds from the remaining schedule: the one the club is
+  // standing on, and the last one of the season (the "sim to matchday" range).
+  const hasSchedule = !!league && league.phase !== "offseason" && league.schedule.length > 0;
+  const currentMatchday = hasSchedule
+    ? Math.min(...league!.schedule.map((g) => g.matchday))
+    : null;
+  const lastMatchday = hasSchedule
+    ? Math.max(...league!.schedule.map((g) => g.matchday))
+    : null;
+
   let statusText = "";
   if (league) {
     statusText = `${seasonYear(league.season)}`;
-    if (league.phase === "offseason") {
-      statusText += " — Offseason";
-    } else if (league.schedule.length > 0) {
-      const currentMatchday = Math.min(...league.schedule.map((g) => g.matchday));
-      statusText += ` — Matchday ${currentMatchday}`;
-    } else {
-      statusText += " — Offseason";
-    }
+    statusText += currentMatchday === null ? " — Offseason" : ` — Matchday ${currentMatchday}`;
   }
 
   function handleImportClick() {
@@ -122,20 +125,24 @@ export function TopBar({ onToggleNav }: TopBarProps) {
             </button>
           </li>
           <li>
-            <button className="dropdown-item" onClick={() => simAction("month")} disabled={simDisabled}>
-              Sim to End of Month
-            </button>
-          </li>
-          <li>
-            <button className="dropdown-item" onClick={() => simAction("deadline")} disabled={simDisabled}>
-              Sim to Transfer Deadline
-            </button>
-          </li>
-          <li>
             <button className="dropdown-item" onClick={() => simAction("season")} disabled={simDisabled}>
               Sim to End of Season
             </button>
           </li>
+          {currentMatchday !== null && lastMatchday !== null && (
+            <>
+              <li><hr className="dropdown-divider" /></li>
+              <li>
+                <SimTargetForm
+                  compact
+                  current={currentMatchday}
+                  last={lastMatchday}
+                  disabled={simDisabled}
+                  onSim={(matchday) => simAction({ matchday })}
+                />
+              </li>
+            </>
+          )}
         </Dropdown>
 
         {/* Desktop: the save controls sit inline. */}
