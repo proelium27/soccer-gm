@@ -424,7 +424,14 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
 
   const extendContractAction = useCallback((pid: number, lengthSeasons?: number) => mutate((l) => {
     const player = l.players.find((p) => p.pid === pid);
-    const team = l.teams.find((t) => t.roster.includes(pid));
+    // The club he belongs to, which on a loan is not the club he's rostered
+    // at: the parent owns the contract, and it's the parent's division the
+    // refusal check is about. Looking him up by roster would ask whether he'd
+    // re-sign for the club borrowing him.
+    const loan = l.activeLoans.find((a) => a.pid === pid);
+    const team = loan
+      ? l.teams.find((t) => t.tid === loan.parentTid)
+      : l.teams.find((t) => t.roster.includes(pid));
     if (player && team && wouldRefuseExtension(player, team, l.competitions)) return null;
     trackEvent("contract_extended");
     return { ...l, players: extendContract(l.players, pid, l.season, lengthSeasons) };

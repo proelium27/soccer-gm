@@ -118,22 +118,52 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   const awards = awardsByCompetition(league.players, league.teams, league.competitions, endingSeason);
 
   // 0. Proactive AI contract renewals (cross-division: a club's own player,
-  //    regardless of which division that club plays in).
+  //    regardless of which division that club plays in). "Own" means owns, not
+  //    rosters — a club out on loan still decides its own player's contract,
+  //    and the club borrowing him does not.
   const renewals = runAIContractRenewals(
     league.teams, league.players, nextSeason, league.meta.userTid, league.played,
-    hashInts(league.lid, nextSeason, 9), league.competitions,
+    hashInts(league.lid, nextSeason, 9), league.competitions, league.activeLoans,
   );
 
-  // 1. Release expired contracts to the free agent pool.
-  let teams: StoredTeam[] = releaseExpiredContracts(renewals.teams, renewals.players, endingSeason);
-
-  // 1.5. Loan returns due this rollover: any player whose loan ends before
-  //      nextSeason begins goes back to his parent club now — early enough
-  //      that free agency below can still fill any hole this creates, and
-  //      before season-start wages are charged so they land on the right club.
-  const loanReturns = processLoanReturns(teams, league.activeLoans, league.transfers, nextSeason);
-  teams = loanReturns.teams;
+  // 1. Loan returns due this rollover: any player whose loan ends before
+  //    nextSeason begins goes back to his parent club now — early enough that
+  //    free agency below can still fill any hole this creates, and before
+  //    season-start wages are charged so they land on the right club.
+  //
+  //    This runs BEFORE contract expiry, and the order is load-bearing. A
+  //    loaned player is physically on the loanee's roster, so releasing first
+  //    handed the loanee's club an expiry decision about somebody else's
+  //    player and sent him home on an already-dead contract a season later
+  //    (or, on a multi-season loan, stranded him on no roster at all). Now he
+  //    lands back at his parent first and his contract is settled there: if it
+  //    has run out he is released into free agency in the same rollover, in
+  //    time for step 4 to sign him.
+  const loanReturns = processLoanReturns(
+    renewals.teams, league.activeLoans, league.transfers, nextSeason,
+  );
   let activeLoans = loanReturns.activeLoans;
+
+  // 1.25. A loan can't outlive the deal it was agreed under. If the player's
+  //       contract has run out while he was away, the loan ends here instead of
+  //       running on: his parent's contract with him is over, so there is
+  //       nothing left to send home, and he goes into free agency below like
+  //       anyone else whose deal expired. New loans can no longer be agreed
+  //       past the contract's length (maxLoanSeasons), so this only fires on
+  //       saves made before that cap — but it must fire, or he sits out the
+  //       rest of the loan on a dead contract.
+  const contractByPid = new Map(renewals.players.map((p) => [p.pid, p.contract]));
+  activeLoans = activeLoans.filter(
+    (l) => (contractByPid.get(l.pid)?.expiresSeason ?? Infinity) > endingSeason,
+  );
+
+  // 1.5. Release expired contracts to the free agent pool — skipping anyone
+  //      still out on loan, whose contract is his parent club's business and
+  //      is settled when he comes home (see releaseExpiredContracts).
+  let teams: StoredTeam[] = releaseExpiredContracts(
+    loanReturns.teams, renewals.players, endingSeason,
+    new Set(activeLoans.map((l) => l.pid)),
+  );
 
   // 1.7. International football (qualifying campaigns and World Cups) is no
   //      longer played here. It runs *before* the offseason advances, drawn the

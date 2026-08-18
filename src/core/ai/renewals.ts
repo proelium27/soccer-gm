@@ -2,6 +2,7 @@ import type { Player } from "../players/types.js";
 import type { StoredTeam } from "../teams/clubs.js";
 import type { PlayedMatch } from "../standings.js";
 import type { Competition } from "../competitions.js";
+import type { ActiveLoan } from "../loans.js";
 import { deriveLeagueContexts } from "./clubContext.js";
 import { perceivedValueToClub } from "./evaluate.js";
 import { canExtend, contractTerms, extendContract } from "../contracts.js";
@@ -21,6 +22,14 @@ import { mulberry32, hashInts } from "../../engine/rng.js";
  * manual UI action. Seeded independently per player so it can't perturb any
  * other stream.
  *
+ * A club decides about the players it *owns*, not the ones on its roster, and
+ * on a loan those differ: a loaned-in player is judged by his parent club, not
+ * by the club currently borrowing him. Getting this wrong was not cosmetic —
+ * it put every loaned-out player's contract in the hands of a club with no
+ * stake in him, and left his actual owner (who cannot see him on any roster)
+ * no way to renew at all, so he quietly ran his deal down while away and left
+ * on a free the moment he got home.
+ *
  * No Division 2 refusal check needed here: enforceDivision2Ceiling
  * (offseason.ts) moves any Division 2 player above the OVR line to
  * Division 1 regardless of contract length, so an AI club renewing him
@@ -35,6 +44,7 @@ export function runAIContractRenewals(
   playedThisSeason: PlayedMatch[],
   seed: number,
   competitions: Competition[],
+  activeLoans: ActiveLoan[] = [],
 ): { teams: StoredTeam[]; players: Player[] } {
   const contexts = deriveLeagueContexts({
     teams, players, season: nextSeason, played: playedThisSeason, competitions,
@@ -43,12 +53,24 @@ export function runAIContractRenewals(
   let updatedPlayers = players;
   const playerByPid = new Map(players.map((p) => [p.pid, p]));
 
+  // Ownership, not roster membership: drop the players a club is only
+  // borrowing, add back the ones it has sent out (see the note above).
+  const loanedIn = new Set(activeLoans.map((l) => l.pid));
+  const loanedOut = new Map<number, number[]>();
+  for (const l of activeLoans) {
+    loanedOut.set(l.parentTid, [...(loanedOut.get(l.parentTid) ?? []), l.pid]);
+  }
+
   for (const team of teams) {
     if (team.tid === userTid) continue;
     const ctx = contexts.get(team.tid);
     if (!ctx) continue;
 
-    for (const pid of team.roster) {
+    const owned = [
+      ...team.roster.filter((pid) => !loanedIn.has(pid)),
+      ...(loanedOut.get(team.tid) ?? []),
+    ];
+    for (const pid of owned) {
       const player = playerByPid.get(pid);
       if (!player || !canExtend(player, nextSeason)) continue;
 

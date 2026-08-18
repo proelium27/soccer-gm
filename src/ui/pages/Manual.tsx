@@ -1016,6 +1016,19 @@ export function Manual() {
             claim him anyway. That background market only ever moves players between AI clubs, so
             nothing happens to your own roster unless you list a player yourself.
           </p>
+          <p>
+            <strong>A loan can't run past his contract.</strong> Since his deal doesn't change while
+            he's away, a loan that outlasted it would mean he was somewhere else when it ran down
+            and left on a free the moment he got home &mdash; so the duration list only offers the
+            seasons his current contract covers. A player in the last year of his deal can go out
+            for one season, not three. Extend him first if you want to send him further out.
+          </p>
+          <p>
+            He's still your player the whole time he's away, contract included. The
+            <strong> Players Out on Loan</strong> list at the bottom of the Loans page shows when
+            each deal expires and lets you extend him from there, which is the only place you can
+            &mdash; he isn't on your Roster page while he's gone.
+          </p>
         </Section>
 
         <Section id="contracts" title="Contracts, Wages & Free Agents">
