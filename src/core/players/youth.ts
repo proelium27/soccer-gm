@@ -4,7 +4,28 @@ import { generatePlayer } from "./generate.js";
 import {
   YOUTH_AGE, YOUTH_INTAKE_MIN, YOUTH_INTAKE_MAX, YOUTH_BASE_OFFSET,
   YOUTH_CONTRACT_LENGTH, ROSTER_COMPOSITION,
+  YOUTH_BASE_FLOOR, YOUTH_BASE_SOFTNESS,
 } from "../constants.js";
+
+/**
+ * The strength base a club's youth are generated around: its academy anchor
+ * dropped by YOUTH_BASE_OFFSET, then eased onto a soft floor so it can never
+ * fall far enough below RATING_MIN to clamp a whole intake into rubble. See
+ * YOUTH_BASE_FLOOR in constants.ts for the measurements and for why this is a
+ * softplus rather than a `Math.max` or a proportional offset.
+ *
+ * Strictly monotonic in `academyBase` (a weaker academy always yields a weaker
+ * base) and identity to within 0.05 once the raw base clears ~20, so clubs that
+ * were never underflowing generate exactly what they generated before.
+ */
+export function youthGenerationBase(academyBase: number): number {
+  const raw = academyBase - YOUTH_BASE_OFFSET;
+  const x = (raw - YOUTH_BASE_FLOOR) / YOUTH_BASE_SOFTNESS;
+  // softplus, guarded: Math.exp overflows past ~709 and the curve is already
+  // identity to well under floating-point noise by x = 30.
+  if (x > 30) return raw;
+  return YOUTH_BASE_FLOOR + YOUTH_BASE_SOFTNESS * Math.log1p(Math.exp(x));
+}
 
 /**
  * Cumulative distribution over positions, weighted by ROSTER_COMPOSITION.
@@ -54,7 +75,7 @@ export function generateYouthIntake(
 ): { players: Player[]; nextPid: number } {
   const count = YOUTH_INTAKE_MIN
     + Math.floor(rng() * (YOUTH_INTAKE_MAX - YOUTH_INTAKE_MIN + 1));
-  const base = academyBase - YOUTH_BASE_OFFSET;
+  const base = youthGenerationBase(academyBase);
 
   const players: Player[] = [];
   let pid = nextPid;
