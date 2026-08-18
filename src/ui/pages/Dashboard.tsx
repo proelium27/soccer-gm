@@ -347,7 +347,6 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
           {/* One row: the two fixed jumps, then the pick-your-own control, so
               the card doesn't leave a band of empty space to their right. */}
           <div className="d-flex align-items-start gap-2 flex-wrap">
-          <div className="btn-group" role="group">
             <button
               className="btn btn-primary"
               disabled={disableSim}
@@ -362,15 +361,14 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
             >
               Sim to End of Season
             </button>
-          </div>
-          {nextMd !== null && lastMd !== null && (
-            <SimTargetForm
-              current={nextMd}
-              last={lastMd}
-              disabled={disableSim}
-              onSim={(matchday) => simAction({ matchday })}
-            />
-          )}
+            {nextMd !== null && lastMd !== null && (
+              <SimTargetForm
+                current={nextMd}
+                last={lastMd}
+                disabled={disableSim}
+                onSim={(matchday) => simAction({ matchday })}
+              />
+            )}
           </div>
         </div>
       </div>
