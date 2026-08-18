@@ -6,6 +6,7 @@ import { computeStandings } from "../../src/core/standings.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import { transferWindowState } from "../../src/core/transfers/window.js";
+import { TRANSFER_DEADLINE_MATCHDAY } from "../../src/core/calendar.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { ScheduleGame } from "../../src/core/schedule.js";
 import type { StoredTeam } from "../../src/core/teams/clubs.js";
@@ -82,7 +83,7 @@ describe("simThrough", () => {
   it("rolls up interceptions into season stats alongside tackles", () => {
     const store = makeLeagueStore(42);
     const rng = mulberry32(700);
-    const result = simThrough(store, "month", rng);
+    const result = simThrough(store, { matchday: 4 }, rng);
 
     const withInterceptions = result.players.find((p) =>
       p.stats.some((s) => s.season === store.season && s.interceptions > 0),
@@ -110,10 +111,10 @@ describe("simThrough", () => {
     }
   });
 
-  it("sim to end of month: starting from matchday 1 (August), advances through matchday 4", () => {
+  it("sim to a target matchday: from matchday 1, { matchday: 4 } plays matchdays 1-4", () => {
     const store = makeLeagueStore(42);
     const rng = mulberry32(200);
-    const result = simThrough(store, "month", rng);
+    const result = simThrough(store, { matchday: 4 }, rng);
 
     // August = matchdays 1-4 = 40 games
     expect(result.played).toHaveLength(40);
@@ -124,10 +125,10 @@ describe("simThrough", () => {
     }
   });
 
-  it("sim to deadline: lands on deadline day (matchday 22) with the winter window open", () => {
+  it("sim to the matchday before deadline day leaves the winter window open", () => {
     const store = makeLeagueStore(42);
     const rng = mulberry32(300);
-    const result = simThrough(store, "deadline", rng);
+    const result = simThrough(store, { matchday: TRANSFER_DEADLINE_MATCHDAY - 1 }, rng);
 
     // Matchdays 1-21 = 210 games; deadline day itself is left unplayed so
     // the user can still do transfer business.
@@ -140,18 +141,28 @@ describe("simThrough", () => {
     expect(transferWindowState(result)).toMatchObject({ open: true, window: "winter" });
   });
 
-  it("sim to deadline is a no-op once the user is on (or past) deadline day", () => {
+  it("a target already in the past is a no-op, so a stale number can't play a matchday", () => {
     const store = makeLeagueStore(42);
-    const atDeadline = simThrough(store, "deadline", mulberry32(300));
+    const target = { matchday: TRANSFER_DEADLINE_MATCHDAY - 1 };
+    const atDeadline = simThrough(store, target, mulberry32(300));
 
-    // Re-clicking must NOT play deadline day and shut the window unasked.
-    expect(simThrough(atDeadline, "deadline", mulberry32(301))).toBe(atDeadline);
+    // Re-submitting the same number must NOT play deadline day and shut the
+    // window unasked.
+    expect(simThrough(atDeadline, target, mulberry32(301))).toBe(atDeadline);
 
     const pastDeadline: LeagueStore = {
       ...store,
       schedule: store.schedule.filter((g) => g.matchday >= 25),
     };
-    expect(simThrough(pastDeadline, "deadline", mulberry32(302))).toBe(pastDeadline);
+    expect(simThrough(pastDeadline, target, mulberry32(302))).toBe(pastDeadline);
+  });
+
+  it("a target past the end of the season plays out the rest of it", () => {
+    const store = makeLeagueStore(42);
+    const result = simThrough(store, { matchday: 99 }, mulberry32(310));
+
+    expect(result.played).toHaveLength(380);
+    expect(result.schedule).toHaveLength(0);
   });
 
   it("sim full season: plays all remaining games, phase becomes offseason", () => {
@@ -222,7 +233,7 @@ describe("simThrough", () => {
     expect(store.newsEvents).toEqual([]);
 
     const rng = mulberry32(800);
-    const afterOneMonth = simThrough(store, "month", rng);
+    const afterOneMonth = simThrough(store, { matchday: 4 }, rng);
     expect(Array.isArray(afterOneMonth.newsEvents)).toBe(true);
     expect(afterOneMonth.newsEvents.length).toBeGreaterThanOrEqual(store.newsEvents.length);
 
@@ -264,7 +275,7 @@ describe("simThrough", () => {
 
   it("powerRankingHistory: no snapshot before matchday 5, and batching sims doesn't duplicate any", () => {
     const store = makeLeagueStore(42);
-    const afterOneMonth = simThrough(store, "month", mulberry32(1100)); // matchdays 1-4
+    const afterOneMonth = simThrough(store, { matchday: 4 }, mulberry32(1100)); // matchdays 1-4
     expect(afterOneMonth.powerRankingHistory).toEqual([]);
 
     const afterFullSeason = simThrough(afterOneMonth, "season", mulberry32(1101));

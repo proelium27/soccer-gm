@@ -23,7 +23,11 @@ interface DropdownProps {
  * (the app ships Bootstrap CSS only — no bundle — so `data-bs-toggle` never
  * worked). Reuses Bootstrap's `.dropdown-menu` positioning/styling; visibility
  * is the `.show` class we toggle ourselves. Closes on outside click, Escape, or
- * any click inside the menu (item selection), matching PitchField's popover.
+ * a click on a menu item, matching PitchField's popover.
+ *
+ * "Menu item" means `.dropdown-item` or `[data-dropdown-close]` rather than
+ * anything inside the menu: a menu can hold a small form (see SimTargetForm),
+ * and closing on the first click into its input would make it unusable.
  */
 export function Dropdown({
   label,
@@ -70,7 +74,10 @@ export function Dropdown({
       </button>
       <ul
         className={`dropdown-menu ${alignEnd ? "dropdown-menu-end" : ""} ${open ? "show" : ""} ${menuClassName}`}
-        onClick={() => setOpen(false)}
+        onClick={(e) => {
+          const el = e.target as HTMLElement | null;
+          if (el?.closest(".dropdown-item, [data-dropdown-close]")) setOpen(false);
+        }}
       >
         {children}
       </ul>

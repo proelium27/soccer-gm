@@ -1,8 +1,11 @@
 import type { LeagueStore } from "../core/leagueState.js";
+import type { SimThrough } from "../core/simThrough.js";
 import type { PlayedMatch } from "../core/standings.js";
 import type { CupTie } from "../core/cup/types.js";
 
-export type SimThrough = "game" | "month" | "deadline" | "season";
+// Re-exported rather than redeclared: the two used to be separate unions and
+// could drift apart silently, since the worker boundary erases types.
+export type { SimThrough } from "../core/simThrough.js";
 
 /** Play one staged international stage, or blast through every remaining one. */
 export type IntlMode = "stage" | "through";
