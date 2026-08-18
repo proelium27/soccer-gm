@@ -43,6 +43,7 @@ function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed =
     international: { qualifying: null, tournament: null, history: [], qualifyingHistory: [], powerRankings: [], stage: null, stageInjuries: [] },
     powerRankingHistory: [],
     godMode: false,
+    difficulty: "normal",
   };
 }
 
@@ -104,6 +105,21 @@ describe("migrateLeague", () => {
     const { godMode: _gm, ...withoutGodMode } = league;
     const migrated = migrateLeague(withoutGodMode as unknown as LeagueStore);
     expect(migrated.godMode).toBe(false);
+  });
+
+  it("backfills difficulty to normal for a save without it", () => {
+    // A save that predates difficulty was played on the shipped tuning, which
+    // is what "normal" is, so this backfill changes nothing about it.
+    const league = makeLeague(0, 1);
+    const { difficulty: _d, ...withoutDifficulty } = league;
+    const migrated = migrateLeague(withoutDifficulty as unknown as LeagueStore);
+    expect(migrated.difficulty).toBe("normal");
+  });
+
+  it("leaves an existing difficulty untouched", () => {
+    const league = makeLeague(0, 1);
+    const migrated = migrateLeague({ ...league, difficulty: "brutal" });
+    expect(migrated.difficulty).toBe("brutal");
   });
 
   it("leaves an existing powerRankingHistory untouched", () => {

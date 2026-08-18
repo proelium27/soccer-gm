@@ -3,7 +3,9 @@ import type { Competition } from "../competitions.js";
 import type { FormationId } from "../lineup/formations.js";
 import { chooseBestFormation } from "../lineup/formations.js";
 import type { Player } from "../players/types.js";
-import { HYPE_INITIAL, SCOUTING_SPEND_DEFAULT } from "../constants.js";
+import {
+  HYPE_INITIAL, SCOUTING_SPEND_DEFAULT, difficultyProfile, type Difficulty,
+} from "../constants.js";
 import { chargeSeasonStart, wageBill, financeScale } from "../finance/budget.js";
 import { clampScoutingSpend } from "../finance/scouting.js";
 
@@ -476,12 +478,28 @@ export interface StoredTeam {
  * season: the base allocation arrives and the initial squad's wages come
  * straight out of it, so a club's opening budget is its genuinely spendable
  * cash (expensive squads start with less of it).
+ *
+ * Difficulty scales the user's opening budget, but scales the SURPLUS (what's
+ * left after wages) rather than the base allocation — deliberately different
+ * from every later season, which scales income and lets the wage bill bite.
+ * Scaling the allocation here would start a Brutal save at an expensive club
+ * already in the red, before the user has made a single decision; scaling a
+ * post-wage figure that is positive by construction never can. From season 2
+ * on, `chargeSeasonStart` in offseason.ts applies the scale the normal way and
+ * going broke becomes a consequence of how the user runs the club.
  */
-export function assignIdentities(league: League, competitions: Competition[]): StoredTeam[] {
+export function assignIdentities(
+  league: League,
+  competitions: Competition[],
+  userTid = -1,
+  difficulty: Difficulty | undefined = undefined,
+): StoredTeam[] {
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
+  const openingScale = difficultyProfile(difficulty).budgetScale;
   return league.teams.map((t) => {
     const club = CLUBS[t.tid];
-    const budget = chargeSeasonStart(0, wageBill(t.roster, salaryMap), financeScale(competitions, t.compId), HYPE_INITIAL);
+    const opening = chargeSeasonStart(0, wageBill(t.roster, salaryMap), financeScale(competitions, t.compId), HYPE_INITIAL);
+    const budget = t.tid === userTid && opening > 0 ? Math.round(opening * openingScale) : opening;
     return {
       tid: t.tid,
       name: club.name,

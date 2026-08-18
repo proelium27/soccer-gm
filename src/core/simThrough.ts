@@ -28,7 +28,7 @@ import type { CupState, CupTie } from "./cup/types.js";
 import { dueCupRound, dueCupLeg, cupFinalists, playInDue, playoffDue, koFinalRound } from "./cup/cup.js";
 import { leaguePhaseDue } from "./cup/leaguePhase.js";
 import { playKnockoutLeg, playPlayIn, playLeaguePhaseRound, playPlayoff } from "./cup/simCup.js";
-import { clampBudget, financeScale } from "./finance/budget.js";
+import { clampBudget, financeScaleFor } from "./finance/budget.js";
 import { initInternationalCampaign } from "./international/index.js";
 import { POWER_SNAPSHOT_INTERVAL } from "./constants.js";
 
@@ -302,7 +302,14 @@ export function simThrough(
       currentTeams = currentTeams.map((t) => {
         const prize = prizes.get(t.tid);
         return prize
-          ? { ...t, budget: clampBudget(t.budget + prize, financeScale(league.competitions, t.compId), t.hype) }
+          ? {
+              ...t,
+              budget: clampBudget(
+                t.budget + prize,
+                financeScaleFor(league.competitions, t.compId, t.tid, league.meta.userTid, league.difficulty),
+                t.hype,
+              ),
+            }
           : t;
       });
     };

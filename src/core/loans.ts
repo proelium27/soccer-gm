@@ -10,7 +10,7 @@ import {
   windowSeed, departsAtRollover, acquisitionWageCharge, hasRosterRoom,
 } from "./transfers/negotiation.js";
 import { trueTransferValue } from "./finance/valuation.js";
-import { clampBudget, financeScale } from "./finance/budget.js";
+import { clampBudget, financeScale, financeScaleFor } from "./finance/budget.js";
 import { keepsDepthFloor } from "./freeAgency.js";
 import { resolveXI } from "./lineup/resolveXI.js";
 import { teamSlots } from "./lineup/formations.js";
@@ -93,7 +93,11 @@ export function executeLoan(
         return {
           ...t,
           roster: t.roster.filter((p) => p !== pid),
-          budget: clampBudget(t.budget + fee, financeScale(league.competitions, t.compId), t.hype),
+          budget: clampBudget(
+            t.budget + fee,
+            financeScaleFor(league.competitions, t.compId, t.tid, league.meta.userTid, league.difficulty),
+            t.hype,
+          ),
         };
       }
       if (t.tid === loaneeTid) {

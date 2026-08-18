@@ -8,7 +8,9 @@ import { resolveXI } from "../lineup/resolveXI.js";
 import { teamSlots } from "../lineup/formations.js";
 import { mulberry32, gaussian } from "../../engine/rng.js";
 import { wouldRefuseExtension } from "../ai/breakoutRefusal.js";
-import { protectedStarPids, lastCompletedSeason } from "./protectedStars.js";
+import {
+  protectedStarPids, lastCompletedSeason, userProtectedStarBar,
+} from "./protectedStars.js";
 import { refusesMove } from "./playerWill.js";
 import { clubStatures } from "../ai/clubContext.js";
 import {
@@ -16,7 +18,24 @@ import {
   RECOMMENDED_OVR_BELOW, RECOMMENDED_OVR_ABOVE, RECOMMENDED_BAND_WIDEN,
   RECOMMENDED_UPSIDE_WEIGHT, RECOMMENDED_NOISE_OVR_SCALE,
   RECOMMENDED_MAX_PER_POSITION,
+  PROTECTED_STAR_OVR, PROTECTED_STAR_TOP_FINISH, difficultyProfile,
 } from "../constants.js";
+
+/**
+ * Why a protected player can't be bought — and it must not lie. On normal the
+ * bar is the world's own, so "his club won't sell" is true. On a harder
+ * difficulty the bar has been widened for the user alone (the AI market still
+ * trades at the shipped bar), so the same player may well move between two AI
+ * clubs; saying the club won't sell would be telling the user something the
+ * game is about to contradict. See the DIFFICULTIES block in constants.ts.
+ */
+function protectedStarReason(difficulty: LeagueStore["difficulty"]): string {
+  const profile = difficultyProfile(difficulty);
+  const widened =
+    profile.protectedStarOvr < PROTECTED_STAR_OVR
+    || profile.protectedStarTopFinish > PROTECTED_STAR_TOP_FINISH;
+  return widened ? "Not available to you" : "Club won't sell their star";
+}
 
 export interface TransferTarget {
   player: Player;
@@ -89,6 +108,7 @@ export function recommendedTransfers(
   // as recommended targets (see protectedStars.ts).
   const protectedPids = protectedStarPids(
     lastCompletedSeason(league), league.teams, league.players, league.competitions, user.tid,
+    userProtectedStarBar(league.difficulty),
   );
 
   // Precomputed once — see clubStatures; calling per player would be quadratic.
@@ -113,7 +133,10 @@ export function recommendedTransfers(
       if (minOvr !== null && player.ovr < minOvr) continue;
       if (minPot !== null && player.potential < minPot) continue;
       if (maxAge !== null && ws.season - player.born > maxAge) continue;
-      const value = scoutedValue(league.lid, ws.season, ws.window, player, user.scoutingSpend);
+      const value = scoutedValue(
+      league.lid, ws.season, ws.window, player, user.scoutingSpend,
+      difficultyProfile(league.difficulty).buyPriceScale,
+    );
       if (value > user.budget) continue;
       if (maxValue !== null && value > maxValue) continue;
       candidates.push({ player, sellerTid: team.tid, scoutedValue: value });
@@ -271,7 +294,10 @@ export function searchWorldPlayers(
   // it recomputes last season's standings, which is wasted on a no-match query.
   const protectedPids = protectedStarPids(
     lastCompletedSeason(league), league.teams, league.players, league.competitions, user.tid,
+    userProtectedStarBar(league.difficulty),
   );
+
+  const protectedReason = protectedStarReason(league.difficulty);
 
   const searchStatures = clubStatures(league.teams, league.players);
   const searchUserStature = searchStatures.get(user.tid) ?? 0;
@@ -279,14 +305,17 @@ export function searchWorldPlayers(
   const results: PlayerSearchResult[] = [];
   for (const { player, team } of candidates) {
     if (results.length >= PLAYER_SEARCH_LIMIT) break;
-    const value = scoutedValue(league.lid, ws.season, ws.window, player, user.scoutingSpend);
+    const value = scoutedValue(
+      league.lid, ws.season, ws.window, player, user.scoutingSpend,
+      difficultyProfile(league.difficulty).buyPriceScale,
+    );
     if (maxValue !== null && value > maxValue) continue;
 
     // Mirror makeTransferOffer's sale gates so the UI can explain, not no-op.
     let notForSaleReason: string | null = null;
     if (loanedPids.has(player.pid)) notForSaleReason = "Out on loan";
     else if (departsAtRollover(league, player)) notForSaleReason = "Free agent at season's end";
-    else if (protectedPids.has(player.pid)) notForSaleReason = "Club won't sell their star";
+    else if (protectedPids.has(player.pid)) notForSaleReason = protectedReason;
     else if (!isForSaleOrRefusing(team, playerMap, player.pid, league.competitions)) {
       notForSaleReason = "Club needs him for depth";
     } else if (

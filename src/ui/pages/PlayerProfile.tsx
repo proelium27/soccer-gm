@@ -151,7 +151,7 @@ export function PlayerProfile() {
   // table below shows, evaluated on that season like the table does.
   const potBandLabel = (potential: number, season: number): string => {
     if (league.godMode) return String(potential);
-    const fog = potentialFog(potential, player.pid, season, scoutObserved, scoutSpend);
+    const fog = potentialFog(potential, player.pid, season, scoutObserved, scoutSpend, league.difficulty);
     return fog.known ? String(potential) : `${fog.low}–${fog.high}`;
   };
   // The POT the value chart *prices* off. trueTransferValue pays a premium for
@@ -162,7 +162,7 @@ export function PlayerProfile() {
   // value line stays smooth; the hover card still quotes each season's own band.
   const pricedPotential = (potential: number): number => {
     if (league.godMode) return potential;
-    const fog = potentialFog(potential, player.pid, league.season, scoutObserved, scoutSpend);
+    const fog = potentialFog(potential, player.pid, league.season, scoutObserved, scoutSpend, league.difficulty);
     return fog.known ? potential : Math.round((fog.low + fog.high) / 2);
   };
 
@@ -681,7 +681,7 @@ export function PlayerProfile() {
                       </td>
                       <td className="text-end fw-semibold" style={{ color: getRatingColor(h.ovr) }}>{h.ovr}</td>
                       {(() => {
-                        const fog = potentialFog(h.potential, player.pid, h.season, scoutObserved, scoutSpend);
+                        const fog = potentialFog(h.potential, player.pid, h.season, scoutObserved, scoutSpend, league.difficulty);
                         const colorAt = fog.known ? h.potential : Math.round((fog.low + fog.high) / 2);
                         return (
                           <td className="text-end" style={{ color: getRatingColor(colorAt) }}>
