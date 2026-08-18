@@ -2466,14 +2466,24 @@ body.nav-drawer-open {
     background: transparent;
   }
 }
+/* Both clubs hug their scoreline rather than the row's outer edges, so a
+   fixture reads as one unit ("ROS 0-0 TEW"). Pushed apart they scan as four
+   separate columns, which is worst in the two-up mobile grid where the pairing
+   stops being obvious at all. */
 .live-rail-club {
   color: var(--sg-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.live-rail-club--away {
+/* Scoped to the fixture rows, NOT the table below them, which shares this
+   class: right-aligning the club there pushes it away from its position number
+   and jams it against the points. */
+.live-rail-row .live-rail-club {
   text-align: right;
+}
+.live-rail-row .live-rail-club--away {
+  text-align: left;
 }
 .live-rail-score {
   color: var(--sg-text-muted);
@@ -2498,4 +2508,77 @@ body.nav-drawer-open {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+/* -------------------------------------------------------------------------
+   Live viewer on a phone.
+
+   The desktop layout is a two-column grid with a fixed 232px rail. At 390px
+   that rail is wider than what it sits beside — the match itself got 140px,
+   and the timeline (three columns of its own) overflowed inside it. So below
+   the md breakpoint the rail stops being a rail and becomes a section under
+   the match, and the panel fills the screen rather than floating in it.
+
+   The scoreboard and controls stick to the top through all of it: once the
+   whole panel scrolls, the score is the one thing you must not lose while
+   reading down the feed.
+   ------------------------------------------------------------------------- */
+@media (max-width: 767.98px) {
+  .live-panel {
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    overflow-y: auto;
+  }
+  .live-main {
+    /* The panel scrolls as one on mobile, so the inner regions must not also
+       scroll — nested scroll areas on a phone are how you get a feed you can
+       never quite reach the bottom of. */
+    overflow: visible;
+    padding: 0 0.6rem 0.6rem;
+  }
+  .live-scoreboard {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin-top: 0;
+    /* bs-scoreboard is transparent-cornered by default; it has to be opaque
+       here or the feed shows through as it scrolls underneath. */
+    background: var(--sg-surface);
+  }
+  /* Deliberately NOT sticky. Pinning these under the scoreboard needs its
+     measured height, and any hard-coded offset drifts the moment a club name
+     wraps to two lines. The scoreline is the thing worth pinning; the controls
+     are a short scroll away. */
+  .live-controls {
+    gap: 0.35rem;
+    padding-top: 0.35rem;
+  }
+  .live-controls .btn {
+    font-size: var(--sg-text-xs);
+  }
+  /* Full width, so it stops competing with the match for space. */
+  .live-toggle {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .live-feed {
+    overflow: visible;
+  }
+  .live-rail {
+    border-left: 0;
+    border-top: 1px solid var(--sg-border);
+    overflow: visible;
+  }
+  /* Two up on a phone: the rail is a list of short scorelines, and one per
+     row wastes most of the width and buries the live table. */
+  .live-rail-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 0.5rem;
+  }
 }

@@ -72,6 +72,25 @@ function SkipIcon({ size = 12 }: { size?: number }) {
   );
 }
 
+/**
+ * A club on the scoreboard: full name where it fits, abbreviation on a phone.
+ *
+ * The scoreboard gives each side about 90px at 390px wide, which truncated
+ * both clubs to "Sudbury R..." and "Ashbourne..." — and the second of those is
+ * usually the club you manage. An abbreviation beside the crest identifies it
+ * outright where a cut-off name only half does.
+ */
+function ClubName({ name, abbrev }: { name: string; abbrev: string }) {
+  return (
+    <>
+      <span className="bs-club-name d-none d-md-inline">{name}</span>
+      <span className="bs-club-name d-md-none" title={name}>
+        {abbrev}
+      </span>
+    </>
+  );
+}
+
 export function LiveMatchOverlay({
   open,
   match,
@@ -128,7 +147,7 @@ export function LiveMatchOverlay({
             </div>
             <div className="bs-scoreline">
               <div className="bs-club bs-club--home">
-                <span className="bs-club-name">{homeTeam?.name ?? nameOf(match.home)}</span>
+                <ClubName name={nameOf(match.home)} abbrev={abbrevOf(match.home)} />
                 <ClubCrest tid={match.home} colors={homeTeam?.colors ?? ["#888", "#444"]} size={30} />
               </div>
               <div className="live-score stat-num">
@@ -136,7 +155,7 @@ export function LiveMatchOverlay({
               </div>
               <div className="bs-club bs-club--away">
                 <ClubCrest tid={match.away} colors={awayTeam?.colors ?? ["#888", "#444"]} size={30} />
-                <span className="bs-club-name">{awayTeam?.name ?? nameOf(match.away)}</span>
+                <ClubName name={nameOf(match.away)} abbrev={abbrevOf(match.away)} />
               </div>
             </div>
             <div className={`live-clock stat-num${atHalfTime ? " live-clock--break" : ""}`}>
