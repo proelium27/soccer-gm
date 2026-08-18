@@ -3,15 +3,13 @@ import { useParams, Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import type { PlayedMatch } from "../../core/standings.js";
-import type { MatchEvent, MatchEventType, PlayerMatchLine } from "../../engine/attribution.js";
+import type { PlayerMatchLine } from "../../engine/attribution.js";
 import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
+import { KEY_EVENTS, TimelineRow } from "../components/matchEvents.js";
+import { LiveMatchOverlay } from "../components/LiveMatchOverlay.js";
+import { liveTableRows, toLiveMatch } from "../live/liveMatch.js";
 
-/** Match clock counts down from 5400s, so elapsed minutes read off the remainder. */
-function formatClock(seconds: number): string {
-  const mins = Math.max(1, Math.ceil((5400 - seconds) / 60));
-  return `${mins}'`;
-}
 
 function ratingClass(rating: number): string {
   if (rating >= 8) return "text-success fw-semibold";
@@ -31,62 +29,6 @@ function StarIcon({ size = 12 }: { size?: number }) {
   );
 }
 
-function BallIcon({ size = 11 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 1.6a10.4 10.4 0 1 0 0 20.8 10.4 10.4 0 0 0 0-20.8zm0 2.1l3.4 2.47-1.3 4h-4.2l-1.3-4zm-5.6 4.2l1.3 4-3.4 2.5A8.4 8.4 0 0 1 6.4 7.9zm11.2 0a8.4 8.4 0 0 1 2.1 6.5l-3.4-2.5zM9.9 13.8h4.2l1.3 4L12 20.3l-3.5-2.5z" />
-    </svg>
-  );
-}
-
-function CardIcon({ size = 11 }: { size?: number }) {
-  return (
-    <svg width={size} height={size * 1.25} viewBox="0 0 16 20" fill="currentColor" aria-hidden="true">
-      <rect x="1" y="1" width="14" height="18" rx="2.5" />
-    </svg>
-  );
-}
-
-function SubInIcon({ size = 10 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-      <path d="M6 0.8l4.4 5.2H7.6V11.2H4.4V6H1.6z" />
-    </svg>
-  );
-}
-
-function SubOutIcon({ size = 10 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-      <path d="M6 11.2L1.6 6h2.8V0.8h3.2V6h2.8z" />
-    </svg>
-  );
-}
-
-function InjuryIcon({ size = 10 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
-      <path d="M4 0h2v4h4v2H6v4H4V6H0V4h4z" />
-    </svg>
-  );
-}
-
-function WhistleIcon({ size = 11 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M14 5.5a6.5 6.5 0 1 0 5.9 9.2l2.3-5.6a1 1 0 0 0-.6-1.3L14.6 5.6a6.5 6.5 0 0 0-.6-.1zM8.5 9.5a3 3 0 1 1 0 6 3 3 0 0 1 0-6z" />
-    </svg>
-  );
-}
-
-function CornerIcon({ size = 10 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-      <path d="M2 0h1.4v12H2z" />
-      <path d="M3.8 0.8L10 3.2 3.8 5.6z" />
-    </svg>
-  );
-}
 
 /* ---------------------------------------------------------------------------
    Scoreboard header
@@ -294,161 +236,6 @@ function manOfTheMatch(match: PlayedMatch): PlayerMatchLine | null {
    Play-by-play timeline
    --------------------------------------------------------------------------- */
 
-/** The events worth reading by default: everything that changed the game or the teams. */
-const KEY_EVENTS = new Set<MatchEventType>([
-  "goal",
-  "yellow_card",
-  "red_card",
-  "substitution",
-  "penalty",
-  "injury",
-]);
-
-/** How each event colours its clock chip on the spine. */
-function chipTone(type: MatchEventType): string {
-  switch (type) {
-    case "goal":
-      return "bs-chip--goal";
-    case "red_card":
-    case "injury":
-      return "bs-chip--danger";
-    case "yellow_card":
-    case "penalty":
-      return "bs-chip--warn";
-    default:
-      return "";
-  }
-}
-
-function EventBody({
-  event,
-  playerName,
-}: {
-  event: MatchEvent;
-  playerName: (pid: number) => string;
-}) {
-  const link = (pid: number) => (
-    <Link key={pid} to={`/player/${pid}`}>
-      {playerName(pid)}
-    </Link>
-  );
-
-  switch (event.type) {
-    case "goal":
-      return (
-        <div className="bs-ev-body bs-ev-body--goal">
-          <span className="bs-ev-icon">
-            <BallIcon />
-          </span>
-          <span>
-            <strong className="bs-ev-headline">Goal</strong> {link(event.pids[0])}
-            {event.pids[1] !== undefined && (
-              <span className="bs-ev-sub">assist {playerName(event.pids[1])}</span>
-            )}
-          </span>
-        </div>
-      );
-    case "yellow_card":
-    case "red_card": {
-      const red = event.type === "red_card";
-      return (
-        <div className="bs-ev-body">
-          <span className={`bs-ev-icon ${red ? "bs-ev-icon--red" : "bs-ev-icon--yellow"}`}>
-            <CardIcon />
-          </span>
-          <span>
-            <span className="bs-ev-kind">{red ? "Red card" : "Yellow card"}</span>{" "}
-            {link(event.pids[0])}
-          </span>
-        </div>
-      );
-    }
-    case "substitution":
-      return (
-        <div className="bs-ev-body">
-          <span className="bs-sub-pair">
-            <span className="bs-sub-on">
-              <SubInIcon size={8} /> {link(event.pids[1])}
-            </span>
-            <span className="bs-sub-off">
-              <SubOutIcon size={8} /> {playerName(event.pids[0])}
-            </span>
-          </span>
-        </div>
-      );
-    case "penalty":
-      return (
-        <div className="bs-ev-body">
-          <span className="bs-ev-icon bs-ev-icon--warn">
-            <WhistleIcon />
-          </span>
-          <span>
-            <span className="bs-ev-kind">Penalty</span> {link(event.pids[0])} steps up
-          </span>
-        </div>
-      );
-    case "injury":
-      return (
-        <div className="bs-ev-body">
-          <span className="bs-ev-icon bs-ev-icon--red">
-            <InjuryIcon />
-          </span>
-          <span>
-            <span className="bs-ev-kind">Injury</span> {link(event.pids[0])} goes down
-          </span>
-        </div>
-      );
-    case "corner":
-      return (
-        <div className="bs-ev-body bs-ev-body--quiet">
-          <span className="bs-ev-icon">
-            <CornerIcon />
-          </span>
-          <span className="bs-ev-kind">Corner</span>
-        </div>
-      );
-    case "shot_saved":
-    case "shot_blocked":
-    case "shot_off_target": {
-      const label =
-        event.type === "shot_saved"
-          ? "Saved"
-          : event.type === "shot_blocked"
-            ? "Blocked"
-            : "Off target";
-      return (
-        <div className="bs-ev-body bs-ev-body--quiet">
-          <span className="bs-ev-kind">{label}</span> {link(event.pids[0])}
-        </div>
-      );
-    }
-    default:
-      return null;
-  }
-}
-
-function TimelineRow({
-  event,
-  playerName,
-}: {
-  event: MatchEvent;
-  playerName: (pid: number) => string;
-}) {
-  const body = <EventBody event={event} playerName={playerName} />;
-  if (!body) return null;
-  return (
-    <div className={`bs-ev bs-ev--${event.side}`}>
-      <div className="bs-ev-cell bs-ev-cell--home">{event.side === "home" && body}</div>
-      <div className="bs-ev-spine">
-        <span className={`bs-ev-chip stat-num ${chipTone(event.type)}`}>
-          {formatClock(event.clock)}
-        </span>
-      </div>
-      <div className="bs-ev-cell bs-ev-cell--away">{event.side === "away" && body}</div>
-    </div>
-  );
-}
-
 /* ---------------------------------------------------------------------------
    Page
    --------------------------------------------------------------------------- */
@@ -458,6 +245,9 @@ export function BoxScore() {
   const { league } = useLeague();
   const playerMap = usePlayerMap(league?.players);
   const [showAllEvents, setShowAllEvents] = useState(false);
+  // Rewatching an old match is the same viewer as a live one, minus the commit:
+  // the events it replays are the ones already stored on this box score.
+  const [watching, setWatching] = useState(false);
 
   if (!league || matchIndex === undefined) {
     return <p className="p-3">Loading...</p>;
@@ -505,11 +295,55 @@ export function BoxScore() {
     // The clock counts down, so descending clock is chronological order.
     .sort((a, b) => b.clock - a.clock);
 
+  // Same competition, same matchday — the rail the viewer shows alongside.
+  const compTeamIds = league.teams
+    .filter((t) => t.compId === homeTeam?.compId)
+    .map((t) => t.tid);
+  const inComp = new Set(compTeamIds);
+  const sameMatchday = league.played.filter(
+    (m) => m.matchday === match.matchday && inComp.has(m.home),
+  );
+  const watchedMatch = toLiveMatch(match);
+  const watchedOthers = sameMatchday.filter((m) => m !== match).map(toLiveMatch);
+
   return (
     <div className="container-fluid p-3 bs-page">
-      <Link to="/schedule" className="bs-back">
-        &larr; Schedule
-      </Link>
+      <div className="bs-topbar">
+        <Link to="/schedule" className="bs-back">
+          &larr; Schedule
+        </Link>
+        <button
+          type="button"
+          className="btn btn-sm btn-outline-secondary"
+          onClick={() => setWatching(true)}
+        >
+          Watch it back
+        </button>
+      </div>
+
+      {watching && (
+        <LiveMatchOverlay
+          open
+          match={watchedMatch}
+          otherMatches={watchedOthers}
+          teams={league.teams}
+          playerName={playerName}
+          competitionName={compName ?? ""}
+          tableAtMinute={(minute) =>
+            liveTableRows(
+              compTeamIds,
+              // The table as it stood going INTO this matchday, so it climbs
+              // the same way it did on the day rather than starting from
+              // today's finished position.
+              league.played.filter((m) => m.matchday < match.matchday && inComp.has(m.home)),
+              [watchedMatch, ...watchedOthers],
+              minute,
+            )
+          }
+          onComplete={() => setWatching(false)}
+          completeLabel="Close"
+        />
+      )}
 
       <header className="bs-scoreboard">
         <div className="bs-eyebrow">

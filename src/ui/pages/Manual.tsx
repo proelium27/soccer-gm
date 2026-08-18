@@ -284,6 +284,31 @@ export function Manual() {
             <strong>deadline day</strong> with the winter transfer window still open. Matches
             involving your club use your saved starting XI.
           </p>
+          <p>
+            <strong>Watching a match.</strong> Next to Sim One Game there's <strong>Watch Next
+            Game</strong>, which plays your club's match out a minute at a time instead of jumping
+            to the result: a running clock, the events as they happen, and the rest of your
+            division's scores and the live table down the right. You can pause, run it at 1x, 2x or
+            4x, or skip to the final whistle, and the <strong>Every chance</strong> switch decides
+            whether you see every shot or only the goals, cards, subs, penalties and injuries. To
+            see one again later, open its box score and hit <strong>Watch it back</strong>.
+          </p>
+          <p>
+            Cup ties can be watched too. Continental Cup rounds land on league matchdays, so on
+            one of those you have two matches: the game asks which you'd rather watch, and plays
+            both either way &mdash; the one you skip still has its box score. A league-phase match
+            shows the Swiss table beside it instead of your league table, and a two-legged
+            quarter-final or semi-final is watched a leg at a time, the second leg at the other
+            club's ground.
+          </p>
+          <p>
+            The match is played the moment you press the button, and what you're watching is the
+            recording of it, so watching never changes the result. It also means the matchday isn't
+            saved until you close the viewer: quit halfway and it simply hasn't happened, and
+            playing it again gives you the same match. You can't make substitutions while you watch
+            yet, and possession and xG appear only at full time (they aren't tracked minute by
+            minute).
+          </p>
           <p>After matchday 38, the offseason runs on its own, in this order:</p>
           <ol>
             <li>AI clubs renew expiring contracts for players they still rate (<a href="#ai">details</a>).</li>

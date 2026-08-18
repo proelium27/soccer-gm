@@ -17,7 +17,7 @@ import { applySuspensions, isSuspended } from "./suspensions.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { protectedStarPids, lastCompletedSeason } from "./transfers/protectedStars.js";
 import { runAILoanMarket } from "./loans.js";
-import { hashInts } from "../engine/rng.js";
+import { hashInts, mulberry32 } from "../engine/rng.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import { assignAIFormations } from "./teams/clubs.js";
 import { playerGoalTotals, detectMatchdayNewsEvents } from "./newsEvents.js";
@@ -31,6 +31,37 @@ import { playKnockoutLeg, playPlayIn, playLeaguePhaseRound, playPlayoff } from "
 import { clampBudget, financeScaleFor } from "./finance/budget.js";
 import { initInternationalCampaign } from "./international/index.js";
 import { POWER_SNAPSHOT_INTERVAL } from "./constants.js";
+
+/**
+ * Salt for the per-league-match rng stream, keeping it clear of every other
+ * `hashInts` stream keyed on (lid, season, ...) — notably the cup's, which
+ * tags with 30.
+ */
+const LEAGUE_MATCH_STREAM = 41;
+
+/**
+ * The seed for one league match. Each match runs on its own stream rather than
+ * sharing the matchday's, which buys two things:
+ *
+ *  - A result stops depending on fixture order. Previously every match drew
+ *    from one stream in schedule order, so a match's outcome was a function of
+ *    every match simmed before it that day.
+ *  - A single match becomes independently reproducible. That is what lets the
+ *    live-match viewer re-run one match (e.g. with a substitution the user made
+ *    while watching) without desyncing every other result on the matchday.
+ *
+ * Exported so any caller that needs to reproduce a match in isolation derives
+ * the same seed this loop does, instead of duplicating the recipe.
+ */
+export function leagueMatchSeed(
+  lid: number,
+  season: number,
+  matchday: number,
+  home: number,
+  away: number,
+): number {
+  return hashInts(lid, season, matchday, home, away, LEAGUE_MATCH_STREAM);
+}
 
 function accumulateStats(
   players: Player[],
@@ -348,7 +379,7 @@ export function simThrough(
       const hd = matchData.get(game.home)!;
       const ad = matchData.get(game.away)!;
       const result = simMatchDetailed(
-        rng,
+        mulberry32(leagueMatchSeed(league.lid, league.season, game.matchday, game.home, game.away)),
         hd.composites,
         ad.composites,
         hd.xi,
