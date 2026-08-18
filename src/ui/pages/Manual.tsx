@@ -281,6 +281,23 @@ export function Manual() {
             get one last chance to deal before it shuts. Matches involving your club use your saved
             starting XI.
           </p>
+          <p>
+            <strong>Watching a match.</strong> Next to Sim One Game there's <strong>Watch Next
+            Game</strong>, which plays your club's match out a minute at a time instead of jumping
+            to the result: a running clock, the events as they happen, and the rest of your
+            division's scores and the live table down the right. You can pause, run it at 1x, 2x or
+            4x, or skip to the final whistle, and the <strong>Every chance</strong> switch decides
+            whether you see every shot or only the goals, cards, subs, penalties and injuries. To
+            see one again later, open its box score and hit <strong>Watch it back</strong>.
+          </p>
+          <p>
+            The match is played the moment you press the button, and what you're watching is the
+            recording of it, so watching never changes the result. It also means the matchday isn't
+            saved until you close the viewer: quit halfway and it simply hasn't happened, and
+            playing it again gives you the same match. You can't make substitutions while you watch
+            yet, possession and xG appear only at full time (they aren't tracked minute by minute),
+            and cup ties can't be watched — only league matches.
+          </p>
           <p>After matchday 38, the offseason runs on its own, in this order:</p>
           <ol>
             <li>AI clubs renew expiring contracts for players they still rate (<a href="#ai">details</a>).</li>

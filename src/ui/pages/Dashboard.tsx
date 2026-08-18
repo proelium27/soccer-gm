@@ -138,7 +138,7 @@ export function Dashboard() {
 // draft state — skips recomputing standings, the news timeline, the lookup
 // maps, the wage bill, and the stat-leader scans over the whole player pool.
 function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: StoredTeam }) {
-  const { simAction, setScoutingSpendAction, intlStageAction, simming } = useLeague();
+  const { simAction, simLiveAction, setScoutingSpendAction, intlStageAction, simming } = useLeague();
   const navigate = useNavigate();
   // Slider position while dragging; persisted (and clamped) only on release
   // so we don't write to IndexedDB on every drag tick.
@@ -349,6 +349,20 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
               onClick={() => simAction("game")}
             >
               Sim One Game
+            </button>
+            {/*
+              Same matchday, watched instead of skipped. Deliberately its own
+              button rather than a saved preference: watching is a mood, and
+              a setting you have to go and flip is worse than a second button
+              you can ignore.
+            */}
+            <button
+              className="btn btn-primary"
+              disabled={disableSim}
+              title="Watch your club's match play out minute by minute"
+              onClick={() => simLiveAction()}
+            >
+              Watch Next Game
             </button>
             <button
               className="btn btn-primary"

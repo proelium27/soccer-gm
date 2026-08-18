@@ -28,7 +28,24 @@ import {
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
 import { teamSlots, chooseBestFormation, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { SimOverlay } from "../components/SimOverlay.js";
+import { LiveMatchOverlay } from "../components/LiveMatchOverlay.js";
+import { usePlayerMap } from "../usePlayerMap.js";
+import { competitionOf } from "../../core/competitions.js";
+import type { MatchScore, PlayedMatch } from "../../core/standings.js";
 import { trackEvent } from "../analytics.js";
+
+/**
+ * A matchday captured for the live viewer: the user's match plus the context
+ * the rail needs. Snapshotted from the *pre-sim* league, since the simmed
+ * league it belongs to is deliberately not committed until the viewer closes.
+ */
+interface LiveMatchState {
+  match: PlayedMatch;
+  otherMatches: PlayedMatch[];
+  compTeamIds: number[];
+  priorMatches: MatchScore[];
+  competitionName: string;
+}
 
 interface LeagueContextValue {
   league: LeagueStore | null;
@@ -39,6 +56,13 @@ interface LeagueContextValue {
   customizeTeamsAction: (lid: number, edits: TeamIdentityEdit[]) => Promise<void>;
   /** Overlay a parsed roster file onto a save (identities + optional real squads). Returns a summary of what changed. */
   simAction: (through: SimThrough) => Promise<void>;
+  /**
+   * Play the next matchday and watch your club's match minute by minute.
+   * Same sim as simAction("game") — the result is already decided before the
+   * first whistle; the viewer replays its recorded event stream. The matchday
+   * is not committed until the viewer is closed.
+   */
+  simLiveAction: () => Promise<void>;
   offseasonAction: () => Promise<void>;
   /** Play the next staged international stage ("stage") or every remaining one ("through"). */
   intlStageAction: (mode: IntlMode) => Promise<void>;
@@ -97,6 +121,19 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const [animDone, setAnimDone] = useState(false);
   const pendingResultRef = useRef<LeagueStore | null>(null);
   const overlayOpenRef = useRef(false);
+
+  // Everything the live match viewer needs, captured from the pre-sim league
+  // plus the simmed matchday. Null whenever no match is being watched.
+  const [liveMatch, setLiveMatch] = useState<LiveMatchState | null>(null);
+  const liveOpenRef = useRef(false);
+  // The viewer names scorers and bookings, so it needs the pid lookup. Memoized
+  // on the players array, so it is rebuilt once per commit rather than per tick
+  // of the match clock.
+  const playerMap = usePlayerMap(league?.players);
+  const playerName = useCallback(
+    (pid: number) => playerMap.get(pid)?.name ?? `Player ${pid}`,
+    [playerMap],
+  );
 
   // Every league mutation runs through runExclusive and reads the league from
   // leagueRef at execution time. React state alone isn't enough: a callback
@@ -235,6 +272,78 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       console.error("Simulation failed:", err);
     }
   }), [runExclusive, sim, closeOverlay]);
+
+  /**
+   * Commit the watched matchday and close the viewer.
+   *
+   * The result has been sitting in pendingResultRef since before kickoff — the
+   * match was simulated up front and only *shown* over the following minutes —
+   * so this is the same commit the normal sim does, just deferred. Deferring it
+   * is what lets a later version re-run the matchday with a substitution the
+   * user made while watching, rather than having to undo a committed one.
+   */
+  const finishLiveMatch = useCallback(() => runExclusive(async () => {
+    const result = pendingResultRef.current;
+    pendingResultRef.current = null;
+    // Persist before clearing the viewer, for the same reason the sim overlay
+    // does: the viewer is what blocks every other action.
+    if (result) {
+      const lid = await saveLeague(result);
+      commitLeague({ ...result, lid });
+    }
+    liveOpenRef.current = false;
+    setLiveMatch(null);
+  }), [runExclusive, commitLeague]);
+
+  const simLiveAction = useCallback(() => runExclusive(async () => {
+    const current = leagueRef.current;
+    if (!current || overlayOpenRef.current || liveOpenRef.current) return;
+    try {
+      // The progress callback hands over the matchday's results directly, which
+      // saves picking them back out of the returned league by matchday number.
+      let mdResults: PlayedMatch[] = [];
+      const result = await sim("game", current, (progress) => {
+        mdResults = progress.results;
+      });
+      // Reference equality can't survive the worker's structured clone, so
+      // detect a no-op sim by comparing played-game counts.
+      if (result.played.length === current.played.length) return;
+
+      const userTid = current.meta.userTid;
+      const userMatch = mdResults.find((m) => m.home === userTid || m.away === userTid);
+      const userTeam = current.teams.find((t) => t.tid === userTid);
+      if (!userMatch || !userTeam) {
+        // Nothing of the user's to watch — commit it like an ordinary sim
+        // rather than opening an empty viewer.
+        const lid = await saveLeague(result);
+        commitLeague({ ...result, lid });
+        return;
+      }
+
+      const compTeamIds = current.teams
+        .filter((t) => t.compId === userTeam.compId)
+        .map((t) => t.tid);
+      const inComp = new Set(compTeamIds);
+
+      pendingResultRef.current = result;
+      liveOpenRef.current = true;
+      setLiveMatch({
+        match: userMatch,
+        // The rail shows the user's own division. Every competition in the
+        // world plays the same day, and all sixteen at once is noise.
+        otherMatches: mdResults.filter((m) => m !== userMatch && inComp.has(m.home)),
+        compTeamIds,
+        priorMatches: current.played.filter((m) => inComp.has(m.home)),
+        competitionName: competitionOf(current.competitions, userTeam.compId).name,
+      });
+      trackEvent("season_simmed", { through: "game", live: true });
+    } catch (err) {
+      pendingResultRef.current = null;
+      liveOpenRef.current = false;
+      setLiveMatch(null);
+      console.error("Live simulation failed:", err);
+    }
+  }), [runExclusive, sim, commitLeague]);
 
   const offseasonAction = useCallback(() => runExclusive(async () => {
     const current = leagueRef.current;
@@ -544,6 +653,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     switchLeagueAction,
     customizeTeamsAction,
     simAction,
+    simLiveAction,
     offseasonAction,
     intlStageAction,
     signFreeAgentAction,
@@ -574,13 +684,16 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     editPlayerAction,
     createPlayerAction,
     setClubFinancesAction,
-    simming: simming || simOverlayOpen || busy,
+    // The live viewer blocks other actions the same way the sim overlay does:
+    // its matchday is simmed but uncommitted, so anything else acting on the
+    // league would be computing from a state that is about to be replaced.
+    simming: simming || simOverlayOpen || liveMatch !== null || busy,
     saveToDb,
     exportJSON: doExport,
     importJSON: doImport,
   }), [
     league, loadingActiveLeague, setLeague, loadLeagueAction, switchLeagueAction,
-    customizeTeamsAction, simAction, offseasonAction, intlStageAction, signFreeAgentAction,
+    customizeTeamsAction, simAction, simLiveAction, offseasonAction, intlStageAction, signFreeAgentAction,
     releasePlayerAction, signToAcademyAction, promoteFromAcademyAction,
     releaseAcademyPlayerAction, extendAcademyContractAction, setScoutingSpendAction,
     makeOfferAction, acceptCounterAction, acceptInboundOfferAction,
@@ -590,7 +703,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     autoPickBestXIAction,
     setGodModeAction, movePlayerToClubAction, releasePlayerGodModeAction,
     editPlayerAction, createPlayerAction, setClubFinancesAction,
-    simming, simOverlayOpen, busy, saveToDb, doExport, doImport,
+    simming, simOverlayOpen, liveMatch, busy, saveToDb, doExport, doImport,
   ]);
 
   return (
@@ -604,6 +717,19 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         userTid={league?.meta.userTid ?? -1}
         onComplete={finishSimAnimation}
       />
+      {liveMatch && (
+        <LiveMatchOverlay
+          open
+          match={liveMatch.match}
+          otherMatches={liveMatch.otherMatches}
+          teams={league?.teams ?? []}
+          playerName={playerName}
+          compTeamIds={liveMatch.compTeamIds}
+          priorMatches={liveMatch.priorMatches}
+          competitionName={liveMatch.competitionName}
+          onComplete={finishLiveMatch}
+        />
+      )}
     </Ctx.Provider>
   );
 }
