@@ -175,7 +175,7 @@ export function Manual() {
         <Section id="pages" title="The Pages">
           <p>Every screen in the game and what it's for:</p>
           <ul>
-            <li><strong>Dashboard</strong>. Your current W/D/L record and next fixture front and center, with your division's standings on the left and the latest news headlines on the right. Below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim buttons.</li>
+            <li><strong>Dashboard</strong>. Your current W/D/L record and next fixture front and center, with your division's standings on the left and the latest news headlines on the right. Below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim controls.</li>
             <li><strong>Standings</strong>. The league table, plus each club's current OVR/POT. A season dropdown lets you pull up any past season's final table next to the current one. The champion's row is highlighted, and the <a href="#cup">Continental Cup</a> qualification places are shaded.</li>
             <li><strong>Continental Cup</strong>. The live league-phase table and knockout bracket for the current season, plus past winners via a season dropdown. More in <a href="#cup">The Continental Cup</a>.</li>
             <li><strong>National Teams</strong>. A whole section for the summer's national-team football: the current World Cup and Qualifying, Rosters showing every nation's named squad, a Schedule of fixtures, Power Rankings of every nation, Stat Leaders (top nations and top players, filterable by country), and History with past winners and each nation's record. More in <a href="#international">International Football</a>.</li>
@@ -219,11 +219,14 @@ export function Manual() {
             directions.
           </p>
           <p>
-            You sim from the Dashboard in chunks: one matchday, one month, or straight to the next
-            landing spot. The sim stops early whenever something needs you, especially{" "}
-            <strong>deadline day</strong>, the last day of the winter transfer window, so you always
-            get one last chance to deal before it shuts. Matches involving your club use your saved
-            starting XI.
+            You sim from the Dashboard (or the Sim menu in the top bar) in whatever chunk you want:
+            one game, the rest of the season, or a distance you pick yourself &mdash; either{" "}
+            <strong>sim to matchday</strong> a number, or <strong>sim this many matchdays</strong>{" "}
+            forward. The line under the box tells you what you're about to play, how many matchdays
+            that is, and what month it lands in, so you can stop anywhere: the game before a big
+            cup tie, the last matchday of a month, or matchday 21 to land on{" "}
+            <strong>deadline day</strong> with the winter transfer window still open. Matches
+            involving your club use your saved starting XI.
           </p>
           <p>After matchday 38, the offseason runs on its own, in this order:</p>
           <ol>
@@ -809,7 +812,7 @@ export function Manual() {
           <p>Two transfer windows per season, just like real football:</p>
           <ul>
             <li><strong>Summer</strong>. The whole offseason plus matchdays 1&ndash;4 (closes early September).</li>
-            <li><strong>Winter</strong>. Matchdays 18&ndash;22 (mid-December to late January). Matchday 22 is <strong>deadline day</strong>, and the "Sim to Transfer Deadline" button lands you there with the window still open.</li>
+            <li><strong>Winter</strong>. Matchdays 18&ndash;22 (mid-December to late January). Matchday 22 is <strong>deadline day</strong>, and simming to matchday 21 lands you on it with the window still open.</li>
           </ul>
           <p>
             <strong>Market value.</strong> A player's value climbs steeply with OVR (an average
@@ -1176,7 +1179,7 @@ export function Manual() {
             <li><strong>Sell into demand.</strong> Incoming offers come from clubs that actually need your player, and their first bid is rarely their best. Counter once or twice before you accept, but greedy counters end talks.</li>
             <li><strong>Decide your scouting spend a year ahead.</strong> It sharpens valuations, target rankings, and potential estimates, but you set it in the offseason and it's locked for the season. So if you're planning a busy transfer year, budget for scouting the offseason before, and dial it back for a quiet one.</li>
             <li><strong>Potential is a forecast, not a fact.</strong> Most players fall short of it. Paying a big potential premium is a real gamble, and that's the game working as intended.</li>
-            <li><strong>Deadline day is leverage.</strong> Asking prices are fixed for the whole window, so there's no discount for waiting, but "Sim to Transfer Deadline" guarantees a last look at the market (and any incoming offers) before it shuts.</li>
+            <li><strong>Deadline day is leverage.</strong> Asking prices are fixed for the whole window, so there's no discount for waiting, but simming to matchday 21 guarantees a last look at the market (and any incoming offers) before it shuts.</li>
           </ul>
         </Section>
 
