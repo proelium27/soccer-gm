@@ -2351,6 +2351,75 @@ export const CUP_PEN_BEST_OF = 5;
 /** Base per-kick conversion probability, nudged by taker finishing vs keeper. */
 export const CUP_PEN_BASE_CONVERSION = 0.75;
 
+/* ── Domestic cups ───────────────────────────────────────────────────────────
+ * Every country runs its own knockout cup alongside its league, contested by
+ * BOTH its divisions — so a tier-2 club can knock out a champion, and a tier-1
+ * club can win a treble (league + domestic cup + Continental Cup).
+ *
+ * The field (40 clubs on a standard world) isn't a power of two, so the lowest
+ * ranked clubs play a preliminary round to cut it to one: 16 of the 20 tier-2
+ * clubs meet in eight preliminary ties, and the eight winners join the other 24
+ * for a round of 32. Rounds are drawn OPEN — after each round the survivors go
+ * back in the hat and the home side is drawn at random — which is what makes a
+ * domestic cup a domestic cup, and is why the bracket can't be shown in advance.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * League matchdays the domestic cup rounds are played on, final last. A cup with
+ * fewer rounds than this (a smaller world) takes the LAST n, so the final always
+ * lands on the same matchday whatever the field size.
+ *
+ * Every one of these is clear of CUP_LEAGUE_PHASE_MATCHDAYS / CUP_PLAYOFF_MATCHDAY /
+ * CUP_KO_LEG_MATCHDAYS, so no club is ever asked to play two cup ties on one
+ * matchday, and clear of TRANSFER_DEADLINE_MATCHDAY and the season finale (38).
+ * The final sits on 36, a matchday before the Continental Cup final on 37.
+ */
+export const DOMESTIC_CUP_MATCHDAYS = [5, 9, 13, 21, 26, 36] as const;
+
+/**
+ * Prize for winning a tie, indexed by how many rounds remain INCLUDING the one
+ * won: [0] = lifting the trophy, [1] = winning a semi-final, and so on. Indexed
+ * from the final backwards (never from round 0) so the same table is correct
+ * whether a country's cup opens with a preliminary round or not — the same
+ * reason cupRoundsFromFinal exists for the Continental Cup's run bonus.
+ *
+ * Sized well below the Continental Cup's (a full domestic run pays ~19.75M
+ * against ~46M) and, unlike the Continental Cup's, multiplied by the club's
+ * financeScale. That is load-bearing rather than flavour: every country runs a
+ * cup, so an unscaled payout would hand a Turkish club the same money as an
+ * English one against 0.4x the base income, and a weaker-but-richer league
+ * climbs the strength ladder over a dynasty (see COUNTRY_BUDGET_SCALE in
+ * CLAUDE.md — the ladder inverted by 2.23 OVR the last time money outran
+ * strength).
+ */
+export const DOMESTIC_CUP_PRIZE_BY_ROUNDS_FROM_FINAL: readonly number[] = [
+  12_000_000, // lift the trophy
+  4_000_000, //  win a semi-final
+  2_000_000, //  win a quarter-final
+  1_000_000, //  win a round-of-16 tie
+  500_000, //    win a round-of-32 tie
+  250_000, //    win a preliminary tie
+];
+
+/** Losing the domestic final still pays, like the Continental Cup's runner-up cheque. */
+export const DOMESTIC_CUP_PRIZE_RUNNER_UP = 3_000_000;
+
+/**
+ * Country -> the adjective its cup is named with ("England" -> "English Cup").
+ * A country with no entry here falls back to "<Country> Cup", so a world with a
+ * new country still names its cup sensibly without touching this table.
+ */
+export const COUNTRY_CUP_ADJECTIVE: Readonly<Record<string, string>> = {
+  England: "English",
+  Spain: "Spanish",
+  Italy: "Italian",
+  Germany: "German",
+  France: "French",
+  Portugal: "Portuguese",
+  Belgium: "Belgian",
+  Turkey: "Turkish",
+};
+
 /**
  * Match Rating (average) leaderboard qualifier. An average over one or two
  * games is noise — a single standout cameo would otherwise top the chart — so
@@ -2534,6 +2603,13 @@ export const GOAT_GOLDEN_BOOT_WEIGHT = 15;
 export const GOAT_TOTS_WEIGHT = 10;
 export const GOAT_LEAGUE_TITLE_WEIGHT = 12;
 export const GOAT_CUP_TITLE_WEIGHT = 25;
+/**
+ * A domestic cup, deliberately the cheapest trophy on the board: it's a knockout
+ * a club can win in six games without being any good over a season, which is
+ * exactly what makes it fun and exactly why it shouldn't build a GOAT case.
+ * Below a league title (12) for that reason.
+ */
+export const GOAT_DOMESTIC_CUP_TITLE_WEIGHT = 6;
 export const GOAT_WORLD_CUP_WEIGHT = 50;
 export const GOAT_CAP_WEIGHT = 0.3;
 export const GOAT_GOAL_WEIGHT = 0.15;
@@ -2552,6 +2628,8 @@ export const GOAT_ASSIST_WEIGHT = 0.1;
  */
 export const GOAT_TEAM_LEAGUE_TITLE_WEIGHT = 100;
 export const GOAT_TEAM_CUP_TITLE_WEIGHT = 150;
+/** Same reasoning as the player weight: a fine trophy, a weak argument. */
+export const GOAT_TEAM_DOMESTIC_CUP_TITLE_WEIGHT = 40;
 export const GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT = 20;
 export const GOAT_TEAM_TOP_FINISH_WEIGHT = 15;
 /** A finishing position this good or better counts as contending. */

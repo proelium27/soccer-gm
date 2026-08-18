@@ -1,6 +1,18 @@
 import type { Player } from "./players/types.js";
 import type { ArchivedPlayer } from "./players/archive.js";
 import type { SeasonHistoryEntry } from "./standings.js";
+import type { CupState } from "./cup/types.js";
+import type { DomesticCupState } from "./domesticCup/types.js";
+
+/**
+ * The completed cups a career is measured against. Passed in rather than read
+ * off a LeagueStore so this file stays a pure derivation over history — and so
+ * a caller that has neither (an old save, a test) can pass nothing.
+ */
+export interface HonorCups {
+  cupHistory?: CupState[];
+  domesticCupHistory?: DomesticCupState[];
+}
 
 /** A player's career honours, each a list of the seasons he won it. */
 export interface PlayerHonors {
@@ -11,6 +23,10 @@ export interface PlayerHonors {
   teamOfSeason: number[];
   /** Seasons his club won its league *while he was in the squad*. */
   leagueTitles: number[];
+  /** Seasons his club won the Continental Cup while he was in the squad. */
+  continentalCups: number[];
+  /** Seasons his club won its domestic cup while he was in the squad. */
+  domesticCups: number[];
   hasAny: boolean;
 }
 
@@ -52,8 +68,9 @@ function squadTidForSeason(player: Player, season: number): number | undefined {
 export function computePlayerHonors(
   player: Player,
   seasonHistory: SeasonHistoryEntry[],
+  cups: HonorCups = {},
 ): PlayerHonors {
-  return honorsOf(player.pid, (season) => squadTidForSeason(player, season), seasonHistory);
+  return honorsOf(player.pid, (season) => squadTidForSeason(player, season), seasonHistory, cups);
 }
 
 /**
@@ -68,9 +85,10 @@ export function computePlayerHonors(
 export function computeArchivedHonors(
   archived: ArchivedPlayer,
   seasonHistory: SeasonHistoryEntry[],
+  cups: HonorCups = {},
 ): PlayerHonors {
   const tidBySeason = new Map(archived.seasons.map((s) => [s.season, s.tid]));
-  return honorsOf(archived.pid, (season) => tidBySeason.get(season), seasonHistory);
+  return honorsOf(archived.pid, (season) => tidBySeason.get(season), seasonHistory, cups);
 }
 
 /**
@@ -82,6 +100,7 @@ function honorsOf(
   pid: number,
   squadTid: (season: number) => number | undefined,
   seasonHistory: SeasonHistoryEntry[],
+  cups: HonorCups,
 ): PlayerHonors {
   const ballonDOr: number[] = [];
   const worldTeamOfYear: number[] = [];
@@ -89,6 +108,23 @@ function honorsOf(
   const goldenBoot: number[] = [];
   const teamOfSeason: number[] = [];
   const leagueTitles: number[] = [];
+  const continentalCups: number[] = [];
+  const domesticCups: number[] = [];
+
+  // Cup wins are team honours attributed exactly like a league title: the club
+  // he was in the squad of that season. Both lists are keyed by season and
+  // walked here rather than inside the seasonHistory loop, because a cup can
+  // exist for a season that has no history entry yet.
+  for (const cup of cups.cupHistory ?? []) {
+    if (cup.championTid != null && squadTid(cup.season) === cup.championTid) {
+      continentalCups.push(cup.season);
+    }
+  }
+  for (const cup of cups.domesticCupHistory ?? []) {
+    if (cup.championTid != null && squadTid(cup.season) === cup.championTid) {
+      domesticCups.push(cup.season);
+    }
+  }
 
   for (const entry of seasonHistory) {
     for (const compAwards of Object.values(entry.awards)) {
@@ -114,12 +150,16 @@ function honorsOf(
     goldenBoot,
     teamOfSeason,
     leagueTitles,
+    continentalCups,
+    domesticCups,
     hasAny:
       ballonDOr.length > 0 ||
       worldTeamOfYear.length > 0 ||
       playerOfSeason.length > 0 ||
       goldenBoot.length > 0 ||
       teamOfSeason.length > 0 ||
-      leagueTitles.length > 0,
+      leagueTitles.length > 0 ||
+      continentalCups.length > 0 ||
+      domesticCups.length > 0,
   };
 }

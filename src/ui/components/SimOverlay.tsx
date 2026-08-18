@@ -4,6 +4,7 @@ import type { SimProgress } from "../useSimWorker.js";
 import type { PlayedMatch } from "../../core/standings.js";
 import type { CupTie } from "../../core/cup/types.js";
 import { cupRoundName } from "../../core/cup/cup.js";
+import { CUP_NAME } from "../../core/constants.js";
 
 interface SimOverlayProps {
   open: boolean;
@@ -28,8 +29,8 @@ function userGame(md: SimProgress | undefined, userTid: number): PlayedMatch | u
 // marker so the tournament is still visible in the animation.
 type TickerItem =
   | { kind: "league"; game: PlayedMatch }
-  | { kind: "cup"; tie: CupTie }
-  | { kind: "cup-marker"; round: number; matchday: number };
+  | { kind: "cup"; tie: CupTie; label: string; sub: string }
+  | { kind: "cup-marker"; label: string; sub: string; matchday: number };
 
 function tickerItemsFor(md: SimProgress, userTid: number): TickerItem[] {
   const items: TickerItem[] = [];
@@ -38,10 +39,28 @@ function tickerItemsFor(md: SimProgress, userTid: number): TickerItem[] {
 
   const userTie = md.cupTies.find((t) => t.home === userTid || t.away === userTid);
   if (userTie) {
-    items.push({ kind: "cup", tie: userTie });
+    items.push({ kind: "cup", tie: userTie, label: CUP_NAME, sub: cupRoundName(userTie.round) });
   } else if (md.cupTies.length > 0) {
     const t = md.cupTies[0];
-    items.push({ kind: "cup-marker", round: t.round, matchday: t.matchday });
+    items.push({
+      kind: "cup-marker", label: CUP_NAME, sub: cupRoundName(t.round), matchday: t.matchday,
+    });
+  }
+
+  // Domestic cups carry their own name and round label, because a round index
+  // alone means different things in different cups (and in different countries'
+  // cups, which may be at different stages on the same matchday).
+  const domestic = md.domesticTies ?? [];
+  const userDomestic = domestic.find((d) => d.tie.home === userTid || d.tie.away === userTid);
+  if (userDomestic) {
+    items.push({
+      kind: "cup", tie: userDomestic.tie, label: userDomestic.cupName, sub: userDomestic.roundName,
+    });
+  } else if (domestic.length > 0) {
+    const d = domestic[0];
+    items.push({
+      kind: "cup-marker", label: d.cupName, sub: d.roundName, matchday: d.tie.matchday,
+    });
   }
   return items;
 }
@@ -141,11 +160,11 @@ export function SimOverlay({ open, teams, queue, done, userTid, onComplete }: Si
               if (item.kind === "cup-marker") {
                 return (
                   <div
-                    key={`cm-${item.matchday}`}
+                    key={`cm-${item.label}-${item.matchday}`}
                     className="sim-ticker-card sim-ticker-cup sim-ticker-cup-marker"
                   >
-                    <div className="sim-ticker-cup-label">Continental Cup</div>
-                    <div className="sim-ticker-cup-sub">{cupRoundName(item.round)}</div>
+                    <div className="sim-ticker-cup-label">{item.label}</div>
+                    <div className="sim-ticker-cup-sub">{item.sub}</div>
                   </div>
                 );
               }
@@ -160,11 +179,11 @@ export function SimOverlay({ open, teams, queue, done, userTid, onComplete }: Si
                   : null;
               return (
                 <div
-                  key={`c-${t.matchday}-${t.home}-${t.away}`}
+                  key={`c-${item.label}-${t.matchday}-${t.home}-${t.away}`}
                   className={`sim-ticker-card sim-ticker-cup sim-ticker-cup-${won ? "win" : "loss"}`}
                 >
-                  <div className="sim-ticker-cup-label">Continental Cup</div>
-                  <div className="sim-ticker-cup-sub">{cupRoundName(t.round)}</div>
+                  <div className="sim-ticker-cup-label">{item.label}</div>
+                  <div className="sim-ticker-cup-sub">{item.sub}</div>
                   <div className="sim-ticker-row">
                     <span className="sim-ticker-team">{teamLabel(teams, t.home)}</span>
                     <span className="sim-ticker-score">{t.homeGoals}</span>

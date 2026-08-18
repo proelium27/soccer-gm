@@ -14,6 +14,8 @@ import type { PlayedMatch } from "../../core/standings.js";
 import type { CupState } from "../../core/cup/types.js";
 import { competitionOf } from "../../core/competitions.js";
 import { cupRoundName, koRoundsOf } from "../../core/cup/cup.js";
+import type { DomesticCupState } from "../../core/domesticCup/types.js";
+import { domesticRoundName } from "../../core/domesticCup/cup.js";
 import { leaguePhaseTable } from "../../core/cup/leaguePhase.js";
 import type { LiveTableRow } from "../components/LiveMatchOverlay.js";
 import type { LiveChoice } from "../components/LiveMatchPicker.js";
@@ -34,7 +36,7 @@ export interface LiveView {
 }
 
 export interface LiveCandidate {
-  key: "league" | "cup";
+  key: "league" | "cup" | "domestic";
   choice: LiveChoice;
   view: LiveView;
 }
@@ -228,6 +230,53 @@ function cupCandidate(
 }
 
 /**
+ * The user's domestic cup tie, if his country's cup played a round today.
+ *
+ * Far simpler than the Continental Cup's four shapes: a domestic cup keeps one
+ * list of rounds and every tie is single-leg, so it's one lookup. There is no
+ * table to stand in beside the match, since a knockout has none.
+ *
+ * Reads the POST-sim cups, which are the ones holding today's results.
+ */
+function domesticCandidate(
+  cups: DomesticCupState[],
+  userTid: number,
+  matchday: number,
+  nameOf: (tid: number) => string,
+): LiveCandidate | null {
+  for (const cup of cups) {
+    const round = cup.rounds.find((r) => r.matchday === matchday && r.ties.length > 0);
+    if (!round) continue;
+    const ours = round.ties.find((t) => t.home === userTid || t.away === userTid);
+    if (!ours?.boxScore) continue;
+
+    const asLive = (t: typeof ours): LiveMatch => ({
+      home: t.home,
+      away: t.away,
+      matchday,
+      events: t.boxScore!.events,
+    });
+    const subtitle = domesticRoundName(cup, round.round);
+    return {
+      key: "domestic",
+      choice: {
+        key: "domestic",
+        title: cup.name,
+        detail: `${subtitle}, ${versus(userTid, ours.home, ours.away, nameOf)}`,
+      },
+      view: {
+        match: asLive(ours),
+        otherMatches: round.ties.filter((t) => t !== ours && t.boxScore).map(asLive),
+        competitionName: cup.name,
+        subtitle,
+        tableAtMinute: null,
+      },
+    };
+  }
+  return null;
+}
+
+/**
  * Everything the user could watch on the matchday just simulated, in the order
  * the engine played them — the cup round runs before the league fixtures.
  */
@@ -242,5 +291,6 @@ export function liveCandidates(
   const matchday = league?.view.match.matchday ?? mdResults[0]?.matchday;
   if (matchday === undefined) return [];
   const cup = cupCandidate(after.cup, userTid, matchday, nameOf);
-  return [cup, league].filter((c): c is LiveCandidate => c !== null);
+  const domestic = domesticCandidate(after.domesticCups ?? [], userTid, matchday, nameOf);
+  return [cup, domestic, league].filter((c): c is LiveCandidate => c !== null);
 }

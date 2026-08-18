@@ -11,6 +11,7 @@ import { NewLeague } from "./pages/NewLeague.js";
 import { Dashboard } from "./pages/Dashboard.js";
 import { Standings } from "./pages/Standings.js";
 import { Cup } from "./pages/Cup.js";
+import { DomesticCup } from "./pages/DomesticCup.js";
 import { NTWorldCup } from "./pages/nationalTeams/WorldCup.js";
 import { NTQualifying } from "./pages/nationalTeams/Qualifying.js";
 import { NTSchedule } from "./pages/nationalTeams/Schedule.js";
@@ -93,6 +94,7 @@ export function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/standings" element={<Standings />} />
             <Route path="/cup" element={<Cup />} />
+            <Route path="/domestic-cup" element={<DomesticCup />} />
             <Route path="/national-teams/world-cup" element={<NTWorldCup />} />
             <Route path="/national-teams/qualifying" element={<NTQualifying />} />
             <Route path="/national-teams/schedule" element={<NTSchedule />} />

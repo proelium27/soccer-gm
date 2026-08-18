@@ -1,5 +1,6 @@
 import type { LeagueStore } from "../leagueState.js";
 import type { Player } from "./types.js";
+import type { DomesticCupState } from "../domesticCup/types.js";
 import {
   FREE_AGENT_CULL_MIN_AGE,
   FREE_AGENT_CULL_MAX_PEAK_OVR,
@@ -171,6 +172,8 @@ export function cullFreeAgentPool(league: LeagueStore): LeagueStore {
     // so a historical tie never lists a player who no longer exists.
     cupHistory: league.cupHistory.map((cup) => scrubCupLines(cup, cull)),
     cup: league.cup ? scrubCupLines(league.cup, cull) : league.cup,
+    domesticCups: (league.domesticCups ?? []).map((c) => scrubDomesticCupLines(c, cull)),
+    domesticCupHistory: (league.domesticCupHistory ?? []).map((c) => scrubDomesticCupLines(c, cull)),
     international: scrubInternational(league.international, cull),
   };
 }
@@ -263,4 +266,34 @@ function scrubCupLines<T extends LeagueStore["cupHistory"][number]>(
   if (statLines !== cup.statLines) touched = true;
 
   return touched ? { ...cup, leaguePhase, playoff, playIn, ties, statLines } : cup;
+}
+
+/**
+ * The same scrub for a domestic cup: its ties' box-score lines while it's live,
+ * and its stored aggregate lines once archived. Simpler than the Continental
+ * Cup's only because a domestic cup has one kind of stage.
+ */
+function scrubDomesticCupLines(
+  cup: DomesticCupState,
+  cull: ReadonlySet<number>,
+): DomesticCupState {
+  let touched = false;
+  const rounds = (cup.rounds ?? []).map((round) => {
+    const ties = (round.ties ?? []).map((t) => {
+      if (!t.boxScore) return t;
+      const home = t.boxScore.home.filter((l) => !cull.has(l.pid));
+      const away = t.boxScore.away.filter((l) => !cull.has(l.pid));
+      if (home.length === t.boxScore.home.length && away.length === t.boxScore.away.length) return t;
+      touched = true;
+      return { ...t, boxScore: { ...t.boxScore, home, away } };
+    });
+    return ties === round.ties ? round : { ...round, ties };
+  });
+
+  const statLines = cup.statLines?.some((l) => cull.has(l.pid))
+    ? cup.statLines.filter((l) => !cull.has(l.pid))
+    : cup.statLines;
+  if (statLines !== cup.statLines) touched = true;
+
+  return touched ? { ...cup, rounds, statLines } : cup;
 }

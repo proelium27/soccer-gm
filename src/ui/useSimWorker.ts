@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LeagueStore } from "../core/leagueState.js";
 import type { PlayedMatch } from "../core/standings.js";
 import type { CupTie } from "../core/cup/types.js";
+import type { DomesticTieResult } from "../core/simThrough.js";
 import type { SimThrough, IntlMode, WorkerResponse } from "../worker/protocol.js";
 
 export type SimProgress = {
@@ -11,6 +12,7 @@ export type SimProgress = {
   totalMatchdays: number;
   results: PlayedMatch[];
   cupTies: CupTie[];
+  domesticTies: DomesticTieResult[];
 };
 
 type Pending = {
@@ -31,8 +33,12 @@ export function useSimWorker() {
     );
     worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
       if (e.data.type === "simProgress") {
-        const { matchday, matchdayIndex, totalMatchdays, results, cupTies } = e.data;
-        progressRef.current?.({ matchday, matchdayIndex, totalMatchdays, results, cupTies });
+        const { matchday, matchdayIndex, totalMatchdays, results, cupTies, domesticTies } = e.data;
+        progressRef.current?.({
+          matchday, matchdayIndex, totalMatchdays, results, cupTies,
+          // Absent on a message from an older worker build mid-upgrade.
+          domesticTies: domesticTies ?? [],
+        });
         return;
       }
       if (
