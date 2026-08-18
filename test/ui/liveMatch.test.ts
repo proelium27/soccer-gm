@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import type { MatchEvent } from "../../src/engine/attribution.js";
-import type { PlayedMatch } from "../../src/core/standings.js";
 import {
   eventMinute,
   eventsThrough,
@@ -8,7 +7,9 @@ import {
   REGULATION_MINUTES,
   scoreAtMinute,
   scoresAtMinute,
+  splitTwoLeggedEvents,
   statsAtMinute,
+  type LiveMatch,
 } from "../../src/ui/live/liveMatch.js";
 
 /**
@@ -114,17 +115,51 @@ describe("statsAtMinute", () => {
   });
 });
 
+describe("splitTwoLeggedEvents", () => {
+  /**
+   * A finished two-legged cup tie stores [...leg1, ...leg2] on ONE box score,
+   * and both legs count down from the same 5400. Replaying that merged stream
+   * would cram 180 minutes onto a 90-minute clock, so the viewer splits it back
+   * apart at the one point where the clock jumps back up.
+   */
+  it("splits a merged tie at the point the clock restarts", () => {
+    const leg1 = [at(10, "goal", "home"), at(80, "goal", "away")];
+    const leg2 = [at(5, "goal", "home"), at(60, "yellow_card", "away"), at(88, "goal", "home")];
+    const [first, second] = splitTwoLeggedEvents([...leg1, ...leg2]);
+    expect(first).toEqual(leg1);
+    expect(second).toEqual(leg2);
+  });
+
+  it("scores each leg separately once split, rather than as one long match", () => {
+    const leg1 = [at(10, "goal", "home")];
+    const leg2 = [at(5, "goal", "home"), at(70, "goal", "home")];
+    const [first, second] = splitTwoLeggedEvents([...leg1, ...leg2]);
+    expect(scoreAtMinute(first, 90)).toEqual({ home: 1, away: 0 });
+    expect(scoreAtMinute(second, 90)).toEqual({ home: 2, away: 0 });
+    // The merged stream would have read as a single 3-0 match.
+    expect(scoreAtMinute([...leg1, ...leg2], 90)).toEqual({ home: 3, away: 0 });
+  });
+
+  it("treats a single-leg tie as one leg with nothing after it", () => {
+    const only = [at(10, "goal", "home"), at(80, "goal", "away")];
+    expect(splitTwoLeggedEvents(only)).toEqual([only, []]);
+  });
+
+  it("handles an empty stream", () => {
+    expect(splitTwoLeggedEvents([])).toEqual([[], []]);
+  });
+
+  it("splits on the first restart only, so a long second leg stays whole", () => {
+    const leg1 = [at(30, "goal", "home")];
+    const leg2 = [at(2, "goal", "away"), at(40, "goal", "home"), at(90, "goal", "away")];
+    const [, second] = splitTwoLeggedEvents([...leg1, ...leg2]);
+    expect(second).toHaveLength(3);
+  });
+});
+
 describe("scoresAtMinute", () => {
-  function match(events: MatchEvent[]): PlayedMatch {
-    return {
-      home: 1,
-      away: 2,
-      homeGoals: 0,
-      awayGoals: 0,
-      possessionHome: 0.5,
-      matchday: 1,
-      boxScore: { home: [], away: [], events },
-    } as unknown as PlayedMatch;
+  function match(events: MatchEvent[]): LiveMatch {
+    return { home: 1, away: 2, matchday: 1, events };
   }
 
   it("reports every match on the rail at the same shared minute", () => {

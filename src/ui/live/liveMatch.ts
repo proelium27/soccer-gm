@@ -14,6 +14,28 @@ import type { MatchScore, PlayedMatch, StandingsRow } from "../../core/standings
 import { computeStandings } from "../../core/standings.js";
 import { MATCH_SECONDS } from "../../engine/constants.js";
 
+/**
+ * The least a match needs to be watchable: two clubs and a timestamped event
+ * stream.
+ *
+ * Deliberately narrower than `PlayedMatch`, because the viewer is fed from four
+ * different shapes — a league fixture, a Continental Cup league-phase match, a
+ * knockout leg held in `CupState.koLegs`, and a leg split back out of a
+ * finished two-legged tie. None of those are `PlayedMatch`es, and only this
+ * much is common to all of them.
+ */
+export interface LiveMatch {
+  home: number;
+  away: number;
+  matchday: number;
+  events: MatchEvent[];
+}
+
+/** A league fixture as something the viewer can play. */
+export function toLiveMatch(m: PlayedMatch): LiveMatch {
+  return { home: m.home, away: m.away, matchday: m.matchday, events: m.boxScore.events };
+}
+
 /** Regulation length. Stoppage pushes real matches past this. */
 export const REGULATION_MINUTES = MATCH_SECONDS / 60;
 
@@ -145,8 +167,34 @@ export function statsAtMinute(
   return out;
 }
 
+/**
+ * Split a two-legged tie's merged event stream back into its two legs.
+ *
+ * `resolveTwoLeggedTie` stores `[...leg1.events, ...leg2.events]` on one box
+ * score, and both legs count their clock DOWN from the same 5400 — so replaying
+ * the merged stream would cram 180 minutes onto a 90-minute clock and show the
+ * score lurching about. The legs are concatenated rather than interleaved,
+ * though, so the boundary is the single point where the clock jumps back up.
+ *
+ * Safe because extra time contributes **no events** (it only updates player
+ * lines), so nothing follows leg 2 to confuse the split. A single-leg tie has
+ * no such jump and comes back as one leg and an empty second.
+ *
+ * Note leg 2 is played at the other ground, so its events use the reversed
+ * orientation: `side: "home"` there means the tie's *away* club. Callers show
+ * leg 2 with the clubs swapped, which is what actually happened.
+ */
+export function splitTwoLeggedEvents(events: MatchEvent[]): [MatchEvent[], MatchEvent[]] {
+  for (let i = 1; i < events.length; i++) {
+    if (events[i].clock > events[i - 1].clock) {
+      return [events.slice(0, i), events.slice(i)];
+    }
+  }
+  return [events, []];
+}
+
 export interface LiveOtherMatch {
-  match: PlayedMatch;
+  match: LiveMatch;
   score: LiveScore;
   /** True when this match's score changed on exactly this minute, so the rail can flash it. */
   justScored: boolean;
@@ -159,10 +207,10 @@ export interface LiveOtherMatch {
  * Free of extra simulation — each match already carries its own event stream,
  * so this is the same goal count applied across the fixture list.
  */
-export function scoresAtMinute(matches: PlayedMatch[], minute: number): LiveOtherMatch[] {
+export function scoresAtMinute(matches: LiveMatch[], minute: number): LiveOtherMatch[] {
   return matches.map((match) => {
-    const score = scoreAtMinute(match.boxScore.events, minute);
-    const previous = scoreAtMinute(match.boxScore.events, minute - 1);
+    const score = scoreAtMinute(match.events, minute);
+    const previous = scoreAtMinute(match.events, minute - 1);
     return {
       match,
       score,
@@ -184,11 +232,11 @@ export function scoresAtMinute(matches: PlayedMatch[], minute: number): LiveOthe
 export function liveTableRows(
   teamIds: number[],
   priorMatches: MatchScore[],
-  todayMatches: PlayedMatch[],
+  todayMatches: LiveMatch[],
   minute: number,
 ): StandingsRow[] {
   const inProgress: MatchScore[] = todayMatches.map((m) => {
-    const score = scoreAtMinute(m.boxScore.events, minute);
+    const score = scoreAtMinute(m.events, minute);
     return { home: m.home, away: m.away, homeGoals: score.home, awayGoals: score.away };
   });
   return computeStandings(teamIds, [...priorMatches, ...inProgress]);

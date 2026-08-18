@@ -4,8 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { LiveMatchOverlay } from "../../src/ui/components/LiveMatchOverlay.js";
 import type { MatchEvent } from "../../src/engine/attribution.js";
-import type { PlayedMatch } from "../../src/core/standings.js";
 import type { StoredTeam } from "../../src/core/teams/clubs.js";
+import type { LiveMatch } from "../../src/ui/live/liveMatch.js";
 
 /**
  * Render harness for the live viewer (the pattern from transfersRender.test.tsx:
@@ -21,26 +21,19 @@ function at(minute: number, type: MatchEvent["type"], side: MatchEvent["side"]):
   return { clock: 5400 - (minute - 1) * 60 - 1, type, side, pids: [1, 2] };
 }
 
-function match(over: Partial<PlayedMatch> = {}): PlayedMatch {
+function match(over: Partial<LiveMatch> = {}): LiveMatch {
   return {
     home: 1,
     away: 2,
-    homeGoals: 3,
-    awayGoals: 1,
-    possessionHome: 0.55,
     matchday: 7,
-    boxScore: {
-      home: [],
-      away: [],
-      events: [
-        at(20, "goal", "home"),
-        at(55, "goal", "away"),
-        at(70, "goal", "home"),
-        at(88, "goal", "home"),
-      ],
-    },
+    events: [
+      at(20, "goal", "home"),
+      at(55, "goal", "away"),
+      at(70, "goal", "home"),
+      at(88, "goal", "home"),
+    ],
     ...over,
-  } as PlayedMatch;
+  };
 }
 
 function team(tid: number, name: string, abbrev: string): StoredTeam {
@@ -60,9 +53,8 @@ function overlay(over: Record<string, unknown> = {}) {
     otherMatches: [],
     teams: TEAMS,
     playerName: (pid: number) => `Player ${pid}`,
-    compTeamIds: [1, 2, 3, 4],
-    priorMatches: [],
     competitionName: "Premier Division",
+    tableAtMinute: () => TEAMS.map((t) => ({ tid: t.tid, points: 0 })),
     onComplete: () => {},
     ...over,
   } as never);

@@ -29,23 +29,11 @@ import { isValidStarters } from "../../core/lineup/resolveXI.js";
 import { teamSlots, chooseBestFormation, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { SimOverlay } from "../components/SimOverlay.js";
 import { LiveMatchOverlay } from "../components/LiveMatchOverlay.js";
+import { LiveMatchPicker } from "../components/LiveMatchPicker.js";
+import { liveCandidates, type LiveCandidate } from "../live/liveCandidates.js";
 import { usePlayerMap } from "../usePlayerMap.js";
-import { competitionOf } from "../../core/competitions.js";
-import type { MatchScore, PlayedMatch } from "../../core/standings.js";
+import type { PlayedMatch } from "../../core/standings.js";
 import { trackEvent } from "../analytics.js";
-
-/**
- * A matchday captured for the live viewer: the user's match plus the context
- * the rail needs. Snapshotted from the *pre-sim* league, since the simmed
- * league it belongs to is deliberately not committed until the viewer closes.
- */
-interface LiveMatchState {
-  match: PlayedMatch;
-  otherMatches: PlayedMatch[];
-  compTeamIds: number[];
-  priorMatches: MatchScore[];
-  competitionName: string;
-}
 
 interface LeagueContextValue {
   league: LeagueStore | null;
@@ -124,7 +112,10 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
 
   // Everything the live match viewer needs, captured from the pre-sim league
   // plus the simmed matchday. Null whenever no match is being watched.
-  const [liveMatch, setLiveMatch] = useState<LiveMatchState | null>(null);
+  const [watchable, setLiveCandidates] = useState<LiveCandidate[] | null>(null);
+  // Which candidate is being watched. Null while the picker is up, which only
+  // happens when the matchday offered more than one.
+  const [liveChoice, setLiveChoice] = useState<string | null>(null);
   const liveOpenRef = useRef(false);
   // The viewer names scorers and bookings, so it needs the pid lookup. Memoized
   // on the players array, so it is rebuilt once per commit rather than per tick
@@ -304,7 +295,8 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       commitLeague({ ...result, lid });
     }
     liveOpenRef.current = false;
-    setLiveMatch(null);
+    setLiveCandidates(null);
+    setLiveChoice(null);
   }), [runExclusive, commitLeague]);
 
   const simLiveAction = useCallback(() => runExclusive(async () => {
@@ -321,10 +313,12 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       // detect a no-op sim by comparing played-game counts.
       if (result.played.length === current.played.length) return;
 
-      const userTid = current.meta.userTid;
-      const userMatch = mdResults.find((m) => m.home === userTid || m.away === userTid);
-      const userTeam = current.teams.find((t) => t.tid === userTid);
-      if (!userMatch || !userTeam) {
+      const clubName = (tid: number) =>
+        current.teams.find((t) => t.tid === tid)?.name ?? `#${tid}`;
+      // A cup matchday is an ordinary league matchday too, so this can hand
+      // back two matches — the cup tie and the league fixture.
+      const candidates = liveCandidates(current, result, mdResults, clubName);
+      if (candidates.length === 0) {
         // Nothing of the user's to watch — commit it like an ordinary sim
         // rather than opening an empty viewer.
         const lid = await saveLeague(result);
@@ -332,27 +326,17 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const compTeamIds = current.teams
-        .filter((t) => t.compId === userTeam.compId)
-        .map((t) => t.tid);
-      const inComp = new Set(compTeamIds);
-
       pendingResultRef.current = result;
       liveOpenRef.current = true;
-      setLiveMatch({
-        match: userMatch,
-        // The rail shows the user's own division. Every competition in the
-        // world plays the same day, and all sixteen at once is noise.
-        otherMatches: mdResults.filter((m) => m !== userMatch && inComp.has(m.home)),
-        compTeamIds,
-        priorMatches: current.played.filter((m) => inComp.has(m.home)),
-        competitionName: competitionOf(current.competitions, userTeam.compId).name,
-      });
+      setLiveCandidates(candidates);
+      // Only ask when there is genuinely a choice to make.
+      setLiveChoice(candidates.length === 1 ? candidates[0].key : null);
       trackEvent("season_simmed", { through: "game", live: true });
     } catch (err) {
       pendingResultRef.current = null;
       liveOpenRef.current = false;
-      setLiveMatch(null);
+      setLiveCandidates(null);
+      setLiveChoice(null);
       console.error("Live simulation failed:", err);
     }
   }), [runExclusive, sim, commitLeague]);
@@ -699,7 +683,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     // The live viewer blocks other actions the same way the sim overlay does:
     // its matchday is simmed but uncommitted, so anything else acting on the
     // league would be computing from a state that is about to be replaced.
-    simming: simming || simOverlayOpen || liveMatch !== null || busy,
+    simming: simming || simOverlayOpen || watchable !== null || busy,
     saveToDb,
     exportJSON: doExport,
     importJSON: doImport,
@@ -715,7 +699,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     autoPickBestXIAction,
     setGodModeAction, movePlayerToClubAction, releasePlayerGodModeAction,
     editPlayerAction, createPlayerAction, setClubFinancesAction,
-    simming, simOverlayOpen, liveMatch, busy, saveToDb, doExport, doImport,
+    simming, simOverlayOpen, watchable, busy, saveToDb, doExport, doImport,
   ]);
 
   return (
@@ -729,19 +713,32 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         userTid={league?.meta.userTid ?? -1}
         onComplete={finishSimAnimation}
       />
-      {liveMatch && (
-        <LiveMatchOverlay
+      {/* Two matches on this matchday: ask before playing either. */}
+      {watchable && liveChoice === null && (
+        <LiveMatchPicker
           open
-          match={liveMatch.match}
-          otherMatches={liveMatch.otherMatches}
-          teams={league?.teams ?? []}
-          playerName={playerName}
-          compTeamIds={liveMatch.compTeamIds}
-          priorMatches={liveMatch.priorMatches}
-          competitionName={liveMatch.competitionName}
-          onComplete={finishLiveMatch}
+          choices={watchable.map((c) => c.choice)}
+          onPick={setLiveChoice}
+          onSkip={finishLiveMatch}
         />
       )}
+      {watchable && liveChoice !== null && (() => {
+        const chosen = watchable.find((c) => c.key === liveChoice);
+        if (!chosen) return null;
+        return (
+          <LiveMatchOverlay
+            open
+            match={chosen.view.match}
+            otherMatches={chosen.view.otherMatches}
+            teams={league?.teams ?? []}
+            playerName={playerName}
+            competitionName={chosen.view.competitionName}
+            subtitle={chosen.view.subtitle}
+            tableAtMinute={chosen.view.tableAtMinute}
+            onComplete={finishLiveMatch}
+          />
+        );
+      })()}
     </Ctx.Provider>
   );
 }

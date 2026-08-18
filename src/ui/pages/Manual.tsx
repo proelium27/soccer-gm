@@ -294,12 +294,20 @@ export function Manual() {
             see one again later, open its box score and hit <strong>Watch it back</strong>.
           </p>
           <p>
+            Cup ties can be watched too. Continental Cup rounds land on league matchdays, so on
+            one of those you have two matches: the game asks which you'd rather watch, and plays
+            both either way &mdash; the one you skip still has its box score. A league-phase match
+            shows the Swiss table beside it instead of your league table, and a two-legged
+            quarter-final or semi-final is watched a leg at a time, the second leg at the other
+            club's ground.
+          </p>
+          <p>
             The match is played the moment you press the button, and what you're watching is the
             recording of it, so watching never changes the result. It also means the matchday isn't
             saved until you close the viewer: quit halfway and it simply hasn't happened, and
             playing it again gives you the same match. You can't make substitutions while you watch
-            yet, possession and xG appear only at full time (they aren't tracked minute by minute),
-            and cup ties can't be watched — only league matches.
+            yet, and possession and xG appear only at full time (they aren't tracked minute by
+            minute).
           </p>
           <p>After matchday 38, the offseason runs on its own, in this order:</p>
           <ol>

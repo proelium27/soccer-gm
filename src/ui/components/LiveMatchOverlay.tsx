@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import type { PlayedMatch, MatchScore } from "../../core/standings.js";
 import type { StoredTeam } from "../../core/teams/clubs.js";
 import { ClubCrest } from "./ClubCrest.js";
 import { KEY_EVENTS, TimelineRow } from "./matchEvents.js";
@@ -7,10 +6,10 @@ import { useMatchPlayback, type PlaybackSpeed } from "../live/useMatchPlayback.j
 import {
   eventsThrough,
   HALF_TIME_MINUTE,
-  liveTableRows,
   scoreAtMinute,
   scoresAtMinute,
   statsAtMinute,
+  type LiveMatch,
 } from "../live/liveMatch.js";
 
 /**
@@ -28,19 +27,28 @@ import {
 
 const SPEEDS: PlaybackSpeed[] = [1, 2, 4];
 
+/** One row of the rail's table. Only what the rail draws — position comes from order. */
+export interface LiveTableRow {
+  tid: number;
+  points: number;
+}
+
 interface LiveMatchOverlayProps {
   open: boolean;
   /** The match being watched. */
-  match: PlayedMatch;
-  /** Every other match in the same competition on the same matchday. */
-  otherMatches: PlayedMatch[];
+  match: LiveMatch;
+  /** Every other match being played alongside it, for the rail. */
+  otherMatches: LiveMatch[];
   teams: StoredTeam[];
   playerName: (pid: number) => string;
-  /** Every tid in the competition, for the live table. */
-  compTeamIds: number[];
-  /** Matches played before this matchday, i.e. the table's starting point. */
-  priorMatches: MatchScore[];
   competitionName: string;
+  /** What this match is, when "Matchday N" doesn't say it — "Quarter-final, second leg". */
+  subtitle?: string;
+  /**
+   * The table beside the match, recomputed each minute so it moves as results
+   * land. Null for a knockout round, which has no table to stand in.
+   */
+  tableAtMinute?: ((minute: number) => LiveTableRow[]) | null;
   /** Called when the user leaves the viewer — commits the matchday in the live flow. */
   onComplete: () => void;
   completeLabel?: string;
@@ -97,14 +105,14 @@ export function LiveMatchOverlay({
   otherMatches,
   teams,
   playerName,
-  compTeamIds,
-  priorMatches,
   competitionName,
+  subtitle,
+  tableAtMinute,
   onComplete,
   completeLabel = "Continue",
 }: LiveMatchOverlayProps) {
   const [showAllEvents, setShowAllEvents] = useState(true);
-  const playback = useMatchPlayback(match.boxScore.events, { autoStart: open });
+  const playback = useMatchPlayback(match.events, { autoStart: open });
   const { minute, finished } = playback;
 
   const teamOf = useMemo(() => {
@@ -113,19 +121,19 @@ export function LiveMatchOverlay({
     return map;
   }, [teams]);
 
-  const score = scoreAtMinute(match.boxScore.events, minute);
-  const stats = statsAtMinute(match.boxScore.events, minute);
+  const score = scoreAtMinute(match.events, minute);
+  const stats = statsAtMinute(match.events, minute);
 
   // Newest first — a live feed reads top-down as it arrives, which also spares
   // an auto-scroll. The box score's own timeline stays oldest-first, since a
   // finished match reads as a story from kickoff.
-  const feed = eventsThrough(match.boxScore.events, minute)
+  const feed = eventsThrough(match.events, minute)
     .filter((e) => e.type !== "turnover")
     .filter((e) => showAllEvents || KEY_EVENTS.has(e.type))
     .reverse();
 
   const rail = scoresAtMinute(otherMatches, minute);
-  const table = liveTableRows(compTeamIds, priorMatches, [match, ...otherMatches], minute);
+  const table = tableAtMinute ? tableAtMinute(minute) : null;
 
   if (!open) return null;
 
@@ -143,7 +151,7 @@ export function LiveMatchOverlay({
         <div className="live-main">
           <header className="bs-scoreboard live-scoreboard">
             <div className="bs-eyebrow">
-              {competitionName} · Matchday {match.matchday}
+              {competitionName} · {subtitle ?? `Matchday ${match.matchday}`}
             </div>
             <div className="bs-scoreline">
               <div className="bs-club bs-club--home">
@@ -260,21 +268,26 @@ export function LiveMatchOverlay({
             </ul>
           )}
 
-          <div className="live-rail-head">Live table</div>
-          <ol className="live-rail-table">
-            {table.slice(0, 8).map((row, i) => (
-              <li
-                key={row.tid}
-                className={`live-rail-trow${
-                  row.tid === match.home || row.tid === match.away ? " live-rail-trow--mine" : ""
-                }`}
-              >
-                <span className="live-rail-pos stat-num">{i + 1}</span>
-                <span className="live-rail-club">{abbrevOf(row.tid)}</span>
-                <span className="live-rail-pts stat-num">{row.points}</span>
-              </li>
-            ))}
-          </ol>
+          {/* A knockout round has no table to stand in, so the rail just ends. */}
+          {table && (
+            <>
+              <div className="live-rail-head">Live table</div>
+              <ol className="live-rail-table">
+                {table.slice(0, 8).map((row, i) => (
+                  <li
+                    key={row.tid}
+                    className={`live-rail-trow${
+                      row.tid === match.home || row.tid === match.away ? " live-rail-trow--mine" : ""
+                    }`}
+                  >
+                    <span className="live-rail-pos stat-num">{i + 1}</span>
+                    <span className="live-rail-club">{abbrevOf(row.tid)}</span>
+                    <span className="live-rail-pts stat-num">{row.points}</span>
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
         </aside>
       </div>
     </div>

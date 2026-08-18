@@ -8,6 +8,7 @@ import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { KEY_EVENTS, TimelineRow } from "../components/matchEvents.js";
 import { LiveMatchOverlay } from "../components/LiveMatchOverlay.js";
+import { liveTableRows, toLiveMatch } from "../live/liveMatch.js";
 
 
 function ratingClass(rating: number): string {
@@ -302,6 +303,8 @@ export function BoxScore() {
   const sameMatchday = league.played.filter(
     (m) => m.matchday === match.matchday && inComp.has(m.home),
   );
+  const watchedMatch = toLiveMatch(match);
+  const watchedOthers = sameMatchday.filter((m) => m !== match).map(toLiveMatch);
 
   return (
     <div className="container-fluid p-3 bs-page">
@@ -321,18 +324,22 @@ export function BoxScore() {
       {watching && (
         <LiveMatchOverlay
           open
-          match={match}
-          otherMatches={sameMatchday.filter((m) => m !== match)}
+          match={watchedMatch}
+          otherMatches={watchedOthers}
           teams={league.teams}
           playerName={playerName}
-          compTeamIds={compTeamIds}
-          // The table as it stood going into this matchday, so it climbs the
-          // same way it did on the day rather than showing today's finished
-          // league position.
-          priorMatches={league.played.filter(
-            (m) => m.matchday < match.matchday && inComp.has(m.home),
-          )}
           competitionName={compName ?? ""}
+          tableAtMinute={(minute) =>
+            liveTableRows(
+              compTeamIds,
+              // The table as it stood going INTO this matchday, so it climbs
+              // the same way it did on the day rather than starting from
+              // today's finished position.
+              league.played.filter((m) => m.matchday < match.matchday && inComp.has(m.home)),
+              [watchedMatch, ...watchedOthers],
+              minute,
+            )
+          }
           onComplete={() => setWatching(false)}
           completeLabel="Close"
         />

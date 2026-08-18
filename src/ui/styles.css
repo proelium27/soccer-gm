@@ -2582,3 +2582,41 @@ body.nav-drawer-open {
     column-gap: 0.5rem;
   }
 }
+
+/* -------------------------------------------------------------------------
+   "Which match do you want to watch?" — only ever shown on a cup matchday,
+   where the club has both a league fixture and a cup tie.
+   ------------------------------------------------------------------------- */
+.live-picker {
+  width: 460px;
+  max-width: 92vw;
+  box-shadow: var(--sg-shadow);
+}
+.live-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.live-picker-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: left;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--sg-border);
+  border-radius: var(--sg-radius);
+  background: var(--sg-surface-2);
+  color: var(--sg-text);
+  cursor: pointer;
+}
+.live-picker-choice:hover {
+  border-color: var(--sg-green);
+  background: var(--sg-green-wash);
+}
+.live-picker-title {
+  font-weight: var(--sg-weight-medium);
+}
+.live-picker-detail {
+  font-size: var(--sg-text-sm);
+  color: var(--sg-text-muted);
+}
