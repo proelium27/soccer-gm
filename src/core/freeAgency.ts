@@ -48,15 +48,24 @@ export function freeAgentPids(
  * Remove players whose contract expired at or before `season` from every
  * team's roster and academy pool. The players remain in the league's player
  * pool as free agents; only roster/academy membership changes.
+ *
+ * `onLoanPids` must be every pid still out on loan, and skipping them is a
+ * correctness requirement rather than a nicety: a loaned player sits on the
+ * *loanee's* roster, so releasing him there strands him on no roster at all
+ * while `freeAgentPids` still counts him as rostered (he is on loan), leaving
+ * him unsignable, unplayable and invisible until the loan ends. The loan is a
+ * fixed-duration commitment; his contract travels home with him and is settled
+ * there, which is why the offseason returns loans *before* calling this.
  */
 export function releaseExpiredContracts(
   teams: StoredTeam[],
   players: Player[],
   season: number,
+  onLoanPids: ReadonlySet<number> = new Set(),
 ): StoredTeam[] {
   const expired = new Set(
     players
-      .filter((p) => p.contract.expiresSeason <= season)
+      .filter((p) => p.contract.expiresSeason <= season && !onLoanPids.has(p.pid))
       .map((p) => p.pid),
   );
   return teams.map((t) => ({

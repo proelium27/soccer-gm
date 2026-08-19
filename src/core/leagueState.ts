@@ -147,6 +147,17 @@ export interface LeagueStore {
    * behavior on upgrade.
    */
   nextPid: number;
+  /**
+   * Seasons the AI managed the user's club, because they jumped forward past
+   * them (see core/autopilot.ts). Oldest first, normally empty.
+   *
+   * Stored rather than derived because nothing else in the save records it: a
+   * jumped season looks like any other season afterwards, and "I didn't pick
+   * that squad" is the one piece of context the club's own history can't
+   * reconstruct. Migrated to `[]`, which is what every dynasty played by hand
+   * means anyway.
+   */
+  aiManagedSeasons: number[];
 }
 
 export function createLeagueState(
@@ -212,5 +223,6 @@ export function createLeagueState(
     // Same value the old derived `max(pid) + 1` produced at first use, so a
     // fresh world generates identically to before.
     nextPid: Math.max(0, ...league.players.map((p) => p.pid)) + 1,
+    aiManagedSeasons: [],
   };
 }

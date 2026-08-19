@@ -326,6 +326,29 @@ export function Manual() {
             Any lingering injuries get healed over the offseason, so anyone still hurt at the
             rollover starts the new season fit.
           </p>
+          <p>
+            <strong>Jumping ahead.</strong> The <strong>Jump ahead</strong> card on the Dashboard
+            plays whole seasons at once &mdash; up to 25 &mdash; with the AI running your club
+            while they go by. It's for seeing where a world ends up, or for skipping past a
+            rebuild you don't fancy managing. It works mid-season too: it finishes the season
+            you're in first, so jumping 1 season always means "get me to next year".
+          </p>
+          <p>
+            While you're gone your club is treated as an AI club in every respect. It picks its own
+            formation and XI, buys and sells, renews contracts, signs free agents and trims itself
+            back to 25. Other clubs can bid for your players, and your stars are protected exactly
+            the way an AI club's are &mdash; by price, not by a veto. If it gets relegated its best
+            players can be pulled up to the first division like anyone else's, and your{" "}
+            <a href="#squad">saved starting XI</a>, transfer listings and any talks you had open
+            are cleared when you hand it over, because nobody's there to finish them.
+          </p>
+          <p>
+            You get the club back at the start of the season you asked for, with a summary of how
+            each year went. Two things to know: potential comes back <a href="#players">fogged</a>{" "}
+            for anyone signed while you were away (you haven't watched those players), and there's
+            no undo &mdash; the only way back to the season you left is a save you exported first.
+            A long jump takes a few minutes to play out.
+          </p>
         </Section>
 
         <Section id="world" title="The World">
@@ -1076,6 +1099,19 @@ export function Manual() {
             Second-division clubs can't take a loan of a player good enough that the top flight would
             claim him anyway. That background market only ever moves players between AI clubs, so
             nothing happens to your own roster unless you list a player yourself.
+          </p>
+          <p>
+            <strong>A loan can't run past his contract.</strong> Since his deal doesn't change while
+            he's away, a loan that outlasted it would mean he was somewhere else when it ran down
+            and left on a free the moment he got home &mdash; so the duration list only offers the
+            seasons his current contract covers. A player in the last year of his deal can go out
+            for one season, not three. Extend him first if you want to send him further out.
+          </p>
+          <p>
+            He's still your player the whole time he's away, contract included. The
+            <strong> Players Out on Loan</strong> list at the bottom of the Loans page shows when
+            each deal expires and lets you extend him from there, which is the only place you can
+            &mdash; he isn't on your Roster page while he's gone.
           </p>
         </Section>
 

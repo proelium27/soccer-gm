@@ -15,13 +15,24 @@ export type IntlMode = "stage" | "through";
 export type WorkerCommand =
   | { type: "sim"; through: SimThrough; league: LeagueStore }
   | { type: "offseason"; league: LeagueStore }
-  | { type: "intl"; mode: IntlMode; league: LeagueStore };
+  | { type: "intl"; mode: IntlMode; league: LeagueStore }
+  /** Play `seasons` whole seasons with the AI running the user's club (core/autopilot.ts). */
+  | { type: "jump"; seasons: number; league: LeagueStore };
 
 // Worker -> UI
 export type WorkerResponse =
   | { type: "simResult"; league: LeagueStore }
   | { type: "offseasonResult"; league: LeagueStore }
   | { type: "intlResult"; league: LeagueStore }
+  | { type: "jumpResult"; league: LeagueStore }
+  /**
+   * Fired as each jumped season starts playing out. The whole jump is one
+   * command rather than one per season precisely so the league is
+   * structured-cloned across the worker boundary twice in total instead of
+   * twice per season — at tens of megabytes that is the difference between a
+   * progress bar and a slideshow.
+   */
+  | { type: "jumpProgress"; seasonsDone: number; totalSeasons: number; season: number }
   | {
       type: "simProgress";
       matchday: number;
