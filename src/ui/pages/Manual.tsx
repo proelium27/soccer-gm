@@ -1441,9 +1441,11 @@ export function Manual() {
           </p>
           <p>
             <strong>Club Records</strong> is the club-level version: the trophy cabinet (total
-            trophies, then league titles, Continental Cups and second-tier titles), the longest
-            wait for a title, all-time biggest spenders, and the clubs that have made the most
-            money trading players.
+            trophies, then league titles, Continental Cups, domestic cups, trebles and
+            second-tier titles), the longest wait for a title, all-time biggest spenders, and
+            the clubs that have made the most money trading players. A treble is counted where
+            the three wins fall in one season, and it isn't added to the total, since those
+            three trophies are already in it.
           </p>
           <p>
             Retired players are otherwise deleted from the save entirely, so the game keeps a

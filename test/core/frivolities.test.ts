@@ -13,6 +13,7 @@ import {
 } from "../../src/core/frivolities/goat.js";
 import { computeAwardTrivia, sortAwardRows, awardXIForClub } from "../../src/core/frivolities/honours.js";
 import { computePlayerHonors } from "../../src/core/playerHonors.js";
+import { computeClubHistory } from "../../src/core/clubHistory.js";
 import type { BallonDOrEntry } from "../../src/core/worldAwards.js";
 import { FREE_AGENT_TID } from "../../src/core/transfers/negotiation.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
@@ -401,6 +402,84 @@ describe("computeClubTrivia", () => {
     // The sentinel must never appear as a club in a spending table.
     expect(trivia.biggestSpenders.some((s) => s.tid === FREE_AGENT_TID)).toBe(false);
     expect(trivia.biggestSellers.find((s) => s.tid === 1)!.net).toBe(100);
+  });
+
+  /**
+   * A finished Continental Cup that `winner` lifted. Round 3 is the final of a
+   * legacy bracket: a fixture with no `leaguePhase` is not a Swiss cup, so it
+   * gets the four legacy rounds rather than the Swiss three.
+   */
+  function continentalCup(season: number, winner: number, loser: number) {
+    return {
+      season, teams: [winner, loser], championTid: winner,
+      ties: [{ round: 3, home: winner, away: loser, winner }],
+    };
+  }
+
+  /** A finished one-round domestic cup that `winner` lifted. */
+  function domesticCup(season: number, winner: number, loser: number) {
+    return {
+      season, country: "eng", name: "English Cup", teams: [winner, loser],
+      totalRounds: 1, championTid: winner, statLines: [],
+      rounds: [{
+        round: 0, matchday: 36, byes: [],
+        pairings: [{ home: winner, away: loser }],
+        ties: [{ round: 0, home: winner, away: loser, winner }],
+      }],
+    };
+  }
+
+  /**
+   * The same two seasons as `history`, but with each competition's rows in
+   * finishing order, which is how the sim stores them. It matters here and not
+   * elsewhere in this file: `computeClubTrivia` re-sorts a table by points
+   * before picking the winner, while `clubHistory` reads a club's position
+   * straight off the stored order. Only a table in the real shape lets the two
+   * be compared at all.
+   */
+  const trebleHistory = [
+    makeHistory(2028, [row(1, 38, 90, 40, 80), row(2, 38, 70, 20, 60), row(3, 38, 88, 30, 70)],
+      { 1: 0, 2: 0, 3: 1 }),
+    makeHistory(2029, [row(2, 38, 85, 35, 75), row(1, 38, 60, 10, 50), row(3, 38, 91, 45, 85)],
+      { 1: 0, 2: 0, 3: 1 }),
+  ];
+
+  /**
+   * Club 1 wins the 2028 league and the 2028 Continental Cup, but club 3 takes
+   * that season's domestic cup. Club 2 wins all three in 2029.
+   */
+  const trebleStore = () => makeStore({
+    seasonHistory: trebleHistory,
+    cupHistory: [continentalCup(2028, 1, 2), continentalCup(2029, 2, 1)],
+    domesticCupHistory: [domesticCup(2028, 3, 1), domesticCup(2029, 2, 3)],
+  } as unknown as Partial<LeagueStore>);
+
+  it("counts a treble only when all three trophies land in the same season", () => {
+    const byTid = new Map(computeClubTrivia(trebleStore()).records.map((r) => [r.tid, r]));
+    expect(byTid.get(2)!.trebles).toBe(1);
+    // Two of the three is not a treble, however good the season was.
+    expect(byTid.get(1)!.trebles).toBe(0);
+    // Club 3 won a domestic cup, but its league titles are second-tier ones.
+    expect(byTid.get(3)!.trebles).toBe(0);
+  });
+
+  it("keeps a treble out of the total, since its three wins are already counted", () => {
+    const club2 = computeClubTrivia(trebleStore()).records.find((r) => r.tid === 2)!;
+    expect(club2.trebles).toBe(1);
+    // League title + Continental Cup + domestic cup. Not four.
+    expect(club2.totalTrophies).toBe(3);
+  });
+
+  it("agrees with clubHistory about what a treble is", () => {
+    // Two derivations answer the same question: this one walks every club in a
+    // single pass over history, clubHistory walks one club's own seasons. A
+    // divergence shows up as a club page and the trophy cabinet disagreeing
+    // about the same season, so it is pinned rather than left to drift.
+    const store = trebleStore();
+    const byTid = new Map(computeClubTrivia(store).records.map((r) => [r.tid, r]));
+    for (const tid of [1, 2, 3]) {
+      expect(computeClubHistory(store, tid).trebles.length).toBe(byTid.get(tid)!.trebles);
+    }
   });
 
   it("counts total trophies across both tiers and the cup", () => {

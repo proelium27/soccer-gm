@@ -1208,12 +1208,15 @@ function ClubsTab() {
 
       <Row>
         <Col wide>
-          <Panel title="Trophy cabinet">
+          <Panel
+            title="Trophy cabinet"
+            note="A treble is the top flight, the Continental Cup and the domestic cup in one season. Those three wins are already in the total, so a treble doesn't add to it."
+          >
             <RankTable
               rows={trivia.records}
               headers={[
                 "Club", "Total Trophies", "D1 Championships", "Continental Cups",
-                "Domestic Cups", "D2 Championships", "Seasons", "Top flight",
+                "Domestic Cups", "Trebles", "D2 Championships", "Seasons", "Top flight",
               ]}
               render={(r: ClubRecordRow) => [
                 <ClubCell tid={r.tid} />,
@@ -1221,6 +1224,7 @@ function ClubsTab() {
                 r.leagueTitles,
                 r.cupTitles,
                 r.domesticCupTitles,
+                r.trebles,
                 r.secondTierTitles,
                 r.seasons,
                 r.topFlightSeasons,
