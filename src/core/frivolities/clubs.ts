@@ -28,6 +28,15 @@ export interface ClubRecordRow {
   ppg: number;
   /** Every trophy of any kind — the column the table leads with, so it's also what it sorts by. */
   totalTrophies: number;
+  /**
+   * Seasons the club won its tier-1 league, the Continental Cup and its
+   * domestic cup all at once.
+   *
+   * Deliberately **not** part of `totalTrophies`: a treble is a coincidence of
+   * three trophies already counted there, not a fourth one, so adding it would
+   * count the same three wins twice and reorder the table the total sorts by.
+   */
+  trebles: number;
   /** Season of the club's most recent tier-1 title, or null if it has never won one. */
   lastTitleSeason: number | null;
   /**
@@ -78,12 +87,26 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
   const latestSeason = league.seasonHistory.reduce((max, h) => Math.max(max, h.season), 0);
 
   const rows = new Map<number, ClubRecordRow>();
+
+  // A treble needs the three wins to fall in the SAME season, so counting them
+  // needs the seasons each was won in, not just the totals on the row. Kept in
+  // side maps rather than on `ClubRecordRow` so the public row stays a flat
+  // record of numbers.
+  const tier1TitleSeasons = new Map<number, Set<number>>();
+  const continentalWinSeasons = new Map<number, Set<number>>();
+  const domesticWinSeasons = new Map<number, Set<number>>();
+  const markWin = (into: Map<number, Set<number>>, tid: number, season: number): void => {
+    let seasons = into.get(tid);
+    if (!seasons) { seasons = new Set(); into.set(tid, seasons); }
+    seasons.add(season);
+  };
+
   const rowFor = (tid: number): ClubRecordRow => {
     let r = rows.get(tid);
     if (!r) {
       r = {
         tid, seasons: 0, topFlightSeasons: 0, leagueTitles: 0, secondTierTitles: 0, cupTitles: 0,
-        domesticCupTitles: 0, totalTrophies: 0,
+        domesticCupTitles: 0, totalTrophies: 0, trebles: 0,
         played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0, ppg: 0,
         lastTitleSeason: null, titleDrought: 0,
       };
@@ -126,6 +149,7 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
           if (tier === 1) {
             r.leagueTitles += 1;
             r.lastTitleSeason = Math.max(r.lastTitleSeason ?? 0, h.season);
+            markWin(tier1TitleSeasons, row.tid, h.season);
           } else {
             r.secondTierTitles += 1;
           }
@@ -135,15 +159,32 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
   }
 
   for (const cup of league.cupHistory ?? []) {
-    if (cup.championTid != null) rowFor(cup.championTid).cupTitles += 1;
+    if (cup.championTid != null) {
+      rowFor(cup.championTid).cupTitles += 1;
+      markWin(continentalWinSeasons, cup.championTid, cup.season);
+    }
   }
 
   for (const cup of league.domesticCupHistory ?? []) {
-    if (cup.championTid != null) rowFor(cup.championTid).domesticCupTitles += 1;
+    if (cup.championTid != null) {
+      rowFor(cup.championTid).domesticCupTitles += 1;
+      markWin(domesticWinSeasons, cup.championTid, cup.season);
+    }
   }
 
   for (const r of rows.values()) {
     r.totalTrophies = r.leagueTitles + r.cupTitles + r.domesticCupTitles + r.secondTierTitles;
+    // Same definition `clubHistory.ts` puts on `ClubSeasonRecord.treble`, and
+    // the two must agree: a tier-1 title (a second-tier one is not a treble)
+    // plus both cups, in one season. `clubHistory` answers it for one club at a
+    // time off its own per-season walk, which is why this pass can't reuse it
+    // without going quadratic over a long dynasty.
+    const titles = tier1TitleSeasons.get(r.tid);
+    const continental = continentalWinSeasons.get(r.tid);
+    const domestic = domesticWinSeasons.get(r.tid);
+    r.trebles = titles && continental && domestic
+      ? [...titles].filter((s) => continental.has(s) && domestic.has(s)).length
+      : 0;
     r.ppg = r.played > 0 ? r.points / r.played : 0;
     // A club that has never won counts its whole recorded history as the wait.
     r.titleDrought = r.lastTitleSeason == null
