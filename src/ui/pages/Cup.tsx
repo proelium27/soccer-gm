@@ -119,13 +119,15 @@ export function Cup() {
       );
     }
     const legs = slot.tie.legs;
+    const rowClass = (tid: number) =>
+      `cup-tie-row ${slot.tie.winner === tid ? "cup-tie-row--won" : "cup-tie-row--out"}`;
     return (
       <>
-        <div className="cup-tie-row">
+        <div className={rowClass(slot.tie.home)}>
           {teamCell(slot.tie.home, slot.tie.winner === slot.tie.home)}
           <span className="cup-tie-score">{slot.tie.homeGoals}</span>
         </div>
-        <div className="cup-tie-row">
+        <div className={rowClass(slot.tie.away)}>
           {teamCell(slot.tie.away, slot.tie.winner === slot.tie.away)}
           <span className="cup-tie-score">{slot.tie.awayGoals}</span>
         </div>
@@ -199,10 +201,18 @@ export function Cup() {
             <LeaguePhaseSection cup={cup} teamCell={teamCell} userTid={userTid} />
           )}
 
-          <div className="cup-bracket">
+          {/* A real bracket: the knockout pairings are fixed, so each tie sits
+              between the two that feed it. Grid rows do the centring exactly
+              (a round-r tie spans 2^r rows) and give the connectors something
+              reliable to attach to. The qualifying rounds that hang off the
+              front of it are drawn as plain columns, since nothing feeds them. */}
+          <div className="cup-bracket cup-bracket--tree">
             {cup.playoff && (
               <div className="cup-round" key="playoff">
-                <div className="cup-round-title">{cupRoundName(-1)}</div>
+                <div className="cup-round-title">
+                  <span>{cupRoundName(-1)}</span>
+                  <span className="cup-round-count">{prelimSlots(cup.playoff).length}</span>
+                </div>
                 <div className="cup-round-body">
                   {prelimSlots(cup.playoff).map((slot, i) => (
                     <div className="cup-tie" key={i}>{renderTie(slot)}</div>
@@ -212,7 +222,10 @@ export function Cup() {
             )}
             {cup.playIn && (
               <div className="cup-round" key="playin">
-                <div className="cup-round-title">Play-in Round</div>
+                <div className="cup-round-title">
+                  <span>Play-in round</span>
+                  <span className="cup-round-count">{prelimSlots(cup.playIn).length}</span>
+                </div>
                 <div className="cup-round-body">
                   {prelimSlots(cup.playIn).map((slot, i) => (
                     <div className="cup-tie" key={i}>{renderTie(slot)}</div>
@@ -220,16 +233,33 @@ export function Cup() {
                 </div>
               </div>
             )}
-            {Array.from({ length: koRoundsOf(cup) }, (_, round) => (
-              <div className="cup-round" key={round}>
-                <div className="cup-round-title">{cupRoundName(round, koRoundsOf(cup))}</div>
-                <div className="cup-round-body">
-                  {roundSlots(cup, round).map((slot, i) => (
-                    <div className="cup-tie" key={i}>{renderTie(slot)}</div>
-                  ))}
+            {Array.from({ length: koRoundsOf(cup) }, (_, round) => {
+              const slots = roundSlots(cup, round);
+              const isFinal = round === koRoundsOf(cup) - 1;
+              return (
+                <div
+                  className={`cup-round${round > 0 ? " cup-round--linked" : ""}`}
+                  key={round}
+                >
+                  <div className="cup-round-title">
+                    <span>{cupRoundName(round, koRoundsOf(cup))}</span>
+                    <span className="cup-round-count">{slots.length}</span>
+                  </div>
+                  <div className="cup-round-body">
+                    {slots.map((slot, i) => (
+                      <div
+                        className={`cup-tie${isFinal ? " cup-tie--final" : ""}`}
+                        key={i}
+                        // Span 2^round rows so this tie centres on its feeders.
+                        style={{ gridRow: `span ${2 ** round}` }}
+                      >
+                        {renderTie(slot)}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {!isCupComplete(cup) && (

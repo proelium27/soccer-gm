@@ -70,7 +70,7 @@ export function DomesticCup() {
     <span className={`cup-team${isWinner ? " cup-team-winner" : ""}${tid === userTid ? " cup-team-user" : ""}`}>
       <ClubCrest tid={tid} colors={teamColors(tid)} size={16} />
       <span className="cup-team-name">{teamName(tid)}</span>
-      {tierOf(tid) === 2 && <span className="text-muted small ms-1">(D2)</span>}
+      {tierOf(tid) === 2 && <span className="cup-team-tier">D2</span>}
     </span>
   );
 
@@ -84,19 +84,21 @@ export function DomesticCup() {
       );
     }
     const t = slot.tie;
+    const rowClass = (tid: number) =>
+      `cup-tie-row ${t.winner === tid ? "cup-tie-row--won" : "cup-tie-row--out"}`;
     return (
       <>
-        <div className="cup-tie-row">
+        <div className={rowClass(t.home)}>
           {teamCell(t.home, t.winner === t.home)}
           <span className="cup-tie-score">{t.homeGoals}</span>
         </div>
-        <div className="cup-tie-row">
+        <div className={rowClass(t.away)}>
           {teamCell(t.away, t.winner === t.away)}
           <span className="cup-tie-score">{t.awayGoals}</span>
         </div>
         {(t.wentToExtraTime || t.wentToPens) && (
           <div className="cup-tie-note">
-            {t.wentToPens ? `${t.homePens}–${t.awayPens} on pens` : "after extra time"}
+            {t.wentToPens ? `${t.homePens}-${t.awayPens} on pens` : "after extra time"}
           </div>
         )}
       </>
@@ -179,22 +181,33 @@ export function DomesticCup() {
             </p>
           ) : null}
 
-          <div className="cup-bracket">
-            {cup.rounds.map((round) => (
-              <div className="cup-round" key={round.round}>
-                <div className="cup-round-title">{domesticRoundName(cup, round.round)}</div>
-                <div className="cup-round-body">
-                  {roundSlots(round).map((slot, i) => (
-                    <div className="cup-tie" key={i}>{renderTie(slot)}</div>
-                  ))}
-                  {round.byes.length > 0 && (
-                    <div className="cup-tie-note mt-1">
-                      {round.byes.length} clubs enter in the next round
-                    </div>
-                  )}
+          {/* Open draw: every round is redrawn from the hat, so these are
+              columns of results, not a bracket tree. See the CSS note. */}
+          <div className="cup-bracket cup-bracket--rounds">
+            {cup.rounds.map((round) => {
+              const slots = roundSlots(round);
+              const isFinal = round.round === cup.totalRounds - 1;
+              return (
+                <div className="cup-round" key={round.round}>
+                  <div className="cup-round-title">
+                    <span>{domesticRoundName(cup, round.round)}</span>
+                    <span className="cup-round-count">{slots.length}</span>
+                  </div>
+                  <div className="cup-round-body">
+                    {slots.map((slot, i) => (
+                      <div className={`cup-tie${isFinal ? " cup-tie--final" : ""}`} key={i}>
+                        {renderTie(slot)}
+                      </div>
+                    ))}
+                    {round.byes.length > 0 && (
+                      <div className="cup-byes">
+                        {round.byes.length} clubs enter in the next round
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {cup.championTid === null && cup.rounds.length < cup.totalRounds && (
