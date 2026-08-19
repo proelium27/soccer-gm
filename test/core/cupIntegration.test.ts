@@ -87,6 +87,7 @@ describe("Continental Cup — season lifecycle", () => {
     // whose QF/SF are played with the user winning his semi-final. Only the set
     // of completed rounds and the SF winners matter for the stop rule.
     league2.cup = {
+      competition: "continental",
       season: 2,
       name: "Continental Cup",
       teams: bracket,

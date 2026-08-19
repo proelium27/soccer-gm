@@ -346,7 +346,7 @@ function migrateFields(league: LeagueStore): LeagueStore {
         // over, the box scores are gone and the stored lines are the only cup
         // record left, so dropping them here would score every past season's
         // cup as zero without failing.
-        cup: seasonCup ? { ...seasonCup, leaguePhase: seasonCup.leaguePhase ?? null, playoff: seasonCup.playoff ?? null, playIn: seasonCup.playIn ?? null, twoLegged: seasonCup.twoLegged ?? false, koLegs: seasonCup.koLegs ?? null, statLines: seasonCup.statLines ?? null } : null,
+        cup: seasonCup ? { ...seasonCup, competition: seasonCup.competition ?? "continental", leaguePhase: seasonCup.leaguePhase ?? null, playoff: seasonCup.playoff ?? null, playIn: seasonCup.playIn ?? null, twoLegged: seasonCup.twoLegged ?? false, koLegs: seasonCup.koLegs ?? null, statLines: seasonCup.statLines ?? null } : null,
         worldCupChampion:
           anyVersion.international?.history?.find((t) => t.season === h.season)?.champion ?? null,
       });
@@ -385,7 +385,7 @@ function migrateFields(league: LeagueStore): LeagueStore {
     // the old single-leg knockout rules; the next offseason builds a two-legged
     // one. (Archived cups in cupHistory are done, so the flag is cosmetic there.)
     cup: anyVersion.cup
-      ? { ...anyVersion.cup, leaguePhase: anyVersion.cup.leaguePhase ?? null, playoff: anyVersion.cup.playoff ?? null, playIn: anyVersion.cup.playIn ?? null, twoLegged: anyVersion.cup.twoLegged ?? false, koLegs: anyVersion.cup.koLegs ?? null, statLines: anyVersion.cup.statLines ?? null }
+      ? { ...anyVersion.cup, competition: anyVersion.cup.competition ?? "continental", leaguePhase: anyVersion.cup.leaguePhase ?? null, playoff: anyVersion.cup.playoff ?? null, playIn: anyVersion.cup.playIn ?? null, twoLegged: anyVersion.cup.twoLegged ?? false, koLegs: anyVersion.cup.koLegs ?? null, statLines: anyVersion.cup.statLines ?? null }
       : null,
     // Archived cups collapse to per-player stat lines and drop their box scores
     // (see archiveCup) -- 18 MB of an aged save, and size is what freezes the
@@ -393,8 +393,14 @@ function migrateFields(league: LeagueStore): LeagueStore {
     // and playoff appearances are captured on the way out rather than lost;
     // that is the only chance to do it, since the box scores are then gone.
     cupHistory: (anyVersion.cupHistory ?? []).map((c) => archiveCup({
-      ...c, leaguePhase: c.leaguePhase ?? null, playoff: c.playoff ?? null, playIn: c.playIn ?? null, twoLegged: c.twoLegged ?? false, koLegs: c.koLegs ?? null, statLines: c.statLines ?? null,
+      ...c, competition: c.competition ?? "continental", leaguePhase: c.leaguePhase ?? null, playoff: c.playoff ?? null, playIn: c.playIn ?? null, twoLegged: c.twoLegged ?? false, koLegs: c.koLegs ?? null, statLines: c.statLines ?? null,
     })),
+    // Saves from before the Continental Shield have none, and one can't be
+    // invented for a season already played (it would need that season's final
+    // tables *and* its matches). They start empty and pick a Shield up at the
+    // next offseason, exactly as pre-cup saves did for the Continental Cup.
+    shield: anyVersion.shield ?? null,
+    shieldHistory: (anyVersion.shieldHistory ?? []).map((c) => archiveCup(c)),
     // Pre-feature saves start with no power-rankings history; snapshots can't
     // be reconstructed retroactively (past rosters/matches are gone), so they
     // simply accrue from the next simmed matchdays onward.

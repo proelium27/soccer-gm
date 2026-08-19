@@ -182,6 +182,10 @@ export function simThrough(
   // matchdays inside the loop below; the state advances round by round and is
   // returned with the rest of the league.
   let cup: CupState | null = league.cup;
+  // The Continental Shield runs on the same matchdays as the Cup against a
+  // disjoint field (see CUP_FORMATS), so it is advanced through the very same
+  // path — just with its own state, baseline and rng streams.
+  let shield: CupState | null = league.shield;
   const newEvents: NewsEvent[] = [];
   const newSnapshots: PowerRankingSnapshot[] = [];
 
@@ -220,11 +224,13 @@ export function simThrough(
     // `matchday > currentMatchday` is what lets a *resumed* batch — which
     // starts exactly on the final's matchday — actually play it instead of
     // stopping forever.
+    const userFinalDue = (c: CupState | null): boolean =>
+      !!c &&
+      dueCupRound(c, matchday) === koFinalRound(c) &&
+      cupFinalists(c).includes(league.meta.userTid);
     if (
-      cup &&
       matchday > currentMatchday &&
-      dueCupRound(cup, matchday) === koFinalRound(cup) &&
-      cupFinalists(cup).includes(league.meta.userTid)
+      (userFinalDue(cup) || userFinalDue(shield))
     ) {
       stoppedBeforeMatchday = matchday;
       break;
@@ -297,37 +303,6 @@ export function simThrough(
       compTeams.forEach((t, i) => matchData.set(t.tid, withSeasonForm(t.tid, compMatchData[i])));
     }
 
-    // Continental Cup composites use a SHARED normalization baseline across all
-    // the cup's participants, not each team's own league — otherwise the
-    // per-competition z-scoring above would erase the cross-league strength gap
-    // and a weak-league club would play a big-four club as an equal. Built only
-    // on a matchday a cup stage (league phase, playoff, play-in, or knockout) is
-    // actually due.
-    const cupLeaguePhaseDue = cup?.leaguePhase ? leaguePhaseDue(cup.leaguePhase, matchday) : false;
-    const cupActive = cup && (
-      cupLeaguePhaseDue || playoffDue(cup, matchday) || playInDue(cup, matchday) || dueCupLeg(cup, matchday) !== null
-    );
-    let cupMatchData: Map<number, TeamMatchData> | null = null;
-    if (cup && cupActive) {
-      // Pool every club that could feature this cup: the whole league-phase
-      // field (Swiss), the knockout bracket, and any playoff / play-in entrants.
-      const cupTids = new Set<number>([
-        ...(cup.leaguePhase?.teams ?? []),
-        ...cup.teams.filter((t) => t >= 0),
-        ...(cup.playoff?.teams ?? []),
-        ...(cup.playIn?.teams ?? []),
-      ]);
-      const cupTeams = currentTeams.filter((t) => cupTids.has(t.tid));
-      const cupData = leagueMatchData({ teams: toLeagueTeams(cupTeams), players: currentPlayers });
-      cupMatchData = new Map();
-      cupTeams.forEach((t, i) => cupMatchData!.set(t.tid, withSeasonForm(t.tid, cupData[i])));
-    }
-
-    // Play the play-in (once, on its matchday, before R16) then any due knockout
-    // round, crediting prize money to budgets (clamped like any other income).
-    // Cup matches use their own seeded rng, so they don't perturb the league
-    // stream; cup stats stay out of SeasonStats (they live on the tie box score).
-    let mdCupTies: CupTie[] = [];
     const creditPrizes = (prizes: Map<number, number>): void => {
       if (prizes.size === 0) return;
       currentTeams = currentTeams.map((t) => {
@@ -344,33 +319,77 @@ export function simThrough(
           : t;
       });
     };
-    if (cup && cupMatchData) {
-      if (cupLeaguePhaseDue) {
+
+    /**
+     * Advance one continental competition (Cup or Shield) through whatever
+     * stage falls on this matchday, crediting prize money and returning the
+     * ties to show on the ticker. Both competitions run through here on the
+     * same matchdays — their fields are disjoint, so a club is only ever in one
+     * of them, and each carries its own rng streams (see CUP_FORMATS).
+     *
+     * Composites use a SHARED normalization baseline across the competition's
+     * whole field rather than each team's own league — otherwise the
+     * per-competition z-scoring above would erase the cross-league strength gap
+     * and a weak-league club would play a big-four club as an equal. Built only
+     * on a matchday one of its stages is actually due, and separately per
+     * competition: pooling the two fields together would measure the Shield's
+     * clubs against the Cup's, which is precisely the comparison neither
+     * competition makes.
+     *
+     * Cup matches use their own seeded rng, so they don't perturb the league
+     * stream; cup stats stay out of SeasonStats (they live on the tie box score).
+     */
+    const advanceCompetition = (
+      c: CupState | null,
+    ): { cup: CupState | null; ties: CupTie[] } => {
+      if (!c) return { cup: c, ties: [] };
+      const lpDue = c.leaguePhase ? leaguePhaseDue(c.leaguePhase, matchday) : false;
+      const active = lpDue || playoffDue(c, matchday) || playInDue(c, matchday) || dueCupLeg(c, matchday) !== null;
+      if (!active) return { cup: c, ties: [] };
+
+      // Pool every club that could feature: the whole league-phase field
+      // (Swiss), the knockout bracket, and any playoff / play-in entrants.
+      const tids = new Set<number>([
+        ...(c.leaguePhase?.teams ?? []),
+        ...c.teams.filter((t) => t >= 0),
+        ...(c.playoff?.teams ?? []),
+        ...(c.playIn?.teams ?? []),
+      ]);
+      const cupTeams = currentTeams.filter((t) => tids.has(t.tid));
+      const cupData = leagueMatchData({ teams: toLeagueTeams(cupTeams), players: currentPlayers });
+      const cupMatchData = new Map<number, TeamMatchData>();
+      cupTeams.forEach((t, i) => cupMatchData.set(t.tid, withSeasonForm(t.tid, cupData[i])));
+
+      if (lpDue) {
         // Swiss league-phase matchday: play its matches (not knockout ties, so
         // the ticker shows no cup ties here) and seed the bracket when it ends.
-        const { cup: advanced, prizes } = playLeaguePhaseRound(cup, cupMatchData, league.lid, matchday);
-        cup = advanced;
+        const { cup: advanced, prizes } = playLeaguePhaseRound(c, cupMatchData, league.lid, matchday);
         creditPrizes(prizes);
-      } else if (playoffDue(cup, matchday)) {
-        const { cup: advanced, prizes } = playPlayoff(cup, cupMatchData, league.lid);
-        cup = advanced;
-        mdCupTies = advanced.playoff?.ties ?? [];
-        creditPrizes(prizes);
-      } else if (playInDue(cup, matchday)) {
-        const { cup: advanced, prizes } = playPlayIn(cup, cupMatchData, league.lid);
-        cup = advanced;
-        mdCupTies = advanced.playIn?.ties ?? [];
-        creditPrizes(prizes);
-      } else if (dueCupLeg(cup, matchday) !== null) {
-        const priorTieCount = cup.ties.length;
-        const { cup: advanced, prizes } = playKnockoutLeg(cup, cupMatchData, league.lid, matchday);
-        cup = advanced;
-        // First-leg matchdays finalize no ties (results held in koLegs); the
-        // aggregate tie surfaces on the second-leg matchday. slice() → [] then.
-        mdCupTies = advanced.ties.slice(priorTieCount);
-        creditPrizes(prizes);
+        return { cup: advanced, ties: [] };
       }
-    }
+      if (playoffDue(c, matchday)) {
+        const { cup: advanced, prizes } = playPlayoff(c, cupMatchData, league.lid);
+        creditPrizes(prizes);
+        return { cup: advanced, ties: advanced.playoff?.ties ?? [] };
+      }
+      if (playInDue(c, matchday)) {
+        const { cup: advanced, prizes } = playPlayIn(c, cupMatchData, league.lid);
+        creditPrizes(prizes);
+        return { cup: advanced, ties: advanced.playIn?.ties ?? [] };
+      }
+      const priorTieCount = c.ties.length;
+      const { cup: advanced, prizes } = playKnockoutLeg(c, cupMatchData, league.lid, matchday);
+      creditPrizes(prizes);
+      // First-leg matchdays finalize no ties (results held in koLegs); the
+      // aggregate tie surfaces on the second-leg matchday. slice() → [] then.
+      return { cup: advanced, ties: advanced.ties.slice(priorTieCount) };
+    };
+
+    const cupAdvance = advanceCompetition(cup);
+    cup = cupAdvance.cup;
+    const shieldAdvance = advanceCompetition(shield);
+    shield = shieldAdvance.cup;
+    const mdCupTies: CupTie[] = [...cupAdvance.ties, ...shieldAdvance.ties];
 
     const goalTotalsBefore = playerGoalTotals(currentPlayers, league.season);
 
@@ -469,5 +488,6 @@ export function simThrough(
     newsEvents: [...league.newsEvents, ...newEvents],
     powerRankingHistory: [...league.powerRankingHistory, ...newSnapshots],
     cup,
+    shield,
   };
 }

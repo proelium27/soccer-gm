@@ -6,12 +6,11 @@ import { simMatchDetailed, resolveShot, finisherAdj } from "../../engine/matchSi
 import { pickShooter, pickAssister, emptyLine } from "../../engine/attribution.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
 import {
-  matchupsForRound, applyPlayIn, applyPlayoff,
+  matchupsForRound, applyPlayIn, applyPlayoff, cupFormat,
   isSwissCup, koPrizeByRound, koFinalRound, seedKnockoutFromLeaguePhase, dueCupLeg,
 } from "./cup.js";
 import {
   CUP_ET_CHANCES_PER_SIDE, CUP_PEN_BEST_OF, CUP_PEN_BASE_CONVERSION,
-  CUP_PRIZE_PARTICIPATION, CUP_PRIZE_RUNNER_UP, CUP_PRIZE_WIN_PLAYIN, CUP_PRIZE_WIN_PLAYOFF,
 } from "../constants.js";
 
 /** Play-in ties are tagged with this round index (they live in cup.playIn.ties, not cup.ties). */
@@ -22,6 +21,17 @@ const PLAYOFF_ROUND = -1;
 const LEAGUE_PHASE_STREAM = 100;
 /** rng-stream offset for the playoff round. */
 const PLAYOFF_STREAM = 50;
+
+/**
+ * The rng tag for a cup's own streams. Two competitions run in the same season
+ * on the same matchdays, so **every** stream here must be salted by which one
+ * it is — without it the Shield's quarter-final would draw the identical
+ * sequence as the Continental Cup's. The continental tag is 30, the literal
+ * these streams shipped with, so existing saves are unmoved.
+ */
+function streamTag(cup: CupState): number {
+  return cupFormat(cup).streamTag;
+}
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, x));
@@ -306,7 +316,7 @@ export function playKnockoutLeg(
 
   // First leg of a two-legged round: play and hold, no prizes yet.
   if (twoLeg && leg === 0) {
-    const rng = mulberry32(hashInts(lid, cup.season, round, 30, 1));
+    const rng = mulberry32(hashInts(lid, cup.season, round, streamTag(cup), 1));
     const koLegs: KnockoutLeg[] = [];
     for (const [home, away] of matchupsForRound(cup, round)) {
       const hd = matchData.get(home);
@@ -329,7 +339,7 @@ export function playKnockoutLeg(
   // cups pay participation during the league phase, so nothing to credit here.
   if (round === 0 && !isSwissCup(cup)) {
     const playInTeams = new Set(cup.playIn?.teams ?? []);
-    for (const tid of cup.teams) if (!playInTeams.has(tid)) addPrize(tid, CUP_PRIZE_PARTICIPATION);
+    for (const tid of cup.teams) if (!playInTeams.has(tid)) addPrize(tid, cupFormat(cup).prizes.participation);
   }
 
   const newTies: CupTie[] = [];
@@ -340,13 +350,13 @@ export function playKnockoutLeg(
     if (round === finalRound) {
       championTid = tie.winner;
       const runnerUp = tie.winner === home ? away : home;
-      addPrize(runnerUp, CUP_PRIZE_RUNNER_UP);
+      addPrize(runnerUp, cupFormat(cup).prizes.runnerUp);
     }
   };
 
   // Second leg of a two-legged round: resolve each held first leg on aggregate.
   if (twoLeg && leg === 1) {
-    const rng = mulberry32(hashInts(lid, cup.season, round, 30, 2));
+    const rng = mulberry32(hashInts(lid, cup.season, round, streamTag(cup), 2));
     for (const fl of cup.koLegs ?? []) {
       const hd = matchData.get(fl.home);
       const ad = matchData.get(fl.away);
@@ -357,7 +367,7 @@ export function playKnockoutLeg(
   }
 
   // Single-leg round (the final, or any round of a single-leg cup): play in full.
-  const rng = mulberry32(hashInts(lid, cup.season, round, 30));
+  const rng = mulberry32(hashInts(lid, cup.season, round, streamTag(cup)));
   for (const [home, away] of matchupsForRound(cup, round)) {
     const hd = matchData.get(home);
     const ad = matchData.get(away);
@@ -389,9 +399,9 @@ export function playLeaguePhaseRound(
   };
 
   const round = lp.matches.find((m) => m.matchday === matchday)?.round ?? 0;
-  const rng = mulberry32(hashInts(lid, cup.season, LEAGUE_PHASE_STREAM + round, 30));
+  const rng = mulberry32(hashInts(lid, cup.season, LEAGUE_PHASE_STREAM + round, streamTag(cup)));
 
-  if (round === 0) for (const tid of lp.teams) addPrize(tid, CUP_PRIZE_PARTICIPATION);
+  if (round === 0) for (const tid of lp.teams) addPrize(tid, cupFormat(cup).prizes.participation);
 
   const matches = lp.matches.map((m) => {
     if (m.played || m.matchday !== matchday) return m;
@@ -421,7 +431,7 @@ export function playPlayoff(
 ): { cup: CupState; prizes: Map<number, number> } {
   const po = cup.playoff;
   if (!po) return { cup, prizes: new Map() };
-  const rng = mulberry32(hashInts(lid, cup.season, PLAYOFF_STREAM, 30));
+  const rng = mulberry32(hashInts(lid, cup.season, PLAYOFF_STREAM, streamTag(cup)));
   const prizes = new Map<number, number>();
   const addPrize = (tid: number, amount: number): void => {
     prizes.set(tid, (prizes.get(tid) ?? 0) + amount);
@@ -436,7 +446,7 @@ export function playPlayoff(
     if (!hd || !ad) continue; // defensive
     const tie = resolveCupTie(rng, home, away, hd, ad, PLAYOFF_ROUND, po.matchday);
     ties.push(tie);
-    addPrize(tie.winner, CUP_PRIZE_WIN_PLAYOFF);
+    addPrize(tie.winner, cupFormat(cup).prizes.playoffWin);
   }
   return { cup: applyPlayoff(cup, ties), prizes };
 }
@@ -455,12 +465,12 @@ export function playPlayIn(
 ): { cup: CupState; prizes: Map<number, number> } {
   const pi = cup.playIn;
   if (!pi) return { cup, prizes: new Map() };
-  const rng = mulberry32(hashInts(lid, cup.season, PLAYIN_ROUND, 30));
+  const rng = mulberry32(hashInts(lid, cup.season, PLAYIN_ROUND, streamTag(cup)));
   const prizes = new Map<number, number>();
   const addPrize = (tid: number, amount: number): void => {
     prizes.set(tid, (prizes.get(tid) ?? 0) + amount);
   };
-  for (const tid of pi.teams) addPrize(tid, CUP_PRIZE_PARTICIPATION);
+  for (const tid of pi.teams) addPrize(tid, cupFormat(cup).prizes.participation);
 
   const ties: CupTie[] = [];
   for (let i = 0; i + 1 < pi.teams.length; i += 2) {
@@ -471,7 +481,7 @@ export function playPlayIn(
     if (!hd || !ad) continue; // defensive: a qualifier should always be in matchData
     const tie = resolveCupTie(rng, home, away, hd, ad, PLAYIN_ROUND, pi.matchday);
     ties.push(tie);
-    addPrize(tie.winner, CUP_PRIZE_WIN_PLAYIN);
+    addPrize(tie.winner, cupFormat(cup).prizes.playInWin);
   }
   return { cup: applyPlayIn(cup, ties), prizes };
 }

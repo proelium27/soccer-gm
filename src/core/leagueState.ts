@@ -100,6 +100,19 @@ export interface LeagueStore {
   /** Every completed Continental Cup, oldest first (archived at offseason rollover). */
   cupHistory: CupState[];
   /**
+   * The Continental Shield being played during the current season, or null when
+   * none runs (season 1, a world too small to field one, or a save from before
+   * the Shield existed — those pick one up at their next offseason).
+   *
+   * Held as its own field rather than folded into a list of cups: `cup` has
+   * some thirty readers across the sim and the UI, and a list would turn every
+   * one of them into a lookup. The two share everything structural — see
+   * CUP_FORMATS for the handful of numbers that differ.
+   */
+  shield: CupState | null;
+  /** Every completed Continental Shield, oldest first (archived at offseason rollover). */
+  shieldHistory: CupState[];
+  /**
    * National-team football, played entirely inside the offseason on a two-year
    * cycle (odd seasons qualify, even seasons play the tournament). Starts empty
    * on a new save and fills from the first offseason onward; see
@@ -201,6 +214,9 @@ export function createLeagueState(
     // and there is none yet. The first Continental Cup runs in season 2.
     cup: null,
     cupHistory: [],
+    // Same for the Shield — both are seeded together at the first offseason.
+    shield: null,
+    shieldHistory: [],
     international: emptyInternationalState(),
     godMode: false,
     difficulty,
