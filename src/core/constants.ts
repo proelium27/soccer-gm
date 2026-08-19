@@ -2177,6 +2177,29 @@ export const WORLD_AWARD_TITLE_FULL_SEASON = 2 * (NUM_TEAMS - 1);
  * would quietly favour whoever plays in the weakest country. A uniform squad
  * bonus carries no such bias: it can move the award *between* clubs but never
  * lift a player above a better team-mate.
+ *
+ * **Measured** (`scripts/worldAwardsAudit.ts`, 3 seeds x 12 seasons = 36 award
+ * seasons, against the same script with the term removed — world awards feed
+ * nothing in the sim, so both runs play identical dynasties and only the
+ * ranking can differ):
+ *
+ *                        baseline   with bonus
+ *   winner won his league  72%        72%
+ *   won the Continental    28%        25%
+ *   won the World Cup      11%        11%
+ *   winner ovr rank median 69         68
+ *   winner ovr rank mean   129.5      135.6
+ *   ST share of winners    69%        69%
+ *   mean score split       league 12.45 / cup 0.95 / title 0.55 / intl 0.55
+ *                          plus dcup 0.04 with the bonus on
+ *
+ * So it is a **tie-breaker-scale** term by design: 0.25 paid on the 17% of
+ * seasons where the winner's club won its domestic cup averages 0.04 against a
+ * ~14.5 total, and it flipped one or two winners in 36 seasons. The guarded
+ * metrics held — median ovr rank flat, striker share identical, big-four
+ * dominance and the occasional weak-league winner both intact. Note 36 seasons
+ * is a small sample and a one-winner difference is inside the noise on the
+ * *mean* rank; the median is the number to read (see WORLD_AWARD_OVR_WEIGHT).
  */
 export const WORLD_AWARD_DOMESTIC_CUP_BONUS = 0.25;
 
