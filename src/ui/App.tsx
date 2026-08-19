@@ -68,17 +68,25 @@ function RouteSeo() {
   return null;
 }
 
-// itch.io serves the game from a deep subpath inside an iframe with no server to
-// handle history-API deep links, so the itch build swaps to hash-based routes
-// (/#/roster). Every other target keeps clean URLs. Driven by the itch build
-// mode (see .env.itch / vite.config.ts).
-const Router = import.meta.env.VITE_BUILD_TARGET === "itch" ? HashRouter : BrowserRouter;
+// itch.io and CrazyGames both serve the game from a deep subpath inside an
+// iframe with no server to handle history-API deep links, so those builds swap
+// to hash-based routes (/#/roster). Every other target keeps clean URLs. Driven
+// by the build mode (see .env.itch / .env.crazygames / vite.config.ts).
+const embedded = import.meta.env.VITE_BUILD_TARGET === "itch" ||
+  import.meta.env.VITE_BUILD_TARGET === "crazygames";
+const Router = embedded ? HashRouter : BrowserRouter;
+
+// The CrazyGames build strips the SEO block from index.html, so it must not run
+// the runtime half either — useRouteSeo would recreate the canonical tag, which
+// points at worldsoccersim.org, a playable copy of this same game. Their rules
+// don't allow linking one from the other.
+const seoEnabled = import.meta.env.VITE_BUILD_TARGET !== "crazygames";
 
 export function App() {
   return (
     <Router>
       <SportNameProvider>
-      <RouteSeo />
+      {seoEnabled && <RouteSeo />}
       <LeagueProvider>
         <AnnouncementBanner />
         {/* Outer net for the routes that render outside Layout (the league

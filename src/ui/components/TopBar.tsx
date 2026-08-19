@@ -6,6 +6,7 @@ import { seasonYear } from "../format.js";
 import { buildImportPromptText } from "../../core/teams/rosterAiPrompt.js";
 import { Dropdown } from "./Dropdown.js";
 import { SimTargetForm } from "./SimTargetForm.js";
+import { LOGO_URL } from "../publicAsset.js";
 
 interface TopBarProps {
   /** Toggle the mobile navigation drawer (rendered as a hamburger, mobile only). */
@@ -101,7 +102,7 @@ export function TopBar({ onToggleNav }: TopBarProps) {
       </button>
 
       <span className="navbar-brand mb-0 h1 d-flex align-items-center gap-2">
-        <img src="/favicon.png" alt="" width="32" height="32" className="rounded" />
+        <img src={LOGO_URL} alt="" width="32" height="32" className="rounded" />
         <span className="d-none d-sm-inline">{brand}</span>
       </span>
 

@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "build:itch": "vite build --mode itch",
+    "build:crazygames": "vite build --mode crazygames",
+    "package:crazygames": "bash scripts/packageCrazyGames.sh",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -12,8 +12,20 @@
   <!-- These are the defaults a crawler sees before React boots. Once the app
        mounts, src/ui/seo.ts rewrites title / description / canonical / robots
        per route, so the app-only pages (which need a loaded save and bounce to
-       /leagues) mark themselves noindex instead of piling up as duplicates. -->
+       /leagues) mark themselves noindex instead of piling up as duplicates.
+
+       The title stays outside the strippable block below: CrazyGames require
+       the submitted game name to match the title shown in the game. -->
   <title>World Soccer Simulator | Free Online Soccer Manager Game</title>
+
+  <!-- seo-when-hosted:start
+       Everything in here describes the game to crawlers and link unfurlers on
+       our own domain. The CrazyGames build strips it (vite.config.ts): inside
+       their iframe no crawler reads it, and the canonical / og:url tags point
+       at worldsoccersim.org, a playable copy of this same game — the one kind
+       of outbound reference their submission rules rule out. src/ui/seo.ts is
+       left unrendered in that build for the same reason, or it would put the
+       canonical tag straight back at runtime. -->
   <meta name="description" content="Free browser soccer manager game. Take over a club, sign players, work the transfer market, run a youth academy and chase the title across 16 leagues and 320 clubs." />
   <link rel="canonical" href="https://worldsoccersim.org/" />
   <meta name="robots" content="index, follow, max-image-preview:large" />
@@ -32,9 +44,6 @@
   <meta name="twitter:title" content="World Soccer Simulator | Free Online Soccer Manager Game" />
   <meta name="twitter:description" content="Free browser soccer manager game. Take over a club, sign players, work the transfer market, run a youth academy and chase the title." />
   <meta name="twitter:image" content="https://worldsoccersim.org/og-image.png" />
-
-  <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin />
-  <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
 
   <script type="application/ld+json">
   {
@@ -58,9 +67,16 @@
     }
   }
   </script>
+  <!-- seo-when-hosted:end -->
 
-  <!-- Google AdSense -->
+  <!-- strip-when-embedded:start
+       Google AdSense. CrazyGames allow ads served through their own SDK and
+       nothing else, so their build must not carry this — see vite.config.ts,
+       which fails the build if these markers ever go missing. -->
+  <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin />
+  <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9261720959859333" crossorigin="anonymous"></script>
+  <!-- strip-when-embedded:end -->
 </head>
 <body>
   <!--

@@ -1,6 +1,12 @@
 node_modules/
 dist/
 *.log
+
+# Distribution bundles. Built on demand (npm run package:crazygames), never
+# committed — they are just the app compiled, and the zips are ~10 MB each.
+dist-crazygames/
+soccer-gm-crazygames.zip
+soccer-gm-itch.zip
 .DS_Store
 .playwright-mcp/
 .env

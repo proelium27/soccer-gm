@@ -13,6 +13,13 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import posthog from "posthog-js";
 import { App } from "./App.js";
+import { initCrazyGames, loadingStop } from "./crazygames.js";
+
+// No-ops everywhere except the CrazyGames build. Init is started before React
+// mounts because their SDK is unusable until it resolves and they ask for it to
+// happen on the loading screen; it also opens the loading window that the
+// loadingStop() below closes.
+initCrazyGames();
 
 posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   api_host: import.meta.env.VITE_POSTHOG_HOST,
@@ -42,3 +49,9 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </StrictMode>,
 );
+
+// The bundle is parsed, React has been handed the root, and the first screen
+// paints on the next frame. There is no asset preload phase to wait on — the
+// world is generated on demand inside a save, not at boot — so this is the
+// honest end of loading.
+loadingStop();
