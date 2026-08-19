@@ -2092,6 +2092,31 @@ a:hover {
   display: none;
 }
 
+/* --- In between: sidebar still pinned, but space is tight ----------------
+   Above 768px the sidebar is a fixed column rather than a drawer, and at 220px
+   it eats 24% of a 914px-wide window. That width is not hypothetical: it is
+   what a CrazyGames embed gives the game in a 1200px browser window (their
+   container is a strict 16:9, 914x514 up to 1472x828), and it is also any
+   half-screen window on a laptop. Narrowing the column and tightening the
+   content padding hands ~70px back to the tables, which are the whole point of
+   the page, without costing a click the way collapsing the nav would.
+   Deliberately stops at 1199.98 so it meets the drawer breakpoint below with no
+   gap and no overlap. */
+@media (min-width: 768px) and (max-width: 1199.98px) {
+  .sidebar {
+    width: 170px;
+  }
+  .sidebar .nav-link {
+    padding: 0.3rem 0.7rem;
+  }
+  .sidebar .nav-section {
+    padding: 0.6rem 0.7rem 0.2rem;
+  }
+  .main-content {
+    padding: 1rem 1.1rem;
+  }
+}
+
 @media (max-width: 767.98px) {
   /* Keep a wide table from dragging the whole page (chrome included)
      sideways. `clip` (not `hidden`) so it doesn't turn body into a scroll

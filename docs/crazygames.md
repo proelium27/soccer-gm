@@ -95,6 +95,37 @@ the normal build in five ways. Each one is a requirement, not a preference.
    It points at worldsoccersim.org, a playable copy of this same game, and
    their rules single out links to a playable web version as not allowed.
 
+## Fitting their container
+
+Their game container is a strict **16:9**, and it is smaller than a browser
+window: measured off a live game page, **914x514** in a 1200px-wide window and
+**1472x828** on a 1080p monitor. The rest of the width goes to their page chrome
+and ad rail. Height is the binding constraint, and it is why a desktop web app
+that looks fine maximised can look broken here.
+
+At 1472x828 this game is comfortable. At 914x514 it was not, and three things
+were eating the space:
+
+- The announcement banner, 36px of 514 on every screen. **Dropped from this
+  build only** (`announcementEnabled` in `App.tsx`), which also settles the
+  question of whether a full-width "Join the Discord" bar counts as a main CTA.
+  The sidebar link stays, and that is squarely allowed.
+- The top bar wrapped onto two lines and truncated the season to
+  "2026 — Match…". **Fixed globally**, not just here: the inline save controls
+  now collapse into the existing overflow menu below `xl` (1200px) rather than
+  `md` (768px). The row needs ~1020px next to the brand and season label, so it
+  was equally broken in any narrow browser window on our own site.
+- The 220px sidebar took 24% of the width. **Fixed globally**, narrowed to 170px
+  between 768px and 1199.98px, with tighter content padding.
+
+Net at 914x514: content went from 694x410 to 744x466. The global half of that is
+in the changelog, since it is player-visible on worldsoccersim.org too.
+
+Verify layout changes with the harness, which pins the iframe to both measured
+sizes — `?w=914&h=514` and `?w=1472&h=828`. **Check both.** The failure mode of
+a narrow-window fix is regressing the wide case, and 1472x828 is what most
+desktop players will actually get.
+
 ## SDK integration
 
 `src/ui/crazygames.ts` wraps every SDK call. It no-ops in every other build, and

@@ -146,8 +146,13 @@ export function TopBar({ onToggleNav }: TopBarProps) {
           )}
         </Dropdown>
 
-        {/* Desktop: the save controls sit inline. */}
-        <div className="d-none d-md-flex align-items-center gap-2">
+        {/* Wide windows: the save controls sit inline. The threshold is xl
+            (1200px), not md, because the inline row needs ~1020px alongside the
+            brand and season label — below that it wrapped onto a second line,
+            costing ~20px of height and truncating the season to "2026 — Match…".
+            Found in a 914x514 CrazyGames embed, but it was equally broken in any
+            narrow browser window. */}
+        <div className="d-none d-xl-flex align-items-center gap-2">
           <button className="btn btn-outline-light btn-sm" onClick={exportJSON} disabled={!league}>
             Export
           </button>
@@ -175,9 +180,9 @@ export function TopBar({ onToggleNav }: TopBarProps) {
           </button>
         </div>
 
-        {/* Mobile: the same controls collapse into an overflow menu. */}
+        {/* Narrower than xl: the same controls collapse into an overflow menu. */}
         <Dropdown
-          className="d-md-none"
+          className="d-xl-none"
           buttonClassName="btn btn-outline-light btn-sm topbar-more-toggle"
           ariaLabel="More actions"
           label={<span aria-hidden="true">•••</span>}

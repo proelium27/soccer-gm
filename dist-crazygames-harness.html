@@ -1,13 +1,22 @@
 <!DOCTYPE html>
 <!--
   Harness for verifying the CrazyGames bundle by hand before uploading it — the
-  manual half of the checks in docs/crazygames.md. CrazyGames
-  serve the game in an iframe at a path we don't control, so loading dist
-  directly in a tab doesn't exercise the two things most likely to break:
-  relative asset paths under a subpath, and hash routing inside a frame.
+  manual half of the checks in docs/crazygames.md. CrazyGames serve the game in
+  an iframe at a path we don't control, so loading dist directly in a tab
+  doesn't exercise the two things most likely to break: relative asset paths
+  under a subpath, and hash routing inside a frame.
+
+  It also pins the iframe to the size CrazyGames actually give a game, which is
+  the only way to see the layout the player sees. Measured off a live game page:
+  the container is strictly 16:9, 914x514 in a 1200px-wide window and 1472x828
+  on a 1080p monitor, because their page chrome and ad rail eat the rest. The
+  short side is height — far shorter than the browser window a desktop web app
+  is normally designed against.
 
   Serve the repo root (`python3 -m http.server 4173`) and open
-  http://localhost:4173/dist-crazygames-harness.html.
+  http://localhost:4173/dist-crazygames-harness.html. Add ?w=1472&h=828 for the
+  big-monitor case; the default is the small one, since that is where a layout
+  breaks first.
 
   Not part of any build and never shipped — it lives at the repo root, outside
   the bundle it loads.
@@ -17,11 +26,29 @@
   <meta charset="UTF-8" />
   <title>CrazyGames harness</title>
   <style>
-    html, body { margin: 0; height: 100%; background: #15171f; }
-    iframe { display: block; width: 100%; height: 100%; border: 0; }
+    html, body { margin: 0; min-height: 100%; background: #0c0d12; color: #9aa0b5;
+      font: 13px/1.5 system-ui, sans-serif; }
+    .bar { padding: 6px 10px; display: flex; gap: 14px; align-items: baseline; }
+    .bar a { color: #8ab4ff; }
+    iframe { display: block; border: 1px solid #2a2d3a; background: #000; }
   </style>
 </head>
 <body>
-  <iframe src="./dist-crazygames/index.html" title="game"></iframe>
+  <div class="bar">
+    <strong id="dims"></strong>
+    <span>CrazyGames embed, 16:9</span>
+    <a href="?w=914&h=514">914x514 (small window)</a>
+    <a href="?w=1472&h=828">1472x828 (1080p)</a>
+  </div>
+  <iframe id="game" src="./dist-crazygames/index.html" title="game"></iframe>
+  <script>
+    const q = new URLSearchParams(location.search);
+    const w = Number(q.get("w")) || 914;
+    const h = Number(q.get("h")) || 514;
+    const frame = document.getElementById("game");
+    frame.style.width = w + "px";
+    frame.style.height = h + "px";
+    document.getElementById("dims").textContent = w + " x " + h;
+  </script>
 </body>
 </html>
