@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { simThrough } from "../core/simThrough.js";
 import { simOffseason } from "../core/offseason.js";
+import { jumpSeasons } from "../core/autopilot.js";
 import { playIntlStage, simThroughInternational } from "../core/international/index.js";
 import { mulberry32 } from "../engine/rng.js";
 import type { WorkerCommand, WorkerResponse } from "./protocol.js";
@@ -36,6 +37,17 @@ self.onmessage = (e: MessageEvent<WorkerCommand>) => {
     const rng = mulberry32(seed);
     const result = simOffseason(cmd.league, rng);
     const response: WorkerResponse = { type: "offseasonResult", league: result };
+    self.postMessage(response);
+  } else if (cmd.type === "jump") {
+    // No rng is threaded in: a jump is many seasons, and each one seeds itself
+    // exactly the way the equivalent button click above does (see
+    // core/autopilot.ts), so jumping five seasons and clicking through five
+    // seasons land on the same world.
+    const result = jumpSeasons(cmd.league, cmd.seasons, (seasonsDone, totalSeasons, season) => {
+      const progress: WorkerResponse = { type: "jumpProgress", seasonsDone, totalSeasons, season };
+      self.postMessage(progress);
+    });
+    const response: WorkerResponse = { type: "jumpResult", league: result };
     self.postMessage(response);
   } else if (cmd.type === "intl") {
     // Staged international football: play one stage, or every remaining stage.

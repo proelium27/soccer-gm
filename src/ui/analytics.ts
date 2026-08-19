@@ -34,6 +34,12 @@ export interface GameEvents {
   };
   /** The user advanced past the offseason into a new season. */
   offseason_advanced: Record<string, never>;
+  /**
+   * The user jumped forward whole seasons with the AI running their club.
+   * Bucketed like `season_simmed.matchdays`, for the same reason — the raw
+   * count would be a high-cardinality property.
+   */
+  seasons_jumped: { seasons: "1" | "2-5" | "6-10" | "11+" };
   /** The user played a staged international stage (one stage, or through the rest). */
   intl_stage_played: { mode: "stage" | "through" };
   /** The user made a transfer bid for another club's player. */

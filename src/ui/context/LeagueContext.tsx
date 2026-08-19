@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, type ReactNode } from "react";
 import type { LeagueStore } from "../../core/leagueState.js";
 import type { SimThrough, IntlMode } from "../../worker/protocol.js";
-import { useSimWorker, type SimProgress } from "../useSimWorker.js";
+import { useSimWorker, type SimProgress, type JumpProgressUpdate } from "../useSimWorker.js";
 import { saveLeague, loadLeague } from "../../db/leagueDb.js";
 import { getActiveLid, setActiveLid, clearActiveLid } from "../../db/activeLeague.js";
 import { exportLeagueJSON, importLeagueJSON } from "../../db/exportImport.js";
@@ -30,6 +30,7 @@ import { teamSlots, chooseBestFormation, FORMATION_IDS, type FormationId } from 
 import { SimOverlay } from "../components/SimOverlay.js";
 import { LiveMatchOverlay } from "../components/LiveMatchOverlay.js";
 import { LiveMatchPicker } from "../components/LiveMatchPicker.js";
+import { JumpOverlay, type JumpResult } from "../components/JumpOverlay.js";
 import { liveCandidates, type LiveCandidate } from "../live/liveCandidates.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import type { PlayedMatch } from "../../core/standings.js";
@@ -51,6 +52,8 @@ interface LeagueContextValue {
    * is not committed until the viewer is closed.
    */
   simLiveAction: () => Promise<void>;
+  /** Play `seasons` whole seasons with the AI managing the user's club (core/autopilot.ts). */
+  jumpSeasonsAction: (seasons: number) => Promise<void>;
   offseasonAction: () => Promise<void>;
   /** Play the next staged international stage ("stage") or every remaining one ("through"). */
   intlStageAction: (mode: IntlMode) => Promise<void>;
@@ -102,7 +105,17 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const [loadingActiveLeague, setLoadingActiveLeague] = useState(
     () => getActiveLid() !== null,
   );
-  const { sim, runOffseason, runIntlStage, simming } = useSimWorker();
+  const { sim, runOffseason, runIntlStage, runJump, simming } = useSimWorker();
+
+  // A multi-season jump owns the screen the same way the sim overlay does, and
+  // for the same reason: the league it returns replaces several seasons of
+  // state, so nothing else may act on the league meanwhile. Its progress is
+  // held here rather than in the context value so a per-season tick doesn't
+  // re-render every consumer (see the memo comment further down).
+  const [jumpOpen, setJumpOpen] = useState(false);
+  const [jumpProgress, setJumpProgress] = useState<JumpProgressUpdate | null>(null);
+  const [jumpResult, setJumpResult] = useState<JumpResult | null>(null);
+  const jumpOpenRef = useRef(false);
 
   const [simOverlayOpen, setSimOverlayOpen] = useState(false);
   const [animQueue, setAnimQueue] = useState<SimProgress[]>([]);
@@ -340,6 +353,56 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       console.error("Live simulation failed:", err);
     }
   }), [runExclusive, sim, commitLeague]);
+
+  /**
+   * Jump forward whole seasons with the AI running the club.
+   *
+   * Committed in one write at the end rather than season by season: the worker
+   * holds the only copy while it runs, and a half-jumped save on disk would be
+   * a save whose owner spent five seasons somewhere they never chose to be. If
+   * it throws, the pre-jump league is simply still the committed one.
+   */
+  const jumpSeasonsAction = useCallback((seasons: number) => runExclusive(async () => {
+    const current = leagueRef.current;
+    if (!current || overlayOpenRef.current || liveOpenRef.current || jumpOpenRef.current) return;
+    const from = current.season;
+    jumpOpenRef.current = true;
+    setJumpProgress(null);
+    setJumpResult(null);
+    setJumpOpen(true);
+    try {
+      const result = await runJump(seasons, current, setJumpProgress);
+      const lid = await saveLeague(result);
+      const saved = { ...result, lid };
+      commitLeague(saved);
+      // Which seasons the AI actually picked the team for — the tail of the
+      // save's own record, so the recap can't disagree with the history page.
+      setJumpResult({
+        league: saved,
+        managedSeasons: saved.aiManagedSeasons.filter((s) => s >= from),
+      });
+      const jumped = saved.season - from;
+      trackEvent("seasons_jumped", {
+        seasons:
+          jumped <= 1 ? "1"
+          : jumped <= 5 ? "2-5"
+          : jumped <= 10 ? "6-10"
+          : "11+",
+      });
+    } catch (err) {
+      jumpOpenRef.current = false;
+      setJumpOpen(false);
+      setJumpProgress(null);
+      console.error("Season jump failed:", err);
+    }
+  }), [runExclusive, runJump, commitLeague]);
+
+  const closeJump = useCallback(() => {
+    jumpOpenRef.current = false;
+    setJumpOpen(false);
+    setJumpProgress(null);
+    setJumpResult(null);
+  }, []);
 
   const offseasonAction = useCallback(() => runExclusive(async () => {
     const current = leagueRef.current;
@@ -657,6 +720,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     customizeTeamsAction,
     simAction,
     simLiveAction,
+    jumpSeasonsAction,
     offseasonAction,
     intlStageAction,
     signFreeAgentAction,
@@ -690,13 +754,14 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     // The live viewer blocks other actions the same way the sim overlay does:
     // its matchday is simmed but uncommitted, so anything else acting on the
     // league would be computing from a state that is about to be replaced.
-    simming: simming || simOverlayOpen || watchable !== null || busy,
+    simming: simming || simOverlayOpen || watchable !== null || jumpOpen || busy,
     saveToDb,
     exportJSON: doExport,
     importJSON: doImport,
   }), [
     league, loadingActiveLeague, setLeague, loadLeagueAction, switchLeagueAction,
-    customizeTeamsAction, simAction, simLiveAction, offseasonAction, intlStageAction, signFreeAgentAction,
+    customizeTeamsAction, simAction, simLiveAction, jumpSeasonsAction, offseasonAction,
+    intlStageAction, signFreeAgentAction,
     releasePlayerAction, signToAcademyAction, promoteFromAcademyAction,
     releaseAcademyPlayerAction, extendAcademyContractAction, setScoutingSpendAction,
     makeOfferAction, acceptCounterAction, acceptInboundOfferAction,
@@ -706,7 +771,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     autoPickBestXIAction,
     setGodModeAction, movePlayerToClubAction, releasePlayerGodModeAction,
     editPlayerAction, createPlayerAction, setClubFinancesAction,
-    simming, simOverlayOpen, watchable, busy, saveToDb, doExport, doImport,
+    simming, simOverlayOpen, watchable, jumpOpen, busy, saveToDb, doExport, doImport,
   ]);
 
   return (
@@ -719,6 +784,12 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         done={animDone}
         userTid={league?.meta.userTid ?? -1}
         onComplete={finishSimAnimation}
+      />
+      <JumpOverlay
+        open={jumpOpen}
+        progress={jumpProgress}
+        result={jumpResult}
+        onClose={closeJump}
       />
       {/* Two matches on this matchday: ask before playing either. */}
       {watchable && liveChoice === null && (

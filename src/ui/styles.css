@@ -2620,3 +2620,16 @@ body.nav-drawer-open {
   font-size: var(--sg-text-sm);
   color: var(--sg-text-muted);
 }
+
+/* Multi-season jump: progress while the AI plays it out, then the recap. */
+.jump-overlay {
+  width: 620px;
+  max-width: 92vw;
+  box-shadow: var(--sg-shadow);
+}
+/* The recap is one row per jumped season and a jump can be 25 of them, so it
+   scrolls inside the panel rather than pushing the button off the screen. */
+.jump-recap {
+  max-height: 46vh;
+  overflow-y: auto;
+}

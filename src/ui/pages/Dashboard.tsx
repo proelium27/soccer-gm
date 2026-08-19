@@ -7,6 +7,7 @@ import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
 import { SimTargetForm } from "../components/SimTargetForm.js";
+import { JumpSeasonsForm } from "../components/JumpSeasonsForm.js";
 import { SCOUTING_SPEND_MAX, RATING_LEADER_QUALIFY_FRACTION } from "../../core/constants.js";
 import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
@@ -138,7 +139,9 @@ export function Dashboard() {
 // draft state — skips recomputing standings, the news timeline, the lookup
 // maps, the wage bill, and the stat-leader scans over the whole player pool.
 function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: StoredTeam }) {
-  const { simAction, simLiveAction, setScoutingSpendAction, intlStageAction, simming } = useLeague();
+  const {
+    simAction, simLiveAction, jumpSeasonsAction, setScoutingSpendAction, intlStageAction, simming,
+  } = useLeague();
   const navigate = useNavigate();
   // Slider position while dragging; persisted (and clamped) only on release
   // so we don't write to IndexedDB on every drag tick.
@@ -385,6 +388,24 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
               />
             )}
           </div>
+        </div>
+      </div>
+
+      {/*
+        Jump ahead. Its own card rather than a fifth button in Simulation: that
+        card plays matchdays of the season you're managing and is dead in the
+        offseason, while this hands the club over entirely and works from either
+        phase. Putting them together would make the two read as the same kind of
+        thing, and they are not.
+      */}
+      <div className="card mb-3">
+        <div className="card-body">
+          <h5 className="card-title">Jump ahead</h5>
+          <JumpSeasonsForm
+            season={league.season}
+            disabled={simming}
+            onJump={(seasons) => jumpSeasonsAction(seasons)}
+          />
         </div>
       </div>
 
