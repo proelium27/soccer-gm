@@ -6,6 +6,8 @@ import { TopBar } from "./TopBar.js";
 import { Sidebar } from "./Sidebar.js";
 import { ErrorBoundary } from "./ErrorBoundary.js";
 import { CrestArtProvider } from "./ClubCrest.js";
+import { gameplayStart, gameplayStop } from "../crazygames.js";
+import { LOGO_URL } from "../publicAsset.js";
 
 interface LayoutProps {
   /**
@@ -33,6 +35,18 @@ export function Layout({ allowNoLeague = false }: LayoutProps) {
     document.body.classList.toggle("nav-drawer-open", navOpen);
     return () => document.body.classList.remove("nav-drawer-open");
   }, [navOpen]);
+
+  // CrazyGames measure "playing" separately from "in a menu", and Layout is the
+  // line between the two: everything inside it is a loaded save, everything
+  // outside it (the league picker, the new-league flow) is a menu. The manual
+  // and changelog render in this same shell via allowNoLeague and are reading
+  // material, not play, so they're excluded. No-ops in every other build.
+  const playing = league != null && !allowNoLeague;
+  useEffect(() => {
+    if (!playing) return;
+    gameplayStart();
+    return () => gameplayStop();
+  }, [playing]);
 
   // Reading-material routes render their content straight away, before the save
   // has been read back from IndexedDB. Waiting would flash a "Loading..." at a
@@ -98,7 +112,7 @@ function StandaloneShell({ children }: { children: ReactNode }) {
     <>
       <nav className="navbar navbar-dark app-topbar px-2 px-md-3">
         <Link to="/leagues" className="navbar-brand mb-0 h1 d-flex align-items-center gap-2">
-          <img src="/favicon.png" alt="" width="32" height="32" className="rounded" />
+          <img src={LOGO_URL} alt="" width="32" height="32" className="rounded" />
           <span>{brand}</span>
         </Link>
         <div className="d-flex align-items-center gap-2">

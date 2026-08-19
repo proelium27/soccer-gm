@@ -68,19 +68,36 @@ function RouteSeo() {
   return null;
 }
 
-// itch.io serves the game from a deep subpath inside an iframe with no server to
-// handle history-API deep links, so the itch build swaps to hash-based routes
-// (/#/roster). Every other target keeps clean URLs. Driven by the itch build
-// mode (see .env.itch / vite.config.ts).
-const Router = import.meta.env.VITE_BUILD_TARGET === "itch" ? HashRouter : BrowserRouter;
+// itch.io and CrazyGames both serve the game from a deep subpath inside an
+// iframe with no server to handle history-API deep links, so those builds swap
+// to hash-based routes (/#/roster). Every other target keeps clean URLs. Driven
+// by the build mode (see .env.itch / .env.crazygames / vite.config.ts).
+const crazyGames = import.meta.env.VITE_BUILD_TARGET === "crazygames";
+const embedded = import.meta.env.VITE_BUILD_TARGET === "itch" || crazyGames;
+const Router = embedded ? HashRouter : BrowserRouter;
+
+// The CrazyGames build strips the SEO block from index.html, so it must not run
+// the runtime half either — useRouteSeo would recreate the canonical tag, which
+// points at worldsoccersim.org, a playable copy of this same game. Their rules
+// don't allow linking one from the other.
+const seoEnabled = !crazyGames;
+
+// The announcement banner is dropped from the CrazyGames build for two reasons
+// that happen to agree. Space: their container is a fixed 16:9 box as small as
+// 914x514, where the strip costs 36px of 514 — 7% of the height, on every
+// screen, permanently for anyone who doesn't dismiss it. Rules: it is a
+// full-width bar whose action is "Join the Discord", and community links are
+// allowed on a game menu only so long as they aren't a main CTA. The same link
+// still sits in the sidebar, which is squarely within what they allow.
+const announcementEnabled = !crazyGames;
 
 export function App() {
   return (
     <Router>
       <SportNameProvider>
-      <RouteSeo />
+      {seoEnabled && <RouteSeo />}
       <LeagueProvider>
-        <AnnouncementBanner />
+        {announcementEnabled && <AnnouncementBanner />}
         {/* Outer net for the routes that render outside Layout (the league
             picker and new-league flow), which have no boundary of their own.
             Pages inside Layout get a per-route boundary that keeps the nav
