@@ -124,7 +124,16 @@ export function PlayerProfile() {
 
   const statsBySeasonDesc = [...player.stats].sort((a, b) => b.season - a.season);
   const histBySeasonDesc = [...player.hist].sort((a, b) => b.season - a.season);
-  const cupStatsBySeason = cupStatsBySeasonForPlayer(league.cup, league.cupHistory, player.pid);
+  // Both continental competitions on one tab, each row labelled. A player can
+  // have Cup seasons and Shield seasons in one career (and, if he moves clubs
+  // mid-season, one of each in the same season), so the rows are keyed by
+  // competition *and* season rather than season alone.
+  const cupStatsBySeason = [
+    ...cupStatsBySeasonForPlayer(league.cup, league.cupHistory, player.pid)
+      .map((line) => ({ line, competition: "Cup" })),
+    ...cupStatsBySeasonForPlayer(league.shield, league.shieldHistory ?? [], player.pid)
+      .map((line) => ({ line, competition: "Shield" })),
+  ].sort((a, b) => b.line.season - a.line.season || a.competition.localeCompare(b.competition));
   const showCupTab = worldHasCup(league.competitions);
   // The national-team tab appears once he's been involved at all. Its per-campaign
   // lines only exist from the season they started being recorded, so a save older
@@ -424,7 +433,7 @@ export function PlayerProfile() {
           <div className="d-flex align-items-center justify-content-between mb-2">
             <h6 className="card-title mb-0">
               {activeStatsTab === "cup"
-                ? "Continental Cup Stats"
+                ? "Continental Stats"
                 : activeStatsTab === "intl"
                   ? "National Team Stats"
                   : "Season Stats"}
@@ -536,13 +545,14 @@ export function PlayerProfile() {
             </>
           ) : activeStatsTab === "cup" ? (
             cupStatsBySeason.length === 0 ? (
-              <p className="text-muted mb-0">No Continental Cup matches yet.</p>
+              <p className="text-muted mb-0">No Continental Cup or Shield matches yet.</p>
             ) : (
               <div className="table-responsive">
                 <table className="table table-striped table-sm mb-0">
                   <thead>
                     <tr>
                       <th>Season</th>
+                      <th>Comp</th>
                       <th className="text-end">Apps</th>
                       <th className="text-end">Min</th>
                       <th className="text-end">G{statsRate && "/90"}</th>
@@ -556,12 +566,13 @@ export function PlayerProfile() {
                     </tr>
                   </thead>
                   <tbody>
-                    {cupStatsBySeason.map((s) => {
+                    {cupStatsBySeason.map(({ line: s, competition }) => {
                       const v = (value: number) =>
                         statsRate ? per90Text(value, s.minutesPlayed) : String(value);
                       return (
-                      <tr key={s.season}>
+                      <tr key={`${competition}-${s.season}`}>
                         <td>{seasonYear(s.season)}</td>
+                        <td className="text-muted small">{competition}</td>
                         <td className="text-end">{s.appearances}</td>
                         <td className="text-end">{s.minutesPlayed}</td>
                         <td className="text-end">{v(s.goals)}</td>

@@ -5,11 +5,12 @@ import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { teamSlots } from "../../core/lineup/formations.js";
 import { tierOf } from "../../core/competitions.js";
-import { worldHasCup, cupSlotsForCompetition } from "../../core/cup/cup.js";
+import { worldHasCup, cupSlotsForCompetition, cupSlotRange } from "../../core/cup/cup.js";
+import { SHIELD_FORMAT } from "../../core/constants.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
-import { seasonYear } from "../format.js";
+import { seasonYear, ordinal } from "../format.js";
 
 type StandingsSortKey =
   | "pos" | "team" | "p" | "w" | "d" | "l" | "gf" | "ga" | "gd" | "pts" | "ovr" | "pot";
@@ -43,6 +44,11 @@ export function Standings() {
   const comp = league.competitions.find((c) => c.id === compId);
   const showCupZone = isTier1 && !!comp && worldHasCup(league.competitions);
   const cupSlots = comp ? cupSlotsForCompetition(comp) : 0;
+  // Directly below it, the Continental Shield's places. A world can field a Cup
+  // and not a Shield (it needs more top-flight leagues), so this is asked
+  // separately rather than assumed to come along with the Cup zone.
+  const showShieldZone = isTier1 && !!comp && worldHasCup(league.competitions, SHIELD_FORMAT);
+  const [shieldFrom, shieldTo] = comp ? cupSlotRange(comp, SHIELD_FORMAT) : [0, -1];
 
   const seasonOptions = [...league.seasonHistory.map((h) => h.season)].sort((a, b) => b - a);
 
@@ -158,9 +164,14 @@ export function Standings() {
               const isChampion = row.tid === championTid;
               const isCupSpot = showCupZone && pos < cupSlots;
               const isCupCut = showCupZone && pos === cupSlots - 1;
+              // pos is 0-based; the Shield range is 1-based finishing places.
+              const isShieldSpot = showShieldZone && pos + 1 >= shieldFrom && pos + 1 <= shieldTo;
+              const isShieldCut = showShieldZone && pos + 1 === shieldTo;
               const rowClass = [
                 isCupSpot && "cup-qualification",
                 isCupCut && "cup-qualification-cut",
+                isShieldSpot && "shield-qualification",
+                isShieldCut && "shield-qualification-cut",
                 isUser && "team-highlight",
                 isChampion && "champion-highlight",
               ]
@@ -197,6 +208,15 @@ export function Standings() {
         {showCupZone && (
           <p className="text-muted small mt-1 mb-0">
             <span className="cup-zone-key" /> Top {cupSlots} qualify for the Continental Cup.
+          </p>
+        )}
+        {showShieldZone && (
+          <p className="text-muted small mt-1 mb-0">
+            <span className="shield-zone-key" />{" "}
+            {shieldFrom === shieldTo
+              ? `${ordinal(shieldFrom)} qualifies`
+              : `${ordinal(shieldFrom)} and ${ordinal(shieldTo)} qualify`}{" "}
+            for the Continental Shield.
           </p>
         )}
         </>

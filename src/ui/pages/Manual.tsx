@@ -19,6 +19,7 @@ const SECTIONS: [id: string, title: string][] = [
   ["season", "The Season & Simming"],
   ["world", "The World"],
   ["cup", "The Continental Cup"],
+  ["shield", "The Continental Shield"],
   ["international", "International Football"],
   ["players", "Players: Ratings, OVR & Potential"],
   ["development", "Player Development & Aging"],
@@ -232,8 +233,9 @@ export function Manual() {
           <p>Every screen in the game and what it's for:</p>
           <ul>
             <li><strong>Dashboard</strong>. Your current W/D/L record and next fixture front and center, with your division's standings on the left and the latest news headlines on the right. Below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim controls.</li>
-            <li><strong>Standings</strong>. The league table, plus each club's current OVR/POT. A season dropdown lets you pull up any past season's final table next to the current one. The champion's row is highlighted, and the <a href="#cup">Continental Cup</a> qualification places are shaded.</li>
+            <li><strong>Standings</strong>. The league table, plus each club's current OVR/POT. A season dropdown lets you pull up any past season&apos;s final table next to the current one. The champion&apos;s row is highlighted, and the <a href="#cup">Continental Cup</a> and <a href="#shield">Continental Shield</a> qualification places are shaded.</li>
             <li><strong>Continental Cup</strong>. The live league-phase table and knockout bracket for the current season, plus past winners via a season dropdown. More in <a href="#cup">The Continental Cup</a>.</li>
+            <li><strong>Continental Shield</strong>. The same page for the second competition, for clubs finishing just below the Cup places. More in <a href="#shield">The Continental Shield</a>.</li>
             <li><strong>National Teams</strong>. A whole section for the summer's national-team football: the current World Cup and Qualifying, Rosters showing every nation's named squad, a Schedule of fixtures, Power Rankings of every nation, Stat Leaders (top nations and top players, filterable by country), and History with past winners and each nation's record. More in <a href="#international">International Football</a>.</li>
             <li><strong>Power Rankings</strong>. Every club in the world ranked by a blended Power score: squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column) plus a current-season form bonus or penalty. Form isn't just your record. Beating a strong side counts for more than beating a weak one (and losing to a weak side hurts more than losing to a strong one), and goal difference factors in too, so a club can rank above or below its raw OVR depending on how it's actually playing. Record, goal difference, OVR, and the blended Power score all sit side by side, with a badge showing each club's competition and its rank within it. Click a team to expand its full roster in place. The rankings also get snapshotted every 5 matchdays (plus once after the final matchday), and a dropdown lets you browse any past snapshot from any season, with arrows showing how far each club rose or fell since the last one. Historical views can't expand rosters, since past squads aren't stored, and snapshots only start piling up from the point this feature shipped.</li>
             <li><strong>Schedule</strong>. Every matchday's fixtures and results. Click a played match for its box score.</li>
@@ -470,6 +472,39 @@ export function Manual() {
             One handy thing: if your club reaches the final, simming to the end of the season{" "}
             <strong>stops just before the final</strong> so you don't blow past it. Check your
             lineup, then sim on to play it.
+          </p>
+        </Section>
+
+        <Section id="shield" title="The Continental Shield">
+          <p>
+            The Continental Shield is the second competition, for the clubs that just miss out on the
+            Continental Cup. It takes the places directly below the Cup's: <strong>5th and 6th</strong>{" "}
+            in each of the four strongest leagues, and <strong>3rd and 4th</strong> in each of the four
+            weaker ones. That's 8 × 2 = <strong>16 clubs</strong>, and because it starts exactly where
+            the Cup stops, no club is ever in both. On the <a href="#pages">Standings</a> page the
+            Shield places get their own shaded band directly under the Cup's.
+          </p>
+          <p>
+            It runs exactly like the Cup: a 16-club league phase of six games, then the top four go
+            straight to the quarter-finals, 5th to 12th fight through a single-leg playoff, and the
+            rest go out. Quarter-finals and semi-finals are two-legged, the final is one match.
+            It uses the <strong>same matchdays</strong> as the Cup, which is fine because no club
+            plays in both. Like the Cup it starts in your world's second season, and if your club
+            reaches the final the sim stops just before it.
+          </p>
+          <p>
+            The money is real but smaller: participation, a playoff win and each knockout round all
+            pay, at roughly <strong>40%</strong> of the Cup's rates. Winning the whole thing is worth
+            about what a decent cup run is, not what winning the Cup is. That's the point of it —
+            finishing 5th now has something to play for, and a mid-table club can put a trophy in the
+            cabinet, without it ever rivalling the Cup.
+          </p>
+          <p>
+            Shield stats are tracked the same way cup stats are, separately from your league season,
+            and they show up on the same <strong>Cup</strong> tab of a{" "}
+            <a href="#players">player's profile</a> with a column saying which competition each row
+            is. Shield titles show on a club's trophy case and count on the all-time boards, weighted
+            below a Continental Cup. They don't currently feed the Ballon d'Or.
           </p>
         </Section>
 

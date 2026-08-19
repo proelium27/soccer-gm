@@ -333,15 +333,18 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
         </div>
       </div>
 
-      {/* Continental Cup final: the season sim halts before it, so flag why. */}
-      {league.cup &&
-        !isCupComplete(league.cup) &&
-        cupFinalists(league.cup).includes(league.meta.userTid) && (
-          <div className="alert alert-warning d-flex justify-content-between align-items-center mb-3">
-            <span>Your club has reached the Continental Cup final. Simming pauses here so you can prepare.</span>
-            <Link to="/cup" className="btn btn-sm btn-outline-warning">View bracket</Link>
+      {/* A continental final: the season sim halts before it, so flag why. The
+          user's club can only be in one of the two competitions. */}
+      {([["cup", league.cup], ["shield", league.shield]] as const).map(([kind, comp]) =>
+        comp && !isCupComplete(comp) && cupFinalists(comp).includes(league.meta.userTid) ? (
+          <div key={kind} className="alert alert-warning d-flex justify-content-between align-items-center mb-3">
+            <span>
+              Your club has reached the {comp.name} final. Simming pauses here so you can prepare.
+            </span>
+            <Link to={`/${kind}`} className="btn btn-sm btn-outline-warning">View bracket</Link>
           </div>
-        )}
+        ) : null,
+      )}
 
       {/* Sim controls */}
       <div className="card mb-3">

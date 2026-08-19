@@ -64,6 +64,13 @@
   --sg-cup: oklch(0.72 0.11 200);
   --sg-cup-wash: oklch(0.72 0.11 200 / 0.14);
   --sg-cup-line: oklch(0.72 0.11 200 / 0.6);
+  /* Continental Shield accent — the same teal family as the Cup, since the two
+     competitions are siblings, but shifted toward violet and lighter so the two
+     qualification bands read as related rather than interchangeable when they
+     sit directly on top of each other in a league table. */
+  --sg-shield: oklch(0.68 0.09 290);
+  --sg-shield-wash: oklch(0.68 0.09 290 / 0.12);
+  --sg-shield-line: oklch(0.68 0.09 290 / 0.55);
 
   --sg-radius: 6px;
   --sg-shadow: 0 0.5rem 1.5rem oklch(0.12 0.02 155 / 0.45);
@@ -369,6 +376,14 @@ a:hover {
 }
 .cup-qualification-cut > td {
   border-bottom: 2px solid var(--sg-cup-line);
+}
+/* Continental Shield zone — the places directly below the Cup's. Declared after
+   the Cup's rules and before the user/champion ones, same layering reason. */
+.shield-qualification > td {
+  box-shadow: inset 0 0 0 9999px var(--sg-shield-wash);
+}
+.shield-qualification-cut > td {
+  border-bottom: 2px solid var(--sg-shield-line);
 }
 .team-highlight > td {
   box-shadow: inset 0 0 0 9999px var(--sg-user-wash);
@@ -1939,6 +1954,16 @@ a:hover {
   border-radius: 2px;
   background: var(--sg-cup-wash);
   border-left: 3px solid var(--sg-cup-line);
+  vertical-align: -1px;
+  margin-right: 0.15rem;
+}
+.shield-zone-key {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 2px;
+  background: var(--sg-shield-wash);
+  border-left: 3px solid var(--sg-shield-line);
   vertical-align: -1px;
   margin-right: 0.15rem;
 }

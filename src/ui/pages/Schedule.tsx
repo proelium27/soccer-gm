@@ -3,6 +3,7 @@ import { useLeague } from "../context/LeagueContext.js";
 import type { ScheduleGame } from "../../core/schedule.js";
 import type { CupState } from "../../core/cup/types.js";
 import { cupRoundName, koRoundsOf, koLegMatchdays } from "../../core/cup/cup.js";
+import type { CupCompetitionId } from "../../core/constants.js";
 
 interface FixtureRow {
   matchday: number;
@@ -11,16 +12,23 @@ interface FixtureRow {
   result: { homeGoals: number; awayGoals: number; possessionHome: number } | null;
   /** Index into league.played for the box-score link (league games only). */
   playedIndex: number | null;
-  /** "league" fixtures link to their box score; "cup" fixtures link to the Cup page. */
+  /** "league" fixtures link to their box score; "cup" fixtures link to their competition's page. */
   kind: "league" | "cup";
+  /** Cup rows only: which continental competition the fixture belongs to. */
+  competition?: CupCompetitionId;
   /** Cup rows only: the stage label, e.g. "League phase" or "Quarter-final (1st leg)". */
   label?: string;
   sortKey: number;
 }
 
-/** The user's Continental Cup fixtures (league phase, playoff, and knockout legs), for the schedule. */
+/**
+ * The user's fixtures in one continental competition (league phase, playoff and
+ * knockout legs). Called once per competition — a club only ever plays one of
+ * them, so at most one call returns anything.
+ */
 function userCupRows(cup: CupState | null, userTid: number): FixtureRow[] {
   if (!cup) return [];
+  const competition = cup.competition;
   const rows: FixtureRow[] = [];
   const mine = (h: number, a: number): boolean => h === userTid || a === userTid;
   const push = (
@@ -33,7 +41,7 @@ function userCupRows(cup: CupState | null, userTid: number): FixtureRow[] {
     rows.push({
       matchday, home, away,
       result: score ? { ...score, possessionHome: 0.5 } : null,
-      playedIndex: null, kind: "cup", label, sortKey: matchday,
+      playedIndex: null, kind: "cup", competition, label, sortKey: matchday,
     });
   };
 
@@ -115,7 +123,10 @@ export function Schedule() {
       sortKey: g.matchday,
     }));
 
-  const cupRows = userCupRows(league.cup, userTid);
+  const cupRows = [
+    ...userCupRows(league.cup, userTid),
+    ...userCupRows(league.shield, userTid),
+  ];
 
   // Within a matchday, list the league game first, then any cup fixture.
   const allRows = [...playedRows, ...scheduledRows, ...cupRows].sort(
@@ -179,7 +190,7 @@ export function Schedule() {
                     {teamName(row.home)}
                     {row.kind === "cup" && (
                       <span className="badge text-bg-secondary ms-2 align-middle" style={{ fontWeight: 400 }}>
-                        Cup · {row.label}
+                        {row.competition === "shield" ? "Shield" : "Cup"} · {row.label}
                       </span>
                     )}
                   </td>
@@ -190,7 +201,7 @@ export function Schedule() {
                           {row.result.homeGoals} - {row.result.awayGoals}
                         </Link>
                       ) : (
-                        <Link to="/cup">
+                        <Link to={row.competition === "shield" ? "/shield" : "/cup"}>
                           {row.result.homeGoals} - {row.result.awayGoals}
                         </Link>
                       )
