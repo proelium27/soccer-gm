@@ -13,6 +13,13 @@ export type SimProgress = {
   cupTies: CupTie[];
 };
 
+/** Where a multi-season jump has got to (see core/autopilot.ts). */
+export type JumpProgressUpdate = {
+  seasonsDone: number;
+  totalSeasons: number;
+  season: number;
+};
+
 type Pending = {
   resolve: (league: LeagueStore) => void;
   reject: (err: Error) => void;
@@ -23,6 +30,7 @@ export function useSimWorker() {
   const [simming, setSimming] = useState(false);
   const pendingRef = useRef<Pending | null>(null);
   const progressRef = useRef<((progress: SimProgress) => void) | null>(null);
+  const jumpProgressRef = useRef<((progress: JumpProgressUpdate) => void) | null>(null);
 
   useEffect(() => {
     const worker = new Worker(
@@ -35,15 +43,22 @@ export function useSimWorker() {
         progressRef.current?.({ matchday, matchdayIndex, totalMatchdays, results, cupTies });
         return;
       }
+      if (e.data.type === "jumpProgress") {
+        const { seasonsDone, totalSeasons, season } = e.data;
+        jumpProgressRef.current?.({ seasonsDone, totalSeasons, season });
+        return;
+      }
       if (
         e.data.type === "simResult" ||
         e.data.type === "offseasonResult" ||
-        e.data.type === "intlResult"
+        e.data.type === "intlResult" ||
+        e.data.type === "jumpResult"
       ) {
         setSimming(false);
         pendingRef.current?.resolve(e.data.league);
         pendingRef.current = null;
         progressRef.current = null;
+        jumpProgressRef.current = null;
       }
     };
     // An uncaught exception in the worker must reject the pending promise;
@@ -53,6 +68,7 @@ export function useSimWorker() {
       pendingRef.current?.reject(new Error(message));
       pendingRef.current = null;
       progressRef.current = null;
+      jumpProgressRef.current = null;
     };
     worker.onerror = (e: ErrorEvent) => fail(e.message || "simulation worker crashed");
     worker.onmessageerror = () => fail("simulation worker message could not be deserialized");
@@ -65,8 +81,12 @@ export function useSimWorker() {
       command:
         | { type: "sim"; through: SimThrough; league: LeagueStore }
         | { type: "offseason"; league: LeagueStore }
-        | { type: "intl"; mode: IntlMode; league: LeagueStore },
-      onProgress: ((progress: SimProgress) => void) | null,
+        | { type: "intl"; mode: IntlMode; league: LeagueStore }
+        | { type: "jump"; seasons: number; league: LeagueStore },
+      handlers: {
+        onProgress?: (progress: SimProgress) => void;
+        onJumpProgress?: (progress: JumpProgressUpdate) => void;
+      } = {},
     ): Promise<LeagueStore> => {
       return new Promise((resolve, reject) => {
         if (pendingRef.current) {
@@ -75,7 +95,8 @@ export function useSimWorker() {
         }
         setSimming(true);
         pendingRef.current = { resolve, reject };
-        progressRef.current = onProgress;
+        progressRef.current = handlers.onProgress ?? null;
+        jumpProgressRef.current = handlers.onJumpProgress ?? null;
         workerRef.current?.postMessage(command);
       });
     },
@@ -87,19 +108,28 @@ export function useSimWorker() {
       through: SimThrough,
       league: LeagueStore,
       onProgress?: (progress: SimProgress) => void,
-    ): Promise<LeagueStore> => post({ type: "sim", through, league }, onProgress ?? null),
+    ): Promise<LeagueStore> => post({ type: "sim", through, league }, { onProgress }),
     [post],
   );
 
   const runOffseason = useCallback(
-    (league: LeagueStore): Promise<LeagueStore> => post({ type: "offseason", league }, null),
+    (league: LeagueStore): Promise<LeagueStore> => post({ type: "offseason", league }),
     [post],
   );
 
   const runIntlStage = useCallback(
-    (mode: IntlMode, league: LeagueStore): Promise<LeagueStore> => post({ type: "intl", mode, league }, null),
+    (mode: IntlMode, league: LeagueStore): Promise<LeagueStore> => post({ type: "intl", mode, league }),
     [post],
   );
 
-  return { sim, runOffseason, runIntlStage, simming };
+  const runJump = useCallback(
+    (
+      seasons: number,
+      league: LeagueStore,
+      onJumpProgress?: (progress: JumpProgressUpdate) => void,
+    ): Promise<LeagueStore> => post({ type: "jump", seasons, league }, { onJumpProgress }),
+    [post],
+  );
+
+  return { sim, runOffseason, runIntlStage, runJump, simming };
 }
