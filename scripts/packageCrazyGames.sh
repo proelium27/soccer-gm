@@ -42,6 +42,21 @@ if grep -qr "posthog.com\|i.posthog" "$OUT" 2>/dev/null; then
   exit 1
 fi
 
+# The HTML transform strips `crossorigin` from the entry tags (see
+# vite.config.ts). That is only safe while there are no modulepreload tags: a
+# preload and a script that disagree about CORS mode fetch the same file twice.
+if grep -q "modulepreload" "$OUT/index.html"; then
+  echo "FAIL: index.html now has modulepreload tags. The crossorigin strip in" >&2
+  echo "      vite.config.ts must cover them too, or the entry chunk is fetched" >&2
+  echo "      twice. See the comment there." >&2
+  exit 1
+fi
+if grep -q "crossorigin" "$OUT/index.html"; then
+  echo "FAIL: crossorigin survived in index.html; the strip in vite.config.ts" >&2
+  echo "      no longer matches what Vite emits." >&2
+  exit 1
+fi
+
 echo
 echo "$OUT  $(du -sh "$OUT" | cut -f1), $(find "$OUT" -type f | wc -l | tr -d ' ') files"
 echo "Limits: 50 MB initial download / 250 MB total / 1500 files."

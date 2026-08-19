@@ -55,6 +55,30 @@ function crazyGamesHtml(): Plugin {
         }
         html = html.replace(region(name), "");
       }
+      // Vite tags the entry script and stylesheet `crossorigin`, fetching them
+      // in CORS mode. On CrazyGames both sit on the *same origin* as the
+      // document that loads them, so CORS mode buys nothing, and dropping the
+      // attribute costs nothing either.
+      //
+      // Why bother: a Safari QA pass reported "Missing resource detected" for
+      // exactly these two files plus CrazyGames' own SDK, while the game was
+      // demonstrably running (it rendered, and saves persisted). The SDK being
+      // on that list is what rules out the files actually being missing — it is
+      // their file, not one we upload. So this is a checker artifact, and this
+      // strip is removing a variable rather than a diagnosed fix. **It is not
+      // established that `crossorigin` caused it**, and the tempting theory
+      // that it did — CORS-mode requests without `Timing-Allow-Origin` get
+      // their Resource Timing entry redacted, which is exactly what a "missing
+      // resource" heuristic would trip on — does not actually hold here,
+      // because same-origin requests are exempt from that redaction. Don't
+      // repeat that reasoning as if it were the cause.
+      //
+      // Safe to drop only because this build emits no `modulepreload` tags. If
+      // Vite ever starts emitting them, strip the attribute from those too:
+      // a preload and a script that disagree about CORS mode are two separate
+      // fetches of the same file, not one.
+      html = html.replace(/ crossorigin(?=[ >])/g, "");
+
       // The pre-React placeholder links to /leagues, /manual and /changelog.
       // React replaces it on mount, but a click landing in that window would
       // navigate the iframe to crazygames.com/leagues and strand the player on
