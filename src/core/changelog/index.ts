@@ -25,6 +25,12 @@
  *   called Ahmet Ozturk" lands where "17.7% duplicate rate" alone doesn't.
  *   Still specific and honest — informal replaces the tone, not the substance,
  *   and a known limitation is stated plainly rather than apologised for.
+ * - NEVER open with a narrative hook (2026-08-18, user call). No scene-setting,
+ *   no "someone told me...", no build-up to a reveal. Open on the mechanic or
+ *   the symptom itself and let the reader get the point from sentence one. The
+ *   same goes mid-entry: state the next point rather than announcing it
+ *   ("There was a second half to it", "One thing to know" — cut both, just say
+ *   the thing). Informal is about register, never about storytelling.
  *   (This voice was set 2026-08-15 and REVERSED a 2026-08-05 "purely
  *   informational, no first person" rule, which had itself reversed a
  *   2026-07-20 casual-voice one. Voice has flipped twice, so entries are in

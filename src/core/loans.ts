@@ -18,7 +18,7 @@ import { deriveLeagueContexts } from "./ai/clubContext.js";
 import { keepValueToClub, perceivedValueToClub } from "./ai/evaluate.js";
 import { mulberry32 } from "../engine/rng.js";
 import {
-  ROSTER_CAP, ROSTER_SAFETY_FLOOR,
+  ROSTER_CAP, ROSTER_SAFETY_FLOOR, LOAN_MAX_SEASONS,
   LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, LOAN_AI_MAX_AGE,
   LOAN_MIN_SURPLUS, LOAN_OFFERS_MAX, AI_LOAN_MAX_MOVES,
   DIVISION_2_REFUSAL_OVR_THRESHOLD,
@@ -57,6 +57,27 @@ export interface LoanRejection {
  */
 export function computeLoanFee(player: Player, season: number, seasons: 1 | 2 | 3): number {
   return Math.round(trueTransferValue(player, season) * LOAN_FEE_RATE * LOAN_DURATION_MULTIPLIER[seasons]);
+}
+
+/**
+ * The longest loan a player's current contract can cover, starting this
+ * season: he plays seasons `startSeason .. startSeason + seasons - 1` at the
+ * loanee, so the deal has to expire no earlier than the last of them. 0 means
+ * he can't be loaned at all — his contract is already up.
+ *
+ * Loans are not allowed to outlast the contract because the club sending him
+ * gets nothing out of one: he is away when the deal runs down, and he leaves
+ * on a free the moment he lands back home. Capping the duration is the honest
+ * version of the choice — extend him first, then loan him for as long as you
+ * like.
+ */
+export function maxLoanSeasons(player: Player, startSeason: number): number {
+  return Math.max(0, Math.min(LOAN_MAX_SEASONS, player.contract.expiresSeason - startSeason + 1));
+}
+
+/** True if a loan of this length would still be running after his contract expires. */
+export function loanOutlivesContract(player: Player, startSeason: number, seasons: number): boolean {
+  return seasons > maxLoanSeasons(player, startSeason);
 }
 
 /**
@@ -206,6 +227,10 @@ export function loanOfferCandidates(league: LeagueStore): LoanOfferCandidate[] {
     const player = playerMap.get(listing.pid);
     if (!player) continue;
     if (departsAtRollover(league, player)) continue;
+    // A listing made before his contract shortened (or carried in from an
+    // older save) can outlast the deal — no offer on it, same as the listing
+    // screen refuses to make one.
+    if (loanOutlivesContract(player, ws.season, listing.seasons)) continue;
 
     const reservation = keepValueToClub(player, userCtx);
     const jitter = mulberry32(windowSeed(league.lid, ws.season, ws.window, listing.pid, 5));
@@ -276,6 +301,15 @@ export function listPlayerForLoan(league: LeagueStore, pid: number, seasons: 1 |
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   if (!user || !keepsDepthFloor(user, playerMap, pid)) return league;
   if (league.activeLoans.some((l) => l.pid === pid)) return league;
+  const player = playerMap.get(pid);
+  if (!player) return league;
+  // Never list a loan his contract can't cover (see maxLoanSeasons). The page
+  // caps the duration picker to the same number, so this is the guard behind
+  // the UI rather than something the user can walk into. Measured against the
+  // window's season, since that is the season the loan would start in (in the
+  // offseason that is league.season + 1, not league.season).
+  const ws = transferWindowState(league);
+  if (loanOutlivesContract(player, ws.open ? ws.season : league.season, seasons)) return league;
 
   const rest = league.loanListings.filter((l) => l.pid !== pid);
   return { ...league, loanListings: [...rest, { pid, seasons }] };
@@ -361,6 +395,15 @@ export function runAILoanMarket(
       const player = playerMap.get(pid);
       if (!player) continue;
       if (season - player.born > LOAN_AI_MAX_AGE) continue;
+      // Not on a deal that would die while he's away. This is the loop that
+      // used to re-loan a player who had already come home on a dead contract,
+      // keeping him stale for seasons (docs/player-save-findings.md #2). AI
+      // loans are always 1 season, so on a healthy league this only ever
+      // matches an already-expired contract — i.e. it is inert going forward
+      // and repairs old saves. It sits ahead of the buyer loop's `jitter`
+      // draws for that reason: it cannot fire on a league that has no stale
+      // contracts left to find.
+      if (loanOutlivesContract(player, season, 1)) continue;
 
       // No availability screen. There used to be one here — skip anyone whose
       // keep-value to his parent exceeded LOAN_AVAILABILITY × his market value —

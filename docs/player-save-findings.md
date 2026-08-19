@@ -125,6 +125,25 @@ Sim a season headlessly and check `played`'s byte size and event-type histogram;
 
 **Severity: high · present in all six saves · 71–281 players each**
 
+> **FIXED 2026-08-18.** All three fix shapes below were taken, because each closes a
+> different half of it, plus a fourth that stops the state arising at all:
+> (1) `processLoanReturns` now runs **before** `releaseExpiredContracts` (offseason steps 1
+> and 1.5 swapped), so a returning player's contract is settled at his parent — released into
+> free agency in the same rollover, in time for step 4 to sign him; (2) expiry **skips pids
+> still out on loan** (`releaseExpiredContracts` takes `onLoanPids`), closing the multi-season
+> limbo in "Related latent bug"; (3) a loan whose player's contract has expired is
+> **terminated** at new step 1.25 rather than run on; (4) `maxLoanSeasons` /
+> `loanOutlivesContract` cap a new loan at the seasons his deal covers, enforced in
+> `listPlayerForLoan`, `loanOfferCandidates`, the Loans page duration picker and
+> `runAILoanMarket` — which also closes the "loan him straight back out" loop in root cause 4.
+> The "Also arguably wrong" item was decided rather than left: `runAIContractRenewals` now
+> takes `activeLoans` and scans by **ownership**, so the borrowing club no longer decides, and
+> the owner does. For the user, whose club AI renewals never touch, the Loans page's "Players
+> Out on Loan" list gained a contract column and an Extend control — the only surface a
+> loaned-out player appears on. Regression test: `test/core/loanContracts.test.ts`. Headless
+> check: `scripts/loanContractProbe.ts`. **The reorder is rng-load-bearing, as warned below —
+> the dynasty is re-baselined.**
+
 ### Evidence
 
 Every save has players on a senior roster with `contract.expiresSeason < league.season` —

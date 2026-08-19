@@ -3,11 +3,15 @@ import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import { transferWindowState } from "../../core/transfers/window.js";
-import { loanOfferCandidates } from "../../core/loans.js";
+import type { Player } from "../../core/players/types.js";
+import { loanOfferCandidates, maxLoanSeasons } from "../../core/loans.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
 import { LOAN_MAX_SEASONS } from "../../core/constants.js";
-import { currency, formatWeeklyWage } from "../format.js";
+import { canExtend } from "../../core/contracts.js";
+import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
+import { currency, formatWeeklyWage, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
+import { ExtendControl } from "../components/ExtendControl.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
@@ -20,7 +24,7 @@ type EligibleSortKey = "name" | "pos" | "age" | "ovr" | "pot" | "wage";
 export function Loans() {
   const {
     league, listPlayerForLoanAction, unlistPlayerForLoanAction,
-    acceptLoanOfferAction, rejectLoanOfferAction, simming,
+    acceptLoanOfferAction, rejectLoanOfferAction, extendContractAction, simming,
   } = useLeague();
   const [draftSeasons, setDraftSeasons] = useState<Record<number, 1 | 2 | 3>>({});
   const offerSort = useTableSort<LoanOfferSortKey>("default", "desc");
@@ -38,6 +42,15 @@ export function Loans() {
   }
 
   const ws = transferWindowState(league);
+  // A loan can't outlast the player's contract (see maxLoanSeasons): he'd be
+  // away when it ran down and walk for free the moment he got home. The picker
+  // offers only the durations his deal covers, and listPlayerForLoan refuses
+  // the rest. Measured from the season the loan would start in, which during
+  // the offseason is next season, not league.season.
+  const loanStartSeason = ws.open ? ws.season : league.season;
+  const allowedSeasons = (p: Player) => maxLoanSeasons(p, loanStartSeason);
+  const draftFor = (p: Player) =>
+    Math.max(1, Math.min(draftSeasons[p.pid] ?? 1, allowedSeasons(p))) as 1 | 2 | 3;
   const teamName = (tid: number) => league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
   const playerName = (pid: number) => league.players.find((p) => p.pid === pid);
 
@@ -76,7 +89,9 @@ export function Loans() {
         <HelpHint>
           Send a player to another club for 1&ndash;3 seasons to get him minutes he isn't getting
           with you, and minutes drive development. List a player, then accept or reject the flat-fee
-          loan offers that come in. He comes back on his own when the loan ends.
+          loan offers that come in. He comes back on his own when the loan ends. His contract
+          stays yours the whole time, so you can still extend him while he&apos;s away, from the
+          list at the bottom of this page.
         </HelpHint>
       </h4>
 
@@ -225,26 +240,37 @@ export function Loans() {
                     <td className="text-end"><PotDisplay player={p} /></td>
                     <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
                     <td>
-                      <select
-                        className="form-select form-select-sm"
-                        style={{ width: "auto" }}
-                        value={draftSeasons[p.pid] ?? 1}
-                        onChange={(e) =>
-                          setDraftSeasons((d) => ({ ...d, [p.pid]: Number(e.target.value) as 1 | 2 | 3 }))
-                        }
-                      >
-                        {SEASON_OPTIONS.map((s) => (
-                          <option key={s} value={s}>
-                            {s} season{s > 1 ? "s" : ""}
-                          </option>
-                        ))}
-                      </select>
+                      {allowedSeasons(p) === 0 ? (
+                        <span className="text-muted small">Contract runs out first</span>
+                      ) : (
+                        <select
+                          className="form-select form-select-sm"
+                          style={{ width: "auto" }}
+                          value={draftFor(p)}
+                          onChange={(e) =>
+                            setDraftSeasons((d) => ({ ...d, [p.pid]: Number(e.target.value) as 1 | 2 | 3 }))
+                          }
+                        >
+                          {SEASON_OPTIONS.filter((s) => s <= allowedSeasons(p)).map((s) => (
+                            <option key={s} value={s}>
+                              {s} season{s > 1 ? "s" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </td>
                     <td className="text-end">
                       <button
                         className="btn btn-sm btn-primary"
-                        disabled={simming || !ws.open}
-                        onClick={() => listPlayerForLoanAction(p.pid, draftSeasons[p.pid] ?? 1)}
+                        disabled={simming || !ws.open || allowedSeasons(p) === 0}
+                        title={
+                          allowedSeasons(p) === 0
+                            ? "His contract is up before a loan could even start. Extend him first."
+                            : allowedSeasons(p) < LOAN_MAX_SEASONS
+                              ? "A loan can't run past his contract. Extend him first if you want to send him out for longer."
+                              : undefined
+                        }
+                        onClick={() => listPlayerForLoanAction(p.pid, draftFor(p))}
                       >
                         List for Loan
                       </button>
@@ -269,6 +295,8 @@ export function Loans() {
                   <th>Name</th>
                   <th>Loanee Club</th>
                   <th className="text-end">Returns</th>
+                  <th className="text-end">Contract</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -276,9 +304,45 @@ export function Loans() {
                   const p = playerName(l.pid);
                   return (
                     <tr key={l.pid}>
-                      <td>{p ? p.name : `Player ${l.pid}`}</td>
+                      <td>
+                        {p ? (
+                          <Link to={`/player/${p.pid}`}>{p.name}</Link>
+                        ) : (
+                          `Player ${l.pid}`
+                        )}
+                      </td>
                       <td>{teamName(l.loaneeTid)}</td>
                       <td className="text-end">Season {l.returnSeason}</td>
+                      <td className="text-end">
+                        {!p ? "" : p.contract.expiresSeason <= league.season ? (
+                          <span
+                            className="badge bg-warning text-dark"
+                            title="His deal runs out this season. He's still yours to extend while he's away. Leave it and he walks the moment he gets back."
+                          >
+                            Final year
+                          </span>
+                        ) : (
+                          `Through ${seasonYear(p.contract.expiresSeason)}`
+                        )}
+                      </td>
+                      <td className="text-end">
+                        {p && canExtend(p, league.season) && (
+                          wouldRefuseExtension(p, userTeam, league.competitions) ? (
+                            <span
+                              className="text-muted small fst-italic text-nowrap"
+                              title="He's holding out for a move to Division 1 and won't sign a new deal here."
+                            >
+                              Wants a move to Division 1
+                            </span>
+                          ) : (
+                            <ExtendControl
+                              player={p}
+                              season={league.season}
+                              onExtend={extendContractAction}
+                            />
+                          )
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
