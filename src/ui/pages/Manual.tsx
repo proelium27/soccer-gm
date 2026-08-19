@@ -483,12 +483,19 @@ export function Manual() {
             gap, not a wall, and over one match anything can happen.
           </p>
           <p>
-            Prize money is paid per round won and grows as you go, though it's smaller than the
-            Continental Cup's, and it's scaled to your country's economy the way the rest of your
-            income is. Cup stats are tracked separately from your league stats, under the{" "}
+            Cup stats are tracked separately from your league stats, under the{" "}
             <strong>Domestic Cup</strong> tab on a player's profile. And as with the Continental
             Cup, if you reach the final the sim <strong>stops just before it</strong> so you can
             take a look at your lineup first.
+          </p>
+          <p className="text-muted small">
+            One thing the domestic cup doesn't do yet: <strong>pay you</strong>. The Continental Cup
+            hands out prize money per round, and this one was built the same way, but when I
+            measured a 20-season dynasty against one without it, the extra money pushed two of four
+            test worlds' poorest clubs into the red late on. The weaker leagues run on thin margins
+            and I'd rather a new trophy didn't quietly break their finances, so the payouts are
+            switched off until I've tuned them properly. Everything else about the cup works, and
+            it costs you nothing to go on a run.
           </p>
           <p className="text-muted small">
             Saves started before domestic cups existed pick them up at the next offseason, so

@@ -74,44 +74,46 @@ describe("domestic cups through simThrough", () => {
 });
 
 describe("domestic cup prize money", () => {
-  // An empty match-data map makes every tie a walkover to the home side, which
-  // is exactly what's wanted here: the prize arithmetic, with no match sim in
-  // the way. (The walkover path itself is the guard against a pairing failing
-  // to produce a winner and losing a club from the next round's draw.)
+  // An empty match-data map makes every tie a walkover, which is what's wanted
+  // here: the money, with no match sim in the way. (The walkover path itself is
+  // the guard against a pairing failing to produce a winner and quietly losing
+  // a club from the next round's draw.)
   const noMatchData = new Map<number, TeamMatchData>();
 
-  it("pays the winner of a tie, scaled by the club's finance scale", () => {
-    const cup = buildDomesticCup("England", comps, worldTeams(), new Map(), 1)!;
-    const { ties, prizes } = playDomesticRound(cup, comps, noMatchData, 0, () => 0.5);
-
-    expect(ties).toHaveLength(8);
-    const expected = domesticPrizeForRound(cup, 0) * 0.5;
-    expect(expected).toBeGreaterThan(0);
-    for (const tie of ties) {
-      expect(tie.winner).toBe(tie.home); // walkover
-      expect(prizes.get(tie.winner)).toBeCloseTo(expected, 6);
-      const loser = tie.away;
-      expect(prizes.has(loser)).toBe(false);
+  /**
+   * The cup pays nothing, and that is load-bearing rather than an oversight.
+   *
+   * Prize money is the only part of this feature that can touch the economy,
+   * and with real prizes the weak-leagues audit put 2 of 4 seeds into deficit
+   * where the baseline is solvent on all four (see the constant for the
+   * numbers). At zero, `creditPrizes` is never reached and a dynasty is
+   * bit-identical to one with no domestic cups at all.
+   *
+   * If you re-enable the prizes, this test fails — which is the point. Re-run
+   * `scripts/weakLeaguesAudit.ts` against the merge base before you do.
+   */
+  it("credits nothing, so no club's budget is touched by a cup run", () => {
+    let cup = buildDomesticCup("England", comps, worldTeams(), new Map(), 1)!;
+    for (let r = 0; r < cup.totalRounds; r++) {
+      const played = playDomesticRound(cup, comps, noMatchData, 0, () => 1);
+      expect(played.ties.length).toBeGreaterThan(0);
+      expect(played.prizes.size).toBe(0);
+      expect(domesticPrizeForRound(cup, r)).toBe(0);
+      cup = played.cup;
     }
+    expect(DOMESTIC_CUP_PRIZE_RUNNER_UP).toBe(0);
+    expect(cup.championTid).not.toBeNull();
   });
 
-  it("pays a runner-up only in the final", () => {
+  it("still resolves every tie to exactly one winner, prizes or not", () => {
     let cup = buildDomesticCup("England", comps, worldTeams(), new Map(), 1)!;
-    let last: ReturnType<typeof playDomesticRound> | null = null;
+    let survivors = cup.teams.length;
     for (let r = 0; r < cup.totalRounds; r++) {
-      last = playDomesticRound(cup, comps, noMatchData, 0, () => 1);
-      // Only the final pays the beaten side, so every earlier round credits
-      // exactly one club per tie.
-      if (r < cup.totalRounds - 1) {
-        expect(last.prizes.size).toBe(last.ties.length);
-      }
-      cup = last.cup;
+      const played = playDomesticRound(cup, comps, noMatchData, 0, () => 1);
+      for (const tie of played.ties) expect([tie.home, tie.away]).toContain(tie.winner);
+      survivors -= played.ties.length; // one club eliminated per tie
+      cup = played.cup;
     }
-
-    const final = last!.ties[0];
-    expect(cup.championTid).toBe(final.winner);
-    const runnerUp = final.winner === final.home ? final.away : final.home;
-    expect(last!.prizes.get(runnerUp)).toBeCloseTo(DOMESTIC_CUP_PRIZE_RUNNER_UP, 6);
-    expect(last!.prizes.get(final.winner)).toBeGreaterThan(DOMESTIC_CUP_PRIZE_RUNNER_UP);
+    expect(survivors).toBe(1); // 40 clubs, 39 ties, one left standing
   });
 });

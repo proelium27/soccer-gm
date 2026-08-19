@@ -2383,26 +2383,44 @@ export const DOMESTIC_CUP_MATCHDAYS = [5, 9, 13, 21, 26, 36] as const;
  * whether a country's cup opens with a preliminary round or not — the same
  * reason cupRoundsFromFinal exists for the Continental Cup's run bonus.
  *
- * Sized well below the Continental Cup's (a full domestic run pays ~19.75M
- * against ~46M) and, unlike the Continental Cup's, multiplied by the club's
- * financeScale. That is load-bearing rather than flavour: every country runs a
- * cup, so an unscaled payout would hand a Turkish club the same money as an
- * English one against 0.4x the base income, and a weaker-but-richer league
- * climbs the strength ladder over a dynasty (see COUNTRY_BUDGET_SCALE in
- * CLAUDE.md — the ladder inverted by 2.23 OVR the last time money outran
- * strength).
+ * **All zero, deliberately, and this is a measured decision rather than a
+ * placeholder.** The domestic cup shipped with real prize money first
+ * (12M/4M/2M/1M/0.5M/0.25M, runner-up 3M, each multiplied by the club's
+ * financeScale so a weak league could not out-earn a strong one). Measured with
+ * `scripts/weakLeaguesAudit.ts`, 4 seeds x 20 seasons, against the same script
+ * run on the merge base:
+ *
+ *   - the strength ladder held everywhere (per seed and on the 4-seed mean),
+ *     so the financeScale scaling did its job;
+ *   - but **2 of 4 seeds went into deficit** (Belgium -£0.5M season 20, Turkey
+ *     -£1.4M season 19) where the baseline is solvent on all four.
+ *
+ * That is the exact result that got the need-buy tightening rejected (see
+ * CLAUDE.md), and it is the documented failure shape: the finance column fails
+ * first, not the ladder. Two mechanisms could produce it and this audit cannot
+ * separate them — a one-off prize converted into a permanent wage liability
+ * (both deficits land late, seasons 19-20), or plain stream shift, since
+ * crediting a prize before the winter window moves every downstream AI market
+ * decision and the weak leagues already run within ~£0.01M of zero at their
+ * thinnest point.
+ *
+ * At zero the cup pays nothing, `creditPrizes` is never called, no club's budget
+ * is touched, and a dynasty is therefore **bit-identical** to one without
+ * domestic cups at all — which is what makes shipping the competition itself
+ * provably safe. Re-enabling is this one table plus the runner-up below, and
+ * needs its own tuning pass measured the same way.
  */
 export const DOMESTIC_CUP_PRIZE_BY_ROUNDS_FROM_FINAL: readonly number[] = [
-  12_000_000, // lift the trophy
-  4_000_000, //  win a semi-final
-  2_000_000, //  win a quarter-final
-  1_000_000, //  win a round-of-16 tie
-  500_000, //    win a round-of-32 tie
-  250_000, //    win a preliminary tie
+  0, // lift the trophy
+  0, // win a semi-final
+  0, // win a quarter-final
+  0, // win a round-of-16 tie
+  0, // win a round-of-32 tie
+  0, // win a preliminary tie
 ];
 
-/** Losing the domestic final still pays, like the Continental Cup's runner-up cheque. */
-export const DOMESTIC_CUP_PRIZE_RUNNER_UP = 3_000_000;
+/** Runner-up cheque, zero for the same measured reason as the table above. */
+export const DOMESTIC_CUP_PRIZE_RUNNER_UP = 0;
 
 /**
  * Country -> the adjective its cup is named with ("England" -> "English Cup").
