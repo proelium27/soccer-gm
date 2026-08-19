@@ -1,18 +1,23 @@
 #!/usr/bin/env bash
-# Build the CrazyGames bundle and zip it for the developer portal upload form.
+# Build the CrazyGames bundle for the developer portal upload form.
 #
-# Run with `npm run package:crazygames`. Output: soccer-gm-crazygames.zip in the
-# repo root, which is the file you drag into the upload form.
+# Run with `npm run package:crazygames`. Output: the dist-crazygames/ folder.
+#
+# **Do not zip it.** The portal's upload zone rejects archives outright ("Archive
+# files are not supported, please drag and drop the files directly in the upload
+# zone"), so what you drag in is the folder's *contents* — index.html, the two
+# icons, and the assets/ directory. Dragging the dist-crazygames folder itself
+# buries index.html one level down, which the form then rejects for not
+# containing one.
 #
 # Their limits, for reference when this starts to grow: 50 MB initial download,
-# 250 MB total, 1500 files. The script prints all three at the end so a
-# regression shows up here rather than in review.
+# 250 MB total, 1500 files. The script prints them at the end so a regression
+# shows up here rather than in review.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 OUT=dist-crazygames
-ZIP=soccer-gm-crazygames.zip
 
 npm run build:crazygames
 
@@ -21,11 +26,6 @@ npm run build:crazygames
 # cannot reach an iframed game, and og-image is the link-preview card. Dead
 # weight in the bundle, and og-image is 140 kB of it.
 rm -f "$OUT/robots.txt" "$OUT/sitemap.xml" "$OUT/llms.txt" "$OUT/og-image.png"
-
-# index.html must sit at the root of the zip, not inside a folder — that is why
-# this zips the directory's contents rather than the directory.
-rm -f "$ZIP"
-(cd "$OUT" && zip -qr "../$ZIP" .)
 
 # A build that still carries AdSense, or that lost the SDK, fails review. Both
 # are cheap to check and expensive to miss, so check them every time.
@@ -43,6 +43,9 @@ if grep -qr "posthog.com\|i.posthog" "$OUT" 2>/dev/null; then
 fi
 
 echo
-echo "$ZIP  $(du -h "$ZIP" | cut -f1) zipped"
-echo "$OUT  $(du -sh "$OUT" | cut -f1) unpacked, $(find "$OUT" -type f | wc -l | tr -d ' ') files"
+echo "$OUT  $(du -sh "$OUT" | cut -f1), $(find "$OUT" -type f | wc -l | tr -d ' ') files"
 echo "Limits: 50 MB initial download / 250 MB total / 1500 files."
+echo
+echo "To upload: open $OUT, select all four entries (index.html, favicon.png,"
+echo "apple-touch-icon.png, assets/) and drag them into the portal's upload zone."
+echo "Do not zip, and do not drag the $OUT folder itself."

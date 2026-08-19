@@ -9,11 +9,16 @@ decisions behind the build target so nobody has to re-derive them.
 npm run package:crazygames
 ```
 
-Writes `dist-crazygames/` and zips it to `soccer-gm-crazygames.zip` in the repo
-root. That zip is what you drag into the upload form. The script fails loudly if
-the bundle still carries AdSense or PostHog, or if the SDK script tag went
-missing — all three would fail review, and all three are easy to reintroduce by
-accident.
+Writes `dist-crazygames/`. The script fails loudly if the bundle still carries
+AdSense or PostHog, or if the SDK script tag went missing — all three would fail
+review, and all three are easy to reintroduce by accident.
+
+**Don't zip it.** The portal's upload zone rejects archives outright: *"Archive
+files are not supported, please drag and drop the files directly in the upload
+zone."* Open `dist-crazygames/`, select all four entries — `index.html`,
+`favicon.png`, `apple-touch-icon.png` and the `assets/` folder — and drag those
+into the zone. Dragging the `dist-crazygames` folder itself buries `index.html`
+one level down, and the form rejects that too, for not containing one.
 
 To check it by hand before uploading, serve the repo root and open the harness,
 which loads the built game in an iframe the way CrazyGames do:
@@ -128,7 +133,7 @@ module, which the save size rules out.
 ## Size budget
 
 Their limits: 50 MB initial download, 250 MB total, 1500 files. Current bundle
-is ~10 MB zipped / 12 MB unpacked across 171 files, so there's a lot of room.
+is ~12 MB across 171 files, so there's a lot of room.
 `package:crazygames` prints all three every run, which is the cheapest way to
 notice a regression.
 

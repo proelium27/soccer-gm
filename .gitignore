@@ -3,7 +3,7 @@ dist/
 *.log
 
 # Distribution bundles. Built on demand (npm run package:crazygames), never
-# committed — they are just the app compiled, and the zips are ~10 MB each.
+# committed — they are just the app compiled.
 dist-crazygames/
 soccer-gm-crazygames.zip
 soccer-gm-itch.zip
