@@ -27,12 +27,17 @@ function userGame(md: SimProgress | undefined, userTid: number): PlayedMatch | u
 // One card in the ticker: the user's league match, the user's cup tie, or — when
 // a cup round is played on a matchday the user's club isn't in — a compact
 // marker so the tournament is still visible in the animation.
-type TickerItem =
+export type TickerItem =
   | { kind: "league"; game: PlayedMatch }
   | { kind: "cup"; tie: CupTie; label: string; sub: string }
   | { kind: "cup-marker"; label: string; sub: string; matchday: number };
 
-function tickerItemsFor(md: SimProgress, userTid: number): TickerItem[] {
+/**
+ * What the ticker shows for one simmed matchday. Exported for tests: the
+ * user-country pick below is exactly the sort of thing that looks right in
+ * review and is wrong in play (it shipped showing every manager England's cup).
+ */
+export function tickerItemsFor(md: SimProgress, userTid: number): TickerItem[] {
   const items: TickerItem[] = [];
   const league = userGame(md, userTid);
   if (league) items.push({ kind: "league", game: league });
@@ -56,11 +61,17 @@ function tickerItemsFor(md: SimProgress, userTid: number): TickerItem[] {
     items.push({
       kind: "cup", tie: userDomestic.tie, label: userDomestic.cupName, sub: userDomestic.roundName,
     });
-  } else if (domestic.length > 0) {
-    const d = domestic[0];
-    items.push({
-      kind: "cup-marker", label: d.cupName, sub: d.roundName, matchday: d.tie.matchday,
-    });
+  } else {
+    // His club isn't playing a tie today (out of the cup, or given a bye), so
+    // show his OWN country's cup as the marker. Taking the first tie instead
+    // showed a German save "English Cup", since the ties arrive in
+    // competition-table order and England leads it.
+    const d = domestic.find((x) => x.isUserCountry);
+    if (d) {
+      items.push({
+        kind: "cup-marker", label: d.cupName, sub: d.roundName, matchday: d.tie.matchday,
+      });
+    }
   }
   return items;
 }

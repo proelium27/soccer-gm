@@ -129,6 +129,17 @@ export interface DomesticTieResult {
   tie: CupTie;
   cupName: string;
   roundName: string;
+  /**
+   * Whether this tie belongs to the **user's own country's** cup.
+   *
+   * Every country plays its cup rounds on the same matchdays, so a cup matchday
+   * reports eight cups' worth of ties. A consumer that wants "the cup that
+   * matters to this user" must not just take the first one: they arrive in
+   * competition-table order, so the first is always England's, and a German
+   * save was shown "English Cup" whenever the user's own club wasn't playing a
+   * tie that day (knocked out, or given a bye).
+   */
+  isUserCountry: boolean;
 }
 
 export type MatchdayProgress = (
@@ -414,6 +425,10 @@ export function simThrough(
     // upset rather than a coin flip.
     const mdDomesticTies: DomesticTieResult[] = [];
     if (domesticCups.some((c) => domesticRoundDue(c, matchday))) {
+      // Which country the user manages in, so each reported tie can say whether
+      // it belongs to his own cup — see DomesticTieResult.isUserCountry.
+      const userCompId = currentTeams.find((t) => t.tid === league.meta.userTid)?.compId;
+      const userCountry = league.competitions.find((c) => c.id === userCompId)?.country;
       const advanced: DomesticCupState[] = [];
       for (const dc of domesticCups) {
         if (!domesticRoundDue(dc, matchday)) {
@@ -449,7 +464,9 @@ export function simThrough(
         advanced.push(played.cup);
         creditPrizes(played.prizes);
         for (const tie of played.ties) {
-          mdDomesticTies.push({ tie, cupName: dc.name, roundName });
+          mdDomesticTies.push({
+            tie, cupName: dc.name, roundName, isUserCountry: dc.country === userCountry,
+          });
         }
       }
       domesticCups = advanced;
