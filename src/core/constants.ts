@@ -2694,6 +2694,12 @@ export const GOAT_GOLDEN_BOOT_WEIGHT = 15;
 export const GOAT_TOTS_WEIGHT = 10;
 export const GOAT_LEAGUE_TITLE_WEIGHT = 12;
 export const GOAT_CUP_TITLE_WEIGHT = 25;
+/**
+ * A Continental Shield title, worth well under a Continental Cup one and under
+ * a league title too — it is the trophy you win by not being good enough for
+ * the Cup, so it should round out a case rather than make one.
+ */
+export const GOAT_SHIELD_TITLE_WEIGHT = 8;
 export const GOAT_WORLD_CUP_WEIGHT = 50;
 export const GOAT_CAP_WEIGHT = 0.3;
 export const GOAT_GOAL_WEIGHT = 0.15;
@@ -2712,6 +2718,13 @@ export const GOAT_ASSIST_WEIGHT = 0.1;
  */
 export const GOAT_TEAM_LEAGUE_TITLE_WEIGHT = 100;
 export const GOAT_TEAM_CUP_TITLE_WEIGHT = 150;
+/**
+ * A Shield title on a club's board: above a second-tier title, well below a
+ * league title, and nowhere near a Continental Cup. Same reasoning as the
+ * second-tier weight — a club shouldn't build a GOAT case out of a competition
+ * it only entered by missing out on the better one.
+ */
+export const GOAT_TEAM_SHIELD_TITLE_WEIGHT = 40;
 export const GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT = 20;
 export const GOAT_TEAM_TOP_FINISH_WEIGHT = 15;
 /** A finishing position this good or better counts as contending. */

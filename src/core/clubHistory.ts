@@ -35,6 +35,8 @@ export interface ClubSeasonRecord {
    * it didn't take part or the world fields no cup.
    */
   cupRun: { note: string; isChampion: boolean; isRunnerUp: boolean } | null;
+  /** The same, for the Continental Shield. A club plays one competition or the other, never both. */
+  shieldRun: { note: string; isChampion: boolean; isRunnerUp: boolean } | null;
 }
 
 /** An individual honour won by one of the club's players in a given season. */
@@ -59,6 +61,10 @@ export interface ClubHistory {
   cupTitles: number[];
   /** Seasons the club reached the Continental Cup final but lost it, newest first. */
   cupFinals: number[];
+  /** Seasons the club won the Continental Shield, newest first. */
+  shieldTitles: number[];
+  /** Seasons the club reached the Continental Shield final but lost it, newest first. */
+  shieldFinals: number[];
   playerOfSeason: ClubIndividualHonour[];
   goldenBoots: ClubIndividualHonour[];
   teamOfSeasonSelections: ClubIndividualHonour[];
@@ -107,6 +113,7 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
   // club's per-season cup run is a lookup keyed by season. Guard for old saves
   // and worlds that field no cup — both leave this empty.
   const cupBySeason = new Map((league.cupHistory ?? []).map((c) => [c.season, c]));
+  const shieldBySeason = new Map((league.shieldHistory ?? []).map((c) => [c.season, c]));
 
   const records: ClubSeasonRecord[] = ordered.map((entry, i) => {
     const compId = entry.compsByTid[tid];
@@ -145,6 +152,8 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
 
     const cup = cupBySeason.get(entry.season);
     const cupRun = cup ? cupRunSummary(cup, tid) : null;
+    const shield = shieldBySeason.get(entry.season);
+    const shieldRun = shield ? cupRunSummary(shield, tid) : null;
 
     return {
       season: entry.season,
@@ -162,6 +171,7 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
       ballonDOrPid,
       worldTeamOfYearPids,
       cupRun,
+      shieldRun,
     };
   });
 
@@ -215,6 +225,12 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
       .map((r) => r.season),
     cupFinals: newest
       .filter((r) => r.cupRun?.isRunnerUp)
+      .map((r) => r.season),
+    shieldTitles: newest
+      .filter((r) => r.shieldRun?.isChampion)
+      .map((r) => r.season),
+    shieldFinals: newest
+      .filter((r) => r.shieldRun?.isRunnerUp)
       .map((r) => r.season),
     playerOfSeason: newest
       .filter((r) => r.playerOfSeasonPid !== null)

@@ -15,6 +15,7 @@ export interface ClubRecordRow {
   leagueTitles: number;
   secondTierTitles: number;
   cupTitles: number;
+  shieldTitles: number;
   played: number;
   won: number;
   drawn: number;
@@ -80,7 +81,7 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
     let r = rows.get(tid);
     if (!r) {
       r = {
-        tid, seasons: 0, topFlightSeasons: 0, leagueTitles: 0, secondTierTitles: 0, cupTitles: 0,
+        tid, seasons: 0, topFlightSeasons: 0, leagueTitles: 0, secondTierTitles: 0, cupTitles: 0, shieldTitles: 0,
         totalTrophies: 0,
         played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0, ppg: 0,
         lastTitleSeason: null, titleDrought: 0,
@@ -135,9 +136,12 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
   for (const cup of league.cupHistory ?? []) {
     if (cup.championTid != null) rowFor(cup.championTid).cupTitles += 1;
   }
+  for (const shield of league.shieldHistory ?? []) {
+    if (shield.championTid != null) rowFor(shield.championTid).shieldTitles += 1;
+  }
 
   for (const r of rows.values()) {
-    r.totalTrophies = r.leagueTitles + r.cupTitles + r.secondTierTitles;
+    r.totalTrophies = r.leagueTitles + r.cupTitles + r.secondTierTitles + r.shieldTitles;
     r.ppg = r.played > 0 ? r.points / r.played : 0;
     // A club that has never won counts its whole recorded history as the wait.
     r.titleDrought = r.lastTitleSeason == null
