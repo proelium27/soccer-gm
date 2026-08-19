@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from "../types.js";
 
 const entry: ChangelogEntry = {
-  date: "2026-08-18",
+  date: "2026-08-19",
   title: "Jump ahead a few seasons",
   items: [
     "There's a new **Jump ahead** card on the Dashboard. Type a number of seasons, up to 25, and the game plays them all out with the AI running your club, then hands it back to you at the far end. It works mid-season too. It finishes the season you're in first, so asking for 1 always means \"get me to next year\".",
