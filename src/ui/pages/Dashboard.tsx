@@ -11,6 +11,7 @@ import { JumpSeasonsForm } from "../components/JumpSeasonsForm.js";
 import { SCOUTING_SPEND_MAX, RATING_LEADER_QUALIFY_FRACTION } from "../../core/constants.js";
 import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
+import { domesticFinalists } from "../../core/domesticCup/cup.js";
 import { isIntlStagePending } from "../../core/international/index.js";
 import { INTL_TOURNAMENT_NAME, INTL_QUAL_LEGS, qualifyingLeg } from "../../core/constants.js";
 import type { IntlStage } from "../../core/international/index.js";
@@ -342,6 +343,16 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
             <Link to="/cup" className="btn btn-sm btn-outline-warning">View bracket</Link>
           </div>
         )}
+
+      {/* Domestic cup final: the season sim halts before this one too. */}
+      {(league.domesticCups ?? []).some(
+        (c) => c.championTid === null && domesticFinalists(c).includes(league.meta.userTid),
+      ) && (
+        <div className="alert alert-warning d-flex justify-content-between align-items-center mb-3">
+          <span>Your club has reached the domestic cup final. Simming pauses here so you can prepare.</span>
+          <Link to="/domestic-cup" className="btn btn-sm btn-outline-warning">View the cup</Link>
+        </div>
+      )}
 
       {/* Sim controls */}
       <div className="card mb-3">

@@ -15,6 +15,8 @@ export interface ClubRecordRow {
   leagueTitles: number;
   secondTierTitles: number;
   cupTitles: number;
+  /** Domestic cup wins. Counted separately from the Continental Cup — a treble needs both. */
+  domesticCupTitles: number;
   played: number;
   won: number;
   drawn: number;
@@ -81,7 +83,7 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
     if (!r) {
       r = {
         tid, seasons: 0, topFlightSeasons: 0, leagueTitles: 0, secondTierTitles: 0, cupTitles: 0,
-        totalTrophies: 0,
+        domesticCupTitles: 0, totalTrophies: 0,
         played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0, ppg: 0,
         lastTitleSeason: null, titleDrought: 0,
       };
@@ -136,8 +138,12 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
     if (cup.championTid != null) rowFor(cup.championTid).cupTitles += 1;
   }
 
+  for (const cup of league.domesticCupHistory ?? []) {
+    if (cup.championTid != null) rowFor(cup.championTid).domesticCupTitles += 1;
+  }
+
   for (const r of rows.values()) {
-    r.totalTrophies = r.leagueTitles + r.cupTitles + r.secondTierTitles;
+    r.totalTrophies = r.leagueTitles + r.cupTitles + r.domesticCupTitles + r.secondTierTitles;
     r.ppg = r.played > 0 ? r.points / r.played : 0;
     // A club that has never won counts its whole recorded history as the wait.
     r.titleDrought = r.lastTitleSeason == null

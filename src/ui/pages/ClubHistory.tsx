@@ -174,6 +174,26 @@ export function ClubHistory() {
             )}
             <div className="col-6 col-md-3">
               <StatCard
+                label="Domestic Cups"
+                value={history.domesticCupTitles.length}
+                sub={
+                  history.domesticCupTitles.length > 0
+                    ? titleYears(history.domesticCupTitles)
+                    : "—"
+                }
+              />
+            </div>
+            {history.trebles.length > 0 && (
+              <div className="col-6 col-md-3">
+                <StatCard
+                  label="Trebles"
+                  value={history.trebles.length}
+                  sub={titleYears(history.trebles)}
+                />
+              </div>
+            )}
+            <div className="col-6 col-md-3">
+              <StatCard
                 label="2nd-Tier Titles"
                 value={history.secondTierTitles.length}
                 sub={history.secondTierTitles.length > 0 ? titleYears(history.secondTierTitles) : "—"}
@@ -290,6 +310,8 @@ export function ClubHistory() {
                 if (s.relegated) notes.push("Relegated");
                 const cupNote = cupRunNote(s.cupRun);
                 if (cupNote) notes.push(cupNote);
+                if (s.domesticCupRun) notes.push(`Domestic cup ${s.domesticCupRun.note.toLowerCase()}`);
+                if (s.treble) notes.push("The treble");
                 return (
                   <tr key={s.season} className={s.champion && s.tier === 1 ? "champion-highlight" : undefined}>
                     <td>{seasonYear(s.season)}</td>

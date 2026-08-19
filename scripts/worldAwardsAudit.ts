@@ -29,8 +29,8 @@ const winnersByPos = new Map<string, number>();
 /** Team-achievement share: how often the winner actually won something. See the
  * team-achievement note in constants.ts — raising those bonuses trades a better
  * "winners come from winning clubs" rate against a worse world ovr rank. */
-const teamSuccess = { title: 0, cupWin: 0, cupPlayed: 0, worldCup: 0, seasons: 0 };
-const parts = { league: 0, cup: 0, intl: 0, title: 0 };
+const teamSuccess = { title: 0, cupWin: 0, cupPlayed: 0, worldCup: 0, domesticCup: 0, seasons: 0 };
+const parts = { league: 0, cup: 0, intl: 0, title: 0, domesticCup: 0 };
 
 for (const seed of SEEDS) {
   const rng = mulberry32(seed);
@@ -82,6 +82,7 @@ for (const seed of SEEDS) {
     if (winner.cup > 0) teamSuccess.cupPlayed++;
     if (rounds === 0) teamSuccess.cupWin++;
     if (wcChampion !== undefined && winnerPlayer?.nationality === wcChampion) teamSuccess.worldCup++;
+    if ((winner.domesticCup ?? 0) > 0) teamSuccess.domesticCup++;
     if (winnerPlayer) {
       winnersByPos.set(winnerPlayer.pos, (winnersByPos.get(winnerPlayer.pos) ?? 0) + 1);
     }
@@ -89,6 +90,7 @@ for (const seed of SEEDS) {
     parts.cup += winner.cup;
     parts.intl += winner.intl;
     parts.title += winner.title;
+    parts.domesticCup += winner.domesticCup ?? 0;
 
     const line = (e: typeof winner, i: number): string => {
       const p = byPid.get(e.pid);
@@ -105,6 +107,7 @@ for (const seed of SEEDS) {
         ` ${(st?.avgRating ?? 0).toFixed(2)}av` +
         ` | tot ${e.score.toFixed(2)} = lg ${e.league.toFixed(2)}` +
         ` cup ${e.cup.toFixed(2)} intl ${e.intl.toFixed(2)} ttl ${e.title.toFixed(2)}` +
+        ` dcup ${(e.domesticCup ?? 0).toFixed(2)}` +
         ` | cup line ${cupDetail}`;
     };
     console.log(`  s${entry.season}  [winner ovr rank ${rank}/${played.length}]`);
@@ -135,9 +138,11 @@ console.log(`  won their league   ${String(teamSuccess.title).padStart(3)}/${n} 
 console.log(`  played in the cup  ${String(teamSuccess.cupPlayed).padStart(3)}/${n}  ${pct(teamSuccess.cupPlayed, n)}`);
 console.log(`  won the cup        ${String(teamSuccess.cupWin).padStart(3)}/${n}  ${pct(teamSuccess.cupWin, n)}`);
 console.log(`  won the World Cup  ${String(teamSuccess.worldCup).padStart(3)}/${n}  ${pct(teamSuccess.worldCup, n)}`);
+console.log(`  won domestic cup   ${String(teamSuccess.domesticCup).padStart(3)}/${n}  ${pct(teamSuccess.domesticCup, n)}`);
 console.log(
   `  mean score split: league ${(parts.league / n).toFixed(2)}` +
-    `  cup ${(parts.cup / n).toFixed(2)}  intl ${(parts.intl / n).toFixed(2)}  title ${(parts.title / n).toFixed(2)}`,
+    `  cup ${(parts.cup / n).toFixed(2)}  intl ${(parts.intl / n).toFixed(2)}  title ${(parts.title / n).toFixed(2)}` +
+    `  dcup ${(parts.domesticCup / n).toFixed(2)}`,
 );
 
 const meanRank = winnerOvrRanks.reduce((a, b) => a + b, 0) / winnerOvrRanks.length;

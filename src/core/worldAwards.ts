@@ -4,6 +4,8 @@ import type { CupState } from "./cup/types.js";
 import type { CupStatLine } from "./cup/cupStats.js";
 import { cupStatsByPid, cupAvgRating } from "./cup/cupStats.js";
 import { cupRoundsFromFinal } from "./cup/cup.js";
+import type { DomesticCupState } from "./domesticCup/types.js";
+import { domesticStatsByPid } from "./domesticCup/stats.js";
 import { FORMATIONS } from "./lineup/formations.js";
 import { RATING_BASELINE } from "../engine/matchRating.js";
 import {
@@ -17,6 +19,7 @@ import {
   WORLD_AWARD_CUP_RATING_WEIGHT, WORLD_AWARD_CUP_FULL_INVOLVEMENT, WORLD_AWARD_CUP_RUN_BONUS,
   WORLD_AWARD_LEAGUE_TITLE_BONUS, WORLD_AWARD_TITLE_FULL_SEASON, WORLD_AWARD_INTL_GOAL_WEIGHT, WORLD_AWARD_INTL_ASSIST_WEIGHT,
   WORLD_AWARD_INTL_CAP_WEIGHT, WORLD_AWARD_INTL_TOURNAMENT_MULTIPLIER, WORLD_AWARD_WORLD_CUP_BONUS,
+  WORLD_AWARD_DOMESTIC_CUP_BONUS, WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT,
 } from "./constants.js";
 
 /**
@@ -36,6 +39,14 @@ export interface BallonDOrEntry {
   intl: number;
   /** Winning his own domestic league. */
   title: number;
+  /**
+   * Winning his own domestic cup, pro-rated by ties played. **Optional**: every
+   * WorldAwards entry persisted before domestic cups existed lacks it, and
+   * their `score` was computed without it, so readers default it to 0 rather
+   * than treating its absence as a bug. A required field would have made every
+   * one of those stored entries fail to typecheck for no gain.
+   */
+  domesticCup?: number;
 }
 
 /** One completed season's worldwide honors, stored on SeasonHistoryEntry alongside the per-competition ones. */
@@ -60,6 +71,12 @@ export interface WorldAwardContext {
   championTidByCompId: Record<number, number>;
   /** The Continental Cup played *during* that season, or null (season 1, or a world too small for one). */
   cup: CupState | null;
+  /**
+   * That season's domestic cups, one per country. Optional and defaulted to
+   * empty: a save from before domestic cups existed has none for its past
+   * seasons, and the backfill scores them the same way it always did.
+   */
+  domesticCups?: DomesticCupState[];
   /** Nation that won the World Cup in the offseason right after that season, or null (a qualifying year). */
   worldCupChampion: string | null;
 }
@@ -182,6 +199,34 @@ function titleComponent(e: Entry, championTidByCompId: Record<number, number>): 
 }
 
 /**
+ * Winning your own domestic cup, pro-rated by ties played.
+ *
+ * A **team** term, like the league title above and unlike the Continental Cup
+ * component: no domestic cup goals, assists or ratings enter the award. Those
+ * ratings normalize within one country, so they carry exactly the weak-league
+ * bias `leagueStrengthOffsets` exists to remove, and there is no equivalent
+ * correction available for them. A flat squad bonus has no such bias.
+ *
+ * Pro-rated on domestic cup appearances rather than league ones, because the
+ * question is what he did in *this* competition — a man who played every league
+ * game and no cup ties didn't win it.
+ *
+ * Second-tier winners count. A tier-2 club really can win the thing, and unlike
+ * a tier-2 league title (which `championTidByCompId` excludes by construction)
+ * there is no weaker version of this trophy to confuse it with.
+ */
+function domesticCupComponent(
+  e: Entry,
+  champions: ReadonlySet<number>,
+  lines: Map<number, CupStatLine>,
+): number {
+  if (!champions.has(e.stats.tid)) return 0;
+  const appearances = lines.get(e.player.pid)?.appearances ?? 0;
+  return WORLD_AWARD_DOMESTIC_CUP_BONUS
+    * Math.min(1, appearances / WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT);
+}
+
+/**
  * The Ballon d'Or score: a POTY-style domestic season on a worldwide scale,
  * plus the cross-league competitions the domestic award can't see.
  */
@@ -190,6 +235,8 @@ function ballonDOrParts(
   season: number,
   ctx: WorldAwardContext,
   roundsFromFinal: Map<number, number>,
+  domesticChampions: ReadonlySet<number>,
+  domesticLines: Map<number, CupStatLine>,
 ): BallonDOrEntry {
   // The ovr terms fold into `league` rather than becoming a fifth part: the UI
   // already labels that column as including an ovr term, and adding a field
@@ -198,10 +245,11 @@ function ballonDOrParts(
   const cup = cupComponent(e, roundsFromFinal, POTY_GOAL_WEIGHT, POTY_ASSIST_WEIGHT);
   const intl = intlComponent(e.player, season, ctx.worldCupChampion);
   const title = titleComponent(e, ctx.championTidByCompId);
+  const domesticCup = domesticCupComponent(e, domesticChampions, domesticLines);
   return {
     pid: e.player.pid, tid: e.stats.tid,
-    score: league + cup + intl + title,
-    league, cup, intl, title,
+    score: league + cup + intl + title + domesticCup,
+    league, cup, intl, title, domesticCup,
   };
 }
 
@@ -215,13 +263,16 @@ function worldTotsScore(
   season: number,
   ctx: WorldAwardContext,
   roundsFromFinal: Map<number, number>,
+  domesticChampions: ReadonlySet<number>,
+  domesticLines: Map<number, CupStatLine>,
 ): number {
   return totsScore(e.player, e.stats, season)
     + e.strength
     + worldOvrComponent(e)
     + cupComponent(e, roundsFromFinal, TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT)
     + intlComponent(e.player, season, ctx.worldCupChampion)
-    + titleComponent(e, ctx.championTidByCompId);
+    + titleComponent(e, ctx.championTidByCompId)
+    + domesticCupComponent(e, domesticChampions, domesticLines);
 }
 
 function pickWorldTeam(
@@ -267,6 +318,14 @@ export function computeWorldAwards(
 ): WorldAwards {
   const cupLines = ctx.cup ? cupStatsByPid(ctx.cup) : new Map<number, CupStatLine>();
   const roundsFromFinal = ctx.cup ? cupRoundsFromFinal(ctx.cup) : new Map<number, number>();
+  // Domestic cups: who won each country's, and how many ties each player made.
+  // Both empty on a save whose past seasons predate domestic cups, which scores
+  // exactly as it did before the competition existed.
+  const domesticCups = ctx.domesticCups ?? [];
+  const domesticChampions = new Set<number>(
+    domesticCups.map((c) => c.championTid).filter((tid): tid is number => tid !== null),
+  );
+  const domesticLines = domesticStatsByPid(domesticCups);
 
   const entries: Entry[] = [];
   for (const player of players) {
@@ -298,7 +357,10 @@ export function computeWorldAwards(
   const qualified = entries.filter((e) => e.stats.appearances >= AWARD_MIN_APPEARANCES);
   const pool = qualified.length > 0 ? qualified : entries;
   const ranked = pool
-    .map((e) => ({ entry: e, parts: ballonDOrParts(e, season, ctx, roundsFromFinal) }))
+    .map((e) => ({
+      entry: e,
+      parts: ballonDOrParts(e, season, ctx, roundsFromFinal, domesticChampions, domesticLines),
+    }))
     // Ties break on end product, then pid — the same order the per-competition
     // Player of the Season uses, so both awards resolve a dead heat identically.
     .sort((a, b) => {
@@ -311,7 +373,12 @@ export function computeWorldAwards(
     .map((x) => x.parts);
 
   const totyScores = new Map<number, number>();
-  for (const e of entries) totyScores.set(e.player.pid, worldTotsScore(e, season, ctx, roundsFromFinal));
+  for (const e of entries) {
+    totyScores.set(
+      e.player.pid,
+      worldTotsScore(e, season, ctx, roundsFromFinal, domesticChampions, domesticLines),
+    );
+  }
 
   return { ballonDOr: ranked, worldTeamOfYear: pickWorldTeam(entries, totyScores) };
 }

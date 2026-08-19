@@ -1836,56 +1836,142 @@ a:hover {
 }
 
 /* =========================================================================
-   Continental Cup bracket
+   Cup brackets
+   -------------------------------------------------------------------------
+   Two shapes, because the two cups are genuinely different competitions and
+   drawing them the same way tells a lie about one of them.
+
+   `--tree` (Continental Cup): a fixed bracket. The quarter-final winners feed
+   known semi-final slots, so the tie really does sit between its two feeders.
+   Laid out on a grid where a round-r tie spans 2^r rows, which gives exact
+   centering (flex space-around only approximates it) and makes the connector
+   elbows reliable.
+
+   `--rounds` (domestic cups): an OPEN draw, redrawn out of the hat every
+   round. Nothing feeds anything positionally, so there is no tree to draw and
+   centering ties against imagined feeders would invent a relationship the sim
+   does not have. Dense top-aligned columns instead: a results ledger, one
+   column per round.
    ========================================================================= */
 .cup-bracket {
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
   overflow-x: auto;
   padding-bottom: 0.5rem;
   align-items: stretch;
 }
+/* Sized so a six-round cup (the largest the sim builds: 40 clubs, preliminary
+   round through final) fits a 1440px window without horizontal scrolling. The
+   column must not grow: letting flex distribute slack pushed the total past the
+   viewport and clipped the FINAL, which is the one column nobody can afford to
+   lose. It still scrolls on a narrow window, and the champion is stated above
+   the bracket for exactly that case. */
 .cup-round {
   display: flex;
   flex-direction: column;
-  min-width: 200px;
-  flex: 1 0 auto;
+  min-width: 0;
+  flex: 0 0 172px;
 }
 .cup-round-title {
-  font-size: 0.72rem;
+  font-size: var(--sg-text-xs);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--bs-secondary-color);
-  text-align: center;
+  color: var(--sg-text-muted);
   margin-bottom: 0.5rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--sg-border);
+  padding-bottom: 0.3rem;
 }
-/* Distribute a round's ties with space-around in the space below the title. Because
-   each round halves its tie count, space-around lands every tie's center at the midpoint
-   of its two feeders' centers, so a QF box sits centered between its two R16 boxes.
-   Keeping the title out of this flow (and using per-tie margins instead of a container
-   gap) is what preserves that alignment. */
-.cup-round-body {
-  flex: 1;
+/* Tie count sits with the round name so a round reads as "how much is left"
+   at a glance, which is the question a bracket is actually asked. */
+.cup-round-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--sg-text-faint);
+  letter-spacing: 0;
+}
+
+/* --- open draw: dense, top-aligned, no invented geometry ---------------- */
+.cup-bracket--rounds .cup-round-body {
   display: flex;
   flex-direction: column;
-  justify-content: space-around;
+  gap: 0.3rem;
 }
+
+/* --- fixed bracket: grid rows so every tie centres on its two feeders ---- */
+.cup-bracket--tree .cup-round-body {
+  flex: 1;
+  display: grid;
+  grid-auto-rows: minmax(var(--cup-row, 3.1rem), auto);
+  align-items: center;
+  row-gap: 0.3rem;
+}
+.cup-bracket--tree .cup-tie { position: relative; }
+/* The elbow: a vertical line spanning half this tie's slot, joining the two
+   feeders' centres, plus a stub into the box. Drawn on the tie that RECEIVES,
+   so a round only ever draws its own incoming edges.
+   Only on `--linked` rounds, meaning a knockout round whose feeders are the
+   column immediately left of it. The qualifying rounds hanging off the front
+   are NOT linked: a quarter-final pairs a top-four seed with one playoff
+   winner, so an elbow there would claim the two playoff ties beside it feed
+   that quarter-final, which is false. */
+.cup-bracket--tree .cup-round--linked .cup-tie::before {
+  content: "";
+  position: absolute;
+  right: 100%;
+  top: -25%;
+  height: 50%;
+  width: 1px;
+  background: var(--sg-cup-line);
+  margin-right: 0.375rem;
+}
+.cup-bracket--tree .cup-round--linked .cup-tie::after {
+  content: "";
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  width: 0.375rem;
+  height: 1px;
+  background: var(--sg-cup-line);
+}
+
+/* --- the tie ------------------------------------------------------------ */
+/* NOT overflow:hidden, however tempting for clipping the tinted rows to the
+   rounded corners: it also clips the bracket connectors, which are drawn as
+   pseudo-elements outside the box. The rows round their own outer corners
+   instead. */
 .cup-tie {
-  border: 1px solid var(--bs-border-color);
-  border-left: 3px solid var(--sg-cup);
+  border: 1px solid var(--sg-border);
   border-radius: var(--sg-radius);
-  padding: 0.35rem 0.55rem;
-  margin: 0.375rem 0;
-  background: var(--bs-body-bg);
+  background: var(--sg-surface);
+}
+.cup-tie > .cup-tie-row:first-child {
+  border-top-left-radius: calc(var(--sg-radius) - 1px);
+  border-top-right-radius: calc(var(--sg-radius) - 1px);
+}
+.cup-tie > .cup-tie-row:last-child {
+  border-bottom-left-radius: calc(var(--sg-radius) - 1px);
+  border-bottom-right-radius: calc(var(--sg-radius) - 1px);
+}
+.cup-tie > .cup-tie-note:last-child {
+  border-bottom-left-radius: calc(var(--sg-radius) - 1px);
+  border-bottom-right-radius: calc(var(--sg-radius) - 1px);
 }
 .cup-tie-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.1rem 0;
+  gap: 0.4rem;
+  padding: 0.28rem 0.4rem;
   min-width: 0;
 }
+/* The winner carries a tinted row AND weight, so the result survives
+   grayscale and colour-vision deficiency (the Signal Rule in DESIGN.md).
+   The beaten side recedes instead of the winner shouting. */
+.cup-tie-row--won { background: var(--sg-cup-wash); }
+.cup-tie-row--out { color: var(--sg-text-muted); }
 .cup-team {
   display: inline-flex;
   align-items: center;
@@ -1897,24 +1983,94 @@ a:hover {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.cup-team-winner .cup-team-name { font-weight: 700; }
-.cup-team-user .cup-team-name { color: var(--sg-user); font-weight: 600; }
-.cup-tie-score {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
+.cup-team-winner .cup-team-name { font-weight: var(--sg-weight-semibold); }
+.cup-team-user .cup-team-name { color: var(--sg-user); font-weight: var(--sg-weight-semibold); }
+.cup-team-tier {
+  font-size: var(--sg-text-xs);
+  color: var(--sg-text-faint);
   flex: 0 0 auto;
 }
+.cup-tie-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sg-weight-semibold);
+  flex: 0 0 auto;
+}
+/* Extra time / shootout / aggregate detail. A footer strip rather than a
+   floating caption, so it belongs to the tie it explains. */
 .cup-tie-note {
-  font-size: 0.7rem;
-  color: var(--bs-secondary-color);
+  font-size: var(--sg-text-xs);
+  color: var(--sg-text-muted);
+  background: var(--sg-surface-2);
+  border-top: 1px solid var(--sg-border);
+  padding: 0.15rem 0.5rem;
   text-align: right;
-  margin-top: 0.15rem;
 }
 .cup-tie-tbd {
-  color: var(--bs-secondary-color);
-  font-style: italic;
+  color: var(--sg-text-faint);
   text-align: center;
-  padding: 0.4rem 0;
+  padding: 0.55rem 0;
+  border: 1px dashed var(--sg-border);
+  border-radius: var(--sg-radius);
+  font-size: var(--sg-text-sm);
+}
+/* The final is the one tie everything else was for. It gets the weight. */
+.cup-tie--final {
+  border-color: var(--sg-warn);
+  box-shadow: 0 0 0 1px var(--sg-warn-wash);
+}
+.cup-tie--final .cup-tie-row { padding-top: 0.4rem; padding-bottom: 0.4rem; }
+.cup-tie--final .cup-tie-row--won { background: var(--sg-warn-wash); }
+/* The last round earns a little more width: it holds the tie everyone cares
+   about, and club names are what truncate first in a narrow column. */
+.cup-bracket--rounds .cup-round:last-child,
+.cup-bracket--tree .cup-round:last-child {
+  flex-basis: 204px;
+}
+.cup-byes {
+  font-size: var(--sg-text-xs);
+  color: var(--sg-text-faint);
+  padding: 0.35rem 0.1rem 0;
+}
+
+/* --- narrow screens: one round per swipe -------------------------------- */
+/* At 390px the 172px column gives 1.9 columns of rail, so the bracket always
+   rests on a half-column whose scores are the part hanging off-screen. Widen
+   the column to a screen minus a peek and snap to it: every swipe lands on a
+   whole round, the peek says there is another one, and club names stop
+   truncating at the width where truncation hurts most.
+
+   Deliberately NOT the 767.98px breakpoint the rest of this file uses. A
+   column of `100% - peek` is one round per screen, which is right for a phone
+   and absurd at 767px, where it would draw a single 656px-wide tie card on a
+   tablet that has room for four rounds at once. Portrait phones top out at
+   ~450px, so `sm` is the boundary that separates the two cases. */
+@media (max-width: 575.98px) {
+  .cup-bracket {
+    gap: 0.75rem;
+    scroll-snap-type: x mandatory;
+  }
+  .cup-bracket .cup-round,
+  .cup-bracket--rounds .cup-round:last-child,
+  .cup-bracket--tree .cup-round:last-child {
+    flex-basis: calc(100% - 2.75rem);
+    scroll-snap-align: start;
+  }
+  /* The tree's geometry says something only when a round and its feeders are
+     on screen together, which cannot happen here. So the fixed bracket falls
+     back to the open draw's dense columns: no 2^r row spans stretching the
+     final over four blank screens, and no connectors pointing at a column
+     nobody can see. Switching the body to flex is also what makes the inline
+     `grid-row` spans inert, without reaching for !important. */
+  .cup-bracket--tree .cup-round-body {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+  }
+  .cup-bracket--tree .cup-round--linked .cup-tie::before,
+  .cup-bracket--tree .cup-round--linked .cup-tie::after {
+    display: none;
+  }
 }
 .cup-champion-banner {
   display: inline-flex;

@@ -47,7 +47,10 @@ export function RetiredPlayerProfile({
   const teamAbbrev = (tid: number) =>
     isFreeAgentTid(tid) ? "FA" : teamByTid.get(tid)?.abbrev ?? "???";
 
-  const honors = computeArchivedHonors(archived, league.seasonHistory);
+  const honors = computeArchivedHonors(archived, league.seasonHistory, {
+    cupHistory: league.cupHistory,
+    domesticCupHistory: league.domesticCupHistory,
+  });
 
   const transfers = league.transfers
     .filter((t) => t.pid === archived.pid)
@@ -113,6 +116,8 @@ export function RetiredPlayerProfile({
                   <AwardPill label="Golden Boot" seasons={honors.goldenBoot} icon={<GoldenBootIcon />} />
                   <AwardPill label="Team of the Season" seasons={honors.teamOfSeason} />
                   <AwardPill label="League Champion" seasons={honors.leagueTitles} icon="🏆" />
+                  <AwardPill label="Continental Cup" seasons={honors.continentalCups} />
+                  <AwardPill label="Domestic Cup" seasons={honors.domesticCups} />
                 </div>
               )}
             </div>

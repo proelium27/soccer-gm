@@ -4,6 +4,7 @@ import type { SimProgress } from "../useSimWorker.js";
 import type { PlayedMatch } from "../../core/standings.js";
 import type { CupTie } from "../../core/cup/types.js";
 import { cupRoundName } from "../../core/cup/cup.js";
+import { CUP_NAME } from "../../core/constants.js";
 
 interface SimOverlayProps {
   open: boolean;
@@ -26,22 +27,51 @@ function userGame(md: SimProgress | undefined, userTid: number): PlayedMatch | u
 // One card in the ticker: the user's league match, the user's cup tie, or — when
 // a cup round is played on a matchday the user's club isn't in — a compact
 // marker so the tournament is still visible in the animation.
-type TickerItem =
+export type TickerItem =
   | { kind: "league"; game: PlayedMatch }
-  | { kind: "cup"; tie: CupTie }
-  | { kind: "cup-marker"; round: number; matchday: number };
+  | { kind: "cup"; tie: CupTie; label: string; sub: string }
+  | { kind: "cup-marker"; label: string; sub: string; matchday: number };
 
-function tickerItemsFor(md: SimProgress, userTid: number): TickerItem[] {
+/**
+ * What the ticker shows for one simmed matchday. Exported for tests: the
+ * user-country pick below is exactly the sort of thing that looks right in
+ * review and is wrong in play (it shipped showing every manager England's cup).
+ */
+export function tickerItemsFor(md: SimProgress, userTid: number): TickerItem[] {
   const items: TickerItem[] = [];
   const league = userGame(md, userTid);
   if (league) items.push({ kind: "league", game: league });
 
   const userTie = md.cupTies.find((t) => t.home === userTid || t.away === userTid);
   if (userTie) {
-    items.push({ kind: "cup", tie: userTie });
+    items.push({ kind: "cup", tie: userTie, label: CUP_NAME, sub: cupRoundName(userTie.round) });
   } else if (md.cupTies.length > 0) {
     const t = md.cupTies[0];
-    items.push({ kind: "cup-marker", round: t.round, matchday: t.matchday });
+    items.push({
+      kind: "cup-marker", label: CUP_NAME, sub: cupRoundName(t.round), matchday: t.matchday,
+    });
+  }
+
+  // Domestic cups carry their own name and round label, because a round index
+  // alone means different things in different cups (and in different countries'
+  // cups, which may be at different stages on the same matchday).
+  const domestic = md.domesticTies ?? [];
+  const userDomestic = domestic.find((d) => d.tie.home === userTid || d.tie.away === userTid);
+  if (userDomestic) {
+    items.push({
+      kind: "cup", tie: userDomestic.tie, label: userDomestic.cupName, sub: userDomestic.roundName,
+    });
+  } else {
+    // His club isn't playing a tie today (out of the cup, or given a bye), so
+    // show his OWN country's cup as the marker. Taking the first tie instead
+    // showed a German save "English Cup", since the ties arrive in
+    // competition-table order and England leads it.
+    const d = domestic.find((x) => x.isUserCountry);
+    if (d) {
+      items.push({
+        kind: "cup-marker", label: d.cupName, sub: d.roundName, matchday: d.tie.matchday,
+      });
+    }
   }
   return items;
 }
@@ -141,11 +171,11 @@ export function SimOverlay({ open, teams, queue, done, userTid, onComplete }: Si
               if (item.kind === "cup-marker") {
                 return (
                   <div
-                    key={`cm-${item.matchday}`}
+                    key={`cm-${item.label}-${item.matchday}`}
                     className="sim-ticker-card sim-ticker-cup sim-ticker-cup-marker"
                   >
-                    <div className="sim-ticker-cup-label">Continental Cup</div>
-                    <div className="sim-ticker-cup-sub">{cupRoundName(item.round)}</div>
+                    <div className="sim-ticker-cup-label">{item.label}</div>
+                    <div className="sim-ticker-cup-sub">{item.sub}</div>
                   </div>
                 );
               }
@@ -160,11 +190,11 @@ export function SimOverlay({ open, teams, queue, done, userTid, onComplete }: Si
                   : null;
               return (
                 <div
-                  key={`c-${t.matchday}-${t.home}-${t.away}`}
+                  key={`c-${item.label}-${t.matchday}-${t.home}-${t.away}`}
                   className={`sim-ticker-card sim-ticker-cup sim-ticker-cup-${won ? "win" : "loss"}`}
                 >
-                  <div className="sim-ticker-cup-label">Continental Cup</div>
-                  <div className="sim-ticker-cup-sub">{cupRoundName(t.round)}</div>
+                  <div className="sim-ticker-cup-label">{item.label}</div>
+                  <div className="sim-ticker-cup-sub">{item.sub}</div>
                   <div className="sim-ticker-row">
                     <span className="sim-ticker-team">{teamLabel(teams, t.home)}</span>
                     <span className="sim-ticker-score">{t.homeGoals}</span>

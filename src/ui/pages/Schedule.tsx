@@ -3,6 +3,8 @@ import { useLeague } from "../context/LeagueContext.js";
 import type { ScheduleGame } from "../../core/schedule.js";
 import type { CupState } from "../../core/cup/types.js";
 import { cupRoundName, koRoundsOf, koLegMatchdays } from "../../core/cup/cup.js";
+import type { DomesticCupState } from "../../core/domesticCup/types.js";
+import { domesticRoundName } from "../../core/domesticCup/cup.js";
 
 interface FixtureRow {
   matchday: number;
@@ -11,11 +13,46 @@ interface FixtureRow {
   result: { homeGoals: number; awayGoals: number; possessionHome: number } | null;
   /** Index into league.played for the box-score link (league games only). */
   playedIndex: number | null;
-  /** "league" fixtures link to their box score; "cup" fixtures link to the Cup page. */
-  kind: "league" | "cup";
+  /**
+   * "league" fixtures link to their box score; "cup" and "domestic" fixtures
+   * link to their own cup page.
+   */
+  kind: "league" | "cup" | "domestic";
   /** Cup rows only: the stage label, e.g. "League phase" or "Quarter-final (1st leg)". */
   label?: string;
   sortKey: number;
+}
+
+/** The user's domestic cup fixtures — at most one per round, and only once drawn. */
+function userDomesticRows(cups: DomesticCupState[], userTid: number): FixtureRow[] {
+  const rows: FixtureRow[] = [];
+  for (const cup of cups) {
+    for (const round of cup.rounds) {
+      const tie = round.ties.find((t) => t.home === userTid || t.away === userTid);
+      if (tie) {
+        rows.push({
+          matchday: round.matchday, home: tie.home, away: tie.away,
+          result: { homeGoals: tie.homeGoals, awayGoals: tie.awayGoals, possessionHome: 0 },
+          playedIndex: null, kind: "domestic",
+          label: domesticRoundName(cup, round.round), sortKey: round.matchday,
+        });
+        continue;
+      }
+      // Drawn but not yet played: the user knows his next opponent in advance,
+      // which is half the point of a cup draw.
+      const pairing = round.ties.length === 0
+        ? round.pairings.find((p) => p.home === userTid || p.away === userTid)
+        : undefined;
+      if (pairing) {
+        rows.push({
+          matchday: round.matchday, home: pairing.home, away: pairing.away,
+          result: null, playedIndex: null, kind: "domestic",
+          label: domesticRoundName(cup, round.round), sortKey: round.matchday,
+        });
+      }
+    }
+  }
+  return rows;
 }
 
 /** The user's Continental Cup fixtures (league phase, playoff, and knockout legs), for the schedule. */
@@ -116,9 +153,10 @@ export function Schedule() {
     }));
 
   const cupRows = userCupRows(league.cup, userTid);
+  const domesticRows = userDomesticRows(league.domesticCups ?? [], userTid);
 
   // Within a matchday, list the league game first, then any cup fixture.
-  const allRows = [...playedRows, ...scheduledRows, ...cupRows].sort(
+  const allRows = [...playedRows, ...scheduledRows, ...cupRows, ...domesticRows].sort(
     (a, b) => a.sortKey - b.sortKey || (a.kind === b.kind ? 0 : a.kind === "league" ? -1 : 1),
   );
 
@@ -177,9 +215,9 @@ export function Schedule() {
                   <td className="text-end">{row.matchday}</td>
                   <td>
                     {teamName(row.home)}
-                    {row.kind === "cup" && (
+                    {row.kind !== "league" && (
                       <span className="badge text-bg-secondary ms-2 align-middle" style={{ fontWeight: 400 }}>
-                        Cup · {row.label}
+                        {row.kind === "cup" ? "Cup" : "Domestic cup"} · {row.label}
                       </span>
                     )}
                   </td>
@@ -190,7 +228,7 @@ export function Schedule() {
                           {row.result.homeGoals} - {row.result.awayGoals}
                         </Link>
                       ) : (
-                        <Link to="/cup">
+                        <Link to={row.kind === "domestic" ? "/domestic-cup" : "/cup"}>
                           {row.result.homeGoals} - {row.result.awayGoals}
                         </Link>
                       )

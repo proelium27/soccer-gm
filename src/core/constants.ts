@@ -2157,6 +2157,63 @@ export const WORLD_AWARD_LEAGUE_TITLE_BONUS = 0.8;
 export const WORLD_AWARD_TITLE_FULL_SEASON = 2 * (NUM_TEAMS - 1);
 
 /**
+ * Bonus for winning your own domestic cup, pro-rated by how many of its ties you
+ * actually played.
+ *
+ * Sized off the same exchange rate the other team bonuses use, against
+ * POTY_GOAL_WEIGHT.FWD (0.08): a league title (0.8) is worth ~10 striker goals,
+ * a Continental Cup run bonus (1.0) ~12, a World Cup (1.4) ~17. A domestic cup
+ * at 0.25 is worth ~3 goals — about a third of a league title, which is the
+ * intended hierarchy: it is the easiest of the four trophies to win, six games
+ * and some luck, and it should read that way against a whole league campaign.
+ *
+ * Why it exists at all: the Ballon d'Or already pays for winning your league, so
+ * without this a player who won the double got credited for one trophy and not
+ * the other. It is deliberately a **team-achievement** term and NOT a
+ * production term — no domestic cup goals, assists or ratings enter the award.
+ * Those ratings are z-normalized within a single country, so they are not
+ * comparable across leagues the way Continental Cup ratings are (which is the
+ * whole reason WORLD_AWARD_LEAGUE_STRENGTH_WEIGHT exists), and feeding them in
+ * would quietly favour whoever plays in the weakest country. A uniform squad
+ * bonus carries no such bias: it can move the award *between* clubs but never
+ * lift a player above a better team-mate.
+ *
+ * **Measured** (`scripts/worldAwardsAudit.ts`, 3 seeds x 12 seasons = 36 award
+ * seasons, against the same script with the term removed — world awards feed
+ * nothing in the sim, so both runs play identical dynasties and only the
+ * ranking can differ):
+ *
+ *                        baseline   with bonus
+ *   winner won his league  72%        72%
+ *   won the Continental    28%        25%
+ *   won the World Cup      11%        11%
+ *   winner ovr rank median 69         68
+ *   winner ovr rank mean   129.5      135.6
+ *   ST share of winners    69%        69%
+ *   mean score split       league 12.45 / cup 0.95 / title 0.55 / intl 0.55
+ *                          plus dcup 0.04 with the bonus on
+ *
+ * So it is a **tie-breaker-scale** term by design: 0.25 paid on the 17% of
+ * seasons where the winner's club won its domestic cup averages 0.04 against a
+ * ~14.5 total, and it flipped one or two winners in 36 seasons. The guarded
+ * metrics held — median ovr rank flat, striker share identical, big-four
+ * dominance and the occasional weak-league winner both intact. Note 36 seasons
+ * is a small sample and a one-winner difference is inside the noise on the
+ * *mean* rank; the median is the number to read (see WORLD_AWARD_OVR_WEIGHT).
+ */
+export const WORLD_AWARD_DOMESTIC_CUP_BONUS = 0.25;
+
+/**
+ * Domestic cup ties that count as having played the whole run. A winner plays
+ * five or six ties depending on whether it entered at the preliminary round, so
+ * four is "he was in the side for it" while a one-tie cameo collects a fifth of
+ * the bonus. Same idea as WORLD_AWARD_CUP_FULL_INVOLVEMENT for the Continental
+ * run bonus, and the same reason: a bit-part player shouldn't take a winner's
+ * share.
+ */
+export const WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT = 4;
+
+/**
  * International football, from the campaign played in the offseason directly
  * after the season being judged. Weights are per goal / assist / cap, and the
  * multiplier applies to a World Cup campaign over a qualifying one — a goal at
@@ -2351,6 +2408,93 @@ export const CUP_PEN_BEST_OF = 5;
 /** Base per-kick conversion probability, nudged by taker finishing vs keeper. */
 export const CUP_PEN_BASE_CONVERSION = 0.75;
 
+/* ── Domestic cups ───────────────────────────────────────────────────────────
+ * Every country runs its own knockout cup alongside its league, contested by
+ * BOTH its divisions — so a tier-2 club can knock out a champion, and a tier-1
+ * club can win a treble (league + domestic cup + Continental Cup).
+ *
+ * The field (40 clubs on a standard world) isn't a power of two, so the lowest
+ * ranked clubs play a preliminary round to cut it to one: 16 of the 20 tier-2
+ * clubs meet in eight preliminary ties, and the eight winners join the other 24
+ * for a round of 32. Rounds are drawn OPEN — after each round the survivors go
+ * back in the hat and the home side is drawn at random — which is what makes a
+ * domestic cup a domestic cup, and is why the bracket can't be shown in advance.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * League matchdays the domestic cup rounds are played on, final last. A cup with
+ * fewer rounds than this (a smaller world) takes the LAST n, so the final always
+ * lands on the same matchday whatever the field size.
+ *
+ * Every one of these is clear of CUP_LEAGUE_PHASE_MATCHDAYS / CUP_PLAYOFF_MATCHDAY /
+ * CUP_KO_LEG_MATCHDAYS, so no club is ever asked to play two cup ties on one
+ * matchday, and clear of TRANSFER_DEADLINE_MATCHDAY and the season finale (38).
+ * The final sits on 36, a matchday before the Continental Cup final on 37.
+ */
+export const DOMESTIC_CUP_MATCHDAYS = [5, 9, 13, 21, 26, 36] as const;
+
+/**
+ * Prize for winning a tie, indexed by how many rounds remain INCLUDING the one
+ * won: [0] = lifting the trophy, [1] = winning a semi-final, and so on. Indexed
+ * from the final backwards (never from round 0) so the same table is correct
+ * whether a country's cup opens with a preliminary round or not — the same
+ * reason cupRoundsFromFinal exists for the Continental Cup's run bonus.
+ *
+ * **All zero, deliberately, and this is a measured decision rather than a
+ * placeholder.** The domestic cup shipped with real prize money first
+ * (12M/4M/2M/1M/0.5M/0.25M, runner-up 3M, each multiplied by the club's
+ * financeScale so a weak league could not out-earn a strong one). Measured with
+ * `scripts/weakLeaguesAudit.ts`, 4 seeds x 20 seasons, against the same script
+ * run on the merge base:
+ *
+ *   - the strength ladder held everywhere (per seed and on the 4-seed mean),
+ *     so the financeScale scaling did its job;
+ *   - but **2 of 4 seeds went into deficit** (Belgium -£0.5M season 20, Turkey
+ *     -£1.4M season 19) where the baseline is solvent on all four.
+ *
+ * That is the exact result that got the need-buy tightening rejected (see
+ * CLAUDE.md), and it is the documented failure shape: the finance column fails
+ * first, not the ladder. Two mechanisms could produce it and this audit cannot
+ * separate them — a one-off prize converted into a permanent wage liability
+ * (both deficits land late, seasons 19-20), or plain stream shift, since
+ * crediting a prize before the winter window moves every downstream AI market
+ * decision and the weak leagues already run within ~£0.01M of zero at their
+ * thinnest point.
+ *
+ * At zero the cup pays nothing, `creditPrizes` is never called, no club's budget
+ * is touched, and a dynasty is therefore **bit-identical** to one without
+ * domestic cups at all — which is what makes shipping the competition itself
+ * provably safe. Re-enabling is this one table plus the runner-up below, and
+ * needs its own tuning pass measured the same way.
+ */
+export const DOMESTIC_CUP_PRIZE_BY_ROUNDS_FROM_FINAL: readonly number[] = [
+  0, // lift the trophy
+  0, // win a semi-final
+  0, // win a quarter-final
+  0, // win a round-of-16 tie
+  0, // win a round-of-32 tie
+  0, // win a preliminary tie
+];
+
+/** Runner-up cheque, zero for the same measured reason as the table above. */
+export const DOMESTIC_CUP_PRIZE_RUNNER_UP = 0;
+
+/**
+ * Country -> the adjective its cup is named with ("England" -> "English Cup").
+ * A country with no entry here falls back to "<Country> Cup", so a world with a
+ * new country still names its cup sensibly without touching this table.
+ */
+export const COUNTRY_CUP_ADJECTIVE: Readonly<Record<string, string>> = {
+  England: "English",
+  Spain: "Spanish",
+  Italy: "Italian",
+  Germany: "German",
+  France: "French",
+  Portugal: "Portuguese",
+  Belgium: "Belgian",
+  Turkey: "Turkish",
+};
+
 /**
  * Match Rating (average) leaderboard qualifier. An average over one or two
  * games is noise — a single standout cameo would otherwise top the chart — so
@@ -2534,6 +2678,13 @@ export const GOAT_GOLDEN_BOOT_WEIGHT = 15;
 export const GOAT_TOTS_WEIGHT = 10;
 export const GOAT_LEAGUE_TITLE_WEIGHT = 12;
 export const GOAT_CUP_TITLE_WEIGHT = 25;
+/**
+ * A domestic cup, deliberately the cheapest trophy on the board: it's a knockout
+ * a club can win in six games without being any good over a season, which is
+ * exactly what makes it fun and exactly why it shouldn't build a GOAT case.
+ * Below a league title (12) for that reason.
+ */
+export const GOAT_DOMESTIC_CUP_TITLE_WEIGHT = 6;
 export const GOAT_WORLD_CUP_WEIGHT = 50;
 export const GOAT_CAP_WEIGHT = 0.3;
 export const GOAT_GOAL_WEIGHT = 0.15;
@@ -2552,6 +2703,8 @@ export const GOAT_ASSIST_WEIGHT = 0.1;
  */
 export const GOAT_TEAM_LEAGUE_TITLE_WEIGHT = 100;
 export const GOAT_TEAM_CUP_TITLE_WEIGHT = 150;
+/** Same reasoning as the player weight: a fine trophy, a weak argument. */
+export const GOAT_TEAM_DOMESTIC_CUP_TITLE_WEIGHT = 40;
 export const GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT = 20;
 export const GOAT_TEAM_TOP_FINISH_WEIGHT = 15;
 /** A finishing position this good or better counts as contending. */

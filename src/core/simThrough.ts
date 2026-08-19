@@ -25,6 +25,11 @@ import type { NewsEvent } from "./newsEvents.js";
 import { computePowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { CupState, CupTie } from "./cup/types.js";
+import type { DomesticCupState } from "./domesticCup/types.js";
+import {
+  domesticRoundDue, domesticFinalists, domesticRoundName, pendingRound,
+} from "./domesticCup/cup.js";
+import { playDomesticRound } from "./domesticCup/simCup.js";
 import { dueCupRound, dueCupLeg, cupFinalists, playInDue, playoffDue, koFinalRound } from "./cup/cup.js";
 import { leaguePhaseDue } from "./cup/leaguePhase.js";
 import { playKnockoutLeg, playPlayIn, playLeaguePhaseRound, playPlayoff } from "./cup/simCup.js";
@@ -115,12 +120,35 @@ function accumulateStats(
   }
 }
 
+/**
+ * One domestic cup tie played on a matchday, with the labels the ticker needs.
+ * The name and round come along with the tie because a `CupTie` carries only a
+ * round *index*, and the same index means different things in different cups.
+ */
+export interface DomesticTieResult {
+  tie: CupTie;
+  cupName: string;
+  roundName: string;
+  /**
+   * Whether this tie belongs to the **user's own country's** cup.
+   *
+   * Every country plays its cup rounds on the same matchdays, so a cup matchday
+   * reports eight cups' worth of ties. A consumer that wants "the cup that
+   * matters to this user" must not just take the first one: they arrive in
+   * competition-table order, so the first is always England's, and a German
+   * save was shown "English Cup" whenever the user's own club wasn't playing a
+   * tie that day (knocked out, or given a bye).
+   */
+  isUserCountry: boolean;
+}
+
 export type MatchdayProgress = (
   matchday: number,
   matchdayIndex: number,
   totalMatchdays: number,
   results: PlayedMatch[],
   cupTies: CupTie[],
+  domesticTies: DomesticTieResult[],
 ) => void;
 
 /**
@@ -182,6 +210,9 @@ export function simThrough(
   // matchdays inside the loop below; the state advances round by round and is
   // returned with the rest of the league.
   let cup: CupState | null = league.cup;
+  // This season's domestic cups (one per country), advanced round by round on
+  // their own matchdays exactly like the Continental Cup above.
+  let domesticCups: DomesticCupState[] = league.domesticCups ?? [];
   const newEvents: NewsEvent[] = [];
   const newSnapshots: PowerRankingSnapshot[] = [];
 
@@ -225,6 +256,19 @@ export function simThrough(
       matchday > currentMatchday &&
       dueCupRound(cup, matchday) === koFinalRound(cup) &&
       cupFinalists(cup).includes(league.meta.userTid)
+    ) {
+      stoppedBeforeMatchday = matchday;
+      break;
+    }
+
+    // Same courtesy for the user's domestic cup final: it's drawn as soon as
+    // the semi-finals are played, so hand control back rather than simming
+    // through the biggest one-off game of his season.
+    if (
+      matchday > currentMatchday
+      && domesticCups.some((c) => (
+        domesticRoundDue(c, matchday) && domesticFinalists(c).includes(league.meta.userTid)
+      ))
     ) {
       stoppedBeforeMatchday = matchday;
       break;
@@ -372,6 +416,62 @@ export function simThrough(
       }
     }
 
+    // Domestic cups: each country's cup plays its due round here, on its own
+    // seeded stream. The composites baseline pools the WHOLE country — both
+    // divisions together — for the same reason the Continental Cup pools its
+    // field: composites are z-normalized within a competition, so a tier-2 club
+    // measured against its own division reads as an average side and would face
+    // a top-flight club as an equal. Pooling is what makes a giant-killing an
+    // upset rather than a coin flip.
+    const mdDomesticTies: DomesticTieResult[] = [];
+    if (domesticCups.some((c) => domesticRoundDue(c, matchday))) {
+      // Which country the user manages in, so each reported tie can say whether
+      // it belongs to his own cup — see DomesticTieResult.isUserCountry.
+      const userCompId = currentTeams.find((t) => t.tid === league.meta.userTid)?.compId;
+      const userCountry = league.competitions.find((c) => c.id === userCompId)?.country;
+      const advanced: DomesticCupState[] = [];
+      for (const dc of domesticCups) {
+        if (!domesticRoundDue(dc, matchday)) {
+          advanced.push(dc);
+          continue;
+        }
+        const compIds = new Set(
+          league.competitions.filter((c) => c.country === dc.country).map((c) => c.id),
+        );
+        const countryTeams = currentTeams.filter((t) => compIds.has(t.compId));
+        const countryData = leagueMatchData({
+          teams: toLeagueTeams(countryTeams), players: currentPlayers,
+        });
+        const dcMatchData = new Map<number, TeamMatchData>();
+        countryTeams.forEach((t, i) => dcMatchData.set(t.tid, withSeasonForm(t.tid, countryData[i])));
+
+        // Same scale the prize is then clamped against (creditPrizes), so the
+        // user's difficulty multiplier applies to a cup run exactly as it does
+        // to every other way his budget can grow.
+        const scaleByTid = new Map(
+          countryTeams.map((t) => [
+            t.tid,
+            financeScaleFor(
+              league.competitions, t.compId, t.tid, league.meta.userTid, league.difficulty,
+            ),
+          ]),
+        );
+        const roundName = domesticRoundName(dc, pendingRound(dc)!.round);
+        const played = playDomesticRound(
+          dc, league.competitions, dcMatchData, league.lid,
+          (tid) => scaleByTid.get(tid) ?? 1,
+        );
+        advanced.push(played.cup);
+        creditPrizes(played.prizes);
+        for (const tie of played.ties) {
+          mdDomesticTies.push({
+            tie, cupName: dc.name, roundName, isUserCountry: dc.country === userCountry,
+          });
+        }
+      }
+      domesticCups = advanced;
+    }
+
     const goalTotalsBefore = playerGoalTotals(currentPlayers, league.season);
 
     const gamesThisMatchday = toSim.filter((g) => g.matchday === matchday);
@@ -435,7 +535,7 @@ export function simThrough(
       );
     }
 
-    onMatchday?.(matchday, index, matchdays.length, mdResults, mdCupTies);
+    onMatchday?.(matchday, index, matchdays.length, mdResults, mdCupTies, mdDomesticTies);
   }
 
   // A stop-before-final break leaves this matchday and every later one
@@ -469,5 +569,6 @@ export function simThrough(
     newsEvents: [...league.newsEvents, ...newEvents],
     powerRankingHistory: [...league.powerRankingHistory, ...newSnapshots],
     cup,
+    domesticCups,
   };
 }
