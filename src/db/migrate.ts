@@ -348,6 +348,16 @@ function migrateFields(league: LeagueStore): LeagueStore {
         // record left, so dropping them here would score every past season's
         // cup as zero without failing.
         cup: seasonCup ? { ...seasonCup, leaguePhase: seasonCup.leaguePhase ?? null, playoff: seasonCup.playoff ?? null, playIn: seasonCup.playIn ?? null, twoLegged: seasonCup.twoLegged ?? false, koLegs: seasonCup.koLegs ?? null, statLines: seasonCup.statLines ?? null } : null,
+        // Same idea for the domestic cups of that season. A save from before
+        // they existed has none, so the term is simply absent and the season
+        // scores exactly as it did — which is also why the whole backfill stays
+        // stable rather than re-ranking old seasons on a trophy nobody played
+        // for. `statLines` is what an archived cup keeps, and domesticStatsByPid
+        // reads it.
+        domesticCups: [
+          ...(anyVersion.domesticCupHistory ?? []),
+          ...(anyVersion.domesticCups ?? []),
+        ].filter((c) => c.season === h.season),
         worldCupChampion:
           anyVersion.international?.history?.find((t) => t.season === h.season)?.champion ?? null,
       });

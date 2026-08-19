@@ -2157,6 +2157,40 @@ export const WORLD_AWARD_LEAGUE_TITLE_BONUS = 0.8;
 export const WORLD_AWARD_TITLE_FULL_SEASON = 2 * (NUM_TEAMS - 1);
 
 /**
+ * Bonus for winning your own domestic cup, pro-rated by how many of its ties you
+ * actually played.
+ *
+ * Sized off the same exchange rate the other team bonuses use, against
+ * POTY_GOAL_WEIGHT.FWD (0.08): a league title (0.8) is worth ~10 striker goals,
+ * a Continental Cup run bonus (1.0) ~12, a World Cup (1.4) ~17. A domestic cup
+ * at 0.25 is worth ~3 goals — about a third of a league title, which is the
+ * intended hierarchy: it is the easiest of the four trophies to win, six games
+ * and some luck, and it should read that way against a whole league campaign.
+ *
+ * Why it exists at all: the Ballon d'Or already pays for winning your league, so
+ * without this a player who won the double got credited for one trophy and not
+ * the other. It is deliberately a **team-achievement** term and NOT a
+ * production term — no domestic cup goals, assists or ratings enter the award.
+ * Those ratings are z-normalized within a single country, so they are not
+ * comparable across leagues the way Continental Cup ratings are (which is the
+ * whole reason WORLD_AWARD_LEAGUE_STRENGTH_WEIGHT exists), and feeding them in
+ * would quietly favour whoever plays in the weakest country. A uniform squad
+ * bonus carries no such bias: it can move the award *between* clubs but never
+ * lift a player above a better team-mate.
+ */
+export const WORLD_AWARD_DOMESTIC_CUP_BONUS = 0.25;
+
+/**
+ * Domestic cup ties that count as having played the whole run. A winner plays
+ * five or six ties depending on whether it entered at the preliminary round, so
+ * four is "he was in the side for it" while a one-tie cameo collects a fifth of
+ * the bonus. Same idea as WORLD_AWARD_CUP_FULL_INVOLVEMENT for the Continental
+ * run bonus, and the same reason: a bit-part player shouldn't take a winner's
+ * share.
+ */
+export const WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT = 4;
+
+/**
  * International football, from the campaign played in the offseason directly
  * after the season being judged. Weights are per goal / assist / cap, and the
  * multiplier applies to a World Cup campaign over a qualifying one — a goal at

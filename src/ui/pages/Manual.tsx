@@ -777,16 +777,23 @@ export function Manual() {
             the same as league ones, your rating in it counts, and there's a bonus for how far your
             club went, biggest by far for winning the thing (all of it scaled down if you only
             played a game or two of the run). Third, the international campaign played that summer:
-            goals, assists and caps, worth double in a World Cup year over a qualifying one.
+            goals, assists and caps, worth double in a World Cup year over a qualifying one. Your
+            domestic cup counts too, but only as a trophy: winning it is worth points to everyone who
+            played in the run, while goals scored in it are not. Those games are only ever measured
+            against one country, so unlike Continental Cup games they can't be compared fairly with
+            anyone else's, and counting them would quietly favour whoever plays in the weakest
+            league.
           </p>
           <p>
-            Trophies count for a lot here. Winning your league, winning the Continental Cup, and
-            being in the squad that won the World Cup are all worth real points on top of whatever
-            you did personally, and they stack. Roughly speaking, winning your league is worth about
-            ten league goals to a striker, the Continental Cup a bit more than that, and the World
-            Cup more again. It isn't a pure team prize: you still have to have played a good season
-            yourself, and a squad player who barely featured in the cup run only collects a fraction
-            of it.
+            Trophies count for a lot here. Winning your league, winning the Continental Cup,
+            winning your domestic cup and being in the squad that won the World Cup are all worth
+            real points on top of whatever you did personally, and they stack. Roughly speaking,
+            winning your league is worth about ten league goals to a striker, the Continental Cup a
+            bit more than that, the World Cup more again, and your domestic cup about three goals,
+            which is the smallest of the four on purpose: it's six games and a bit of luck, and it
+            shouldn't weigh the same as a whole league campaign. It isn't a pure team prize: you
+            still have to have played a good season yourself, and a squad player who barely featured
+            in a cup run only collects a fraction of it.
           </p>
           <p>
             The last thing in the mix is how good the player actually is. The world award leans on a

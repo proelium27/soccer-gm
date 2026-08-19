@@ -275,6 +275,11 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     competitions: league.competitions,
     championTidByCompId,
     cup: league.cup,
+    // The domestic cups that ran during this season, read before the archive a
+    // few steps below folds their box scores away. Archiving keeps the champion
+    // and the per-player lines this needs, so the order isn't load-bearing, but
+    // reading the live ones keeps it obvious which season is being judged.
+    domesticCups: league.domesticCups,
     worldCupChampion:
       league.international.history.find((h) => h.season === endingSeason)?.champion ?? null,
   });
