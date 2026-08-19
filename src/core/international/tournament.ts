@@ -7,7 +7,7 @@ import { buildSquads, nationMatchData } from "./squads.js";
 import { buildGroup, potDraw, groupTableSummary } from "./groups.js";
 import {
   playGroups, seedBracket, playKnockoutRound,
-  emptyCareerDelta, mergeCareerDelta, TOURNAMENT_GROUP_STREAM,
+  emptyCareerDelta, mergeCareerDelta, TOURNAMENT_GROUP_STREAM, TOURNAMENT_KNOCKOUT_STREAM,
 } from "./simIntl.js";
 import type { CupTie } from "../cup/types.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
@@ -75,6 +75,23 @@ export function initTournament(
 }
 
 /**
+ * What separates one tournament from another when the same play functions run
+ * both. The World Cup takes the defaults; a continental championship passes its
+ * own rng streams (several are played in one offseason, and sharing a stream
+ * would make each one's results depend on the order the others were played in)
+ * and its own group shape, which varies with how many nations its confederation
+ * could field.
+ */
+export interface TournamentPlayOptions {
+  /** rng stream tag for the group stage. */
+  groupStream?: number;
+  /** rng stream base for the knockout; the round index is added to it. */
+  knockoutStream?: number;
+  /** How many nations advance from each group. */
+  qualifyPerGroup?: number;
+}
+
+/**
  * Play a drawn tournament's group stage, then seed the knockout bracket from the
  * final tables. Returns the tournament with played groups and a filled bracket,
  * plus the group-stage appearances.
@@ -83,13 +100,14 @@ export function playTournamentGroups(
   tournament: IntlTournament,
   players: Player[],
   lid: number,
+  opts: TournamentPlayOptions = {},
 ): { tournament: IntlTournament; delta: CareerDelta; injured: number[] } {
   const delta = emptyCareerDelta();
   const injured = new Set<number>();
   const matchData = nationMatchData(tournament.squads, players);
-  const seed = hashInts(lid, tournament.season, TOURNAMENT_GROUP_STREAM, 30);
+  const seed = hashInts(lid, tournament.season, opts.groupStream ?? TOURNAMENT_GROUP_STREAM, 30);
   const played = playGroups(tournament.groups, matchData, seed, true, delta, injured);
-  const bracket = seedBracket(played);
+  const bracket = seedBracket(played, opts.qualifyPerGroup);
   return { tournament: { ...tournament, groups: played, bracket }, delta, injured: [...injured] };
 }
 
@@ -115,12 +133,16 @@ export function playTournamentRound(
   tournament: IntlTournament,
   players: Player[],
   lid: number,
+  opts: TournamentPlayOptions = {},
 ): { tournament: IntlTournament; delta: CareerDelta; injured: number[] } {
   const delta = emptyCareerDelta();
   const injured = new Set<number>();
   const matchData = nationMatchData(tournament.squads, players);
   const { round, field } = nextKnockoutRound(tournament);
-  const { ties, winners } = playKnockoutRound(field, matchData, lid, tournament.season, round, delta, injured);
+  const { ties, winners } = playKnockoutRound(
+    field, matchData, lid, tournament.season, round, delta, injured,
+    opts.knockoutStream ?? TOURNAMENT_KNOCKOUT_STREAM,
+  );
   const nextTies: CupTie[] = [...tournament.ties, ...ties];
   const championNid = winners.length === 1 ? winners[0] : tournament.championNid;
   return { tournament: { ...tournament, ties: nextTies, championNid }, delta, injured: [...injured] };

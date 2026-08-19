@@ -8,7 +8,11 @@ import {
   initTournament, playTournamentGroups, playTournamentRound, summarize, summarizeQualifying,
 } from "./tournament.js";
 import { buildPowerSnapshot } from "./squads.js";
-import { qualifyingLeg } from "../constants.js";
+import {
+  initContinental, playContinentalGroups, playContinentalKnockoutRound,
+  continentalGroupsPending, continentalKnockoutPending, summarizeContinental,
+} from "./continental.js";
+import { qualifyingLeg, CONTINENTAL_QUALIFYING_LEG } from "../constants.js";
 
 /**
  * Staged international football.
@@ -92,8 +96,14 @@ export function applyCareerDelta(
         caps: current.caps + (d?.caps ?? 0),
         goals: current.goals + (d?.goals ?? 0),
         assists: current.assists + (d?.assists ?? 0),
-        tournaments: current.tournaments + (isNamed ? 1 : 0),
-        titles: current.titles + (champions.has(p.pid) ? 1 : 0),
+        // A continental championship is counted separately from a World Cup —
+        // see IntlCareer for why the two must not share a counter.
+        tournaments: current.tournaments + (isNamed && kind !== "continental" ? 1 : 0),
+        titles: current.titles + (champions.has(p.pid) && kind !== "continental" ? 1 : 0),
+        continentalTournaments: (current.continentalTournaments ?? 0)
+          + (isNamed && kind === "continental" ? 1 : 0),
+        continentalTitles: (current.continentalTitles ?? 0)
+          + (champions.has(p.pid) && kind === "continental" ? 1 : 0),
         seasons: d
           ? mergeSeasonLine(current.seasons ?? [], season, kind, d)
           : current.seasons ?? [],
@@ -132,6 +142,16 @@ export function initInternationalCampaign(
 
   const leg = qualifyingLeg(endingSeason);
 
+  // The continental championships share the cycle's middle qualifying
+  // offseason. Drawn here alongside the qualifying leg, played after it. Null
+  // in every other offseason, which is *not* the same as an empty array: the
+  // last edition stays on the state so it can still be browsed, and is only
+  // replaced when a new one is actually drawn.
+  const drawnContinental = leg === CONTINENTAL_QUALIFYING_LEG
+    ? initContinental(players, endingSeason, lid)
+    : null;
+  const continental = drawnContinental ?? state.continental;
+
   if (leg === 0) {
     // Start of a cycle: draw a fresh qualifying campaign (all legs, unplayed)
     // and stage its first leg. The campaign's season is this start season, which
@@ -144,9 +164,17 @@ export function initInternationalCampaign(
   if (leg > 0) {
     // A later qualifying offseason of the same cycle: resume the in-progress
     // campaign for its next leg. Nothing to resume if it never started, or if it
-    // somehow already finished.
-    if (!state.qualifying || state.qualifying.qualified.length > 0) return { ...state, stage: null };
-    return withSnapshot({ ...state, stage: "qualifying" });
+    // somehow already finished — but the continental championships are their own
+    // competition and still go ahead, so a save that joined the cycle late plays
+    // them even with no qualifying campaign on file.
+    const resumable = state.qualifying !== null && state.qualifying.qualified.length === 0;
+    const hasContinental = drawnContinental !== null && drawnContinental.length > 0;
+    if (!resumable && !hasContinental) return { ...state, continental, stage: null };
+    return withSnapshot({
+      ...state,
+      continental,
+      stage: resumable ? "qualifying" : "continental-groups",
+    });
   }
 
   // Tournament offseason (every fourth season): draw the World Cup from the just
@@ -190,9 +218,54 @@ export function playIntlStage(
             ? [...state.qualifyingHistory, summarizeQualifying(campaign)]
             : state.qualifyingHistory,
           stageInjuries: [...state.stageInjuries, ...injured],
-          stage: "done",
+          // The middle qualifying offseason of the cycle plays its leg and then
+          // the continental championships; every other one is done here.
+          stage: continentalGroupsPending(state.continental) ? "continental-groups" : "done",
         },
         players: applyCareerDelta(players, delta, null, null, season, "qualifying"),
+      };
+    }
+    case "continental-groups": {
+      const r = playContinentalGroups(state.continental, players, lid);
+      return {
+        international: {
+          ...state,
+          continental: r.tournaments,
+          stageInjuries: [...state.stageInjuries, ...r.injured],
+          stage: continentalKnockoutPending(r.tournaments) ? "continental-ko" : "done",
+        },
+        players: applyCareerDelta(players, r.delta, null, null, season, "continental"),
+      };
+    }
+    case "continental-ko": {
+      const r = playContinentalKnockoutRound(state.continental, players, lid);
+      // Caps/goals/assists from whichever championships played a round.
+      let updated = applyCareerDelta(players, r.delta, null, null, season, "continental");
+      const stageInjuries = [...state.stageInjuries, ...r.injured];
+
+      if (continentalKnockoutPending(r.tournaments)) {
+        return {
+          international: { ...state, continental: r.tournaments, stageInjuries, stage: "continental-ko" },
+          players: updated,
+        };
+      }
+
+      // Every final is played on the same stage (see continental.ts), so the
+      // championships all finish together: credit each squad a tournament and
+      // each winner a title, then archive the lot.
+      for (const t of r.tournaments) {
+        const championSquad = t.championNid !== null ? t.squads[t.championNid] ?? null : null;
+        updated = applyCareerDelta(updated, emptyCareerDelta(), t.squads, championSquad, season, "continental");
+      }
+      return {
+        international: {
+          ...state,
+          continental: r.tournaments,
+          continentalHistory: [...state.continentalHistory, ...summarizeContinental(r.tournaments, updated)],
+          stageInjuries,
+          stage: "done",
+        },
+        players: updated,
       };
     }
     case "groups": {
@@ -254,9 +327,11 @@ export function simThroughInternational(
 ): { international: InternationalState; players: Player[] } {
   let international = state;
   let current = players;
-  // At most four stages (tournament: groups, qf, sf, final); the guard just
-  // stops a degenerate un-resolvable bracket from looping forever.
-  for (let guard = 0; isIntlStagePending(international) && guard < 8; guard++) {
+  // At most five stages (a continental offseason: a qualifying leg, the
+  // championships' groups, then a knockout round per click up to the finals);
+  // the guard just stops a degenerate un-resolvable bracket from looping
+  // forever.
+  for (let guard = 0; isIntlStagePending(international) && guard < 12; guard++) {
     const result = playIntlStage(international, current, lid, season);
     international = result.international;
     current = result.players;

@@ -5,6 +5,14 @@ import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { simThroughInternational, isIntlStagePending } from "../../src/core/international/index.js";
 import { runTournament } from "../../src/core/international/tournament.js";
+import {
+  initContinental, playContinentalGroups, playContinentalKnockoutRound, roundsRemaining,
+} from "../../src/core/international/continental.js";
+import { playIntlStage } from "../../src/core/international/staging.js";
+import { formatFor, knockoutRounds, TOURNAMENT_FORMATS } from "../../src/core/international/format.js";
+import { seedBracket } from "../../src/core/international/simIntl.js";
+import { CONTINENTAL_TOURNAMENTS } from "../../src/core/international/confederations.js";
+import { makeLeague } from "../helpers/league.js";
 import { buildSquads } from "../../src/core/international/squads.js";
 import { allocateSlots, confederationOf } from "../../src/core/international/confederations.js";
 import { roundRobin, groupTable, buildGroup, serpentineGroups, potDraw } from "../../src/core/international/groups.js";
@@ -13,7 +21,9 @@ import * as Nats from "../../src/core/players/nationalities.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import { nationRecords, finishOf } from "../../src/core/international/index.js";
 import type { IntlTournamentSummary } from "../../src/core/international/index.js";
-import { INTL_FIELD_SIZE, INTL_KO_SIZE, INTL_GROUPS } from "../../src/core/constants.js";
+import {
+  INTL_FIELD_SIZE, INTL_KO_SIZE, INTL_GROUPS, CONTINENTAL_MIN_NATIONS, isContinentalSeason,
+} from "../../src/core/constants.js";
 
 /**
  * Play any staged international campaign that entering the offseason drew, in
@@ -204,10 +214,14 @@ describe("offseason cycle", () => {
       expect(sum("caps")).toBe(p.intl!.caps);
       expect(sum("goals")).toBe(p.intl!.goals);
       expect(sum("assists")).toBe(p.intl!.assists);
-      // One line per offseason played, labelled by the cadence: seasons 1-3
-      // qualifying, season 4 the tournament.
+      // One line per campaign played, labelled by the cadence: seasons 1-3
+      // qualifying, season 4 the tournament — plus a continental line in the
+      // offseason that also stages the championships (season 2 of the cycle).
       for (const l of lines) {
-        expect(l.kind).toBe(l.season % 4 === 0 ? "tournament" : "qualifying");
+        const allowed = l.season % 4 === 0
+          ? ["tournament"]
+          : isContinentalSeason(l.season) ? ["qualifying", "continental"] : ["qualifying"];
+        expect(allowed).toContain(l.kind);
       }
       expect(new Set(lines.map((l) => `${l.season}-${l.kind}`)).size).toBe(lines.length);
     }
@@ -378,5 +392,195 @@ describe("nation history derivations", () => {
     const belgium = records.find((r) => r.nation === "Belgium")!;
     expect(belgium.tournaments).toBe(2);
     expect(belgium.bestFinish).toBe("Group stage");
+  });
+});
+
+describe("tournament shapes", () => {
+  it("picks the biggest shape that fits both the target and the nations available", () => {
+    // A confederation with plenty of nations gets the full 16-team shape...
+    expect(formatFor(25, 16)).toEqual({ fieldSize: 16, groupCount: 4, qualifyPerGroup: 2 });
+    // ...one with a dozen drops to four groups of three...
+    expect(formatFor(12, 16)).toEqual({ fieldSize: 12, groupCount: 4, qualifyPerGroup: 2 });
+    // ...and a handful plays a single round-robin into a final.
+    expect(formatFor(5, 10)).toEqual({ fieldSize: 5, groupCount: 1, qualifyPerGroup: 2 });
+    // The target caps it even when the nations are there.
+    expect(formatFor(25, 8)).toEqual({ fieldSize: 8, groupCount: 2, qualifyPerGroup: 2 });
+    // Too few for any shape at all: no tournament.
+    expect(formatFor(3, 16)).toBeNull();
+
+    // Every supported shape must end in a power-of-two knockout, which is what
+    // lets several championships be played side by side and finish together.
+    for (const f of TOURNAMENT_FORMATS) {
+      expect(Number.isInteger(knockoutRounds(f))).toBe(true);
+      expect(knockoutRounds(f)).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("seeds a bracket of the right size whatever the group count", () => {
+    // A group whose every fixture is played, so groupTable can order it.
+    const played = (nids: number[]) => {
+      const g = buildGroup(0, nids, null);
+      g.matches.forEach((m) => { m.homeGoals = 1; m.awayGoals = 0; });
+      return g;
+    };
+
+    // Four groups: the World Cup's eight-nation bracket, unchanged.
+    const four = [played([0, 1, 2, 3]), played([4, 5, 6, 7]), played([8, 9, 10, 11]), played([12, 13, 14, 15])];
+    expect(seedBracket(four)).toHaveLength(INTL_KO_SIZE);
+
+    // Two groups: a four-nation bracket, still crossing winner with runner-up.
+    const two = [played([0, 1, 2, 3]), played([4, 5, 6, 7])];
+    expect(seedBracket(two)).toHaveLength(4);
+
+    // One group: its top two go straight to the final.
+    const one = [played([0, 1, 2, 3, 4])];
+    expect(seedBracket(one)).toHaveLength(2);
+  });
+});
+
+describe("continental championships", () => {
+  it("holds a championship only where the world can field one", () => {
+    const league = makeLeague(0, 11);
+    const drawn = initContinental(league.players, 2, league.lid);
+    const byConfederation = new Map(drawn.map((t) => [t.confederation, t]));
+
+    // Every player is generated from a European league's nationality table, so
+    // Europe and Africa field tournaments and the thin confederations do not.
+    expect(byConfederation.has("Europe")).toBe(true);
+    expect(byConfederation.has("Africa")).toBe(true);
+
+    for (const t of drawn) {
+      // Its field is real, its shape is coherent, and nothing is played yet.
+      expect(t.nations.length).toBeGreaterThanOrEqual(CONTINENTAL_MIN_NATIONS);
+      expect(t.squads).toHaveLength(t.nations.length);
+      expect(t.groups.flatMap((g) => g.nids)).toHaveLength(t.nations.length);
+      expect(t.bracket).toHaveLength(0);
+      expect(t.ties).toHaveLength(0);
+      expect(t.championNid).toBeNull();
+      // Every entrant belongs to the confederation whose championship it is.
+      for (const nation of t.nations) expect(confederationOf(nation)).toBe(t.confederation);
+      // And it is called what the spec table says.
+      const spec = CONTINENTAL_TOURNAMENTS.find((c) => c.confederation === t.confederation)!;
+      expect(t.name).toBe(spec.name);
+      expect(t.nations.length).toBeLessThanOrEqual(spec.targetField);
+    }
+    // Nations are strongest-first, so the field is the confederation's best.
+    const europe = byConfederation.get("Europe")!;
+    for (let i = 1; i < europe.squads.length; i++) {
+      expect(europe.squads[i - 1].rating).toBeGreaterThanOrEqual(europe.squads[i].rating);
+    }
+  });
+
+  it("plays every championship to a champion, with the finals on the same stage", () => {
+    const league = makeLeague(0, 11);
+    const drawn = initContinental(league.players, 2, league.lid);
+    expect(drawn.length).toBeGreaterThan(1); // otherwise there is no alignment to test
+
+    let tournaments = playContinentalGroups(drawn, league.players, league.lid).tournaments;
+    for (const t of tournaments) {
+      expect(t.bracket.length).toBeGreaterThanOrEqual(2);
+      expect(t.groups.every((g) => g.matches.every((m) => m.homeGoals >= 0))).toBe(true);
+    }
+
+    // Play knockout rounds until they are all done, recording how many each
+    // tournament was left with at every stage.
+    const remainingByStage: number[][] = [];
+    for (let guard = 0; tournaments.some((t) => roundsRemaining(t) > 0) && guard < 6; guard++) {
+      remainingByStage.push(tournaments.map(roundsRemaining));
+      tournaments = playContinentalKnockoutRound(tournaments, league.players, league.lid).tournaments;
+    }
+
+    // Everyone has a champion, and nobody was still running when the last
+    // stage finished — that is what "the finals land together" means.
+    for (const t of tournaments) {
+      expect(t.championNid).not.toBeNull();
+      expect(roundsRemaining(t)).toBe(0);
+    }
+    // A shorter tournament waits: on the stage before the last, every live
+    // tournament has exactly one round to go.
+    const beforeLast = remainingByStage[remainingByStage.length - 1];
+    for (const r of beforeLast) expect(r === 0 || r === 1).toBe(true);
+  });
+
+  it("stages the championships after the qualifying leg, in the middle season of the cycle", () => {
+    const rng = mulberry32(21);
+    let league = createLeagueState(0, rng);
+    // Season 1 draws qualifying only; season 2 is the continental season.
+    for (let s = 0; s < 2; s++) {
+      league = simThrough(league, "season", rng);
+      league = simThrough(league, "season", rng);
+      if (league.season === 1) {
+        expect(league.international.continental).toHaveLength(0);
+        league = playInternational(league);
+        league = simOffseason(league, rng);
+      }
+    }
+    expect(league.season).toBe(2);
+    expect(isContinentalSeason(league.season)).toBe(true);
+    expect(league.international.continental.length).toBeGreaterThan(0);
+
+    // Click through the stages one at a time and record the sequence.
+    const stages: string[] = [String(league.international.stage)];
+    let intl = league.international;
+    let players = league.players;
+    for (let g = 0; g < 12 && intl.stage != null && intl.stage !== "done"; g++) {
+      const r = playIntlStage(intl, players, league.lid, league.season);
+      intl = r.international;
+      players = r.players;
+      stages.push(String(intl.stage));
+    }
+    expect(stages[0]).toBe("qualifying");
+    expect(stages[1]).toBe("continental-groups");
+    expect(stages.filter((x) => x === "continental-ko").length).toBeGreaterThanOrEqual(1);
+    expect(stages[stages.length - 1]).toBe("done");
+
+    // Every championship is archived, and the winners' medals are recorded on
+    // the *continental* counters rather than the World Cup ones.
+    expect(intl.continentalHistory.length).toBe(intl.continental.length);
+    for (const h of intl.continentalHistory) {
+      expect(h.champion).toBeTruthy();
+      expect(h.confederation).toBeTruthy();
+      expect(h.knockout.length).toBeGreaterThan(0);
+    }
+    const withMedal = players.filter((p) => (p.intl?.continentalTitles ?? 0) > 0);
+    expect(withMedal.length).toBeGreaterThan(0);
+    for (const p of players) {
+      // No World Cup has been played, so those counters must still be zero.
+      expect(p.intl?.titles ?? 0).toBe(0);
+      expect(p.intl?.tournaments ?? 0).toBe(0);
+    }
+    // A champion's nation matches one of the archived winners.
+    const champions = new Set(intl.continentalHistory.map((h) => h.champion));
+    for (const p of withMedal) expect(champions.has(p.nationality)).toBe(true);
+  });
+
+  it("clicking through the championships matches simming through them", () => {
+    const rng = mulberry32(31);
+    let league = createLeagueState(0, rng);
+    league = simThrough(league, "season", rng);
+    league = simThrough(league, "season", rng);
+    league = playInternational(league);
+    league = simOffseason(league, rng);
+    league = simThrough(league, "season", rng);
+    league = simThrough(league, "season", rng);
+    expect(league.season).toBe(2);
+    expect(league.international.continental.length).toBeGreaterThan(0);
+
+    // Clicked: one stage at a time.
+    let intl = league.international;
+    let players = league.players;
+    for (let g = 0; g < 12 && intl.stage != null && intl.stage !== "done"; g++) {
+      const r = playIntlStage(intl, players, league.lid, league.season);
+      intl = r.international;
+      players = r.players;
+    }
+    // Simmed: every remaining stage in one pass.
+    const bulk = simThroughInternational(
+      league.international, league.players, league.lid, league.season,
+    );
+
+    expect(bulk.international.continental).toEqual(intl.continental);
+    expect(bulk.international.continentalHistory).toEqual(intl.continentalHistory);
+    expect(bulk.players.map((p) => p.intl)).toEqual(players.map((p) => p.intl));
   });
 });

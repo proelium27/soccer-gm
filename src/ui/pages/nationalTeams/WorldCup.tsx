@@ -9,7 +9,7 @@ import { tournamentGoals } from "../../../core/international/index.js";
 import { PlayerRefLink } from "../../components/PlayerRefLink.js";
 import { INTL_TOURNAMENT_NAME, INTL_QUALIFY_PER_GROUP } from "../../../core/constants.js";
 import {
-  NationalTeamsLayout, NationName, GroupStandings, liveGroupRows, KnockoutColumns, SeasonSelect,
+  NationalTeamsLayout, NationName, GroupCards, liveGroupRows, KnockoutColumns, SeasonSelect,
   useHasInternational, IntlEmpty, type StandingRow, type KnockoutResultView,
 } from "./shared.js";
 
@@ -26,19 +26,7 @@ function GroupStage({ groups }: { groups: StandingRow[][] }) {
   return (
     <>
       <h6 className="mt-3">Group stage</h6>
-      <div className="row g-3 mb-3">
-        {groups.map((rows, i) => {
-          const advancing = new Set(rows.slice(0, INTL_QUALIFY_PER_GROUP).map((r) => r.nation));
-          return (
-            <div className="col-12 col-lg-6" key={i}>
-              <div className="card">
-                <div className="card-header py-1 small fw-bold">Group {String.fromCharCode(65 + i)}</div>
-                <GroupStandings rows={rows} highlight={(n) => advancing.has(n)} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <GroupCards groups={groups} advancing={INTL_QUALIFY_PER_GROUP} />
     </>
   );
 }

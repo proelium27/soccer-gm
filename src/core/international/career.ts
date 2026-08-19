@@ -11,16 +11,30 @@ export interface IntlCareer {
   caps: number;
   goals: number;
   assists: number;
-  /** Tournaments named in a squad for (not appearances). */
+  /** World Cups named in a squad for (not appearances). */
   tournaments: number;
-  /** Tournaments won. */
+  /** World Cups won. */
   titles: number;
+  /**
+   * Continental championships named in a squad for, and won.
+   *
+   * Deliberately their own counters rather than folded into the two above. Those
+   * two have meant "World Cups" since they shipped, and the Frivolities
+   * International board and the GOAT formula already rank careers on them — so
+   * adding a second, easier trophy to the same number would silently restate
+   * every existing all-time record. Optional because saves predating continental
+   * football have neither (absent reads as zero everywhere).
+   */
+  continentalTournaments?: number;
+  continentalTitles?: number;
   /**
    * The same caps/goals/assists broken out per campaign, so a profile can show
    * a season-by-season international record the way it shows league and cup
-   * seasons. One line per offseason played: a qualifying offseason adds a
-   * "qualifying" line, a tournament offseason a "tournament" line (its four
-   * stages all merge into the one line). Empty on saves from before this was
+   * seasons. One line per campaign played: a qualifying offseason adds a
+   * "qualifying" line, a World Cup offseason a "tournament" line (its four
+   * stages all merge into the one line), and the offseason that stages the
+   * continental championships adds a "continental" line alongside its
+   * qualifying one. Empty on saves from before this was
    * tracked — the totals above stay the authoritative career record.
    */
   seasons: IntlSeasonLine[];
@@ -33,12 +47,21 @@ export interface IntlCareer {
  */
 export interface IntlSeasonLine {
   season: number;
-  kind: "qualifying" | "tournament";
+  /**
+   * Which campaign this line covers. A continental offseason produces *two*
+   * lines for the same season — its qualifying leg and the championship — which
+   * is why anything reading these must sum every line for a season rather than
+   * taking the first one it finds.
+   */
+  kind: "qualifying" | "tournament" | "continental";
   caps: number;
   goals: number;
   assists: number;
 }
 
 export function emptyIntlCareer(): IntlCareer {
-  return { caps: 0, goals: 0, assists: 0, tournaments: 0, titles: 0, seasons: [] };
+  return {
+    caps: 0, goals: 0, assists: 0, tournaments: 0, titles: 0,
+    continentalTournaments: 0, continentalTitles: 0, seasons: [],
+  };
 }

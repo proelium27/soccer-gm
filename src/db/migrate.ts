@@ -170,7 +170,17 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
     // breakdown can't be reconstructed (archived campaigns hold no box scores),
     // so it starts empty and fills from the next campaign on. `p.intl` itself
     // absent still means "never capped" and is left absent.
-    intl: p.intl ? { ...p.intl, seasons: p.intl.seasons ?? [] } : p.intl,
+    intl: p.intl
+      ? {
+          ...p.intl,
+          seasons: p.intl.seasons ?? [],
+          // Continental championship counters (added with the tournaments
+          // themselves). Nobody can have played one before they existed, so 0
+          // is exact rather than a guess.
+          continentalTournaments: p.intl.continentalTournaments ?? 0,
+          continentalTitles: p.intl.continentalTitles ?? 0,
+        }
+      : p.intl,
     // faSignedSeason (the free-agent transfer hold) is intentionally left
     // absent on pre-feature saves: there's no way to know which past free-agent
     // signings would still be inside their hold, and "absent" is the correct
@@ -360,6 +370,15 @@ function migrateFields(league: LeagueStore): LeagueStore {
         ].filter((c) => c.season === h.season),
         worldCupChampion:
           anyVersion.international?.history?.find((t) => t.season === h.season)?.champion ?? null,
+        // Continental championships from that offseason. A save old enough to
+        // be backfilled here played none, so this is empty for every past
+        // season and only fills going forward — the same honest-blank rule the
+        // rest of this backfill follows.
+        continentalChampions: new Set(
+          (anyVersion.international?.continentalHistory ?? [])
+            .filter((t) => t.season === h.season)
+            .map((t) => t.champion),
+        ),
       });
       return {
         ...h,
@@ -441,6 +460,13 @@ function migrateFields(league: LeagueStore): LeagueStore {
           qualifyingHistory: anyVersion.international.qualifyingHistory ?? [],
           powerRankings: anyVersion.international.powerRankings ?? [],
           stageInjuries: anyVersion.international.stageInjuries ?? [],
+          // Continental championships (the Euro / Copa America / AFCON) start
+          // empty on a save that predates them and are drawn the next time the
+          // cycle's middle qualifying offseason comes round — at worst a save
+          // waits three seasons for its first one. Past editions can't be
+          // invented: they were never played.
+          continental: anyVersion.international.continental ?? [],
+          continentalHistory: anyVersion.international.continentalHistory ?? [],
           history: (anyVersion.international.history ?? []).map((h) => ({
             ...h,
             groups: h.groups ?? [],
@@ -448,8 +474,9 @@ function migrateFields(league: LeagueStore): LeagueStore {
           })),
         }
       : {
-          qualifying: null, tournament: null, history: [],
-          qualifyingHistory: [], powerRankings: [], stage: null, stageInjuries: [],
+          qualifying: null, tournament: null, continental: [], history: [],
+          qualifyingHistory: [], continentalHistory: [], powerRankings: [],
+          stage: null, stageInjuries: [],
         },
     // God Mode sandbox editing defaults off for any save that predates it.
     godMode: anyVersion.godMode ?? false,

@@ -87,6 +87,24 @@ export interface IntlTournament {
 }
 
 /**
+ * A continental championship — the Euro, Copa America, AFCON and their siblings
+ * (see CONTINENTAL_TOURNAMENTS). Structurally an IntlTournament and played by
+ * the very same functions; what it adds is which confederation it belongs to
+ * and how many nations advance from each group, because unlike the World Cup
+ * its shape is not fixed. A confederation with two dozen eligible nations plays
+ * four groups of four into an eight-nation bracket; one with five plays a single
+ * round-robin whose top two contest the final (see format.ts).
+ *
+ * Several of these are live at once — they are all played in the same offseason
+ * — so they sit in an array rather than the single slot the World Cup occupies.
+ */
+export interface IntlContinentalTournament extends IntlTournament {
+  confederation: string;
+  /** Nations advancing from each group; the rest of the shape follows from `groups`. */
+  qualifyPerGroup: number;
+}
+
+/**
  * A finished group's final table, self-contained: rows are keyed by nation name
  * rather than nid so an archived campaign needs none of its original squads or
  * fixtures to render. This is the "Light" archival unit — enough to show what
@@ -135,6 +153,12 @@ export interface IntlKnockoutResult {
 export interface IntlTournamentSummary {
   season: number;
   name: string;
+  /**
+   * Which confederation's championship this was, or absent for the World Cup.
+   * Optional so archived World Cups from before continental football existed
+   * need no backfill — absent already means what it should.
+   */
+  confederation?: string;
   champion: string;
   runnerUp: string;
   /** Final scoreline from the champion's perspective, plus shootout if it went there. */
@@ -185,9 +209,20 @@ export interface IntlPowerSnapshot {
  *  - "qualifying": qualifying groups are drawn but unplayed
  *  - "groups": tournament groups are drawn but unplayed
  *  - "qf" | "sf" | "final": that knockout round is the next to play
+ *  - "continental-groups": every continental championship's group stage is next
+ *  - "continental-ko": the next knockout round of every championship that has
+ *    one left, played across all of them at once (see continental.ts for why
+ *    that is a single stage rather than one per tournament)
  *  - "done": the campaign is finished for this offseason
+ *
+ * The continental stages follow a "qualifying" stage rather than replacing it:
+ * the middle qualifying offseason of the cycle plays its leg and then the
+ * championships (see isContinentalSeason).
  */
-export type IntlStage = "qualifying" | "groups" | "qf" | "sf" | "final" | "done" | null;
+export type IntlStage =
+  | "qualifying" | "groups" | "qf" | "sf" | "final"
+  | "continental-groups" | "continental-ko"
+  | "done" | null;
 
 /**
  * All international state for a save.
@@ -202,10 +237,24 @@ export interface InternationalState {
   qualifying: IntlQualifyingCampaign | null;
   /** The most recently played tournament, in full. */
   tournament: IntlTournament | null;
+  /**
+   * The most recent continental championships, in full — one per confederation
+   * that could field a tournament, all played in the same offseason. Replaced
+   * wholesale the next time they come round; empty on a world that supports
+   * none (see CONTINENTAL_MIN_NATIONS).
+   */
+  continental: IntlContinentalTournament[];
   /** Every completed tournament, oldest first. */
   history: IntlTournamentSummary[];
   /** Every completed qualifying campaign (Light summaries), oldest first. */
   qualifyingHistory: IntlQualifyingSummary[];
+  /**
+   * Every completed continental championship (the same Light summary a World
+   * Cup collapses to, plus its confederation), oldest first. Kept separate from
+   * `history` so the World Cup record — which nationHistory, the Ballon d'Or
+   * and the History page all read — keeps meaning exactly what it always did.
+   */
+  continentalHistory: IntlTournamentSummary[];
   /** A national-team power-ranking snapshot per campaign drawn, oldest first. */
   powerRankings: IntlPowerSnapshot[];
   /** Progress of the current offseason's staged campaign; see IntlStage. */

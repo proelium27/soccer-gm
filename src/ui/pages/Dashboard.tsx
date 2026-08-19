@@ -12,7 +12,8 @@ import { SCOUTING_SPEND_MAX, RATING_LEADER_QUALIFY_FRACTION } from "../../core/c
 import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
 import { domesticFinalists } from "../../core/domesticCup/cup.js";
-import { isIntlStagePending } from "../../core/international/index.js";
+import { isIntlStagePending, roundsRemaining } from "../../core/international/index.js";
+import type { IntlContinentalTournament } from "../../core/international/index.js";
 import { INTL_TOURNAMENT_NAME, INTL_QUAL_LEGS, qualifyingLeg } from "../../core/constants.js";
 import type { IntlStage } from "../../core/international/index.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
@@ -27,8 +28,49 @@ import { isSuspended, matchesLabel } from "../../core/suspensions.js";
 /** A pending staged international stage — every IntlStage that still has play left. */
 type PlayableStage = Exclude<IntlStage, null | "done">;
 
+/** True for either of the continental championship stages. */
+function isContinentalStage(stage: IntlStage): boolean {
+  return stage === "continental-groups" || stage === "continental-ko";
+}
+
+/** Where the "follow it here" link points for the stage being played. */
+function intlStageLink(stage: PlayableStage): string {
+  if (stage === "qualifying") return "/national-teams/qualifying";
+  if (isContinentalStage(stage)) return "/national-teams/continental";
+  return "/national-teams/world-cup";
+}
+
+/**
+ * The continental championships this offseason is staging, written out as prose
+ * ("the European Championship, Copa América and the Africa Cup of Nations").
+ * Empty string when there are none.
+ */
+function continentalLabel(tournaments: IntlContinentalTournament[]): string {
+  const names = tournaments.map((t) => t.name);
+  if (names.length === 0) return "";
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(", ")} and the ${names[names.length - 1]}`;
+}
+
+/**
+ * What the next continental knockout stage is called. The championships are
+ * aligned on their finals (see core/international/continental.ts), so the round
+ * is however many the deepest one has left: three means quarterfinals, two
+ * semifinals, one the finals themselves.
+ */
+function continentalRoundName(tournaments: IntlContinentalTournament[]): string {
+  const deepest = Math.max(0, ...tournaments.map(roundsRemaining));
+  if (deepest >= 3) return "quarterfinals";
+  if (deepest === 2) return "semifinals";
+  return "finals";
+}
+
 /** The button label for playing the next staged international stage. `qualRound` is 1-based. */
-function intlStageButton(stage: PlayableStage, qualRound: number): string {
+function intlStageButton(
+  stage: PlayableStage,
+  qualRound: number,
+  continental: IntlContinentalTournament[],
+): string {
   switch (stage) {
     case "qualifying":
       return `Play qualifying (round ${qualRound} of ${INTL_QUAL_LEGS})`;
@@ -40,11 +82,19 @@ function intlStageButton(stage: PlayableStage, qualRound: number): string {
       return "Play the semifinals";
     case "final":
       return "Play the final";
+    case "continental-groups":
+      return "Play the group stage";
+    case "continental-ko":
+      return `Play the ${continentalRoundName(continental)}`;
   }
 }
 
 /** A one-line status for the staged international campaign on the Dashboard. */
-function intlStageHeadline(stage: PlayableStage, qualRound: number): string {
+function intlStageHeadline(
+  stage: PlayableStage,
+  qualRound: number,
+  continental: IntlContinentalTournament[],
+): string {
   switch (stage) {
     case "qualifying":
       return qualRound < INTL_QUAL_LEGS
@@ -58,6 +108,12 @@ function intlStageHeadline(stage: PlayableStage, qualRound: number): string {
       return "The last eight is set. On to the semifinals.";
     case "final":
       return "Two nations left. It's the final.";
+    case "continental-groups":
+      return `Qualifying is done for the summer. Now for the ${continentalLabel(continental)}: play the group stage to get things underway.`;
+    case "continental-ko":
+      return continentalRoundName(continental) === "finals"
+        ? "Every championship is down to two. The finals are next."
+        : `The ${continentalRoundName(continental)} are next.`;
   }
 }
 
@@ -477,9 +533,13 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
             {isIntlStagePending(league.international) ? (
               <>
                 <p className="card-text">
-                  {intlStageHeadline(league.international.stage as PlayableStage, qualifyingLeg(league.season) + 1)}{" "}
+                  {intlStageHeadline(
+                    league.international.stage as PlayableStage,
+                    qualifyingLeg(league.season) + 1,
+                    league.international.continental,
+                  )}{" "}
                   Follow it on the{" "}
-                  <Link to={league.international.stage === "qualifying" ? "/national-teams/qualifying" : "/national-teams/world-cup"}>
+                  <Link to={intlStageLink(league.international.stage as PlayableStage)}>
                     National Teams
                   </Link>{" "}
                   pages. You'll advance to {seasonYear(league.season + 1)} once it wraps up, or you
@@ -491,7 +551,11 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                     disabled={simming}
                     onClick={() => intlStageAction("stage")}
                   >
-                    {intlStageButton(league.international.stage as PlayableStage, qualifyingLeg(league.season) + 1)}
+                    {intlStageButton(
+                      league.international.stage as PlayableStage,
+                      qualifyingLeg(league.season) + 1,
+                      league.international.continental,
+                    )}
                   </button>
                   {league.international.stage !== "qualifying" && (
                     <button
@@ -499,7 +563,7 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                       disabled={simming}
                       onClick={() => intlStageAction("through")}
                     >
-                      Sim through the {INTL_TOURNAMENT_NAME}
+                      Sim through the {isContinentalStage(league.international.stage) ? "championships" : INTL_TOURNAMENT_NAME}
                     </button>
                   )}
                   {/*
@@ -517,7 +581,9 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                   >
                     {league.international.stage === "qualifying"
                       ? "Skip qualifying"
-                      : `Skip the ${INTL_TOURNAMENT_NAME}`}
+                      : isContinentalStage(league.international.stage)
+                        ? "Skip the championships"
+                        : `Skip the ${INTL_TOURNAMENT_NAME}`}
                   </button>
                 </div>
                 <p className="card-text text-muted small mt-2 mb-0">
