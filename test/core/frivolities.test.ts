@@ -5,8 +5,10 @@ import { computeClubTrivia } from "../../src/core/frivolities/clubs.js";
 import { allCareers } from "../../src/core/frivolities/careers.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { ArchivedPlayer } from "../../src/core/players/archive.js";
-import { emptyTotals, emptyBestSeasons } from "../../src/core/frivolities/stats.js";
-import { allTimeLeaders } from "../../src/core/frivolities/leaders.js";
+import {
+  emptyTotals, emptyBestSeasons, ALL_TIME_STAT_KEYS, type AllTimeStatKey,
+} from "../../src/core/frivolities/stats.js";
+import { allTimeLeaderBoards, type LeaderScope } from "../../src/core/frivolities/leaders.js";
 import { allTimeInternational, cappedNationalities } from "../../src/core/frivolities/international.js";
 import {
   computeHonours, playerGoatRanking, teamGoatRanking, pointsOf,
@@ -211,7 +213,15 @@ describe("computeRecordBook", () => {
   });
 });
 
-describe("allTimeLeaders", () => {
+describe("allTimeLeaderBoards", () => {
+  /** One stat's board, the way the page reads a card or a full list out. */
+  const leaders = (
+    store: LeagueStore,
+    stat: AllTimeStatKey,
+    scope: LeaderScope,
+    limit?: number,
+  ) => allTimeLeaderBoards(store, scope, limit)[stat];
+
   const store = makeStore({
     players: [
       makePlayer({ pid: 1, lines: [[2028, 1, 30, 20, 4], [2029, 1, 30, 12, 6]] }),
@@ -222,7 +232,7 @@ describe("allTimeLeaders", () => {
   });
 
   it("ranks career totals across the living and the retired together", () => {
-    const rows = allTimeLeaders(store, "goals", "career");
+    const rows = leaders(store, "goals", "career");
     expect(rows.map((r) => r.career.pid)).toEqual([99, 1, 2]);
     expect(rows[0].value).toBe(300);
     expect(rows[1].value).toBe(32); // 20 + 12
@@ -233,7 +243,7 @@ describe("allTimeLeaders", () => {
     // A player with two recorded seasons must not occupy two places: a retiree
     // only keeps his best, so listing every season for the living would make
     // the board mean different things for different players.
-    const rows = allTimeLeaders(store, "goals", "single");
+    const rows = leaders(store, "goals", "single");
     expect(rows.map((r) => r.career.pid)).toEqual([99, 2, 1]);
     expect(rows.find((r) => r.career.pid === 1)!.value).toBe(20);
     expect(rows.find((r) => r.career.pid === 1)!.season).toBe(2028);
@@ -243,7 +253,7 @@ describe("allTimeLeaders", () => {
   it("drops players with nothing recorded in the chosen stat", () => {
     // Nobody in this fixture has a save, so the board is empty rather than a
     // list of zeroes.
-    expect(allTimeLeaders(store, "saves", "career")).toEqual([]);
+    expect(leaders(store, "saves", "career")).toEqual([]);
   });
 
   it("applies an appearance floor to match rating but not to counting stats", () => {
@@ -255,13 +265,22 @@ describe("allTimeLeaders", () => {
         makePlayer({ pid: 2, lines: [[2029, 2, 38, 5, 0]] }),
       ],
     });
-    expect(allTimeLeaders(cameo, "avgRating", "career").map((r) => r.career.pid)).toEqual([2]);
-    expect(allTimeLeaders(cameo, "avgRating", "single").map((r) => r.career.pid)).toEqual([2]);
-    expect(allTimeLeaders(cameo, "goals", "career").map((r) => r.career.pid)).toEqual([2, 1]);
+    expect(leaders(cameo, "avgRating", "career").map((r) => r.career.pid)).toEqual([2]);
+    expect(leaders(cameo, "avgRating", "single").map((r) => r.career.pid)).toEqual([2]);
+    expect(leaders(cameo, "goals", "career").map((r) => r.career.pid)).toEqual([2, 1]);
   });
 
   it("honours the row limit", () => {
-    expect(allTimeLeaders(store, "goals", "career", 1)).toHaveLength(1);
+    expect(leaders(store, "goals", "career", 1)).toHaveLength(1);
+  });
+
+  it("covers every ranked stat in one call", () => {
+    // The grid renders a card per stat off one result, so a missing key is a
+    // silently missing board rather than a crash.
+    for (const scope of ["career", "single"] as const) {
+      expect(Object.keys(allTimeLeaderBoards(store, scope)).sort())
+        .toEqual([...ALL_TIME_STAT_KEYS].sort());
+    }
   });
 });
 

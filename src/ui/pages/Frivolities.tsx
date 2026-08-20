@@ -7,7 +7,10 @@ import {
 } from "../../core/frivolities/bios.js";
 import { computeClubTrivia, type ClubRecordRow, type ClubSpendRow } from "../../core/frivolities/clubs.js";
 import type { CareerRow } from "../../core/frivolities/careers.js";
-import { allTimeLeaders, type LeaderScope } from "../../core/frivolities/leaders.js";
+import {
+  allTimeLeaderBoards, ALL_TIME_LEADER_LIMIT, ALL_TIME_OVERVIEW_LIMIT,
+  type AllTimeLeaderRow, type LeaderScope,
+} from "../../core/frivolities/leaders.js";
 import {
   allTimeInternational, cappedNationalities,
   INTL_ALL_TIME_KEYS, type IntlAllTimeKey,
@@ -924,51 +927,96 @@ function RecordsTab() {
 
 // --- All-time leaders ------------------------------------------------------
 
-function LeadersTab() {
+/** A club as a crest and its three letters — the compact form the grid cards use. */
+function ClubBadge({ tid }: { tid: number | null }) {
   const { league } = useLeague();
-  const [stat, setStat] = useState<AllTimeStatKey>("goals");
-  const [scope, setScope] = useState<LeaderScope>("career");
-
-  const rows = useMemo(
-    () => (league ? allTimeLeaders(league, stat, scope) : []),
-    [league, stat, scope],
+  if (tid == null) return <span className="text-muted small">&mdash;</span>;
+  const team = league?.teams.find((t) => t.tid === tid);
+  return (
+    <span className="d-inline-flex align-items-center gap-1 small">
+      <ClubCrest tid={tid} colors={team?.colors ?? ["#888888", "#888888"]} size={16} />
+      {team?.abbrev ?? tid}
+    </span>
   );
-  if (!league) return null;
+}
 
+/**
+ * One stat's top ten, as a card that opens the full board.
+ *
+ * The header is the click target rather than the whole card: the rows carry
+ * player links of their own, and a button can't legally contain them.
+ */
+function LeaderCard({ stat, scope, rows, onOpen }: {
+  stat: AllTimeStatKey;
+  scope: LeaderScope;
+  rows: AllTimeLeaderRow[];
+  onOpen: () => void;
+}) {
+  return (
+    <div className="card h-100">
+      <button
+        type="button"
+        onClick={onOpen}
+        className={"btn btn-link text-decoration-none w-100 text-start"
+          + " d-flex align-items-center justify-content-between px-3 pt-3 pb-1"}
+      >
+        <span className="text-body text-uppercase small fw-semibold">{STAT_LABELS[stat]}</span>
+        <span className="small">
+          Full list
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="ms-1"
+            stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      </button>
+      <div className="card-body pt-1">
+        {rows.length === 0 ? <Empty what="recorded seasons" /> : (
+          <table className="table table-sm align-middle mb-0">
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={r.career.pid}>
+                  <td className="text-muted ps-0" style={{ width: "1.75rem" }}>{i + 1}</td>
+                  {/* No retired badge here, unlike the full board: fourteen
+                      cards sit three to a row, and a badge on a name is enough
+                      to wrap every row it lands on. */}
+                  <td className="text-nowrap">
+                    <PlayerCell
+                      pid={r.career.pid}
+                      name={r.career.name}
+                      nationality={r.career.nationality}
+                    />
+                  </td>
+                  <td className="text-end"><ClubBadge tid={r.career.tid} /></td>
+                  {scope === "single" && (
+                    <td className="text-end text-muted small">{seasonYear(r.season ?? 0)}</td>
+                  )}
+                  <td className="text-end pe-0 fw-semibold">{formatStat(stat, r.value)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** One stat's full board, the view a grid card opens into. */
+function LeaderBoard({ stat, scope, rows, onBack }: {
+  stat: AllTimeStatKey;
+  scope: LeaderScope;
+  rows: AllTimeLeaderRow[];
+  onBack: () => void;
+}) {
   return (
     <>
-      <p className="text-secondary small">
-        Every club in the world at once, not one league at a time, because a career crosses
-        divisions and countries. Retired players are included where the game kept a record
-        of them.
-      </p>
-
-      <div className="mb-3 d-flex gap-2 flex-wrap">
-        <select
-          className="form-select form-select-sm"
-          style={{ width: "auto" }}
-          value={scope}
-          onChange={(e) => setScope(e.target.value as LeaderScope)}
-          aria-label="Career or single season"
-        >
-          <option value="career">Career</option>
-          <option value="single">Single season</option>
-        </select>
-        <select
-          className="form-select form-select-sm"
-          style={{ width: "auto" }}
-          value={stat}
-          onChange={(e) => setStat(e.target.value as AllTimeStatKey)}
-          aria-label="Stat"
-        >
-          {ALL_TIME_STAT_KEYS.map((k) => (
-            <option key={k} value={k}>{STAT_LABELS[k]}</option>
-          ))}
-        </select>
-      </div>
-
+      <button type="button" className="btn btn-sm btn-outline-secondary mb-3" onClick={onBack}>
+        &larr; All categories
+      </button>
       <Panel
-        title={scope === "career" ? `Career ${STAT_LABELS[stat]}` : `Best season: ${STAT_LABELS[stat]}`}
+        title={scope === "career"
+          ? `Career ${STAT_LABELS[stat]}`
+          : `Best season: ${STAT_LABELS[stat]}`}
         note={scope === "single"
           ? "One row per player: his best season, so a single career can't fill the whole board."
           : undefined}
@@ -993,6 +1041,73 @@ function LeadersTab() {
           empty="recorded seasons"
         />
       </Panel>
+    </>
+  );
+}
+
+export function LeadersTab() {
+  const { league } = useLeague();
+  const [open, setOpen] = useState<AllTimeStatKey | null>(null);
+  const [scope, setScope] = useState<LeaderScope>("career");
+
+  // Every board at once, from one walk over the world's careers — the grid
+  // shows all fourteen, and asking for them one at a time would rebuild the
+  // career list fourteen times over. The full board a card opens into is a
+  // slice of the same result, so the two can't disagree.
+  const boards = useMemo(
+    () => (league ? allTimeLeaderBoards(league, scope) : null),
+    [league, scope],
+  );
+  if (!league || !boards) return null;
+
+  return (
+    <>
+      <p className="text-secondary small">
+        Every club in the world at once, not one league at a time, because a career crosses
+        divisions and countries. Retired players are included where the game kept a record
+        of them.
+      </p>
+
+      <div className="mb-3 d-flex gap-2 flex-wrap align-items-center">
+        <select
+          className="form-select form-select-sm"
+          style={{ width: "auto" }}
+          value={scope}
+          onChange={(e) => setScope(e.target.value as LeaderScope)}
+          aria-label="Career or single season"
+        >
+          <option value="career">Career</option>
+          <option value="single">Single season</option>
+        </select>
+        {open === null && (
+          <span className="text-muted small">
+            Top {ALL_TIME_OVERVIEW_LIMIT} in each. Click a category for the top{" "}
+            {ALL_TIME_LEADER_LIMIT}.
+          </span>
+        )}
+      </div>
+
+      {open !== null ? (
+        <LeaderBoard
+          stat={open}
+          scope={scope}
+          rows={boards[open]}
+          onBack={() => setOpen(null)}
+        />
+      ) : (
+        <div className="row g-3">
+          {ALL_TIME_STAT_KEYS.map((k) => (
+            <div key={k} className="col-12 col-lg-6 col-xxl-4">
+              <LeaderCard
+                stat={k}
+                scope={scope}
+                rows={boards[k].slice(0, ALL_TIME_OVERVIEW_LIMIT)}
+                onOpen={() => setOpen(k)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
