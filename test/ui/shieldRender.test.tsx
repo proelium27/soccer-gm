@@ -6,7 +6,9 @@ import { makeLeague } from "../helpers/league.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import { buildCupState } from "../../src/core/cup/cup.js";
 import { computeStandings } from "../../src/core/standings.js";
-import { SHIELD_FORMAT, CONTINENTAL_CUP_FORMAT } from "../../src/core/constants.js";
+import {
+  SHIELD_FORMAT, CONTINENTAL_CUP_FORMAT, CUP_STRONG_LEAGUE_SLOTS,
+} from "../../src/core/constants.js";
 
 /**
  * Render harness for the competition pages, covering the Shield's paths: the
@@ -99,39 +101,35 @@ describe("Shield page", () => {
   });
 });
 
-describe("Standings qualification bands", () => {
-  it("marks the Cup places and the Shield places directly below them", () => {
+describe("Standings qualification bars", () => {
+  it("bars the Cup places and the Shield places directly below them", () => {
     const league = withCompetitions();
     const html = render(league, Standings);
-    expect(html).toContain("qual-marker-cup");
-    expect(html).toContain("qual-marker-shield");
+    expect(html).toContain("qual-bar-cup");
+    expect(html).toContain("qual-bar-shield");
     expect(html).toContain("to the Continental Cup");
     expect(html).toContain("to the Continental Shield");
-    // No row can be in both zones — that would mean the fields overlap.
-    expect(html).not.toContain("cup-qualification shield-qualification");
   });
 
-  it("gives every row a marker slot so the position numbers stay aligned", () => {
+  it("bars exactly the qualifying rows and leaves the rest unmarked", () => {
     const league = withCompetitions();
     const html = render(league, Standings);
-    const rows = html.split("<tr").length - 1;
-    const markers = html.split("qual-marker").length - 1;
-    // One marker per row, plus the two in the legend. Non-qualifying rows
-    // render a hidden marker rather than nothing, which is what keeps the
-    // numbers in one column.
-    expect(markers).toBeGreaterThanOrEqual(rows);
-    expect(html).toContain("qual-marker-none");
+    // Bounded to the tbody: the legend sits after the table and carries one
+    // swatch of each, which would otherwise be counted as rows.
+    const body = html.slice(html.indexOf("<tbody"), html.indexOf("</tbody>"));
+    // England is a strong league: 4 Cup places, 2 Shield places, nothing else.
+    expect(body.split("qual-bar-cup").length - 1).toBe(CUP_STRONG_LEAGUE_SLOTS);
+    expect(body.split("qual-bar-shield").length - 1).toBe(2);
   });
 
-  it("distinguishes the two competitions by shape, not colour alone", () => {
-    // The Cup marker is filled and the Shield marker is hollow, so the two
-    // survive grayscale and colour-vision deficiency (DESIGN.md's Signal Rule).
-    // Pinning the class names here because the shape difference lives in CSS
-    // and a future "simplification" to one shared class would silently break it.
+  it("keeps qualification out of the row background", () => {
+    // Row background carries win/loss, your club and the champion. Putting the
+    // zone there meant the champion's gold overrode it and the top of the zone
+    // never showed, so the bar is an edge element instead.
     const league = withCompetitions();
     const html = render(league, Standings);
-    expect(html).toContain("qual-marker qual-marker-cup");
-    expect(html).toContain("qual-marker qual-marker-shield");
+    expect(html).not.toContain("cup-qualification");
+    expect(html).not.toContain("shield-qualification");
     expect(html).toContain("Continental Cup place");
     expect(html).toContain("Continental Shield place");
   });

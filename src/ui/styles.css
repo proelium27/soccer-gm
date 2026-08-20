@@ -63,17 +63,12 @@
      cup bracket. */
   --sg-cup: oklch(0.72 0.11 200);
   --sg-cup-wash: oklch(0.72 0.11 200 / 0.14);
-  --sg-cup-line: oklch(0.72 0.11 200 / 0.45);
-  /* Continental Shield accent — violet, a clear hue step from the Cup's teal so
-     the two zones read as two different competitions where they meet. */
-  --sg-shield: oklch(0.70 0.13 305);
-  --sg-shield-line: oklch(0.70 0.13 305 / 0.45);
-  /* Zone tints. Faint by design and EQUAL to each other: these only group the
-     block, while the marker in the position cell says which competition it is.
-     Striped rows already sit under a 0.035 white wash, so anything below ~0.05
-     here reads as no tint at all. */
-  --sg-cup-zone: oklch(0.72 0.11 200 / 0.15);
-  --sg-shield-zone: oklch(0.70 0.13 305 / 0.15);
+  /* Continental Shield accent — violet, a clear hue step from the Cup's teal,
+     and deliberately DARKER as well. The two qualification bars sit one row
+     apart with nothing else separating them, so a lightness gap is what keeps
+     them apart in grayscale and for a colour-blind viewer; hue alone would not.
+     Still light enough to read as a 3px bar on the dark surface. */
+  --sg-shield: oklch(0.62 0.16 300);
 
   --sg-radius: 6px;
   --sg-shadow: 0 0.5rem 1.5rem oklch(0.12 0.02 155 / 0.45);
@@ -371,54 +366,39 @@ a:hover {
    stats, reading like bold column dividers. box-shadow isn't subject to
    that gap. */
 /* Continental qualification zones.
-   The competition a place qualifies for is carried by a marker in the position
-   cell (.qual-marker), NOT by a row wash. Row background is already spoken for
-   here — win/loss, your club, the champion — and a fifth meaning in the same
-   channel both muddied the table and lost every fight: the champion's row is
-   always a Cup place and its gold always won, so the top-4 zone never read as
-   four rows. The tints below are deliberately faint, grouping the block without
-   competing, and the two zones carry the SAME weight because they are the same
-   kind of thing (the Shield briefly shouted louder than the Cup, which is
-   backwards). The cut line is a hairline, the league-table convention for
-   "the zone ends here". */
-.cup-qualification > td {
-  box-shadow: inset 0 0 0 9999px var(--sg-cup-zone);
+   A short bar on the row's leading edge, the convention every real league table
+   uses (FotMob, BBC, ESPN) and the one the user asked for. It deliberately does
+   NOT tint the row: row background here already carries win/loss, your club and
+   the champion, and adding a fourth meaning to that channel both muddied the
+   table and lost every fight it picked — the champion is always a Cup place, so
+   its gold simply overrode the zone and the top-four never read as four rows.
+   An edge bar is independent of all of them.
+   Absolutely positioned so it can't indent the position number; .qual-pos is
+   its containing block. */
+.qual-pos {
+  position: relative;
 }
-.cup-qualification-cut > td {
-  border-bottom: 1px solid var(--sg-cup-line);
+.qual-bar {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
 }
-.shield-qualification > td {
-  box-shadow: inset 0 0 0 9999px var(--sg-shield-zone);
-}
-.shield-qualification-cut > td {
-  border-bottom: 1px solid var(--sg-shield-line);
-}
-
-/* Position cell: marker then number, right-aligned as a unit so the numbers
-   stay in one column whether or not a row qualifies. */
-.qual-cell {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4em;
-}
-.qual-marker {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-}
-/* Filled = Continental Cup, hollow = Continental Shield. Shape carries the
-   distinction as well as hue, so the two survive grayscale and colour-vision
-   deficiency (DESIGN.md's Signal Rule). */
-.qual-marker-cup {
+.qual-bar-cup {
   background: var(--sg-cup);
 }
-.qual-marker-shield {
-  border: 2px solid var(--sg-shield);
+.qual-bar-shield {
+  background: var(--sg-shield);
 }
-/* Reserves the width on non-qualifying rows so every number stays aligned. */
-.qual-marker-none {
-  visibility: hidden;
+/* In the legend the same bar has no row to hang off, so it needs its own box. */
+.qual-key-swatch {
+  position: static;
+  display: inline-block;
+  height: 0.85em;
+  border-radius: 2px;
+  vertical-align: -0.1em;
 }
 .qual-key {
   display: flex;
@@ -428,7 +408,7 @@ a:hover {
 .qual-key-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.4em;
+  gap: 0.45em;
 }
 .team-highlight > td {
   box-shadow: inset 0 0 0 9999px var(--sg-user-wash);

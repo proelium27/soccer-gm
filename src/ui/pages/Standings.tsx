@@ -16,18 +16,16 @@ type StandingsSortKey =
   | "pos" | "team" | "p" | "w" | "d" | "l" | "gf" | "ga" | "gd" | "pts" | "ovr" | "pot";
 
 /**
- * Which qualification marker sits beside a finishing position, if any.
- *
- * Filled square = Continental Cup, hollow square = Continental Shield. The two
- * differ by **shape as well as hue** on purpose: DESIGN.md's Signal Rule says a
- * colour cue must survive grayscale and colour-vision deficiency, and two
- * adjacent tints of similar lightness would not. A non-qualifying row still
- * renders the span so every number stays on the same baseline.
+ * The qualification bar on a row's leading edge, or null if the club's finish
+ * earns nothing. Continental Cup and Shield get their own colour; the two zones
+ * are always contiguous and the Cup's always sits above the Shield's, so their
+ * order down the table is a signal in its own right rather than colour alone.
+ * Each bar also carries a title, and the legend below the table names both.
  */
-function qualMarkerClass(isCup: boolean, isShield: boolean): string {
-  if (isCup) return "qual-marker qual-marker-cup";
-  if (isShield) return "qual-marker qual-marker-shield";
-  return "qual-marker qual-marker-none";
+function qualBarClass(isCup: boolean, isShield: boolean): string | null {
+  if (isCup) return "qual-bar qual-bar-cup";
+  if (isShield) return "qual-bar qual-bar-shield";
+  return null;
 }
 
 function qualTitle(isCup: boolean, isShield: boolean): string | undefined {
@@ -184,36 +182,26 @@ export function Standings() {
               const isUser = row.tid === league.meta.userTid;
               const isChampion = row.tid === championTid;
               const isCupSpot = showCupZone && pos < cupSlots;
-              const isCupCut = showCupZone && pos === cupSlots - 1;
               // pos is 0-based; the Shield range is 1-based finishing places.
               const isShieldSpot = showShieldZone && pos + 1 >= shieldFrom && pos + 1 <= shieldTo;
-              const isShieldCut = showShieldZone && pos + 1 === shieldTo;
               const rowClass = [
-                isCupSpot && "cup-qualification",
-                isCupCut && "cup-qualification-cut",
-                isShieldSpot && "shield-qualification",
-                isShieldCut && "shield-qualification-cut",
                 isUser && "team-highlight",
                 isChampion && "champion-highlight",
               ]
                 .filter(Boolean)
                 .join(" ") || undefined;
+              const qualBar = qualBarClass(isCupSpot, isShieldSpot);
               const rating = ratingByTid.get(row.tid) ?? null;
               return (
                 <tr key={row.tid} className={rowClass}>
-                  <td className="text-end">
-                    {/* The qualification marker lives here rather than in the
-                        row's background, which already carries win/loss, your
-                        club and the champion. A marker also survives those:
-                        the champion's row is gold and still shows its Cup
-                        square, where a row wash was simply overridden. */}
-                    <span className="qual-cell">
-                      <span
-                        className={qualMarkerClass(isCupSpot, isShieldSpot)}
-                        title={qualTitle(isCupSpot, isShieldSpot)}
-                      />
-                      {pos + 1}
-                    </span>
+                  <td className="text-end qual-pos">
+                    {/* Qualification is a bar on the row's leading edge, the
+                        league-table convention. It is absolutely positioned, so
+                        it neither indents the number nor competes with the row
+                        background, which already carries win/loss, your club
+                        and the champion. */}
+                    {qualBar && <span className={qualBar} title={qualTitle(isCupSpot, isShieldSpot)} />}
+                    {pos + 1}
                   </td>
                   <td>
                     <span className="d-inline-flex align-items-center gap-1">
@@ -243,12 +231,12 @@ export function Standings() {
           <p className="qual-key text-muted small mt-2 mb-0">
             {showCupZone && (
               <span className="qual-key-item">
-                <span className="qual-marker qual-marker-cup" /> Top {cupSlots} to the Continental Cup
+                <span className="qual-bar qual-bar-cup qual-key-swatch" /> Top {cupSlots} to the Continental Cup
               </span>
             )}
             {showShieldZone && (
               <span className="qual-key-item">
-                <span className="qual-marker qual-marker-shield" />{" "}
+                <span className="qual-bar qual-bar-shield qual-key-swatch" />{" "}
                 {shieldFrom === shieldTo
                   ? ordinal(shieldFrom)
                   : `${ordinal(shieldFrom)} and ${ordinal(shieldTo)}`}
