@@ -5,7 +5,7 @@ import type { IntlGroup } from "./types.js";
 import { simMatchDetailed } from "../../engine/matchSim.js";
 import { resolveCupTie } from "../cup/simCup.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
-import { INTL_GROUPS, INTL_QUALIFY_PER_GROUP } from "../constants.js";
+import { INTL_QUALIFY_PER_GROUP } from "../constants.js";
 import { groupTable } from "./groups.js";
 
 /**
@@ -113,22 +113,31 @@ export function playGroups(
 
 export const QUALIFYING_GROUP_STREAM = QUALIFYING_STREAM;
 export const TOURNAMENT_GROUP_STREAM = GROUP_STREAM;
+export const TOURNAMENT_KNOCKOUT_STREAM = KNOCKOUT_STREAM;
 
 /**
  * Seed the knockout bracket from completed tournament groups: each group's top
- * INTL_QUALIFY_PER_GROUP advance, paired so that a group winner always meets a
+ * `qualifyPerGroup` advance, paired so that a group winner always meets a
  * runner-up from a different group in the quarter-finals (A1-B2, C1-D2, B1-A2,
  * D1-C2) and two nations from the same group can only meet again in the final.
- * Returns the eight nids in bracket order — consecutive pairs are ties.
+ * Returns the advancing nids in bracket order — consecutive pairs are ties.
+ * The group count comes from `groups` rather than a constant, because a
+ * confederation cup's shape varies with its confederation's size.
  */
-export function seedBracket(groups: IntlGroup[]): number[] {
-  const advancing = groups.map((g) => groupTable(g).slice(0, INTL_QUALIFY_PER_GROUP).map((r) => r.nid));
+export function seedBracket(
+  groups: IntlGroup[],
+  qualifyPerGroup: number = INTL_QUALIFY_PER_GROUP,
+): number[] {
+  const advancing = groups.map((g) => groupTable(g).slice(0, qualifyPerGroup).map((r) => r.nid));
   const winner = (g: number): number => advancing[g][0];
   const runnerUp = (g: number): number => advancing[g][1];
+  // A one-group tournament (the smallest confederation cup shape) has no partner
+  // group to cross with: its top two simply meet in the final.
+  if (groups.length === 1) return advancing[0].slice(0, 2);
   const bracket: number[] = [];
   // Pair group g's winner with the runner-up of its partner group (0↔1, 2↔3),
   // then the mirror pairing, so the two halves of the draw stay separated.
-  for (let pair = 0; pair < INTL_GROUPS / 2; pair++) {
+  for (let pair = 0; pair < Math.floor(groups.length / 2); pair++) {
     const a = pair * 2;
     const b = a + 1;
     bracket.push(winner(a), runnerUp(b));
@@ -140,7 +149,8 @@ export function seedBracket(groups: IntlGroup[]): number[] {
 /**
  * Play exactly one knockout round — every tie between consecutive pairs of the
  * current `field` — and return the round's ties plus the nids that advanced.
- * `round` picks the seeded stream (`KNOCKOUT_STREAM + round`), so a round plays
+ * `round` picks the seeded stream (`streamBase + round`, the World Cup's by
+ * default), so a round plays
  * identically whether it is reached in one bulk pass or one user click at a
  * time: the staged offseason and the bulk `playKnockout` share this function and
  * therefore always agree. Each tie is decided by the Continental Cup's own
@@ -156,8 +166,9 @@ export function playKnockoutRound(
   round: number,
   delta: CareerDelta,
   injured: Set<number>,
+  streamBase: number = KNOCKOUT_STREAM,
 ): { ties: CupTie[]; winners: number[] } {
-  const rng = mulberry32(hashInts(lid, season, KNOCKOUT_STREAM + round, 30));
+  const rng = mulberry32(hashInts(lid, season, streamBase + round, 30));
   const ties: CupTie[] = [];
   const winners: number[] = [];
   for (let i = 0; i + 1 < field.length; i += 2) {

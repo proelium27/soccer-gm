@@ -269,6 +269,63 @@ describe("computeWorldAwards — cross-league competitions", () => {
       .toBeGreaterThan(ballonDOr.find((e) => e.pid === 2)!.intl);
   });
 
+  it("weights a confederation cup between qualifying and a World Cup", () => {
+    const stats = { caps: 6, goals: 4, assists: 1 };
+    const career = (kind: "tournament" | "confederation" | "qualifying") =>
+      ({ caps: 6, goals: 4, assists: 1, tournaments: 0, titles: 0, seasons: [{ season: SEASON, kind, ...stats }] });
+    const players = [
+      player({ pid: 1, tid: 1, ovr: 80, goals: 20, intl: career("tournament") }),
+      player({ pid: 2, tid: 2, ovr: 80, goals: 20, intl: career("confederation") }),
+      player({ pid: 3, tid: 2, ovr: 80, goals: 20, intl: career("qualifying") }),
+      ...squad(100, 1, 74),
+    ];
+    const { ballonDOr } = computeWorldAwards(players, SEASON, ctx());
+    const intlOf = (pid: number) => ballonDOr.find((e) => e.pid === pid)!.intl;
+    expect(intlOf(1)).toBeGreaterThan(intlOf(2));
+    expect(intlOf(2)).toBeGreaterThan(intlOf(3));
+  });
+
+  it("pays a confederation cup winner's medal, and only to a nation that won one", () => {
+    const line = { season: SEASON, kind: "confederation" as const, caps: 5, goals: 3, assists: 1 };
+    const career = { caps: 5, goals: 3, assists: 1, tournaments: 0, titles: 0, seasons: [line] };
+    const players = [
+      player({ pid: 1, tid: 1, ovr: 80, goals: 20, nationality: "Italy", intl: career }),
+      player({ pid: 2, tid: 2, ovr: 80, goals: 20, nationality: "Wales", intl: career }),
+      ...squad(100, 1, 74),
+    ];
+    const { ballonDOr } = computeWorldAwards(
+      players, SEASON, ctx({ confederationCupChampions: new Set(["Italy"]) }),
+    );
+    expect(ballonDOr.find((e) => e.pid === 1)!.intl)
+      .toBeGreaterThan(ballonDOr.find((e) => e.pid === 2)!.intl);
+    expect(ballonDOr.find((e) => e.pid === 2)!.intl).toBeGreaterThan(0);
+  });
+
+  it("sums every campaign a player played that offseason, not just the first", () => {
+    // The offseason that stages the confederation cups also plays a
+    // World Cup qualifying leg, so a player holds two lines for one season.
+    // Reading only the first would silently drop one of them.
+    const both = {
+      caps: 11, goals: 7, assists: 3, tournaments: 0, titles: 0,
+      seasons: [
+        { season: SEASON, kind: "qualifying" as const, caps: 6, goals: 4, assists: 2 },
+        { season: SEASON, kind: "confederation" as const, caps: 5, goals: 3, assists: 1 },
+      ],
+    };
+    const qualifyingOnly = {
+      caps: 6, goals: 4, assists: 2, tournaments: 0, titles: 0,
+      seasons: [{ season: SEASON, kind: "qualifying" as const, caps: 6, goals: 4, assists: 2 }],
+    };
+    const players = [
+      player({ pid: 1, tid: 1, ovr: 80, goals: 20, intl: both }),
+      player({ pid: 2, tid: 2, ovr: 80, goals: 20, intl: qualifyingOnly }),
+      ...squad(100, 1, 74),
+    ];
+    const { ballonDOr } = computeWorldAwards(players, SEASON, ctx());
+    expect(ballonDOr.find((e) => e.pid === 1)!.intl)
+      .toBeGreaterThan(ballonDOr.find((e) => e.pid === 2)!.intl);
+  });
+
   it("credits winning your own league, pro-rated by appearances", () => {
     const players = [
       player({ pid: 1, tid: 1, ovr: 80, goals: 20 }),

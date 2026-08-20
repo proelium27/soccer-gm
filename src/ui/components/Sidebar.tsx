@@ -42,6 +42,7 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
       <div className="nav-section">National Teams</div>
       <NavLink to="/national-teams/world-cup" className="nav-link" onClick={onNavigate}>World Cup</NavLink>
       <NavLink to="/national-teams/qualifying" className="nav-link" onClick={onNavigate}>Qualifying</NavLink>
+      <NavLink to="/national-teams/confederation-cups" className="nav-link" onClick={onNavigate}>Confederation Cups</NavLink>
       <NavLink to="/national-teams/rosters" className="nav-link" onClick={onNavigate}>Rosters</NavLink>
       <NavLink to="/national-teams/schedule" className="nav-link" onClick={onNavigate}>Schedule</NavLink>
       <NavLink to="/national-teams/power-rankings" className="nav-link" onClick={onNavigate}>Power Rankings</NavLink>

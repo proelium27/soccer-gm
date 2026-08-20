@@ -10,6 +10,20 @@ import { INTL_TOURNAMENT_NAME, INTL_CYCLE_YEARS, INTL_FIELD_SIZE } from "../../.
 /** Knockout round names for the three-round international bracket. */
 export const KO_ROUND_NAMES = ["Quarter-finals", "Semi-finals", "Final"];
 
+/**
+ * What to call knockout round `round` of a bracket that has `totalRounds` of
+ * them. Named backwards from the final, because a confederation cup's
+ * bracket can be shorter than the World Cup's: a two-round bracket's round 0 is
+ * the semi-finals, not the quarters. With no total supplied it falls back to
+ * the World Cup's three-round naming.
+ */
+export function koRoundName(round: number, totalRounds?: number): string {
+  const fromFinal = totalRounds === undefined
+    ? KO_ROUND_NAMES.length - 1 - round
+    : totalRounds - 1 - round;
+  return KO_ROUND_NAMES[KO_ROUND_NAMES.length - 1 - fromFinal] ?? `Round ${round + 1}`;
+}
+
 export function NationName({ nation }: { nation: string }) {
   return (
     <span className="text-nowrap">
@@ -114,6 +128,31 @@ export function GroupStandings({
   );
 }
 
+/**
+ * Group cards from already-normalized standings, the top `advancing` of each
+ * shaded. Shared between the World Cup and the confederation cups —
+ * whose group sizes differ, but whose card grid does not.
+ */
+export function GroupCards({ groups, advancing }: { groups: StandingRow[][]; advancing: number }) {
+  return (
+    <div className="row g-3 mb-3">
+      {groups.map((rows, i) => {
+        const through = new Set(rows.slice(0, advancing).map((r) => r.nation));
+        return (
+          <div className="col-12 col-lg-6" key={i}>
+            <div className="card">
+              <div className="card-header py-1 small fw-bold">
+                {groups.length === 1 ? "Table" : `Group ${String.fromCharCode(65 + i)}`}
+              </div>
+              <GroupStandings rows={rows} highlight={(n) => through.has(n)} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** One knockout result, normalized so live ties and archived results render alike. */
 export interface KnockoutResultView {
   round: number;
@@ -127,7 +166,14 @@ export interface KnockoutResultView {
 }
 
 /** The knockout bracket as one card-column per round. */
-export function KnockoutColumns({ results }: { results: KnockoutResultView[] }) {
+export function KnockoutColumns({
+  results,
+  totalRounds,
+}: {
+  results: KnockoutResultView[];
+  /** How many rounds this bracket has, when it isn't the World Cup's three. */
+  totalRounds?: number;
+}) {
   const byRound = new Map<number, KnockoutResultView[]>();
   for (const r of results) {
     const list = byRound.get(r.round);
@@ -143,7 +189,7 @@ export function KnockoutColumns({ results }: { results: KnockoutResultView[] }) 
         <div className="col-12 col-md-4" key={round}>
           <div className="card">
             <div className="card-header py-1 small fw-bold">
-              {KO_ROUND_NAMES[round] ?? `Round ${round + 1}`}
+              {koRoundName(round, totalRounds ?? rounds.length)}
             </div>
             <ul className="list-group list-group-flush">
               {ties.map((tie, i) => (
@@ -212,7 +258,10 @@ export function liveCampaign(intl: InternationalState): {
   const { tournament, qualifying, stage } = intl;
   let showing: "tournament" | "qualifying" | null;
   if (stage === "qualifying") showing = "qualifying";
-  else if (stage != null && stage !== "done") showing = "tournament";
+  // Only the World Cup's own stages force the tournament view. The confederation cup
+  // stages run in a *qualifying* offseason, so they fall through to the
+  // more-recent-campaign rule below, which picks the live qualifying campaign.
+  else if (stage === "groups" || stage === "qf" || stage === "sf" || stage === "final") showing = "tournament";
   else if (tournament && qualifying) showing = tournament.season >= qualifying.season ? "tournament" : "qualifying";
   else if (tournament) showing = "tournament";
   else if (qualifying) showing = "qualifying";
@@ -234,6 +283,8 @@ export function useHasInternational(): boolean {
     intl.qualifying !== null ||
     intl.history.length > 0 ||
     intl.qualifyingHistory.length > 0 ||
+    intl.confederationCups.length > 0 ||
+    intl.confederationCupHistory.length > 0 ||
     intl.powerRankings.length > 0
   );
 }
