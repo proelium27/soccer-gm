@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createElement } from "react";
+import { createElement, type ComponentType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { makeLeague } from "../helpers/league.js";
@@ -29,7 +29,7 @@ vi.mock("../../src/ui/context/LeagueContext.js", () => ({
 const { Cup, Shield } = await import("../../src/ui/pages/Cup.js");
 const { Standings } = await import("../../src/ui/pages/Standings.js");
 
-function render(league: LeagueStore, page: () => JSX.Element): string {
+function render(league: LeagueStore, page: ComponentType): string {
   leagueRef.current = league;
   return renderToStaticMarkup(
     createElement(MemoryRouter, null, createElement(page)),
