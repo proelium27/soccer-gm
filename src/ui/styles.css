@@ -64,13 +64,16 @@
   --sg-cup: oklch(0.72 0.11 200);
   --sg-cup-wash: oklch(0.72 0.11 200 / 0.14);
   --sg-cup-line: oklch(0.72 0.11 200 / 0.6);
-  /* Continental Shield accent — the same teal family as the Cup, since the two
-     competitions are siblings, but shifted toward violet and lighter so the two
-     qualification bands read as related rather than interchangeable when they
-     sit directly on top of each other in a league table. */
-  --sg-shield: oklch(0.68 0.09 290);
-  --sg-shield-wash: oklch(0.68 0.09 290 / 0.12);
-  --sg-shield-line: oklch(0.68 0.09 290 / 0.55);
+  /* Continental Shield accent — violet, a clear hue step from the Cup's teal so
+     the two qualification bands can sit directly on top of each other in a
+     league table and still read as two different competitions.
+     The wash is deliberately carried at a higher alpha than the Cup's: striped
+     rows already sit under a 0.035 white wash, so a low-alpha tint here landed
+     close enough to an ordinary row to read as no highlight at all (measured in
+     the browser, which is the only way this shows up). */
+  --sg-shield: oklch(0.66 0.14 305);
+  --sg-shield-wash: oklch(0.66 0.14 305 / 0.26);
+  --sg-shield-line: oklch(0.66 0.14 305 / 0.7);
 
   --sg-radius: 6px;
   --sg-shadow: 0 0.5rem 1.5rem oklch(0.12 0.02 155 / 0.45);
