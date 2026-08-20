@@ -1954,39 +1954,82 @@ a:hover {
   gap: 0.3rem;
 }
 
+/* The tree draws connectors in the gutter, so it needs a gutter to draw them
+   in: at the shared 0.5rem the elbow had 2px of clearance on one side and 6px
+   on the other, and read as a line hugging the cards rather than a join. */
+.cup-bracket--tree {
+  gap: 1.25rem;
+}
+
 /* --- fixed bracket: grid rows so every tie centres on its two feeders ---- */
+/* `1fr` rather than `auto`, and this is what makes the connectors land. Every
+   column of a tree holds the same number of rows (round r has 2^(n-1-r) ties
+   each spanning 2^r rows), but each column is its OWN grid, so content-sized
+   rows are only equal while every card is the same height. One tie carrying an
+   extra note — "2-5 on pens" under the aggregate — grew its row in that column
+   alone and slid every later round out of step with its feeders. Measured, the
+   quarter-finals ran 88/88/111/88 against semi-final rows of a flat 93.75, and
+   the elbows missed the cards they were drawn for by up to 8px. Equal
+   fractions of a height the flex row already shares give all four columns the
+   same track size, and the endpoints land within a pixel. */
 .cup-bracket--tree .cup-round-body {
   flex: 1;
   display: grid;
-  grid-auto-rows: minmax(var(--cup-row, 3.1rem), auto);
-  align-items: center;
+  grid-auto-rows: minmax(var(--cup-row, 3.1rem), 1fr);
   row-gap: 0.3rem;
 }
-.cup-bracket--tree .cup-tie { position: relative; }
-/* The elbow: a vertical line spanning half this tie's slot, joining the two
-   feeders' centres, plus a stub into the box. Drawn on the tie that RECEIVES,
-   so a round only ever draws its own incoming edges.
+/* The grid item, spanning this tie's whole row range. The card inside is only
+   as tall as its content, so the slot is what the connectors measure against:
+   a round-r tie spans 2^r rows and its two feeders occupy the upper and lower
+   halves of exactly that range, which puts their centres at 25% and 75% of the
+   slot. Drawing off the card instead made every line the wrong length — a
+   semi-final connector spanned 43px where its feeders were 93px apart, so it
+   joined nothing and just floated in the gap. */
+.cup-slot {
+  display: flex;
+  align-items: center;
+  position: relative;
+  min-width: 0;
+}
+.cup-slot > .cup-tie { width: 100%; }
+/* The join, drawn on the tie that RECEIVES, so a round only ever draws its own
+   incoming edges. Three of its four lines are the borders of one box spanning
+   the left half of the gutter, from the upper feeder's centre to the lower
+   one's: a stub out of each feeder (top and bottom borders) meeting a vertical
+   elbow (right border). `::after` adds the fourth, the stub from the elbow
+   into this tie.
+
+       feeder ─┐
+               ├─ tie
+       feeder ─┘
+
+   The stubs are not decoration. Without them the elbow was a bare vertical
+   tick floating in the gutter, touching neither the cards it came from nor the
+   one it fed, which is the shape a bracket is read by.
    Only on `--linked` rounds, meaning a knockout round whose feeders are the
    column immediately left of it. The qualifying rounds hanging off the front
    are NOT linked: a quarter-final pairs a top-four seed with one playoff
    winner, so an elbow there would claim the two playoff ties beside it feed
    that quarter-final, which is false. */
-.cup-bracket--tree .cup-round--linked .cup-tie::before {
+.cup-bracket--tree .cup-round--linked .cup-slot::before {
   content: "";
   position: absolute;
   right: 100%;
-  top: -25%;
+  top: 25%;
   height: 50%;
-  width: 1px;
-  background: var(--sg-cup-line);
-  margin-right: 0.375rem;
+  width: 0.7rem;
+  margin-right: 0.55rem;
+  border: 0 solid var(--sg-cup-line);
+  border-width: 1px 1px 1px 0;
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
 }
-.cup-bracket--tree .cup-round--linked .cup-tie::after {
+.cup-bracket--tree .cup-round--linked .cup-slot::after {
   content: "";
   position: absolute;
   right: 100%;
   top: 50%;
-  width: 0.375rem;
+  width: 0.55rem;
   height: 1px;
   background: var(--sg-cup-line);
 }
@@ -2136,8 +2179,8 @@ a:hover {
     align-items: stretch;
     gap: 0.3rem;
   }
-  .cup-bracket--tree .cup-round--linked .cup-tie::before,
-  .cup-bracket--tree .cup-round--linked .cup-tie::after {
+  .cup-bracket--tree .cup-round--linked .cup-slot::before,
+  .cup-bracket--tree .cup-round--linked .cup-slot::after {
     display: none;
   }
 }

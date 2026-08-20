@@ -243,8 +243,15 @@ export function Cup({ competition = "continental" }: { competition?: CupCompetit
                   <span className="cup-round-count">{prelimSlots(cup.playoff).length}</span>
                 </div>
                 <div className="cup-round-body">
+                  {/* Same slot wrapper the knockout rounds use, for the same
+                      reason: the row is a share of the bracket's height, so a
+                      bare card would stretch to fill it and read as a box with
+                      a hole in the bottom of it. No row span — nothing feeds
+                      these, so they sit one per row. */}
                   {prelimSlots(cup.playoff).map((slot, i) => (
-                    <div className="cup-tie" key={i}>{renderTie(slot)}</div>
+                    <div className="cup-slot" key={i}>
+                      <div className="cup-tie">{renderTie(slot)}</div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -257,7 +264,9 @@ export function Cup({ competition = "continental" }: { competition?: CupCompetit
                 </div>
                 <div className="cup-round-body">
                   {prelimSlots(cup.playIn).map((slot, i) => (
-                    <div className="cup-tie" key={i}>{renderTie(slot)}</div>
+                    <div className="cup-slot" key={i}>
+                      <div className="cup-tie">{renderTie(slot)}</div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -276,13 +285,20 @@ export function Cup({ competition = "continental" }: { competition?: CupCompetit
                   </div>
                   <div className="cup-round-body">
                     {slots.map((slot, i) => (
+                      // The slot is the grid item and fills the whole row span;
+                      // the tie card sits centred inside it. They have to be two
+                      // elements: the connectors are drawn as a fraction of the
+                      // SLOT (the feeders' centres land at 25% and 75% of it),
+                      // while the card is only as tall as its own content.
                       <div
-                        className={`cup-tie${isFinal ? " cup-tie--final" : ""}`}
+                        className="cup-slot"
                         key={i}
                         // Span 2^round rows so this tie centres on its feeders.
                         style={{ gridRow: `span ${2 ** round}` }}
                       >
-                        {renderTie(slot)}
+                        <div className={`cup-tie${isFinal ? " cup-tie--final" : ""}`}>
+                          {renderTie(slot)}
+                        </div>
                       </div>
                     ))}
                   </div>
