@@ -9,8 +9,10 @@ import {
   GOAT_TEAM_LEAGUE_TITLE_WEIGHT, GOAT_TEAM_CUP_TITLE_WEIGHT, GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT,
   GOAT_TEAM_TOP_FINISH_WEIGHT, GOAT_TEAM_TOP_FINISH_POSITION, GOAT_TEAM_SEASON_WEIGHT,
   GOAT_TEAM_PPG_BASELINE, GOAT_TEAM_PPG_WEIGHT, GOAT_TEAM_SECOND_TIER_SCALE,
+  GOAT_TEAM_TREBLE_WEIGHT,
 } from "../constants.js";
 import { allCareers, type CareerRow } from "./careers.js";
+import { trebleCountByTid } from "./trebles.js";
 
 /** How many rows the GOAT boards show. */
 export const GOAT_LIST_LIMIT = 50;
@@ -269,6 +271,8 @@ export interface TeamGoatRow {
   leagueTitles: number;
   cupTitles: number;
   domesticCupTitles: number;
+  /** League, Continental Cup and domestic cup in one season. Scored as a bonus on top of all three. */
+  trebles: number;
   secondTierTitles: number;
   topFinishes: number;
   seasons: number;
@@ -292,7 +296,7 @@ export function teamGoatRanking(league: LeagueStore, limit = GOAT_LIST_LIMIT): T
     if (!r) {
       r = {
         tid, score: 0, components: [], leagueTitles: 0, cupTitles: 0, domesticCupTitles: 0,
-        secondTierTitles: 0, topFinishes: 0, seasons: 0, topFlightSeasons: 0, ppg: 0,
+        trebles: 0, secondTierTitles: 0, topFinishes: 0, seasons: 0, topFlightSeasons: 0, ppg: 0,
       };
       rows.set(tid, r);
     }
@@ -356,9 +360,12 @@ export function teamGoatRanking(league: LeagueStore, limit = GOAT_LIST_LIMIT): T
     if (cup.championTid != null) rowFor(cup.championTid).domesticCupTitles += 1;
   }
 
+  const treblesByTid = trebleCountByTid(league);
+
   for (const r of rows.values()) {
     const p = played.get(r.tid) ?? 0;
     r.ppg = p > 0 ? (points.get(r.tid) ?? 0) / p : 0;
+    r.trebles = treblesByTid.get(r.tid) ?? 0;
     r.components = [
       component("trophies", [
         { key: "cupTitles", count: r.cupTitles, weight: GOAT_TEAM_CUP_TITLE_WEIGHT },
@@ -368,6 +375,9 @@ export function teamGoatRanking(league: LeagueStore, limit = GOAT_LIST_LIMIT): T
           count: r.domesticCupTitles,
           weight: GOAT_TEAM_DOMESTIC_CUP_TITLE_WEIGHT,
         },
+        // Sits with the trophies because that is what it is made of, and after
+        // them so the row reads as "these three, and all three at once".
+        { key: "trebles", count: r.trebles, weight: GOAT_TEAM_TREBLE_WEIGHT },
         { key: "secondTierTitles", count: r.secondTierTitles, weight: GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT },
       ]),
       component("longevity", [

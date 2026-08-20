@@ -13,8 +13,10 @@ import {
 } from "../../src/core/frivolities/goat.js";
 import { computeAwardTrivia, sortAwardRows, awardXIForClub } from "../../src/core/frivolities/honours.js";
 import { computePlayerHonors } from "../../src/core/playerHonors.js";
+import { computeClubHistory } from "../../src/core/clubHistory.js";
 import type { BallonDOrEntry } from "../../src/core/worldAwards.js";
 import { FREE_AGENT_TID } from "../../src/core/transfers/negotiation.js";
+import { GOAT_TEAM_TREBLE_WEIGHT } from "../../src/core/constants.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
 import type { SeasonHistoryEntry, StandingsRow } from "../../src/core/standings.js";
 
@@ -403,6 +405,84 @@ describe("computeClubTrivia", () => {
     expect(trivia.biggestSellers.find((s) => s.tid === 1)!.net).toBe(100);
   });
 
+  /**
+   * A finished Continental Cup that `winner` lifted. Round 3 is the final of a
+   * legacy bracket: a fixture with no `leaguePhase` is not a Swiss cup, so it
+   * gets the four legacy rounds rather than the Swiss three.
+   */
+  function continentalCup(season: number, winner: number, loser: number) {
+    return {
+      season, teams: [winner, loser], championTid: winner,
+      ties: [{ round: 3, home: winner, away: loser, winner }],
+    };
+  }
+
+  /** A finished one-round domestic cup that `winner` lifted. */
+  function domesticCup(season: number, winner: number, loser: number) {
+    return {
+      season, country: "eng", name: "English Cup", teams: [winner, loser],
+      totalRounds: 1, championTid: winner, statLines: [],
+      rounds: [{
+        round: 0, matchday: 36, byes: [],
+        pairings: [{ home: winner, away: loser }],
+        ties: [{ round: 0, home: winner, away: loser, winner }],
+      }],
+    };
+  }
+
+  /**
+   * The same two seasons as `history`, but with each competition's rows in
+   * finishing order, which is how the sim stores them. It matters here and not
+   * elsewhere in this file: `computeClubTrivia` re-sorts a table by points
+   * before picking the winner, while `clubHistory` reads a club's position
+   * straight off the stored order. Only a table in the real shape lets the two
+   * be compared at all.
+   */
+  const trebleHistory = [
+    makeHistory(2028, [row(1, 38, 90, 40, 80), row(2, 38, 70, 20, 60), row(3, 38, 88, 30, 70)],
+      { 1: 0, 2: 0, 3: 1 }),
+    makeHistory(2029, [row(2, 38, 85, 35, 75), row(1, 38, 60, 10, 50), row(3, 38, 91, 45, 85)],
+      { 1: 0, 2: 0, 3: 1 }),
+  ];
+
+  /**
+   * Club 1 wins the 2028 league and the 2028 Continental Cup, but club 3 takes
+   * that season's domestic cup. Club 2 wins all three in 2029.
+   */
+  const trebleStore = () => makeStore({
+    seasonHistory: trebleHistory,
+    cupHistory: [continentalCup(2028, 1, 2), continentalCup(2029, 2, 1)],
+    domesticCupHistory: [domesticCup(2028, 3, 1), domesticCup(2029, 2, 3)],
+  } as unknown as Partial<LeagueStore>);
+
+  it("counts a treble only when all three trophies land in the same season", () => {
+    const byTid = new Map(computeClubTrivia(trebleStore()).records.map((r) => [r.tid, r]));
+    expect(byTid.get(2)!.trebles).toBe(1);
+    // Two of the three is not a treble, however good the season was.
+    expect(byTid.get(1)!.trebles).toBe(0);
+    // Club 3 won a domestic cup, but its league titles are second-tier ones.
+    expect(byTid.get(3)!.trebles).toBe(0);
+  });
+
+  it("keeps a treble out of the total, since its three wins are already counted", () => {
+    const club2 = computeClubTrivia(trebleStore()).records.find((r) => r.tid === 2)!;
+    expect(club2.trebles).toBe(1);
+    // League title + Continental Cup + domestic cup. Not four.
+    expect(club2.totalTrophies).toBe(3);
+  });
+
+  it("agrees with clubHistory about what a treble is", () => {
+    // Two derivations answer the same question: this one walks every club in a
+    // single pass over history, clubHistory walks one club's own seasons. A
+    // divergence shows up as a club page and the trophy cabinet disagreeing
+    // about the same season, so it is pinned rather than left to drift.
+    const store = trebleStore();
+    const byTid = new Map(computeClubTrivia(store).records.map((r) => [r.tid, r]));
+    for (const tid of [1, 2, 3]) {
+      expect(computeClubHistory(store, tid).trebles.length).toBe(byTid.get(tid)!.trebles);
+    }
+  });
+
   it("counts total trophies across both tiers and the cup", () => {
     const trivia = computeClubTrivia(makeStore({
       seasonHistory: history,
@@ -671,6 +751,49 @@ describe("GOAT rankings", () => {
     it("computes career points per game across seasons, not a mean of means", () => {
       // 178 points from 76 matches.
       expect(teamGoatRanking(store).find((r) => r.tid === 1)!.ppg).toBeCloseTo(178 / 76, 6);
+    });
+
+    /**
+     * Club 1 won the league in both seasons and the Continental Cup in 2029, so
+     * giving it the domestic cup in 2029 completes a treble and in 2028 does
+     * not. Either way it has won exactly the same three trophies, which is what
+     * isolates the bonus from the trophies it sits on top of.
+     */
+    const storeWithDomesticCup = (season: number) => makeStore({
+      seasonHistory: [
+        historyWithAwards(2028, [row(1, 38, 90, 40), row(2, 38, 70, 10), row(3, 20, 55)],
+          { 1: 0, 2: 0, 3: 1 }, { champion: 1 }),
+        historyWithAwards(2029, [row(1, 38, 88, 35), row(2, 38, 60, 5), row(3, 20, 50)],
+          { 1: 0, 2: 0, 3: 1 }, { champion: 1 }),
+      ],
+      cupHistory: [{ season: 2029, championTid: 1 }],
+      domesticCupHistory: [{ season, championTid: 1 }],
+    } as unknown as Partial<LeagueStore>);
+
+    it("scores a treble as a bonus on top of the three trophies that make it up", () => {
+      const treble = teamGoatRanking(storeWithDomesticCup(2029)).find((r) => r.tid === 1)!;
+      const spread = teamGoatRanking(storeWithDomesticCup(2028)).find((r) => r.tid === 1)!;
+
+      expect(treble.trebles).toBe(1);
+      expect(spread.trebles).toBe(0);
+      // Same cabinet in both: two league titles, one Continental Cup, one
+      // domestic cup. Only the timing differs.
+      expect(treble.leagueTitles).toBe(spread.leagueTitles);
+      expect(treble.cupTitles).toBe(spread.cupTitles);
+      expect(treble.domesticCupTitles).toBe(spread.domesticCupTitles);
+      // So the entire gap is the bonus, and nothing was double-counted.
+      expect(treble.score - spread.score).toBe(GOAT_TEAM_TREBLE_WEIGHT);
+    });
+
+    it("shows the treble in the trophies breakdown, still summing to the score", () => {
+      const treble = teamGoatRanking(storeWithDomesticCup(2029)).find((r) => r.tid === 1)!;
+      const trophies = treble.components.find((c) => c.key === "trophies")!;
+      const term = trophies.terms.find((t) => t.key === "trebles")!;
+      expect(term.count).toBe(1);
+      expect(term.weight).toBe(GOAT_TEAM_TREBLE_WEIGHT);
+      // The board generates its columns from `components`, so a term that
+      // counts toward the score has to be visible in the breakdown too.
+      expect(treble.components.reduce((sum, c) => sum + c.points, 0)).toBe(treble.score);
     });
   });
 });

@@ -1375,7 +1375,9 @@ export function Manual() {
             and goals and assists. Prime is weighted to outweigh peak over a long career, and
             individual awards make up roughly half of a typical score. Clubs are scored mostly on
             trophies, with top-four finishes and points per game separating clubs with similar
-            trophy counts. Selecting a row expands it into the full calculation: every award,
+            trophy counts. A treble is worth a large bonus on top of the three trophies it's made
+            of, so winning all three in one season counts for much more than winning them in
+            different years. Selecting a row expands it into the full calculation: every award,
             trophy and stat that contributed, how many of each, and what one is worth. Retired
             players are ranked alongside active ones. Known limitation: the player ranking favours
             attackers, because it builds on the Ballon d'Or and Player of the Season scores, which
@@ -1441,9 +1443,11 @@ export function Manual() {
           </p>
           <p>
             <strong>Club Records</strong> is the club-level version: the trophy cabinet (total
-            trophies, then league titles, Continental Cups and second-tier titles), the longest
-            wait for a title, all-time biggest spenders, and the clubs that have made the most
-            money trading players.
+            trophies, then league titles, Continental Cups, domestic cups, trebles and
+            second-tier titles), the longest wait for a title, all-time biggest spenders, and
+            the clubs that have made the most money trading players. A treble is counted where
+            the three wins fall in one season, and it isn't added to the total, since those
+            three trophies are already in it.
           </p>
           <p>
             Retired players are otherwise deleted from the save entirely, so the game keeps a

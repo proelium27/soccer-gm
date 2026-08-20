@@ -1,5 +1,6 @@
 import type { LeagueStore } from "../leagueState.js";
 import { isFreeAgentTid } from "../transfers/negotiation.js";
+import { trebleCountByTid } from "./trebles.js";
 
 
 /** How many rows each club list shows. */
@@ -28,6 +29,15 @@ export interface ClubRecordRow {
   ppg: number;
   /** Every trophy of any kind — the column the table leads with, so it's also what it sorts by. */
   totalTrophies: number;
+  /**
+   * Seasons the club won its tier-1 league, the Continental Cup and its
+   * domestic cup all at once.
+   *
+   * Deliberately **not** part of `totalTrophies`: a treble is a coincidence of
+   * three trophies already counted there, not a fourth one, so adding it would
+   * count the same three wins twice and reorder the table the total sorts by.
+   */
+  trebles: number;
   /** Season of the club's most recent tier-1 title, or null if it has never won one. */
   lastTitleSeason: number | null;
   /**
@@ -78,12 +88,15 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
   const latestSeason = league.seasonHistory.reduce((max, h) => Math.max(max, h.season), 0);
 
   const rows = new Map<number, ClubRecordRow>();
+
+  const treblesByTid = trebleCountByTid(league);
+
   const rowFor = (tid: number): ClubRecordRow => {
     let r = rows.get(tid);
     if (!r) {
       r = {
         tid, seasons: 0, topFlightSeasons: 0, leagueTitles: 0, secondTierTitles: 0, cupTitles: 0,
-        domesticCupTitles: 0, totalTrophies: 0,
+        domesticCupTitles: 0, totalTrophies: 0, trebles: 0,
         played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0, ppg: 0,
         lastTitleSeason: null, titleDrought: 0,
       };
@@ -144,6 +157,7 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
 
   for (const r of rows.values()) {
     r.totalTrophies = r.leagueTitles + r.cupTitles + r.domesticCupTitles + r.secondTierTitles;
+    r.trebles = treblesByTid.get(r.tid) ?? 0;
     r.ppg = r.played > 0 ? r.points / r.played : 0;
     // A club that has never won counts its whole recorded history as the wait.
     r.titleDrought = r.lastTitleSeason == null
