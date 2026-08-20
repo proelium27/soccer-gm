@@ -238,7 +238,7 @@ export function Manual() {
             <li><strong>Continental Cup</strong>. The live league-phase table and knockout bracket for the current season, plus past winners via a season dropdown. More in <a href="#cup">The Continental Cup</a>.</li>
             <li><strong>Continental Shield</strong>. The same page for the second competition, for clubs finishing just below the Cup places. More in <a href="#shield">The Continental Shield</a>.</li>
             <li><strong>Domestic Cup</strong>. Every round of your country&apos;s cup as it&apos;s drawn and played, with a dropdown for any other country and for past seasons. More in <a href="#domestic-cup">The Domestic Cup</a>.</li>
-            <li><strong>National Teams</strong>. A whole section for the summer's national-team football: the current World Cup and Qualifying, Rosters showing every nation's named squad, a Schedule of fixtures, Power Rankings of every nation, Stat Leaders (top nations and top players, filterable by country), and History with past winners and each nation's record. More in <a href="#international">International Football</a>.</li>
+            <li><strong>National Teams</strong>. A whole section for the summer's national-team football: the current World Cup, Qualifying and Confederation Cups (the Euro, Copa América and AFCON), Rosters showing every nation's named squad, a Schedule of fixtures, Power Rankings of every nation, Stat Leaders (top nations and top players, filterable by country), and History with past winners and each nation's record. More in <a href="#international">International Football</a>.</li>
             <li><strong>Power Rankings</strong>. Every club in the world ranked by a blended Power score: squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column) plus a current-season form bonus or penalty. Form isn't just your record. Beating a strong side counts for more than beating a weak one (and losing to a weak side hurts more than losing to a strong one), and goal difference factors in too, so a club can rank above or below its raw OVR depending on how it's actually playing. Record, goal difference, OVR, and the blended Power score all sit side by side, with a badge showing each club's competition and its rank within it. Click a team to expand its full roster in place. The rankings also get snapshotted every 5 matchdays (plus once after the final matchday), and a dropdown lets you browse any past snapshot from any season, with arrows showing how far each club rose or fell since the last one. Historical views can't expand rosters, since past squads aren't stored, and snapshots only start piling up from the point this feature shipped.</li>
             <li><strong>Schedule</strong>. Every matchday's fixtures and results. Click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong>. A Players tab (league-wide leaderboards for one season at a time: goals, assists, shots, shots on target, xG, tackles, interceptions, passes, crosses, fouls, yellow cards, red cards, saves, clean sheets, minutes, and average match rating, with a season dropdown covering the current season and every completed one) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown). Match rating is an average rather than a running total, so to keep a one-off cameo from topping the chart a player needs to have appeared in at least half of the games played so far before he shows up on the match-rating board (a threshold that scales as the season goes, so it works ten games in as well as at the end). A <strong>Totals / Per 90</strong> switch sits next to the stat dropdown: Per 90 divides each stat by the number of full matches the player's minutes add up to, which is how you find the squad player outproducing a starter rather than just the one who played most. Per-90 mode has a playing-time floor of its own &mdash; 30% of the minutes available so far, quoted above the table &mdash; because a rate is far easier to fluke than a total: score in a twelve-minute cameo and you've "scored" 7.5 per 90. It's counted in minutes rather than appearances, since twenty run-outs off the bench is exactly the case an appearance count would wave through. Appearances, minutes and match rating stay as totals either way (the first two are what the rate divides by, and a match rating is already an average). For career totals and all-time bests across every season at once, see <a href="#frivolities">Frivolities</a>' All-Time Leaders.</li>
@@ -570,18 +570,24 @@ export function Manual() {
           <p>
             Your players also represent their countries. National teams play in the summer, on a
             four-year cycle: there's a <strong>World Cup</strong> every fourth season, and the three
-            offseasons leading up to it each run a round of <strong>qualifying</strong>. Nothing
-            about it touches your league calendar; it all happens between seasons, and the{" "}
-            <strong>National Teams</strong> pages are where you follow it.
+            offseasons leading up to it each run a round of <strong>qualifying</strong>. Halfway
+            between one World Cup and the next, the same summer as that year's qualifying, the{" "}
+            <strong>confederation cups</strong> are played: the European Championship, Copa
+            América and the Africa Cup of Nations. Nothing about any of it touches your league
+            calendar; it all happens between seasons, and the <strong>National Teams</strong> pages
+            are where you follow it.
           </p>
           <p>
             You play it out yourself, a stage at a time. When you reach the offseason, the Dashboard
             hands you the buttons: in a qualifying year you play that year's round of qualifying (one
             of three); in a World Cup year you play the group stage, then the quarter-finals, then
-            the semis, then the final, one click each, so you can watch it unfold. If you'd rather
-            not linger, "Sim through the World Cup" plays the rest in one go and leaves you on the
-            Dashboard to read the results. And if you don't care for it at all, "Skip qualifying" /
-            "Skip the World Cup" takes you straight to the offseason. Skipping doesn't cancel
+            the semis, then the final, one click each, so you can watch it unfold. A confederation
+            cup summer works the same way, except every cup is played side by side: one click
+            for all their group stages, then a click per knockout round, and because a smaller
+            tournament waits for a bigger one to catch up, every final lands on the same click. If
+            you'd rather not linger, "Sim through the World Cup" (or "the cups") plays the
+            rest in one go and leaves you on the Dashboard to read the results. And if you don't
+            care for it at all, the skip button takes you straight to the offseason. Skipping doesn't cancel
             anything: the games are still played as you advance, on exactly the same results they'd
             have had, and they're waiting on the National Teams pages afterwards.
           </p>
@@ -596,6 +602,19 @@ export function Manual() {
             time go to a shootout, exactly like the Continental Cup.
           </p>
           <p>
+            The <strong>confederation cups</strong> have no qualifying of their own: each
+            confederation simply takes its strongest nations at the time of the draw, which is the
+            order you see on Power Rankings. How big a cup is depends on how much football
+            its continent has — Europe fills a sixteen-nation field with four groups and a
+            quarter-final, while a confederation with only a handful of real football nations plays
+            a single group and sends its top two straight to the final. A confederation that can't
+            field even four nations doesn't hold one at all, which is why you'll usually see the
+            Euro, Copa América and AFCON and not the others: nearly every player in the world is
+            born into one of the eight countries whose leagues you play in, so the rest of the world
+            is thin. Fill it out — with an imported roster, say — and those cups start
+            being played on their own.
+          </p>
+          <p>
             <strong>Nobody manages a national team, including you.</strong> Each nation picks its
             own squad from whoever is good enough, in the strongest formation it can field. So your
             job isn't to pick the team, it's to develop players worth picking, then watch how they
@@ -606,7 +625,9 @@ export function Manual() {
           </p>
           <p>
             International football is mostly a record, not a lever. Caps, goals, tournaments played
-            and titles won show up on a player's profile and build over his career, and the{" "}
+            and titles won show up on a player's profile and build over his career — confederation
+            cups are counted separately from World Cups, so winning the Euro doesn't read
+            as winning the World Cup — and the{" "}
             <strong>National Team</strong> tab on his stats card breaks them down campaign by
             campaign, the same way his league and cup seasons are listed. None of it feeds his
             development or his value. There's one real cost, though: if a player gets hurt
@@ -616,8 +637,9 @@ export function Manual() {
             to see a golden generation announce itself.
           </p>
           <p>
-            You can browse all of it in the <strong>National Teams</strong> section. The World Cup
-            and Qualifying tabs show the current campaign and let you flip back to past years;
+            You can browse all of it in the <strong>National Teams</strong> section. The World Cup,
+            Qualifying and Confederation Cups tabs show the current campaign and let you flip back to
+            past years (Confederation Cups shows every cup of a given summer on one page);
             Rosters shows the squad every nation has named for the campaign being played, with the
             eleven it would field highlighted; Schedule lists the fixtures for whatever's being
             played, opening on the qualifying round currently being played (a whole campaign at once
@@ -833,13 +855,15 @@ export function Manual() {
             are decided inside one league. The Awards page also has a World tab, which judges every
             league in the world as a single field: the <strong>Ballon d'Or</strong> for the best
             player alive that season (with the nine behind him listed as a shortlist), and a{" "}
-            <strong>World Team of the Year</strong> best XI drawn from anywhere. Three things go into
+            <strong>World Team of the Year</strong> best XI drawn from anywhere. A few things go into
             it. First, the domestic season, scored the same way Player of the Season is, and it's
             still the biggest single part. Second, the Continental Cup: cup goals and assists count
             the same as league ones, your rating in it counts, and there's a bonus for how far your
             club went, biggest by far for winning the thing (all of it scaled down if you only
-            played a game or two of the run). Third, the international campaign played that summer:
-            goals, assists and caps, worth double in a World Cup year over a qualifying one. Your
+            played a game or two of the run). Third, everything he played that summer for his
+            country: goals, assists and caps, worth double at a World Cup and half again at a
+            confederation cup compared with a qualifier. A confederation cup summer counts both the
+            cup and that year's qualifying round. Your
             domestic cup counts too, but only as a trophy: winning it is worth points to everyone who
             played in the run, while goals scored in it are not. Those games are only ever measured
             against one country, so unlike Continental Cup games they can't be compared fairly with
@@ -848,12 +872,13 @@ export function Manual() {
           </p>
           <p>
             Trophies count for a lot here. Winning your league, winning the Continental Cup,
-            winning your domestic cup and being in the squad that won the World Cup are all worth
-            real points on top of whatever you did personally, and they stack. Roughly speaking,
-            winning your league is worth about ten league goals to a striker, the Continental Cup a
-            bit more than that, the World Cup more again, and your domestic cup about three goals,
-            which is the smallest of the four on purpose: it's six games and a bit of luck, and it
-            shouldn't weigh the same as a whole league campaign. It isn't a pure team prize: you
+            winning your domestic cup, winning a confederation cup and being in the squad
+            that won the World Cup are all worth real points on top of whatever you did personally,
+            and they stack. Roughly speaking, your domestic cup is worth about three league goals to
+            a striker, a confederation cup title about nine, winning your league about ten, the Continental
+            Cup a bit more than that, and the World Cup more again. The domestic cup is deliberately
+            the smallest: it's six games and a bit of luck, and it shouldn't weigh the same as a
+            whole league campaign. It isn't a pure team prize: you
             still have to have played a good season yourself, and a squad player who barely featured
             in a cup run only collects a fraction of it.
           </p>

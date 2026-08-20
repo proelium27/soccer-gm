@@ -2232,6 +2232,38 @@ export const WORLD_AWARD_INTL_TOURNAMENT_MULTIPLIER = 2;
  */
 export const WORLD_AWARD_WORLD_CUP_BONUS = 1.4;
 
+/**
+ * A confederation cup (the Euro, Copa America, AFCON — see
+ * CONFEDERATION_CUPS) is worth less than a World Cup on both axes: its
+ * matches count 1.5x a qualifying game rather than 2x, and winning it pays
+ * roughly half a World Cup.
+ *
+ * Sized on the same exchange rate as the rest of the team-achievement block (a
+ * striker's league goal is POTY_GOAL_WEIGHT.FWD, 0.08): a confederation cup title is
+ * about 9 goals, against the domestic cup's 3, a league title's 10, the club
+ * Continental Cup's 12 and the World Cup's 17 — second-smallest of the five,
+ * above only the domestic cup. Two reasons to keep it low, and they pull the
+ * same way: a confederation cup field is a *subset* of the world (Copa America is
+ * contested by a handful of nations, so its winner has beaten far less of the
+ * planet than a World Cup winner has), and it lands in the same offseason as a
+ * World Cup qualifying leg, so a player collecting it is already being paid for
+ * that campaign's caps and goals.
+ *
+ * The multiplier sits between qualifying and a World Cup for the same reason —
+ * knockout football against your continent's best is worth more than a
+ * qualifier, less than the world's showpiece — and it is applied uniformly
+ * whether the tournament had 25 entrants or 5. That evenness is a known,
+ * accepted simplification: scaling it by field size would make a South American
+ * player's Copa worth less than a European's Euro on top of the smaller pool
+ * already making it easier to win, i.e. it would punish twice.
+ *
+ * Gate for changing either: scripts/worldAwardsAudit.ts, watching the winner's
+ * world ovr rank — the whole team-achievement block trades against it and
+ * raising these alongside the others just cancels (see the note above).
+ */
+export const WORLD_AWARD_INTL_CONFEDERATION_CUP_MULTIPLIER = 1.5;
+export const WORLD_AWARD_CONFEDERATION_CUP_BONUS = 0.7;
+
 /* ────────────────────────────────────────────────────────────────────────
  * News Feed accomplishments
  * ──────────────────────────────────────────────────────────────────────── */
@@ -2794,6 +2826,46 @@ export const INTL_QUAL_LEGS = 3;
  * opening day. Tunable — raise it to make carried injuries rarer/shorter.
  */
 export const INTL_INJURY_OFFSEASON_RECOVERY = 2;
+
+/**
+ * Confederation cups (the Euro, Copa America, AFCON and their unlisted
+ * siblings — see core/international/confederations.ts).
+ *
+ * Cadence: they are played in the offseason of the cycle's *middle* qualifying
+ * season, which is exactly the real Euro/Copa offset from a World Cup — two
+ * years either side of it. That offseason therefore plays a qualifying leg
+ * *and* a confederation cup, rather than the tournament replacing the leg.
+ * That was deliberate: dropping INTL_QUAL_LEGS from 3 to 2 to make room would
+ * reopen the qualifying variance those three legs exist to damp (see
+ * INTL_QUAL_LEGS), and adding a whole second qualifying campaign for the
+ * confederation cups would roughly double the ~280 fixtures qualifying already plays.
+ */
+export function isConfederationCupSeason(season: number): boolean {
+  return qualifyingLeg(season) === CONFEDERATION_CUP_QUALIFYING_LEG;
+}
+
+/**
+ * Which qualifying leg the confederation cups share their offseason
+ * with. Leg 1 of 3 is the middle of the cycle: with a World Cup at season%4==0,
+ * the confederation cups land on season%4==2.
+ */
+export const CONFEDERATION_CUP_QUALIFYING_LEG = 1;
+
+/**
+ * Fewest nations a confederation needs before it holds a championship at all.
+ * Below four there is no tournament worth the name — the smallest supported
+ * format is a single round-robin whose top two contest a final.
+ *
+ * This gate is why the feature ships six tournaments but a default world only
+ * *plays* three. Every player is generated from the nationality table of one of
+ * the eight European leagues, so non-European nations exist only as imports:
+ * measured on a fresh world, Europe fields 25 eligible nations and Africa 12,
+ * but South America manages 5, and Asia, North America and Oceania one or none
+ * between them. The Asian Cup, Gold Cup and OFC Nations Cup are therefore
+ * defined and dark, and light up on their own if a world ever supports them —
+ * an imported roster, or a non-European league added to worldCompetitions.
+ */
+export const CONFEDERATION_CUP_MIN_NATIONS = 4;
 
 
 /**

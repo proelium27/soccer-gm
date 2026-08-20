@@ -37,7 +37,7 @@ import { settleSeasonEnd, chargeSeasonStart, wageBill, financeScaleFor } from ".
 import { academyContractTerms } from "./contracts.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
 import { competitionOf } from "./competitions.js";
-import { simThroughInternational } from "./international/index.js";
+import { simThroughInternational, confederationCupChampions } from "./international/index.js";
 import { carryIntlInjuries } from "./injuries.js";
 import { hashInts, mulberry32 } from "../engine/rng.js";
 import { NEWS_POSITION_CHANGE_OVR, SHIELD_FORMAT, difficultyProfile } from "./constants.js";
@@ -312,6 +312,9 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     domesticCups: league.domesticCups,
     worldCupChampion:
       league.international.history.find((h) => h.season === endingSeason)?.champion ?? null,
+    // The Euro / Copa America / AFCON winners from the same offseason, if it
+    // staged them (see core/international/confederationCup.ts).
+    confederationCupChampions: confederationCupChampions(league.international.confederationCupHistory, endingSeason),
   });
 
   const settle = (rows: StandingsRow[], compId: number): void => {

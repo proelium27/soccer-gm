@@ -42,7 +42,7 @@ function buildWorldLeague(seed: number): LeagueStore {
     shieldHistory: [],
     domesticCups: [],
     domesticCupHistory: [],
-    international: { qualifying: null, tournament: null, history: [], qualifyingHistory: [], powerRankings: [], stage: null, stageInjuries: [] },
+    international: { qualifying: null, tournament: null, confederationCups: [], history: [], qualifyingHistory: [], confederationCupHistory: [], powerRankings: [], stage: null, stageInjuries: [] },
     powerRankingHistory: [],
     godMode: false,
     difficulty: "normal",

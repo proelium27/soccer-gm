@@ -35,7 +35,7 @@ We've built a dashboard and five insights for you to keep an eye on player behav
 
 - [ ] Run a full production build (`npm run build`) and fix any lint or type errors introduced by the generated code.
 - [ ] Run the test suite (`npm test`) — call sites that were rewritten or instrumented may need updated mocks or fixtures.
-- [ ] Add `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` to `.env.example` and any bootstrap scripts so collaborators know what to set.
+- [x] Add `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` to `.env.example` and any bootstrap scripts so collaborators know what to set. (Done 2026-08-20, after a build without them shipped to production and went unnoticed for five days — see "Analytics & deploy config" in CLAUDE.md.)
 - [ ] Wire source-map upload (`posthog-cli sourcemap` or Vite's upload step) into CI so production stack traces de-minify.
 
 ### Agent skill
