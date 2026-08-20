@@ -100,14 +100,39 @@ describe("Shield page", () => {
 });
 
 describe("Standings qualification bands", () => {
-  it("shades the Cup places and the Shield places directly below them", () => {
+  it("marks the Cup places and the Shield places directly below them", () => {
     const league = withCompetitions();
     const html = render(league, Standings);
-    expect(html).toContain("cup-qualification");
-    expect(html).toContain("shield-qualification");
-    expect(html).toContain("qualify for the Continental Cup");
-    expect(html).toContain("qualify for the Continental Shield");
+    expect(html).toContain("qual-marker-cup");
+    expect(html).toContain("qual-marker-shield");
+    expect(html).toContain("to the Continental Cup");
+    expect(html).toContain("to the Continental Shield");
     // No row can be in both zones — that would mean the fields overlap.
     expect(html).not.toContain("cup-qualification shield-qualification");
+  });
+
+  it("gives every row a marker slot so the position numbers stay aligned", () => {
+    const league = withCompetitions();
+    const html = render(league, Standings);
+    const rows = html.split("<tr").length - 1;
+    const markers = html.split("qual-marker").length - 1;
+    // One marker per row, plus the two in the legend. Non-qualifying rows
+    // render a hidden marker rather than nothing, which is what keeps the
+    // numbers in one column.
+    expect(markers).toBeGreaterThanOrEqual(rows);
+    expect(html).toContain("qual-marker-none");
+  });
+
+  it("distinguishes the two competitions by shape, not colour alone", () => {
+    // The Cup marker is filled and the Shield marker is hollow, so the two
+    // survive grayscale and colour-vision deficiency (DESIGN.md's Signal Rule).
+    // Pinning the class names here because the shape difference lives in CSS
+    // and a future "simplification" to one shared class would silently break it.
+    const league = withCompetitions();
+    const html = render(league, Standings);
+    expect(html).toContain("qual-marker qual-marker-cup");
+    expect(html).toContain("qual-marker qual-marker-shield");
+    expect(html).toContain("Continental Cup place");
+    expect(html).toContain("Continental Shield place");
   });
 });

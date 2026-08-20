@@ -15,6 +15,27 @@ import { seasonYear, ordinal } from "../format.js";
 type StandingsSortKey =
   | "pos" | "team" | "p" | "w" | "d" | "l" | "gf" | "ga" | "gd" | "pts" | "ovr" | "pot";
 
+/**
+ * Which qualification marker sits beside a finishing position, if any.
+ *
+ * Filled square = Continental Cup, hollow square = Continental Shield. The two
+ * differ by **shape as well as hue** on purpose: DESIGN.md's Signal Rule says a
+ * colour cue must survive grayscale and colour-vision deficiency, and two
+ * adjacent tints of similar lightness would not. A non-qualifying row still
+ * renders the span so every number stays on the same baseline.
+ */
+function qualMarkerClass(isCup: boolean, isShield: boolean): string {
+  if (isCup) return "qual-marker qual-marker-cup";
+  if (isShield) return "qual-marker qual-marker-shield";
+  return "qual-marker qual-marker-none";
+}
+
+function qualTitle(isCup: boolean, isShield: boolean): string | undefined {
+  if (isCup) return "Continental Cup place";
+  if (isShield) return "Continental Shield place";
+  return undefined;
+}
+
 export function Standings() {
   const { league } = useLeague();
   const [season, setSeason] = useState<number | "current">("current");
@@ -180,7 +201,20 @@ export function Standings() {
               const rating = ratingByTid.get(row.tid) ?? null;
               return (
                 <tr key={row.tid} className={rowClass}>
-                  <td className="text-end">{pos + 1}</td>
+                  <td className="text-end">
+                    {/* The qualification marker lives here rather than in the
+                        row's background, which already carries win/loss, your
+                        club and the champion. A marker also survives those:
+                        the champion's row is gold and still shows its Cup
+                        square, where a row wash was simply overridden. */}
+                    <span className="qual-cell">
+                      <span
+                        className={qualMarkerClass(isCupSpot, isShieldSpot)}
+                        title={qualTitle(isCupSpot, isShieldSpot)}
+                      />
+                      {pos + 1}
+                    </span>
+                  </td>
                   <td>
                     <span className="d-inline-flex align-items-center gap-1">
                       <ClubCrest tid={row.tid} colors={team?.colors ?? ["#888888", "#888888"]} />
@@ -205,18 +239,22 @@ export function Standings() {
             })}
           </tbody>
         </table>
-        {showCupZone && (
-          <p className="text-muted small mt-1 mb-0">
-            <span className="cup-zone-key" /> Top {cupSlots} qualify for the Continental Cup.
-          </p>
-        )}
-        {showShieldZone && (
-          <p className="text-muted small mt-1 mb-0">
-            <span className="shield-zone-key" />{" "}
-            {shieldFrom === shieldTo
-              ? `${ordinal(shieldFrom)} qualifies`
-              : `${ordinal(shieldFrom)} and ${ordinal(shieldTo)} qualify`}{" "}
-            for the Continental Shield.
+        {(showCupZone || showShieldZone) && (
+          <p className="qual-key text-muted small mt-2 mb-0">
+            {showCupZone && (
+              <span className="qual-key-item">
+                <span className="qual-marker qual-marker-cup" /> Top {cupSlots} to the Continental Cup
+              </span>
+            )}
+            {showShieldZone && (
+              <span className="qual-key-item">
+                <span className="qual-marker qual-marker-shield" />{" "}
+                {shieldFrom === shieldTo
+                  ? ordinal(shieldFrom)
+                  : `${ordinal(shieldFrom)} and ${ordinal(shieldTo)}`}
+                {" "}to the Continental Shield
+              </span>
+            )}
           </p>
         )}
         </>
