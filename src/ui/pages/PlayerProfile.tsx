@@ -124,16 +124,27 @@ export function PlayerProfile() {
   // from teamForSeason's transfer-history walk.
   const honors = computePlayerHonors(player, league.seasonHistory, {
     cupHistory: league.cupHistory,
+    shieldHistory: league.shieldHistory,
     domesticCupHistory: league.domesticCupHistory,
   });
 
   const statsBySeasonDesc = [...player.stats].sort((a, b) => b.season - a.season);
   const histBySeasonDesc = [...player.hist].sort((a, b) => b.season - a.season);
-  const cupStatsBySeason = cupStatsBySeasonForPlayer(league.cup, league.cupHistory, player.pid);
+  // Both continental competitions on one tab, each row labelled. A player can
+  // have Cup seasons and Shield seasons in one career (and, if he moves clubs
+  // mid-season, one of each in the same season), so the rows are keyed by
+  // competition *and* season rather than season alone.
+  const cupStatsBySeason = [
+    ...cupStatsBySeasonForPlayer(league.cup, league.cupHistory, player.pid)
+      .map((line) => ({ line, competition: "Cup" })),
+    ...cupStatsBySeasonForPlayer(league.shield, league.shieldHistory ?? [], player.pid)
+      .map((line) => ({ line, competition: "Shield" })),
+  ].sort((a, b) => b.line.season - a.line.season || a.competition.localeCompare(b.competition));
   const showCupTab = worldHasCup(league.competitions);
+  // Labelled the same way, so the two tabs share one row shape and one render.
   const domesticStatsBySeason = domesticStatsBySeasonForPlayer(
     league.domesticCups ?? [], league.domesticCupHistory ?? [], player.pid,
-  );
+  ).map((line) => ({ line, competition: "Domestic" }));
   // The domestic tab appears only once there is something in it — a save that
   // predates domestic cups picks them up a season later, and an empty tab in
   // the meantime is just a dead end.
@@ -326,6 +337,7 @@ export function PlayerProfile() {
                   <AwardPill label="Team of the Season" seasons={honors.teamOfSeason} />
                   <AwardPill label="League Champion" seasons={honors.leagueTitles} icon="🏆" />
                   <AwardPill label="Continental Cup" seasons={honors.continentalCups} />
+                  <AwardPill label="Continental Shield" seasons={honors.shields} />
                   <AwardPill label="Domestic Cup" seasons={honors.domesticCups} />
                 </div>
               )}
@@ -452,7 +464,7 @@ export function PlayerProfile() {
           <div className="d-flex align-items-center justify-content-between mb-2">
             <h6 className="card-title mb-0">
               {activeStatsTab === "cup"
-                ? "Continental Cup Stats"
+                ? "Continental Stats"
                 : activeStatsTab === "domestic"
                   ? "Domestic Cup Stats"
                   : activeStatsTab === "intl"
@@ -592,7 +604,7 @@ export function PlayerProfile() {
               <p className="text-muted mb-0">
                 {activeStatsTab === "domestic"
                   ? "No domestic cup matches yet."
-                  : "No Continental Cup matches yet."}
+                  : "No Continental Cup or Shield matches yet."}
               </p>
             ) : (
               <div className="table-responsive">
@@ -600,6 +612,7 @@ export function PlayerProfile() {
                   <thead>
                     <tr>
                       <th>Season</th>
+                      <th>Comp</th>
                       <th className="text-end">Apps</th>
                       <th className="text-end">Min</th>
                       <th className="text-end">G{statsRate && "/90"}</th>
@@ -613,15 +626,17 @@ export function PlayerProfile() {
                     </tr>
                   </thead>
                   <tbody>
-                    {cupRows.map((s, i) => {
+                    {cupRows.map(({ line: s, competition }, i) => {
                       const v = (value: number) =>
                         statsRate ? per90Text(value, s.minutesPlayed) : String(value);
                       return (
-                      // Keyed by index, not season: a player who moves country
-                      // mid-season can play in two domestic cups in one season,
-                      // and each is its own line.
+                      // Keyed by index, not season: a player who moves club
+                      // mid-season can play in two of these in one season (two
+                      // domestic cups, or a Cup line and a Shield line), and
+                      // each is its own row.
                       <tr key={i}>
                         <td>{seasonYear(s.season)}</td>
+                        <td className="text-muted small">{competition}</td>
                         <td className="text-end">{s.appearances}</td>
                         <td className="text-end">{s.minutesPlayed}</td>
                         <td className="text-end">{v(s.goals)}</td>

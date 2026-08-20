@@ -3,6 +3,7 @@ import { useLeague } from "../context/LeagueContext.js";
 import type { ScheduleGame } from "../../core/schedule.js";
 import type { CupState } from "../../core/cup/types.js";
 import { cupRoundName, koRoundsOf, koLegMatchdays } from "../../core/cup/cup.js";
+import type { CupCompetitionId } from "../../core/constants.js";
 import type { DomesticCupState } from "../../core/domesticCup/types.js";
 import { domesticRoundName } from "../../core/domesticCup/cup.js";
 
@@ -18,6 +19,11 @@ interface FixtureRow {
    * link to their own cup page.
    */
   kind: "league" | "cup" | "domestic";
+  /**
+   * Continental rows only: which of the two continental competitions it is.
+   * "domestic" rows don't carry it, since a country has exactly one cup.
+   */
+  competition?: CupCompetitionId;
   /** Cup rows only: the stage label, e.g. "League phase" or "Quarter-final (1st leg)". */
   label?: string;
   sortKey: number;
@@ -55,9 +61,14 @@ function userDomesticRows(cups: DomesticCupState[], userTid: number): FixtureRow
   return rows;
 }
 
-/** The user's Continental Cup fixtures (league phase, playoff, and knockout legs), for the schedule. */
+/**
+ * The user's fixtures in one continental competition (league phase, playoff and
+ * knockout legs). Called once per competition — a club only ever plays one of
+ * them, so at most one call returns anything.
+ */
 function userCupRows(cup: CupState | null, userTid: number): FixtureRow[] {
   if (!cup) return [];
+  const competition = cup.competition;
   const rows: FixtureRow[] = [];
   const mine = (h: number, a: number): boolean => h === userTid || a === userTid;
   const push = (
@@ -70,7 +81,7 @@ function userCupRows(cup: CupState | null, userTid: number): FixtureRow[] {
     rows.push({
       matchday, home, away,
       result: score ? { ...score, possessionHome: 0.5 } : null,
-      playedIndex: null, kind: "cup", label, sortKey: matchday,
+      playedIndex: null, kind: "cup", competition, label, sortKey: matchday,
     });
   };
 
@@ -152,7 +163,10 @@ export function Schedule() {
       sortKey: g.matchday,
     }));
 
-  const cupRows = userCupRows(league.cup, userTid);
+  const cupRows = [
+    ...userCupRows(league.cup, userTid),
+    ...userCupRows(league.shield, userTid),
+  ];
   const domesticRows = userDomesticRows(league.domesticCups ?? [], userTid);
 
   // Within a matchday, list the league game first, then any cup fixture.
@@ -217,7 +231,9 @@ export function Schedule() {
                     {teamName(row.home)}
                     {row.kind !== "league" && (
                       <span className="badge text-bg-secondary ms-2 align-middle" style={{ fontWeight: 400 }}>
-                        {row.kind === "cup" ? "Cup" : "Domestic cup"} · {row.label}
+                        {row.kind === "domestic"
+                          ? "Domestic cup"
+                          : row.competition === "shield" ? "Shield" : "Cup"} · {row.label}
                       </span>
                     )}
                   </td>
@@ -228,7 +244,10 @@ export function Schedule() {
                           {row.result.homeGoals} - {row.result.awayGoals}
                         </Link>
                       ) : (
-                        <Link to={row.kind === "domestic" ? "/domestic-cup" : "/cup"}>
+                        <Link to={
+                          row.kind === "domestic" ? "/domestic-cup"
+                            : row.competition === "shield" ? "/shield" : "/cup"
+                        }>
                           {row.result.homeGoals} - {row.result.awayGoals}
                         </Link>
                       )

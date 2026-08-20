@@ -202,6 +202,7 @@ const TERM_LABELS: Record<string, string> = {
   teamOfSeason: "Team of the Season",
   worldCups: "World Cup",
   cupTitles: "Continental Cup",
+  shieldTitles: "Continental Shield",
   domesticCupTitles: "domestic cup",
   leagueTitles: "league title",
   goals: "goals",
@@ -348,12 +349,14 @@ function GoatTab() {
           <RankTable
             rows={clubs}
             headers={[
-              "Club", "Titles", "Cups", "Dom. cups", "Trebles", "Top 4", "Seasons", "PPG", "Score",
+              "Club", "Titles", "Cups", "Shields", "Dom. cups", "Trebles",
+              "Top 4", "Seasons", "PPG", "Score",
             ]}
             render={(r: TeamGoatRow) => [
               <ClubCell tid={r.tid} />,
               r.leagueTitles,
               r.cupTitles,
+              r.shieldTitles,
               r.domesticCupTitles,
               r.trebles,
               r.topFinishes,
@@ -1228,13 +1231,15 @@ function ClubsTab() {
               rows={trivia.records}
               headers={[
                 "Club", "Total Trophies", "D1 Championships", "Continental Cups",
-                "Domestic Cups", "Trebles", "D2 Championships", "Seasons", "Top flight",
+                "Continental Shields", "Domestic Cups", "Trebles",
+                "D2 Championships", "Seasons", "Top flight",
               ]}
               render={(r: ClubRecordRow) => [
                 <ClubCell tid={r.tid} />,
                 <strong>{r.totalTrophies}</strong>,
                 r.leagueTitles,
                 r.cupTitles,
+                r.shieldTitles,
                 r.domesticCupTitles,
                 r.trebles,
                 r.secondTierTitles,

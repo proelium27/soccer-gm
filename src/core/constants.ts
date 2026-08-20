@@ -2428,6 +2428,166 @@ export const CUP_KO_PRIZE_WIN_BY_ROUND = [
   CUP_PRIZE_WIN_QF, CUP_PRIZE_WIN_SF, CUP_PRIZE_WIN_FINAL,
 ] as const;
 
+/* ── Competition formats ─────────────────────────────────────────────────────
+ * Everything that differs between the continental competitions lives in one
+ * table; every cup helper reads its numbers off the format its CupState names.
+ * The structure (Swiss league phase → playoff → two-legged knockout), the
+ * calendar and the draw are shared, because the fields are disjoint by
+ * construction — a club qualifies for one competition or the other, never both,
+ * so they can play on the same matchdays exactly as the real midweek calendar
+ * does.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** Which continental competition a cup is. Saves from before the split have none → "continental". */
+export type CupCompetitionId = "continental" | "shield";
+
+/** Prize money for one competition, in £, credited as each stage is played. */
+export interface CupPrizes {
+  /** Paid once, on entry to the league phase (or the legacy bracket). */
+  participation: number;
+  /** Winning a league-phase playoff tie and reaching the quarter-finals. */
+  playoffWin: number;
+  /** Legacy format only: winning a preliminary play-in tie. */
+  playInWin: number;
+  /** Losing the final. */
+  runnerUp: number;
+  /** Swiss knockout per-win prize, indexed by round (0 = QF, 1 = SF, 2 = Final). */
+  koByRound: readonly number[];
+  /** Legacy bracket per-win prize, indexed by round (0 = R16 … 3 = Final). */
+  legacyKoByRound: readonly number[];
+}
+
+export interface CupFormat {
+  id: CupCompetitionId;
+  /** Display name, stored on each CupState as it is built. */
+  name: string;
+  /**
+   * How many places down a league's final table this competition's slots start
+   * — 0 takes the champion first. This is what keeps the competitions' fields
+   * disjoint, so it must equal the number of places the competition above takes
+   * **from that same league**. It is therefore per league strength, exactly
+   * like the slot counts: the Continental Cup takes four places from a strong
+   * league and two from a weak one, so the Shield starts at 4 and 2
+   * respectively (ranks 5-6 and 3-4).
+   */
+  strongOffset: number;
+  weakOffset: number;
+  /** Places a strong (big-four, countryStrengthOffset 0) league earns. */
+  strongSlots: number;
+  /** Places a weak (offset > 0) league earns. */
+  weakSlots: number;
+  /**
+   * Expected league-phase field size on the shipped 8-country world. Nothing in
+   * src/ reads it (the draw and the split both work off the actual field
+   * length) — it documents the expected size and anchors the cup tests. Must be
+   * even and split into CUP_LEAGUE_PHASE_POTS pots of even size that each
+   * exceed CUP_LEAGUE_PHASE_GAMES / CUP_LEAGUE_PHASE_POTS.
+   */
+  fieldSize: number;
+  /**
+   * Tag mixed into every one of this competition's rng streams. **Must be
+   * unique per competition**: two cups played in the same season would
+   * otherwise draw from identical streams round for round. The continental tag
+   * is 30 because that is the literal its streams shipped with — changing it
+   * would move every existing save's cup results.
+   */
+  streamTag: number;
+  /** Seed for the league-phase draw. Unique per competition, for the same reason as streamTag. */
+  drawSeed: number;
+  prizes: CupPrizes;
+}
+
+/* ── Continental Shield (the second-tier continental competition) ────────────
+ * Same structure and the same matchdays as the Continental Cup, one rung down
+ * the league tables: a strong league's 5th and 6th, a weak league's 3rd and
+ * 4th — 8 leagues × 2 = 16 clubs. Sharing the calendar is safe *because* the
+ * fields are disjoint, and it is what the real midweek schedule does anyway.
+ *
+ * A 16-club field is already legal in the shared draw and split: two pots of 8
+ * (each larger than the 3 games per pot), and the split takes 4 straight to the
+ * quarter-finals, 8 into the playoff and leaves 4 out. So the Shield needs no
+ * change to leaguePhase.ts at all.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export const SHIELD_NAME = "Continental Shield";
+
+/** Places per tier-1 league — the two directly below that league's Continental Cup places. */
+export const SHIELD_STRONG_LEAGUE_SLOTS = 2;
+export const SHIELD_WEAK_LEAGUE_SLOTS = 2;
+
+/** Field size on the shipped 8-country world: 8 tier-1 leagues × 2 = 16. See CupFormat.fieldSize. */
+export const SHIELD_LEAGUE_PHASE_SIZE = 16;
+
+/* Prize money (£). Sized at roughly 40% of the Continental Cup's, so a Shield
+ * run is worth chasing without rivalling the Cup: a champion nets ~£19.5M
+ * against the Cup's ~£48M, a runner-up ~£10.5M against ~£24M. Deliberately kept
+ * well clear of the Cup's tiers — finishing 5th and winning the Shield must not
+ * out-earn finishing 4th and going out of the Cup's league phase. */
+export const SHIELD_PRIZE_PARTICIPATION = 1_000_000;
+export const SHIELD_PRIZE_WIN_PLAYOFF = 1_500_000;
+export const SHIELD_PRIZE_WIN_QF = 2_500_000;
+export const SHIELD_PRIZE_WIN_SF = 4_000_000;
+export const SHIELD_PRIZE_WIN_FINAL = 12_000_000;
+export const SHIELD_PRIZE_RUNNER_UP = 3_000_000;
+
+/** Shield per-win knockout prize, indexed by round (0 = QF, 1 = SF, 2 = Final). */
+export const SHIELD_KO_PRIZE_WIN_BY_ROUND = [
+  SHIELD_PRIZE_WIN_QF, SHIELD_PRIZE_WIN_SF, SHIELD_PRIZE_WIN_FINAL,
+] as const;
+
+export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
+  continental: {
+    id: "continental",
+    name: CUP_NAME,
+    strongOffset: 0,
+    weakOffset: 0,
+    strongSlots: CUP_STRONG_LEAGUE_SLOTS,
+    weakSlots: CUP_WEAK_LEAGUE_SLOTS,
+    fieldSize: CUP_LEAGUE_PHASE_SIZE,
+    streamTag: 30,
+    drawSeed: 0x51533,
+    prizes: {
+      participation: CUP_PRIZE_PARTICIPATION,
+      playoffWin: CUP_PRIZE_WIN_PLAYOFF,
+      playInWin: CUP_PRIZE_WIN_PLAYIN,
+      runnerUp: CUP_PRIZE_RUNNER_UP,
+      koByRound: CUP_KO_PRIZE_WIN_BY_ROUND,
+      legacyKoByRound: CUP_PRIZE_WIN_BY_ROUND,
+    },
+  },
+  shield: {
+    id: "shield",
+    name: SHIELD_NAME,
+    // Start where the Continental Cup stops in each league, so no club can be
+    // drawn into both. Change one of these and you must change the other.
+    strongOffset: CUP_STRONG_LEAGUE_SLOTS,
+    weakOffset: CUP_WEAK_LEAGUE_SLOTS,
+    strongSlots: SHIELD_STRONG_LEAGUE_SLOTS,
+    weakSlots: SHIELD_WEAK_LEAGUE_SLOTS,
+    fieldSize: SHIELD_LEAGUE_PHASE_SIZE,
+    // Distinct from the Cup's 30 / 0x51533: both competitions run in the same
+    // season on the same matchdays, so shared streams would have the Shield
+    // replaying the Cup's draws round for round.
+    streamTag: 70,
+    drawSeed: 0x5348_4C44, // "SHLD"
+    prizes: {
+      participation: SHIELD_PRIZE_PARTICIPATION,
+      playoffWin: SHIELD_PRIZE_WIN_PLAYOFF,
+      runnerUp: SHIELD_PRIZE_RUNNER_UP,
+      koByRound: SHIELD_KO_PRIZE_WIN_BY_ROUND,
+      // The legacy straight-bracket format predates the Shield, so no Shield
+      // can ever be in one; these exist only to satisfy the shared shape.
+      playInWin: SHIELD_PRIZE_WIN_PLAYOFF,
+      legacyKoByRound: SHIELD_KO_PRIZE_WIN_BY_ROUND,
+    },
+  },
+};
+
+/** The Continental Cup's format — the default for every cup helper and every pre-split save. */
+export const CONTINENTAL_CUP_FORMAT = CUP_FORMATS.continental;
+/** The Continental Shield's format. */
+export const SHIELD_FORMAT = CUP_FORMATS.shield;
+
 /**
  * Extra time: a level tie after 90' plays this many shot-chances per side
  * (resolved with the same block→save→goal cascade as regulation) before a
@@ -2751,6 +2911,12 @@ export const GOAT_TOTS_WEIGHT = 10;
 export const GOAT_LEAGUE_TITLE_WEIGHT = 12;
 export const GOAT_CUP_TITLE_WEIGHT = 25;
 /**
+ * A Continental Shield title, worth well under a Continental Cup one and under
+ * a league title too — it is the trophy you win by not being good enough for
+ * the Cup, so it should round out a case rather than make one.
+ */
+export const GOAT_SHIELD_TITLE_WEIGHT = 8;
+/**
  * A domestic cup, deliberately the cheapest trophy on the board: it's a knockout
  * a club can win in six games without being any good over a season, which is
  * exactly what makes it fun and exactly why it shouldn't build a GOAT case.
@@ -2775,6 +2941,13 @@ export const GOAT_ASSIST_WEIGHT = 0.1;
  */
 export const GOAT_TEAM_LEAGUE_TITLE_WEIGHT = 100;
 export const GOAT_TEAM_CUP_TITLE_WEIGHT = 150;
+/**
+ * A Shield title on a club's board: above a second-tier title, well below a
+ * league title, and nowhere near a Continental Cup. Same reasoning as the
+ * second-tier weight — a club shouldn't build a GOAT case out of a competition
+ * it only entered by missing out on the better one.
+ */
+export const GOAT_TEAM_SHIELD_TITLE_WEIGHT = 40;
 /** Same reasoning as the player weight: a fine trophy, a weak argument. */
 export const GOAT_TEAM_DOMESTIC_CUP_TITLE_WEIGHT = 40;
 /**

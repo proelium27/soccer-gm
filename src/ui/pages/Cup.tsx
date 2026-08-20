@@ -10,7 +10,8 @@ import {
   isSwissCup, koRoundsOf,
 } from "../../core/cup/cup.js";
 import { leaguePhaseTable } from "../../core/cup/leaguePhase.js";
-import { CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS } from "../../core/constants.js";
+import type { CupCompetitionId } from "../../core/constants.js";
+import { CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS, CUP_FORMATS } from "../../core/constants.js";
 
 /** One slot in a bracket column: a finished tie, a two-legged tie with only its first leg played, a known-but-unplayed pairing, or a yet-undecided placeholder. */
 type Slot =
@@ -43,33 +44,54 @@ function prelimSlots(round: { teams: number[]; ties: CupTie[] }): Slot[] {
   return slots;
 }
 
-export function Cup() {
+/**
+ * One continental competition's page. The Cup and the Shield share everything
+ * structural — same league phase, same playoff, same two-legged knockout — so
+ * they share this component too, and differ only by which state they read and
+ * the numbers on their format (see CUP_FORMATS).
+ */
+export function Cup({ competition = "continental" }: { competition?: CupCompetitionId }) {
   const { league } = useLeague();
   const [seasonSel, setSeasonSel] = useState<number | "current">("current");
 
   if (!league) return <p className="p-3">Loading...</p>;
 
-  const currentCup = league.cup;
-  const history = [...league.cupHistory].sort((a, b) => b.season - a.season);
+  const format = CUP_FORMATS[competition];
+  const isShield = competition === "shield";
+  const currentCup = isShield ? league.shield : league.cup;
+  const history = [...(isShield ? league.shieldHistory ?? [] : league.cupHistory)]
+    .sort((a, b) => b.season - a.season);
   const hasAny = currentCup !== null || history.length > 0;
 
   if (!hasAny) {
     return (
       <div className="container-fluid p-3">
-        <h4>Continental Cup</h4>
-        {worldHasCup(league.competitions) ? (
+        <h4>{format.name}</h4>
+        {worldHasCup(league.competitions, format) ? (
           <p className="text-muted">
-            The Continental Cup is a 20-team competition played alongside the league. The top four
-            clubs of each of the four strongest leagues get in, plus the top two from each of the
-            weaker leagues. Everyone starts together in a single league phase of six games, then the
-            table splits: the top four go straight to the quarter-finals, the next eight fight
-            through a playoff round, and the bottom eight are out. It kicks off next season, and who
-            gets in is decided by this season&apos;s final league tables.
+            {isShield ? (
+              <>
+                The Continental Shield is a {format.fieldSize}-club competition played alongside the
+                league, for the clubs that just miss out on the Continental Cup. The 5th and 6th
+                placed clubs of each of the four strongest leagues get in, plus 3rd and 4th from
+                each of the weaker ones.
+              </>
+            ) : (
+              <>
+                The Continental Cup is a {format.fieldSize}-club competition played alongside the
+                league. The top four clubs of each of the four strongest leagues get in, plus the
+                top two from each of the weaker leagues.
+              </>
+            )}{" "}
+            Everyone starts together in a single league phase of six games, then the table splits:
+            the top four go straight to the quarter-finals, the next eight fight through a playoff
+            round, and the rest are out. It kicks off next season, and who gets in is decided by
+            this season&apos;s final league tables.
           </p>
         ) : (
           <p className="text-muted">
-            The Continental Cup isn&apos;t contested in this league. It needs enough top-flight
-            leagues to fill its 24-club field.
+            The {format.name} isn&apos;t contested in this league. It needs enough top-flight
+            leagues to fill its {format.fieldSize}-club field.
           </p>
         )}
       </div>
@@ -132,8 +154,13 @@ export function Cup() {
           <span className="cup-tie-score">{slot.tie.awayGoals}</span>
         </div>
         {legs && legs.length === 2 && (
+          // Each leg is its own nowrap span so a narrow column breaks the note
+          // between the legs rather than through a scoreline, which was
+          // orphaning the second digit on a line of its own.
           <div className="cup-tie-note">
-            agg over two legs · 1st {legs[0].homeGoals}–{legs[0].awayGoals} · 2nd {legs[1].awayGoals}–{legs[1].homeGoals}
+            <span className="cup-tie-seg">agg over two legs</span>{" · "}
+            <span className="cup-tie-seg">1st {legs[0].homeGoals}–{legs[0].awayGoals}</span>{" · "}
+            <span className="cup-tie-seg">2nd {legs[1].awayGoals}–{legs[1].homeGoals}</span>
           </div>
         )}
         {(slot.tie.wentToExtraTime || slot.tie.wentToPens) && (
@@ -157,12 +184,14 @@ export function Cup() {
   return (
     <div className="container-fluid p-3">
       <h4>
-        Continental Cup
+        {format.name}
         <HelpHint>
-          A 24-club competition played alongside the league. It opens with a league phase where
-          everyone plays six games in one table; the top four skip to the quarter-finals, the next
-          eight play a one-off playoff round, and the bottom twelve go out. From there it&apos;s a
-          straight knockout. If your club reaches the final, the sim pauses so you can play it.
+          A {format.fieldSize}-club competition played alongside the league
+          {isShield ? ", for the clubs that finish just below the Continental Cup places" : ""}. It
+          opens with a league phase where everyone plays six games in one table; the top four skip
+          to the quarter-finals, the next eight play a one-off playoff round, and the rest go out.
+          From there it&apos;s a straight knockout. If your club reaches the final, the sim pauses
+          so you can play it.
         </HelpHint>
       </h4>
       <div className="mb-3">
@@ -180,7 +209,7 @@ export function Cup() {
       </div>
 
       {!cup ? (
-        <p className="text-muted">No cup for this season.</p>
+        <p className="text-muted">No {isShield ? "Shield" : "cup"} for this season.</p>
       ) : (
         <>
           {cup.championTid !== null ? (
@@ -194,7 +223,7 @@ export function Cup() {
               Your club has reached the final! Sim on to play it.
             </div>
           ) : userInCup ? (
-            <p className="text-muted small mb-3">Your club is in this season&apos;s Continental Cup.</p>
+            <p className="text-muted small mb-3">Your club is in this season&apos;s {format.name}.</p>
           ) : null}
 
           {swiss && cup.leaguePhase && (
@@ -214,8 +243,15 @@ export function Cup() {
                   <span className="cup-round-count">{prelimSlots(cup.playoff).length}</span>
                 </div>
                 <div className="cup-round-body">
+                  {/* Same slot wrapper the knockout rounds use, for the same
+                      reason: the row is a share of the bracket's height, so a
+                      bare card would stretch to fill it and read as a box with
+                      a hole in the bottom of it. No row span — nothing feeds
+                      these, so they sit one per row. */}
                   {prelimSlots(cup.playoff).map((slot, i) => (
-                    <div className="cup-tie" key={i}>{renderTie(slot)}</div>
+                    <div className="cup-slot" key={i}>
+                      <div className="cup-tie">{renderTie(slot)}</div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -228,7 +264,9 @@ export function Cup() {
                 </div>
                 <div className="cup-round-body">
                   {prelimSlots(cup.playIn).map((slot, i) => (
-                    <div className="cup-tie" key={i}>{renderTie(slot)}</div>
+                    <div className="cup-slot" key={i}>
+                      <div className="cup-tie">{renderTie(slot)}</div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -247,13 +285,20 @@ export function Cup() {
                   </div>
                   <div className="cup-round-body">
                     {slots.map((slot, i) => (
+                      // The slot is the grid item and fills the whole row span;
+                      // the tie card sits centred inside it. They have to be two
+                      // elements: the connectors are drawn as a fraction of the
+                      // SLOT (the feeders' centres land at 25% and 75% of it),
+                      // while the card is only as tall as its own content.
                       <div
-                        className={`cup-tie${isFinal ? " cup-tie--final" : ""}`}
+                        className="cup-slot"
                         key={i}
                         // Span 2^round rows so this tie centres on its feeders.
                         style={{ gridRow: `span ${2 ** round}` }}
                       >
-                        {renderTie(slot)}
+                        <div className={`cup-tie${isFinal ? " cup-tie--final" : ""}`}>
+                          {renderTie(slot)}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -265,13 +310,18 @@ export function Cup() {
           {!isCupComplete(cup) && (
             <p className="text-muted small mt-3">
               Stages are played automatically as the season reaches them.{" "}
-              <Link to="/schedule">Sim on</Link> to advance the cup.
+              <Link to="/schedule">Sim on</Link> to advance it.
             </p>
           )}
         </>
       )}
     </div>
   );
+}
+
+/** The Continental Shield's page — the same component, reading the Shield's state. */
+export function Shield() {
+  return <Cup competition="shield" />;
 }
 
 /** The Swiss league-phase table, with the qualification cut lines shaded. */

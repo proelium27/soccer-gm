@@ -172,6 +172,10 @@ export function cullFreeAgentPool(league: LeagueStore): LeagueStore {
     // so a historical tie never lists a player who no longer exists.
     cupHistory: league.cupHistory.map((cup) => scrubCupLines(cup, cull)),
     cup: league.cup ? scrubCupLines(league.cup, cull) : league.cup,
+    // The Shield keeps the same per-player lines and needs the same scrub — a
+    // culled player is far more likely to have featured there than in the Cup.
+    shieldHistory: (league.shieldHistory ?? []).map((cup) => scrubCupLines(cup, cull)),
+    shield: league.shield ? scrubCupLines(league.shield, cull) : league.shield,
     domesticCups: (league.domesticCups ?? []).map((c) => scrubDomesticCupLines(c, cull)),
     domesticCupHistory: (league.domesticCupHistory ?? []).map((c) => scrubDomesticCupLines(c, cull)),
     international: scrubInternational(league.international, cull),

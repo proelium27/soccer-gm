@@ -1,5 +1,6 @@
 import type { BoxScore } from "../../engine/attribution.js";
 import type { CupPlayerLine } from "./cupStats.js";
+import type { CupCompetitionId } from "../constants.js";
 
 /**
  * One completed knockout tie. Scoreline is regulation + extra time; a shootout
@@ -134,6 +135,13 @@ export interface CupPlayIn {
  * `seeds` records each club's league-phase / bracket seed for display.
  */
 export interface CupState {
+  /**
+   * Which continental competition this is. Everything that differs between them
+   * — qualification slots, prize money, rng streams, display name — is looked
+   * up from CUP_FORMATS by this id (see cupFormat in cup.ts). Absent on saves
+   * from before the split; migrate stamps those "continental".
+   */
+  competition: CupCompetitionId;
   /** The season this cup is played during (qualifiers came from season − 1's tables). */
   season: number;
   name: string;

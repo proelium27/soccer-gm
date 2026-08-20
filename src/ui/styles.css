@@ -63,7 +63,17 @@
      cup bracket. */
   --sg-cup: oklch(0.72 0.11 200);
   --sg-cup-wash: oklch(0.72 0.11 200 / 0.14);
-  --sg-cup-line: oklch(0.72 0.11 200 / 0.6);
+  /* The bracket's connector elbows. Do not remove because a grep says nothing
+     uses it: the only two references live in pseudo-element `background`
+     declarations, and an undefined custom property there fails silently, so the
+     connectors just stop being drawn with nothing to catch it. */
+  --sg-cup-line: oklch(0.72 0.11 200 / 0.45);
+  /* Continental Shield accent — violet, a clear hue step from the Cup's teal,
+     and deliberately DARKER as well. The two qualification bars sit one row
+     apart with nothing else separating them, so a lightness gap is what keeps
+     them apart in grayscale and for a colour-blind viewer; hue alone would not.
+     Still light enough to read as a 3px bar on the dark surface. */
+  --sg-shield: oklch(0.62 0.16 300);
 
   --sg-radius: 6px;
   --sg-shadow: 0 0.5rem 1.5rem oklch(0.12 0.02 155 / 0.45);
@@ -360,15 +370,50 @@ a:hover {
    let the page background show through as thin vertical lines between
    stats, reading like bold column dividers. box-shadow isn't subject to
    that gap. */
-/* Continental Cup qualification zone (a tier-1 table's top 4). Declared
-   before the user/champion rules so those richer highlights win when a
-   qualifying row is also your club or the champion — the top-4 tint still
-   marks the other qualification slots. */
-.cup-qualification > td {
-  box-shadow: inset 0 0 0 9999px var(--sg-cup-wash);
+/* Continental qualification zones.
+   A short bar on the row's leading edge, the convention every real league table
+   uses (FotMob, BBC, ESPN) and the one the user asked for. It deliberately does
+   NOT tint the row: row background here already carries win/loss, your club and
+   the champion, and adding a fourth meaning to that channel both muddied the
+   table and lost every fight it picked — the champion is always a Cup place, so
+   its gold simply overrode the zone and the top-four never read as four rows.
+   An edge bar is independent of all of them.
+   Absolutely positioned so it can't indent the position number; .qual-pos is
+   its containing block. */
+.qual-pos {
+  position: relative;
 }
-.cup-qualification-cut > td {
-  border-bottom: 2px solid var(--sg-cup-line);
+.qual-bar {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+}
+.qual-bar-cup {
+  background: var(--sg-cup);
+}
+.qual-bar-shield {
+  background: var(--sg-shield);
+}
+/* In the legend the same bar has no row to hang off, so it needs its own box. */
+.qual-key-swatch {
+  position: static;
+  display: inline-block;
+  height: 0.85em;
+  border-radius: 2px;
+  vertical-align: -0.1em;
+}
+.qual-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+}
+.qual-key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
 }
 .team-highlight > td {
   box-shadow: inset 0 0 0 9999px var(--sg-user-wash);
@@ -1870,7 +1915,16 @@ a:hover {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  flex: 0 0 172px;
+  /* 172px is the floor, sized so the widest bracket the sim builds (a six-round
+     domestic cup) fits 1440px without scrolling, and the column still never
+     shrinks below it. It MAY grow into whatever is left over, which is not the
+     thing the note above warns about: growth is bounded by the flex container,
+     so it cannot push the total past the viewport or clip the final the way an
+     `auto` basis (max-content) would. This matters because a four-column
+     continental bracket otherwise left a third of the width empty while
+     truncating club names. Capped so a two-column bracket doesn't sprawl. */
+  flex: 1 0 172px;
+  max-width: 300px;
 }
 .cup-round-title {
   font-size: var(--sg-text-xs);
@@ -1900,39 +1954,82 @@ a:hover {
   gap: 0.3rem;
 }
 
+/* The tree draws connectors in the gutter, so it needs a gutter to draw them
+   in: at the shared 0.5rem the elbow had 2px of clearance on one side and 6px
+   on the other, and read as a line hugging the cards rather than a join. */
+.cup-bracket--tree {
+  gap: 1.25rem;
+}
+
 /* --- fixed bracket: grid rows so every tie centres on its two feeders ---- */
+/* `1fr` rather than `auto`, and this is what makes the connectors land. Every
+   column of a tree holds the same number of rows (round r has 2^(n-1-r) ties
+   each spanning 2^r rows), but each column is its OWN grid, so content-sized
+   rows are only equal while every card is the same height. One tie carrying an
+   extra note — "2-5 on pens" under the aggregate — grew its row in that column
+   alone and slid every later round out of step with its feeders. Measured, the
+   quarter-finals ran 88/88/111/88 against semi-final rows of a flat 93.75, and
+   the elbows missed the cards they were drawn for by up to 8px. Equal
+   fractions of a height the flex row already shares give all four columns the
+   same track size, and the endpoints land within a pixel. */
 .cup-bracket--tree .cup-round-body {
   flex: 1;
   display: grid;
-  grid-auto-rows: minmax(var(--cup-row, 3.1rem), auto);
-  align-items: center;
+  grid-auto-rows: minmax(var(--cup-row, 3.1rem), 1fr);
   row-gap: 0.3rem;
 }
-.cup-bracket--tree .cup-tie { position: relative; }
-/* The elbow: a vertical line spanning half this tie's slot, joining the two
-   feeders' centres, plus a stub into the box. Drawn on the tie that RECEIVES,
-   so a round only ever draws its own incoming edges.
+/* The grid item, spanning this tie's whole row range. The card inside is only
+   as tall as its content, so the slot is what the connectors measure against:
+   a round-r tie spans 2^r rows and its two feeders occupy the upper and lower
+   halves of exactly that range, which puts their centres at 25% and 75% of the
+   slot. Drawing off the card instead made every line the wrong length — a
+   semi-final connector spanned 43px where its feeders were 93px apart, so it
+   joined nothing and just floated in the gap. */
+.cup-slot {
+  display: flex;
+  align-items: center;
+  position: relative;
+  min-width: 0;
+}
+.cup-slot > .cup-tie { width: 100%; }
+/* The join, drawn on the tie that RECEIVES, so a round only ever draws its own
+   incoming edges. Three of its four lines are the borders of one box spanning
+   the left half of the gutter, from the upper feeder's centre to the lower
+   one's: a stub out of each feeder (top and bottom borders) meeting a vertical
+   elbow (right border). `::after` adds the fourth, the stub from the elbow
+   into this tie.
+
+       feeder ─┐
+               ├─ tie
+       feeder ─┘
+
+   The stubs are not decoration. Without them the elbow was a bare vertical
+   tick floating in the gutter, touching neither the cards it came from nor the
+   one it fed, which is the shape a bracket is read by.
    Only on `--linked` rounds, meaning a knockout round whose feeders are the
    column immediately left of it. The qualifying rounds hanging off the front
    are NOT linked: a quarter-final pairs a top-four seed with one playoff
    winner, so an elbow there would claim the two playoff ties beside it feed
    that quarter-final, which is false. */
-.cup-bracket--tree .cup-round--linked .cup-tie::before {
+.cup-bracket--tree .cup-round--linked .cup-slot::before {
   content: "";
   position: absolute;
   right: 100%;
-  top: -25%;
+  top: 25%;
   height: 50%;
-  width: 1px;
-  background: var(--sg-cup-line);
-  margin-right: 0.375rem;
+  width: 0.7rem;
+  margin-right: 0.55rem;
+  border: 0 solid var(--sg-cup-line);
+  border-width: 1px 1px 1px 0;
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
 }
-.cup-bracket--tree .cup-round--linked .cup-tie::after {
+.cup-bracket--tree .cup-round--linked .cup-slot::after {
   content: "";
   position: absolute;
   right: 100%;
   top: 50%;
-  width: 0.375rem;
+  width: 0.55rem;
   height: 1px;
   background: var(--sg-cup-line);
 }
@@ -1946,6 +2043,13 @@ a:hover {
   border: 1px solid var(--sg-border);
   border-radius: var(--sg-radius);
   background: var(--sg-surface);
+  /* A grid item defaults to min-width:auto, i.e. it refuses to shrink below its
+     min-content. A long club name or a two-legged aggregate note then inflated
+     the box past its fixed-width column and it overlapped the next round:
+     measured, a 172px playoff column held 224px boxes, 52px of which landed on
+     top of the quarter-finals. The column can't grow to absorb that (see
+     .cup-round), so the box has to be allowed to shrink instead. */
+  min-width: 0;
 }
 .cup-tie > .cup-tie-row:first-child {
   border-top-left-radius: calc(var(--sg-radius) - 1px);
@@ -1982,6 +2086,10 @@ a:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Without this the ellipsis never fires: as a flex item the name keeps
+     min-width:auto, so its nowrap text sets a floor the whole tie has to widen
+     to meet. It has to be allowed to shrink before it will agree to truncate. */
+  min-width: 0;
 }
 .cup-team-winner .cup-team-name { font-weight: var(--sg-weight-semibold); }
 .cup-team-user .cup-team-name { color: var(--sg-user); font-weight: var(--sg-weight-semibold); }
@@ -2004,6 +2112,10 @@ a:hover {
   border-top: 1px solid var(--sg-border);
   padding: 0.15rem 0.5rem;
   text-align: right;
+}
+/* One unbreakable piece of the note: a label or a single leg's scoreline. */
+.cup-tie-seg {
+  white-space: nowrap;
 }
 .cup-tie-tbd {
   color: var(--sg-text-faint);
@@ -2067,8 +2179,8 @@ a:hover {
     align-items: stretch;
     gap: 0.3rem;
   }
-  .cup-bracket--tree .cup-round--linked .cup-tie::before,
-  .cup-bracket--tree .cup-round--linked .cup-tie::after {
+  .cup-bracket--tree .cup-round--linked .cup-slot::before,
+  .cup-bracket--tree .cup-round--linked .cup-slot::after {
     display: none;
   }
 }
@@ -2088,16 +2200,9 @@ a:hover {
   color: var(--sg-warn);
   font-weight: 700;
 }
-.cup-zone-key {
-  display: inline-block;
-  width: 0.7em;
-  height: 0.7em;
-  border-radius: 2px;
-  background: var(--sg-cup-wash);
-  border-left: 3px solid var(--sg-cup-line);
-  vertical-align: -1px;
-  margin-right: 0.15rem;
-}
+/* The standings legend now reuses .qual-marker so the key is literally the same
+   mark that appears in the rows; the old swatches (a wash plus a 3px stripe)
+   matched nothing on screen once the zones moved to markers. */
 /* Swiss league-phase table: the three qualification zones shaded down the
    standings, and a legend swatch for each. Reuses the cup/positive/negative
    theme washes so it reads the same in light and dark. */

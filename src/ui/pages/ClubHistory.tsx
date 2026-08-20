@@ -6,6 +6,7 @@ import { usePlayerMap } from "../usePlayerMap.js";
 import { computeClubHistory, type ClubIndividualHonour, type ClubSeasonRecord } from "../../core/clubHistory.js";
 import { competitionOf, countriesOf } from "../../core/competitions.js";
 import { worldHasCup } from "../../core/cup/cup.js";
+import { SHIELD_FORMAT } from "../../core/constants.js";
 import type { Player } from "../../core/players/types.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
@@ -103,6 +104,7 @@ export function ClubHistory() {
 
   const countries = countriesOf(league.competitions);
   const hasCup = worldHasCup(league.competitions);
+  const hasShield = worldHasCup(league.competitions, SHIELD_FORMAT);
 
   const titleYears = (seasons: number[]) => seasons.map((s) => seasonYear(s)).join(", ");
 
@@ -167,6 +169,21 @@ export function ClubHistory() {
                       ? titleYears(history.cupTitles)
                       : history.cupFinals.length > 0
                         ? `${history.cupFinals.length} final${history.cupFinals.length === 1 ? "" : "s"} lost`
+                        : "—"
+                  }
+                />
+              </div>
+            )}
+            {hasShield && (
+              <div className="col-6 col-md-3">
+                <StatCard
+                  label="Continental Shields"
+                  value={history.shieldTitles.length}
+                  sub={
+                    history.shieldTitles.length > 0
+                      ? titleYears(history.shieldTitles)
+                      : history.shieldFinals.length > 0
+                        ? `${history.shieldFinals.length} final${history.shieldFinals.length === 1 ? "" : "s"} lost`
                         : "—"
                   }
                 />
@@ -310,6 +327,7 @@ export function ClubHistory() {
                 if (s.relegated) notes.push("Relegated");
                 const cupNote = cupRunNote(s.cupRun);
                 if (cupNote) notes.push(cupNote);
+                if (s.shieldRun) notes.push(`Shield ${s.shieldRun.note}`);
                 if (s.domesticCupRun) notes.push(`Domestic cup ${s.domesticCupRun.note.toLowerCase()}`);
                 if (s.treble) notes.push("The treble");
                 return (

@@ -102,6 +102,19 @@ export interface LeagueStore {
   /** Every completed Continental Cup, oldest first (archived at offseason rollover). */
   cupHistory: CupState[];
   /**
+   * The Continental Shield being played during the current season, or null when
+   * none runs (season 1, a world too small to field one, or a save from before
+   * the Shield existed — those pick one up at their next offseason).
+   *
+   * Held as its own field rather than folded into a list of cups: `cup` has
+   * some thirty readers across the sim and the UI, and a list would turn every
+   * one of them into a lookup. The two share everything structural — see
+   * CUP_FORMATS for the handful of numbers that differ.
+   */
+  shield: CupState | null;
+  /** Every completed Continental Shield, oldest first (archived at offseason rollover). */
+  shieldHistory: CupState[];
+  /**
    * This season's domestic cups, one per country — a straight knockout across
    * both of a country's divisions, drawn open round by round. Unlike the
    * Continental Cup these run from season 1 (nothing has to qualify), so the
@@ -212,6 +225,9 @@ export function createLeagueState(
     // and there is none yet. The first Continental Cup runs in season 2.
     cup: null,
     cupHistory: [],
+    // Same for the Shield — both are seeded together at the first offseason.
+    shield: null,
+    shieldHistory: [],
     // Domestic cups need no qualification, so unlike the Continental Cup they
     // run from season 1. Drawn with no tables to rank on, which the field
     // builder handles by falling back to tid order.

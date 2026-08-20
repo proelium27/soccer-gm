@@ -109,6 +109,7 @@ function cup(
     boxScore: box(linesFor(winnerTid), linesFor(loserTid)),
   };
   return {
+    competition: "continental",
     season: SEASON,
     name: "Continental Cup",
     teams: [winnerTid, loserTid],

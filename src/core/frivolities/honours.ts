@@ -391,7 +391,8 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
       career,
       honours: h ?? {
         ballonDOr: 0, worldXI: 0, playerOfSeason: 0, goldenBoot: 0,
-        teamOfSeason: 0, leagueTitles: 0, cupTitles: 0, domesticCupTitles: 0, worldCups: 0,
+        teamOfSeason: 0, leagueTitles: 0, cupTitles: 0, shieldTitles: 0,
+        domesticCupTitles: 0, worldCups: 0,
       },
       tally,
       ballon: b,

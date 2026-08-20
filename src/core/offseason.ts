@@ -40,7 +40,7 @@ import { competitionOf } from "./competitions.js";
 import { simThroughInternational, confederationCupChampions } from "./international/index.js";
 import { carryIntlInjuries } from "./injuries.js";
 import { hashInts, mulberry32 } from "../engine/rng.js";
-import { NEWS_POSITION_CHANGE_OVR, difficultyProfile } from "./constants.js";
+import { NEWS_POSITION_CHANGE_OVR, SHIELD_FORMAT, difficultyProfile } from "./constants.js";
 
 /** rng-stream tag for rolling carried-over international injury durations. */
 const INTL_INJURY_STREAM = 840;
@@ -583,10 +583,13 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       ...positionChangeEvents.filter((e) => !retiredPids.has(e.pid)),
     ],
     winterMarketRunSeason: null,
-    // Archive the season's completed Continental Cup and seed the next one
-    // from the tier-1 tables just decided above (top CUP_TEAMS_PER_LEAGUE of
-    // each). buildCupState returns null if a full bracket can't be fielded.
+    // Archive the season's completed continental competitions and seed next
+    // season's from the tier-1 tables just decided above. Each format takes its
+    // own slice of every table (the Cup from the top, the Shield from directly
+    // below it — see CUP_FORMATS), so the two fields can't overlap.
+    // buildCupState returns null if that format's field can't be filled.
     cup: buildCupState(league.competitions, tablesByCompId, nextSeason),
+    shield: buildCupState(league.competitions, tablesByCompId, nextSeason, SHIELD_FORMAT),
     // International football already played out (in stages) before this advance;
     // carry its state forward, resetting the per-offseason stage marker (and the
     // just-consumed injury carry-over list) so the new season starts clean.
@@ -597,6 +600,9 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     cupHistory: league.cup
       ? [...league.cupHistory, archiveCup(league.cup)]
       : league.cupHistory,
+    shieldHistory: league.shield
+      ? [...league.shieldHistory, archiveCup(league.shield)]
+      : league.shieldHistory,
     // Domestic cups roll over the same way. Note `teams` here is the post-
     // promotion/relegation roster of clubs, so a promoted club enters next
     // season's cup as a top-flight one, while the ranking that decides who has

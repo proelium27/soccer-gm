@@ -5,14 +5,34 @@ import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { teamSlots } from "../../core/lineup/formations.js";
 import { tierOf } from "../../core/competitions.js";
-import { worldHasCup, cupSlotsForCompetition } from "../../core/cup/cup.js";
+import { worldHasCup, cupSlotsForCompetition, cupSlotRange } from "../../core/cup/cup.js";
+import { SHIELD_FORMAT } from "../../core/constants.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
-import { seasonYear } from "../format.js";
+import { seasonYear, ordinal } from "../format.js";
 
 type StandingsSortKey =
   | "pos" | "team" | "p" | "w" | "d" | "l" | "gf" | "ga" | "gd" | "pts" | "ovr" | "pot";
+
+/**
+ * The qualification bar on a row's leading edge, or null if the club's finish
+ * earns nothing. Continental Cup and Shield get their own colour; the two zones
+ * are always contiguous and the Cup's always sits above the Shield's, so their
+ * order down the table is a signal in its own right rather than colour alone.
+ * Each bar also carries a title, and the legend below the table names both.
+ */
+function qualBarClass(isCup: boolean, isShield: boolean): string | null {
+  if (isCup) return "qual-bar qual-bar-cup";
+  if (isShield) return "qual-bar qual-bar-shield";
+  return null;
+}
+
+function qualTitle(isCup: boolean, isShield: boolean): string | undefined {
+  if (isCup) return "Continental Cup place";
+  if (isShield) return "Continental Shield place";
+  return undefined;
+}
 
 export function Standings() {
   const { league } = useLeague();
@@ -43,6 +63,11 @@ export function Standings() {
   const comp = league.competitions.find((c) => c.id === compId);
   const showCupZone = isTier1 && !!comp && worldHasCup(league.competitions);
   const cupSlots = comp ? cupSlotsForCompetition(comp) : 0;
+  // Directly below it, the Continental Shield's places. A world can field a Cup
+  // and not a Shield (it needs more top-flight leagues), so this is asked
+  // separately rather than assumed to come along with the Cup zone.
+  const showShieldZone = isTier1 && !!comp && worldHasCup(league.competitions, SHIELD_FORMAT);
+  const [shieldFrom, shieldTo] = comp ? cupSlotRange(comp, SHIELD_FORMAT) : [0, -1];
 
   const seasonOptions = [...league.seasonHistory.map((h) => h.season)].sort((a, b) => b - a);
 
@@ -157,19 +182,27 @@ export function Standings() {
               const isUser = row.tid === league.meta.userTid;
               const isChampion = row.tid === championTid;
               const isCupSpot = showCupZone && pos < cupSlots;
-              const isCupCut = showCupZone && pos === cupSlots - 1;
+              // pos is 0-based; the Shield range is 1-based finishing places.
+              const isShieldSpot = showShieldZone && pos + 1 >= shieldFrom && pos + 1 <= shieldTo;
               const rowClass = [
-                isCupSpot && "cup-qualification",
-                isCupCut && "cup-qualification-cut",
                 isUser && "team-highlight",
                 isChampion && "champion-highlight",
               ]
                 .filter(Boolean)
                 .join(" ") || undefined;
+              const qualBar = qualBarClass(isCupSpot, isShieldSpot);
               const rating = ratingByTid.get(row.tid) ?? null;
               return (
                 <tr key={row.tid} className={rowClass}>
-                  <td className="text-end">{pos + 1}</td>
+                  <td className="text-end qual-pos">
+                    {/* Qualification is a bar on the row's leading edge, the
+                        league-table convention. It is absolutely positioned, so
+                        it neither indents the number nor competes with the row
+                        background, which already carries win/loss, your club
+                        and the champion. */}
+                    {qualBar && <span className={qualBar} title={qualTitle(isCupSpot, isShieldSpot)} />}
+                    {pos + 1}
+                  </td>
                   <td>
                     <span className="d-inline-flex align-items-center gap-1">
                       <ClubCrest tid={row.tid} colors={team?.colors ?? ["#888888", "#888888"]} />
@@ -194,9 +227,22 @@ export function Standings() {
             })}
           </tbody>
         </table>
-        {showCupZone && (
-          <p className="text-muted small mt-1 mb-0">
-            <span className="cup-zone-key" /> Top {cupSlots} qualify for the Continental Cup.
+        {(showCupZone || showShieldZone) && (
+          <p className="qual-key text-muted small mt-2 mb-0">
+            {showCupZone && (
+              <span className="qual-key-item">
+                <span className="qual-bar qual-bar-cup qual-key-swatch" /> Top {cupSlots} to the Continental Cup
+              </span>
+            )}
+            {showShieldZone && (
+              <span className="qual-key-item">
+                <span className="qual-bar qual-bar-shield qual-key-swatch" />{" "}
+                {shieldFrom === shieldTo
+                  ? ordinal(shieldFrom)
+                  : `${ordinal(shieldFrom)} and ${ordinal(shieldTo)}`}
+                {" "}to the Continental Shield
+              </span>
+            )}
           </p>
         )}
         </>

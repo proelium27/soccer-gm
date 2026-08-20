@@ -49,6 +49,7 @@ export function RetiredPlayerProfile({
 
   const honors = computeArchivedHonors(archived, league.seasonHistory, {
     cupHistory: league.cupHistory,
+    shieldHistory: league.shieldHistory,
     domesticCupHistory: league.domesticCupHistory,
   });
 
@@ -117,6 +118,7 @@ export function RetiredPlayerProfile({
                   <AwardPill label="Team of the Season" seasons={honors.teamOfSeason} />
                   <AwardPill label="League Champion" seasons={honors.leagueTitles} icon="🏆" />
                   <AwardPill label="Continental Cup" seasons={honors.continentalCups} />
+                  <AwardPill label="Continental Shield" seasons={honors.shields} />
                   <AwardPill label="Domestic Cup" seasons={honors.domesticCups} />
                 </div>
               )}

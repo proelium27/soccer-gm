@@ -36,6 +36,8 @@ export interface ClubSeasonRecord {
    * it didn't take part or the world fields no cup.
    */
   cupRun: { note: string; isChampion: boolean; isRunnerUp: boolean } | null;
+  /** The same, for the Continental Shield. A club plays one competition or the other, never both. */
+  shieldRun: { note: string; isChampion: boolean; isRunnerUp: boolean } | null;
   /**
    * The club's domestic cup run this season — same shape as `cupRun`, and null
    * for a season played before the save had domestic cups.
@@ -74,6 +76,10 @@ export interface ClubHistory {
   trebles: number[];
   /** Seasons the club reached the Continental Cup final but lost it, newest first. */
   cupFinals: number[];
+  /** Seasons the club won the Continental Shield, newest first. */
+  shieldTitles: number[];
+  /** Seasons the club reached the Continental Shield final but lost it, newest first. */
+  shieldFinals: number[];
   playerOfSeason: ClubIndividualHonour[];
   goldenBoots: ClubIndividualHonour[];
   teamOfSeasonSelections: ClubIndividualHonour[];
@@ -122,6 +128,7 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
   // club's per-season cup run is a lookup keyed by season. Guard for old saves
   // and worlds that field no cup — both leave this empty.
   const cupBySeason = new Map((league.cupHistory ?? []).map((c) => [c.season, c]));
+  const shieldBySeason = new Map((league.shieldHistory ?? []).map((c) => [c.season, c]));
   // A club only ever plays its own country's domestic cup, so one entry per
   // season is enough here even though eight cups run at once.
   const domesticBySeason = new Map(
@@ -167,6 +174,8 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
 
     const cup = cupBySeason.get(entry.season);
     const cupRun = cup ? cupRunSummary(cup, tid) : null;
+    const shield = shieldBySeason.get(entry.season);
+    const shieldRun = shield ? cupRunSummary(shield, tid) : null;
 
     const domesticCup = domesticBySeason.get(entry.season);
     const domesticRound = domesticCup ? clubDomesticRun(domesticCup, tid) : null;
@@ -197,6 +206,7 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
       ballonDOrPid,
       worldTeamOfYearPids,
       cupRun,
+      shieldRun,
       domesticCupRun,
       treble: position === 1 && tier === 1
         && cupRun?.isChampion === true
@@ -254,6 +264,12 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
       .map((r) => r.season),
     cupFinals: newest
       .filter((r) => r.cupRun?.isRunnerUp)
+      .map((r) => r.season),
+    shieldTitles: newest
+      .filter((r) => r.shieldRun?.isChampion)
+      .map((r) => r.season),
+    shieldFinals: newest
+      .filter((r) => r.shieldRun?.isRunnerUp)
       .map((r) => r.season),
     domesticCupTitles: newest
       .filter((r) => r.domesticCupRun?.isChampion)
