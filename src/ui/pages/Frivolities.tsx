@@ -232,7 +232,15 @@ function termPoints(points: number): string {
  * The full working behind one row's score: every component, every term, and the
  * `count x weight = points` that produced it.
  */
-function GoatBreakdown({ components, score }: { components: GoatComponent[]; score: number }) {
+/**
+ * The expanded score breakdown, exported for `test/ui/goatBreakdown.test.tsx`.
+ *
+ * Worth testing directly because a term reaching the UI with no entry in
+ * TERM_LABELS falls back to its raw key, which renders as a plausible-looking
+ * label rather than an error. That is invisible to a typecheck: the map is a
+ * Record<string, string> and any key type-checks against it.
+ */
+export function GoatBreakdown({ components, score }: { components: GoatComponent[]; score: number }) {
   return (
     <div className="small">
       <div className="text-muted mb-2">
