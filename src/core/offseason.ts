@@ -28,6 +28,8 @@ import { computeStandings, computeTeamSeasonStats, type StandingsRow } from "./s
 import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
 import { computeWorldAwards } from "./worldAwards.js";
 import { buildCupState } from "./cup/cup.js";
+import { buildDomesticCups } from "./domesticCup/cup.js";
+import { archiveDomesticCup } from "./domesticCup/archive.js";
 import { computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence } from "./promotion.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
@@ -303,6 +305,11 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     competitions: league.competitions,
     championTidByCompId,
     cup: league.cup,
+    // The domestic cups that ran during this season, read before the archive a
+    // few steps below folds their box scores away. Archiving keeps the champion
+    // and the per-player lines this needs, so the order isn't load-bearing, but
+    // reading the live ones keeps it obvious which season is being judged.
+    domesticCups: league.domesticCups,
     worldCupChampion:
       league.international.history.find((h) => h.season === endingSeason)?.champion ?? null,
   });
@@ -593,6 +600,15 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     shieldHistory: league.shield
       ? [...league.shieldHistory, archiveCup(league.shield)]
       : league.shieldHistory,
+    // Domestic cups roll over the same way. Note `teams` here is the post-
+    // promotion/relegation roster of clubs, so a promoted club enters next
+    // season's cup as a top-flight one, while the ranking that decides who has
+    // to enter at the preliminary round comes from the tables just decided.
+    domesticCups: buildDomesticCups(league.competitions, teams, tablesByCompId, nextSeason),
+    domesticCupHistory: [
+      ...(league.domesticCupHistory ?? []),
+      ...(league.domesticCups ?? []).map(archiveDomesticCup),
+    ],
     nextPid,
     retiredPlayers,
     seasonHistory: [

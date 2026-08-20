@@ -2,6 +2,7 @@ import type { LeagueStore } from "./leagueState.js";
 import type { StandingsRow } from "./standings.js";
 import { tierOf } from "./competitions.js";
 import { cupRunSummary } from "./cup/cup.js";
+import { clubDomesticRun, clubDomesticRunLabel } from "./domesticCup/cup.js";
 
 /** One completed season from a single club's perspective. */
 export interface ClubSeasonRecord {
@@ -37,6 +38,16 @@ export interface ClubSeasonRecord {
   cupRun: { note: string; isChampion: boolean; isRunnerUp: boolean } | null;
   /** The same, for the Continental Shield. A club plays one competition or the other, never both. */
   shieldRun: { note: string; isChampion: boolean; isRunnerUp: boolean } | null;
+  /**
+   * The club's domestic cup run this season — same shape as `cupRun`, and null
+   * for a season played before the save had domestic cups.
+   */
+  domesticCupRun: { note: string; isChampion: boolean; isRunnerUp: boolean } | null;
+  /**
+   * League title, Continental Cup and domestic cup, all in the same season. The
+   * thing every club is chasing and almost none of them get.
+   */
+  treble: boolean;
 }
 
 /** An individual honour won by one of the club's players in a given season. */
@@ -59,6 +70,10 @@ export interface ClubHistory {
   relegations: number[];
   /** Seasons the club won the Continental Cup, newest first. */
   cupTitles: number[];
+  /** Seasons the club won its domestic cup, newest first. */
+  domesticCupTitles: number[];
+  /** Seasons the club won its league, the Continental Cup and its domestic cup. */
+  trebles: number[];
   /** Seasons the club reached the Continental Cup final but lost it, newest first. */
   cupFinals: number[];
   /** Seasons the club won the Continental Shield, newest first. */
@@ -114,6 +129,13 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
   // and worlds that field no cup — both leave this empty.
   const cupBySeason = new Map((league.cupHistory ?? []).map((c) => [c.season, c]));
   const shieldBySeason = new Map((league.shieldHistory ?? []).map((c) => [c.season, c]));
+  // A club only ever plays its own country's domestic cup, so one entry per
+  // season is enough here even though eight cups run at once.
+  const domesticBySeason = new Map(
+    (league.domesticCupHistory ?? [])
+      .filter((c) => c.teams.includes(tid))
+      .map((c) => [c.season, c]),
+  );
 
   const records: ClubSeasonRecord[] = ordered.map((entry, i) => {
     const compId = entry.compsByTid[tid];
@@ -155,6 +177,19 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
     const shield = shieldBySeason.get(entry.season);
     const shieldRun = shield ? cupRunSummary(shield, tid) : null;
 
+    const domesticCup = domesticBySeason.get(entry.season);
+    const domesticRound = domesticCup ? clubDomesticRun(domesticCup, tid) : null;
+    const domesticCupRun = domesticCup && domesticRound !== null
+      ? {
+          note: clubDomesticRunLabel(domesticCup, tid)!,
+          isChampion: domesticCup.championTid === tid,
+          // Runner-up = went out in the last round of a cup that has a winner.
+          isRunnerUp: domesticRound === domesticCup.totalRounds - 1
+            && domesticCup.championTid !== null
+            && domesticCup.championTid !== tid,
+        }
+      : null;
+
     return {
       season: entry.season,
       compId,
@@ -172,6 +207,10 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
       worldTeamOfYearPids,
       cupRun,
       shieldRun,
+      domesticCupRun,
+      treble: position === 1 && tier === 1
+        && cupRun?.isChampion === true
+        && domesticCupRun?.isChampion === true,
     };
   });
 
@@ -232,6 +271,10 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
     shieldFinals: newest
       .filter((r) => r.shieldRun?.isRunnerUp)
       .map((r) => r.season),
+    domesticCupTitles: newest
+      .filter((r) => r.domesticCupRun?.isChampion)
+      .map((r) => r.season),
+    trebles: newest.filter((r) => r.treble).map((r) => r.season),
     playerOfSeason: newest
       .filter((r) => r.playerOfSeasonPid !== null)
       .map((r) => ({ season: r.season, compId: r.compId, pid: r.playerOfSeasonPid! })),

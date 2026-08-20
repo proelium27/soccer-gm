@@ -75,6 +75,8 @@ function makeLeagueStore(seed: number): LeagueStore {
     cupHistory: [],
     shield: null,
     shieldHistory: [],
+    domesticCups: [],
+    domesticCupHistory: [],
     international: { qualifying: null, tournament: null, history: [], qualifyingHistory: [], powerRankings: [], stage: null, stageInjuries: [] },
     powerRankingHistory: [],
     godMode: false,

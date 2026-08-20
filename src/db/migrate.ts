@@ -13,6 +13,7 @@ import { chargeSeasonStart, wageBill, financeScale } from "../core/finance/budge
 import { englandCompetitions } from "../core/competitions.js";
 import { cullOnLoad } from "../core/players/freeAgentCull.js";
 import { archiveCup } from "../core/cup/archive.js";
+import { archiveDomesticCup } from "../core/domesticCup/archive.js";
 
 /**
  * A team as it may exist in a save written before M6 added the finance
@@ -55,8 +56,8 @@ function fallbackAcademyBase(tid: number): number {
 
 /** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking / cards. */
 type SeasonStatsAnyVersion =
@@ -347,6 +348,16 @@ function migrateFields(league: LeagueStore): LeagueStore {
         // record left, so dropping them here would score every past season's
         // cup as zero without failing.
         cup: seasonCup ? { ...seasonCup, competition: seasonCup.competition ?? "continental", leaguePhase: seasonCup.leaguePhase ?? null, playoff: seasonCup.playoff ?? null, playIn: seasonCup.playIn ?? null, twoLegged: seasonCup.twoLegged ?? false, koLegs: seasonCup.koLegs ?? null, statLines: seasonCup.statLines ?? null } : null,
+        // Same idea for the domestic cups of that season. A save from before
+        // they existed has none, so the term is simply absent and the season
+        // scores exactly as it did — which is also why the whole backfill stays
+        // stable rather than re-ranking old seasons on a trophy nobody played
+        // for. `statLines` is what an archived cup keeps, and domesticStatsByPid
+        // reads it.
+        domesticCups: [
+          ...(anyVersion.domesticCupHistory ?? []),
+          ...(anyVersion.domesticCups ?? []),
+        ].filter((c) => c.season === h.season),
         worldCupChampion:
           anyVersion.international?.history?.find((t) => t.season === h.season)?.champion ?? null,
       });
@@ -401,6 +412,19 @@ function migrateFields(league: LeagueStore): LeagueStore {
     // next offseason, exactly as pre-cup saves did for the Continental Cup.
     shield: anyVersion.shield ?? null,
     shieldHistory: (anyVersion.shieldHistory ?? []).map((c) => archiveCup(c)),
+    // Pre-domestic-cup saves start with none rather than having one drawn
+    // mid-season: a cup drawn in, say, February would have to cram its rounds
+    // into the matchdays that are left, and half of them are already gone. The
+    // next offseason builds a full one, so an existing save picks domestic cups
+    // up from the following season onward — the same deal the Continental Cup
+    // gave saves that predated it.
+    domesticCups: anyVersion.domesticCups ?? [],
+    // Archived domestic cups collapse to per-player lines and drop their box
+    // scores, same as the Continental Cup's (see archiveDomesticCup). Only
+    // reachable for a save written by an earlier build of this feature.
+    domesticCupHistory: (anyVersion.domesticCupHistory ?? []).map((c) => archiveDomesticCup({
+      ...c, statLines: c.statLines ?? null,
+    })),
     // Pre-feature saves start with no power-rankings history; snapshots can't
     // be reconstructed retroactively (past rosters/matches are gone), so they
     // simply accrue from the next simmed matchdays onward.

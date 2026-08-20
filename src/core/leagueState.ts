@@ -10,6 +10,8 @@ import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { ActiveLoan, LoanListing, LoanRejection } from "./loans.js";
 import type { Competition } from "./competitions.js";
 import type { CupState } from "./cup/types.js";
+import type { DomesticCupState } from "./domesticCup/types.js";
+import { buildDomesticCups } from "./domesticCup/cup.js";
 import type { InternationalState } from "./international/types.js";
 import { emptyInternationalState } from "./international/index.js";
 import { generateWorld } from "./league/generate.js";
@@ -112,6 +114,15 @@ export interface LeagueStore {
   shield: CupState | null;
   /** Every completed Continental Shield, oldest first (archived at offseason rollover). */
   shieldHistory: CupState[];
+  /**
+   * This season's domestic cups, one per country — a straight knockout across
+   * both of a country's divisions, drawn open round by round. Unlike the
+   * Continental Cup these run from season 1 (nothing has to qualify), so the
+   * list is only empty on a world too small to field one. See core/domesticCup.
+   */
+  domesticCups: DomesticCupState[];
+  /** Every completed domestic cup, oldest first (archived at offseason rollover). */
+  domesticCupHistory: DomesticCupState[];
   /**
    * National-team football, played entirely inside the offseason on a two-year
    * cycle (odd seasons qualify, even seasons play the tournament). Starts empty
@@ -217,6 +228,11 @@ export function createLeagueState(
     // Same for the Shield — both are seeded together at the first offseason.
     shield: null,
     shieldHistory: [],
+    // Domestic cups need no qualification, so unlike the Continental Cup they
+    // run from season 1. Drawn with no tables to rank on, which the field
+    // builder handles by falling back to tid order.
+    domesticCups: buildDomesticCups(competitions, teams, new Map(), 1),
+    domesticCupHistory: [],
     international: emptyInternationalState(),
     godMode: false,
     difficulty,

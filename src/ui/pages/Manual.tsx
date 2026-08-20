@@ -20,6 +20,7 @@ const SECTIONS: [id: string, title: string][] = [
   ["world", "The World"],
   ["cup", "The Continental Cup"],
   ["shield", "The Continental Shield"],
+  ["domestic-cup", "The Domestic Cup"],
   ["international", "International Football"],
   ["players", "Players: Ratings, OVR & Potential"],
   ["development", "Player Development & Aging"],
@@ -236,12 +237,13 @@ export function Manual() {
             <li><strong>Standings</strong>. The league table, plus each club's current OVR/POT. A season dropdown lets you pull up any past season&apos;s final table next to the current one. The champion&apos;s row is highlighted, and the <a href="#cup">Continental Cup</a> and <a href="#shield">Continental Shield</a> qualification places are shaded.</li>
             <li><strong>Continental Cup</strong>. The live league-phase table and knockout bracket for the current season, plus past winners via a season dropdown. More in <a href="#cup">The Continental Cup</a>.</li>
             <li><strong>Continental Shield</strong>. The same page for the second competition, for clubs finishing just below the Cup places. More in <a href="#shield">The Continental Shield</a>.</li>
+            <li><strong>Domestic Cup</strong>. Every round of your country&apos;s cup as it&apos;s drawn and played, with a dropdown for any other country and for past seasons. More in <a href="#domestic-cup">The Domestic Cup</a>.</li>
             <li><strong>National Teams</strong>. A whole section for the summer's national-team football: the current World Cup and Qualifying, Rosters showing every nation's named squad, a Schedule of fixtures, Power Rankings of every nation, Stat Leaders (top nations and top players, filterable by country), and History with past winners and each nation's record. More in <a href="#international">International Football</a>.</li>
             <li><strong>Power Rankings</strong>. Every club in the world ranked by a blended Power score: squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column) plus a current-season form bonus or penalty. Form isn't just your record. Beating a strong side counts for more than beating a weak one (and losing to a weak side hurts more than losing to a strong one), and goal difference factors in too, so a club can rank above or below its raw OVR depending on how it's actually playing. Record, goal difference, OVR, and the blended Power score all sit side by side, with a badge showing each club's competition and its rank within it. Click a team to expand its full roster in place. The rankings also get snapshotted every 5 matchdays (plus once after the final matchday), and a dropdown lets you browse any past snapshot from any season, with arrows showing how far each club rose or fell since the last one. Historical views can't expand rosters, since past squads aren't stored, and snapshots only start piling up from the point this feature shipped.</li>
             <li><strong>Schedule</strong>. Every matchday's fixtures and results. Click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong>. A Players tab (league-wide leaderboards for one season at a time: goals, assists, shots, shots on target, xG, tackles, interceptions, passes, crosses, fouls, yellow cards, red cards, saves, clean sheets, minutes, and average match rating, with a season dropdown covering the current season and every completed one) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown). Match rating is an average rather than a running total, so to keep a one-off cameo from topping the chart a player needs to have appeared in at least half of the games played so far before he shows up on the match-rating board (a threshold that scales as the season goes, so it works ten games in as well as at the end). A <strong>Totals / Per 90</strong> switch sits next to the stat dropdown: Per 90 divides each stat by the number of full matches the player's minutes add up to, which is how you find the squad player outproducing a starter rather than just the one who played most. Per-90 mode has a playing-time floor of its own &mdash; 30% of the minutes available so far, quoted above the table &mdash; because a rate is far easier to fluke than a total: score in a twelve-minute cameo and you've "scored" 7.5 per 90. It's counted in minutes rather than appearances, since twenty run-outs off the bench is exactly the case an appearance count would wave through. Appearances, minutes and match rating stay as totals either way (the first two are what the rate divides by, and a match rating is already an average). For career totals and all-time bests across every season at once, see <a href="#frivolities">Frivolities</a>' All-Time Leaders.</li>
             <li><strong>Awards</strong>. Two tabs. World gives the Ballon d'Or for the best player in the world that season (with a top-10 shortlist and a breakdown of where his points came from) and a World Team of the Year pitch view. By league gives Player of the Season, the Golden Boot, and a Team of the Season pitch view for one competition. Both have a dropdown to browse past years.</li>
-            <li><strong>Club History</strong>. A per-club honours page (yours by default, with a dropdown for any club in the world): a trophy case (league titles, second-tier titles, Continental Cups, promotions and relegations), individual honours won by the club's players (Player of the Season, Golden Boot, Team of the Season selections), franchise records (best finish, most points and wins in a season, all-time record), and a season-by-season table of every completed season (each season's note also shows how far the club got in that year's Continental Cup).</li>
+            <li><strong>Club History</strong>. A per-club honours page (yours by default, with a dropdown for any club in the world): a trophy case (league titles, second-tier titles, Continental Cups, domestic cups, any trebles, promotions and relegations), individual honours won by the club's players (Player of the Season, Golden Boot, Team of the Season selections), franchise records (best finish, most points and wins in a season, all-time record), and a season-by-season table of every completed season (each season's note also shows how far the club got in that year's Continental Cup and domestic cup).</li>
             <li><strong>Frivolities</strong>. All-time lists that don't affect play: GOAT rankings for players and clubs, an awards record book (most Ballon d'Ors, World Team of the Year places, Players of the Season, Golden Boots and Team of the Season places, the highest-scoring individual seasons ever, and awards by club and country), all-time records (most dominant and worst team seasons, highest rating ever reached, longest careers, biggest transfer fees), All-Time Leaders (any stat, career totals or best single seasons, world-wide and including retired players), an international record book (most caps, international goals and World Cups won, filterable by country), player bios (oldest, youngest, where players come from, one-club men, name oddities), and club records (trophy cabinet, longest title droughts, biggest spenders and best traders). More in <a href="#frivolities">Frivolities</a>.</li>
             <li><strong>Season Preview</strong>. A snapshot of how the offseason shook out: the league's top 10 highest-rated players, top 10 highest-rated teams (both by OVR), the top 10 biggest transfers from the summer window ranked by fee, and who <a href="#development">retired</a>. It opens automatically the moment you advance past a season, with a link through to Awards.</li>
             <li><strong>News Feed</strong>. Every completed transfer in the league (AI-to-AI deals included) plus player accomplishments (hat-tricks, a standout performance each matchday, and goal milestones every 10, season and career) all woven into one timeline per season, with club and season filters. Your club's items are highlighted.</li>
@@ -504,7 +506,63 @@ export function Manual() {
             and they show up on the same <strong>Cup</strong> tab of a{" "}
             <a href="#players">player's profile</a> with a column saying which competition each row
             is. Shield titles show on a club's trophy case and count on the all-time boards, weighted
-            below a Continental Cup. They don't currently feed the Ballon d'Or.
+            below a Continental Cup, and a winner's players get a Shield pill on their profile
+            alongside their other honours. They don't currently feed the Ballon d'Or. Winning it is
+            also not part of the <a href="#domestic-cup">treble</a>: that's the league, the
+            Continental Cup and your domestic cup, and the Shield is what you win instead of the
+            Cup rather than alongside it.
+          </p>
+        </Section>
+
+        <Section id="domestic-cup" title="The Domestic Cup">
+          <p>
+            Every country also runs its own cup, and this one is open to{" "}
+            <strong>both divisions</strong> — all 40 clubs in the country, top flight and second
+            tier together. It's the trophy that lets a small club have the season of its life, and
+            it's the third leg of the <strong>treble</strong>: win your league, the Continental Cup
+            and your domestic cup in the same season and you've done the lot.
+          </p>
+          <p>
+            There is no seeding and no bracket. Every round is an <strong>open draw</strong>: the
+            clubs still standing go back in the hat, get paired at random, and the club drawn first
+            plays at home. You find out who you've got when the previous round finishes, exactly
+            once. The two best clubs in the country can meet in round one, and often do.
+          </p>
+          <p>
+            40 clubs doesn't divide neatly into a knockout, so the{" "}
+            <strong>16 lowest-placed clubs</strong> from last season play a preliminary round first
+            (matchday 5). The eight winners join the other 24 for a round of 32 (matchday 9), then
+            it's a round of 16 (13), quarter-finals (21), semi-finals (26) and the{" "}
+            <strong>final on matchday 36</strong>. None of those clash with a Continental Cup
+            matchday, and your cup fixtures appear on your <strong>Schedule</strong> page.
+          </p>
+          <p>
+            Every tie is a <strong>single match</strong>. Level after 90 minutes goes to extra time,
+            and still level goes to penalties, so somebody always goes through on the day. A
+            second-tier club really can knock you out: the cup measures both divisions against{" "}
+            <strong>one shared yardstick</strong> rather than grading each club against its own
+            league, so the gap between a top-flight side and a second-tier one is real — but it's a
+            gap, not a wall, and over one match anything can happen.
+          </p>
+          <p>
+            Cup stats are tracked separately from your league stats, under the{" "}
+            <strong>Domestic Cup</strong> tab on a player's profile. And as with the Continental
+            Cup, if you reach the final the sim <strong>stops just before it</strong> so you can
+            take a look at your lineup first.
+          </p>
+          <p className="text-muted small">
+            One thing the domestic cup doesn't do yet: <strong>pay you</strong>. The Continental Cup
+            hands out prize money per round, and this one was built the same way, but when I
+            measured a 20-season dynasty against one without it, the extra money pushed two of four
+            test worlds' poorest clubs into the red late on. The weaker leagues run on thin margins
+            and I'd rather a new trophy didn't quietly break their finances, so the payouts are
+            switched off until I've tuned them properly. Everything else about the cup works, and
+            it costs you nothing to go on a run.
+          </p>
+          <p className="text-muted small">
+            Saves started before domestic cups existed pick them up at the next offseason, so
+            there's one season without one. New saves have a cup from season one, since nothing has
+            to qualify for it.
           </p>
         </Section>
 
@@ -781,16 +839,23 @@ export function Manual() {
             the same as league ones, your rating in it counts, and there's a bonus for how far your
             club went, biggest by far for winning the thing (all of it scaled down if you only
             played a game or two of the run). Third, the international campaign played that summer:
-            goals, assists and caps, worth double in a World Cup year over a qualifying one.
+            goals, assists and caps, worth double in a World Cup year over a qualifying one. Your
+            domestic cup counts too, but only as a trophy: winning it is worth points to everyone who
+            played in the run, while goals scored in it are not. Those games are only ever measured
+            against one country, so unlike Continental Cup games they can't be compared fairly with
+            anyone else's, and counting them would quietly favour whoever plays in the weakest
+            league.
           </p>
           <p>
-            Trophies count for a lot here. Winning your league, winning the Continental Cup, and
-            being in the squad that won the World Cup are all worth real points on top of whatever
-            you did personally, and they stack. Roughly speaking, winning your league is worth about
-            ten league goals to a striker, the Continental Cup a bit more than that, and the World
-            Cup more again. It isn't a pure team prize: you still have to have played a good season
-            yourself, and a squad player who barely featured in the cup run only collects a fraction
-            of it.
+            Trophies count for a lot here. Winning your league, winning the Continental Cup,
+            winning your domestic cup and being in the squad that won the World Cup are all worth
+            real points on top of whatever you did personally, and they stack. Roughly speaking,
+            winning your league is worth about ten league goals to a striker, the Continental Cup a
+            bit more than that, the World Cup more again, and your domestic cup about three goals,
+            which is the smallest of the four on purpose: it's six games and a bit of luck, and it
+            shouldn't weigh the same as a whole league campaign. It isn't a pure team prize: you
+            still have to have played a good season yourself, and a squad player who barely featured
+            in a cup run only collects a fraction of it.
           </p>
           <p>
             The last thing in the mix is how good the player actually is. The world award leans on a
@@ -1349,7 +1414,9 @@ export function Manual() {
             and goals and assists. Prime is weighted to outweigh peak over a long career, and
             individual awards make up roughly half of a typical score. Clubs are scored mostly on
             trophies, with top-four finishes and points per game separating clubs with similar
-            trophy counts. Selecting a row expands it into the full calculation: every award,
+            trophy counts. A treble is worth a large bonus on top of the three trophies it's made
+            of, so winning all three in one season counts for much more than winning them in
+            different years. Selecting a row expands it into the full calculation: every award,
             trophy and stat that contributed, how many of each, and what one is worth. Retired
             players are ranked alongside active ones. Known limitation: the player ranking favours
             attackers, because it builds on the Ballon d'Or and Player of the Season scores, which
@@ -1415,9 +1482,11 @@ export function Manual() {
           </p>
           <p>
             <strong>Club Records</strong> is the club-level version: the trophy cabinet (total
-            trophies, then league titles, Continental Cups and second-tier titles), the longest
-            wait for a title, all-time biggest spenders, and the clubs that have made the most
-            money trading players.
+            trophies, then league titles, Continental Cups, domestic cups, trebles and
+            second-tier titles), the longest wait for a title, all-time biggest spenders, and
+            the clubs that have made the most money trading players. A treble is counted where
+            the three wins fall in one season, and it isn't added to the total, since those
+            three trophies are already in it.
           </p>
           <p>
             Retired players are otherwise deleted from the save entirely, so the game keeps a

@@ -17,6 +17,7 @@ import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { competitionOf } from "../../core/competitions.js";
 import { worldHasCup } from "../../core/cup/cup.js";
 import { cupStatsBySeasonForPlayer } from "../../core/cup/cupStats.js";
+import { domesticStatsBySeasonForPlayer } from "../../core/domesticCup/stats.js";
 import { clubDisplayName, formatWeeklyWage, per90Text, seasonYear, transferFeeLabel } from "../format.js";
 import { INTL_TOURNAMENT_NAME } from "../../core/constants.js";
 import { isSuspended, matchesLabel } from "../../core/suspensions.js";
@@ -75,7 +76,7 @@ function teamForSeason(
 export function PlayerProfile() {
   const { pid } = useParams<{ pid: string }>();
   const { league, movePlayerToClubAction, releasePlayerGodModeAction } = useLeague();
-  const [statsTab, setStatsTab] = useState<"league" | "cup" | "intl">("league");
+  const [statsTab, setStatsTab] = useState<"league" | "cup" | "domestic" | "intl">("league");
   // Totals or per-90 rates, across both the league and cup stat tables (they
   // record minutes in the same shape). No qualifier here, unlike the Stat
   // Leaders board: you're deliberately looking at one player, so a low-minutes
@@ -120,7 +121,11 @@ export function PlayerProfile() {
   // Career honours. League titles are credited only for seasons he was actually
   // in the champion's squad — see computePlayerHonors for why that can't come
   // from teamForSeason's transfer-history walk.
-  const honors = computePlayerHonors(player, league.seasonHistory);
+  const honors = computePlayerHonors(player, league.seasonHistory, {
+    cupHistory: league.cupHistory,
+    shieldHistory: league.shieldHistory,
+    domesticCupHistory: league.domesticCupHistory,
+  });
 
   const statsBySeasonDesc = [...player.stats].sort((a, b) => b.season - a.season);
   const histBySeasonDesc = [...player.hist].sort((a, b) => b.season - a.season);
@@ -135,6 +140,14 @@ export function PlayerProfile() {
       .map((line) => ({ line, competition: "Shield" })),
   ].sort((a, b) => b.line.season - a.line.season || a.competition.localeCompare(b.competition));
   const showCupTab = worldHasCup(league.competitions);
+  // Labelled the same way, so the two tabs share one row shape and one render.
+  const domesticStatsBySeason = domesticStatsBySeasonForPlayer(
+    league.domesticCups ?? [], league.domesticCupHistory ?? [], player.pid,
+  ).map((line) => ({ line, competition: "Domestic" }));
+  // The domestic tab appears only once there is something in it — a save that
+  // predates domestic cups picks them up a season later, and an empty tab in
+  // the meantime is just a dead end.
+  const showDomesticTab = domesticStatsBySeason.length > 0;
   // The national-team tab appears once he's been involved at all. Its per-campaign
   // lines only exist from the season they started being recorded, so a save older
   // than that still shows the career totals with an empty table underneath.
@@ -144,7 +157,13 @@ export function PlayerProfile() {
   // Guard against a stale selection: a tab that isn't offered for this player
   // (no cup in the world, never capped) falls back to the league stats.
   const activeStatsTab =
-    (statsTab === "cup" && !showCupTab) || (statsTab === "intl" && !showIntlTab) ? "league" : statsTab;
+    (statsTab === "cup" && !showCupTab)
+    || (statsTab === "domestic" && !showDomesticTab)
+    || (statsTab === "intl" && !showIntlTab)
+      ? "league"
+      : statsTab;
+  // Both cup tables have identical columns, so they share one render below.
+  const cupRows = activeStatsTab === "domestic" ? domesticStatsBySeason : cupStatsBySeason;
   // Scouting fog also applies to the POT column of the history table, per row
   // and keyed off that row's own season — so a player the user has never
   // scouted stays fogged here too (closing the "read the exact number one tab
@@ -308,6 +327,9 @@ export function PlayerProfile() {
                   <AwardPill label="Golden Boot" seasons={honors.goldenBoot} icon={<GoldenBootIcon />} />
                   <AwardPill label="Team of the Season" seasons={honors.teamOfSeason} />
                   <AwardPill label="League Champion" seasons={honors.leagueTitles} icon="🏆" />
+                  <AwardPill label="Continental Cup" seasons={honors.continentalCups} />
+                  <AwardPill label="Continental Shield" seasons={honors.shields} />
+                  <AwardPill label="Domestic Cup" seasons={honors.domesticCups} />
                 </div>
               )}
             </div>
@@ -434,9 +456,11 @@ export function PlayerProfile() {
             <h6 className="card-title mb-0">
               {activeStatsTab === "cup"
                 ? "Continental Stats"
-                : activeStatsTab === "intl"
-                  ? "National Team Stats"
-                  : "Season Stats"}
+                : activeStatsTab === "domestic"
+                  ? "Domestic Cup Stats"
+                  : activeStatsTab === "intl"
+                    ? "National Team Stats"
+                    : "Season Stats"}
             </h6>
             <div className="d-flex align-items-center gap-2">
               {/* The national-team table records caps, not minutes, so it has
@@ -464,7 +488,7 @@ export function PlayerProfile() {
                   </button>
                 </div>
               )}
-              {(showCupTab || showIntlTab) && (
+              {(showCupTab || showDomesticTab || showIntlTab) && (
                 <ul className="nav nav-pills nav-sm">
                   <li className="nav-item">
                     <button
@@ -483,6 +507,17 @@ export function PlayerProfile() {
                         onClick={() => setStatsTab("cup")}
                       >
                         Cup
+                      </button>
+                    </li>
+                  )}
+                  {showDomesticTab && (
+                    <li className="nav-item">
+                      <button
+                        type="button"
+                        className={`nav-link py-0 px-2${activeStatsTab === "domestic" ? " active" : ""}`}
+                        onClick={() => setStatsTab("domestic")}
+                      >
+                        Domestic Cup
                       </button>
                     </li>
                   )}
@@ -543,9 +578,13 @@ export function PlayerProfile() {
                 </div>
               )}
             </>
-          ) : activeStatsTab === "cup" ? (
-            cupStatsBySeason.length === 0 ? (
-              <p className="text-muted mb-0">No Continental Cup or Shield matches yet.</p>
+          ) : activeStatsTab === "cup" || activeStatsTab === "domestic" ? (
+            cupRows.length === 0 ? (
+              <p className="text-muted mb-0">
+                {activeStatsTab === "domestic"
+                  ? "No domestic cup matches yet."
+                  : "No Continental Cup or Shield matches yet."}
+              </p>
             ) : (
               <div className="table-responsive">
                 <table className="table table-striped table-sm mb-0">
@@ -566,11 +605,15 @@ export function PlayerProfile() {
                     </tr>
                   </thead>
                   <tbody>
-                    {cupStatsBySeason.map(({ line: s, competition }) => {
+                    {cupRows.map(({ line: s, competition }, i) => {
                       const v = (value: number) =>
                         statsRate ? per90Text(value, s.minutesPlayed) : String(value);
                       return (
-                      <tr key={`${competition}-${s.season}`}>
+                      // Keyed by index, not season: a player who moves club
+                      // mid-season can play in two of these in one season (two
+                      // domestic cups, or a Cup line and a Shield line), and
+                      // each is its own row.
+                      <tr key={i}>
                         <td>{seasonYear(s.season)}</td>
                         <td className="text-muted small">{competition}</td>
                         <td className="text-end">{s.appearances}</td>

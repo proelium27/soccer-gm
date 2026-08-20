@@ -196,7 +196,7 @@ function BallonDOrTable({
             <th className="text-end">Points</th>
             {/* The same total, split into where it came from. */}
             <th className="text-end d-none d-lg-table-cell">From league</th>
-            <th className="text-end d-none d-lg-table-cell">From cup</th>
+            <th className="text-end d-none d-lg-table-cell">From cups</th>
             <th className="text-end d-none d-lg-table-cell">From country</th>
           </tr>
         </thead>
@@ -223,7 +223,7 @@ function BallonDOrTable({
                 <td className="text-end">{stats ? stats.avgRating.toFixed(2) : "—"}</td>
                 <td className="text-end fw-semibold">{e.score.toFixed(2)}</td>
                 <td className="text-end d-none d-lg-table-cell text-muted">{(e.league + e.title).toFixed(2)}</td>
-                <td className="text-end d-none d-lg-table-cell text-muted">{e.cup.toFixed(2)}</td>
+                <td className="text-end d-none d-lg-table-cell text-muted">{(e.cup + (e.domesticCup ?? 0)).toFixed(2)}</td>
                 <td className="text-end d-none d-lg-table-cell text-muted">{e.intl.toFixed(2)}</td>
               </tr>
             );
@@ -365,6 +365,12 @@ export function Awards() {
                         <span>League season{winner.title > 0 ? " (incl. title)" : ""}</span>
                         <span className="fw-semibold">{(winner.league + winner.title).toFixed(2)}</span>
                       </div>
+                      {(winner.domesticCup ?? 0) > 0 && (
+                        <div className="d-flex justify-content-between">
+                          <span>Domestic cup</span>
+                          <span className="fw-semibold">{(winner.domesticCup ?? 0).toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="d-flex justify-content-between">
                         <span>Continental Cup</span>
                         <span className="fw-semibold">{winner.cup.toFixed(2)}</span>

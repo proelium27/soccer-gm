@@ -77,6 +77,7 @@ const APP_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/standings": "Standings",
   "/cup": "Continental Cup",
+  "/domestic-cup": "Domestic Cup",
   "/power-rankings": "Power rankings",
   "/schedule": "Schedule",
   "/news": "News",

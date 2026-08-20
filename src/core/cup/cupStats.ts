@@ -41,6 +41,15 @@ export interface CupPlayerLine extends CupStatLine {
   pid: number;
 }
 
+/**
+ * A zeroed line for `season`. Exported because the domestic cups aggregate the
+ * same way over their own box scores (see core/domesticCup/stats.ts) — one
+ * implementation of "fold box scores into cup lines", used by both cups.
+ */
+export function emptyCupLine(season: number): CupStatLine {
+  return emptyLine(season);
+}
+
 function emptyLine(season: number): CupStatLine {
   return {
     season, appearances: 0, goals: 0, assists: 0, shots: 0, shotsOnTarget: 0,
@@ -104,13 +113,22 @@ function boxScoresOf(cup: CupState): BoxScore[] {
  * (see CLAUDE.md's save-size section).
  */
 export function aggregateCupStats(cup: CupState): CupPlayerLine[] {
+  return aggregateBoxScores(boxScoresOf(cup), cup.season);
+}
+
+/**
+ * Fold a list of box scores into one line per player who featured. The shared
+ * half of aggregateCupStats — the domestic cups store their box scores in a
+ * different shape but aggregate them identically.
+ */
+export function aggregateBoxScores(boxes: BoxScore[], season: number): CupPlayerLine[] {
   const byPid = new Map<number, CupPlayerLine>();
-  for (const box of boxScoresOf(cup)) {
+  for (const box of boxes) {
     for (const side of [box.home, box.away]) {
       for (const l of side) {
         let line = byPid.get(l.pid);
         if (!line) {
-          line = { pid: l.pid, ...emptyLine(cup.season) };
+          line = { pid: l.pid, ...emptyLine(season) };
           byPid.set(l.pid, line);
         }
         addLine(line, l);
@@ -118,6 +136,26 @@ export function aggregateCupStats(cup: CupState): CupPlayerLine[] {
     }
   }
   return [...byPid.values()];
+}
+
+/** One player's totals over a list of box scores. Shared with the domestic cups. */
+export function lineFromBoxScores(boxes: BoxScore[], season: number, pid: number): CupStatLine {
+  const line = emptyLine(season);
+  for (const box of boxes) {
+    for (const side of [box.home, box.away]) {
+      const l = side.find((x) => x.pid === pid);
+      if (l) addLine(line, l);
+    }
+  }
+  return line;
+}
+
+/** A stored aggregate line stripped back to a CupStatLine, defaulting the rating fields. */
+export function storedLineToStatLine(stored: CupPlayerLine): CupStatLine {
+  const { pid: _pid, ...line } = stored;
+  // Lines aggregated before ratings were tracked have neither field; default
+  // them so cupAvgRating reports "no rating" rather than NaN.
+  return { ...line, ratingSum: line.ratingSum ?? 0, ratedAppearances: line.ratedAppearances ?? 0 };
 }
 
 /**

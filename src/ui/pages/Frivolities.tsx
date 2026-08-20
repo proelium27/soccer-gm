@@ -203,6 +203,7 @@ const TERM_LABELS: Record<string, string> = {
   worldCups: "World Cup",
   cupTitles: "Continental Cup",
   shieldTitles: "Continental Shield",
+  domesticCupTitles: "domestic cup",
   leagueTitles: "league title",
   goals: "goals",
   assists: "assists",
@@ -211,6 +212,7 @@ const TERM_LABELS: Record<string, string> = {
   topFlightSeasons: "seasons in the top flight",
   ppgSurplus: "points per game above 1.40, added up across every season",
   secondTierTitles: "second-tier title",
+  trebles: "treble (league, Continental Cup and domestic cup in one season)",
 };
 
 function partLabel(key: string): string {
@@ -231,7 +233,15 @@ function termPoints(points: number): string {
  * The full working behind one row's score: every component, every term, and the
  * `count x weight = points` that produced it.
  */
-function GoatBreakdown({ components, score }: { components: GoatComponent[]; score: number }) {
+/**
+ * The expanded score breakdown, exported for `test/ui/goatBreakdown.test.tsx`.
+ *
+ * Worth testing directly because a term reaching the UI with no entry in
+ * TERM_LABELS falls back to its raw key, which renders as a plausible-looking
+ * label rather than an error. That is invisible to a typecheck: the map is a
+ * Record<string, string> and any key type-checks against it.
+ */
+export function GoatBreakdown({ components, score }: { components: GoatComponent[]; score: number }) {
   return (
     <div className="small">
       <div className="text-muted mb-2">
@@ -338,12 +348,17 @@ function GoatTab() {
         >
           <RankTable
             rows={clubs}
-            headers={["Club", "Titles", "Cups", "Shields", "Top 4", "Seasons", "PPG", "Score"]}
+            headers={[
+              "Club", "Titles", "Cups", "Shields", "Dom. cups", "Trebles",
+              "Top 4", "Seasons", "PPG", "Score",
+            ]}
             render={(r: TeamGoatRow) => [
               <ClubCell tid={r.tid} />,
               r.leagueTitles,
               r.cupTitles,
               r.shieldTitles,
+              r.domesticCupTitles,
+              r.trebles,
               r.topFinishes,
               r.seasons,
               r.ppg.toFixed(2),
@@ -1208,12 +1223,16 @@ function ClubsTab() {
 
       <Row>
         <Col wide>
-          <Panel title="Trophy cabinet">
+          <Panel
+            title="Trophy cabinet"
+            note="A treble is the top flight, the Continental Cup and the domestic cup in one season. Those three wins are already in the total, so a treble doesn't add to it."
+          >
             <RankTable
               rows={trivia.records}
               headers={[
                 "Club", "Total Trophies", "D1 Championships", "Continental Cups",
-                "Continental Shields", "D2 Championships", "Seasons", "Top flight",
+                "Continental Shields", "Domestic Cups", "Trebles",
+                "D2 Championships", "Seasons", "Top flight",
               ]}
               render={(r: ClubRecordRow) => [
                 <ClubCell tid={r.tid} />,
@@ -1221,6 +1240,8 @@ function ClubsTab() {
                 r.leagueTitles,
                 r.cupTitles,
                 r.shieldTitles,
+                r.domesticCupTitles,
+                r.trebles,
                 r.secondTierTitles,
                 r.seasons,
                 r.topFlightSeasons,

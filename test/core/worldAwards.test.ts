@@ -5,7 +5,11 @@ import type { CupState, CupTie } from "../../src/core/cup/types.js";
 import { archiveCup } from "../../src/core/cup/archive.js";
 import type { BoxScore, PlayerMatchLine } from "../../src/engine/attribution.js";
 import { FORMATIONS } from "../../src/core/lineup/formations.js";
-import { BALLON_DOR_SHORTLIST, AWARD_MIN_APPEARANCES } from "../../src/core/constants.js";
+import {
+  BALLON_DOR_SHORTLIST, AWARD_MIN_APPEARANCES,
+  WORLD_AWARD_DOMESTIC_CUP_BONUS, WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT,
+} from "../../src/core/constants.js";
+import type { DomesticCupState } from "../../src/core/domesticCup/types.js";
 
 const SEASON = 5;
 
@@ -326,5 +330,86 @@ describe("computeWorldAwards — shape and determinism", () => {
     const players = [player({ pid: 1, tid: 99, ovr: 90, goals: 40 }), ...squad(100, 1, 70)];
     const { ballonDOr } = computeWorldAwards(players, SEASON, ctx());
     expect(ballonDOr.some((e) => e.pid === 1)).toBe(false);
+  });
+});
+
+/**
+ * A domestic cup won by club `tid`, with `lines` giving each player's
+ * appearances in it. Archived shape (statLines set, no box scores), which is
+ * what a season being judged actually holds by the time awards run.
+ */
+function domesticCup(tid: number, lines: Record<number, number>): DomesticCupState {
+  return {
+    season: SEASON,
+    country: "England",
+    name: "English Cup",
+    teams: [tid],
+    rounds: [],
+    totalRounds: 6,
+    championTid: tid,
+    statLines: Object.entries(lines).map(([pid, appearances]) => ({
+      pid: Number(pid),
+      season: SEASON,
+      appearances,
+      goals: 0, assists: 0, shots: 0, shotsOnTarget: 0, saves: 0, goalsAgainst: 0,
+      tackles: 0, interceptions: 0, minutesPlayed: appearances * 90,
+      ratingSum: appearances * 8, ratedAppearances: appearances,
+    })),
+  };
+}
+
+describe("computeWorldAwards — domestic cup", () => {
+  it("credits a winner's squad, pro-rated by ties played", () => {
+    const players = [
+      player({ pid: 1, tid: 1, ovr: 80, goals: 20 }),
+      player({ pid: 2, tid: 2, ovr: 80, goals: 20 }),
+      ...squad(100, 1, 60),
+      ...squad(200, 2, 60),
+    ];
+    const full = domesticCup(1, { 1: WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT });
+    const withCup = computeWorldAwards(players, SEASON, ctx({ domesticCups: [full] }));
+    const without = computeWorldAwards(players, SEASON, ctx());
+
+    const cupWinner = withCup.ballonDOr.find((e) => e.pid === 1)!;
+    const baseline = without.ballonDOr.find((e) => e.pid === 1)!;
+    expect(cupWinner.domesticCup).toBeCloseTo(WORLD_AWARD_DOMESTIC_CUP_BONUS, 6);
+    expect(cupWinner.score - baseline.score).toBeCloseTo(WORLD_AWARD_DOMESTIC_CUP_BONUS, 6);
+
+    // A team-mate who played one tie gets a fraction, not the lot.
+    const oneTie = computeWorldAwards(players, SEASON, ctx({ domesticCups: [domesticCup(1, { 1: 1 })] }));
+    expect(oneTie.ballonDOr.find((e) => e.pid === 1)!.domesticCup)
+      .toBeCloseTo(WORLD_AWARD_DOMESTIC_CUP_BONUS / WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT, 6);
+  });
+
+  it("pays nothing to a player at a club that didn't win it, or who never played a tie", () => {
+    const players = [
+      player({ pid: 1, tid: 1, ovr: 80, goals: 20 }),
+      player({ pid: 2, tid: 2, ovr: 80, goals: 20 }),
+      ...squad(100, 1, 60),
+    ];
+    // Club 1 won, but pid 1 never featured; pid 2 is at a club that didn't win.
+    const cup = domesticCup(1, { 999: 6 });
+    const { ballonDOr } = computeWorldAwards(players, SEASON, ctx({ domesticCups: [cup] }));
+    expect(ballonDOr.find((e) => e.pid === 1)!.domesticCup).toBe(0);
+    expect(ballonDOr.find((e) => e.pid === 2)!.domesticCup).toBe(0);
+  });
+
+  it("is a team bonus only: cup goals never enter the award", () => {
+    const players = [player({ pid: 1, tid: 1, ovr: 80, goals: 10 }), ...squad(100, 1, 60)];
+    const quiet = domesticCup(1, { 1: 6 });
+    const prolific: DomesticCupState = {
+      ...quiet,
+      statLines: quiet.statLines!.map((l) => ({ ...l, goals: 25, assists: 15 })),
+    };
+    const a = computeWorldAwards(players, SEASON, ctx({ domesticCups: [quiet] }));
+    const b = computeWorldAwards(players, SEASON, ctx({ domesticCups: [prolific] }));
+    expect(b.ballonDOr.find((e) => e.pid === 1)!.score)
+      .toBeCloseTo(a.ballonDOr.find((e) => e.pid === 1)!.score, 6);
+  });
+
+  it("scores a season with no domestic cups exactly as before the competition existed", () => {
+    const players = [player({ pid: 1, tid: 1, ovr: 80, goals: 20 }), ...squad(100, 1, 60)];
+    expect(computeWorldAwards(players, SEASON, ctx({ domesticCups: [] })))
+      .toEqual(computeWorldAwards(players, SEASON, ctx()));
   });
 });

@@ -4,13 +4,16 @@ import {
   GOAT_OVR_BASELINE, GOAT_PEAK_WEIGHT, GOAT_PRIME_WEIGHT, GOAT_LONGEVITY_WEIGHT,
   GOAT_RATING_WEIGHT, GOAT_RATING_FULL_SAMPLE, GOAT_BALLON_DOR_WEIGHT, GOAT_WORLD_XI_WEIGHT,
   GOAT_POTY_WEIGHT, GOAT_GOLDEN_BOOT_WEIGHT, GOAT_TOTS_WEIGHT, GOAT_LEAGUE_TITLE_WEIGHT,
-  GOAT_CUP_TITLE_WEIGHT, GOAT_SHIELD_TITLE_WEIGHT, GOAT_WORLD_CUP_WEIGHT, GOAT_CAP_WEIGHT, GOAT_GOAL_WEIGHT,
-  GOAT_ASSIST_WEIGHT,
-  GOAT_TEAM_LEAGUE_TITLE_WEIGHT, GOAT_TEAM_CUP_TITLE_WEIGHT, GOAT_TEAM_SHIELD_TITLE_WEIGHT, GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT,
+  GOAT_CUP_TITLE_WEIGHT, GOAT_SHIELD_TITLE_WEIGHT, GOAT_DOMESTIC_CUP_TITLE_WEIGHT,
+  GOAT_WORLD_CUP_WEIGHT, GOAT_CAP_WEIGHT, GOAT_GOAL_WEIGHT, GOAT_ASSIST_WEIGHT,
+  GOAT_TEAM_LEAGUE_TITLE_WEIGHT, GOAT_TEAM_CUP_TITLE_WEIGHT, GOAT_TEAM_SHIELD_TITLE_WEIGHT,
+  GOAT_TEAM_DOMESTIC_CUP_TITLE_WEIGHT, GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT,
   GOAT_TEAM_TOP_FINISH_WEIGHT, GOAT_TEAM_TOP_FINISH_POSITION, GOAT_TEAM_SEASON_WEIGHT,
   GOAT_TEAM_PPG_BASELINE, GOAT_TEAM_PPG_WEIGHT, GOAT_TEAM_SECOND_TIER_SCALE,
+  GOAT_TEAM_TREBLE_WEIGHT,
 } from "../constants.js";
 import { allCareers, type CareerRow } from "./careers.js";
+import { trebleCountByTid } from "./trebles.js";
 
 /** How many rows the GOAT boards show. */
 export const GOAT_LIST_LIMIT = 50;
@@ -25,13 +28,16 @@ export interface PlayerHonours {
   leagueTitles: number;
   cupTitles: number;
   shieldTitles: number;
+  /** Domestic cup wins while he was in the squad. */
+  domesticCupTitles: number;
   worldCups: number;
 }
 
 function emptyHonours(): PlayerHonours {
   return {
     ballonDOr: 0, worldXI: 0, playerOfSeason: 0, goldenBoot: 0,
-    teamOfSeason: 0, leagueTitles: 0, cupTitles: 0, shieldTitles: 0, worldCups: 0,
+    teamOfSeason: 0, leagueTitles: 0, cupTitles: 0, shieldTitles: 0, domesticCupTitles: 0,
+    worldCups: 0,
   };
 }
 
@@ -87,6 +93,12 @@ export function computeHonours(
   for (const shield of league.shieldHistory ?? []) {
     if (shield.championTid != null) shieldChampionBySeason.set(shield.season, shield.championTid);
   }
+  // Keyed by season AND tid, unlike the Continental Cup: eight countries each
+  // crown a domestic champion in the same season, so a season maps to a set.
+  const domesticChampions = new Set<string>();
+  for (const cup of league.domesticCupHistory ?? []) {
+    if (cup.championTid != null) domesticChampions.add(`${cup.season}:${cup.championTid}`);
+  }
 
   for (const career of careers) {
     const h = honoursFor(career.pid);
@@ -96,6 +108,7 @@ export function computeHonours(
       if (championsBySeason.get(s.season)?.has(s.tid)) h.leagueTitles += 1;
       if (cupChampionBySeason.get(s.season) === s.tid) h.cupTitles += 1;
       if (shieldChampionBySeason.get(s.season) === s.tid) h.shieldTitles += 1;
+      if (domesticChampions.has(`${s.season}:${s.tid}`)) h.domesticCupTitles += 1;
     }
     h.worldCups = career.intlTitles;
   }
@@ -223,6 +236,11 @@ export function scorePlayer(career: CareerRow, honours: PlayerHonours): PlayerGo
       { key: "cupTitles", count: honours.cupTitles, weight: GOAT_CUP_TITLE_WEIGHT },
       { key: "leagueTitles", count: honours.leagueTitles, weight: GOAT_LEAGUE_TITLE_WEIGHT },
       { key: "shieldTitles", count: honours.shieldTitles, weight: GOAT_SHIELD_TITLE_WEIGHT },
+      {
+        key: "domesticCupTitles",
+        count: honours.domesticCupTitles,
+        weight: GOAT_DOMESTIC_CUP_TITLE_WEIGHT,
+      },
     ]),
     component("production", [
       { key: "goals", count: career.totals.goals, weight: GOAT_GOAL_WEIGHT },
@@ -262,6 +280,9 @@ export interface TeamGoatRow {
   leagueTitles: number;
   cupTitles: number;
   shieldTitles: number;
+  domesticCupTitles: number;
+  /** League, Continental Cup and domestic cup in one season. Scored as a bonus on top of all three. */
+  trebles: number;
   secondTierTitles: number;
   topFinishes: number;
   seasons: number;
@@ -284,7 +305,8 @@ export function teamGoatRanking(league: LeagueStore, limit = GOAT_LIST_LIMIT): T
     let r = rows.get(tid);
     if (!r) {
       r = {
-        tid, score: 0, components: [], leagueTitles: 0, cupTitles: 0, shieldTitles: 0, secondTierTitles: 0,
+        tid, score: 0, components: [], leagueTitles: 0, cupTitles: 0, shieldTitles: 0,
+        domesticCupTitles: 0, trebles: 0, secondTierTitles: 0,
         topFinishes: 0, seasons: 0, topFlightSeasons: 0, ppg: 0,
       };
       rows.set(tid, r);
@@ -348,15 +370,29 @@ export function teamGoatRanking(league: LeagueStore, limit = GOAT_LIST_LIMIT): T
   for (const shield of league.shieldHistory ?? []) {
     if (shield.championTid != null) rowFor(shield.championTid).shieldTitles += 1;
   }
+  for (const cup of league.domesticCupHistory ?? []) {
+    if (cup.championTid != null) rowFor(cup.championTid).domesticCupTitles += 1;
+  }
+
+  const treblesByTid = trebleCountByTid(league);
 
   for (const r of rows.values()) {
     const p = played.get(r.tid) ?? 0;
     r.ppg = p > 0 ? (points.get(r.tid) ?? 0) / p : 0;
+    r.trebles = treblesByTid.get(r.tid) ?? 0;
     r.components = [
       component("trophies", [
         { key: "cupTitles", count: r.cupTitles, weight: GOAT_TEAM_CUP_TITLE_WEIGHT },
         { key: "leagueTitles", count: r.leagueTitles, weight: GOAT_TEAM_LEAGUE_TITLE_WEIGHT },
         { key: "shieldTitles", count: r.shieldTitles, weight: GOAT_TEAM_SHIELD_TITLE_WEIGHT },
+        {
+          key: "domesticCupTitles",
+          count: r.domesticCupTitles,
+          weight: GOAT_TEAM_DOMESTIC_CUP_TITLE_WEIGHT,
+        },
+        // Sits with the trophies because that is what it is made of, and after
+        // them so the row reads as "these three, and all three at once".
+        { key: "trebles", count: r.trebles, weight: GOAT_TEAM_TREBLE_WEIGHT },
         { key: "secondTierTitles", count: r.secondTierTitles, weight: GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT },
       ]),
       component("longevity", [
