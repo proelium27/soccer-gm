@@ -29,6 +29,12 @@ Audit scripts live in `scripts/` (e.g. `divisionAudit.ts`, `weakLeaguesAudit.ts`
 
 The first `npm test` after any `src/core` change rebuilds the cached test worlds (see `test/` below); later runs reuse them. `SOCCER_GM_NO_FIXTURE_CACHE=1 npm test` skips the cache.
 
+## Analytics & deploy config
+
+**PostHog needs `VITE_POSTHOG_KEY`/`VITE_POSTHOG_HOST` at BUILD time, and a build without them fails silently (2026-08-20).** Vite inlines `import.meta.env.VITE_*`, so the values are baked into the bundle by `npm run build` — they are not runtime config, and a host-side secret cannot reach an assets-only static deploy. Missing, `posthog.init()` (`src/ui/main.tsx`) is handed `undefined`: nothing throws, nothing logs, and the site reports no pageviews, no gameplay events and no crashes while looking perfectly healthy. That is what the 2026-08-15 Vercel → Cloudflare move (`wrangler.jsonc`, assets-only) did — the vars lived in the Vercel project, didn't come along, and production went analytics-dark for five days while Vercel *preview* deploys kept reporting normally, which is what made it look like a PostHog outage rather than a build problem. `.env.example` holds the values (the project key is public and write-only, already served in every bundle); copy it to `.env`, which is gitignored. **Verify a deploy, don't assume:** `curl -s https://worldsoccersim.org/assets/index-*.js | grep -c phc_` — zero means that build has no key.
+
+**The free tier is 1M events/month, and it has been exhausted once.** Autocapture fired on every click in a click-heavy game (685k events in 30 days, 67% of volume) and blew the allowance on 2026-08-03; ingestion stopped project-wide for the rest of the cycle and only `$exception` kept flowing, on its own quota. `autocapture: false` shipped in #205. Nothing reads autocapture data — every dashboard is built on the explicit events in `src/ui/analytics.ts`, whose rule is "a handful of meaningful moments, not one event per click". Keep it that way before adding events.
+
 ## Git workflow
 
 - Keep work committed: after code changes, commit locally with a clear message rather than leaving the tree dirty.
