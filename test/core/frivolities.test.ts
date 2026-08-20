@@ -16,6 +16,7 @@ import { computePlayerHonors } from "../../src/core/playerHonors.js";
 import { computeClubHistory } from "../../src/core/clubHistory.js";
 import type { BallonDOrEntry } from "../../src/core/worldAwards.js";
 import { FREE_AGENT_TID } from "../../src/core/transfers/negotiation.js";
+import { GOAT_TEAM_TREBLE_WEIGHT } from "../../src/core/constants.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
 import type { SeasonHistoryEntry, StandingsRow } from "../../src/core/standings.js";
 
@@ -750,6 +751,49 @@ describe("GOAT rankings", () => {
     it("computes career points per game across seasons, not a mean of means", () => {
       // 178 points from 76 matches.
       expect(teamGoatRanking(store).find((r) => r.tid === 1)!.ppg).toBeCloseTo(178 / 76, 6);
+    });
+
+    /**
+     * Club 1 won the league in both seasons and the Continental Cup in 2029, so
+     * giving it the domestic cup in 2029 completes a treble and in 2028 does
+     * not. Either way it has won exactly the same three trophies, which is what
+     * isolates the bonus from the trophies it sits on top of.
+     */
+    const storeWithDomesticCup = (season: number) => makeStore({
+      seasonHistory: [
+        historyWithAwards(2028, [row(1, 38, 90, 40), row(2, 38, 70, 10), row(3, 20, 55)],
+          { 1: 0, 2: 0, 3: 1 }, { champion: 1 }),
+        historyWithAwards(2029, [row(1, 38, 88, 35), row(2, 38, 60, 5), row(3, 20, 50)],
+          { 1: 0, 2: 0, 3: 1 }, { champion: 1 }),
+      ],
+      cupHistory: [{ season: 2029, championTid: 1 }],
+      domesticCupHistory: [{ season, championTid: 1 }],
+    } as unknown as Partial<LeagueStore>);
+
+    it("scores a treble as a bonus on top of the three trophies that make it up", () => {
+      const treble = teamGoatRanking(storeWithDomesticCup(2029)).find((r) => r.tid === 1)!;
+      const spread = teamGoatRanking(storeWithDomesticCup(2028)).find((r) => r.tid === 1)!;
+
+      expect(treble.trebles).toBe(1);
+      expect(spread.trebles).toBe(0);
+      // Same cabinet in both: two league titles, one Continental Cup, one
+      // domestic cup. Only the timing differs.
+      expect(treble.leagueTitles).toBe(spread.leagueTitles);
+      expect(treble.cupTitles).toBe(spread.cupTitles);
+      expect(treble.domesticCupTitles).toBe(spread.domesticCupTitles);
+      // So the entire gap is the bonus, and nothing was double-counted.
+      expect(treble.score - spread.score).toBe(GOAT_TEAM_TREBLE_WEIGHT);
+    });
+
+    it("shows the treble in the trophies breakdown, still summing to the score", () => {
+      const treble = teamGoatRanking(storeWithDomesticCup(2029)).find((r) => r.tid === 1)!;
+      const trophies = treble.components.find((c) => c.key === "trophies")!;
+      const term = trophies.terms.find((t) => t.key === "trebles")!;
+      expect(term.count).toBe(1);
+      expect(term.weight).toBe(GOAT_TEAM_TREBLE_WEIGHT);
+      // The board generates its columns from `components`, so a term that
+      // counts toward the score has to be visible in the breakdown too.
+      expect(treble.components.reduce((sum, c) => sum + c.points, 0)).toBe(treble.score);
     });
   });
 });

@@ -1375,7 +1375,9 @@ export function Manual() {
             and goals and assists. Prime is weighted to outweigh peak over a long career, and
             individual awards make up roughly half of a typical score. Clubs are scored mostly on
             trophies, with top-four finishes and points per game separating clubs with similar
-            trophy counts. Selecting a row expands it into the full calculation: every award,
+            trophy counts. A treble is worth a large bonus on top of the three trophies it's made
+            of, so winning all three in one season counts for much more than winning them in
+            different years. Selecting a row expands it into the full calculation: every award,
             trophy and stat that contributed, how many of each, and what one is worth. Retired
             players are ranked alongside active ones. Known limitation: the player ranking favours
             attackers, because it builds on the Ballon d'Or and Player of the Season scores, which

@@ -2705,6 +2705,22 @@ export const GOAT_TEAM_LEAGUE_TITLE_WEIGHT = 100;
 export const GOAT_TEAM_CUP_TITLE_WEIGHT = 150;
 /** Same reasoning as the player weight: a fine trophy, a weak argument. */
 export const GOAT_TEAM_DOMESTIC_CUP_TITLE_WEIGHT = 40;
+/**
+ * A treble, on top of the three trophies that make it up.
+ *
+ * Those already score 100 + 150 + 40 = 290 on their own, so this is a **bonus
+ * for doing all three at once**, not the value of the achievement — sized to
+ * match the most valuable single trophy in the game, which makes a treble
+ * season worth about 1.5x the sum of its parts. Big enough that one changes a
+ * club's case, not so big that it out-argues the trophies it is built from.
+ *
+ * Being a bonus is the difference from the Frivolities trophy cabinet, where
+ * trebles are deliberately kept out of the total-trophies column: that column
+ * counts trophies, and a treble is not a fourth one. This is a score, and
+ * scoring a rare combination above its parts is the whole point of a GOAT
+ * formula.
+ */
+export const GOAT_TEAM_TREBLE_WEIGHT = 150;
 export const GOAT_TEAM_SECOND_TIER_TITLE_WEIGHT = 20;
 export const GOAT_TEAM_TOP_FINISH_WEIGHT = 15;
 /** A finishing position this good or better counts as contending. */

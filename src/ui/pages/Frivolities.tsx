@@ -211,6 +211,7 @@ const TERM_LABELS: Record<string, string> = {
   topFlightSeasons: "seasons in the top flight",
   ppgSurplus: "points per game above 1.40, added up across every season",
   secondTierTitles: "second-tier title",
+  trebles: "treble (league, Continental Cup and domestic cup in one season)",
 };
 
 function partLabel(key: string): string {
@@ -338,12 +339,15 @@ function GoatTab() {
         >
           <RankTable
             rows={clubs}
-            headers={["Club", "Titles", "Cups", "Dom. cups", "Top 4", "Seasons", "PPG", "Score"]}
+            headers={[
+              "Club", "Titles", "Cups", "Dom. cups", "Trebles", "Top 4", "Seasons", "PPG", "Score",
+            ]}
             render={(r: TeamGoatRow) => [
               <ClubCell tid={r.tid} />,
               r.leagueTitles,
               r.cupTitles,
               r.domesticCupTitles,
+              r.trebles,
               r.topFinishes,
               r.seasons,
               r.ppg.toFixed(2),

@@ -1,5 +1,6 @@
 import type { LeagueStore } from "../leagueState.js";
 import { isFreeAgentTid } from "../transfers/negotiation.js";
+import { trebleCountByTid } from "./trebles.js";
 
 
 /** How many rows each club list shows. */
@@ -88,18 +89,7 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
 
   const rows = new Map<number, ClubRecordRow>();
 
-  // A treble needs the three wins to fall in the SAME season, so counting them
-  // needs the seasons each was won in, not just the totals on the row. Kept in
-  // side maps rather than on `ClubRecordRow` so the public row stays a flat
-  // record of numbers.
-  const tier1TitleSeasons = new Map<number, Set<number>>();
-  const continentalWinSeasons = new Map<number, Set<number>>();
-  const domesticWinSeasons = new Map<number, Set<number>>();
-  const markWin = (into: Map<number, Set<number>>, tid: number, season: number): void => {
-    let seasons = into.get(tid);
-    if (!seasons) { seasons = new Set(); into.set(tid, seasons); }
-    seasons.add(season);
-  };
+  const treblesByTid = trebleCountByTid(league);
 
   const rowFor = (tid: number): ClubRecordRow => {
     let r = rows.get(tid);
@@ -149,7 +139,6 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
           if (tier === 1) {
             r.leagueTitles += 1;
             r.lastTitleSeason = Math.max(r.lastTitleSeason ?? 0, h.season);
-            markWin(tier1TitleSeasons, row.tid, h.season);
           } else {
             r.secondTierTitles += 1;
           }
@@ -159,32 +148,16 @@ export function computeClubTrivia(league: LeagueStore, limit = CLUB_LIST_LIMIT):
   }
 
   for (const cup of league.cupHistory ?? []) {
-    if (cup.championTid != null) {
-      rowFor(cup.championTid).cupTitles += 1;
-      markWin(continentalWinSeasons, cup.championTid, cup.season);
-    }
+    if (cup.championTid != null) rowFor(cup.championTid).cupTitles += 1;
   }
 
   for (const cup of league.domesticCupHistory ?? []) {
-    if (cup.championTid != null) {
-      rowFor(cup.championTid).domesticCupTitles += 1;
-      markWin(domesticWinSeasons, cup.championTid, cup.season);
-    }
+    if (cup.championTid != null) rowFor(cup.championTid).domesticCupTitles += 1;
   }
 
   for (const r of rows.values()) {
     r.totalTrophies = r.leagueTitles + r.cupTitles + r.domesticCupTitles + r.secondTierTitles;
-    // Same definition `clubHistory.ts` puts on `ClubSeasonRecord.treble`, and
-    // the two must agree: a tier-1 title (a second-tier one is not a treble)
-    // plus both cups, in one season. `clubHistory` answers it for one club at a
-    // time off its own per-season walk, which is why this pass can't reuse it
-    // without going quadratic over a long dynasty.
-    const titles = tier1TitleSeasons.get(r.tid);
-    const continental = continentalWinSeasons.get(r.tid);
-    const domestic = domesticWinSeasons.get(r.tid);
-    r.trebles = titles && continental && domestic
-      ? [...titles].filter((s) => continental.has(s) && domestic.has(s)).length
-      : 0;
+    r.trebles = treblesByTid.get(r.tid) ?? 0;
     r.ppg = r.played > 0 ? r.points / r.played : 0;
     // A club that has never won counts its whole recorded history as the wait.
     r.titleDrought = r.lastTitleSeason == null
