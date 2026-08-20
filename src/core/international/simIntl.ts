@@ -122,7 +122,7 @@ export const TOURNAMENT_KNOCKOUT_STREAM = KNOCKOUT_STREAM;
  * D1-C2) and two nations from the same group can only meet again in the final.
  * Returns the advancing nids in bracket order — consecutive pairs are ties.
  * The group count comes from `groups` rather than a constant, because a
- * continental championship's shape varies with its confederation's size.
+ * confederation cup's shape varies with its confederation's size.
  */
 export function seedBracket(
   groups: IntlGroup[],
@@ -131,7 +131,7 @@ export function seedBracket(
   const advancing = groups.map((g) => groupTable(g).slice(0, qualifyPerGroup).map((r) => r.nid));
   const winner = (g: number): number => advancing[g][0];
   const runnerUp = (g: number): number => advancing[g][1];
-  // A one-group tournament (the smallest continental shape) has no partner
+  // A one-group tournament (the smallest confederation cup shape) has no partner
   // group to cross with: its top two simply meet in the final.
   if (groups.length === 1) return advancing[0].slice(0, 2);
   const bracket: number[] = [];

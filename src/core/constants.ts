@@ -2233,17 +2233,17 @@ export const WORLD_AWARD_INTL_TOURNAMENT_MULTIPLIER = 2;
 export const WORLD_AWARD_WORLD_CUP_BONUS = 1.4;
 
 /**
- * A continental championship (the Euro, Copa America, AFCON — see
- * CONTINENTAL_TOURNAMENTS) is worth less than a World Cup on both axes: its
+ * A confederation cup (the Euro, Copa America, AFCON — see
+ * CONFEDERATION_CUPS) is worth less than a World Cup on both axes: its
  * matches count 1.5x a qualifying game rather than 2x, and winning it pays
  * roughly half a World Cup.
  *
  * Sized on the same exchange rate as the rest of the team-achievement block (a
- * striker's league goal is POTY_GOAL_WEIGHT.FWD, 0.08): a continental title is
+ * striker's league goal is POTY_GOAL_WEIGHT.FWD, 0.08): a confederation cup title is
  * about 9 goals, against the domestic cup's 3, a league title's 10, the club
  * Continental Cup's 12 and the World Cup's 17 — second-smallest of the five,
  * above only the domestic cup. Two reasons to keep it low, and they pull the
- * same way: a continental field is a *subset* of the world (Copa America is
+ * same way: a confederation cup field is a *subset* of the world (Copa America is
  * contested by a handful of nations, so its winner has beaten far less of the
  * planet than a World Cup winner has), and it lands in the same offseason as a
  * World Cup qualifying leg, so a player collecting it is already being paid for
@@ -2261,8 +2261,8 @@ export const WORLD_AWARD_WORLD_CUP_BONUS = 1.4;
  * world ovr rank — the whole team-achievement block trades against it and
  * raising these alongside the others just cancels (see the note above).
  */
-export const WORLD_AWARD_INTL_CONTINENTAL_MULTIPLIER = 1.5;
-export const WORLD_AWARD_CONTINENTAL_BONUS = 0.7;
+export const WORLD_AWARD_INTL_CONFEDERATION_CUP_MULTIPLIER = 1.5;
+export const WORLD_AWARD_CONFEDERATION_CUP_BONUS = 0.7;
 
 /* ────────────────────────────────────────────────────────────────────────
  * News Feed accomplishments
@@ -2668,28 +2668,28 @@ export const INTL_QUAL_LEGS = 3;
 export const INTL_INJURY_OFFSEASON_RECOVERY = 2;
 
 /**
- * Continental championships (the Euro, Copa America, AFCON and their unlisted
+ * Confederation cups (the Euro, Copa America, AFCON and their unlisted
  * siblings — see core/international/confederations.ts).
  *
  * Cadence: they are played in the offseason of the cycle's *middle* qualifying
  * season, which is exactly the real Euro/Copa offset from a World Cup — two
  * years either side of it. That offseason therefore plays a qualifying leg
- * *and* a continental tournament, rather than the tournament replacing the leg.
+ * *and* a confederation cup, rather than the tournament replacing the leg.
  * That was deliberate: dropping INTL_QUAL_LEGS from 3 to 2 to make room would
  * reopen the qualifying variance those three legs exist to damp (see
  * INTL_QUAL_LEGS), and adding a whole second qualifying campaign for the
- * continentals would roughly double the ~280 fixtures qualifying already plays.
+ * confederation cups would roughly double the ~280 fixtures qualifying already plays.
  */
-export function isContinentalSeason(season: number): boolean {
-  return qualifyingLeg(season) === CONTINENTAL_QUALIFYING_LEG;
+export function isConfederationCupSeason(season: number): boolean {
+  return qualifyingLeg(season) === CONFEDERATION_CUP_QUALIFYING_LEG;
 }
 
 /**
- * Which qualifying leg the continental championships share their offseason
+ * Which qualifying leg the confederation cups share their offseason
  * with. Leg 1 of 3 is the middle of the cycle: with a World Cup at season%4==0,
- * the continentals land on season%4==2.
+ * the confederation cups land on season%4==2.
  */
-export const CONTINENTAL_QUALIFYING_LEG = 1;
+export const CONFEDERATION_CUP_QUALIFYING_LEG = 1;
 
 /**
  * Fewest nations a confederation needs before it holds a championship at all.
@@ -2705,7 +2705,7 @@ export const CONTINENTAL_QUALIFYING_LEG = 1;
  * defined and dark, and light up on their own if a world ever supports them —
  * an imported roster, or a non-European league added to worldCompetitions.
  */
-export const CONTINENTAL_MIN_NATIONS = 4;
+export const CONFEDERATION_CUP_MIN_NATIONS = 4;
 
 
 /**

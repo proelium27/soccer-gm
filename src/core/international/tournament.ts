@@ -76,7 +76,7 @@ export function initTournament(
 
 /**
  * What separates one tournament from another when the same play functions run
- * both. The World Cup takes the defaults; a continental championship passes its
+ * both. The World Cup takes the defaults; a confederation cup passes its
  * own rng streams (several are played in one offseason, and sharing a stream
  * would make each one's results depend on the order the others were played in)
  * and its own group shape, which varies with how many nations its confederation

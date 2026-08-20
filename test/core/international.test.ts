@@ -6,12 +6,12 @@ import { simOffseason } from "../../src/core/offseason.js";
 import { simThroughInternational, isIntlStagePending } from "../../src/core/international/index.js";
 import { runTournament } from "../../src/core/international/tournament.js";
 import {
-  initContinental, playContinentalGroups, playContinentalKnockoutRound, roundsRemaining,
-} from "../../src/core/international/continental.js";
+  initConfederationCups, playConfederationCupGroups, playConfederationCupKnockoutRound, roundsRemaining,
+} from "../../src/core/international/confederationCup.js";
 import { playIntlStage } from "../../src/core/international/staging.js";
 import { formatFor, knockoutRounds, TOURNAMENT_FORMATS } from "../../src/core/international/format.js";
 import { seedBracket } from "../../src/core/international/simIntl.js";
-import { CONTINENTAL_TOURNAMENTS } from "../../src/core/international/confederations.js";
+import { CONFEDERATION_CUPS } from "../../src/core/international/confederations.js";
 import { makeLeague } from "../helpers/league.js";
 import { buildSquads } from "../../src/core/international/squads.js";
 import { allocateSlots, confederationOf } from "../../src/core/international/confederations.js";
@@ -22,7 +22,7 @@ import type { LeagueStore } from "../../src/core/leagueState.js";
 import { nationRecords, finishOf } from "../../src/core/international/index.js";
 import type { IntlTournamentSummary } from "../../src/core/international/index.js";
 import {
-  INTL_FIELD_SIZE, INTL_KO_SIZE, INTL_GROUPS, CONTINENTAL_MIN_NATIONS, isContinentalSeason,
+  INTL_FIELD_SIZE, INTL_KO_SIZE, INTL_GROUPS, CONFEDERATION_CUP_MIN_NATIONS, isConfederationCupSeason,
 } from "../../src/core/constants.js";
 
 /**
@@ -215,12 +215,12 @@ describe("offseason cycle", () => {
       expect(sum("goals")).toBe(p.intl!.goals);
       expect(sum("assists")).toBe(p.intl!.assists);
       // One line per campaign played, labelled by the cadence: seasons 1-3
-      // qualifying, season 4 the tournament — plus a continental line in the
+      // qualifying, season 4 the tournament — plus a confederation cup line in the
       // offseason that also stages the championships (season 2 of the cycle).
       for (const l of lines) {
         const allowed = l.season % 4 === 0
           ? ["tournament"]
-          : isContinentalSeason(l.season) ? ["qualifying", "continental"] : ["qualifying"];
+          : isConfederationCupSeason(l.season) ? ["qualifying", "confederation"] : ["qualifying"];
         expect(allowed).toContain(l.kind);
       }
       expect(new Set(lines.map((l) => `${l.season}-${l.kind}`)).size).toBe(lines.length);
@@ -438,10 +438,10 @@ describe("tournament shapes", () => {
   });
 });
 
-describe("continental championships", () => {
+describe("confederation cups", () => {
   it("holds a championship only where the world can field one", () => {
     const league = makeLeague(0, 11);
-    const drawn = initContinental(league.players, 2, league.lid);
+    const drawn = initConfederationCups(league.players, 2, league.lid);
     const byConfederation = new Map(drawn.map((t) => [t.confederation, t]));
 
     // Every player is generated from a European league's nationality table, so
@@ -451,7 +451,7 @@ describe("continental championships", () => {
 
     for (const t of drawn) {
       // Its field is real, its shape is coherent, and nothing is played yet.
-      expect(t.nations.length).toBeGreaterThanOrEqual(CONTINENTAL_MIN_NATIONS);
+      expect(t.nations.length).toBeGreaterThanOrEqual(CONFEDERATION_CUP_MIN_NATIONS);
       expect(t.squads).toHaveLength(t.nations.length);
       expect(t.groups.flatMap((g) => g.nids)).toHaveLength(t.nations.length);
       expect(t.bracket).toHaveLength(0);
@@ -460,7 +460,7 @@ describe("continental championships", () => {
       // Every entrant belongs to the confederation whose championship it is.
       for (const nation of t.nations) expect(confederationOf(nation)).toBe(t.confederation);
       // And it is called what the spec table says.
-      const spec = CONTINENTAL_TOURNAMENTS.find((c) => c.confederation === t.confederation)!;
+      const spec = CONFEDERATION_CUPS.find((c) => c.confederation === t.confederation)!;
       expect(t.name).toBe(spec.name);
       expect(t.nations.length).toBeLessThanOrEqual(spec.targetField);
     }
@@ -473,10 +473,10 @@ describe("continental championships", () => {
 
   it("plays every championship to a champion, with the finals on the same stage", () => {
     const league = makeLeague(0, 11);
-    const drawn = initContinental(league.players, 2, league.lid);
+    const drawn = initConfederationCups(league.players, 2, league.lid);
     expect(drawn.length).toBeGreaterThan(1); // otherwise there is no alignment to test
 
-    let tournaments = playContinentalGroups(drawn, league.players, league.lid).tournaments;
+    let tournaments = playConfederationCupGroups(drawn, league.players, league.lid).tournaments;
     for (const t of tournaments) {
       expect(t.bracket.length).toBeGreaterThanOrEqual(2);
       expect(t.groups.every((g) => g.matches.every((m) => m.homeGoals >= 0))).toBe(true);
@@ -487,7 +487,7 @@ describe("continental championships", () => {
     const remainingByStage: number[][] = [];
     for (let guard = 0; tournaments.some((t) => roundsRemaining(t) > 0) && guard < 6; guard++) {
       remainingByStage.push(tournaments.map(roundsRemaining));
-      tournaments = playContinentalKnockoutRound(tournaments, league.players, league.lid).tournaments;
+      tournaments = playConfederationCupKnockoutRound(tournaments, league.players, league.lid).tournaments;
     }
 
     // Everyone has a champion, and nobody was still running when the last
@@ -505,19 +505,19 @@ describe("continental championships", () => {
   it("stages the championships after the qualifying leg, in the middle season of the cycle", () => {
     const rng = mulberry32(21);
     let league = createLeagueState(0, rng);
-    // Season 1 draws qualifying only; season 2 is the continental season.
+    // Season 1 draws qualifying only; season 2 is the confederation cup season.
     for (let s = 0; s < 2; s++) {
       league = simThrough(league, "season", rng);
       league = simThrough(league, "season", rng);
       if (league.season === 1) {
-        expect(league.international.continental).toHaveLength(0);
+        expect(league.international.confederationCups).toHaveLength(0);
         league = playInternational(league);
         league = simOffseason(league, rng);
       }
     }
     expect(league.season).toBe(2);
-    expect(isContinentalSeason(league.season)).toBe(true);
-    expect(league.international.continental.length).toBeGreaterThan(0);
+    expect(isConfederationCupSeason(league.season)).toBe(true);
+    expect(league.international.confederationCups.length).toBeGreaterThan(0);
 
     // Click through the stages one at a time and record the sequence.
     const stages: string[] = [String(league.international.stage)];
@@ -530,19 +530,19 @@ describe("continental championships", () => {
       stages.push(String(intl.stage));
     }
     expect(stages[0]).toBe("qualifying");
-    expect(stages[1]).toBe("continental-groups");
-    expect(stages.filter((x) => x === "continental-ko").length).toBeGreaterThanOrEqual(1);
+    expect(stages[1]).toBe("confederation-groups");
+    expect(stages.filter((x) => x === "confederation-ko").length).toBeGreaterThanOrEqual(1);
     expect(stages[stages.length - 1]).toBe("done");
 
     // Every championship is archived, and the winners' medals are recorded on
-    // the *continental* counters rather than the World Cup ones.
-    expect(intl.continentalHistory.length).toBe(intl.continental.length);
-    for (const h of intl.continentalHistory) {
+    // the *confederation cup* counters rather than the World Cup ones.
+    expect(intl.confederationCupHistory.length).toBe(intl.confederationCups.length);
+    for (const h of intl.confederationCupHistory) {
       expect(h.champion).toBeTruthy();
       expect(h.confederation).toBeTruthy();
       expect(h.knockout.length).toBeGreaterThan(0);
     }
-    const withMedal = players.filter((p) => (p.intl?.continentalTitles ?? 0) > 0);
+    const withMedal = players.filter((p) => (p.intl?.confederationCupTitles ?? 0) > 0);
     expect(withMedal.length).toBeGreaterThan(0);
     for (const p of players) {
       // No World Cup has been played, so those counters must still be zero.
@@ -550,7 +550,7 @@ describe("continental championships", () => {
       expect(p.intl?.tournaments ?? 0).toBe(0);
     }
     // A champion's nation matches one of the archived winners.
-    const champions = new Set(intl.continentalHistory.map((h) => h.champion));
+    const champions = new Set(intl.confederationCupHistory.map((h) => h.champion));
     for (const p of withMedal) expect(champions.has(p.nationality)).toBe(true);
   });
 
@@ -564,7 +564,7 @@ describe("continental championships", () => {
     league = simThrough(league, "season", rng);
     league = simThrough(league, "season", rng);
     expect(league.season).toBe(2);
-    expect(league.international.continental.length).toBeGreaterThan(0);
+    expect(league.international.confederationCups.length).toBeGreaterThan(0);
 
     // Clicked: one stage at a time.
     let intl = league.international;
@@ -579,8 +579,8 @@ describe("continental championships", () => {
       league.international, league.players, league.lid, league.season,
     );
 
-    expect(bulk.international.continental).toEqual(intl.continental);
-    expect(bulk.international.continentalHistory).toEqual(intl.continentalHistory);
+    expect(bulk.international.confederationCups).toEqual(intl.confederationCups);
+    expect(bulk.international.confederationCupHistory).toEqual(intl.confederationCupHistory);
     expect(bulk.players.map((p) => p.intl)).toEqual(players.map((p) => p.intl));
   });
 });

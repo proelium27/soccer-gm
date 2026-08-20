@@ -16,7 +16,7 @@ import { Flag } from "../components/Flag.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { competitionOf } from "../../core/competitions.js";
 import { worldHasCup } from "../../core/cup/cup.js";
-import { confederationOf, continentalSpec } from "../../core/international/index.js";
+import { confederationOf, confederationCupSpec } from "../../core/international/index.js";
 import { cupStatsBySeasonForPlayer } from "../../core/cup/cupStats.js";
 import { domesticStatsBySeasonForPlayer } from "../../core/domesticCup/stats.js";
 import { clubDisplayName, formatWeeklyWage, per90Text, seasonYear, transferFeeLabel } from "../format.js";
@@ -142,11 +142,11 @@ export function PlayerProfile() {
   // lines only exist from the season they started being recorded, so a save older
   // than that still shows the career totals with an empty table underneath.
   const intl = player.intl ?? null;
-  // Which championship a "continental" line refers to isn't stored on the line
+  // Which championship a "confederation" line refers to isn't stored on the line
   // — it doesn't have to be, since a player only ever plays his own
   // confederation's. Derived from his nationality instead.
-  const continentalName = continentalSpec(confederationOf(player.nationality) ?? "")?.name
-    ?? "Continental Championship";
+  const confederationCupName = confederationCupSpec(confederationOf(player.nationality) ?? "")?.name
+    ?? "Confederation Cup";
   const showIntlTab = intl !== null && (intl.caps > 0 || intl.tournaments > 0);
   const intlSeasonsDesc = [...(intl?.seasons ?? [])].sort((a, b) => b.season - a.season);
   // Guard against a stale selection: a tab that isn't offered for this player
@@ -250,8 +250,8 @@ export function PlayerProfile() {
           <strong>{player.intl.caps}</strong> caps, <strong>{player.intl.goals}</strong> goals
           {player.intl.tournaments > 0 && <> &middot; {player.intl.tournaments} {player.intl.tournaments === 1 ? "tournament" : "tournaments"}</>}
           {player.intl.titles > 0 && <> &middot; <strong>{player.intl.titles}</strong> {player.intl.titles === 1 ? "title" : "titles"}</>}
-          {(player.intl.continentalTitles ?? 0) > 0 && (
-            <> &middot; <strong>{player.intl.continentalTitles}</strong> continental {player.intl.continentalTitles === 1 ? "title" : "titles"}</>
+          {(player.intl.confederationCupTitles ?? 0) > 0 && (
+            <> &middot; <strong>{player.intl.confederationCupTitles}</strong> confederation cup {player.intl.confederationCupTitles === 1 ? "title" : "titles"}</>
           )}
         </p>
       )}
@@ -542,11 +542,11 @@ export function PlayerProfile() {
                 <strong>{intl.assists}</strong> {intl.assists === 1 ? "assist" : "assists"}
                 {intl.tournaments > 0 && <> &middot; {intl.tournaments} {intl.tournaments === 1 ? "tournament" : "tournaments"}</>}
                 {intl.titles > 0 && <> &middot; <strong>{intl.titles}</strong> {intl.titles === 1 ? "title" : "titles"}</>}
-                {(intl.continentalTournaments ?? 0) > 0 && (
-                  <> &middot; {intl.continentalTournaments} continental {intl.continentalTournaments === 1 ? "championship" : "championships"}</>
+                {(intl.confederationCups ?? 0) > 0 && (
+                  <> &middot; {intl.confederationCups} confederation {intl.confederationCups === 1 ? "cup" : "cups"}</>
                 )}
-                {(intl.continentalTitles ?? 0) > 0 && (
-                  <> &middot; <strong>{intl.continentalTitles}</strong> continental {intl.continentalTitles === 1 ? "title" : "titles"}</>
+                {(intl.confederationCupTitles ?? 0) > 0 && (
+                  <> &middot; <strong>{intl.confederationCupTitles}</strong> confederation cup {intl.confederationCupTitles === 1 ? "title" : "titles"}</>
                 )}
               </p>
               {intlSeasonsDesc.length === 0 ? (
@@ -573,8 +573,8 @@ export function PlayerProfile() {
                           <td>
                             {s.kind === "tournament"
                               ? INTL_TOURNAMENT_NAME
-                              : s.kind === "continental"
-                                ? continentalName
+                              : s.kind === "confederation"
+                                ? confederationCupName
                                 : "Qualifying"}
                           </td>
                           <td className="text-end">{s.caps}</td>

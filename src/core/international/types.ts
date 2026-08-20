@@ -87,8 +87,8 @@ export interface IntlTournament {
 }
 
 /**
- * A continental championship — the Euro, Copa America, AFCON and their siblings
- * (see CONTINENTAL_TOURNAMENTS). Structurally an IntlTournament and played by
+ * A confederation cup — the Euro, Copa America, AFCON and their siblings
+ * (see CONFEDERATION_CUPS). Structurally an IntlTournament and played by
  * the very same functions; what it adds is which confederation it belongs to
  * and how many nations advance from each group, because unlike the World Cup
  * its shape is not fixed. A confederation with two dozen eligible nations plays
@@ -98,7 +98,7 @@ export interface IntlTournament {
  * Several of these are live at once — they are all played in the same offseason
  * — so they sit in an array rather than the single slot the World Cup occupies.
  */
-export interface IntlContinentalTournament extends IntlTournament {
+export interface IntlConfederationCup extends IntlTournament {
   confederation: string;
   /** Nations advancing from each group; the rest of the shape follows from `groups`. */
   qualifyPerGroup: number;
@@ -154,8 +154,8 @@ export interface IntlTournamentSummary {
   season: number;
   name: string;
   /**
-   * Which confederation's championship this was, or absent for the World Cup.
-   * Optional so archived World Cups from before continental football existed
+   * Which confederation's cup this was, or absent for the World Cup.
+   * Optional so archived World Cups from before confederation cup football existed
    * need no backfill — absent already means what it should.
    */
   confederation?: string;
@@ -209,19 +209,19 @@ export interface IntlPowerSnapshot {
  *  - "qualifying": qualifying groups are drawn but unplayed
  *  - "groups": tournament groups are drawn but unplayed
  *  - "qf" | "sf" | "final": that knockout round is the next to play
- *  - "continental-groups": every continental championship's group stage is next
- *  - "continental-ko": the next knockout round of every championship that has
- *    one left, played across all of them at once (see continental.ts for why
+ *  - "confederation-groups": every confederation cup's group stage is next
+ *  - "confederation-ko": the next knockout round of every cup that has
+ *    one left, played across all of them at once (see confederationCup.ts for why
  *    that is a single stage rather than one per tournament)
  *  - "done": the campaign is finished for this offseason
  *
- * The continental stages follow a "qualifying" stage rather than replacing it:
+ * The confederation cup stages follow a "qualifying" stage rather than replacing it:
  * the middle qualifying offseason of the cycle plays its leg and then the
- * championships (see isContinentalSeason).
+ * cups (see isConfederationCupSeason).
  */
 export type IntlStage =
   | "qualifying" | "groups" | "qf" | "sf" | "final"
-  | "continental-groups" | "continental-ko"
+  | "confederation-groups" | "confederation-ko"
   | "done" | null;
 
 /**
@@ -238,23 +238,23 @@ export interface InternationalState {
   /** The most recently played tournament, in full. */
   tournament: IntlTournament | null;
   /**
-   * The most recent continental championships, in full — one per confederation
+   * The most recent confederation cups, in full — one per confederation
    * that could field a tournament, all played in the same offseason. Replaced
    * wholesale the next time they come round; empty on a world that supports
-   * none (see CONTINENTAL_MIN_NATIONS).
+   * none (see CONFEDERATION_CUP_MIN_NATIONS).
    */
-  continental: IntlContinentalTournament[];
+  confederationCups: IntlConfederationCup[];
   /** Every completed tournament, oldest first. */
   history: IntlTournamentSummary[];
   /** Every completed qualifying campaign (Light summaries), oldest first. */
   qualifyingHistory: IntlQualifyingSummary[];
   /**
-   * Every completed continental championship (the same Light summary a World
+   * Every completed confederation cup (the same Light summary a World
    * Cup collapses to, plus its confederation), oldest first. Kept separate from
    * `history` so the World Cup record — which nationHistory, the Ballon d'Or
    * and the History page all read — keeps meaning exactly what it always did.
    */
-  continentalHistory: IntlTournamentSummary[];
+  confederationCupHistory: IntlTournamentSummary[];
   /** A national-team power-ranking snapshot per campaign drawn, oldest first. */
   powerRankings: IntlPowerSnapshot[];
   /** Progress of the current offseason's staged campaign; see IntlStage. */

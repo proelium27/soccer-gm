@@ -12,7 +12,7 @@ export const KO_ROUND_NAMES = ["Quarter-finals", "Semi-finals", "Final"];
 
 /**
  * What to call knockout round `round` of a bracket that has `totalRounds` of
- * them. Named backwards from the final, because a continental championship's
+ * them. Named backwards from the final, because a confederation cup's
  * bracket can be shorter than the World Cup's: a two-round bracket's round 0 is
  * the semi-finals, not the quarters. With no total supplied it falls back to
  * the World Cup's three-round naming.
@@ -130,7 +130,7 @@ export function GroupStandings({
 
 /**
  * Group cards from already-normalized standings, the top `advancing` of each
- * shaded. Shared between the World Cup and the continental championships —
+ * shaded. Shared between the World Cup and the confederation cups —
  * whose group sizes differ, but whose card grid does not.
  */
 export function GroupCards({ groups, advancing }: { groups: StandingRow[][]; advancing: number }) {
@@ -258,7 +258,7 @@ export function liveCampaign(intl: InternationalState): {
   const { tournament, qualifying, stage } = intl;
   let showing: "tournament" | "qualifying" | null;
   if (stage === "qualifying") showing = "qualifying";
-  // Only the World Cup's own stages force the tournament view. The continental
+  // Only the World Cup's own stages force the tournament view. The confederation cup
   // stages run in a *qualifying* offseason, so they fall through to the
   // more-recent-campaign rule below, which picks the live qualifying campaign.
   else if (stage === "groups" || stage === "qf" || stage === "sf" || stage === "final") showing = "tournament";
@@ -283,8 +283,8 @@ export function useHasInternational(): boolean {
     intl.qualifying !== null ||
     intl.history.length > 0 ||
     intl.qualifyingHistory.length > 0 ||
-    intl.continental.length > 0 ||
-    intl.continentalHistory.length > 0 ||
+    intl.confederationCups.length > 0 ||
+    intl.confederationCupHistory.length > 0 ||
     intl.powerRankings.length > 0
   );
 }

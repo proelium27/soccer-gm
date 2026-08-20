@@ -1,27 +1,27 @@
 import type { Player } from "../players/types.js";
-import type { IntlContinentalTournament, IntlTournamentSummary, NationSquad } from "./types.js";
+import type { IntlConfederationCup, IntlTournamentSummary, NationSquad } from "./types.js";
 import type { CareerDelta } from "./simIntl.js";
 import { buildSquads } from "./squads.js";
 import { buildGroup, potDraw } from "./groups.js";
 import { playTournamentGroups, playTournamentRound, summarize } from "./tournament.js";
 import { emptyCareerDelta, mergeCareerDelta } from "./simIntl.js";
 import {
-  CONTINENTAL_TOURNAMENTS, confederationOf, confederationIndex,
+  CONFEDERATION_CUPS, confederationOf, confederationIndex,
 } from "./confederations.js";
 import { formatFor } from "./format.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
-import { CONTINENTAL_MIN_NATIONS } from "../constants.js";
+import { CONFEDERATION_CUP_MIN_NATIONS } from "../constants.js";
 
 /**
- * Continental championships — the Euro, Copa America, AFCON and their siblings.
+ * Confederation cups — the Euro, Copa America, AFCON and their siblings.
  *
  * These are the World Cup's smaller relations, played in the offseason two
  * years either side of it (the cycle's middle qualifying season — see
- * isContinentalSeason), and they reuse the World Cup's machinery almost whole:
+ * isConfederationCupSeason), and they reuse the World Cup's machinery almost whole:
  * the same squad selection, the same pot draw, the same group and knockout
  * functions, the same Light archival. Three things are genuinely new.
  *
- * **There is no continental qualifying.** A championship's field is simply the
+ * **There is no confederation cup qualifying.** A cup's field is simply the
  * strongest nations of its confederation at the moment it is drawn, which is
  * the same ranking the Power Rankings tab shows. Qualifying already occupies
  * three of every four offseasons and runs to roughly 280 fixtures a campaign;
@@ -31,14 +31,14 @@ import { CONTINENTAL_MIN_NATIONS } from "../constants.js";
  * **The shape varies.** Europe fields two dozen eligible nations and South
  * America five, so the format is chosen per tournament (see format.ts) rather
  * than fixed the way the World Cup's is. A confederation that cannot reach the
- * smallest supported shape holds no championship at all, which on a default
+ * smallest supported shape holds no cup at all, which on a default
  * world is exactly what happens to Asia, North America and Oceania — every
  * player is generated from a European league's nationality table, so those
  * confederations exist only as scattered imports. Their tournaments are defined
  * and dark, and light up on their own if a world ever supports them.
  *
  * **They are played side by side, aligned on their finals.** All the live
- * championships share one group-stage click and then one click per knockout
+ * cups share one group-stage click and then one click per knockout
  * round, in which each tournament plays a round only if it has as many rounds
  * left as the longest-running one does. A five-nation Copa (one round: the
  * final) therefore sits out while a sixteen-nation Euro plays its quarters and
@@ -48,7 +48,7 @@ import { CONTINENTAL_MIN_NATIONS } from "../constants.js";
  *
  * Every tournament runs on its own seeded rng streams, keyed off its
  * confederation's index — never the league's shared rng, and never a stream
- * shared with another championship, which would make each one's results depend
+ * shared with another cup, which would make each one's results depend
  * on the order the others happened to be played in.
  */
 
@@ -58,24 +58,24 @@ import { CONTINENTAL_MIN_NATIONS } from "../constants.js";
  * knockout stream has the round index added to it, and the deepest supported
  * bracket is three rounds — the block is 10 wide for headroom).
  */
-const CONTINENTAL_DRAW_STREAM = 900;
-const CONTINENTAL_GROUP_STREAM = 920;
-const CONTINENTAL_KNOCKOUT_STREAM = 940;
+const CONFEDERATION_CUP_DRAW_STREAM = 900;
+const CONFEDERATION_CUP_GROUP_STREAM = 920;
+const CONFEDERATION_CUP_KNOCKOUT_STREAM = 940;
 
 function drawStream(confederation: string): number {
-  return CONTINENTAL_DRAW_STREAM + confederationIndex(confederation);
+  return CONFEDERATION_CUP_DRAW_STREAM + confederationIndex(confederation);
 }
 
 function groupStream(confederation: string): number {
-  return CONTINENTAL_GROUP_STREAM + confederationIndex(confederation);
+  return CONFEDERATION_CUP_GROUP_STREAM + confederationIndex(confederation);
 }
 
 function knockoutStream(confederation: string): number {
-  return CONTINENTAL_KNOCKOUT_STREAM + confederationIndex(confederation) * 10;
+  return CONFEDERATION_CUP_KNOCKOUT_STREAM + confederationIndex(confederation) * 10;
 }
 
-/** The stream options one championship passes to the shared tournament functions. */
-function playOptions(t: IntlContinentalTournament) {
+/** The stream options one cup passes to the shared tournament functions. */
+function playOptions(t: IntlConfederationCup) {
   return {
     groupStream: groupStream(t.confederation),
     knockoutStream: knockoutStream(t.confederation),
@@ -84,7 +84,7 @@ function playOptions(t: IntlContinentalTournament) {
 }
 
 /**
- * Draw every continental championship the world can support, without playing a
+ * Draw every confederation cup the world can support, without playing a
  * match. Squads are named from the current player pool, each confederation's
  * strongest nations take its places, and the field is pot-drawn into groups
  * whose fixtures start unplayed.
@@ -92,13 +92,13 @@ function playOptions(t: IntlContinentalTournament) {
  * Player-free and shared-rng-free, so this is safe to run the instant the
  * offseason begins — the same discipline initQualifying and initTournament
  * follow. Returns an empty array on a world where no confederation can field a
- * tournament, which is the signal to skip the continental stages entirely.
+ * tournament, which is the signal to skip the confederation cup stages entirely.
  */
-export function initContinental(
+export function initConfederationCups(
   players: Player[],
   season: number,
   lid: number,
-): IntlContinentalTournament[] {
+): IntlConfederationCup[] {
   // One squad list for the whole world, strongest first, split by confederation.
   const squads = buildSquads(players);
   const byConfederation = new Map<string, NationSquad[]>();
@@ -110,12 +110,12 @@ export function initContinental(
     else byConfederation.set(conf, [squad]);
   }
 
-  const out: IntlContinentalTournament[] = [];
+  const out: IntlConfederationCup[] = [];
   // Iterate the spec table, not the map, so the tournaments come out in a fixed
   // order regardless of which nations happened to be eligible this season.
-  for (const spec of CONTINENTAL_TOURNAMENTS) {
+  for (const spec of CONFEDERATION_CUPS) {
     const available = byConfederation.get(spec.confederation) ?? [];
-    if (available.length < CONTINENTAL_MIN_NATIONS) continue;
+    if (available.length < CONFEDERATION_CUP_MIN_NATIONS) continue;
     const format = formatFor(available.length, spec.targetField);
     if (!format) continue;
 
@@ -144,7 +144,7 @@ export function initContinental(
 }
 
 /**
- * How many knockout rounds a championship still has to play: 0 once it has a
+ * How many knockout rounds a cup still has to play: 0 once it has a
  * champion, otherwise however many halvings its current field needs. Before the
  * knockout starts that field is the seeded bracket; afterwards it is the
  * winners of the last round played.
@@ -152,7 +152,7 @@ export function initContinental(
  * This is what aligns the finals — a stage plays only the tournaments with the
  * most rounds left, so the shorter ones wait and everyone finishes together.
  */
-export function roundsRemaining(t: IntlContinentalTournament): number {
+export function roundsRemaining(t: IntlConfederationCup): number {
   if (t.championNid !== null) return 0;
   if (t.ties.length === 0) {
     return t.bracket.length > 1 ? Math.log2(t.bracket.length) : 0;
@@ -163,30 +163,30 @@ export function roundsRemaining(t: IntlContinentalTournament): number {
 }
 
 /**
- * True while any drawn championship still has an unplayed group fixture — i.e.
- * there is a continental group stage waiting to be played this offseason. Read
+ * True while any drawn cup still has an unplayed group fixture — i.e.
+ * there is a confederation cup group stage waiting to be played this offseason. Read
  * off the fixtures rather than a flag so it stays right across a save/reload
  * and for a save that joined the cycle midway.
  */
-export function continentalGroupsPending(tournaments: IntlContinentalTournament[]): boolean {
+export function confederationCupGroupsPending(tournaments: IntlConfederationCup[]): boolean {
   return tournaments.some((t) => t.groups.some((g) => g.matches.some((m) => m.homeGoals < 0)));
 }
 
-/** True while any drawn championship still has a knockout round to play. */
-export function continentalKnockoutPending(tournaments: IntlContinentalTournament[]): boolean {
+/** True while any drawn cup still has a knockout round to play. */
+export function confederationCupKnockoutPending(tournaments: IntlConfederationCup[]): boolean {
   return tournaments.some((t) => roundsRemaining(t) > 0);
 }
 
 /**
- * Play every championship's group stage (and seed each bracket). One stage
+ * Play every cup's group stage (and seed each bracket). One stage
  * across all of them, since a group stage is a group stage whatever size the
  * tournament is.
  */
-export function playContinentalGroups(
-  tournaments: IntlContinentalTournament[],
+export function playConfederationCupGroups(
+  tournaments: IntlConfederationCup[],
   players: Player[],
   lid: number,
-): { tournaments: IntlContinentalTournament[]; delta: CareerDelta; injured: number[] } {
+): { tournaments: IntlConfederationCup[]; delta: CareerDelta; injured: number[] } {
   const delta = emptyCareerDelta();
   const injured = new Set<number>();
   const played = tournaments.map((t) => {
@@ -199,16 +199,16 @@ export function playContinentalGroups(
 }
 
 /**
- * Play one knockout round in every championship that has as many rounds left as
+ * Play one knockout round in every cup that has as many rounds left as
  * the deepest one still running. Tournaments with fewer rounds remaining are
  * left untouched this stage and rejoin once the field has caught up with them,
  * so every final is played on the same click.
  */
-export function playContinentalKnockoutRound(
-  tournaments: IntlContinentalTournament[],
+export function playConfederationCupKnockoutRound(
+  tournaments: IntlConfederationCup[],
   players: Player[],
   lid: number,
-): { tournaments: IntlContinentalTournament[]; delta: CareerDelta; injured: number[] } {
+): { tournaments: IntlConfederationCup[]; delta: CareerDelta; injured: number[] } {
   const delta = emptyCareerDelta();
   const injured = new Set<number>();
   const deepest = Math.max(0, ...tournaments.map(roundsRemaining));
@@ -225,13 +225,13 @@ export function playContinentalKnockoutRound(
 }
 
 /**
- * Collapse finished championships into the permanent record — the same Light
+ * Collapse finished cups into the permanent record — the same Light
  * summary a World Cup keeps, plus which confederation it was. Tournaments that
  * never produced a champion (a world too broken to resolve a bracket) are
  * dropped rather than archived half-finished.
  */
-export function summarizeContinental(
-  tournaments: IntlContinentalTournament[],
+export function summarizeConfederationCups(
+  tournaments: IntlConfederationCup[],
   players: Player[],
 ): IntlTournamentSummary[] {
   const out: IntlTournamentSummary[] = [];
@@ -243,11 +243,11 @@ export function summarizeContinental(
 }
 
 /**
- * The nations that won a championship in the offseason after `season`. Read by
+ * The nations that won a cup in the offseason after `season`. Read by
  * the worldwide awards, which pay a winner's medal to everyone who featured for
- * one of them (see WORLD_AWARD_CONTINENTAL_BONUS).
+ * one of them (see WORLD_AWARD_CONFEDERATION_CUP_BONUS).
  */
-export function continentalChampions(
+export function confederationCupChampions(
   history: IntlTournamentSummary[],
   season: number,
 ): Set<string> {

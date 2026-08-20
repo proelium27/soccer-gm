@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useLeague } from "../../context/LeagueContext.js";
 import { seasonYear } from "../../format.js";
 import type {
-  IntlContinentalTournament, IntlTournamentSummary,
+  IntlConfederationCup, IntlTournamentSummary,
 } from "../../../core/international/index.js";
 import { tournamentGoals } from "../../../core/international/index.js";
 import { PlayerRefLink } from "../../components/PlayerRefLink.js";
@@ -14,13 +14,13 @@ import {
 } from "./shared.js";
 
 /**
- * The continental championships — the Euro, Copa América, AFCON and any other
+ * The confederation cups — the Euro, Copa América, AFCON and any other
  * confederation big enough to hold one.
  *
  * One page for all of them rather than a tab each: they are played in the same
  * offseason and finish on the same day, so the interesting view is the whole
- * summer at once. Each championship gets a section, in the fixed order the spec
- * table defines, and a year picker browses past editions.
+ * summer at once. Each cup gets a section, in the fixed order the spec table
+ * defines, and a year picker browses past editions.
  */
 
 function ChampionBanner({ champion }: { champion: string }) {
@@ -32,7 +32,7 @@ function ChampionBanner({ champion }: { champion: string }) {
 }
 
 /**
- * One championship, live or archived, normalized to the same shape first so
+ * One cup, live or archived, normalized to the same shape first so
  * both render through one component. `advancing` and `koRounds` vary by
  * tournament — a confederation with five nations plays a single table into a
  * final, one with twenty-five plays four groups into a quarter-final.
@@ -94,7 +94,7 @@ function Championship({
   );
 }
 
-function LiveChampionship({ tournament }: { tournament: IntlContinentalTournament }) {
+function LiveChampionship({ tournament }: { tournament: IntlConfederationCup }) {
   const { league } = useLeague();
   const nations = tournament.nations;
 
@@ -159,11 +159,11 @@ function ArchivedChampionship({ summary }: { summary: IntlTournamentSummary }) {
   );
 }
 
-export function NTContinental() {
+export function NTConfederationCups() {
   const { league } = useLeague();
   const hasIntl = useHasInternational();
-  const live = league?.international.continental ?? [];
-  const history = league?.international.continentalHistory ?? [];
+  const live = league?.international.confederationCups ?? [];
+  const history = league?.international.confederationCupHistory ?? [];
 
   const seasons = useMemo(() => {
     const set = new Set<number>();
@@ -180,13 +180,13 @@ export function NTContinental() {
   const liveThisSeason = live.filter((t) => t.season === selected);
   const archivedThisSeason = history.filter((h) => h.season === selected);
   // The live copies are the fuller record (they keep box scores, so they can
-  // show leading scorers), so a championship present in both is shown live.
+  // show leading scorers), so a cup present in both is shown live.
   const archivedOnly = archivedThisSeason.filter(
     (h) => !liveThisSeason.some((t) => t.confederation === h.confederation),
   );
 
   return (
-    <NationalTeamsLayout title="Continental Championships">
+    <NationalTeamsLayout title="Confederation Cups">
       <SeasonSelect
         seasons={seasons}
         value={selected ?? 0}
@@ -195,7 +195,7 @@ export function NTContinental() {
       />
       {liveThisSeason.length === 0 && archivedOnly.length === 0 ? (
         <p className="text-muted">
-          No continental championship has been played yet. They come round every{" "}
+          No confederation cup has been played yet. They come round every{" "}
           {INTL_CYCLE_YEARS} seasons, two years either side of the World Cup, and a
           confederation needs enough nations with real player pools to hold one.
         </p>

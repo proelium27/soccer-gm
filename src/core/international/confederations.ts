@@ -208,23 +208,23 @@ export function allocateSlots(
 }
 
 /**
- * Each confederation's championship: what it's called and how big a field it
+ * Each confederation's cup: what it's called and how big a field it
  * would like. The actual field is the smaller of this target and how many
  * eligible nations the confederation has (see formatFor), so a target is a
  * ceiling rather than a promise.
  *
  * Every confederation has one, but a default world only plays three of them —
- * see CONTINENTAL_MIN_NATIONS for why, and why the other three are defined
+ * see CONFEDERATION_CUP_MIN_NATIONS for why, and why the other three are defined
  * anyway rather than left out.
  */
-export interface ContinentalTournamentSpec {
+export interface ConfederationCupSpec {
   confederation: Confederation;
   name: string;
-  /** Largest field this championship will take, if the nations are there. */
+  /** Largest field this cup will take, if the nations are there. */
   targetField: number;
 }
 
-export const CONTINENTAL_TOURNAMENTS: ContinentalTournamentSpec[] = [
+export const CONFEDERATION_CUPS: ConfederationCupSpec[] = [
   { confederation: "Europe", name: "European Championship", targetField: 16 },
   { confederation: "South America", name: "Copa América", targetField: 10 },
   { confederation: "Africa", name: "Africa Cup of Nations", targetField: 16 },
@@ -233,13 +233,13 @@ export const CONTINENTAL_TOURNAMENTS: ContinentalTournamentSpec[] = [
   { confederation: "Oceania", name: "OFC Nations Cup", targetField: 8 },
 ];
 
-/** The championship spec for a confederation, or null if it somehow has none. */
-export function continentalSpec(confederation: string): ContinentalTournamentSpec | null {
-  return CONTINENTAL_TOURNAMENTS.find((t) => t.confederation === confederation) ?? null;
+/** The cup spec for a confederation, or null if it somehow has none. */
+export function confederationCupSpec(confederation: string): ConfederationCupSpec | null {
+  return CONFEDERATION_CUPS.find((t) => t.confederation === confederation) ?? null;
 }
 
 /**
- * A confederation's index in CONFEDERATIONS. Used to give each championship its
+ * A confederation's index in CONFEDERATIONS. Used to give each cup its
  * own rng stream — several are played in the same offseason, so sharing one
  * stream would make each tournament's results depend on the order the others
  * were played in.

@@ -3,18 +3,18 @@ import type { InternationalState } from "./types.js";
 export type {
   InternationalState, IntlStage, IntlCareer, IntlSeasonLine, IntlTournament, IntlTournamentSummary,
   IntlQualifyingCampaign, IntlQualifyingSummary, IntlGroup, IntlGroupMatch, IntlGroupTable,
-  IntlKnockoutResult, IntlPowerSnapshot, NationSquad, IntlContinentalTournament,
+  IntlKnockoutResult, IntlPowerSnapshot, NationSquad, IntlConfederationCup,
 } from "./types.js";
 export { emptyIntlCareer } from "./types.js";
 export { groupTable, groupTableSummary, rankAcrossGroups, type GroupRow } from "./groups.js";
 export {
   confederationOf, CONFEDERATIONS, CONFEDERATION_OF,
-  CONTINENTAL_TOURNAMENTS, continentalSpec, type ContinentalTournamentSpec,
+  CONFEDERATION_CUPS, confederationCupSpec, type ConfederationCupSpec,
 } from "./confederations.js";
 export {
-  initContinental, roundsRemaining, continentalGroupsPending, continentalKnockoutPending,
-  summarizeContinental, continentalChampions,
-} from "./continental.js";
+  initConfederationCups, roundsRemaining, confederationCupGroupsPending, confederationCupKnockoutPending,
+  summarizeConfederationCups, confederationCupChampions,
+} from "./confederationCup.js";
 export { formatFor, knockoutRounds, type TournamentFormat } from "./format.js";
 export { buildSquads, selectSquad, isEligibleNation, nationPools, buildPowerSnapshot } from "./squads.js";
 export { finalTie, tournamentGoals, summarize, summarizeQualifying } from "./tournament.js";
@@ -26,8 +26,8 @@ export {
 
 export function emptyInternationalState(): InternationalState {
   return {
-    qualifying: null, tournament: null, continental: [], history: [],
-    qualifyingHistory: [], continentalHistory: [], powerRankings: [],
+    qualifying: null, tournament: null, confederationCups: [], history: [],
+    qualifyingHistory: [], confederationCupHistory: [], powerRankings: [],
     stage: null, stageInjuries: [],
   };
 }

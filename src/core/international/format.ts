@@ -2,14 +2,14 @@
  * Tournament shapes.
  *
  * The World Cup has a fixed 16-nation field, so its shape could be hard-coded
- * (four groups of four, top two into an eight-nation bracket). A continental
- * championship cannot: Europe fields two dozen nations and South America five,
+ * (four groups of four, top two into an eight-nation bracket). A confederation cup
+ * cup cannot: Europe fields two dozen nations and South America five,
  * and the same code has to run both. So a tournament's shape is chosen from
  * this table by how many nations actually turned up.
  *
  * Every shape ends in a power-of-two knockout, which is what lets the staged
  * offseason play several tournaments side by side and still land their finals
- * on the same click (see continental.ts). The smallest shape is a single
+ * on the same click (see confederationCup.ts). The smallest shape is a single
  * round-robin whose top two contest a final — which is not a fudge for a thin
  * field but how Copa America was genuinely played until 1975.
  */

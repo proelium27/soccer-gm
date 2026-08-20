@@ -20,7 +20,7 @@ import {
   WORLD_AWARD_LEAGUE_TITLE_BONUS, WORLD_AWARD_TITLE_FULL_SEASON, WORLD_AWARD_INTL_GOAL_WEIGHT, WORLD_AWARD_INTL_ASSIST_WEIGHT,
   WORLD_AWARD_INTL_CAP_WEIGHT, WORLD_AWARD_INTL_TOURNAMENT_MULTIPLIER, WORLD_AWARD_WORLD_CUP_BONUS,
   WORLD_AWARD_DOMESTIC_CUP_BONUS, WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT,
-  WORLD_AWARD_INTL_CONTINENTAL_MULTIPLIER, WORLD_AWARD_CONTINENTAL_BONUS,
+  WORLD_AWARD_INTL_CONFEDERATION_CUP_MULTIPLIER, WORLD_AWARD_CONFEDERATION_CUP_BONUS,
 } from "./constants.js";
 
 /**
@@ -81,13 +81,13 @@ export interface WorldAwardContext {
   /** Nation that won the World Cup in the offseason right after that season, or null (a qualifying year). */
   worldCupChampion: string | null;
   /**
-   * Nations that won a continental championship in that same offseason — the
+   * Nations that won a confederation cup in that same offseason — the
    * Euro, Copa America and AFCON are all played at once, so this is a set
    * rather than one nation. Empty in the three offseasons of four that stage
    * none. Optional so an older caller that doesn't supply it simply scores no
-   * continental credit rather than failing to compile.
+   * confederation cup credit rather than failing to compile.
    */
-  continentalChampions?: ReadonlySet<string>;
+  confederationCupChampions?: ReadonlySet<string>;
 }
 
 interface Entry {
@@ -168,11 +168,11 @@ function cupComponent(
  * A player's international contribution: everything he played in the offseason
  * straight after this season (see core/international). Knockout football counts
  * for more than a qualifier — a World Cup goal is worth double a qualifying one
- * and a continental championship goal one and a half times — and a winner's
+ * and a confederation cup goal one and a half times — and a winner's
  * medal is worth a flat bonus on top of that.
  *
  * **Every line for the season is summed, not just the first.** The offseason
- * that stages the continental championships also plays a World Cup qualifying
+ * that stages the confederation cups also plays a World Cup qualifying
  * leg, so a player can hold two lines for one season; taking the first would
  * silently drop whichever campaign happened to be appended second. (Before the
  * championships existed there was only ever one line, so this was a latent
@@ -186,15 +186,15 @@ function intlComponent(
   p: Player,
   season: number,
   worldCupChampion: string | null,
-  continentalChampions: ReadonlySet<string>,
+  confederationCupChampions: ReadonlySet<string>,
 ): number {
   const lines = p.intl?.seasons.filter((l) => l.season === season) ?? [];
   let score = 0;
   for (const line of lines) {
     const multiplier = line.kind === "tournament"
       ? WORLD_AWARD_INTL_TOURNAMENT_MULTIPLIER
-      : line.kind === "continental"
-        ? WORLD_AWARD_INTL_CONTINENTAL_MULTIPLIER
+      : line.kind === "confederation"
+        ? WORLD_AWARD_INTL_CONFEDERATION_CUP_MULTIPLIER
         : 1;
     score +=
       (line.goals * WORLD_AWARD_INTL_GOAL_WEIGHT +
@@ -206,14 +206,14 @@ function intlComponent(
     if (line.kind === "tournament" && worldCupChampion !== null && p.nationality === worldCupChampion) {
       score += WORLD_AWARD_WORLD_CUP_BONUS;
     }
-    if (line.kind === "continental" && continentalChampions.has(p.nationality)) {
-      score += WORLD_AWARD_CONTINENTAL_BONUS;
+    if (line.kind === "confederation" && confederationCupChampions.has(p.nationality)) {
+      score += WORLD_AWARD_CONFEDERATION_CUP_BONUS;
     }
   }
   return score;
 }
 
-/** The continental champions on a context, defaulting to none. */
+/** The confederation cup champions on a context, defaulting to none. */
 const NO_CHAMPIONS: ReadonlySet<string> = new Set();
 
 /**
@@ -279,7 +279,7 @@ function ballonDOrParts(
   // would break WorldAwards entries already persisted on old saves.
   const league = potyScore(e.player, e.stats, season) + e.strength + worldOvrComponent(e);
   const cup = cupComponent(e, roundsFromFinal, POTY_GOAL_WEIGHT, POTY_ASSIST_WEIGHT);
-  const intl = intlComponent(e.player, season, ctx.worldCupChampion, ctx.continentalChampions ?? NO_CHAMPIONS);
+  const intl = intlComponent(e.player, season, ctx.worldCupChampion, ctx.confederationCupChampions ?? NO_CHAMPIONS);
   const title = titleComponent(e, ctx.championTidByCompId);
   const domesticCup = domesticCupComponent(e, domesticChampions, domesticLines);
   return {
@@ -306,7 +306,7 @@ function worldTotsScore(
     + e.strength
     + worldOvrComponent(e)
     + cupComponent(e, roundsFromFinal, TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT)
-    + intlComponent(e.player, season, ctx.worldCupChampion, ctx.continentalChampions ?? NO_CHAMPIONS)
+    + intlComponent(e.player, season, ctx.worldCupChampion, ctx.confederationCupChampions ?? NO_CHAMPIONS)
     + titleComponent(e, ctx.championTidByCompId)
     + domesticCupComponent(e, domesticChampions, domesticLines);
 }
