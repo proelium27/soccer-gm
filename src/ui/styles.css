@@ -63,6 +63,11 @@
      cup bracket. */
   --sg-cup: oklch(0.72 0.11 200);
   --sg-cup-wash: oklch(0.72 0.11 200 / 0.14);
+  /* The bracket's connector elbows. Do not remove because a grep says nothing
+     uses it: the only two references live in pseudo-element `background`
+     declarations, and an undefined custom property there fails silently, so the
+     connectors just stop being drawn with nothing to catch it. */
+  --sg-cup-line: oklch(0.72 0.11 200 / 0.45);
   /* Continental Shield accent — violet, a clear hue step from the Cup's teal,
      and deliberately DARKER as well. The two qualification bars sit one row
      apart with nothing else separating them, so a lightness gap is what keeps
@@ -1910,7 +1915,16 @@ a:hover {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  flex: 0 0 172px;
+  /* 172px is the floor, sized so the widest bracket the sim builds (a six-round
+     domestic cup) fits 1440px without scrolling, and the column still never
+     shrinks below it. It MAY grow into whatever is left over, which is not the
+     thing the note above warns about: growth is bounded by the flex container,
+     so it cannot push the total past the viewport or clip the final the way an
+     `auto` basis (max-content) would. This matters because a four-column
+     continental bracket otherwise left a third of the width empty while
+     truncating club names. Capped so a two-column bracket doesn't sprawl. */
+  flex: 1 0 172px;
+  max-width: 300px;
 }
 .cup-round-title {
   font-size: var(--sg-text-xs);
@@ -1986,6 +2000,13 @@ a:hover {
   border: 1px solid var(--sg-border);
   border-radius: var(--sg-radius);
   background: var(--sg-surface);
+  /* A grid item defaults to min-width:auto, i.e. it refuses to shrink below its
+     min-content. A long club name or a two-legged aggregate note then inflated
+     the box past its fixed-width column and it overlapped the next round:
+     measured, a 172px playoff column held 224px boxes, 52px of which landed on
+     top of the quarter-finals. The column can't grow to absorb that (see
+     .cup-round), so the box has to be allowed to shrink instead. */
+  min-width: 0;
 }
 .cup-tie > .cup-tie-row:first-child {
   border-top-left-radius: calc(var(--sg-radius) - 1px);
@@ -2022,6 +2043,10 @@ a:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Without this the ellipsis never fires: as a flex item the name keeps
+     min-width:auto, so its nowrap text sets a floor the whole tie has to widen
+     to meet. It has to be allowed to shrink before it will agree to truncate. */
+  min-width: 0;
 }
 .cup-team-winner .cup-team-name { font-weight: var(--sg-weight-semibold); }
 .cup-team-user .cup-team-name { color: var(--sg-user); font-weight: var(--sg-weight-semibold); }
@@ -2044,6 +2069,10 @@ a:hover {
   border-top: 1px solid var(--sg-border);
   padding: 0.15rem 0.5rem;
   text-align: right;
+}
+/* One unbreakable piece of the note: a label or a single leg's scoreline. */
+.cup-tie-seg {
+  white-space: nowrap;
 }
 .cup-tie-tbd {
   color: var(--sg-text-faint);

@@ -154,8 +154,13 @@ export function Cup({ competition = "continental" }: { competition?: CupCompetit
           <span className="cup-tie-score">{slot.tie.awayGoals}</span>
         </div>
         {legs && legs.length === 2 && (
+          // Each leg is its own nowrap span so a narrow column breaks the note
+          // between the legs rather than through a scoreline, which was
+          // orphaning the second digit on a line of its own.
           <div className="cup-tie-note">
-            agg over two legs · 1st {legs[0].homeGoals}–{legs[0].awayGoals} · 2nd {legs[1].awayGoals}–{legs[1].homeGoals}
+            <span className="cup-tie-seg">agg over two legs</span>{" · "}
+            <span className="cup-tie-seg">1st {legs[0].homeGoals}–{legs[0].awayGoals}</span>{" · "}
+            <span className="cup-tie-seg">2nd {legs[1].awayGoals}–{legs[1].homeGoals}</span>
           </div>
         )}
         {(slot.tie.wentToExtraTime || slot.tie.wentToPens) && (
