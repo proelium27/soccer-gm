@@ -30,6 +30,7 @@ import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentit
 import { ClubCrest, CrestArtProvider } from "../components/ClubCrest.js";
 import { CountryFlag } from "../components/CountryFlag.js";
 import { trackEvent } from "../analytics.js";
+import { ROSTER_DOWNLOAD_URL } from "../rosterDownload.js";
 import { createGate, yieldToPaint } from "../singleFlight.js";
 
 const WORLD_COMPETITIONS = worldCompetitions();
@@ -286,6 +287,27 @@ export function NewLeague() {
           Load a roster file to start a league with real clubs and squads in place of the
           fictional ones. You'll pick your club from the imported teams on the next step.
         </p>
+
+        {ROSTER_DOWNLOAD_URL && (
+          <div className="border rounded p-3 mb-3">
+            <div className="fw-semibold mb-1">Don't have one yet?</div>
+            <p className="text-muted small mb-2">
+              Grab the ready-made file covering every league in the game, save it
+              somewhere you'll find it, then load it below. It's a separate download
+              rather than part of the game itself.
+            </p>
+            <a
+              className="btn btn-outline-primary btn-sm"
+              href={ROSTER_DOWNLOAD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+            >
+              Download roster file
+            </a>
+          </div>
+        )}
+
         <p className="text-muted">
           A roster file is a plain text (JSON) file listing clubs by league, each one
           optionally carrying a squad. You can write one yourself, or generate one with

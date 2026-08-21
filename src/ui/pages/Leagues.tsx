@@ -7,6 +7,7 @@ import { useSportName } from "../sportName.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 import { parseRosterFile, isRosterFileFormat } from "../../core/teams/rosterFile.js";
 import { setPendingRoster } from "../pendingRoster.js";
+import { ROSTER_DOWNLOAD_URL } from "../rosterDownload.js";
 
 interface LeagueSummary {
   lid: number;
@@ -318,6 +319,18 @@ export function Leagues() {
         >
           Import
         </button>
+        {ROSTER_DOWNLOAD_URL && (
+          <a
+            className="btn btn-outline-secondary"
+            href={ROSTER_DOWNLOAD_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+            title="Get a roster file of real clubs and squads, then load it with Import"
+          >
+            Download Real Rosters
+          </a>
+        )}
         <input
           ref={importInputRef}
           type="file"
@@ -333,6 +346,9 @@ export function Leagues() {
         squads, or a save file from Export Save, which loads that save back. You can pick as
         many roster files as you like (one per league is the usual way) and they all go into
         the same league.
+        {ROSTER_DOWNLOAD_URL && (
+          <> Download Real Rosters gets you one covering every league to start with.</>
+        )}
       </p>
     </div>
   );
