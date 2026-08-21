@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import { HelpHint } from "../components/HelpHint.js";
 import { ClubCrest } from "../components/ClubCrest.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { seasonYear } from "../format.js";
 import type { CupTie } from "../../core/cup/types.js";
 import type { DomesticCupState, DomesticCupRound } from "../../core/domesticCup/types.js";
@@ -58,7 +59,9 @@ export function DomesticCup() {
       ? countryCurrent ?? countryHistory[0]
       : countryHistory.find((h) => h.season === seasonSel) ?? countryCurrent;
 
-  const teamName = (tid: number) => league.teams.find((t) => t.tid === tid)?.name ?? `Team ${tid}`;
+  // The season this bracket belongs to, so every club on it links to what that
+  // club did that year rather than to today.
+  const shownSeason = cup?.season;
   const teamColors = (tid: number): [string, string] =>
     league.teams.find((t) => t.tid === tid)?.colors ?? ["#888888", "#888888"];
   const tierOf = (tid: number): number | undefined => {
@@ -69,7 +72,9 @@ export function DomesticCup() {
   const teamCell = (tid: number, isWinner: boolean) => (
     <span className={`cup-team${isWinner ? " cup-team-winner" : ""}${tid === userTid ? " cup-team-user" : ""}`}>
       <ClubCrest tid={tid} colors={teamColors(tid)} size={16} />
-      <span className="cup-team-name">{teamName(tid)}</span>
+      <span className="cup-team-name">
+        <ClubLink tid={tid} season={shownSeason} />
+      </span>
       {tierOf(tid) === 2 && <span className="cup-team-tier">D2</span>}
     </span>
   );
@@ -167,7 +172,7 @@ export function DomesticCup() {
             <div className="cup-champion-banner mb-3">
               <span className="cup-champion-label">Winners</span>{" "}
               <ClubCrest tid={cup.championTid} colors={teamColors(cup.championTid)} size={22} />{" "}
-              <strong>{teamName(cup.championTid)}</strong>
+              <strong><ClubLink tid={cup.championTid} season={shownSeason} /></strong>
             </div>
           ) : finalists.includes(userTid) ? (
             <div className="alert alert-warning py-2 mb-3">

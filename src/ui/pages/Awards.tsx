@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import { HelpHint } from "../components/HelpHint.js";
 import type { BallonDOrEntry } from "../../core/worldAwards.js";
@@ -84,7 +85,7 @@ function subjectResolver(
   };
 }
 
-function AwardCard({ title, subject, subtitle }: { title: ReactNode; subject: AwardSubject | undefined; subtitle: string }) {
+function AwardCard({ title, subject, subtitle }: { title: ReactNode; subject: AwardSubject | undefined; subtitle: ReactNode }) {
   return (
     <div className="card h-100">
       <div className="card-body">
@@ -171,13 +172,11 @@ function TeamOfSeasonField({
 function BallonDOrTable({
   ballonDOr,
   subjectOf,
-  clubName,
   leagueName,
   season,
 }: {
   ballonDOr: BallonDOrEntry[];
   subjectOf: (pid: number) => AwardSubject | undefined;
-  clubName: (tid: number) => string;
   leagueName: (tid: number) => string;
   season: number;
 }) {
@@ -216,7 +215,7 @@ function BallonDOrTable({
                     <Link to={`/player/${e.pid}`}>{subject?.name ?? `#${e.pid}`}</Link>
                   </span>
                 </td>
-                <td>{clubName(e.tid)}</td>
+                <td><ClubLink tid={e.tid} season={season} /></td>
                 <td className="d-none d-md-table-cell text-muted">{leagueName(e.tid)}</td>
                 <td className="text-end">{stats?.goals ?? "—"}</td>
                 <td className="text-end">{stats?.assists ?? "—"}</td>
@@ -275,8 +274,6 @@ export function Awards() {
   // Clubs are looked up by the competition they were in *that* season, so a
   // since-relegated or since-promoted club is still labelled with the league it
   // actually won its votes in.
-  const teamByTid = new Map(league.teams.map((t) => [t.tid, t]));
-  const clubName = (tid: number) => teamByTid.get(tid)?.name ?? "Unknown";
   const leagueName = (tid: number) => {
     const cid = entry.compsByTid[tid];
     return cid === undefined ? "" : league.competitions.find((c) => c.id === cid)?.name ?? "";
@@ -350,9 +347,12 @@ export function Awards() {
                   title="Ballon d'Or"
                   subject={winnerSubject}
                   subtitle={
-                    winnerStats
-                      ? `${clubName(winner.tid)} · ${winnerStats.goals}G ${winnerStats.assists}A · ${winnerStats.avgRating.toFixed(2)} avg rating`
-                      : clubName(winner.tid)
+                    <>
+                      <ClubLink tid={winner.tid} season={entry.season} />
+                      {winnerStats
+                        ? ` · ${winnerStats.goals}G ${winnerStats.assists}A · ${winnerStats.avgRating.toFixed(2)} avg rating`
+                        : ""}
+                    </>
                   }
                 />
               </div>
@@ -402,7 +402,6 @@ export function Awards() {
             <BallonDOrTable
               ballonDOr={world.ballonDOr}
               subjectOf={subjectOf}
-              clubName={clubName}
               leagueName={leagueName}
               season={activeSeason}
             />

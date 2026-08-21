@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { Player } from "../../core/players/types.js";
 import { useLeague } from "../context/LeagueContext.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { PotHelp } from "../components/HelpHint.js";
 import { transferWindowState } from "../../core/transfers/window.js";
 import {
@@ -32,7 +33,8 @@ type OfferSortKey = "default" | "name" | "pos" | "age" | "ovr" | "pot" | "wage" 
 interface OfferRowProps {
   pid: number;
   buyerTid: number;
-  buyerName: string;
+  /** The buying club, already rendered - a link, so the reader can go and look at them. */
+  buyerName: ReactNode;
   playerName: string;
   offerFee: number;
   negotiation: InboundOffer | undefined;
@@ -143,8 +145,6 @@ export function IncomingOffers() {
   }
 
   const ws = transferWindowState(league);
-  const teamName = (tid: number) =>
-    league.teams.find((t) => t.tid === tid)?.name ?? "Unknown";
 
   const commentaryFor = (p: Player, offerFee: number): ScoutCommentary | null =>
     ws.open
@@ -252,7 +252,7 @@ export function IncomingOffers() {
                     <OfferRow
                       pid={p.pid}
                       buyerTid={buyerTid}
-                      buyerName={teamName(buyerTid)}
+                      buyerName={<ClubLink tid={buyerTid} />}
                       playerName={p.name}
                       offerFee={offerFee}
                       negotiation={negotiation}
@@ -289,7 +289,7 @@ export function IncomingOffers() {
                         <OfferRow
                           pid={n.pid}
                           buyerTid={n.buyerTid}
-                          buyerName={teamName(n.buyerTid)}
+                          buyerName={<ClubLink tid={n.buyerTid} />}
                           playerName={p.name}
                           offerFee={n.offers.at(-1) ?? 0}
                           negotiation={n}
@@ -319,7 +319,7 @@ export function IncomingOffers() {
                 return (
                   <li key={i}>
                     {p ? <Link to={`/player/${p.pid}`}>{p.name}</Link> : `Player ${t.pid}`}{" "}
-                    {p && <Flag nationality={p.nationality} />} &rarr; {teamName(t.toTid)} for{" "}
+                    {p && <Flag nationality={p.nationality} />} &rarr; <ClubLink tid={t.toTid} season={t.season} /> for{" "}
                     {currency.format(t.fee)}
                   </li>
                 );

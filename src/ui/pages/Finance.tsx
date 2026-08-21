@@ -1,16 +1,16 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings } from "../../core/standings.js";
 import { seasonRevenue, wageBill, financeScaleFor } from "../../core/finance/budget.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { SCOUTING_SPEND_MAX, difficultyProfile } from "../../core/constants.js";
-import { clubDisplayName, currency, formatWeeklyWage, ordinal, seasonYear, transferFeeLabel } from "../format.js";
+import { currency, formatWeeklyWage, ordinal, seasonYear, transferFeeLabel } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
-import { ClubCrest } from "../components/ClubCrest.js";
 import { PlayerRefLink, usePlayerRefs } from "../components/PlayerRefLink.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 
@@ -33,10 +33,6 @@ export function Finance() {
   const salaryMap = useMemo(
     () => new Map((league?.players ?? []).map((p) => [p.pid, p.contract.salary])),
     [league?.players],
-  );
-  const teamNameByTid = useMemo(
-    () => new Map((league?.teams ?? []).map((t) => [t.tid, t.name])),
-    [league?.teams],
   );
   // The user's league position, which sets the prize tier in the estimate below.
   const rank = useMemo(() => {
@@ -71,9 +67,6 @@ export function Finance() {
     await setScoutingSpendAction(scoutingDraft);
     setScoutingDraft(null);
   };
-
-  const teamName = (tid: number) =>
-    clubDisplayName(tid, (id) => teamNameByTid.get(id));
 
   // Mirror of the offseason cash flow in runOffseason: season-end settlement
   // (prize by rank + hype revenue − scouting) followed by the new season's
@@ -348,7 +341,7 @@ export function Finance() {
                             <span className="text-danger">Sold</span>
                           )}
                         </td>
-                        <td>{teamName(bought ? t.fromTid : t.toTid)}</td>
+                        <td><ClubLink tid={bought ? t.fromTid : t.toTid} season={t.season} /></td>
                         <td className="text-end">{transferFeeLabel(t)}</td>
                       </tr>
                     );
@@ -392,10 +385,12 @@ export function Finance() {
                   }
                 >
                   <td>
-                    <span className="d-inline-flex align-items-center gap-1">
-                      <ClubCrest tid={team.tid} colors={team.colors} />
-                      {team.name}
-                    </span>
+                    <ClubLink
+                      tid={team.tid}
+                      crest
+                      crestSize={20}
+                      className="d-inline-flex align-items-center gap-1 text-decoration-none"
+                    />
                   </td>
                   <td className="text-end">{currency.format(team.budget)}</td>
                   <td className="text-end">{Math.round(team.hype)}</td>

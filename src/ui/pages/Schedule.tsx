@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { ClubLink } from "../components/ClubLink.js";
 import type { ScheduleGame } from "../../core/schedule.js";
 import type { CupState } from "../../core/cup/types.js";
 import { cupRoundName, koRoundsOf, koLegMatchdays } from "../../core/cup/cup.js";
@@ -181,11 +182,6 @@ export function Schedule() {
     }
   }
 
-  const teamName = (tid: number): string => {
-    const team = league.teams.find((t) => t.tid === tid);
-    return team?.name ?? `Team ${tid}`;
-  };
-
   return (
     <div className="container-fluid p-3">
       <h4>Schedule</h4>
@@ -228,7 +224,7 @@ export function Schedule() {
                 >
                   <td className="text-end">{row.matchday}</td>
                   <td>
-                    {teamName(row.home)}
+                    <ClubLink tid={row.home} />
                     {row.kind !== "league" && (
                       <span className="badge text-bg-secondary ms-2 align-middle" style={{ fontWeight: 400 }}>
                         {row.kind === "domestic"
@@ -255,7 +251,7 @@ export function Schedule() {
                       "—"
                     )}
                   </td>
-                  <td>{teamName(row.away)}</td>
+                  <td><ClubLink tid={row.away} /></td>
                   <td className="text-center text-muted">
                     {row.kind === "league" && row.result
                       ? `${Math.round(row.result.possessionHome * 100)}–${Math.round((1 - row.result.possessionHome) * 100)}`

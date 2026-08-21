@@ -8,7 +8,7 @@ import { tierOf } from "../../core/competitions.js";
 import { worldHasCup, cupSlotsForCompetition, cupSlotRange } from "../../core/cup/cup.js";
 import { SHIELD_FORMAT } from "../../core/constants.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
-import { ClubCrest } from "../components/ClubCrest.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 import { seasonYear, ordinal } from "../format.js";
 
@@ -178,7 +178,6 @@ export function Standings() {
           <tbody>
             {displayRows.map((row) => {
               const pos = posByTid.get(row.tid) ?? 0;
-              const team = league.teams.find((t) => t.tid === row.tid);
               const isUser = row.tid === league.meta.userTid;
               const isChampion = row.tid === championTid;
               const isCupSpot = showCupZone && pos < cupSlots;
@@ -205,8 +204,13 @@ export function Standings() {
                   </td>
                   <td>
                     <span className="d-inline-flex align-items-center gap-1">
-                      <ClubCrest tid={row.tid} colors={team?.colors ?? ["#888888", "#888888"]} />
-                      {team?.name ?? `Team ${row.tid}`}
+                      <ClubLink
+                        tid={row.tid}
+                        season={season === "current" ? undefined : season}
+                        crest
+                        crestSize={20}
+                        className="d-inline-flex align-items-center gap-1 text-decoration-none"
+                      />
                       {isChampion && (
                         <span className="text-muted small"> {isTier1 ? "🏆 (Champion)" : "(1st)"}</span>
                       )}

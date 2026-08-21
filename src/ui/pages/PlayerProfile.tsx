@@ -19,11 +19,13 @@ import { worldHasCup } from "../../core/cup/cup.js";
 import { confederationOf, confederationCupSpec } from "../../core/international/index.js";
 import { cupStatsBySeasonForPlayer } from "../../core/cup/cupStats.js";
 import { domesticStatsBySeasonForPlayer } from "../../core/domesticCup/stats.js";
-import { clubDisplayName, formatWeeklyWage, per90Text, seasonYear, transferFeeLabel } from "../format.js";
+import { formatWeeklyWage, per90Text, seasonYear, transferFeeLabel } from "../format.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { INTL_TOURNAMENT_NAME } from "../../core/constants.js";
 import { isSuspended, matchesLabel } from "../../core/suspensions.js";
 import { PlayerEditModal } from "../components/PlayerEditModal.js";
 import { computePlayerHonors } from "../../core/playerHonors.js";
+import { hasClubSeason } from "../../core/clubSeason.js";
 import { RetiredPlayerProfile } from "./RetiredPlayerProfile.js";
 import { PositionBadge, PositionHistoryNote, PositionStrip } from "../components/PositionBadge.js";
 
@@ -109,11 +111,6 @@ export function PlayerProfile() {
 
   const team = league.teams.find((t) => t.roster.includes(player.pid));
   const inAcademy = league.teams.find((t) => t.academyRoster.includes(player.pid));
-  const teamByTid = new Map(league.teams.map((t) => [t.tid, t]));
-  const teamName = (tid: number) =>
-    clubDisplayName(tid, (id) => teamByTid.get(id)?.name);
-  const teamAbbrev = (tid: number) =>
-    isFreeAgentTid(tid) ? "FA" : teamByTid.get(tid)?.abbrev ?? "???";
 
   const playerTransfers = league.transfers
     .filter((t) => t.pid === player.pid)
@@ -178,8 +175,6 @@ export function PlayerProfile() {
   const userTeamForFog = league.teams.find((t) => t.tid === league.meta.userTid);
   const scoutObserved = userTeamForFog?.scoutingObserved?.[player.pid] ?? null;
   const scoutSpend = userTeamForFog?.scoutingSpend ?? 0;
-  const seasonTeamAbbrev = (season: number) =>
-    team ? teamAbbrev(teamForSeason(playerTransfers, season, team.tid)) : null;
 
   // How a given season's POT should *read* — the same fogged band the history
   // table below shows, evaluated on that season like the table does.
@@ -203,6 +198,23 @@ export function PlayerProfile() {
   const valuePoints = careerValueHistory(player, league.season, (snap) =>
     pricedPotential(snap.potential));
   const statsBySeason = new Map(player.stats.map((s) => [s.season, s]));
+
+  /**
+   * The club a season belongs to, for the club column on the season tables.
+   *
+   * SeasonStats.tid is recorded fact — the club he was at as of his last
+   * appearance that year — so it wins wherever there is a row for the season.
+   * teamForSeason's transfer walk is the fallback for a season with no stats
+   * row at all (a year he sat out entirely), where it is the only answer going.
+   * Preferring the fact matters now that the club is a link: the walk falls
+   * back to his *present* club for seasons before his first recorded move, and
+   * a link built on that guess lands on a squad he was never in.
+   */
+  const seasonTid = (season: number): number | null => {
+    const row = statsBySeason.get(season);
+    if (row && !isFreeAgentTid(row.tid)) return row.tid;
+    return team ? teamForSeason(playerTransfers, season, team.tid) : null;
+  };
   // Two different lookups, because a snapshot's ratings and its academy flag
   // describe different seasons. The ratings stamped at the end of season N are
   // what he carried through N+1; the flag records where he *was* in N. So the
@@ -227,10 +239,10 @@ export function PlayerProfile() {
       <p className="mb-3">
         {team ? (
           <>
-            {teamName(team.tid)} <small className="text-muted">({competitionOf(league.competitions, team.compId).name})</small>
+            <ClubLink tid={team.tid} /> <small className="text-muted">({competitionOf(league.competitions, team.compId).name})</small>
           </>
         ) : inAcademy ? (
-          <>{teamName(inAcademy.tid)} Academy</>
+          <><ClubLink tid={inAcademy.tid} /> Academy</>
         ) : (
           <span className="text-muted">Free agent</span>
         )}
@@ -365,8 +377,8 @@ export function PlayerProfile() {
                       <tr key={i}>
                         <td>{seasonYear(t.season)}</td>
                         <td className="text-capitalize">{t.window}</td>
-                        <td>{teamName(t.fromTid)}</td>
-                        <td>{teamName(t.toTid)}</td>
+                        <td><ClubLink tid={t.fromTid} season={t.season} /></td>
+                        <td><ClubLink tid={t.toTid} season={t.season} /></td>
                         <td className="text-end">{transferFeeLabel(t)}</td>
                       </tr>
                     ))}
@@ -692,8 +704,13 @@ export function PlayerProfile() {
                     <tr key={s.season}>
                       <td>
                         {seasonYear(s.season)}
-                        {seasonTeamAbbrev(s.season) && (
-                          <span className="text-muted small"> ({seasonTeamAbbrev(s.season)})</span>
+                        {seasonTid(s.season) !== null && (
+                          <span className="text-muted small">
+                            {" ("}
+                            <ClubLink tid={seasonTid(s.season)!} season={s.season} variant="abbrev"
+                              linked={hasClubSeason(league, s.season)} />
+                            {")"}
+                          </span>
                         )}
                       </td>
                       <td className="text-end">{s.appearances}</td>
@@ -750,8 +767,16 @@ export function PlayerProfile() {
                     <tr key={h.season}>
                       <td>
                         {seasonYear(h.season)}
-                        {seasonTeamAbbrev(h.season) && (
-                          <span className="text-muted small"> ({seasonTeamAbbrev(h.season)})</span>
+                        {seasonTid(h.season) !== null && (
+                          <span className="text-muted small">
+                            {" ("}
+                            <ClubLink tid={seasonTid(h.season)!} season={h.season} variant="abbrev"
+                              /* The ratings table opens with the snapshot taken when
+                                 the league was created, labelled a season before
+                                 season 1 and never actually played. */
+                              linked={hasClubSeason(league, h.season)} />
+                            {")"}
+                          </span>
                         )}
                       </td>
                       <td className="text-end fw-semibold" style={{ color: getRatingColor(h.ovr) }}>{h.ovr}</td>
