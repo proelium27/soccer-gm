@@ -1,5 +1,7 @@
 import type { League } from "../league/generate.js";
 import type { Competition } from "../competitions.js";
+import { competitionOf } from "../competitions.js";
+import { generateClubIdentities } from "./clubNames.js";
 import type { FormationId } from "../lineup/formations.js";
 import { chooseBestFormation } from "../lineup/formations.js";
 import type { Player } from "../players/types.js";
@@ -488,6 +490,33 @@ export interface StoredTeam {
  * on, `chargeSeasonStart` in offseason.ts applies the scale the normal way and
  * going broke becomes a consequence of how the user runs the club.
  */
+/**
+ * Identities for every club with no CLUBS entry, keyed by tid. Grouped by
+ * country and generated a whole country at a time, so the names a country gets
+ * depend only on its name and how many clubs it has — which is what lets the
+ * new-league screen preview an added league's clubs before a world exists and
+ * still match the save it generates. Empty for the shipped world.
+ */
+function generatedIdentities(
+  league: League,
+  competitions: Competition[],
+): Map<number, ClubIdentity> {
+  const byCountry = new Map<string, number[]>();
+  for (const t of league.teams) {
+    if (CLUBS[t.tid]) continue;
+    const country = competitionOf(competitions, t.compId).country;
+    const tids = byCountry.get(country) ?? [];
+    tids.push(t.tid);
+    byCountry.set(country, tids);
+  }
+  const out = new Map<number, ClubIdentity>();
+  for (const [country, tids] of byCountry) {
+    const identities = generateClubIdentities(country, tids.length);
+    tids.sort((a, b) => a - b).forEach((tid, i) => out.set(tid, identities[i]));
+  }
+  return out;
+}
+
 export function assignIdentities(
   league: League,
   competitions: Competition[],
@@ -496,8 +525,12 @@ export function assignIdentities(
 ): StoredTeam[] {
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   const openingScale = difficultyProfile(difficulty).budgetScale;
+  const generated = generatedIdentities(league, competitions);
   return league.teams.map((t) => {
-    const club = CLUBS[t.tid];
+    // CLUBS is indexed by tid and stops at the shipped world's last club, so a
+    // league the player added lands past its end and takes a generated identity
+    // instead. Falls through unchanged for every shipped club.
+    const club = CLUBS[t.tid] ?? generated.get(t.tid)!;
     const opening = chargeSeasonStart(0, wageBill(t.roster, salaryMap), financeScale(competitions, t.compId), HYPE_INITIAL);
     const budget = t.tid === userTid && opening > 0 ? Math.round(opening * openingScale) : opening;
     return {

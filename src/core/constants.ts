@@ -2461,17 +2461,6 @@ export interface CupFormat {
   id: CupCompetitionId;
   /** Display name, stored on each CupState as it is built. */
   name: string;
-  /**
-   * How many places down a league's final table this competition's slots start
-   * — 0 takes the champion first. This is what keeps the competitions' fields
-   * disjoint, so it must equal the number of places the competition above takes
-   * **from that same league**. It is therefore per league strength, exactly
-   * like the slot counts: the Continental Cup takes four places from a strong
-   * league and two from a weak one, so the Shield starts at 4 and 2
-   * respectively (ranks 5-6 and 3-4).
-   */
-  strongOffset: number;
-  weakOffset: number;
   /** Places a strong (big-four, countryStrengthOffset 0) league earns. */
   strongSlots: number;
   /** Places a weak (offset > 0) league earns. */
@@ -2539,8 +2528,6 @@ export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
   continental: {
     id: "continental",
     name: CUP_NAME,
-    strongOffset: 0,
-    weakOffset: 0,
     strongSlots: CUP_STRONG_LEAGUE_SLOTS,
     weakSlots: CUP_WEAK_LEAGUE_SLOTS,
     fieldSize: CUP_LEAGUE_PHASE_SIZE,
@@ -2558,10 +2545,6 @@ export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
   shield: {
     id: "shield",
     name: SHIELD_NAME,
-    // Start where the Continental Cup stops in each league, so no club can be
-    // drawn into both. Change one of these and you must change the other.
-    strongOffset: CUP_STRONG_LEAGUE_SLOTS,
-    weakOffset: CUP_WEAK_LEAGUE_SLOTS,
     strongSlots: SHIELD_STRONG_LEAGUE_SLOTS,
     weakSlots: SHIELD_WEAK_LEAGUE_SLOTS,
     fieldSize: SHIELD_LEAGUE_PHASE_SIZE,
@@ -2582,6 +2565,22 @@ export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
     },
   },
 };
+
+/**
+ * The continental competitions in qualification order, best first. Each league's
+ * places are handed down this list: the Continental Cup takes from the top of
+ * every table, and the Shield starts exactly where the Cup stopped *in that same
+ * league*.
+ *
+ * A competition's starting place is DERIVED by summing the slots of everything
+ * above it (see cupOffsetForCompetition), rather than stored as a constant per
+ * format. That is what makes the fields provably disjoint now that a league can
+ * set its own slot counts (Competition.continentalSlots): a fixed offset would
+ * silently overlap the two fields, or leave a gap, the moment a league's Cup
+ * allocation differed from the shipped default. Insert a new competition here
+ * and everything below it shifts down on its own.
+ */
+export const CONTINENTAL_ORDER: readonly CupCompetitionId[] = ["continental", "shield"];
 
 /** The Continental Cup's format — the default for every cup helper and every pre-split save. */
 export const CONTINENTAL_CUP_FORMAT = CUP_FORMATS.continental;

@@ -3,11 +3,14 @@ import type { FormationId } from "../lineup/formations.js";
 import { POSITIONS } from "../players/types.js";
 import { generatePlayer } from "../players/generate.js";
 import { hashInts } from "../../engine/rng.js";
-import { worldCompetitions, tier1Pairs } from "../competitions.js";
+import type { Competition } from "../competitions.js";
+import {
+  worldCompetitions, tier1Pairs, competitionStrengthOffset, competitionAcademyOffset,
+} from "../competitions.js";
 import {
   NUM_TEAMS, NUM_TEAMS_D2, LEAGUE_BASE, TEAM_STRENGTH_SPREAD, DIVISION_2_OFFSET,
   ROSTER_COMPOSITION, INITIAL_AGE_MIN, INITIAL_AGE_MAX,
-  CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX, countryStrengthOffset,
+  CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
 } from "../constants.js";
 
 const STARTING_SEASON = 1;
@@ -60,12 +63,26 @@ export interface League {
  * `division`. Shared by generateLeague (Division 1: tidStart=0, offset=0)
  * and generateTwoDivisionLeague's Division 2 half (tidStart=NUM_TEAMS,
  * offset=DIVISION_2_OFFSET).
+ *
+ * `academyOffset` is the same quantity for the club's permanent youth-intake
+ * anchor, and it is a SEPARATE parameter because the two answer different
+ * questions: how strong this division is right now, versus what its clubs keep
+ * regenerating toward. Pass the same value for both — which every shipped
+ * league does — and behaviour is exactly as it was when one number did both
+ * jobs; pass a weaker academy offset and the division declines over a dynasty,
+ * a stronger one and it rises.
+ *
+ * The strength spread is drawn and shuffled ONCE and both bases are derived
+ * from it, so the two anchors always describe the same club ordering. The
+ * shuffle is the only rng use here, so the stream is consumed identically
+ * however the offsets are set.
  */
 function generateDivisionTeams(
   rng: () => number,
   tidStart: number,
   count: number,
   strengthOffset: number,
+  academyOffset: number,
   compId: number,
   genSeed: number,
   pidStart: number,
@@ -80,7 +97,7 @@ function generateDivisionTeams(
   const targets: number[] = [];
   for (let i = 0; i < count; i++) {
     const frac = count > 1 ? i / (count - 1) : 0; // 0..1
-    targets.push(TEAM_STRENGTH_SPREAD - frac * (2 * TEAM_STRENGTH_SPREAD) - strengthOffset);
+    targets.push(TEAM_STRENGTH_SPREAD - frac * (2 * TEAM_STRENGTH_SPREAD));
   }
   for (let i = targets.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
@@ -89,7 +106,12 @@ function generateDivisionTeams(
 
   for (let i = 0; i < count; i++) {
     const tid = tidStart + i;
-    const base = LEAGUE_BASE + targets[i];
+    const base = LEAGUE_BASE + targets[i] - strengthOffset;
+    // The permanent youth anchor. Never derived from the roster this loop is
+    // about to build (that ratchets OVR upward without bound — see CLAUDE.md's
+    // anti-inflation notes); it is this division's own fixed band, which is
+    // exactly why it is safe to let a player set it.
+    const academyBase = LEAGUE_BASE + targets[i] - academyOffset;
 
     const roster: number[] = [];
     let ovrSum = 0;
@@ -111,7 +133,7 @@ function generateDivisionTeams(
       name: `Team ${tid + 1}`,
       roster,
       avgOvr: ovrSum / roster.length,
-      academyBase: base,
+      academyBase,
       compId,
     });
   }
@@ -128,7 +150,7 @@ function generateDivisionTeams(
  */
 export function generateLeague(rng: () => number, seed = 0): League {
   const genSeed = hashInts(seed, 1);
-  const { teams, players } = generateDivisionTeams(rng, 0, NUM_TEAMS, 0, 0, genSeed, 0, "England");
+  const { teams, players } = generateDivisionTeams(rng, 0, NUM_TEAMS, 0, 0, 0, genSeed, 0, "England");
   return { teams, players };
 }
 
@@ -141,8 +163,10 @@ export function generateLeague(rng: () => number, seed = 0): League {
  */
 export function generateTwoDivisionLeague(rng: () => number, seed = 0): League {
   const genSeed = hashInts(seed, 1);
-  const d1 = generateDivisionTeams(rng, 0, NUM_TEAMS, 0, 0, genSeed, 0, "England");
-  const d2 = generateDivisionTeams(rng, NUM_TEAMS, NUM_TEAMS_D2, DIVISION_2_OFFSET, 1, genSeed, d1.nextPid, "England");
+  const d1 = generateDivisionTeams(rng, 0, NUM_TEAMS, 0, 0, 0, genSeed, 0, "England");
+  const d2 = generateDivisionTeams(
+    rng, NUM_TEAMS, NUM_TEAMS_D2, DIVISION_2_OFFSET, DIVISION_2_OFFSET, 1, genSeed, d1.nextPid, "England",
+  );
   return {
     teams: [...d1.teams, ...d2.teams],
     players: [...d1.players, ...d2.players],
@@ -160,9 +184,13 @@ export function generateTwoDivisionLeague(rng: () => number, seed = 0): League {
  * (strengthOffset 0 for tier 1, DIVISION_2_OFFSET for tier 2) — no
  * per-country tuning.
  */
-export function generateWorld(rng: () => number, seed = 0): League {
+export function generateWorld(
+  rng: () => number,
+  seed = 0,
+  competitions: Competition[] = worldCompetitions(),
+): League {
   const genSeed = hashInts(seed, 1);
-  const comps = worldCompetitions();
+  const comps = competitions;
   let pid = 0;
   let tidCursor = 0;
   const teams: LeagueTeam[] = [];
@@ -172,12 +200,18 @@ export function generateWorld(rng: () => number, seed = 0): League {
     // big four, so England stays byte-identical). Changing a player's `base`
     // doesn't alter rng-stream consumption, and the weak leagues are generated
     // last, so this can't perturb any other country's players.
-    const countryOffset = countryStrengthOffset(d1.country);
-    const d1Result = generateDivisionTeams(rng, tidCursor, NUM_TEAMS, countryOffset, d1.id, genSeed, pid, d1.country);
+    const d1Result = generateDivisionTeams(
+      rng, tidCursor, NUM_TEAMS,
+      competitionStrengthOffset(d1), competitionAcademyOffset(d1),
+      d1.id, genSeed, pid, d1.country,
+    );
     pid = d1Result.nextPid;
     tidCursor += NUM_TEAMS;
     const d2Result = generateDivisionTeams(
-      rng, tidCursor, NUM_TEAMS_D2, DIVISION_2_OFFSET + countryOffset, d2.id, genSeed, pid, d2.country,
+      rng, tidCursor, NUM_TEAMS_D2,
+      DIVISION_2_OFFSET + competitionStrengthOffset(d2),
+      DIVISION_2_OFFSET + competitionAcademyOffset(d2),
+      d2.id, genSeed, pid, d2.country,
     );
     pid = d2Result.nextPid;
     tidCursor += NUM_TEAMS_D2;

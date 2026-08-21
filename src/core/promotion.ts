@@ -1,9 +1,9 @@
 import type { StandingsRow } from "./standings.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import type { Competition } from "./competitions.js";
-import { tier1Pairs, competitionOf } from "./competitions.js";
+import { tier1Pairs, competitionOf, academyBaseCenterOf } from "./competitions.js";
 import {
-  PROMOTION_RELEGATION_COUNT, ACADEMY_BASE_CONVERGENCE_SEASONS, academyBaseCenter,
+  PROMOTION_RELEGATION_COUNT, ACADEMY_BASE_CONVERGENCE_SEASONS,
 } from "./constants.js";
 
 /** One country's promotion/relegation swap between its tier-1 and tier-2 competitions. */
@@ -76,7 +76,7 @@ export function stepAcademyBaseConvergence(
   return teams.map((t) => {
     if (!t.divisionConvergence) return t;
     const comp = competitionOf(competitions, t.compId);
-    const center = academyBaseCenter(comp.country, comp.tier);
+    const center = academyBaseCenterOf(comp);
     const step = (center - t.academyBase) / t.divisionConvergence.seasonsRemaining;
     const seasonsRemaining = t.divisionConvergence.seasonsRemaining - 1;
     return {

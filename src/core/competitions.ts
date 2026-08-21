@@ -9,11 +9,106 @@
  * save: an old save's legacy division values (0 = English D1, 1 = English D2)
  * are already valid compIds by construction.
  */
+import {
+  COUNTRY_STRENGTH_OFFSET, COUNTRY_BUDGET_SCALE, LEAGUE_BASE, DIVISION_2_OFFSET,
+} from "./constants.js";
+
 export interface Competition {
   id: number;
   country: string;
   tier: 1 | 2;
   name: string;
+  /* ── Per-league tuning ─────────────────────────────────────────────────────
+   * Every knob below is OPTIONAL and falls back to the per-country tables in
+   * constants.ts when absent. That fallback is the whole point: every shipped
+   * competition leaves them unset, so the default world and every existing save
+   * behave exactly as before and need no migration. They exist so a league the
+   * player adds — which has no entry in those country tables — can carry its
+   * own settings, and so the new-league screen can override a shipped league's.
+   *
+   * Resolve them through the accessors below (competitionStrengthOffset etc.)
+   * rather than reading the fields directly, or a custom league silently gets
+   * the shipped default. */
+  /**
+   * OVR handicap applied to every player generated into this league, in the
+   * same units as COUNTRY_STRENGTH_OFFSET (roughly 0.94 OVR per point). Higher
+   * = weaker. Absent → the country's shipped offset, or 0 for a country with
+   * no entry.
+   */
+  strengthOffset?: number;
+  /**
+   * The league's youth-intake anchor, as an offset in the same units. Separate
+   * from strengthOffset because the two answer different questions — how good
+   * this league is *now* versus what it keeps regenerating toward — so a league
+   * can be set up to decline (strong squads, weak academies) or to rise. Absent
+   * → strengthOffset, which is the shipped behaviour: one number doing both.
+   */
+  academyOffset?: number;
+  /**
+   * Money multiplier for every club in this league, on top of the tier scale.
+   * Absent → the country's COUNTRY_BUDGET_SCALE entry, or 1.
+   *
+   * Keep this monotonic with strengthOffset: a weaker-but-richer league climbs
+   * the ladder over a dynasty and overtakes a stronger-but-poorer one, which is
+   * measured (see the constant's own comment) and is the single easiest way to
+   * break a world.
+   */
+  budgetScale?: number;
+  /**
+   * How many clubs this league sends to each continental competition, keyed by
+   * CupCompetitionId ("continental" | "shield"). Absent (or an absent entry) →
+   * the competition format's strong/weak default for this league.
+   *
+   * Only the slot COUNTS live here. Where each competition starts in the table
+   * is always derived from the counts above it (see cupOffsetForCompetition),
+   * so the fields cannot overlap or leave a gap whatever these are set to.
+   */
+  continentalSlots?: Partial<Record<string, number>>;
+}
+
+/* ── Per-league tuning accessors ─────────────────────────────────────────────
+ * One place each knob is resolved: the competition's own value if it carries
+ * one, else the shipped per-country table. Every reader in the codebase goes
+ * through these, so adding a league is a matter of setting fields rather than
+ * hunting down each lookup. */
+
+/** This league's OVR handicap — higher is weaker. See Competition.strengthOffset. */
+export function competitionStrengthOffset(comp: Competition): number {
+  return comp.strengthOffset ?? COUNTRY_STRENGTH_OFFSET[comp.country] ?? 0;
+}
+
+/**
+ * This league's youth-intake anchor offset. Falls back to its *strength* offset
+ * rather than to the country table directly, so a league that customises only
+ * its current strength keeps academies in step with it — which is the shipped
+ * behaviour, where one number does both jobs.
+ */
+export function competitionAcademyOffset(comp: Competition): number {
+  return comp.academyOffset ?? competitionStrengthOffset(comp);
+}
+
+/** This league's money multiplier, before the tier scale. See Competition.budgetScale. */
+export function competitionBudgetScale(comp: Competition): number {
+  return comp.budgetScale ?? COUNTRY_BUDGET_SCALE[comp.country] ?? 1;
+}
+
+/**
+ * Whether this league gets the "weak league" share of continental places, and
+ * whatever else keys off league strength. Derived from the resolved offset, so
+ * a custom league is classified by what it actually is rather than by whether
+ * its country happens to appear in a table.
+ */
+export function isWeakLeague(comp: Competition): boolean {
+  return competitionStrengthOffset(comp) > 0;
+}
+
+/**
+ * Center strength a club's academyBase converges toward after a promotion/
+ * relegation swap — its new tier's band within its own league, so a promoted
+ * French club rises toward French D1's (handicapped) level, not England's.
+ */
+export function academyBaseCenterOf(comp: Competition): number {
+  return LEAGUE_BASE - competitionAcademyOffset(comp) - (comp.tier === 2 ? DIVISION_2_OFFSET : 0);
 }
 
 export function englandCompetitions(): Competition[] {
