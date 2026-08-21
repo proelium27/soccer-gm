@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { ClubLink } from "../components/ClubLink.js";
 import { usePlayerMap } from "../usePlayerMap.js";
@@ -97,6 +97,7 @@ export function ClubHistory() {
    * could only ever land on your own club. Keeping it in the URL also makes the
    * picker shareable and the back button work through it.
    */
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const tidParam = Number(searchParams.get("tid"));
 
@@ -312,6 +313,10 @@ export function ClubHistory() {
           </div>
 
           <h5>Season by Season</h5>
+          {/* Thirteen columns don't fit a narrow window, and unwrapped they
+              pushed the page itself sideways. Scroll the table instead, the way
+              every other wide table here does. */}
+          <div className="table-responsive">
           <table className="table table-striped table-sm">
             <thead>
               <tr>
@@ -327,6 +332,9 @@ export function ClubHistory() {
                 <th className="text-end">GD</th>
                 <th className="text-end">Pts</th>
                 <th>Notes</th>
+                {/* The chevron's column. Empty rather than labelled: it is an
+                    affordance, not data. */}
+                <th aria-hidden="true" />
               </tr>
             </thead>
             <tbody>
@@ -341,12 +349,32 @@ export function ClubHistory() {
                 if (s.shieldRun) notes.push(`Shield ${s.shieldRun.note}`);
                 if (s.domesticCupRun) notes.push(`Domestic cup ${s.domesticCupRun.note.toLowerCase()}`);
                 if (s.treble) notes.push("The treble");
+                const href = `/club/${tid}/${s.season}`;
                 return (
-                  <tr key={s.season} className={s.champion && s.tier === 1 ? "champion-highlight" : undefined}>
+                  <tr
+                    key={s.season}
+                    className={`season-row${s.champion && s.tier === 1 ? " champion-highlight" : ""}`}
+                    /**
+                     * The whole row opens that season, but the year stays a real
+                     * anchor below — that is what keeps cmd-click, middle-click,
+                     * "open in new tab" and keyboard focus working, none of
+                     * which a click handler on a <tr> can offer.
+                     *
+                     * So this handler has to stay out of the anchor's way: a
+                     * click that already landed on a link is the link's, and a
+                     * click that ends a text selection is the user reading the
+                     * table, not asking to leave it.
+                     */
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest("a")) return;
+                      if (window.getSelection()?.toString()) return;
+                      navigate(href);
+                    }}
+                  >
                     {/* The season year is the way into that season on its own:
                         the club is already named at the top of the page, so
                         repeating it in every row would be noise. */}
-                    <td><Link to={`/club/${tid}/${s.season}`}>{seasonYear(s.season)}</Link></td>
+                    <td><Link to={href}>{seasonYear(s.season)}</Link></td>
                     <td>{comp.name}</td>
                     <td className="text-end">
                       {ordinal(s.position)}
@@ -361,11 +389,16 @@ export function ClubHistory() {
                     <td className="text-end">{s.row.gd}</td>
                     <td className="text-end">{s.row.points}</td>
                     <td className="small text-muted">{notes.join(" · ")}</td>
+                    {/* Hidden from screen readers: the year in the first cell
+                        is already a real link saying where this goes, and a
+                        second announcement of the same destination is noise. */}
+                    <td className="season-row-go" aria-hidden="true">&rsaquo;</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+          </div>
         </>
       )}
     </div>

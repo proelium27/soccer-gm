@@ -70,4 +70,44 @@ describe("Club History page render", () => {
   it("falls back to your club for a tid that isn't a number", () => {
     expect(shownTid(render(base, "?tid=banana"))).toBe(userTid);
   });
+
+  describe("season rows", () => {
+    // A club with at least one completed season, so there is a row to inspect.
+    const played: LeagueStore = {
+      ...base,
+      season: base.season + 1,
+      seasonHistory: [{
+        season: base.season,
+        table: base.teams.map((t, i) => ({
+          tid: t.tid, played: 38, won: 38 - i, drawn: 0, lost: i,
+          gf: 60, ga: 30, gd: 30, points: (38 - i) * 3,
+        })),
+        teamStats: [],
+        awards: {},
+        compsByTid: Object.fromEntries(base.teams.map((t) => [t.tid, t.compId])),
+        championTidByCompId: {},
+        world: { ballonDOr: [], worldTeamOfYear: [] },
+      }],
+    } as unknown as LeagueStore;
+
+    it("marks each season row clickable and gives it a chevron", () => {
+      const html = render(played);
+      // Matched loosely on purpose: a title-winning season also carries
+      // champion-highlight, and that pair is the case the hover CSS has to
+      // stack two washes for rather than losing the gold one.
+      expect(html).toMatch(/<tr class="season-row(?: champion-highlight)?"/);
+      // The chevron is decoration, not information — the year link already says
+      // where the row goes, and announcing it twice is noise.
+      expect(html).toContain('<td class="season-row-go" aria-hidden="true">');
+    });
+
+    it("keeps the year a real anchor, not just a click handler", () => {
+      // This is the regression that matters: a <tr> onClick cannot give you
+      // cmd-click, middle-click, "open in new tab" or keyboard focus. Replacing
+      // the anchor with a handler would look identical to a mouse user and
+      // silently break all four.
+      const html = render(played);
+      expect(html).toMatch(new RegExp(`<a[^>]*href="/club/${userTid}/${base.season}"`));
+    });
+  });
 });
