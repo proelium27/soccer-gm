@@ -11,6 +11,12 @@ import { NUM_TEAMS, NUM_TEAMS_D2 } from "../../core/constants.js";
  * on, and it must not reach the generated world while it's off.
  */
 export interface WorldEntry {
+  /**
+   * Stable across edits, and used as the list key. It cannot be the country
+   * name: that IS the text being edited, so keying on it remounts the input on
+   * every keystroke and the field loses focus after one character.
+   */
+  id: string;
   spec: LeagueSpec;
   included: boolean;
   /** A league the game ships. Its clubs and nationalities already exist. */
@@ -21,9 +27,12 @@ export interface WorldEntry {
 
 export function defaultWorldEntries(): WorldEntry[] {
   return worldLeagueSpecs().map((spec) => ({
-    spec, included: true, shipped: true, linkMoney: true,
+    id: `shipped:${spec.country}`, spec, included: true, shipped: true, linkMoney: true,
   }));
 }
+
+/** Monotonic within a session; only ever used as a React key. */
+let nextAddedId = 0;
 
 /** The leagues that will actually be built, in order. */
 export function includedSpecs(entries: WorldEntry[]): LeagueSpec[] {
@@ -35,6 +44,7 @@ const CLUBS_PER_COUNTRY = NUM_TEAMS + NUM_TEAMS_D2;
 function newLeagueEntry(index: number): WorldEntry {
   const strengthOffset = 8;
   return {
+    id: `added:${nextAddedId++}`,
     spec: {
       country: `New Country ${index}`,
       strengthOffset,
@@ -90,7 +100,7 @@ export function WorldSetup({ entries, onChange }: Props) {
 
         <ul className="list-unstyled mb-3">
           {entries.map((entry, i) => (
-            <li key={`${entry.spec.country}-${i}`} className="border-top py-2">
+            <li key={entry.id} className="border-top py-2">
               <div className="d-flex align-items-center gap-2">
                 <input
                   type="checkbox"
