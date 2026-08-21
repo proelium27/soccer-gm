@@ -1011,7 +1011,12 @@ function BoardCard({ title, empty, rows, onOpen }: {
             <tbody>
               {rows.map((r, i) => (
                 <tr key={r.pid} className={r.highlight ? "team-highlight" : undefined}>
-                  <td className="text-muted ps-0" style={{ width: "1.75rem" }}>{i + 1}</td>
+                  {/* ps-2, not ps-0: a highlighted row draws its leading-edge
+                      marker inside this cell, and Bootstrap's !important
+                      padding would otherwise beat the marker rule's own
+                      padding and sit the line on top of the rank. Uniform
+                      across every row so nothing shifts when one lights up. */}
+                  <td className="text-muted ps-2" style={{ width: "2rem" }}>{i + 1}</td>
                   {/* No retired badge here, unlike the full board: the cards sit
                       three to a row, and a badge on a name is enough to wrap
                       every row it lands on. */}
