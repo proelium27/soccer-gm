@@ -6,6 +6,7 @@ import { ClubLink } from "../components/ClubLink.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import { HelpHint } from "../components/HelpHint.js";
 import type { BallonDOrEntry } from "../../core/worldAwards.js";
+import type { AwardWinner } from "../../core/awardWinners.js";
 import type { Player, Position } from "../../core/players/types.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
@@ -46,14 +47,30 @@ interface AwardSubject {
   /** The club he was at that season, if it's on record. */
   tid: number | undefined;
   player: Player | undefined;
+  /**
+   * Whether there's a profile page behind the name.
+   *
+   * False for a winner known only from the award itself — the save kept his
+   * name and nothing else, so the chip reads the same but doesn't offer a link
+   * into a page that would say "player not found".
+   */
+  linkable: boolean;
 }
 
-/** Resolves an award's pid against the live pool first, then the retiree archive. */
+/**
+ * Resolves an award's pid: the live pool first, then the retiree archive, then
+ * the winners' names stored on the season itself.
+ *
+ * That last tier is what a long save actually runs on. The first two both need
+ * the player to still exist somewhere, and most award winners eventually don't.
+ */
 function subjectResolver(
   league: LeagueStore,
   playersByPid: Map<number, Player>,
   season: number,
+  winners: AwardWinner[] | undefined,
 ): (pid: number) => AwardSubject | undefined {
+  const winnerByPid = new Map((winners ?? []).map((w) => [w.pid, w]));
   return (pid) => {
     const player = playersByPid.get(pid);
     if (player) {
@@ -68,10 +85,28 @@ function subjectResolver(
         ovr: player.ovr,
         tid: player.stats.find((s) => s.season === season)?.tid,
         player,
+        linkable: true,
       };
     }
     const archived = (league.retiredPlayers ?? []).find((a) => a.pid === pid);
-    if (!archived) return undefined;
+    if (!archived) {
+      // Neither in the pool nor in the archive: he retired years ago and his
+      // career wasn't big enough to keep. The award itself carries his name,
+      // which is the whole reason it does — without this the card claimed
+      // nobody had qualified for an award that was very much handed out.
+      const w = winnerByPid.get(pid);
+      if (!w) return undefined;
+      return {
+        pid,
+        name: w.name,
+        nationality: w.nationality,
+        pos: w.pos,
+        ovr: w.ovr,
+        tid: w.tid,
+        player: undefined,
+        linkable: false,
+      };
+    }
     const line = archived.seasons.find((s) => s.season === season);
     return {
       pid,
@@ -81,8 +116,21 @@ function subjectResolver(
       ovr: line?.ovr ?? archived.finalOvr,
       tid: line?.tid,
       player: undefined,
+      linkable: true,
     };
   };
+}
+
+/**
+ * A winner's name, linked to his profile when there is one to link to.
+ *
+ * A player the save only knows from the award itself has no profile page — not
+ * in the pool, not in the retiree archive — so his name renders plainly rather
+ * than as a link into "player not found".
+ */
+function SubjectName({ subject, className }: { subject: AwardSubject; className?: string }) {
+  if (!subject.linkable) return <span className={className}>{subject.name}</span>;
+  return <Link to={`/player/${subject.pid}`} className={className}>{subject.name}</Link>;
 }
 
 function AwardCard({ title, subject, subtitle }: { title: ReactNode; subject: AwardSubject | undefined; subtitle: ReactNode }) {
@@ -94,7 +142,7 @@ function AwardCard({ title, subject, subtitle }: { title: ReactNode; subject: Aw
           <>
             <div className="d-flex align-items-center gap-2 fs-5 fw-semibold">
               <Flag nationality={subject.nationality} />
-              <Link to={`/player/${subject.pid}`}>{subject.name}</Link>
+              <SubjectName subject={subject} />
             </div>
             <div className="text-muted small mt-1">{subtitle}</div>
           </>
@@ -136,9 +184,10 @@ function TeamOfSeasonField({
             }
             style={{ borderColor: getRatingColor(subject.ovr) }}
           >
-            <Link to={`/player/${subject.pid}`} className="pitch-chip-name">
-              {shortName(subject.name)}
-            </Link>
+            <SubjectName
+              subject={{ ...subject, name: shortName(subject.name) }}
+              className="pitch-chip-name"
+            />
             <span className="pitch-chip-ovr">{subject.ovr}</span>
           </span>
         );
@@ -212,7 +261,9 @@ function BallonDOrTable({
                 <td>
                   <span className="d-inline-flex align-items-center gap-2">
                     {subject && <Flag nationality={subject.nationality} />}
-                    <Link to={`/player/${e.pid}`}>{subject?.name ?? `#${e.pid}`}</Link>
+                    {subject
+                      ? <SubjectName subject={subject} />
+                      : <Link to={`/player/${e.pid}`}>{`#${e.pid}`}</Link>}
                   </span>
                 </td>
                 <td><ClubLink tid={e.tid} season={season} /></td>
@@ -260,9 +311,10 @@ export function Awards() {
   const activeSeason = season ?? seasonOptions[0];
   const entry = league.seasonHistory.find((h) => h.season === activeSeason)!;
 
-  // Winners resolve through the retiree archive as well as the live pool, so an
-  // old season's honours board doesn't empty out as its winners retire.
-  const subjectOf = subjectResolver(league, playersByPid, activeSeason);
+  // Winners resolve through the retiree archive and the season's own record of
+  // who won, as well as the live pool, so an old season's honours board doesn't
+  // empty out as its winners retire and are eventually deleted.
+  const subjectOf = subjectResolver(league, playersByPid, activeSeason, entry.awardWinners);
 
   const divisionAwards = entry.awards[compId];
   const potd = divisionAwards.playerOfSeasonPid !== null ? subjectOf(divisionAwards.playerOfSeasonPid) : undefined;

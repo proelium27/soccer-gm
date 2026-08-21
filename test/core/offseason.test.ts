@@ -6,6 +6,7 @@ import { simOffseason } from "../../src/core/offseason.js";
 import { computeStandings } from "../../src/core/standings.js";
 import { isFreeAgentTid } from "../../src/core/transfers/negotiation.js";
 import type { ArchivedPlayer } from "../../src/core/players/archive.js";
+import { awardWinnerPids } from "../../src/core/awardWinners.js";
 import { emptyTotals, emptyBestSeasons } from "../../src/core/frivolities/stats.js";
 import {
   HYPE_MAX, HYPE_MIN, NUM_TEAMS, NUM_TEAMS_D2, SCOUTING_SPEND_DEFAULT, ROSTER_SAFETY_FLOOR,
@@ -234,6 +235,39 @@ describe("simOffseason", () => {
       // contract expired this same offseason is still filed under his club.
       if (r.tid !== null) expect(wasRostered.has(r.pid)).toBe(true);
     }
+  });
+
+  it("names every award winner on the season it was won", () => {
+    // Awards are stored as bare pids, and a pid stops resolving once retirement
+    // deletes the player and the capped archive declines to keep him — measured
+    // at 74% of league Players of the Season on a 100-season save. The snapshot
+    // has to be complete the season it is taken, or there is nothing to fall
+    // back to later.
+    const rng = mulberry32(31);
+    const league = playFullSeason(rng);
+    const next = simOffseason(league, rng);
+
+    const entry = next.seasonHistory.at(-1)!;
+    const wanted = awardWinnerPids(entry);
+    expect(wanted.size).toBeGreaterThan(0);
+    const named = new Map((entry.awardWinners ?? []).map((w) => [w.pid, w]));
+    expect([...wanted].filter((pid) => !named.has(pid))).toEqual([]);
+
+    const before = new Map(league.players.map((p) => [p.pid, p]));
+    for (const w of named.values()) {
+      const player = before.get(w.pid)!;
+      expect(w.name).toBe(player.name);
+      expect(w.nationality).toBe(player.nationality);
+      expect(w.pos).toBe(player.pos);
+      expect(w.born).toBe(player.born);
+      // The club he finished the season at, which is what the honours boards
+      // credit the award to.
+      expect(w.tid).toBe(player.stats.find((st) => st.season === league.season)!.tid);
+    }
+
+    // The point of taking it at all: some of these men are already gone.
+    const survivors = new Set(next.players.map((p) => p.pid));
+    expect([...named.keys()].some((pid) => !survivors.has(pid))).toBe(true);
   });
 
   it("archives the retirees worth keeping, and only those", () => {

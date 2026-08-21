@@ -12,6 +12,15 @@ export interface PlayerRef {
   nationality: string;
   /** True when the only record of him left is his archived career. */
   retired: boolean;
+  /**
+   * Whether there's a profile page behind the name.
+   *
+   * False for a player known only from an award he won: the season history
+   * keeps the winner's name (see core/awardWinners.ts) long after the pool and
+   * the capped archive have both let go of him, which is enough to print but
+   * not enough to build a career page from.
+   */
+  linkable: boolean;
 }
 
 /**
@@ -31,14 +40,32 @@ function refsFor(league: LeagueStore): Map<number, PlayerRef> {
 
   const map = new Map<number, PlayerRef>();
   for (const p of league.players) {
-    map.set(p.pid, { pid: p.pid, name: p.name, nationality: p.nationality, retired: false });
+    map.set(p.pid, {
+      pid: p.pid, name: p.name, nationality: p.nationality, retired: false, linkable: true,
+    });
   }
   // Archived second so a live player always wins. They can't collide today
   // (pids are never reissued — see LeagueStore.nextPid), but a live record is
   // the better one either way.
   for (const a of league.retiredPlayers ?? []) {
     if (!map.has(a.pid)) {
-      map.set(a.pid, { pid: a.pid, name: a.name, nationality: a.nationality, retired: true });
+      map.set(a.pid, {
+        pid: a.pid, name: a.name, nationality: a.nationality, retired: true, linkable: true,
+      });
+    }
+  }
+  // Last: the winners' names copied onto each season's awards. This is the only
+  // record of most award winners on a long save — the archive is capped and
+  // drops the modest careers that win a second division's Player of the Season
+  // — so without it a century of honours boards reads "Player #4821". He has no
+  // profile page, hence `linkable: false`.
+  for (const h of league.seasonHistory) {
+    for (const w of h.awardWinners ?? []) {
+      if (!map.has(w.pid)) {
+        map.set(w.pid, {
+          pid: w.pid, name: w.name, nationality: w.nationality, retired: true, linkable: false,
+        });
+      }
     }
   }
   cache.set(league, map);
@@ -56,7 +83,10 @@ function refsFor(league: LeagueStore): Map<number, PlayerRef> {
  * page, somewhere to send you.
  *
  * The archive is bounded (RETIREE_ARCHIVE_LIMIT) and journeymen are dropped from
- * it, so a lookup can still miss — callers must keep a fallback.
+ * it, so a lookup can still miss — callers must keep a fallback. Award winners
+ * are the one class of forgotten player who keep their name anyway, off the
+ * season history; they come back with `linkable: false` because a name is all
+ * there is.
  */
 export function usePlayerRefs(): (pid: number) => PlayerRef | undefined {
   const { league } = useLeague();
@@ -75,5 +105,6 @@ export function PlayerRefLink({ pid, fallback }: { pid: number; fallback?: strin
   const ref = refOf(pid);
 
   if (!ref) return <span className="text-muted">{fallback ?? `Player #${pid}`}</span>;
+  if (!ref.linkable) return <span>{ref.name}</span>;
   return <Link to={`/player/${pid}`}>{ref.name}</Link>;
 }

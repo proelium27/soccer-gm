@@ -2,6 +2,7 @@ import type { BoxScore, PlayerMatchLine } from "../engine/attribution.js";
 import type { SeasonAwards } from "./awards.js";
 import type { WorldAwards } from "./worldAwards.js";
 import type { RetirementSummary } from "./players/retirements.js";
+import type { AwardWinner } from "./awardWinners.js";
 
 export interface MatchScore {
   home: number;
@@ -72,6 +73,21 @@ export interface SeasonHistoryEntry {
    * core/players/retirements.ts.
    */
   retirements?: RetirementSummary;
+  /**
+   * Who this season's award winners were — name, country, position, the rating
+   * and club he had that season — copied off the pool that won them.
+   *
+   * Awards themselves are stored as bare pids, which stops resolving once
+   * retirement deletes the player and the capped retiree archive drops him: at
+   * 100 seasons that is 74% of league Players of the Season. See
+   * core/awardWinners.ts for the measurements and why a copy beats exempting
+   * winners from the archive prune.
+   *
+   * Optional because saves predating it have none. migrate.ts backfills what a
+   * save can still resolve, which is everything for a young save and only the
+   * survivors for an old one — nothing can bring back a player already deleted.
+   */
+  awardWinners?: AwardWinner[];
 }
 
 /** Sum each club's box-score lines across a season's played matches. */
