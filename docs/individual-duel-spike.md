@@ -161,8 +161,18 @@ runtimes they previously met.
 ## Test status
 
 - **20/20 validation gates pass.**
-- 245 core tests pass (season/composites/cup/awards/history/simThrough/cup
-  integration batches).
+- **354 core tests pass**, run in batches: season/composites/normalize/rollup/
+  injuries/suspensions/powerRanking (67), cup/awards/world awards/frivolities/
+  honours/club history (153), simThrough (15), cup integration (2), domestic cup
+  integration (3), and difficulty/progression/youth/retirements/freeAgentCull/
+  standings/schedule/calendar (114).
+- The last batch matters most for risk: **progression, youth, retirements and
+  freeAgentCull all pass**, so the anti-inflation equilibrium is undisturbed —
+  expected, since nothing outside `simMatchDetailed` was touched, but worth
+  having measured rather than assumed.
+- **Not run:** `offseason`, `international`, `worldIntegration` and `autopilot`
+  each exceed the 600s foreground budget available in this environment, and
+  background runs are killed here. They are the remaining coverage gap.
 - Two failures, both understood:
   - `touchStats.test.ts` scoreline hash — the documented rebase for an
     intentional match-outcome change.
