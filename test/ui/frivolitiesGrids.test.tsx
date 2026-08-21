@@ -85,6 +85,34 @@ describe("All-Time Leaders grid", () => {
   });
 });
 
+describe("your club's players", () => {
+  /**
+   * The highlight has to survive both halves of a career: a retiree who played
+   * for the user years ago carries him only in `clubs`, while a man signed this
+   * summer who hasn't kicked a ball yet carries him only in `tid`. Marking one
+   * and not the other is the failure this pins.
+   */
+  it("marks a player who once played for the user's club, on both grids", () => {
+    const league = makeLeague(0, 1);
+    const userTid = league.meta.userTid;
+    const mine = archived(999001, "Old Boy", 250);
+    mine.clubs = [userTid];
+    const theirs = archived(999002, "Someone Else", 240);
+    league.retiredPlayers = [mine, theirs];
+
+    for (const Tab of [LeadersTab, InternationalTab]) {
+      const html = render(league, Tab);
+      const rowOf = (name: string) => {
+        const at = html.indexOf(name);
+        expect(at).toBeGreaterThan(-1);
+        return html.slice(html.lastIndexOf("<tr", at), at);
+      };
+      expect(rowOf("Old Boy")).toContain("team-highlight");
+      expect(rowOf("Someone Else")).not.toContain("team-highlight");
+    }
+  });
+});
+
 describe("International grid", () => {
   it("gives every counter a card that opens its full board", () => {
     const league = makeLeague(0, 1);

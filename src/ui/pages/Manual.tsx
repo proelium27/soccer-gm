@@ -1447,7 +1447,11 @@ export function Manual() {
             <strong>All-Time Leaders</strong> opens on every stat at once, as a grid of cards
             showing the top 10 in each. Click a category and you get its full top 30, with clubs,
             appearances and the season each figure comes from. One switch sits above the grid and
-            applies to every card: career totals, or the best single seasons recorded. Two
+            applies to every card: career totals, or the best single seasons recorded. Anyone who
+            has played a league game for your club is highlighted, on the cards and on the full
+            boards, so you can see at a glance which records your own players hold. It counts
+            former players too, which is the point: an all-time list is mostly people who have
+            moved on or retired. Two
             differences from Stat Leaders, which covers one season at a time: these boards cover
             the whole world at once rather than one league, because a career crosses divisions and
             countries; and the single-season view shows one row per player, his best, rather than
@@ -1461,7 +1465,7 @@ export function Manual() {
             cover his whole international career, qualifying and World Cups together, the same
             numbers his profile shows. The country dropdown sits above the cards and filters all
             three at once, which is what the tab is really for, since it answers who your country's
-            all-time leading scorer is. Retired players
+            all-time leading scorer is. Your own players are highlighted here too. Retired players
             matter more here than anywhere else on the page: an all-time top scorer has almost
             always finished playing by the time he holds the record, so a list of active players
             only would hand it to someone new every few seasons.

@@ -113,13 +113,17 @@ function PlayerCell({ pid, name, nationality, active }: {
  * `expand` opts a table into click-to-reveal detail rows, the same interaction
  * Power Rankings uses for rosters. Only one row is open at a time — these
  * details are wide, and several open at once turns the board into a wall.
+ *
+ * `highlight` marks a row as the user's, drawn with the same wash and leading
+ * edge Standings and Power Rankings give his club.
  */
-function RankTable<T>({ rows, headers, render, empty, expand }: {
+function RankTable<T>({ rows, headers, render, empty, expand, highlight }: {
   rows: T[];
   headers: string[];
   render: (row: T) => ReactNode[];
   empty: string;
   expand?: (row: T) => ReactNode;
+  highlight?: (row: T) => boolean;
 }) {
   const [open, setOpen] = useState<number | null>(null);
   if (rows.length === 0) return <Empty what={empty} />;
@@ -143,7 +147,8 @@ function RankTable<T>({ rows, headers, render, empty, expand }: {
                 <tr
                   onClick={expand ? () => setOpen(isOpen ? null : i) : undefined}
                   style={expand ? { cursor: "pointer" } : undefined}
-                  className={isOpen ? "table-active" : undefined}
+                  className={[isOpen && "table-active", highlight?.(row) && "team-highlight"]
+                    .filter(Boolean).join(" ") || undefined}
                 >
                   <td className="text-muted">{i + 1}</td>
                   {cells.map((c, j) => (
@@ -940,6 +945,20 @@ function ClubBadge({ tid }: { tid: number | null }) {
   );
 }
 
+/**
+ * Whether a career belongs to the user's club, the test both grids highlight on.
+ *
+ * `clubs` is every club he made league appearances for, so this reads as "he
+ * played for you", past or present — the question these boards are for, since
+ * an all-time list is mostly people who have already moved on or retired. The
+ * `tid` half catches a man on the roster right now who hasn't played a league
+ * game for the club yet: he's yours, he's shown wearing your crest, and leaving
+ * him plain would read as a bug rather than a distinction.
+ */
+function isUserPlayer(row: Pick<CareerRow, "clubs" | "tid">, userTid: number): boolean {
+  return row.clubs.includes(userTid) || row.tid === userTid;
+}
+
 /** One row of a summary card, flattened from whatever board it came from. */
 interface CardRow {
   pid: number;
@@ -950,6 +969,8 @@ interface CardRow {
   value: string;
   /** An extra muted column before the value, e.g. which season a figure is from. */
   note?: string;
+  /** Played for the user's club: drawn with the same wash Standings gives it. */
+  highlight?: boolean;
 }
 
 /**
@@ -989,7 +1010,7 @@ function BoardCard({ title, empty, rows, onOpen }: {
           <table className="table table-sm align-middle mb-0">
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.pid}>
+                <tr key={r.pid} className={r.highlight ? "team-highlight" : undefined}>
                   <td className="text-muted ps-0" style={{ width: "1.75rem" }}>{i + 1}</td>
                   {/* No retired badge here, unlike the full board: the cards sit
                       three to a row, and a badge on a name is enough to wrap
@@ -1029,10 +1050,11 @@ function BackToGrid({ onBack }: { onBack: () => void }) {
 // --- All-time leaders ------------------------------------------------------
 
 /** One stat's full board, the view a grid card opens into. */
-function LeaderBoard({ stat, scope, rows, onBack }: {
+function LeaderBoard({ stat, scope, rows, userTid, onBack }: {
   stat: AllTimeStatKey;
   scope: LeaderScope;
   rows: AllTimeLeaderRow[];
+  userTid: number;
   onBack: () => void;
 }) {
   return (
@@ -1064,6 +1086,7 @@ function LeaderBoard({ stat, scope, rows, onBack }: {
             formatStat(stat, r.value),
           ]}
           empty="recorded seasons"
+          highlight={(r) => isUserPlayer(r.career, userTid)}
         />
       </Panel>
     </>
@@ -1107,7 +1130,7 @@ export function LeadersTab() {
         {open === null && (
           <span className="text-muted small">
             Top {ALL_TIME_OVERVIEW_LIMIT} in each. Click a category for the top{" "}
-            {ALL_TIME_LEADER_LIMIT}.
+            {ALL_TIME_LEADER_LIMIT}. Anyone who has played for you is highlighted.
           </span>
         )}
       </div>
@@ -1117,6 +1140,7 @@ export function LeadersTab() {
           stat={open}
           scope={scope}
           rows={boards[open]}
+          userTid={league.meta.userTid}
           onBack={() => setOpen(null)}
         />
       ) : (
@@ -1133,6 +1157,7 @@ export function LeadersTab() {
                   tid: r.career.tid,
                   value: formatStat(k, r.value),
                   note: scope === "single" ? String(seasonYear(r.season ?? 0)) : undefined,
+                  highlight: isUserPlayer(r.career, league.meta.userTid),
                 }))}
                 onOpen={() => setOpen(k)}
               />
@@ -1166,10 +1191,11 @@ const INTL_EMPTY_LABELS: Record<IntlAllTimeKey, string> = {
 };
 
 /** One international counter's full board, the view a grid card opens into. */
-function IntlBoard({ intlKey, country, rows, onBack }: {
+function IntlBoard({ intlKey, country, rows, userTid, onBack }: {
   intlKey: IntlAllTimeKey;
   country: string;
   rows: CareerRow[];
+  userTid: number;
   onBack: () => void;
 }) {
   return (
@@ -1193,6 +1219,7 @@ function IntlBoard({ intlKey, country, rows, onBack }: {
             </span>,
           ]}
           empty={INTL_EMPTY_LABELS[intlKey]}
+          highlight={(r) => isUserPlayer(r, userTid)}
         />
       </Panel>
     </>
@@ -1239,6 +1266,7 @@ export function InternationalTab() {
         {open === null && (
           <span className="text-muted small">
             Top {INTL_OVERVIEW_LIMIT} in each. Click a category for the top {INTL_ALL_TIME_LIMIT}.
+            {" "}Anyone who has played for you is highlighted.
           </span>
         )}
       </div>
@@ -1248,6 +1276,7 @@ export function InternationalTab() {
           intlKey={open}
           country={country}
           rows={boards[open]}
+          userTid={league.meta.userTid}
           onBack={() => setOpen(null)}
         />
       ) : (
@@ -1263,6 +1292,7 @@ export function InternationalTab() {
                   nationality: r.nationality,
                   tid: r.tid,
                   value: String(intlStatOf(r, k)),
+                  highlight: isUserPlayer(r, league.meta.userTid),
                 }))}
                 onOpen={() => setOpen(k)}
               />
