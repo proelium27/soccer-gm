@@ -18,6 +18,8 @@ import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { PitchField } from "../components/PitchField.js";
 import { ExtendControl } from "../components/ExtendControl.js";
+import { ExtendAllButton } from "../components/ExtendAllButton.js";
+import { renewalsDue } from "../../core/contractRenewal.js";
 import { ListingMenu } from "../components/ListingMenu.js";
 import { transferWindowState } from "../../core/transfers/window.js";
 import { Flag } from "../components/Flag.js";
@@ -266,7 +268,8 @@ function RosterTable({
 
 export function Roster() {
   const {
-    league, releasePlayerAction, extendContractAction, setTransferListedAction, setMoreMinutesAction,
+    league, releasePlayerAction, extendContractAction, extendAllContractsAction,
+    setTransferListedAction, setMoreMinutesAction,
     setLineupAction, setFormationAction, autoPickBestXIAction,
     listPlayerForLoanAction, unlistPlayerForLoanAction,
   } = useLeague();
@@ -316,6 +319,10 @@ export function Roster() {
     return {
       players, slots, xi, starterPids, bench, teamRating,
       playerMap, releasablePids,
+      // Also pool-scale (it walks every player in the world), so it belongs
+      // behind this memo for the same reason everything else here does: a
+      // dragover fires a render per pixel.
+      renewals: renewalsDue(league, "senior"),
     };
   }, [league]);
 
@@ -330,7 +337,7 @@ export function Roster() {
 
   const {
     players, slots, xi, starterPids, bench, teamRating,
-    playerMap, releasablePids,
+    playerMap, releasablePids, renewals,
   } = derived;
 
   const formation = teamFormation(userTeam);
@@ -401,15 +408,34 @@ export function Roster() {
             const expiring = players.filter((p) => p.contract.expiresSeason <= league.season);
             if (expiring.length === 0) return null;
             const one = expiring.length === 1;
+            // `renewals` is everyone the button covers: the same set, minus
+            // anyone holding out for a move up a division. They wear the same
+            // "Final year" badge, so the banner has to say why they're left out.
             return (
-              <div className="alert alert-warning py-2 px-3 small mb-2">
-                {one ? (
-                  <><strong>{expiring[0].name}</strong> is in the final year of his deal.</>
-                ) : (
-                  <><strong>{expiring.length} players</strong> are in the final year of their deals.</>
-                )}{" "}
-                Extend {one ? "him" : "them"} before the offseason, or {one ? "he'll" : "they'll"} leave on a
-                free with nothing coming back. Click a player to extend.
+              <div className="alert alert-warning py-2 px-3 small mb-2 d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <div>
+                  {one ? (
+                    <><strong>{expiring[0].name}</strong> is in the final year of his deal.</>
+                  ) : (
+                    <><strong>{expiring.length} players</strong> are in the final year of their deals.</>
+                  )}{" "}
+                  Extend {one ? "him" : "them"} before the offseason, or {one ? "he'll" : "they'll"} leave on a
+                  free with nothing coming back. Click a player to extend{renewals.pids.length > 0 ? ", or re-sign them all at once" : ""}.
+                  {renewals.refusingPids.length > 0 && (
+                    <>
+                      {" "}
+                      {renewals.refusingPids.length === 1
+                        ? "One of them is holding out"
+                        : `${renewals.refusingPids.length} of them are holding out`}
+                      {" "}for a move to Division 1 and won&apos;t sign a new deal here.
+                    </>
+                  )}
+                </div>
+                <ExtendAllButton
+                  count={renewals.pids.length}
+                  totalSalary={renewals.totalSalary}
+                  onExtendAll={() => { void extendAllContractsAction("senior"); }}
+                />
               </div>
             );
           })()}

@@ -16,6 +16,8 @@ import {
 } from "../../core/transfers/inboundOffers.js";
 import { setMoreMinutes } from "../../core/lineup/moreMinutes.js";
 import { extendContract, extendAcademyContract } from "../../core/contracts.js";
+import type { RenewalGroup } from "../../core/contractRenewal.js";
+import { renewalsDue, extendAllContracts } from "../../core/contractRenewal.js";
 import {
   listPlayerForLoan, unlistPlayerForLoan, acceptLoanOffer, rejectLoanOffer,
 } from "../../core/loans.js";
@@ -70,6 +72,7 @@ interface LeagueContextValue {
   rejectInboundOfferAction: (pid: number) => Promise<void>;
   counterInboundOfferAction: (pid: number, amount: number) => Promise<void>;
   extendContractAction: (pid: number, lengthSeasons?: number) => Promise<void>;
+  extendAllContractsAction: (group: RenewalGroup) => Promise<void>;
   listPlayerForLoanAction: (pid: number, seasons: 1 | 2 | 3) => Promise<void>;
   unlistPlayerForLoanAction: (pid: number) => Promise<void>;
   acceptLoanOfferAction: (pid: number) => Promise<void>;
@@ -500,6 +503,21 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     return { ...l, players: extendContract(l.players, pid, l.season, lengthSeasons) };
   }), [mutate]);
 
+  // Re-signs a whole group in ONE commit rather than looping the single-player
+  // action: each mutate writes the save, so N calls would be N IndexedDB
+  // writes serialized through the promise chain.
+  const extendAllContractsAction = useCallback((group: RenewalGroup) => mutate((l) => {
+    const { pids } = renewalsDue(l, group);
+    if (pids.length === 0) return null;
+    trackEvent("contracts_extended_all", {
+      group,
+      // Bucketed for the same reason season_simmed.matchdays is: a raw count
+      // would be a high-cardinality property.
+      count: pids.length <= 1 ? "1" : pids.length <= 5 ? "2-5" : pids.length <= 15 ? "6-15" : "16+",
+    });
+    return extendAllContracts(l, group);
+  }), [mutate]);
+
   const setTransferListedAction = useCallback((pid: number, listed: boolean) => mutate(
     (l) => setTransferListed(l, pid, listed),
   ), [mutate]);
@@ -736,6 +754,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     rejectInboundOfferAction,
     counterInboundOfferAction,
     extendContractAction,
+    extendAllContractsAction,
     listPlayerForLoanAction,
     unlistPlayerForLoanAction,
     acceptLoanOfferAction,
@@ -766,6 +785,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     releaseAcademyPlayerAction, extendAcademyContractAction, setScoutingSpendAction,
     makeOfferAction, acceptCounterAction, acceptInboundOfferAction,
     rejectInboundOfferAction, counterInboundOfferAction, extendContractAction,
+    extendAllContractsAction,
     listPlayerForLoanAction, unlistPlayerForLoanAction, acceptLoanOfferAction,
     rejectLoanOfferAction, setTransferListedAction, setMoreMinutesAction, setLineupAction, setFormationAction,
     autoPickBestXIAction,

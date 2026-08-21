@@ -1,7 +1,10 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { HelpHint, PotHelp } from "../components/HelpHint.js";
+import { ExtendAllButton } from "../components/ExtendAllButton.js";
 import { canExtend, contractTerms } from "../../core/contracts.js";
+import { renewalsDue } from "../../core/contractRenewal.js";
 import { academyContractTerms } from "../../core/contracts.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
@@ -19,10 +22,16 @@ type AcademySortKey = "name" | "pos" | "ovr" | "pot" | "age" | "wage" | "contrac
  */
 export function Academy() {
   const {
-    league, promoteFromAcademyAction, extendAcademyContractAction, releaseAcademyPlayerAction,
+    league, promoteFromAcademyAction, extendAcademyContractAction, extendAllContractsAction,
+    releaseAcademyPlayerAction,
     simming,
   } = useLeague();
   const { sort, toggle } = useTableSort<AcademySortKey>("ovr", "desc");
+  // Walks the whole player pool, so it stays behind a memo rather than
+  // re-running on every sort click.
+  const renewals = useMemo(
+    () => (league ? renewalsDue(league, "academy") : null), [league],
+  );
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -71,14 +80,22 @@ export function Academy() {
         if (expiring.length === 0) return null;
         const one = expiring.length === 1;
         return (
-          <div className="alert alert-warning py-2 px-3 small mb-2">
-            {one ? (
-              <><strong>{expiring[0].name}</strong> is in the final year of his academy deal.</>
-            ) : (
-              <><strong>{expiring.length} prospects</strong> are in the final year of their academy deals.</>
-            )}{" "}
-            Extend {one ? "him" : "them"} before the offseason, or {one ? "he'll" : "they'll"} leave
-            on a free with nothing coming back.
+          <div className="alert alert-warning py-2 px-3 small mb-2 d-flex flex-wrap gap-2 justify-content-between align-items-center">
+            <div>
+              {one ? (
+                <><strong>{expiring[0].name}</strong> is in the final year of his academy deal.</>
+              ) : (
+                <><strong>{expiring.length} prospects</strong> are in the final year of their academy deals.</>
+              )}{" "}
+              Extend {one ? "him" : "them"} before the offseason, or {one ? "he'll" : "they'll"} leave
+              on a free with nothing coming back.
+            </div>
+            <ExtendAllButton
+              count={renewals?.pids.length ?? 0}
+              totalSalary={renewals?.totalSalary ?? 0}
+              disabled={simming}
+              onExtendAll={() => { void extendAllContractsAction("academy"); }}
+            />
           </div>
         );
       })()}

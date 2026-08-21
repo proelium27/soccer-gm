@@ -8,10 +8,12 @@ import { loanOfferCandidates, maxLoanSeasons } from "../../core/loans.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
 import { LOAN_MAX_SEASONS } from "../../core/constants.js";
 import { canExtend } from "../../core/contracts.js";
+import { renewalsDue } from "../../core/contractRenewal.js";
 import { wouldRefuseExtension } from "../../core/ai/breakoutRefusal.js";
 import { currency, formatWeeklyWage, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { ExtendControl } from "../components/ExtendControl.js";
+import { ExtendAllButton } from "../components/ExtendAllButton.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
@@ -24,13 +26,19 @@ type EligibleSortKey = "name" | "pos" | "age" | "ovr" | "pot" | "wage";
 export function Loans() {
   const {
     league, listPlayerForLoanAction, unlistPlayerForLoanAction,
-    acceptLoanOfferAction, rejectLoanOfferAction, extendContractAction, simming,
+    acceptLoanOfferAction, rejectLoanOfferAction, extendContractAction,
+    extendAllContractsAction, simming,
   } = useLeague();
   const [draftSeasons, setDraftSeasons] = useState<Record<number, 1 | 2 | 3>>({});
   const offerSort = useTableSort<LoanOfferSortKey>("default", "desc");
   const eligibleSort = useTableSort<EligibleSortKey>("ovr", "desc");
 
   const rawOffers = useMemo(() => (league ? loanOfferCandidates(league) : []), [league]);
+  // Walks the whole player pool, like rawOffers above: memoized so the
+  // duration dropdowns don't re-run it on every change.
+  const renewals = useMemo(
+    () => (league ? renewalsDue(league, "loanedOut") : null), [league],
+  );
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -285,7 +293,18 @@ export function Loans() {
 
       <div className="card">
         <div className="card-body">
-          <h5 className="card-title">Players Out on Loan</h5>
+          {/* A loan moves the pid onto the loanee's roster, so this is the only
+              page these players appear on — the Roster page's own "Extend all"
+              can't reach them. */}
+          <div className="d-flex flex-wrap gap-2 justify-content-between align-items-start">
+            <h5 className="card-title">Players Out on Loan</h5>
+            <ExtendAllButton
+              count={renewals?.pids.length ?? 0}
+              totalSalary={renewals?.totalSalary ?? 0}
+              disabled={simming}
+              onExtendAll={() => { void extendAllContractsAction("loanedOut"); }}
+            />
+          </div>
           {outOnLoan.length === 0 ? (
             <p className="text-muted mb-0">None of your players are currently out on loan.</p>
           ) : (

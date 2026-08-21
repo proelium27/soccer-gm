@@ -102,3 +102,39 @@ export function academyContractTerms(season: number): ContractTerms {
 export function extendAcademyContract(players: Player[], pid: number, season: number): Player[] {
   return applyContractTerms(players, pid, academyContractTerms(season));
 }
+
+/**
+ * Re-sign many players at once, each on his own age-based default terms.
+ *
+ * One pass over the pool rather than one per pid: `extendContract` maps the
+ * whole array to change a single player, so re-signing a dozen would walk
+ * ~6000 players a dozen times. It also keeps every untouched player by
+ * REFERENCE, which the save layer's dirty-set diff depends on (see
+ * test/db/playerIdentity.test.ts) — a copy of an unchanged player would be
+ * written to disk for nothing.
+ */
+export function extendContracts(
+  players: Player[], pids: Iterable<number>, season: number,
+): Player[] {
+  const set = new Set(pids);
+  if (set.size === 0) return players;
+  return players.map((p) => {
+    if (!set.has(p.pid)) return p;
+    const terms = contractTerms(p, season);
+    return { ...p, contract: { salary: terms.salary, expiresSeason: terms.expiresSeason } };
+  });
+}
+
+/** `extendContracts` for academy prospects: the flat stipend, same for everyone. */
+export function extendAcademyContracts(
+  players: Player[], pids: Iterable<number>, season: number,
+): Player[] {
+  const set = new Set(pids);
+  if (set.size === 0) return players;
+  const terms = academyContractTerms(season);
+  return players.map((p) => (
+    set.has(p.pid)
+      ? { ...p, contract: { salary: terms.salary, expiresSeason: terms.expiresSeason } }
+      : p
+  ));
+}

@@ -58,6 +58,15 @@ export interface GameEvents {
   player_released: Record<string, never>;
   /** The user extended a player's contract on their senior roster. */
   contract_extended: Record<string, never>;
+  /**
+   * The user re-signed a whole group of out-of-contract players in one click.
+   * `group` names the surface it ran from (see core/contractRenewal.ts);
+   * `count` is bucketed, like season_simmed.matchdays.
+   */
+  contracts_extended_all: {
+    group: "senior" | "academy" | "loanedOut";
+    count: "1" | "2-5" | "6-15" | "16+";
+  };
   /** The user signed a prospect to their youth academy. */
   player_signed_to_academy: Record<string, never>;
   /** The user promoted an academy player to the senior roster. */
