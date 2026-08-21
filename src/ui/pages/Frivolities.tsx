@@ -28,7 +28,7 @@ import { layoutSlots } from "../pitchLayout.js";
 import { ALL_TIME_STAT_KEYS, type AllTimeStatKey } from "../../core/frivolities/stats.js";
 import { STAT_LABELS, formatStat } from "../statLabels.js";
 import { usePlayerRefs } from "../components/PlayerRefLink.js";
-import { ClubCrest } from "../components/ClubCrest.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { Flag } from "../components/Flag.js";
 import { currency, seasonYear } from "../format.js";
 
@@ -62,19 +62,24 @@ function Empty({ what }: { what: string }) {
 }
 
 /**
- * A club name with its crest. Falls back to the tid when a club can't be found,
- * which can only happen for a save whose team list has changed under a
- * historical record.
+ * A club name with its crest, linked to what that club did in the row's season.
+ * A club the save can't find reads "Unknown" and isn't linked, which can only
+ * happen for a save whose team list has changed under a historical record.
  */
-function ClubCell({ tid }: { tid: number | null }) {
-  const { league } = useLeague();
+function ClubCell({ tid, season }: { tid: number | null; season?: number }) {
   if (tid == null) return <span className="text-muted">Unattached</span>;
-  const team = league?.teams.find((t) => t.tid === tid);
+  /* A row that is about one season links to that season; an all-time board has
+     no season to name, so its clubs open at the one being played. The anchor IS
+     the flex wrapper rather than sitting inside one, so a board of hundreds of
+     rows costs no more elements than it did unlinked. */
   return (
-    <span className="d-inline-flex align-items-center gap-1">
-      <ClubCrest tid={tid} colors={team?.colors ?? ["#888888", "#888888"]} />
-      {team?.name ?? `Team ${tid}`}
-    </span>
+    <ClubLink
+      tid={tid}
+      season={season}
+      crest
+      crestSize={20}
+      className="d-inline-flex align-items-center gap-1 text-decoration-none"
+    />
   );
 }
 
@@ -580,7 +585,7 @@ function ClubPicker({ tid, onChange }: { tid: number; onChange: (tid: number) =>
 function ballonDOrSeasonCells(r: BallonDOrSeason, showFinish: boolean): ReactNode[] {
   return [
     <PlayerCell pid={r.pid} name={r.name} nationality={r.nationality} active={r.active} />,
-    <ClubCell tid={r.tid} />,
+    <ClubCell tid={r.tid} season={r.season} />,
     seasonYear(r.season),
     ...(showFinish
       ? [r.rank === 1 ? <span className="fw-bold">Won it</span> : `#${r.rank}`]
@@ -834,7 +839,7 @@ export function AwardsTab() {
 
 function teamSeasonCells(r: TeamSeasonRecord): ReactNode[] {
   return [
-    <ClubCell tid={r.tid} />,
+    <ClubCell tid={r.tid} season={r.season} />,
     seasonYear(r.season),
     r.tier === 2 ? "D2" : "D1",
     `${r.row.won}-${r.row.drawn}-${r.row.lost}`,
@@ -919,8 +924,8 @@ function RecordsTab() {
               headers={["Player", "From", "To", "Season", "Fee"]}
               render={(t: TransferRecord) => [
                 <PlayerCell pid={t.pid} name={t.name} nationality={t.nationality} />,
-                <ClubCell tid={t.fromTid} />,
-                <ClubCell tid={t.toTid} />,
+                <ClubCell tid={t.fromTid} season={t.season} />,
+                <ClubCell tid={t.toTid} season={t.season} />,
                 seasonYear(t.season),
                 currency.format(t.fee),
               ]}
@@ -936,15 +941,17 @@ function RecordsTab() {
 // --- Summary grids ---------------------------------------------------------
 
 /** A club as a crest and its three letters — the compact form the grid cards use. */
-function ClubBadge({ tid }: { tid: number | null }) {
-  const { league } = useLeague();
+function ClubBadge({ tid, season }: { tid: number | null; season?: number }) {
   if (tid == null) return <span className="text-muted small">&mdash;</span>;
-  const team = league?.teams.find((t) => t.tid === tid);
   return (
-    <span className="d-inline-flex align-items-center gap-1 small">
-      <ClubCrest tid={tid} colors={team?.colors ?? ["#888888", "#888888"]} size={16} />
-      {team?.abbrev ?? tid}
-    </span>
+    <ClubLink
+      tid={tid}
+      season={season}
+      variant="abbrev"
+      crest
+      crestSize={16}
+      className="d-inline-flex align-items-center gap-1 small text-decoration-none"
+    />
   );
 }
 

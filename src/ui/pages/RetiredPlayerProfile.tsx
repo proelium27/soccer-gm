@@ -9,7 +9,8 @@ import { OvrHistoryChart } from "../components/OvrHistoryChart.js";
 import { Flag } from "../components/Flag.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { getRatingColor } from "../utils/ratingColor.js";
-import { clubDisplayName, seasonYear, transferFeeLabel } from "../format.js";
+import { seasonYear, transferFeeLabel } from "../format.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { STAT_LABELS, formatStat } from "../statLabels.js";
 
 /** One career-honor badge, e.g. "3x Golden Boot" — omits the count for a single win. */
@@ -42,11 +43,6 @@ export function RetiredPlayerProfile({
   archived: ArchivedPlayer;
   league: LeagueStore;
 }) {
-  const teamByTid = new Map(league.teams.map((t) => [t.tid, t]));
-  const teamName = (tid: number) => clubDisplayName(tid, (id) => teamByTid.get(id)?.name);
-  const teamAbbrev = (tid: number) =>
-    isFreeAgentTid(tid) ? "FA" : teamByTid.get(tid)?.abbrev ?? "???";
-
   const honors = computeArchivedHonors(archived, league.seasonHistory, {
     cupHistory: league.cupHistory,
     shieldHistory: league.shieldHistory,
@@ -59,6 +55,17 @@ export function RetiredPlayerProfile({
 
   const seasonsDesc = [...archived.seasons].sort((a, b) => b.season - a.season);
   const tidBySeason = new Map(archived.seasons.map((s) => [s.season, s.tid]));
+
+  /**
+   * The last season he played at a club. The header lists his clubs without
+   * seasons, but a club link needs one — and the season his spell there ended
+   * on is the most informative single choice. Falls back to the season he
+   * retired for a club with no season line of its own.
+   */
+  const lastSeasonAt = (tid: number): number => {
+    const seasons = archived.seasons.filter((s) => s.tid === tid).map((s) => s.season);
+    return seasons.length > 0 ? Math.max(...seasons) : archived.retiredSeason;
+  };
 
   // Only the stats he actually recorded — a keeper's career shouldn't list ten
   // zero rows for shots, and an outfielder's shouldn't list saves.
@@ -88,7 +95,12 @@ export function RetiredPlayerProfile({
       {archived.clubs.length > 0 && (
         <p className="mb-3">
           <span className="text-muted">Clubs:</span>{" "}
-          {archived.clubs.map((tid) => teamName(tid)).join(", ")}
+          {archived.clubs.map((tid, i) => (
+            <span key={tid}>
+              {i > 0 && ", "}
+              <ClubLink tid={tid} season={lastSeasonAt(tid)} />
+            </span>
+          ))}
         </p>
       )}
 
@@ -183,8 +195,8 @@ export function RetiredPlayerProfile({
                       <tr key={i}>
                         <td>{seasonYear(t.season)}</td>
                         <td className="text-capitalize">{t.window}</td>
-                        <td>{teamName(t.fromTid)}</td>
-                        <td>{teamName(t.toTid)}</td>
+                        <td><ClubLink tid={t.fromTid} season={t.season} /></td>
+                        <td><ClubLink tid={t.toTid} season={t.season} /></td>
                         <td className="text-end">{transferFeeLabel(t)}</td>
                       </tr>
                     ))}
@@ -233,8 +245,10 @@ export function RetiredPlayerProfile({
                         <tr key={s.season}>
                           <td>{seasonYear(s.season)}</td>
                           <td>
-                            {teamName(s.tid)}{" "}
-                            <span className="text-muted small">({teamAbbrev(s.tid)})</span>
+                            <ClubLink tid={s.tid} season={s.season} />{" "}
+                            <span className="text-muted small">
+                              (<ClubLink tid={s.tid} season={s.season} variant="abbrev" />)
+                            </span>
                           </td>
                           <td className="text-end fw-semibold" style={{ color: getRatingColor(s.ovr) }}>{s.ovr}</td>
                           <td className="text-end">{s.apps}</td>

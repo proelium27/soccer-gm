@@ -37,6 +37,7 @@ import { GodMode } from "./pages/GodMode.js";
 import { NewsFeed } from "./pages/NewsFeed.js";
 import { Awards } from "./pages/Awards.js";
 import { ClubHistory } from "./pages/ClubHistory.js";
+import { ClubSeason } from "./pages/ClubSeason.js";
 import { SeasonPreview } from "./pages/SeasonPreview.js";
 import { SetScouting } from "./pages/SetScouting.js";
 import { Manual } from "./pages/Manual.js";
@@ -129,6 +130,8 @@ export function App() {
             <Route path="/news" element={<NewsFeed />} />
             <Route path="/awards" element={<Awards />} />
             <Route path="/history" element={<ClubHistory />} />
+            {/* One club, one season: squad, league finish, cup runs, power ranking. */}
+            <Route path="/club/:tid/:season" element={<ClubSeason />} />
             <Route path="/frivolities" element={<Frivolities />} />
             <Route path="/season-preview" element={<SeasonPreview />} />
             <Route path="/set-scouting" element={<SetScouting />} />

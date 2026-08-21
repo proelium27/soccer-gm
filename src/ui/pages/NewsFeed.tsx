@@ -1,13 +1,12 @@
 import { useMemo, useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
-import type { StoredTeam } from "../../core/leagueState.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { unpackPositionChange, type NewsEvent, type NewsEventType } from "../../core/newsEvents.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { clubDisplayName, currency, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
-import { ClubCrest } from "../components/ClubCrest.js";
 import { PlayerRefLink, usePlayerRefs } from "../components/PlayerRefLink.js";
 
 type ClubFilter = "all" | "user";
@@ -109,16 +108,18 @@ export function NewsFeed() {
 
   const seasonsToShow = seasonFilter === "all" ? seasons : seasons.filter((s) => s === seasonFilter);
 
-  const teamCell = (tid: number) => {
+  const teamCell = (tid: number, season?: number) => {
     if (isFreeAgentTid(tid)) {
       return <span className="text-muted">{clubDisplayName(tid, () => undefined)}</span>;
     }
-    const team: StoredTeam | undefined = teamMap.get(tid);
     return (
-      <span className="d-inline-flex align-items-center gap-1">
-        <ClubCrest tid={tid} colors={team?.colors ?? ["#888888", "#888888"]} />
-        {clubDisplayName(tid, (id) => teamMap.get(id)?.name)}
-      </span>
+      <ClubLink
+        tid={tid}
+        season={season}
+        crest
+        crestSize={20}
+        className="d-inline-flex align-items-center gap-1 text-decoration-none"
+      />
     );
   };
 
@@ -225,7 +226,7 @@ export function NewsFeed() {
                               <td>{playerCell(t.pid)}</td>
                               <td>
                                 <span className="d-inline-flex align-items-center gap-1">
-                                  {teamCell(t.fromTid)} <span className="text-muted">→</span> {teamCell(t.toTid)}
+                                  {teamCell(t.fromTid, t.season)} <span className="text-muted">→</span> {teamCell(t.toTid, t.season)}
                                 </span>
                               </td>
                               <td className="text-end stat-num">{t.loanReturn ? "—" : currency.format(t.fee)}</td>
@@ -238,7 +239,7 @@ export function NewsFeed() {
                               className={highlighted ? "team-highlight" : undefined}>
                             <td className="small">{EVENT_LABEL[e.type]} (MD {e.matchday})</td>
                             <td>{playerCell(e.pid)}</td>
-                            <td>{teamCell(e.tid)}</td>
+                            <td>{teamCell(e.tid, e.season)}</td>
                             <td className="text-end stat-num">{eventDetail(e)}</td>
                           </tr>
                         );

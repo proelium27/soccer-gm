@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { ClubLink } from "../components/ClubLink.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import type { StoredTeam } from "../../core/teams/clubs.js";
 import { HelpHint } from "../components/HelpHint.js";
@@ -631,12 +632,11 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                 </thead>
                 <tbody>
                   {standingsTop.map((row, i) => {
-                    const team = teamByTid.get(row.tid);
                     const isUser = row.tid === league.meta.userTid;
                     return (
                       <tr key={row.tid} className={isUser ? "team-highlight" : undefined}>
                         <td className="text-end">{i + 1}</td>
-                        <td>{team?.name ?? `Team ${row.tid}`}</td>
+                        <td><ClubLink tid={row.tid} /></td>
                         <td className="text-end">{row.points}</td>
                       </tr>
                     );
