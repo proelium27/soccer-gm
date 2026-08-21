@@ -1184,8 +1184,9 @@ export function Manual() {
           <p>
             He's still your player the whole time he's away, contract included. The
             <strong> Players Out on Loan</strong> list at the bottom of the Loans page shows when
-            each deal expires and lets you extend him from there, which is the only place you can
-            &mdash; he isn't on your Roster page while he's gone.
+            each deal expires and lets you extend him from there, one at a time or all at once,
+            which is the only place you can &mdash; he isn't on your Roster page while he's gone,
+            so the Roster page's own Extend all button can't reach him.
           </p>
         </Section>
 
@@ -1227,6 +1228,15 @@ export function Manual() {
             badge and a heads-up banner, so you can extend him before he's gone for nothing. Academy
             stipends run out the same way, so the Academy page carries the same badge and banner for
             your prospects.
+          </p>
+          <p>
+            That banner also carries an <strong>Extend all</strong> button, which re-signs every one
+            of those players at once so you don't have to work down the list. It quotes the total
+            weekly wage before you press it, and each player gets the default length for his age
+            rather than a length you pick, so extend anyone you want on different terms yourself
+            first. Anyone holding out for a move to Division 1 is left out and the banner says so.
+            The Academy page and the Players Out on Loan list on the Loans page each have their own
+            button, covering the players on that page.
           </p>
           <p>
             Signing a free agent shows up on his profile as a <strong>free move</strong> the same way
@@ -1344,7 +1354,8 @@ export function Manual() {
             Academy players draw a cheap flat weekly stipend instead of the normal wage formula, and
             they can't be transferred. Each has a one-button <strong>Extend</strong> (fresh stipend
             terms once his contract hits its final season) or <strong>Release</strong> (cut him
-            outright, since the academy has no depth floor to protect, unlike your senior roster).
+            outright, since the academy has no depth floor to protect, unlike your senior roster);
+            <strong> Extend all</strong> in the banner does the whole final-year group at once.
             When one's ready, <strong>Promote</strong> moves him onto your senior roster on a normal
             ovr-based wage, which is blocked once you're at the 30-man roster cap. The academy has
             its own cap, separate from your senior roster's, at 10 prospects.
