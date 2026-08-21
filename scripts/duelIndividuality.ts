@@ -84,7 +84,17 @@ const opponentTid = comp0[11].tid;
  * goals conceded per match. The subject is always AWAY so the home attack bonus
  * is a constant across arms.
  */
-function runArm(cbRatings: [number, number]): {
+function runArm(
+  cbRatings: [number, number],
+  /**
+   * Hold both centre-backs' `tackling` at 70 while the rest of their ratings
+   * still differ. drawContester weights the draw by (tackling + 10), so this
+   * equalizes HOW OFTEN each man is challenged while leaving HOW GOOD he is in
+   * the duel wide apart — the control needed to tell "the weak link is never
+   * targeted" apart from "being targeted doesn't hurt".
+   */
+  equalizeTackling = false,
+): {
   conceded: number[];
   scored: number[];
   possession: number[];
@@ -104,8 +114,16 @@ function runArm(cbRatings: [number, number]): {
 
   const cbPids = naturalXI.filter((p) => p.slot === "CB").map((p) => p.pid);
   if (cbPids.length < 2) throw new Error("subject club does not field two centre-backs");
-  setFlat(byPid.get(cbPids[0])!, cbRatings[0]);
-  setFlat(byPid.get(cbPids[1])!, cbRatings[1]);
+  const cbA = byPid.get(cbPids[0])!;
+  const cbB = byPid.get(cbPids[1])!;
+  setFlat(cbA, cbRatings[0]);
+  setFlat(cbB, cbRatings[1]);
+  if (equalizeTackling) {
+    for (const p of [cbA, cbB]) {
+      p.ratings.tackling = 70;
+      p.ovr = computeOvr(p.pos, p.ratings, p.heightCm);
+    }
+  }
 
   const data = leagueMatchData(asLeague(league));
   const sub = data[idxOf.get(subjectTid)!];
@@ -133,6 +151,20 @@ function runArm(cbRatings: [number, number]): {
   return { conceded, scored, possession };
 }
 
+/**
+ * Every arm plays the same fixture list under the same seeds (mulberry32(900000+i)),
+ * so arms are PAIRED match-for-match. Differencing per seed cancels the shared
+ * match-to-match noise and shrinks the interval on the difference by roughly an
+ * order of magnitude versus comparing two independent means — which is the
+ * difference between "no detectable effect" and a real measurement here.
+ */
+function pairedDiff(a: number[], b: number[]): { diff: number; ci: number } {
+  const d = a.map((x, i) => x - b[i]);
+  const m = mean(d);
+  const s = sd(d);
+  return { diff: m, ci: (1.96 * s) / Math.sqrt(d.length) };
+}
+
 function report(label: string, arm: ReturnType<typeof runArm>): number {
   const gc = mean(arm.conceded);
   const se = sd(arm.conceded) / Math.sqrt(arm.conceded.length);
@@ -147,24 +179,49 @@ function report(label: string, arm: ReturnType<typeof runArm>): number {
 console.log("1. LOPSIDED vs BALANCED back line (same mean quality, 70)");
 const balanced = runArm([70, 70]);
 const lopsided = runArm([85, 55]);
-const gcBalanced = report("balanced  CB 70 / CB 70", balanced);
-const gcLopsided = report("lopsided  CB 85 / CB 55", lopsided);
-const lopsidedPenalty = gcLopsided - gcBalanced;
-console.log(
-  `  => lopsided concedes ${lopsidedPenalty >= 0 ? "+" : ""}${fmt(lopsidedPenalty)} goals/match ` +
-    `(${fmt((lopsidedPenalty / gcBalanced) * 100, 1)}%)\n`,
-);
+report("balanced  CB 70 / CB 70", balanced);
+report("lopsided  CB 85 / CB 55", lopsided);
+{
+  const { diff, ci } = pairedDiff(lopsided.conceded, balanced.conceded);
+  console.log(
+    `  => lopsided concedes ${diff >= 0 ? "+" : ""}${fmt(diff)} goals/match ` +
+      `(paired 95% CI ±${fmt(ci)})  [${Math.abs(diff) > ci ? "SIGNIFICANT" : "not significant"}]\n`,
+  );
+}
 
 // --- Experiment 2: single-defender sensitivity ------------------------------
 console.log("2. SINGLE-DEFENDER SENSITIVITY (other CB held at 70)");
 const weak = runArm([70, 55]);
 const strong = runArm([70, 85]);
-const gcWeak = report("partner CB 55", weak);
-const gcStrong = report("partner CB 85", strong);
-console.log(
-  `  => 30 rating points on ONE centre-back is worth ${fmt(gcWeak - gcStrong)} goals/match ` +
-    `(${fmt(((gcWeak - gcStrong) / gcWeak) * 100, 1)}%)\n`,
-);
+report("partner CB 55", weak);
+report("partner CB 85", strong);
+{
+  const { diff, ci } = pairedDiff(weak.conceded, strong.conceded);
+  console.log(
+    `  => 30 rating points on ONE centre-back is worth ${fmt(diff)} goals/match ` +
+      `(paired 95% CI ±${fmt(ci)})  [${Math.abs(diff) > ci ? "SIGNIFICANT" : "not significant"}]\n`,
+  );
+}
+
+// --- Experiment 4: why doesn't the weak link get punished? ------------------
+// If experiment 1 comes back flat, the suspect is drawContester's own weighting:
+// the draw is proportional to (tackling + 10), so the BETTER defender is pulled
+// into more duels and covers for the worse one. Equalizing tackling removes that
+// self-correction while leaving the quality gap intact. If the lopsided penalty
+// appears here but not in experiment 1, the model needs proximity-based
+// selection (channels), not a bigger duel weight.
+console.log("4. WEAK-LINK TARGETING (tackling held equal, so both are challenged equally)");
+const balancedEq = runArm([70, 70], true);
+const lopsidedEq = runArm([95, 45], true);
+report("balanced  70 / 70", balancedEq);
+report("lopsided  95 / 45", lopsidedEq);
+{
+  const { diff, ci } = pairedDiff(lopsidedEq.conceded, balancedEq.conceded);
+  console.log(
+    `  => lopsided concedes ${diff >= 0 ? "+" : ""}${fmt(diff)} goals/match ` +
+      `(paired 95% CI ±${fmt(ci)})  [${Math.abs(diff) > ci ? "SIGNIFICANT" : "not significant"}]\n`,
+  );
+}
 
 // --- Experiment 3: are defensive stats earned? ------------------------------
 console.log("3. EARNED DEFENSIVE STATS (one simmed season, tier-1 defenders)");

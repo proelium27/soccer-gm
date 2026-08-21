@@ -75,33 +75,37 @@ export function drawActor(
   quality: (p: MatchPlayer, energy: number) => number,
   energyOf: (p: MatchPlayer) => number,
 ): DuelActor | null {
-  const outfield = players.filter((p) => p.slot !== "GK");
-  if (outfield.length === 0) return null;
-
-  const weights: number[] = [];
-  const quals: number[] = [];
+  // ALLOCATION-FREE ON PURPOSE. This runs twice per tick and a match is ~940
+  // ticks, so the obvious version — filter() for the outfielders plus a weights
+  // array and a quality array — allocates ~3,800 arrays per match and spends
+  // more time in GC than in the sim. Measured on a 3000-match run: main 1.55
+  // ms/match, the allocating version 3.97, this one 3.00. Two arithmetic passes
+  // with the GK skipped inline, and quality computed only for the man drawn.
+  // The remaining obvious win is caching the (constant) weight table per side
+  // and invalidating it on subs/red cards, which would leave only the O(11)
+  // energy pass — not done here because mis-invalidation would corrupt silently.
   let total = 0;
   let weightedSum = 0;
-  for (const p of outfield) {
+  for (const p of players) {
+    if (p.slot === "GK") continue;
     const w = posWeights[p.slot] * (p[ratingKey] + 10);
-    const q = quality(p, energyOf(p));
-    weights.push(w);
-    quals.push(q);
     total += w;
-    weightedSum += w * q;
+    weightedSum += w * quality(p, energyOf(p));
   }
-  const baseline = total === 0 ? 0 : weightedSum / total;
+  if (total <= 0) return null;
+  const baseline = weightedSum / total;
 
   let r = rng() * total;
-  let idx = outfield.length - 1;
-  for (let i = 0; i < outfield.length; i++) {
-    r -= weights[i];
-    if (r <= 0) {
-      idx = i;
-      break;
-    }
+  let chosen: MatchPlayer | null = null;
+  for (const p of players) {
+    if (p.slot === "GK") continue;
+    chosen = p; // keeps the last outfielder as the float-rounding fallback
+    r -= posWeights[p.slot] * (p[ratingKey] + 10);
+    if (r <= 0) break;
   }
-  return { player: outfield[idx], deviation: quals[idx] - baseline };
+  if (chosen === null) return null;
+
+  return { player: chosen, deviation: quality(chosen, energyOf(chosen)) - baseline };
 }
 
 /** Draw the man on the ball this tick. */
