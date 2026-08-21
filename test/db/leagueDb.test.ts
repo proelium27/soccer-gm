@@ -182,6 +182,36 @@ describe("leagueDb", () => {
     expect((await db.get("leagues", lid))!.players).toBeUndefined();
   });
 
+  it("writes back the award winners' names it recovers on load", async () => {
+    // Every other backfill recomputes the same way on the next load. This one
+    // reads names off players who are in the save right now, and the next
+    // offseason deletes more of them for good, so leaving it in memory would
+    // mean the recovery is lost if nothing else happens to save.
+    const league = makeLeague();
+    league.seasonHistory = [{
+      season: 1,
+      table: [],
+      teamStats: [],
+      awards: { 0: { playerOfSeasonPid: league.players[0].pid, goldenBootPid: null, teamOfSeason: [] } },
+      world: { ballonDOr: [], worldTeamOfYear: [] },
+      compsByTid: {},
+      championTidByCompId: {},
+    }] as unknown as typeof league.seasonHistory;
+    // He has to have played that season for the award to be able to name him.
+    league.players[0].stats = [{ ...league.players[0].stats[0], season: 1 }];
+    const lid = await saveLeague(league);
+
+    const db = await getDb();
+    const stored = (await db.get("leagues", lid))!;
+    expect(stored.seasonHistory[0].awardWinners).toBeUndefined();
+
+    const loaded = await loadLeague(lid);
+    expect(loaded!.seasonHistory[0].awardWinners).toHaveLength(1);
+    // On disk, not just in the object that was handed back.
+    const after = (await db.get("leagues", lid))!;
+    expect(after.seasonHistory[0].awardWinners![0].name).toBe(league.players[0].name);
+  });
+
   it("round-trip: create -> save -> load -> verify all fields", async () => {
     const league = makeLeague();
     const lid = await saveLeague(league);
