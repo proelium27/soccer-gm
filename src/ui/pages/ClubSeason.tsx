@@ -92,7 +92,7 @@ export function ClubSeason() {
         <p className="text-muted">
           No record of {team?.name ?? `this club`} in {seasonYear(season)}.
         </p>
-        <Link to="/history">Club History</Link>
+        <Link to={`/history?tid=${tid}`}>Club History</Link>
       </div>
     );
   }
@@ -159,7 +159,7 @@ export function ClubSeason() {
             </option>
           ))}
         </select>
-        <Link to="/history" className="small">All-time club history</Link>
+        <Link to={`/history?tid=${tid}`} className="small">All-time club history</Link>
       </div>
 
       <div className="row g-2 mb-3">

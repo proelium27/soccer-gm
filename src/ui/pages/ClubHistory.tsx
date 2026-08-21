@@ -1,6 +1,5 @@
-import { useState } from "react";
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { ClubLink } from "../components/ClubLink.js";
 import { usePlayerMap } from "../usePlayerMap.js";
@@ -90,14 +89,25 @@ function HonourList({
 export function ClubHistory() {
   const { league } = useLeague();
   const playersByPid = usePlayerMap(league?.players);
-  const [tidOverride, setTidOverride] = useState<number | null>(null);
+  /**
+   * Which club to show, held in the URL rather than in component state.
+   *
+   * It has to survive being linked to: the club-season page sends you here for
+   * the club you were just looking at, and with the choice in state that link
+   * could only ever land on your own club. Keeping it in the URL also makes the
+   * picker shareable and the back button work through it.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tidParam = Number(searchParams.get("tid"));
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
   }
 
   const userTid = league.meta.userTid;
-  const tid = tidOverride ?? userTid;
+  // A tid the save doesn't know (a hand-edited URL, or a link from a save that
+  // has since changed) falls back to your own club rather than an empty page.
+  const tid = league.teams.some((t) => t.tid === tidParam) ? tidParam : userTid;
   const team = league.teams.find((t) => t.tid === tid);
   const currentComp = team ? competitionOf(league.competitions, team.compId) : undefined;
 
@@ -124,7 +134,7 @@ export function ClubHistory() {
           className="form-select form-select-sm"
           style={{ width: "auto", display: "inline-block" }}
           value={tid}
-          onChange={(e) => setTidOverride(Number(e.target.value))}
+          onChange={(e) => setSearchParams({ tid: e.target.value }, { replace: true })}
         >
           {countries.map((country) => (
             <optgroup key={country} label={country}>
