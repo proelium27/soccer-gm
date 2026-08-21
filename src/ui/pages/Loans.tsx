@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import { transferWindowState } from "../../core/transfers/window.js";
 import type { Player } from "../../core/players/types.js";
@@ -142,7 +143,7 @@ export function Loans() {
                     <td>{c.player.pos}</td>
                     <td className="text-end">{c.player.ovr}</td>
                     <td className="text-end"><PotDisplay player={c.player} /></td>
-                    <td>{teamName(c.buyerTid)}</td>
+                    <td><ClubLink tid={c.buyerTid} /></td>
                     <td className="text-end">{c.seasons}</td>
                     <td className="text-end">{currency.format(c.fee)}</td>
                     <td className="text-end">
@@ -311,7 +312,7 @@ export function Loans() {
                           `Player ${l.pid}`
                         )}
                       </td>
-                      <td>{teamName(l.loaneeTid)}</td>
+                      <td><ClubLink tid={l.loaneeTid} /></td>
                       <td className="text-end">Season {l.returnSeason}</td>
                       <td className="text-end">
                         {!p ? "" : p.contract.expiresSeason <= league.season ? (

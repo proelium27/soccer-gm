@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import type { Player } from "../../core/players/types.js";
@@ -220,7 +221,7 @@ export function PowerRankings() {
                         </span>
                       )}
                       <ClubCrest tid={team.tid} colors={team.colors} />
-                      {team.name}
+                      <ClubLink tid={team.tid} season={snapshot.season} />
                     </span>
                   </td>
                   <td className="text-end">

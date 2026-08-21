@@ -2919,3 +2919,17 @@ body.nav-drawer-open {
   max-height: 46vh;
   overflow-y: auto;
 }
+
+/* A club name inside the box score is a link to that club's season, but it must
+   keep reading as the scoreboard's own type — the surrounding rule already
+   carries colour, weight and the won/lost signal, so the link inherits all
+   three and only picks up an underline on hover. */
+.bs-club-link {
+  color: inherit;
+  text-decoration: none;
+}
+.bs-club-link:hover,
+.bs-club-link:focus-visible {
+  color: inherit;
+  text-decoration: underline;
+}

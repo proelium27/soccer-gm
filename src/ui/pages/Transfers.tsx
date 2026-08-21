@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { useDebounced } from "../useDebounced.js";
 import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import type { LeagueStore } from "../../core/leagueState.js";
@@ -492,7 +493,7 @@ export function Transfers() {
                       <td className="text-end">{league.season - p.born}</td>
                       <td className="text-end">{p.ovr}</td>
                       <td className="text-end"><PotDisplay player={p} /></td>
-                      <td>{teamName(sellerTid)}</td>
+                      <td><ClubLink tid={sellerTid} /></td>
                       <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
                       <td className="text-end">{currency.format(scoutedValue)}</td>
                       <td>
@@ -639,7 +640,7 @@ export function Transfers() {
                       <td className="text-end">{league.season - p.born}</td>
                       <td className="text-end">{p.ovr}</td>
                       <td className="text-end"><PotDisplay player={p} /></td>
-                      <td>{teamName(sellerTid)}</td>
+                      <td><ClubLink tid={sellerTid} /></td>
                       <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
                       <td className="text-end">{currency.format(scoutedValue)}</td>
                       <td>
@@ -688,7 +689,7 @@ export function Transfers() {
                         <PlayerRatingsTooltip player={p}>
                           <Link to={`/player/${p.pid}`}>{p.name}</Link>
                         </PlayerRatingsTooltip>{" "}
-                        <Flag nationality={p.nationality} /> ({p.pos}, {teamName(n.sellerTid)})
+                        <Flag nationality={p.nationality} /> ({p.pos}, <ClubLink tid={n.sellerTid} />)
                       </td>
                       <td>
                         <NegotiationControls
@@ -728,8 +729,8 @@ export function Transfers() {
                 return (
                   <li key={i}>
                     <PlayerRefLink pid={t.pid} fallback={`Player ${t.pid}`} />{" "}
-                    {ref && <Flag nationality={ref.nationality} />} — {teamName(t.fromTid)} →{" "}
-                    {teamName(t.toTid)} for {currency.format(t.fee)}
+                    {ref && <Flag nationality={ref.nationality} />} — <ClubLink tid={t.fromTid} season={t.season} /> →{" "}
+                    <ClubLink tid={t.toTid} season={t.season} /> for {currency.format(t.fee)}
                   </li>
                 );
               })}

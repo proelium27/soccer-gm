@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { HelpHint } from "../components/HelpHint.js";
 import { ClubCrest } from "../components/ClubCrest.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { seasonYear } from "../format.js";
 import type { CupState, CupTie, KnockoutLeg } from "../../core/cup/types.js";
 import {
@@ -103,7 +104,9 @@ export function Cup({ competition = "continental" }: { competition?: CupCompetit
       ? currentCup ?? undefined
       : history.find((h) => h.season === seasonSel);
 
-  const teamName = (tid: number) => league.teams.find((t) => t.tid === tid)?.name ?? `Team ${tid}`;
+  // The season this bracket belongs to, so every club on it links to what that
+  // club did that year rather than to today.
+  const shownSeason = cup?.season;
   const teamColors = (tid: number): [string, string] =>
     league.teams.find((t) => t.tid === tid)?.colors ?? ["#888888", "#888888"];
   const userTid = league.meta.userTid;
@@ -111,7 +114,9 @@ export function Cup({ competition = "continental" }: { competition?: CupCompetit
   const teamCell = (tid: number, isWinner: boolean) => (
     <span className={`cup-team${isWinner ? " cup-team-winner" : ""}${tid === userTid ? " cup-team-user" : ""}`}>
       <ClubCrest tid={tid} colors={teamColors(tid)} size={16} />
-      <span className="cup-team-name">{teamName(tid)}</span>
+      <span className="cup-team-name">
+        <ClubLink tid={tid} season={shownSeason} />
+      </span>
     </span>
   );
 
@@ -216,7 +221,7 @@ export function Cup({ competition = "continental" }: { competition?: CupCompetit
             <div className="cup-champion-banner mb-3">
               <span className="cup-champion-label">Champions</span>{" "}
               <ClubCrest tid={cup.championTid} colors={teamColors(cup.championTid)} size={22} />{" "}
-              <strong>{teamName(cup.championTid)}</strong>
+              <strong><ClubLink tid={cup.championTid} season={shownSeason} /></strong>
             </div>
           ) : userIsFinalist ? (
             <div className="alert alert-warning py-2 mb-3">

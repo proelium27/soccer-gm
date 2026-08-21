@@ -1,17 +1,17 @@
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import { PotHelp } from "../components/HelpHint.js";
 import type { Player } from "../../core/players/types.js";
 import type { StoredTeam } from "../../core/teams/clubs.js";
 import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { teamSlots } from "../../core/lineup/formations.js";
-import { clubDisplayName, currency, seasonYear } from "../format.js";
+import { currency, seasonYear } from "../format.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { Flag } from "../components/Flag.js";
-import { ClubCrest } from "../components/ClubCrest.js";
 import { usePlayerRefs } from "../components/PlayerRefLink.js";
 
 const TOP_N = 10;
@@ -43,7 +43,6 @@ export function SeasonPreview() {
     .sort((a, b) => b.rating.ovr - a.rating.ovr)
     .slice(0, TOP_N);
 
-  const teamsByTid = new Map(league.teams.map((t) => [t.tid, t]));
   // The offseason that produced this preview retired players at the end of the
   // *previous* season, which is the history entry it wrote them onto. Matched by
   // season rather than taking the last entry, so a save mid-rollover can't show
@@ -90,7 +89,7 @@ export function SeasonPreview() {
                         </span>
                       </PlayerRatingsTooltip>
                     </td>
-                    <td>{team?.name ?? "—"}</td>
+                    <td>{team ? <ClubLink tid={team.tid} /> : "—"}</td>
                     <td className="text-end">{player.ovr}</td>
                     <td className="text-end"><PotDisplay player={player} /></td>
                   </tr>
@@ -116,10 +115,12 @@ export function SeasonPreview() {
                 <tr key={team.tid} className={team.tid === league.meta.userTid ? "team-highlight" : undefined}>
                   <td className="text-end">{i + 1}</td>
                   <td>
-                    <span className="d-inline-flex align-items-center gap-1">
-                      <ClubCrest tid={team.tid} colors={team.colors} />
-                      {team.name}
-                    </span>
+                    <ClubLink
+                      tid={team.tid}
+                      crest
+                      crestSize={20}
+                      className="d-inline-flex align-items-center gap-1 text-decoration-none"
+                    />
                   </td>
                   <td className="text-end">{rating.ovr}</td>
                   <td className="text-end">{rating.pot}</td>
@@ -147,14 +148,12 @@ export function SeasonPreview() {
           <tbody>
             {topTransfers.map((t, i) => {
               const player = playersByPid.get(t.pid);
-              const from = teamsByTid.get(t.fromTid);
-              const to = teamsByTid.get(t.toTid);
               return (
                 <tr key={`${t.pid}-${t.season}-${i}`}>
                   <td className="text-end">{i + 1}</td>
                   <td>{player ? <Link to={`/player/${player.pid}`}>{player.name}</Link> : "—"}</td>
-                  <td>{clubDisplayName(t.fromTid, () => from?.name)}</td>
-                  <td>{clubDisplayName(t.toTid, () => to?.name)}</td>
+                  <td><ClubLink tid={t.fromTid} season={t.season} /></td>
+                  <td><ClubLink tid={t.toTid} season={t.season} /></td>
                   <td className="text-end">{currency.format(t.fee)}</td>
                 </tr>
               );
@@ -208,7 +207,13 @@ export function SeasonPreview() {
                   </td>
                   <td>{r.pos}</td>
                   <td className="text-end">{r.age}</td>
-                  <td>{r.tid === null ? <span className="text-muted">Free agent</span> : teamsByTid.get(r.tid)?.name ?? "—"}</td>
+                  <td>
+                    {r.tid === null
+                      ? <span className="text-muted">Free agent</span>
+                      /* His last club, in the season he last played - which is the
+                         one that just finished, not the one about to start. */
+                      : <ClubLink tid={r.tid} season={league.season - 1} />}
+                  </td>
                   <td className="text-end">{r.ovr}</td>
                   <td className="text-end">{r.seasonsPlayed}</td>
                   <td className="text-end">{r.appearances}</td>

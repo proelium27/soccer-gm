@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import { computeClubHistory, type ClubIndividualHonour, type ClubSeasonRecord } from "../../core/clubHistory.js";
 import { competitionOf, countriesOf } from "../../core/competitions.js";
@@ -112,7 +113,7 @@ export function ClubHistory() {
     <div className="container-fluid p-3">
       <div className="d-flex align-items-center gap-2 mb-1">
         <ClubCrest tid={tid} colors={team?.colors ?? ["#888888", "#888888"]} size={32} />
-        <h4 className="mb-0">{team?.name ?? `Team ${tid}`}</h4>
+        <h4 className="mb-0"><ClubLink tid={tid} className="text-reset text-decoration-none" /></h4>
       </div>
       <div className="text-muted mb-3">
         {currentComp ? `${currentComp.name} · ${history.seasonsPlayed} season${history.seasonsPlayed === 1 ? "" : "s"} on record` : ""}
@@ -332,7 +333,10 @@ export function ClubHistory() {
                 if (s.treble) notes.push("The treble");
                 return (
                   <tr key={s.season} className={s.champion && s.tier === 1 ? "champion-highlight" : undefined}>
-                    <td>{seasonYear(s.season)}</td>
+                    {/* The season year is the way into that season on its own:
+                        the club is already named at the top of the page, so
+                        repeating it in every row would be noise. */}
+                    <td><Link to={`/club/${tid}/${s.season}`}>{seasonYear(s.season)}</Link></td>
                     <td>{comp.name}</td>
                     <td className="text-end">
                       {ordinal(s.position)}

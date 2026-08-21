@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { ClubLink } from "../components/ClubLink.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
 import { computeTeamSeasonStats, type TeamSeasonStats } from "../../core/standings.js";
@@ -323,7 +324,7 @@ function PlayerLeadersBody({
                   </PlayerRatingsTooltip>{" "}
                   <Flag nationality={row.player.nationality} />
                 </td>
-                <td>{row.teamName}</td>
+                <td><ClubLink tid={row.stats.tid} season={row.season ?? undefined} /></td>
                 <td>{row.player.pos}</td>
                 {showSeasonColumn && (
                   <td className="text-end">{row.season !== null ? seasonYear(row.season) : ""}</td>
@@ -469,7 +470,7 @@ function TeamLeaders({ compId }: { compId: number }) {
                 className={row.isUserTeam ? "text-primary fw-semibold" : undefined}
               >
                 <td className="text-end">{i + 1}</td>
-                <td>{row.teamName}</td>
+                <td><ClubLink tid={row.tid} season={season === "current" ? undefined : season} /></td>
                 <td className="text-end">{row.played}</td>
                 <td className="text-end">{row.goals}</td>
                 <td className="text-end">{row.assists}</td>

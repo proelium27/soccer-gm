@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { ClubLink } from "../components/ClubLink.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import type { PlayedMatch } from "../../core/standings.js";
 import type { PlayerMatchLine } from "../../engine/attribution.js";
@@ -35,7 +36,6 @@ function StarIcon({ size = 12 }: { size?: number }) {
    --------------------------------------------------------------------------- */
 
 function ScoreboardSide({
-  name,
   tid,
   colors,
   goals,
@@ -43,7 +43,6 @@ function ScoreboardSide({
   lost,
   align,
 }: {
-  name: string;
   tid: number;
   colors: [string, string];
   goals: number;
@@ -53,7 +52,7 @@ function ScoreboardSide({
 }) {
   const nameEl = (
     <span className={`bs-club-name${won ? " bs-club-name--won" : ""}${lost ? " bs-club-name--lost" : ""}`}>
-      {name}
+      <ClubLink tid={tid} className="bs-club-link" />
     </span>
   );
   const crest = <ClubCrest tid={tid} colors={colors} size={30} />;
@@ -122,7 +121,6 @@ const COLUMN_GROUPS: { label: string; span: number }[] = [
 ];
 
 function TeamBoxTable({
-  teamName,
   tid,
   colors,
   lines,
@@ -131,7 +129,6 @@ function TeamBoxTable({
   playerNationality,
   motmPid,
 }: {
-  teamName: string;
   tid: number;
   colors: [string, string];
   lines: PlayerMatchLine[];
@@ -144,7 +141,7 @@ function TeamBoxTable({
     <section className="bs-team-block">
       <h6 className="bs-team-heading">
         <ClubCrest tid={tid} colors={colors} size={18} />
-        {teamName}
+        <ClubLink tid={tid} className="bs-club-link" />
       </h6>
       <table className="table table-sm table-striped bs-table">
         <thead>
@@ -351,7 +348,6 @@ export function BoxScore() {
         </div>
         <div className="bs-scoreline">
           <ScoreboardSide
-            name={homeName}
             tid={match.home}
             colors={homeColors}
             goals={match.homeGoals}
@@ -361,7 +357,6 @@ export function BoxScore() {
           />
           <span className="bs-score-sep" aria-hidden="true" />
           <ScoreboardSide
-            name={awayName}
             tid={match.away}
             colors={awayColors}
             goals={match.awayGoals}
@@ -411,7 +406,6 @@ export function BoxScore() {
       </section>
 
       <TeamBoxTable
-        teamName={homeName}
         tid={match.home}
         colors={homeColors}
         lines={home}
@@ -421,7 +415,6 @@ export function BoxScore() {
         motmPid={motm?.pid ?? null}
       />
       <TeamBoxTable
-        teamName={awayName}
         tid={match.away}
         colors={awayColors}
         lines={away}
