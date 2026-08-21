@@ -19,8 +19,11 @@ import { worldHasCup } from "../../core/cup/cup.js";
 import { confederationOf, confederationCupSpec } from "../../core/international/index.js";
 import { cupStatsBySeasonForPlayer } from "../../core/cup/cupStats.js";
 import { domesticStatsBySeasonForPlayer } from "../../core/domesticCup/stats.js";
-import { formatWeeklyWage, per90Text, seasonYear, transferFeeLabel } from "../format.js";
+import { formatWeeklyWage, seasonYear, transferFeeLabel } from "../format.js";
 import { ClubLink } from "../components/ClubLink.js";
+import {
+  cupStatColumns, leagueStatColumns, statCellText, statColumnScope, statHeader, sumStatRows,
+} from "../playerStatColumns.js";
 import { INTL_TOURNAMENT_NAME } from "../../core/constants.js";
 import { isSuspended, matchesLabel } from "../../core/suspensions.js";
 import { PlayerEditModal } from "../components/PlayerEditModal.js";
@@ -167,6 +170,16 @@ export function PlayerProfile() {
       : statsTab;
   // Both cup tables have identical columns, so they share one render below.
   const cupRows = activeStatsTab === "domestic" ? domesticStatsBySeason : cupStatsBySeason;
+  // Both stat tables are generated from a column list rather than hand-written
+  // cells, so a season row, the career row under it and the per-90 reading of
+  // either all come out of one definition per stat and cannot drift apart.
+  // Which columns appear depends on what the player has actually recorded — see
+  // statColumnScope.
+  const cupLines = cupRows.map((r) => r.line);
+  const cupColumns = cupStatColumns(statColumnScope(player.pos, cupLines));
+  const cupTotals = sumStatRows(cupLines);
+  const leagueColumns = leagueStatColumns(statColumnScope(player.pos, player.stats));
+  const leagueTotals = sumStatRows(player.stats);
   // Scouting fog also applies to the POT column of the history table, per row
   // and keyed off that row's own season — so a player the user has never
   // scouted stays fogged here too (closing the "read the exact number one tab
@@ -620,28 +633,23 @@ export function PlayerProfile() {
               </p>
             ) : (
               <div className="table-responsive">
-                <table className="table table-striped table-sm mb-0">
+                {/* text-nowrap so the responsive wrapper scrolls on a narrow
+                    screen instead of crushing twenty-odd columns into it,
+                    which wraps the season cell and doubles every row. */}
+                <table className="table table-striped table-sm text-nowrap mb-0">
                   <thead>
                     <tr>
                       <th>Season</th>
                       <th>Comp</th>
-                      <th className="text-end">Apps</th>
-                      <th className="text-end">Min</th>
-                      <th className="text-end">G{statsRate && "/90"}</th>
-                      <th className="text-end">A{statsRate && "/90"}</th>
-                      <th className="text-end">Sh{statsRate && "/90"}</th>
-                      <th className="text-end">SoT{statsRate && "/90"}</th>
-                      <th className="text-end">Sv{statsRate && "/90"}</th>
-                      <th className="text-end">GA{statsRate && "/90"}</th>
-                      <th className="text-end">Tkl{statsRate && "/90"}</th>
-                      <th className="text-end">Int{statsRate && "/90"}</th>
+                      {cupColumns.map((c) => (
+                        <th key={c.key} className="text-end" title={c.title}>
+                          {statHeader(c, statsRate)}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {cupRows.map(({ line: s, competition }, i) => {
-                      const v = (value: number) =>
-                        statsRate ? per90Text(value, s.minutesPlayed) : String(value);
-                      return (
+                    {cupRows.map(({ line: s, competition }, i) => (
                       // Keyed by index, not season: a player who moves club
                       // mid-season can play in two of these in one season (two
                       // domestic cups, or a Cup line and a Shield line), and
@@ -649,20 +657,26 @@ export function PlayerProfile() {
                       <tr key={i}>
                         <td>{seasonYear(s.season)}</td>
                         <td className="text-muted small">{competition}</td>
-                        <td className="text-end">{s.appearances}</td>
-                        <td className="text-end">{s.minutesPlayed}</td>
-                        <td className="text-end">{v(s.goals)}</td>
-                        <td className="text-end">{v(s.assists)}</td>
-                        <td className="text-end">{v(s.shots)}</td>
-                        <td className="text-end">{v(s.shotsOnTarget)}</td>
-                        <td className="text-end">{player.pos === "GK" ? v(s.saves) : ""}</td>
-                        <td className="text-end">{player.pos === "GK" ? v(s.goalsAgainst) : ""}</td>
-                        <td className="text-end">{v(s.tackles)}</td>
-                        <td className="text-end">{v(s.interceptions)}</td>
+                        {cupColumns.map((c) => (
+                          <td key={c.key} className="text-end">{statCellText(c, s, statsRate)}</td>
+                        ))}
                       </tr>
-                      );
-                    })}
+                    ))}
                   </tbody>
+                  {/* A career row under a single season would just repeat it. */}
+                  {cupRows.length > 1 && (
+                    <tfoot>
+                      <tr className="fw-semibold">
+                        <td>Career</td>
+                        <td />
+                        {cupColumns.map((c) => (
+                          <td key={c.key} className="text-end">
+                            {statCellText(c, cupTotals, statsRate)}
+                          </td>
+                        ))}
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
             )
@@ -670,37 +684,19 @@ export function PlayerProfile() {
             <p className="text-muted mb-0">No matches played yet.</p>
           ) : (
             <div className="table-responsive">
-              <table className="table table-striped table-sm mb-0">
+              <table className="table table-striped table-sm text-nowrap mb-0">
                 <thead>
                   <tr>
                     <th>Season</th>
-                    <th className="text-end">Apps</th>
-                    <th className="text-end">Min</th>
-                    <th className="text-end">G{statsRate && "/90"}</th>
-                    <th className="text-end">A{statsRate && "/90"}</th>
-                    <th className="text-end">Sh{statsRate && "/90"}</th>
-                    <th className="text-end">SoT{statsRate && "/90"}</th>
-                    <th className="text-end">xG{statsRate && "/90"}</th>
-                    <th className="text-end">Sv{statsRate && "/90"}</th>
-                    <th className="text-end">GA{statsRate && "/90"}</th>
-                    <th className="text-end">xGA{statsRate && "/90"}</th>
-                    <th className="text-end">Tkl{statsRate && "/90"}</th>
-                    <th className="text-end">Int{statsRate && "/90"}</th>
-                    <th className="text-end" title="Yellow cards">YC{statsRate && "/90"}</th>
-                    <th className="text-end" title="Red cards">RC{statsRate && "/90"}</th>
-                    <th className="text-end">Rtg</th>
+                    {leagueColumns.map((c) => (
+                      <th key={c.key} className="text-end" title={c.title}>
+                        {statHeader(c, statsRate)}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {statsBySeasonDesc.map((s) => {
-                    // Apps, Min and Rtg stay as they are in rate mode: the
-                    // first two are the denominator and its context, and a
-                    // match rating is already an average.
-                    const v = (value: number) =>
-                      statsRate ? per90Text(value, s.minutesPlayed) : String(value);
-                    const vx = (value: number) =>
-                      statsRate ? per90Text(value, s.minutesPlayed) : value.toFixed(2);
-                    return (
+                  {statsBySeasonDesc.map((s) => (
                     <tr key={s.season}>
                       <td>
                         {seasonYear(s.season)}
@@ -713,29 +709,25 @@ export function PlayerProfile() {
                           </span>
                         )}
                       </td>
-                      <td className="text-end">{s.appearances}</td>
-                      <td className="text-end">{s.minutesPlayed}</td>
-                      <td className="text-end">{v(s.goals)}</td>
-                      <td className="text-end">{v(s.assists)}</td>
-                      <td className="text-end">{v(s.shots)}</td>
-                      <td className="text-end">{v(s.shotsOnTarget)}</td>
-                      <td className="text-end">{vx(s.xg)}</td>
-                      {/* Saves reads as a keeper column here, like the GA/xGA
-                          beside it: a hard 0 on an outfielder is noise in a
-                          sixteen-column row. Stat Leaders still ranks it for
-                          everyone, where the whole point is comparing players. */}
-                      <td className="text-end">{player.pos === "GK" ? v(s.saves) : ""}</td>
-                      <td className="text-end">{player.pos === "GK" ? v(s.goalsAgainst) : ""}</td>
-                      <td className="text-end">{player.pos === "GK" ? vx(s.xga) : ""}</td>
-                      <td className="text-end">{v(s.tackles)}</td>
-                      <td className="text-end">{v(s.interceptions)}</td>
-                      <td className="text-end">{s.yellowCards ? v(s.yellowCards) : ""}</td>
-                      <td className="text-end">{s.redCards ? v(s.redCards) : ""}</td>
-                      <td className="text-end">{s.avgRating.toFixed(2)}</td>
+                      {leagueColumns.map((c) => (
+                        <td key={c.key} className="text-end">{statCellText(c, s, statsRate)}</td>
+                      ))}
                     </tr>
-                    );
-                  })}
+                  ))}
                 </tbody>
+                {/* A career row under a single season would just repeat it. */}
+                {statsBySeasonDesc.length > 1 && (
+                  <tfoot>
+                    <tr className="fw-semibold">
+                      <td>Career</td>
+                      {leagueColumns.map((c) => (
+                        <td key={c.key} className="text-end">
+                          {statCellText(c, leagueTotals, statsRate)}
+                        </td>
+                      ))}
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           )}
