@@ -20,6 +20,28 @@ export const SAVE_BASE = 0.68; // on-target shot is saved (else goal)
 // reveals finishing skill). The fast composite-only simMatch is unaffected.
 export const SHOOTER_FINISH_WEIGHT = 0.3;
 
+// --- Individual duels (simMatchDetailed only; see engine/duels.ts) ---
+// How far the two players actually contesting the ball shift a tick's
+// probabilities away from the team-composite baseline. Both multiply a
+// MEAN-ZERO deviation (the actor's quality minus his group's pick-weighted
+// mean), so raising them redistributes outcomes between individuals without
+// moving league-wide turnover or scoring rates.
+//
+// SPIKE ONLY: the env overrides exist so scripts/duelSweep.ts can sweep these
+// in one process tree. Delete the envNum indirection before shipping — the
+// browser build has no process.env and a bare read would throw.
+const envNum = (key: string, fallback: number): number => {
+  const raw =
+    typeof process !== "undefined" && process.env ? process.env[key] : undefined;
+  const n = raw === undefined ? NaN : Number(raw);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+/** Added to the per-tick turnover probability (base 0.14). */
+export const DUEL_TURNOVER_WEIGHT = envNum("SGM_DUEL_TURNOVER_WEIGHT", 0.1);
+/** Added to the per-tick chance-creation probability (base 0.0304). */
+export const DUEL_CHANCE_WEIGHT = envNum("SGM_DUEL_CHANCE_WEIGHT", 0.02);
+
 export const TURNOVER_BASE = 0.14; // per-tick prob possession changes hands
 // Of every turnover (see TURNOVER_BASE above), the share credited as a
 // stat-worthy defensive action at all vs. no credit (a real match has plenty

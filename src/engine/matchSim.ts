@@ -9,8 +9,10 @@ import {
   SHOOTER_FINISH_WEIGHT,
   SAVE_BASE,
   TURNOVER_BASE,
-  TACKLE_CREDIT_PROB,
-  INTERCEPTION_CREDIT_PROB,
+  CREDITED_TURNOVER_PROB,
+  INTERCEPTION_SHARE_OF_CREDIT,
+  DUEL_TURNOVER_WEIGHT,
+  DUEL_CHANCE_WEIGHT,
   REBOUND_PROB,
   HOME_ATTACK_BONUS,
   FOUL_BASE,
@@ -47,15 +49,13 @@ import {
 } from "./constants.js";
 import type { Composites } from "./composites.js";
 import { familiarityPenalty } from "./positionFit.js";
+import { drawCarrier, drawContester, duelEdge, interceptionShare } from "./duels.js";
 import type { MatchPlayer, MatchPosition, MatchEvent, BoxScore, PlayerMatchLine, TouchSide } from "./attribution.js";
 import {
   pickShooter,
   pickAssister,
-  pickTackler,
-  pickInterceptor,
   pickFouler,
   pickHeader,
-  pickCarrier,
   eventTypeFromShot,
   emptyLine,
   attributeTouchStats,
@@ -484,6 +484,9 @@ export function simMatchDetailed(
     return sum / xi.length;
   };
 
+  /** One player's own energy, for the individual duel terms. Hoisted out of the tick loop. */
+  const energyOf = (p: MatchPlayer): number => energy.get(p.pid) ?? ENERGY_START;
+
   /**
    * A fresh bench player's value if brought on: his ovr, plus a small bonus for
    * fresh legs, plus the user's "give him more minutes" boost when flagged. Used
@@ -711,33 +714,49 @@ export function simMatchDetailed(
     let def = applyFatigue(teams[defSide], avgEnergy(defSide));
     stat[poss].ticks++;
 
+    // Actor-first resolution: name the two men actually contesting the ball
+    // BEFORE deciding what happens to it. Their duel edge is mean-zero (see
+    // engine/duels.ts), so it shifts this tick's turnover and chance rolls
+    // without moving league-wide rates — an individual defender now decides
+    // outcomes rather than merely collecting credit for one already decided.
+    const carrier = drawCarrier(rng, onPitch[poss], energyOf);
+    const contester = drawContester(rng, onPitch[defSide], energyOf);
+    const edgeDuel = duelEdge(carrier, contester);
+
     const turnoverP = clamp(
-      TURNOVER_BASE * (1 + 0.6 * (def.defense - off.control)),
+      TURNOVER_BASE * (1 + 0.6 * (def.defense - off.control)) +
+        DUEL_TURNOVER_WEIGHT * edgeDuel,
       0.02,
       0.5,
     );
     if (rng() < turnoverP) {
       const creditRoll = rng();
       let tacklerPid: number | null = null;
-      if (creditRoll < TACKLE_CREDIT_PROB) {
-        const tackler = pickTackler(rng, onPitch[defSide]);
-        lines.get(tackler.pid)!.tackles++;
-        tacklerPid = tackler.pid;
-      } else if (creditRoll < TACKLE_CREDIT_PROB + INTERCEPTION_CREDIT_PROB) {
-        const tackler = pickInterceptor(rng, onPitch[defSide]);
-        lines.get(tackler.pid)!.interceptions++;
-        tacklerPid = tackler.pid;
+      // The man who won the duel is the man credited: no second weighted draw,
+      // and the stat finally tracks who actually did the defending. Which stat
+      // he gets is pure labelling (interceptionShare), so it can key off his
+      // own tackling-vs-reading tilt with no calibration risk.
+      if (creditRoll < CREDITED_TURNOVER_PROB && contester !== null) {
+        const winner = contester.player;
+        const line = lines.get(winner.pid)!;
+        if (rng() < interceptionShare(winner, INTERCEPTION_SHARE_OF_CREDIT)) {
+          line.interceptions++;
+        } else {
+          line.tackles++;
+        }
+        tacklerPid = winner.pid;
       }
       // No-credit turnovers skip player selection entirely — BoxScore.tsx
       // filters all "turnover" events out of the displayed play-by-play, so
       // there's no consumer of a pid here to justify the weighted-pick cost.
       events.push({ clock, type: "turnover", side: defSide, pids: tacklerPid !== null ? [tacklerPid] : [] });
 
-      if (rng() < INJURY_PROB_ON_TACKLE) {
-        const carrier = pickCarrier(rng, onPitch[poss]);
+      // The man hurt in the challenge is the man who was carrying it — the one
+      // already drawn for this duel, rather than a fresh unrelated pick.
+      if (rng() < INJURY_PROB_ON_TACKLE && carrier !== null) {
         bumpEvent();
-        events.push({ clock, type: "injury", side: poss, pids: [carrier.pid] });
-        forceInjurySub(poss, carrier.pid);
+        events.push({ clock, type: "injury", side: poss, pids: [carrier.player.pid] });
+        forceInjurySub(poss, carrier.player.pid);
       }
 
       poss = defSide;
@@ -875,7 +894,14 @@ export function simMatchDetailed(
     }
 
     const edge = off.attack - def.defense;
-    const chanceP = clamp(BASE_CHANCE * (1 + STRENGTH_K * edge), 0.002, 0.2);
+    // Same duel, other outcome: the carrier who was NOT dispossessed above is
+    // the one now working a chance against the man who failed to stop him.
+    // Sign is negative because edgeDuel is positive when the defender is on top.
+    const chanceP = clamp(
+      BASE_CHANCE * (1 + STRENGTH_K * edge) - DUEL_CHANCE_WEIGHT * edgeDuel,
+      0.002,
+      0.2,
+    );
     if (rng() >= chanceP) {
       continue;
     }

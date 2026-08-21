@@ -117,7 +117,7 @@ const ASSIST_WEIGHTS: Record<MatchPosition, number> = {
   AM: 3, W: 2.5, CM: 2, ST: 1.5, DM: 1, FB: 1, CB: 0.3, GK: 0.1,
 };
 
-const TACKLE_WEIGHTS: Record<MatchPosition, number> = {
+export const TACKLE_WEIGHTS: Record<MatchPosition, number> = {
   CB: 3, DM: 2.5, FB: 2, CM: 1.5, AM: 0.5, W: 0.5, ST: 0.2, GK: 0.1,
 };
 
@@ -129,7 +129,7 @@ const HEADER_WEIGHTS: Record<MatchPosition, number> = {
   ST: 2.5, CB: 2, W: 1, AM: 1, CM: 0.8, DM: 0.7, FB: 0.5, GK: 0,
 };
 
-const CARRIER_WEIGHTS: Record<MatchPosition, number> = {
+export const CARRIER_WEIGHTS: Record<MatchPosition, number> = {
   AM: 2, W: 2, CM: 1.5, ST: 1.5, DM: 1, FB: 1, CB: 0.7, GK: 0.2,
 };
 
