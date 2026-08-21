@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CLUBS } from "../../core/teams/clubs.js";
 import { createLeagueState, type LeagueStore } from "../../core/leagueState.js";
-import { applyTeamIdentities } from "../../core/teams/customize.js";
 import { mulberry32 } from "../../engine/rng.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { readLeagueFileText } from "../../db/exportImport.js";
@@ -26,7 +25,6 @@ import {
 } from "../../core/teams/rosterFile.js";
 import { applyRosterFileToNewLeague } from "../../core/teams/rosterImport.js";
 import { takePendingRoster } from "../pendingRoster.js";
-import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 import { ClubCrest, CrestArtProvider } from "../components/ClubCrest.js";
 import { CountryFlag } from "../components/CountryFlag.js";
 import { trackEvent } from "../analytics.js";
@@ -92,7 +90,6 @@ export function NewLeague() {
   // Fixed for the save's lifetime once it's created, so it is chosen here and
   // nowhere else (see the DIFFICULTIES block in core/constants.ts).
   const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
-  const [pending, setPending] = useState<LeagueStore | null>(null);
   const [saving, setSaving] = useState(false);
   // Every path on this page that writes a save goes through one gate. Building a
   // world is ~3 seconds of blocking work with no way to interrupt it, so the page
@@ -115,7 +112,6 @@ export function NewLeague() {
   const { setLeague, importJSON } = useLeague();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const customize = searchParams.get("customize") === "1";
   // Roster mode is reachable only from the Leagues page's "Import Custom
   // League" button. A roster file can *only* be applied here, at creation:
   // importing real squads into a save in progress would delete the careers,
@@ -158,28 +154,8 @@ export function NewLeague() {
       await yieldToPaint();
       try {
         const league = buildLeague(selectedTid);
-        if (customize) {
-          // Hold the generated league in memory and let the user edit team
-          // identities before anything is persisted.
-          setPending(league);
-          return;
-        }
         trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster, difficulty });
         await setLeague(league);
-        navigate("/dashboard");
-      } finally {
-        setSaving(false);
-      }
-    });
-  }
-
-  async function handleSaveCustomized(teams: EditableTeam[]) {
-    if (!pending || selectedTid === null) return;
-    await gate.run(async () => {
-      setSaving(true);
-      try {
-        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster, difficulty });
-        await setLeague(applyTeamIdentities(pending, teams));
         navigate("/dashboard");
       } finally {
         setSaving(false);
@@ -250,33 +226,6 @@ export function NewLeague() {
       trackEvent("league_imported");
       navigate("/dashboard");
     });
-  }
-
-  if (pending) {
-    return (
-      <div className="container py-4" style={{ maxWidth: 700 }}>
-        <h2 className="mb-1">Customize Teams</h2>
-        <p className="text-muted mb-3">
-          Rename any club, change its abbreviation or colors, then start your league.
-        </p>
-        <TeamIdentityEditor
-          initialTeams={pending.teams.map((t) => ({
-            tid: t.tid,
-            compId: t.compId,
-            name: t.name,
-            abbrev: t.abbrev,
-            colors: [...t.colors] as [string, string],
-          }))}
-          competitions={pending.competitions}
-          userTid={pending.meta.userTid}
-          saveLabel="Start League"
-          savingLabel="Starting..."
-          saving={saving}
-          onSave={handleSaveCustomized}
-          onCancel={() => setPending(null)}
-        />
-      </div>
-    );
   }
 
   if (rosterMode && !roster) {
@@ -393,9 +342,7 @@ export function NewLeague() {
       <p className="text-muted">
         {roster
           ? `Flip through each league to browse its clubs, then choose your ${country} club to get started. Every club the file didn't cover keeps its original name and squad.`
-          : customize
-            ? `Flip through each league to browse its clubs, then choose your ${country} club to customize every club before starting.`
-            : `Flip through each league to browse its clubs, then choose your ${country} club to get started.`}
+          : `Flip through each league to browse its clubs, then choose your ${country} club to get started.`}
       </p>
 
       {roster && (
@@ -522,11 +469,7 @@ export function NewLeague() {
           disabled={selectedTid === null || saving}
           onClick={handleStart}
         >
-          {saving
-            ? "Building your world..."
-            : customize
-              ? "Next: Customize Teams"
-              : "Start League"}
+          {saving ? "Building your world..." : "Start League"}
         </button>
 
         {/* Loading a previously exported save, which has nothing to do with the

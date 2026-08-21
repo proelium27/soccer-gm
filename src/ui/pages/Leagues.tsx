@@ -307,13 +307,6 @@ export function Leagues() {
         <button
           type="button"
           className="btn btn-outline-secondary"
-          onClick={() => navigate("/new-league?customize=1")}
-        >
-          Start Customized League
-        </button>
-        <button
-          type="button"
-          className="btn btn-outline-secondary"
           onClick={() => importInputRef.current?.click()}
           title="Load roster files to start a league with real clubs, or a save file to restore a backup"
         >
