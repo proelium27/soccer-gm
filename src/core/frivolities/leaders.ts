@@ -3,10 +3,19 @@ import {
   RATING_LEADER_MIN_CAREER_APPEARANCES, RATING_LEADER_MIN_SEASON_APPEARANCES,
 } from "../constants.js";
 import { allCareers, type CareerRow } from "./careers.js";
-import type { AllTimeStatKey } from "./stats.js";
+import { ALL_TIME_STAT_KEYS, type AllTimeStatKey } from "./stats.js";
 
-/** How many rows the all-time boards show. */
+/** How many rows one stat's full board shows. */
 export const ALL_TIME_LEADER_LIMIT = 30;
+
+/**
+ * How many rows each stat gets on the summary grid.
+ *
+ * Ten is the point of that grid: every stat visible at once, none of them in
+ * full. The full board is one click away, which is what `ALL_TIME_LEADER_LIMIT`
+ * is for.
+ */
+export const ALL_TIME_OVERVIEW_LIMIT = 10;
 
 /**
  * Career totals, or best individual seasons.
@@ -52,7 +61,7 @@ function qualifies(stat: AllTimeStatKey, scope: LeaderScope, appearances: number
 }
 
 /**
- * The all-time leaderboard for one stat.
+ * The all-time leaderboard for every ranked stat, keyed by stat.
  *
  * **World-wide, not per-competition**, unlike the per-season Stat Leaders page.
  * That is a deliberate difference: a career spans promotions, relegations and
@@ -63,17 +72,35 @@ function qualifies(stat: AllTimeStatKey, scope: LeaderScope, appearances: number
  * Covers active players and archived retirees alike (see careers.ts), so the
  * boards don't quietly mean "all-time among whoever is still playing".
  *
+ * **All the boards at once, from one pass over the careers**, because the page
+ * shows all fourteen as a grid of top-ten cards. Gathering `allCareers` — a
+ * walk over every living player and every archived retiree — separately per
+ * board would pay for that walk fourteen times. The card and the full board it
+ * opens are slices of the same result, so they can't disagree about who leads.
+ *
  * Pure and rng-free.
  */
-export function allTimeLeaders(
+export function allTimeLeaderBoards(
   league: LeagueStore,
-  stat: AllTimeStatKey,
   scope: LeaderScope,
   limit = ALL_TIME_LEADER_LIMIT,
+): Record<AllTimeStatKey, AllTimeLeaderRow[]> {
+  const careers = allCareers(league);
+  return Object.fromEntries(
+    ALL_TIME_STAT_KEYS.map((stat) => [stat, rankCareers(careers, stat, scope, limit)]),
+  ) as Record<AllTimeStatKey, AllTimeLeaderRow[]>;
+}
+
+/** Rank an already-gathered set of careers by one stat. */
+function rankCareers(
+  careers: readonly CareerRow[],
+  stat: AllTimeStatKey,
+  scope: LeaderScope,
+  limit: number,
 ): AllTimeLeaderRow[] {
   const rows: AllTimeLeaderRow[] = [];
 
-  for (const career of allCareers(league)) {
+  for (const career of careers) {
     if (scope === "career") {
       const value = career.totals[stat];
       if (value > 0 && qualifies(stat, scope, career.totals.appearances)) {

@@ -7,10 +7,13 @@ import {
 } from "../../core/frivolities/bios.js";
 import { computeClubTrivia, type ClubRecordRow, type ClubSpendRow } from "../../core/frivolities/clubs.js";
 import type { CareerRow } from "../../core/frivolities/careers.js";
-import { allTimeLeaders, type LeaderScope } from "../../core/frivolities/leaders.js";
 import {
-  allTimeInternational, cappedNationalities,
-  INTL_ALL_TIME_KEYS, type IntlAllTimeKey,
+  allTimeLeaderBoards, ALL_TIME_LEADER_LIMIT, ALL_TIME_OVERVIEW_LIMIT,
+  type AllTimeLeaderRow, type LeaderScope,
+} from "../../core/frivolities/leaders.js";
+import {
+  allTimeInternationalBoards, cappedNationalities, intlStatOf,
+  INTL_ALL_TIME_KEYS, INTL_ALL_TIME_LIMIT, INTL_OVERVIEW_LIMIT, type IntlAllTimeKey,
 } from "../../core/frivolities/international.js";
 import {
   playerGoatRanking, teamGoatRanking,
@@ -110,13 +113,17 @@ function PlayerCell({ pid, name, nationality, active }: {
  * `expand` opts a table into click-to-reveal detail rows, the same interaction
  * Power Rankings uses for rosters. Only one row is open at a time — these
  * details are wide, and several open at once turns the board into a wall.
+ *
+ * `highlight` marks a row as the user's, drawn with the same wash and leading
+ * edge Standings and Power Rankings give his club.
  */
-function RankTable<T>({ rows, headers, render, empty, expand }: {
+function RankTable<T>({ rows, headers, render, empty, expand, highlight }: {
   rows: T[];
   headers: string[];
   render: (row: T) => ReactNode[];
   empty: string;
   expand?: (row: T) => ReactNode;
+  highlight?: (row: T) => boolean;
 }) {
   const [open, setOpen] = useState<number | null>(null);
   if (rows.length === 0) return <Empty what={empty} />;
@@ -140,7 +147,8 @@ function RankTable<T>({ rows, headers, render, empty, expand }: {
                 <tr
                   onClick={expand ? () => setOpen(isOpen ? null : i) : undefined}
                   style={expand ? { cursor: "pointer" } : undefined}
-                  className={isOpen ? "table-active" : undefined}
+                  className={[isOpen && "table-active", highlight?.(row) && "team-highlight"]
+                    .filter(Boolean).join(" ") || undefined}
                 >
                   <td className="text-muted">{i + 1}</td>
                   {cells.map((c, j) => (
@@ -925,53 +933,145 @@ function RecordsTab() {
   );
 }
 
+// --- Summary grids ---------------------------------------------------------
+
+/** A club as a crest and its three letters — the compact form the grid cards use. */
+function ClubBadge({ tid }: { tid: number | null }) {
+  const { league } = useLeague();
+  if (tid == null) return <span className="text-muted small">&mdash;</span>;
+  const team = league?.teams.find((t) => t.tid === tid);
+  return (
+    <span className="d-inline-flex align-items-center gap-1 small">
+      <ClubCrest tid={tid} colors={team?.colors ?? ["#888888", "#888888"]} size={16} />
+      {team?.abbrev ?? tid}
+    </span>
+  );
+}
+
+/**
+ * Whether a career belongs to the user's club, the test both grids highlight on.
+ *
+ * `clubs` is every club he made league appearances for, so this reads as "he
+ * played for you", past or present — the question these boards are for, since
+ * an all-time list is mostly people who have already moved on or retired. The
+ * `tid` half catches a man on the roster right now who hasn't played a league
+ * game for the club yet: he's yours, he's shown wearing your crest, and leaving
+ * him plain would read as a bug rather than a distinction.
+ */
+function isUserPlayer(row: Pick<CareerRow, "clubs" | "tid">, userTid: number): boolean {
+  return row.clubs.includes(userTid) || row.tid === userTid;
+}
+
+/** One row of a summary card, flattened from whatever board it came from. */
+interface CardRow {
+  pid: number;
+  name: string;
+  nationality: string;
+  tid: number | null;
+  /** Already formatted — a card shows one number and the board decides which. */
+  value: string;
+  /** An extra muted column before the value, e.g. which season a figure is from. */
+  note?: string;
+  /** Played for the user's club: drawn with the same wash Standings gives it. */
+  highlight?: boolean;
+}
+
+/**
+ * One board's top ten, as a card that opens the full list.
+ *
+ * The header is the click target rather than the whole card: the rows carry
+ * player links of their own, and a button can't legally contain them.
+ *
+ * Shared by both grids on this page (all-time leaders and international) so
+ * they stay one visual idea rather than drifting into two.
+ */
+function BoardCard({ title, empty, rows, onOpen }: {
+  title: string;
+  empty: string;
+  rows: CardRow[];
+  onOpen: () => void;
+}) {
+  return (
+    <div className="card h-100">
+      <button
+        type="button"
+        onClick={onOpen}
+        className={"btn btn-link text-decoration-none w-100 text-start"
+          + " d-flex align-items-center justify-content-between px-3 pt-3 pb-1"}
+      >
+        <span className="text-body text-uppercase small fw-semibold">{title}</span>
+        <span className="small">
+          Full list
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="ms-1"
+            stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      </button>
+      <div className="card-body pt-1">
+        {rows.length === 0 ? <Empty what={empty} /> : (
+          <table className="table table-sm align-middle mb-0">
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={r.pid} className={r.highlight ? "team-highlight" : undefined}>
+                  {/* ps-2, not ps-0: a highlighted row draws its leading-edge
+                      marker inside this cell, and Bootstrap's !important
+                      padding would otherwise beat the marker rule's own
+                      padding and sit the line on top of the rank. Uniform
+                      across every row so nothing shifts when one lights up. */}
+                  <td className="text-muted ps-2" style={{ width: "2rem" }}>{i + 1}</td>
+                  {/* No retired badge here, unlike the full board: the cards sit
+                      three to a row, and a badge on a name is enough to wrap
+                      every row it lands on. */}
+                  <td className="text-nowrap">
+                    <PlayerCell pid={r.pid} name={r.name} nationality={r.nationality} />
+                  </td>
+                  <td className="text-end"><ClubBadge tid={r.tid} /></td>
+                  {r.note !== undefined && (
+                    <td className="text-end text-muted small">{r.note}</td>
+                  )}
+                  <td className="text-end pe-0 fw-semibold">{r.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** The grid both summary views lay their cards out on. */
+function CardGrid({ children }: { children: ReactNode }) {
+  return <div className="row g-3">{children}</div>;
+}
+
+/** The button that takes a full board back to its grid. */
+function BackToGrid({ onBack }: { onBack: () => void }) {
+  return (
+    <button type="button" className="btn btn-sm btn-outline-secondary mb-3" onClick={onBack}>
+      &larr; All categories
+    </button>
+  );
+}
+
 // --- All-time leaders ------------------------------------------------------
 
-function LeadersTab() {
-  const { league } = useLeague();
-  const [stat, setStat] = useState<AllTimeStatKey>("goals");
-  const [scope, setScope] = useState<LeaderScope>("career");
-
-  const rows = useMemo(
-    () => (league ? allTimeLeaders(league, stat, scope) : []),
-    [league, stat, scope],
-  );
-  if (!league) return null;
-
+/** One stat's full board, the view a grid card opens into. */
+function LeaderBoard({ stat, scope, rows, userTid, onBack }: {
+  stat: AllTimeStatKey;
+  scope: LeaderScope;
+  rows: AllTimeLeaderRow[];
+  userTid: number;
+  onBack: () => void;
+}) {
   return (
     <>
-      <p className="text-secondary small">
-        Every club in the world at once, not one league at a time, because a career crosses
-        divisions and countries. Retired players are included where the game kept a record
-        of them.
-      </p>
-
-      <div className="mb-3 d-flex gap-2 flex-wrap">
-        <select
-          className="form-select form-select-sm"
-          style={{ width: "auto" }}
-          value={scope}
-          onChange={(e) => setScope(e.target.value as LeaderScope)}
-          aria-label="Career or single season"
-        >
-          <option value="career">Career</option>
-          <option value="single">Single season</option>
-        </select>
-        <select
-          className="form-select form-select-sm"
-          style={{ width: "auto" }}
-          value={stat}
-          onChange={(e) => setStat(e.target.value as AllTimeStatKey)}
-          aria-label="Stat"
-        >
-          {ALL_TIME_STAT_KEYS.map((k) => (
-            <option key={k} value={k}>{STAT_LABELS[k]}</option>
-          ))}
-        </select>
-      </div>
-
+      <BackToGrid onBack={onBack} />
       <Panel
-        title={scope === "career" ? `Career ${STAT_LABELS[stat]}` : `Best season: ${STAT_LABELS[stat]}`}
+        title={scope === "career"
+          ? `Career ${STAT_LABELS[stat]}`
+          : `Best season: ${STAT_LABELS[stat]}`}
         note={scope === "single"
           ? "One row per player: his best season, so a single career can't fill the whole board."
           : undefined}
@@ -994,8 +1094,85 @@ function LeadersTab() {
             formatStat(stat, r.value),
           ]}
           empty="recorded seasons"
+          highlight={(r) => isUserPlayer(r.career, userTid)}
         />
       </Panel>
+    </>
+  );
+}
+
+export function LeadersTab() {
+  const { league } = useLeague();
+  const [open, setOpen] = useState<AllTimeStatKey | null>(null);
+  const [scope, setScope] = useState<LeaderScope>("career");
+
+  // Every board at once, from one walk over the world's careers — the grid
+  // shows all fourteen, and asking for them one at a time would rebuild the
+  // career list fourteen times over. The full board a card opens into is a
+  // slice of the same result, so the two can't disagree.
+  const boards = useMemo(
+    () => (league ? allTimeLeaderBoards(league, scope) : null),
+    [league, scope],
+  );
+  if (!league || !boards) return null;
+
+  return (
+    <>
+      <p className="text-secondary small">
+        Every club in the world at once, not one league at a time, because a career crosses
+        divisions and countries. Retired players are included where the game kept a record
+        of them.
+      </p>
+
+      <div className="mb-3 d-flex gap-2 flex-wrap align-items-center">
+        <select
+          className="form-select form-select-sm"
+          style={{ width: "auto" }}
+          value={scope}
+          onChange={(e) => setScope(e.target.value as LeaderScope)}
+          aria-label="Career or single season"
+        >
+          <option value="career">Career</option>
+          <option value="single">Single season</option>
+        </select>
+        {open === null && (
+          <span className="text-muted small">
+            Top {ALL_TIME_OVERVIEW_LIMIT} in each. Click a category for the top{" "}
+            {ALL_TIME_LEADER_LIMIT}. Anyone who has played for you is highlighted.
+          </span>
+        )}
+      </div>
+
+      {open !== null ? (
+        <LeaderBoard
+          stat={open}
+          scope={scope}
+          rows={boards[open]}
+          userTid={league.meta.userTid}
+          onBack={() => setOpen(null)}
+        />
+      ) : (
+        <CardGrid>
+          {ALL_TIME_STAT_KEYS.map((k) => (
+            <div key={k} className="col-12 col-lg-6 col-xxl-4">
+              <BoardCard
+                title={STAT_LABELS[k]}
+                empty="recorded seasons"
+                rows={boards[k].slice(0, ALL_TIME_OVERVIEW_LIMIT).map((r) => ({
+                  pid: r.career.pid,
+                  name: r.career.name,
+                  nationality: r.career.nationality,
+                  tid: r.career.tid,
+                  value: formatStat(k, r.value),
+                  note: scope === "single" ? String(seasonYear(r.season ?? 0)) : undefined,
+                  highlight: isUserPlayer(r.career, league.meta.userTid),
+                }))}
+                onOpen={() => setOpen(k)}
+              />
+            </div>
+          ))}
+        </CardGrid>
+      )}
     </>
   );
 }
@@ -1021,17 +1198,55 @@ const INTL_EMPTY_LABELS: Record<IntlAllTimeKey, string> = {
   intlTitles: "World Cup winners",
 };
 
-function InternationalTab() {
+/** One international counter's full board, the view a grid card opens into. */
+function IntlBoard({ intlKey, country, rows, userTid, onBack }: {
+  intlKey: IntlAllTimeKey;
+  country: string;
+  rows: CareerRow[];
+  userTid: number;
+  onBack: () => void;
+}) {
+  return (
+    <>
+      <BackToGrid onBack={onBack} />
+      <Panel title={country
+        ? `${country}: all-time ${INTL_STAT_LABELS[intlKey]}`
+        : `All-time ${INTL_STAT_LABELS[intlKey]}`}
+      >
+        <RankTable
+          rows={rows}
+          headers={["Player", "Club", "Caps", "Goals", "World Cups"]}
+          render={(r: CareerRow) => [
+            <PlayerCell pid={r.pid} name={r.name} nationality={r.nationality} active={r.active} />,
+            <ClubCell tid={r.tid} />,
+            // The ranked column reads bold, so it's obvious which one the order follows.
+            <span className={intlKey === "caps" ? "fw-bold" : undefined}>{r.caps}</span>,
+            <span className={intlKey === "intlGoals" ? "fw-bold" : undefined}>{r.intlGoals}</span>,
+            <span className={intlKey === "intlTitles" ? "fw-bold" : undefined}>
+              {r.intlTitles || <span className="text-muted">&ndash;</span>}
+            </span>,
+          ]}
+          empty={INTL_EMPTY_LABELS[intlKey]}
+          highlight={(r) => isUserPlayer(r, userTid)}
+        />
+      </Panel>
+    </>
+  );
+}
+
+export function InternationalTab() {
   const { league } = useLeague();
-  const [key, setKey] = useState<IntlAllTimeKey>("intlGoals");
+  const [open, setOpen] = useState<IntlAllTimeKey | null>(null);
   const [country, setCountry] = useState("");
 
   const countries = useMemo(() => (league ? cappedNationalities(league) : []), [league]);
-  const rows = useMemo(
-    () => (league ? allTimeInternational(league, key, country || null) : []),
-    [league, key, country],
+  // All three counters from one walk over the careers, and one application of
+  // the country filter, for the same reason the leaders grid does it.
+  const boards = useMemo(
+    () => (league ? allTimeInternationalBoards(league, country || null) : null),
+    [league, country],
   );
-  if (!league) return null;
+  if (!league || !boards) return null;
 
   return (
     <>
@@ -1043,18 +1258,7 @@ function InternationalTab() {
         they read on a player's profile.
       </p>
 
-      <div className="mb-3 d-flex gap-2 flex-wrap">
-        <select
-          className="form-select form-select-sm"
-          style={{ width: "auto" }}
-          value={key}
-          onChange={(e) => setKey(e.target.value as IntlAllTimeKey)}
-          aria-label="Stat"
-        >
-          {INTL_ALL_TIME_KEYS.map((k) => (
-            <option key={k} value={k}>{INTL_STAT_LABELS[k]}</option>
-          ))}
-        </select>
+      <div className="mb-3 d-flex gap-2 flex-wrap align-items-center">
         <select
           className="form-select form-select-sm"
           style={{ width: "auto" }}
@@ -1067,25 +1271,43 @@ function InternationalTab() {
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
+        {open === null && (
+          <span className="text-muted small">
+            Top {INTL_OVERVIEW_LIMIT} in each. Click a category for the top {INTL_ALL_TIME_LIMIT}.
+            {" "}Anyone who has played for you is highlighted.
+          </span>
+        )}
       </div>
 
-      <Panel title={country ? `${country}: all-time ${INTL_STAT_LABELS[key]}` : `All-time ${INTL_STAT_LABELS[key]}`}>
-        <RankTable
-          rows={rows}
-          headers={["Player", "Club", "Caps", "Goals", "World Cups"]}
-          render={(r: CareerRow) => [
-            <PlayerCell pid={r.pid} name={r.name} nationality={r.nationality} active={r.active} />,
-            <ClubCell tid={r.tid} />,
-            // The ranked column reads bold, so it's obvious which one the order follows.
-            <span className={key === "caps" ? "fw-bold" : undefined}>{r.caps}</span>,
-            <span className={key === "intlGoals" ? "fw-bold" : undefined}>{r.intlGoals}</span>,
-            <span className={key === "intlTitles" ? "fw-bold" : undefined}>
-              {r.intlTitles || <span className="text-muted">&ndash;</span>}
-            </span>,
-          ]}
-          empty={INTL_EMPTY_LABELS[key]}
+      {open !== null ? (
+        <IntlBoard
+          intlKey={open}
+          country={country}
+          rows={boards[open]}
+          userTid={league.meta.userTid}
+          onBack={() => setOpen(null)}
         />
-      </Panel>
+      ) : (
+        <CardGrid>
+          {INTL_ALL_TIME_KEYS.map((k) => (
+            <div key={k} className="col-12 col-lg-6 col-xxl-4">
+              <BoardCard
+                title={INTL_STAT_LABELS[k]}
+                empty={INTL_EMPTY_LABELS[k]}
+                rows={boards[k].slice(0, INTL_OVERVIEW_LIMIT).map((r) => ({
+                  pid: r.pid,
+                  name: r.name,
+                  nationality: r.nationality,
+                  tid: r.tid,
+                  value: String(intlStatOf(r, k)),
+                  highlight: isUserPlayer(r, league.meta.userTid),
+                }))}
+                onOpen={() => setOpen(k)}
+              />
+            </div>
+          ))}
+        </CardGrid>
+      )}
     </>
   );
 }

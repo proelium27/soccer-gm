@@ -1,8 +1,16 @@
 import type { LeagueStore } from "../leagueState.js";
 import { allCareers, topBy, type CareerRow } from "./careers.js";
 
-/** How many rows the all-time international boards show. */
+/** How many rows one international board shows in full. */
 export const INTL_ALL_TIME_LIMIT = 30;
+
+/**
+ * How many rows each counter gets on the summary grid.
+ *
+ * Matches the all-time league boards' overview (see leaders.ts) so the two
+ * grids on this page read as one thing rather than two.
+ */
+export const INTL_OVERVIEW_LIMIT = 10;
 
 /**
  * What an all-time international board ranks by.
@@ -27,7 +35,7 @@ export function intlStatOf(row: CareerRow, key: IntlAllTimeKey): number {
 }
 
 /**
- * The all-time international leaderboard for one counter, best first.
+ * The all-time international leaderboard for every counter, best first.
  *
  * Reads `allCareers`, so it covers **active players and archived retirees
  * alike** — which is the entire point of the board. International records are
@@ -41,6 +49,12 @@ export function intlStatOf(row: CareerRow, key: IntlAllTimeKey): number {
  * leading scorer" is the question this page is actually for, and worldwide the
  * board is dominated by whoever plays the most qualifiers.
  *
+ * **All three counters at once, from one pass over the careers**, because the
+ * page shows them as a grid of top-ten cards. `allCareers` walks every living
+ * player and the whole retiree archive, so gathering it per counter would pay
+ * for that walk three times, and the country filter would repeat besides. A
+ * card and the full board it opens are slices of the same result.
+ *
  * Pure, read-only and rng-free.
  *
  * One inherited limitation, shared with every other Frivolities board:
@@ -50,16 +64,16 @@ export function intlStatOf(row: CareerRow, key: IntlAllTimeKey): number {
  * is not here. Both are rare enough at the top of a leaderboard to be worth the
  * consistency of one shared flattener.
  */
-export function allTimeInternational(
+export function allTimeInternationalBoards(
   league: LeagueStore,
-  key: IntlAllTimeKey,
   nationality: string | null = null,
   limit = INTL_ALL_TIME_LIMIT,
-): CareerRow[] {
-  const rows = nationality
-    ? allCareers(league).filter((r) => r.nationality === nationality)
-    : allCareers(league);
-  return topBy(rows, (r) => intlStatOf(r, key), limit);
+): Record<IntlAllTimeKey, CareerRow[]> {
+  const all = allCareers(league);
+  const rows = nationality ? all.filter((r) => r.nationality === nationality) : all;
+  return Object.fromEntries(
+    INTL_ALL_TIME_KEYS.map((key) => [key, topBy(rows, (r) => intlStatOf(r, key), limit)]),
+  ) as Record<IntlAllTimeKey, CareerRow[]>;
 }
 
 /**
