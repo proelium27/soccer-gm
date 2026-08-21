@@ -1,11 +1,19 @@
 /**
- * Where the Import screen sends someone who doesn't have a roster file yet.
+ * Where the game sends someone who doesn't have a roster file yet.
  *
  * The game ships 320 fictional clubs on purpose (trademark caution — see
  * `docs/eafc-import.md`), and a roster file carrying real clubs and real
- * players is a local overlay you bring yourself. That leaves a gap: the Import
- * screen tells you to write a file or generate one with an AI, which is a lot
- * to ask of someone who just wants to play a season with real squads.
+ * players is a local overlay you bring yourself. That leaves a gap: the import
+ * flow tells you to write a file or generate one with an AI, which is a lot to
+ * ask of someone who just wants to play a season with real squads.
+ *
+ * **The Leagues page is the placement that matters.** Its "Import" button is a
+ * file picker, and `/new-league?roster=1` is only navigated to *after* a file
+ * has been picked and parsed — so on that screen `roster` is always set and its
+ * empty state is reachable only by typing the URL. Someone who has no file is
+ * standing on Leagues, which is why the link lives beside that button. The
+ * empty state on the import screen keeps a copy because it is the correct thing
+ * to show there, not because anyone arrives on it by accident.
  *
  * So the file is *linked*, never bundled. It lives on a host outside this
  * repo and the URL is a build-time value, which keeps three things true at

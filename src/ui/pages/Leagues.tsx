@@ -7,6 +7,7 @@ import { useSportName } from "../sportName.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 import { parseRosterFile, isRosterFileFormat } from "../../core/teams/rosterFile.js";
 import { setPendingRoster } from "../pendingRoster.js";
+import { ROSTER_DOWNLOAD_URL } from "../rosterDownload.js";
 
 interface LeagueSummary {
   lid: number;
@@ -333,6 +334,16 @@ export function Leagues() {
         squads, or a save file from Export Save, which loads that save back. You can pick as
         many roster files as you like (one per league is the usual way) and they all go into
         the same league.
+        {ROSTER_DOWNLOAD_URL && (
+          <>
+            {" "}
+            Don't have a roster file?{" "}
+            <a href={ROSTER_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer" download>
+              Download a ready-made one
+            </a>{" "}
+            covering every league, then pick it with Import.
+          </>
+        )}
       </p>
     </div>
   );
