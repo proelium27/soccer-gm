@@ -22,12 +22,18 @@ import { emptySeasonStats } from "../../src/core/players/types.js";
  * Counts `<th>` against `<td>` in the first body row of each table, from the
  * static markup — no DOM env needed.
  *
- * KNOWN GAP, found by deliberately re-breaking the bug to check this test
- * caught it: a table with no body rows is skipped, because there is no row to
- * count against. This fixture gives the player league stats only, so the Cup
- * and National Team tables render empty and are NOT covered — deleting a cell
- * from the cup table passes here. Give the fixture cup stat lines before
- * trusting this to guard that table.
+ * KNOWN GAP: only the tab that is open renders at all, and the open tab is
+ * component state with no DOM env here to click it, so this covers the league
+ * table and nothing else. The Cup and National Team tables are unreachable
+ * from this harness whatever stats the fixture is given (an earlier version of
+ * this note blamed empty tables, and adding cup lines to the fixture did not
+ * help — the markup simply isn't there).
+ *
+ * What covers the cup table instead: it now generates its headers and its
+ * cells from one column list, shared with the league table (see
+ * ui/playerStatColumns.ts and its unit tests), so a header without a cell is
+ * no longer expressible. This test stays because that guarantee is a property
+ * of the current render, not of the file, and the failure was silent.
  */
 const leagueRef: { current: LeagueStore | null } = { current: null };
 
@@ -112,5 +118,20 @@ describe("player profile table columns", () => {
     expect(cells).toBe(headers);
     expect(stats).toContain(">YC<");
     expect(stats).toContain(">RC<");
+  });
+
+  it("gives a multi-season career row the same width as a season row", () => {
+    const { league, pid } = profileWithStats();
+    const player = league.players.find((p) => p.pid === pid)!;
+    player.stats = [
+      { ...player.stats[0] },
+      { ...player.stats[0], season: league.season - 1 },
+    ];
+    const stats = tablesIn(render(league, pid)).find(
+      (t) => t.includes(">Apps<") && t.includes(">Rtg<"),
+    );
+    const foot = /<tfoot\b[\s\S]*?<\/tfoot>/.exec(stats!)?.[0] ?? "";
+    expect(foot).toContain(">Career<");
+    expect(countTags(foot, "td")).toBe(columnCounts(stats!).headers);
   });
 });
