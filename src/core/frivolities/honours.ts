@@ -4,7 +4,10 @@ import type { BallonDOrEntry } from "../worldAwards.js";
 import { BALLON_DOR_SHORTLIST, GOAT_WORLD_XI_WEIGHT, GOAT_TOTS_WEIGHT } from "../constants.js";
 import { FORMATIONS } from "../lineup/formations.js";
 import { allCareers, type CareerRow } from "./careers.js";
+import { totalsOf, bestSeasonsOf } from "./stats.js";
+import type { ArchivedSeason } from "../players/archive.js";
 import { computeHonours, type PlayerHonours } from "./goat.js";
+import { type AwardWinner } from "../awardWinners.js";
 
 /** How many rows each awards board shows. */
 export const AWARD_LIST_LIMIT = 25;
@@ -101,12 +104,13 @@ export interface BallonDOrSeason {
   entry: BallonDOrEntry;
   pid: number;
   /**
-   * Placeholder ("Player 4821") when the save no longer knows him — sold years
-   * ago, then retired below the archive's quality gate. The award still
-   * happened, so the row renders rather than vanishing.
+   * His name off his career, or off the award itself once the save has stopped
+   * keeping his career (see core/awardWinners.ts). Only falls back to a
+   * placeholder ("Player 4821") for a season played before winners' names were
+   * recorded, by a player already forgotten when that save was migrated.
    */
   name: string;
-  /** Empty for the same reason, so the UI can skip the flag rather than imply a country. */
+  /** Empty in that same last case, so the UI can skip the flag rather than imply a country. */
   nationality: string;
   active: boolean;
   /** The club he finished that season at, off the stored entry. */
@@ -211,18 +215,36 @@ function addToTally(t: AwardTally, key: typeof INDIVIDUAL_KEYS[number]): void {
  *
  * Derived, never stored: awards are already recorded per season by pid
  * (`SeasonHistoryEntry.awards` / `.world`), which is exactly why they survive a
- * player's retirement. The one thing a pid can't survive is being forgotten
- * altogether — a retiree below the archive's quality gate — and those rows keep
- * their honours but render under a placeholder name.
+ * player's retirement. What a pid alone can't survive is the player being
+ * forgotten altogether — a retiree below the archive's quality gate, which on a
+ * century-long save is most award winners — so each season also stores who its
+ * winners *were* (`SeasonHistoryEntry.awardWinners`). Every board here reads the
+ * career first and falls back to that, including standing a career row up from
+ * it so a decorated player can't drop off his own honours list.
  */
 export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
   const careers = allCareers(league);
   const honours = computeHonours(league, careers);
   const careerByPid = new Map(careers.map((c) => [c.pid, c]));
 
-  // Club-per-season, built only for pids that actually won something. The full
-  // map is every squad membership of every career in the save — six figures of
-  // entries on a long dynasty — and the boards need a few hundred of them.
+  // Who won what, copied onto the season it was won in. This is the only record
+  // of a winner the save is guaranteed to still have: a career row needs him in
+  // the pool or in the capped retiree archive, and on a long save most award
+  // winners are in neither (see core/awardWinners.ts). Every board below reads
+  // the career first and falls back to this.
+  const winnerByPid = new Map<number, AwardWinner>();
+  // The seasons each winner is on record for, which is every season he won
+  // something and no others — enough to stand a career row up for a player the
+  // save has otherwise forgotten (see `careerFromAwards`).
+  const winnerSeasons = new Map<number, ArchivedSeason[]>();
+  // Club-per-season off the same snapshots, which is what keeps a forgotten
+  // winner's award crediting his club and country rather than nobody's.
+  const clubBySeason = new Map<number, Map<number, number>>();
+  const clubMap = (pid: number): Map<number, number> => {
+    let m = clubBySeason.get(pid);
+    if (!m) { m = new Map(); clubBySeason.set(pid, m); }
+    return m;
+  };
   const awardedPids = new Set<number>();
   const note = (pid: number | null | undefined): void => {
     if (pid != null) awardedPids.add(pid);
@@ -235,15 +257,35 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
       note(a.goldenBootPid);
       for (const pid of a.teamOfSeason ?? []) note(pid);
     }
+    for (const w of h.awardWinners ?? []) {
+      // Latest season wins, so the name shown is the last one he carried.
+      winnerByPid.set(w.pid, w);
+      if (w.tid !== undefined) clubMap(w.pid).set(h.season, w.tid);
+      const lines = winnerSeasons.get(w.pid);
+      const line = { season: h.season, tid: w.tid ?? -1, ovr: w.ovr, apps: 0 };
+      if (lines) lines.push(line); else winnerSeasons.set(w.pid, [line]);
+    }
   }
-  const clubBySeason = new Map<number, Map<number, number>>();
+  // The career is the better source where it exists — it covers every season he
+  // played, not only the ones he won something in — so it is layered on top.
   for (const pid of awardedPids) {
     const career = careerByPid.get(pid);
     if (!career) continue;
-    clubBySeason.set(pid, new Map(career.seasons.map((s) => [s.season, s.tid])));
+    const m = clubMap(pid);
+    for (const s of career.seasons) m.set(s.season, s.tid);
   }
   const clubOf = (pid: number, season: number): number | undefined =>
     clubBySeason.get(pid)?.get(season);
+  /** Name, country and birth season, from his career if the save still has one. */
+  const identity = (pid: number): { name: string; nationality: string; born: number | null; active: boolean } => {
+    const career = careerByPid.get(pid);
+    if (career) {
+      return { name: career.name, nationality: career.nationality, born: career.born, active: career.active };
+    }
+    const w = winnerByPid.get(pid);
+    if (w) return { name: w.name, nationality: w.nationality, born: w.born, active: false };
+    return { name: `Player ${pid}`, nationality: "", born: null, active: false };
+  };
 
   const clubs = new Map<number, ClubAwardRow>();
   const nations = new Map<string, NationAwardRow>();
@@ -261,7 +303,7 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
   const credit = (pid: number, season: number, key: typeof INDIVIDUAL_KEYS[number], tid?: number): void => {
     const club = tid ?? clubOf(pid, season);
     if (club != null && club >= 0) addToTally(clubRow(club), key);
-    const nationality = careerByPid.get(pid)?.nationality;
+    const { nationality } = identity(pid);
     if (nationality) addToTally(nationRow(nationality), key);
   };
 
@@ -277,12 +319,12 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
     const key = `${pid}:${slot}`;
     let cand = byKey.get(key);
     if (!cand) {
-      const career = careerByPid.get(pid);
+      const who = identity(pid);
       cand = {
         pid, slot,
-        name: career?.name ?? `Player ${pid}`,
-        nationality: career?.nationality ?? "",
-        active: career?.active ?? false,
+        name: who.name,
+        nationality: who.nationality,
+        active: who.active,
         worldXI: 0, teamOfSeason: 0, seasons: [], score: 0,
       };
       byKey.set(key, cand);
@@ -304,17 +346,17 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
   const rollOfHonour: RollOfHonourRow[] = [];
 
   const asSeason = (entry: BallonDOrEntry, season: number, rank: number): BallonDOrSeason => {
-    const career = careerByPid.get(entry.pid);
+    const who = identity(entry.pid);
     return {
       season,
       rank,
       entry,
       pid: entry.pid,
-      name: career?.name ?? `Player ${entry.pid}`,
-      nationality: career?.nationality ?? "",
-      active: career?.active ?? false,
+      name: who.name,
+      nationality: who.nationality,
+      active: who.active,
       tid: entry.tid,
-      age: career ? season - career.born : null,
+      age: who.born === null ? null : season - who.born,
     };
   };
 
@@ -375,8 +417,58 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
     ballonRecord(pid).bestRun = best;
   }
 
+  /**
+   * A career row for a decorated player the save no longer has a career for.
+   *
+   * He is neither in the pool nor in the capped retiree archive, so the only
+   * trace of him left is the seasons he won something in. That is enough for
+   * these boards, which rank by award count and show his name, country and
+   * club — and leaving him out instead would mean the all-time honours lists
+   * quietly omit most of their own winners on a long save.
+   *
+   * The stat fields are deliberately empty rather than guessed: nothing on the
+   * awards boards reads them, and they are genuinely unknown. Only
+   * `computeAwardTrivia` builds these — they are never mixed into `allCareers`,
+   * where a row of zeroes would land on every statistical leaderboard.
+   */
+  const careerFromAwards = (pid: number): CareerRow | undefined => {
+    const w = winnerByPid.get(pid);
+    const seasons = winnerSeasons.get(pid);
+    if (!w || !seasons || seasons.length === 0) return undefined;
+    const peak = seasons.reduce((a, b) => (b.ovr > a.ovr ? b : a));
+    return {
+      pid,
+      name: w.name,
+      nationality: w.nationality,
+      pos: w.pos,
+      active: false,
+      born: w.born,
+      tid: w.tid ?? null,
+      // Award seasons only, so these describe what is on record about him
+      // rather than the career he actually had.
+      seasonsPlayed: seasons.length,
+      firstSeason: seasons[0].season,
+      lastSeason: seasons[seasons.length - 1].season,
+      peakOvr: peak.ovr,
+      peakSeason: peak.season,
+      totals: totalsOf([]),
+      best: bestSeasonsOf([]),
+      caps: 0,
+      intlGoals: 0,
+      intlTitles: 0,
+      clubs: [...new Set(seasons.map((x) => x.tid).filter((t) => t >= 0))],
+      seasons,
+    };
+  };
+
   const rows: AwardCareerRow[] = [];
-  for (const career of careers) {
+  const decorated: CareerRow[] = [...careers];
+  for (const pid of awardedPids) {
+    if (careerByPid.has(pid)) continue;
+    const row = careerFromAwards(pid);
+    if (row) decorated.push(row);
+  }
+  for (const career of decorated) {
     const h = honours.get(career.pid);
     const b = ballon.get(career.pid) ?? emptyBallonDOr();
     const tally = emptyTally();

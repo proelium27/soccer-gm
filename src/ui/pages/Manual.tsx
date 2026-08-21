@@ -1567,8 +1567,17 @@ export function Manual() {
             season-by-season line with the club and rating for each year. It shows less than a
             current player's profile because that's all that was kept: no attribute ratings, and no
             per-season goals and assists behind the career totals. An appearance count of zero in
-            the seasons list means he was in the squad that year but never got on the pitch. A
-            retiree the game didn't keep is still just a name.
+            the seasons list means he was in the squad that year but never got on the pitch.
+          </p>
+          <p>
+            A retiree the game didn't keep is just a name &mdash; but if he ever won something, it
+            keeps that name. Every award is stored with the winner's name, country, position and
+            club at the time, so an honours board still tells you who won a Player of the Season
+            forty years ago even though the player himself is long gone from the save. He shows up
+            on the awards record book too, and his award still counts for his club and his country.
+            There's no career page behind him, so his name isn't a link. This only covers seasons
+            played from this update on: on an older save, winners who had already been deleted
+            can't be recovered, and the ones still on record when you load it are kept from then on.
           </p>
         </Section>
 

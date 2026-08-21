@@ -5,6 +5,7 @@ import type { PlayerMatchLine } from "../engine/attribution.js";
 import type { TeamSeasonStats } from "../core/standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "../core/awards.js";
 import { computeWorldAwards, type WorldAwards } from "../core/worldAwards.js";
+import { backfillAwardWinners } from "../core/awardWinners.js";
 import {
   HYPE_INITIAL, SCOUTING_SPEND_DEFAULT,
   NUM_TEAMS, DEFAULT_DIFFICULTY,
@@ -380,6 +381,15 @@ function migrateFields(league: LeagueStore): LeagueStore {
             .map((t) => t.champion),
         ),
       });
+      // Names for the pids above. Unlike the awards themselves this can NOT be
+      // reconstructed later — a winner who has retired and fallen out of the
+      // capped archive is gone from the save entirely — so the backfill records
+      // whoever is still resolvable today and stops the bleed there. An old
+      // save keeps the winners it can still name and leaves the rest blank
+      // rather than inventing them. See core/awardWinners.ts.
+      const awardWinners = backfillAwardWinners(
+        { ...h, awards, world }, h.season, migratedPlayers, anyVersion.retiredPlayers ?? [],
+      );
       return {
         ...h,
         teamStats: (h.teamStats ?? []).map((t) => ({
@@ -389,6 +399,7 @@ function migrateFields(league: LeagueStore): LeagueStore {
         world,
         compsByTid,
         championTidByCompId,
+        ...(awardWinners ? { awardWinners } : {}),
       };
     }),
     // Generational-talent arrivals used to be announced on the News Feed. The

@@ -9,6 +9,7 @@ import { HYPE_INITIAL, SCOUTING_SPEND_DEFAULT } from "../../src/core/constants.j
 import { generateTwoDivisionLeague } from "../../src/core/league/generate.js";
 import { englandCompetitions } from "../../src/core/competitions.js";
 import { assignIdentities } from "../../src/core/teams/clubs.js";
+import { awardWinnerPids } from "../../src/core/awardWinners.js";
 
 /** An England-only LeagueStore, matching what createLeagueState produced before the more-leagues world refactor — used by tests that specifically simulate a pre-refactor save. */
 function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
@@ -270,6 +271,45 @@ describe("migrateLeague", () => {
       expect(team.hype).toBe(77);
       expect(team.scoutingSpend).toBe(5_000);
     }
+  });
+
+  it("backfills award winners' names from whatever a save can still resolve", () => {
+    // A save written before winners were named has award pids going back to
+    // season 1 and no names for any of them. Migration records everyone it can
+    // still look up, permanently — this is the one thing that CAN'T be
+    // reconstructed later, because retirement plus the capped archive delete
+    // the player outright.
+    const rng = mulberry32(21);
+    const league = simOffseason(simThrough(makeLeague(0, 21), "season", rng), rng);
+    const entry = league.seasonHistory.at(-1)!;
+    expect(entry.awardWinners!.length).toBeGreaterThan(0);
+
+    const older = {
+      ...league,
+      seasonHistory: league.seasonHistory.map(({ awardWinners: _w, ...rest }) => rest),
+    } as unknown as LeagueStore;
+
+    const migrated = migrateLeague(older);
+    const backfilled = migrated.seasonHistory.at(-1)!.awardWinners!;
+    const wanted = awardWinnerPids(entry);
+    // Every winner still in the pool or the archive gets his name back; anyone
+    // already deleted stays unnamed rather than invented.
+    const resolvable = new Set([
+      ...migrated.players.map((p) => p.pid),
+      ...migrated.retiredPlayers.map((p) => p.pid),
+    ]);
+    expect(backfilled.length).toBeGreaterThan(0);
+    for (const pid of wanted) {
+      expect(backfilled.some((w) => w.pid === pid)).toBe(resolvable.has(pid));
+    }
+    for (const w of backfilled) expect(w.name).not.toBe("");
+  });
+
+  it("leaves award winners a save already recorded exactly as they are", () => {
+    const rng = mulberry32(22);
+    const league = simOffseason(simThrough(makeLeague(0, 22), "season", rng), rng);
+    const before = league.seasonHistory.at(-1)!.awardWinners!;
+    expect(migrateLeague(league).seasonHistory.at(-1)!.awardWinners).toEqual(before);
   });
 
   it("backfills compId/divisionConvergence on old-save teams, and a competitions table on a pre-refactor save", () => {

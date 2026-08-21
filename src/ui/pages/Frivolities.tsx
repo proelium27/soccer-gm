@@ -99,8 +99,10 @@ function PlayerCell({ pid, name, nationality, active }: {
 }) {
   // Some rows (the biggest-fees board) carry a pid the save has no record of at
   // all — neither pool nor archive — and their `name` is already a "Player 4821"
-  // placeholder. Those stay unlinked; there's no page to send them to.
-  const known = usePlayerRefs()(pid) !== undefined;
+  // placeholder. Those stay unlinked; there's no page to send them to. Same for
+  // a player known only from an award he won: the name survives, the career
+  // doesn't (see core/awardWinners.ts).
+  const known = usePlayerRefs()(pid)?.linkable === true;
   return (
     <span className="d-inline-flex align-items-center gap-1">
       {/* Falsy for a player the save no longer knows (see TransferRecord.nationality) —

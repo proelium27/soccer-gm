@@ -161,7 +161,7 @@ export async function loadLeague(
   const assembled = { ...meta, players: inline ?? rows } as LeagueStore;
 
   const migrated = migrateLeague(assembled);
-  if (inline !== undefined || shrankOnLoad(assembled, migrated)) {
+  if (inline !== undefined || shrankOnLoad(assembled, migrated) || namedAwardWinners(assembled, migrated)) {
     await saveLeague(migrated);
   }
   return migrated;
@@ -176,6 +176,25 @@ function shrankOnLoad(before: LeagueStore, after: LeagueStore): boolean {
   if (after.players.length < before.players.length) return true;
   const storedCups = before.cupHistory ?? [];
   return (after.cupHistory ?? []).some((cup, i) => cup.statLines !== storedCups[i]?.statLines);
+}
+
+/**
+ * Whether migration gave a past season its award winners' names back.
+ *
+ * The one migration whose result must be written down rather than left in
+ * memory. Every other backfill recomputes identically on the next load; this one
+ * copies names off players who are still in the save *right now*, and the next
+ * offseason deletes more of them for good (see core/awardWinners.ts). Writing
+ * on load is what makes "the loss stops here" true at load, rather than true
+ * only once the player happens to do something that saves.
+ *
+ * Cheap for the same reason as `shrankOnLoad`: it counts entries, not bytes,
+ * and only fires once per save, since after that every entry has the field.
+ */
+function namedAwardWinners(before: LeagueStore, after: LeagueStore): boolean {
+  return after.seasonHistory.some(
+    (h, i) => h.awardWinners !== undefined && before.seasonHistory[i]?.awardWinners === undefined,
+  );
 }
 
 /**

@@ -27,6 +27,7 @@ import { processLoanReturns, runAILoanMarket } from "./loans.js";
 import { computeStandings, computeTeamSeasonStats, type StandingsRow } from "./standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
 import { computeWorldAwards } from "./worldAwards.js";
+import { snapshotAwardWinners } from "./awardWinners.js";
 import { buildCupState } from "./cup/cup.js";
 import { buildDomesticCups } from "./domesticCup/cup.js";
 import { archiveDomesticCup } from "./domesticCup/archive.js";
@@ -316,6 +317,15 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     // staged them (see core/international/confederationCup.ts).
     confederationCupChampions: confederationCupChampions(league.international.confederationCupHistory, endingSeason),
   });
+
+  // 3.65. Who those winners actually were. Every award above is stored as a
+  //       bare pid, and a pid stops resolving the moment retirement deletes the
+  //       player and the capped retiree archive declines to keep him — 74% of
+  //       league Players of the Season on a century-long save. Copied here
+  //       rather than at the history push below because `league.players` is
+  //       still the pool both award passes scored, before progression and
+  //       retirement have touched anyone. Pure, no rng. See awardWinners.ts.
+  const awardWinners = snapshotAwardWinners(league.players, endingSeason, { awards, world });
 
   const settle = (rows: StandingsRow[], compId: number): void => {
     const defaultRank = rows.length;
@@ -627,6 +637,9 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
         // Snapshotted at step 3 above, because the players it names no longer
         // exist by the time anything renders it.
         retirements,
+        // Same reason, one step further out: an award winner outlives his own
+        // record by decades, so his name travels with the award (step 3.65).
+        awardWinners,
       },
     ],
   };
