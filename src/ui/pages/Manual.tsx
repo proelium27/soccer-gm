@@ -97,9 +97,8 @@ export function Manual() {
             win it again. Or blow the whole thing up, hoard teenagers, and build a dynasty straight
             out of the academy. Everything runs locally in your browser and saves on its own, and
             you can keep a bunch of league saves going at once and hop between them from the Leagues
-            screen. When you start a league, "Start Customized League" lets you rename every club
-            and set its colors and abbreviation before the save's created, and "Customize Teams" on
-            any existing save does the same thing later.
+            screen. "Customize Teams" on any save lets you rename every club and set its colors and
+            abbreviation, whenever you feel like it.
           </p>
           <p>
             Saves live in your browser, so they don't follow you to another browser or another

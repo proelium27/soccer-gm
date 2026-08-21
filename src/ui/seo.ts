@@ -52,7 +52,7 @@ const ROUTES: Record<string, PageSeo> = {
   "/new-league": {
     title: "Start a new league",
     description:
-      "Create a new save: pick a country, pick the club you want to manage, and customize team names before kickoff.",
+      "Create a new save: pick a country, pick the club you want to manage, and kick off.",
     canonical: "/new-league",
   },
   "/manual": {
