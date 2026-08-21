@@ -132,6 +132,16 @@ export function Manual() {
             otherwise.
           </p>
           <p>
+            If you don't have a roster file, the "Download Real Rosters" button next to Import gets
+            you one covering every league in the game. It's a separate download rather than part of
+            the game, which is why it's a button that fetches it instead of something already built
+            in. Two things worth knowing before you look at the squads: the best players come out
+            around 80 rather than 90, because ratings are rescaled onto the spread this game is
+            tuned for and the ordering matters more than the absolute numbers; and imported clubs
+            don't show a crest, since a crest belongs to a team slot rather than a club name and
+            would otherwise end up on the wrong team. Colors do carry over.
+          </p>
+          <p>
             You can hand it more than one file. Select as many as you like at once, or load one and
             then use "Add another file" on the club picker, and they all go into the same league. A
             file per league is usually the sane way to do it, since asking an AI for twelve leagues

@@ -319,6 +319,18 @@ export function Leagues() {
         >
           Import
         </button>
+        {ROSTER_DOWNLOAD_URL && (
+          <a
+            className="btn btn-outline-secondary"
+            href={ROSTER_DOWNLOAD_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+            title="Get a roster file of real clubs and squads, then load it with Import"
+          >
+            Download Real Rosters
+          </a>
+        )}
         <input
           ref={importInputRef}
           type="file"
@@ -335,14 +347,7 @@ export function Leagues() {
         many roster files as you like (one per league is the usual way) and they all go into
         the same league.
         {ROSTER_DOWNLOAD_URL && (
-          <>
-            {" "}
-            Don't have a roster file?{" "}
-            <a href={ROSTER_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer" download>
-              Download a ready-made one
-            </a>{" "}
-            covering every league, then pick it with Import.
-          </>
+          <> Download Real Rosters gets you one covering every league to start with.</>
         )}
       </p>
     </div>

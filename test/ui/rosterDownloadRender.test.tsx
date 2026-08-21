@@ -66,16 +66,15 @@ async function renderImportScreen(url?: string): Promise<string> {
  * link here is the whole feature missing, which is why it gets its own cases.
  */
 describe("roster download link on the Leagues page", () => {
-  it("renders an anchor to the configured URL beside Import", async () => {
+  it("renders a button to the configured URL beside Import", async () => {
     const html = await renderLeaguesPage("https://example.com/real-players-teams.json");
     expect(html).toContain('href="https://example.com/real-players-teams.json"');
-    expect(html).toContain("Download a ready-made one");
+    expect(html).toContain("Download Real Rosters");
   });
 
-  it("renders no link at all when the build has no URL", async () => {
+  it("renders no button at all when the build has no URL", async () => {
     const html = await renderLeaguesPage();
-    expect(html).not.toContain("Download a ready-made one");
-    expect(html).not.toContain("Don't have a roster file?");
+    expect(html).not.toContain("Download Real Rosters");
   });
 
   it("keeps the Import button either way", async () => {
