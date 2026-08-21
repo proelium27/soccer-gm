@@ -6,8 +6,8 @@ import type { CupFormat } from "../constants.js";
 import {
   CUP_ROUNDS, CUP_ROUND_MATCHDAYS,
   CUP_KO_SIZE, CUP_KO_ROUND_MATCHDAYS, CUP_KO_LEG_MATCHDAYS,
-  CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS, CUP_PLAYOFF_MATCHDAY,
-  CUP_FORMATS, CONTINENTAL_CUP_FORMAT, CONTINENTAL_ORDER,
+  CUP_LP_DIRECT_QF, CUP_PLAYOFF_MATCHDAY,
+  CUP_FORMATS, CONTINENTAL_CUP_FORMAT, CONTINENTAL_ORDER, largestValidCupField,
 } from "../constants.js";
 import { isWeakLeague } from "../competitions.js";
 import {
@@ -115,9 +115,14 @@ export function cupPlan(
   // Summed per league rather than counted by class, because a league can carry
   // its own slot count (Competition.continentalSlots) that differs from the
   // strong/weak default its class would give it.
-  const total = tier1.reduce((n, c) => n + cupSlotsForCompetition(c, format), 0);
-  const minField = CUP_LP_DIRECT_QF + CUP_LP_PLAYOFF_TEAMS; // 12: fill four QF + the playoff
-  if (total < minField) return null;
+  const qualified = tier1.reduce((n, c) => n + cupSlotsForCompetition(c, format), 0);
+  // Trim to a size the league-phase draw can actually build (see
+  // isValidCupFieldSize). The shipped world lands exactly on one — 24 for the
+  // Cup, 16 for the Shield — so this changes nothing there; a world whose
+  // leagues send an awkward total now gets the largest valid field rather than
+  // crashing the offseason on the draw.
+  const total = largestValidCupField(qualified);
+  if (total === 0) return null;
   return { strong, weak, total };
 }
 
@@ -228,7 +233,10 @@ export function qualifyCupTeams(
   const weak = plan ? plan.weak : competitions.filter((c) => c.tier === 1 && isWeakLeague(c));
   const field = [...collect(strong), ...collect(weak)]
     .sort(seedSort)
-    .map((q) => q.tid);
+    .map((q) => q.tid)
+    // Trimmed AFTER seeding, so what gets dropped is the weakest qualifiers in
+    // the world rather than whichever league happened to be collected last.
+    .slice(0, plan ? plan.total : undefined);
   return { field, compOf };
 }
 

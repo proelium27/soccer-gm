@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { CLUBS } from "../../core/teams/clubs.js";
+import { clubIdentitiesFor } from "../../core/teams/clubs.js";
 import { createLeagueState, type LeagueStore } from "../../core/leagueState.js";
 import { applyTeamIdentities } from "../../core/teams/customize.js";
 import { mulberry32 } from "../../engine/rng.js";
@@ -11,11 +11,14 @@ import {
   DIFFICULTIES, DIFFICULTY_ORDER, DEFAULT_DIFFICULTY, type Difficulty,
 } from "../../core/constants.js";
 import {
-  worldCompetitions,
+  buildCompetitions,
   countryClubRanges,
   countriesOf,
   worldTeamSlots,
 } from "../../core/competitions.js";
+import {
+  WorldSetup, defaultWorldEntries, includedSpecs, type WorldEntry,
+} from "../components/WorldSetup.js";
 import {
   parseRosterFile,
   resolveRosterSlots,
@@ -33,19 +36,28 @@ import { trackEvent } from "../analytics.js";
 import { ROSTER_DOWNLOAD_URL } from "../rosterDownload.js";
 import { createGate, yieldToPaint } from "../singleFlight.js";
 
-const WORLD_COMPETITIONS = worldCompetitions();
-const COUNTRY_RANGES = countryClubRanges(WORLD_COMPETITIONS, NUM_TEAMS, NUM_TEAMS_D2);
-const COUNTRIES = countriesOf(WORLD_COMPETITIONS);
-
 /**
- * The slot structure a fresh save will have, so a roster file can be resolved
- * to clubs *before* the world is generated — the picker shows the real club
- * names you're choosing between rather than the fictional ones they replace.
+ * Everything the picker needs to describe a world that doesn't exist yet: the
+ * competitions table, the countries in it, each country's block of club slots,
+ * and the tid→competition layout a roster file resolves against.
+ *
+ * Derived from the chosen leagues rather than fixed at module scope, because the
+ * world is now the player's to shape — switching a country off or adding one
+ * changes every one of these, and a stale COUNTRY_RANGES would point the picker
+ * at the wrong clubs.
  */
-const SLOT_WORLD = {
-  competitions: WORLD_COMPETITIONS,
-  teams: worldTeamSlots(WORLD_COMPETITIONS, NUM_TEAMS, NUM_TEAMS_D2),
-};
+function describeWorld(specs: ReturnType<typeof includedSpecs>) {
+  const competitions = buildCompetitions(specs);
+  return {
+    competitions,
+    countries: countriesOf(competitions),
+    ranges: countryClubRanges(competitions, NUM_TEAMS, NUM_TEAMS_D2),
+    slotWorld: {
+      competitions,
+      teams: worldTeamSlots(competitions, NUM_TEAMS, NUM_TEAMS_D2),
+    },
+  };
+}
 
 interface LoadedRoster {
   /** Every file loaded so far, in load order, so more can be added to them. */
@@ -65,9 +77,12 @@ interface LoadedRoster {
  * normally authored a league at a time, so loading england.json and spain.json
  * has to mean both leagues, not whichever was picked last.
  */
-function describeRoster(sources: NamedRosterFile[]): LoadedRoster {
+function describeRoster(
+  sources: NamedRosterFile[],
+  slotWorld: ReturnType<typeof describeWorld>["slotWorld"],
+): LoadedRoster {
   const { file, warnings: combineWarnings } = combineRosterFiles(sources);
-  const { slots, warnings } = resolveRosterSlots(SLOT_WORLD, file);
+  const { slots, warnings } = resolveRosterSlots(slotWorld, file);
   return {
     sources,
     file,
@@ -78,16 +93,22 @@ function describeRoster(sources: NamedRosterFile[]): LoadedRoster {
   };
 }
 
-/** Competition name for a country's given tier (e.g. "English Division 1"). */
-function divisionName(country: string, tier: 1 | 2): string {
-  return (
-    WORLD_COMPETITIONS.find((c) => c.country === country && c.tier === tier)?.name ??
-    `Division ${tier}`
-  );
-}
-
 export function NewLeague() {
-  const [country, setCountry] = useState<string>(COUNTRIES[0]);
+  // The shape of the world, chosen before it is generated. Roster mode and the
+  // customize flow keep the shipped world: a roster file maps clubs positionally
+  // onto slots, so letting the two move at once would silently relabel squads.
+  const [worldEntries, setWorldEntries] = useState<WorldEntry[]>(defaultWorldEntries);
+  const world = useMemo(() => describeWorld(includedSpecs(worldEntries)), [worldEntries]);
+
+  /** Competition name for a country's given tier (e.g. "English Division 1"). */
+  function divisionName(countryName: string, tier: 1 | 2): string {
+    return (
+      world.competitions.find((c) => c.country === countryName && c.tier === tier)?.name ??
+      `Division ${tier}`
+    );
+  }
+
+  const [country, setCountry] = useState<string>(() => countriesOf(buildCompetitions(includedSpecs(defaultWorldEntries())))[0]);
   const [selectedTid, setSelectedTid] = useState<number | null>(null);
   // Fixed for the save's lifetime once it's created, so it is chosen here and
   // nowhere else (see the DIFFICULTIES block in core/constants.ts).
@@ -106,7 +127,7 @@ export function NewLeague() {
   // and an effect would run twice under StrictMode and lose it.
   const [roster, setRoster] = useState<LoadedRoster | null>(() => {
     const handed = takePendingRoster();
-    return handed ? describeRoster(handed.files) : null;
+    return handed ? describeRoster(handed.files, describeWorld(includedSpecs(defaultWorldEntries())).slotWorld) : null;
   });
   const [rosterError, setRosterError] = useState<string | null>(null);
   // Failures from "Import League" (a whole exported save), kept separate from
@@ -127,14 +148,14 @@ export function NewLeague() {
   // Which tier the chosen club plays in: tier-1 clubs fill the first NUM_TEAMS
   // slots of a country's range, tier-2 the rest (see countryClubRanges).
   function tierForTid(tid: number): 1 | 2 {
-    const range = COUNTRY_RANGES.find((r) => tid >= r.start && tid < r.end);
+    const range = world.ranges.find((r) => tid >= r.start && tid < r.end);
     return range && tid < range.start + NUM_TEAMS ? 1 : 2;
   }
 
   function buildLeague(tid: number): LeagueStore {
     const seed = Date.now();
     const rng = mulberry32(seed);
-    const generated = createLeagueState(tid, rng, seed, difficulty);
+    const generated = createLeagueState(tid, rng, seed, difficulty, world.competitions);
     const league = roster
       ? applyRosterFileToNewLeague(generated, roster.file, tid).league
       : generated;
@@ -142,9 +163,10 @@ export function NewLeague() {
       ...league,
       // Name the save after whatever the user's club ended up being called —
       // the imported name when a roster replaced it, else the fictional one.
+      // Every tid in the world has a team, so the fallback is only a guard.
       meta: {
         ...league.meta,
-        name: league.teams.find((t) => t.tid === tid)?.name ?? CLUBS[tid].name,
+        name: league.teams.find((t) => t.tid === tid)?.name ?? `Club ${tid}`,
       },
     };
   }
@@ -223,7 +245,7 @@ export function NewLeague() {
     }
 
     if (loaded.length > 0) {
-      setRoster((prev) => describeRoster([...(prev?.sources ?? []), ...loaded]));
+      setRoster((prev) => describeRoster([...(prev?.sources ?? []), ...loaded], world.slotWorld));
       setSelectedTid(null);
     }
     setRosterError(errors.length > 0 ? errors.join(" ") : null);
@@ -360,9 +382,12 @@ export function NewLeague() {
     );
   }
 
-  const range = COUNTRY_RANGES.find((r) => r.country === country)!;
-  const countryClubs = CLUBS.slice(range.start, range.end).map((club, i) => {
-    const tid = range.start + i;
+  // Switching a country off can leave the picker pointing at one the world no
+  // longer has, so fall back rather than crash on the missing range.
+  const activeCountry = world.countries.includes(country) ? country : world.countries[0];
+  const range = world.ranges.find((r) => r.country === activeCountry);
+  const countryClubs = (range ? clubIdentitiesFor(activeCountry, range.end - range.start) : []).map((club, i) => {
+    const tid = range!.start + i;
     const imported = roster?.byTid.get(tid);
     // An imported club takes over the slot's identity outright, so the picker
     // shows what the club will actually be called once the save exists.
@@ -392,10 +417,10 @@ export function NewLeague() {
       <h2 className="mb-3">{roster ? "Import Custom League" : "New League"}</h2>
       <p className="text-muted">
         {roster
-          ? `Flip through each league to browse its clubs, then choose your ${country} club to get started. Every club the file didn't cover keeps its original name and squad.`
+          ? `Flip through each league to browse its clubs, then choose your ${activeCountry} club to get started. Every club the file didn't cover keeps its original name and squad.`
           : customize
-            ? `Flip through each league to browse its clubs, then choose your ${country} club to customize every club before starting.`
-            : `Flip through each league to browse its clubs, then choose your ${country} club to get started.`}
+            ? `Flip through each league to browse its clubs, then choose your ${activeCountry} club to customize every club before starting.`
+            : `Flip through each league to browse its clubs, then choose your ${activeCountry} club to get started.`}
       </p>
 
       {roster && (
@@ -444,13 +469,22 @@ export function NewLeague() {
         </div>
       )}
 
-      <div className="btn-group mb-3" role="group" aria-label="Choose a league">
-        {COUNTRIES.map((c) => (
+      {/*
+        Hidden in roster mode on purpose: a roster file maps its clubs
+        positionally onto the world's slots, so reshaping the world underneath a
+        loaded file would hand its squads to the wrong clubs.
+      */}
+      {!roster && !rosterMode && (
+        <WorldSetup entries={worldEntries} onChange={setWorldEntries} />
+      )}
+
+      <div className="btn-group mb-3 flex-wrap" role="group" aria-label="Choose a league">
+        {world.countries.map((c) => (
           <button
             key={c}
             type="button"
             className={`btn btn-outline-secondary d-inline-flex align-items-center gap-2${
-              c === country ? " active" : ""
+              c === activeCountry ? " active" : ""
             }`}
             onClick={() => selectCountry(c)}
           >
@@ -462,8 +496,8 @@ export function NewLeague() {
 
       {(
         [
-          [divisionName(country, 1), d1Clubs],
-          [divisionName(country, 2), d2Clubs],
+          [divisionName(activeCountry, 1), d1Clubs],
+          [divisionName(activeCountry, 2), d2Clubs],
         ] as const
       ).map(([label, clubs]) => (
         <div key={label} className="mb-3">

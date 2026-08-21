@@ -3,12 +3,18 @@ import type { Competition } from "../../src/core/competitions.js";
 import {
   worldCompetitions, competitionStrengthOffset, competitionAcademyOffset,
   competitionBudgetScale, isWeakLeague, academyBaseCenterOf,
+  buildCompetitions, worldLeagueSpecs, tier1Pairs, countryClubRanges,
+  worldTuningWarnings, suggestedBudgetScale,
 } from "../../src/core/competitions.js";
 import {
   COUNTRY_STRENGTH_OFFSET, COUNTRY_BUDGET_SCALE, LEAGUE_BASE, DIVISION_2_OFFSET,
-  CONTINENTAL_CUP_FORMAT, SHIELD_FORMAT,
+  CONTINENTAL_CUP_FORMAT, SHIELD_FORMAT, NUM_TEAMS, NUM_TEAMS_D2,
+  isValidCupFieldSize, largestValidCupField,
 } from "../../src/core/constants.js";
-import { cupSlotsForCompetition, cupOffsetForCompetition, cupSlotRange } from "../../src/core/cup/cup.js";
+import { CLUBS, shippedClubsFor } from "../../src/core/teams/clubs.js";
+import {
+  cupSlotsForCompetition, cupOffsetForCompetition, cupSlotRange, cupPlan,
+} from "../../src/core/cup/cup.js";
 import { generateClubIdentities, abbrevFor } from "../../src/core/teams/clubNames.js";
 
 /**
@@ -131,6 +137,160 @@ describe("continental slots are per league, and the fields stay disjoint", () =>
       const [shieldFirst] = cupSlotRange(comp, SHIELD_FORMAT);
       expect(shieldFirst).toBe(cupLast + 1);
     }
+  });
+});
+
+describe("building a world's competitions table", () => {
+  it("rebuilds the shipped world exactly from its own specs", () => {
+    // The guard that keeps "start from the shipped world and change nothing"
+    // from quietly producing a different world: every knob must stay ABSENT,
+    // not be written out as its current table value.
+    expect(buildCompetitions(worldLeagueSpecs())).toEqual(worldCompetitions());
+  });
+
+  it("hands out ids sequentially in table order, D1 then D2 per country", () => {
+    const table = buildCompetitions([{ country: "Neverland" }, { country: "Ruritania" }]);
+    expect(table.map((c) => [c.id, c.country, c.tier])).toEqual([
+      [0, "Neverland", 1], [1, "Neverland", 2],
+      [2, "Ruritania", 1], [3, "Ruritania", 2],
+    ]);
+    expect(table[0].name).toBe("Neverland Division 1");
+  });
+
+  it("carries a spec's knobs onto both of its divisions", () => {
+    const [d1, d2] = buildCompetitions([{
+      country: "Neverland", strengthOffset: 7, academyOffset: 2,
+      budgetScale: 0.6, cupSlots: 1, shieldSlots: 3,
+    }]);
+    for (const comp of [d1, d2]) {
+      expect(comp.strengthOffset).toBe(7);
+      expect(comp.academyOffset).toBe(2);
+      expect(comp.budgetScale).toBe(0.6);
+      expect(comp.continentalSlots).toEqual({ continental: 1, shield: 3 });
+    }
+  });
+
+  it("leaves an untouched knob absent rather than writing a default", () => {
+    const [d1] = buildCompetitions([{ country: "Neverland", budgetScale: 0.6 }]);
+    expect(d1.budgetScale).toBe(0.6);
+    expect("strengthOffset" in d1).toBe(false);
+    expect("continentalSlots" in d1).toBe(false);
+  });
+
+  it("a table with a country left out still pairs every remaining country", () => {
+    const table = buildCompetitions(worldLeagueSpecs().filter((s) => s.country !== "England"));
+    const pairs = tier1Pairs(table);
+    expect(pairs).toHaveLength(7);
+    for (const { d1, d2 } of pairs) expect(d1.country).toBe(d2.country);
+  });
+});
+
+describe("continental field size is trimmed to something the draw can build", () => {
+  it("accepts the shipped field sizes", () => {
+    expect(isValidCupFieldSize(24)).toBe(true);
+    expect(isValidCupFieldSize(16)).toBe(true);
+  });
+
+  it("rejects sizes the league-phase draw cannot pair", () => {
+    expect(isValidCupFieldSize(23)).toBe(false); // odd
+    expect(isValidCupFieldSize(22)).toBe(false); // pots of 11 — an odd pot can't be matched
+    expect(isValidCupFieldSize(8)).toBe(false); // too few to seed the QF + playoff split
+  });
+
+  it("trims down to the nearest buildable size", () => {
+    expect(largestValidCupField(24)).toBe(24);
+    expect(largestValidCupField(23)).toBe(20);
+    expect(largestValidCupField(22)).toBe(20);
+    expect(largestValidCupField(11)).toBe(0);
+  });
+
+  it("leaves the shipped world's fields exactly as they were", () => {
+    const comps = worldCompetitions();
+    expect(cupPlan(comps, CONTINENTAL_CUP_FORMAT)!.total).toBe(24);
+    expect(cupPlan(comps, SHIELD_FORMAT)!.total).toBe(16);
+  });
+
+  it("gives an awkward world a smaller field instead of no competition", () => {
+    // 8 leagues x 3 = 24 for the Cup, but the Shield's 8 x 1 = 8 is unbuildable.
+    const comps = buildCompetitions(
+      worldLeagueSpecs().map((s) => ({ ...s, cupSlots: 3, shieldSlots: 1 })),
+    );
+    expect(cupPlan(comps, CONTINENTAL_CUP_FORMAT)!.total).toBe(24);
+    expect(cupPlan(comps, SHIELD_FORMAT)).toBeNull();
+  });
+
+  it("trims a field that would otherwise crash the draw", () => {
+    const comps = buildCompetitions([
+      ...worldLeagueSpecs(),
+      { country: "Extra", cupSlots: 3, shieldSlots: 0 },
+    ]);
+    // 24 + 3 = 27 qualifiers, trimmed to 24.
+    expect(cupPlan(comps, CONTINENTAL_CUP_FORMAT)!.total).toBe(24);
+  });
+});
+
+describe("world tuning warnings", () => {
+  it("says nothing about the shipped world", () => {
+    expect(worldTuningWarnings(worldLeagueSpecs())).toEqual([]);
+  });
+
+  it("flags a weaker-but-richer league, the inversion that breaks a ladder", () => {
+    const specs = [
+      ...worldLeagueSpecs(),
+      { country: "Rich And Weak", strengthOffset: 15, budgetScale: 1 },
+    ];
+    const warnings = worldTuningWarnings(specs);
+    expect(warnings.some((w) => w.includes("Rich And Weak") && w.includes("richer"))).toBe(true);
+  });
+
+  it("passes a weaker-and-poorer league", () => {
+    const specs = [
+      ...worldLeagueSpecs(),
+      { country: "Weak And Poor", strengthOffset: 15, budgetScale: 0.3 },
+    ];
+    expect(worldTuningWarnings(specs)).toEqual([]);
+  });
+
+  it("flags a world too small to field the Continental Cup", () => {
+    const specs = worldLeagueSpecs().slice(0, 2);
+    expect(worldTuningWarnings(specs).some((w) => w.includes("Continental Cup"))).toBe(true);
+  });
+
+  it("counts custom slot allocations toward the cup field, not the country count", () => {
+    // Two countries, but each sending six — enough to seed the field.
+    const specs = worldLeagueSpecs().slice(0, 2).map((s) => ({ ...s, cupSlots: 6 }));
+    expect(worldTuningWarnings(specs).some((w) => w.includes("Continental Cup"))).toBe(false);
+  });
+
+  it("flags duplicate country names and an empty world", () => {
+    expect(worldTuningWarnings([{ country: "A" }, { country: "a" }]).some((w) => w.includes("different countries"))).toBe(true);
+    expect(worldTuningWarnings([])).toEqual(["A world needs at least one league."]);
+  });
+
+  it("suggests money that tracks strength, matching the shipped ladder", () => {
+    expect(suggestedBudgetScale(0)).toBe(1);
+    expect(suggestedBudgetScale(10)).toBe(0.5);
+    expect(suggestedBudgetScale(12)).toBe(0.4);
+    // Monotonic and floored, so a slider can't produce a free-money league.
+    expect(suggestedBudgetScale(40)).toBe(0.25);
+    expect(suggestedBudgetScale(5)).toBeGreaterThan(suggestedBudgetScale(9));
+  });
+});
+
+describe("club identities are anchored to a country, not to a tid", () => {
+  it("gives the shipped world exactly the shipped club blocks", () => {
+    // Pins the refactor from CLUBS[tid] to per-country indexing: for the shipped
+    // world the two must agree club for club, or every save renames its clubs.
+    const ranges = countryClubRanges(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2);
+    for (const range of ranges) {
+      const block = shippedClubsFor(range.country);
+      expect(block).not.toBeNull();
+      expect(block).toEqual(CLUBS.slice(range.start, range.end));
+    }
+  });
+
+  it("has no shipped block for a country the player added", () => {
+    expect(shippedClubsFor("Neverland")).toBeNull();
   });
 });
 

@@ -2349,6 +2349,47 @@ export const CUP_LEAGUE_PHASE_MATCHDAYS = [3, 7, 11, 15, 19, 23] as const;
 export const CUP_LP_DIRECT_QF = 4;
 /** League-phase ranks CUP_LP_DIRECT_QF+1 … +CUP_LP_PLAYOFF_TEAMS contest the single-leg playoff. */
 export const CUP_LP_PLAYOFF_TEAMS = 8; // ranks 5–12 → four single-leg ties → four QF places
+
+/**
+ * Whether the league-phase draw can actually build a schedule for a field of
+ * this size. Three conditions, all structural rather than stylistic:
+ *   - the field splits evenly into CUP_LEAGUE_PHASE_POTS pots;
+ *   - each pot is itself even, because the intra-pot rounds are perfect
+ *     matchings *within* a pot and an odd pot leaves a club unpaired;
+ *   - a pot is big enough to supply the intra-pot opponents each club needs.
+ * Plus enough clubs to seed the split (four direct quarter-finalists and the
+ * playoff field).
+ *
+ * The shipped world always produced 24 (and the Shield 16), so nothing ever
+ * exercised this and drawLeaguePhase's own guard quietly omitted the even-pot
+ * condition. Once a player can set a league's slot count, any total is
+ * reachable — a 23-club field crashed the offseason outright.
+ */
+export function isValidCupFieldSize(size: number): boolean {
+  const perPot = CUP_LEAGUE_PHASE_GAMES / CUP_LEAGUE_PHASE_POTS;
+  const potSize = size / CUP_LEAGUE_PHASE_POTS;
+  return (
+    Number.isInteger(perPot)
+    && Number.isInteger(potSize)
+    && potSize % 2 === 0
+    && potSize - 1 >= perPot
+    && size >= CUP_LP_DIRECT_QF + CUP_LP_PLAYOFF_TEAMS
+  );
+}
+
+/**
+ * The biggest field the draw can build that is no larger than `total`, or 0 if
+ * there aren't enough qualifiers for one at all. Qualifying trims to this by
+ * dropping its lowest seeds, so a world that produces an awkward number of
+ * qualifiers still gets a competition — just a slightly smaller one — instead
+ * of throwing.
+ */
+export function largestValidCupField(total: number): number {
+  for (let size = Math.floor(total); size >= 0; size--) {
+    if (isValidCupFieldSize(size)) return size;
+  }
+  return 0;
+}
 /** Size of the knockout bracket the league phase feeds (quarter-finals onward). */
 export const CUP_KO_SIZE = 8;
 

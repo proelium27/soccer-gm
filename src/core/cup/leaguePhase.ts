@@ -2,6 +2,7 @@ import { mulberry32, hashInts } from "../../engine/rng.js";
 import {
   CUP_LEAGUE_PHASE_GAMES, CUP_LEAGUE_PHASE_POTS,
   CUP_LEAGUE_PHASE_MATCHDAYS, CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS,
+  isValidCupFieldSize,
 } from "../constants.js";
 import type { CupLeaguePhase, LeaguePhaseMatch } from "./types.js";
 
@@ -33,7 +34,11 @@ export function drawLeaguePhase(
   const size = teams.length;
   const perPot = CUP_LEAGUE_PHASE_GAMES / CUP_LEAGUE_PHASE_POTS;
   const potSize = size / CUP_LEAGUE_PHASE_POTS;
-  if (CUP_LEAGUE_PHASE_POTS !== 2 || !Number.isInteger(perPot) || !Number.isInteger(potSize) || potSize - 1 < perPot) {
+  // isValidCupFieldSize additionally requires an EVEN pot, which this guard used
+  // to omit: the intra-pot rounds are perfect matchings *within* a pot, so an odd
+  // pot leaves a club unpaired. Unreachable while every field was 24 or 16;
+  // reachable the moment a league can carry its own slot count.
+  if (CUP_LEAGUE_PHASE_POTS !== 2 || !isValidCupFieldSize(size)) {
     throw new Error(`league-phase draw: ${size} teams don't split into ${CUP_LEAGUE_PHASE_POTS} pots of ${perPot} games`);
   }
   const rng = mulberry32(hashInts(seed, 0xc0ffee));

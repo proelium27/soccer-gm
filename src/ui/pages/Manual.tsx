@@ -405,9 +405,46 @@ export function Manual() {
             grouped by country, so you can browse any of the 16 leagues. It defaults to
             whichever one your own club is currently in.
           </p>
+          <p>
+            <strong>Shaping your own world.</strong> The eight countries above are the default, not
+            the only option. The <strong>World setup</strong> panel on the New League screen lets you
+            switch any of them off and add leagues of your own. An added league is always a
+            two-division pyramid like the rest, and its clubs get generated names and colours, since
+            the game ships no real clubs.
+          </p>
+          <p>
+            Each league you add carries four settings. <strong>Strength</strong> is how good its
+            squads are on day one, on the same scale as the step-downs above, where 0 sits level with
+            the big four and higher is weaker. <strong>Academies</strong> is what its clubs keep
+            producing year after year. <strong>Money</strong> is what its clubs earn and can bank,
+            against 1 for the richest leagues. And you set how many places it sends to the{" "}
+            <a href="#cup">Continental Cup</a> and the <a href="#shield">Continental Shield</a>.
+          </p>
+          <p>
+            Strength and academies being separate is the interesting part, because it decides which
+            way a league moves over a dynasty. Set academies stronger than strength and the league
+            climbs, because its clubs keep producing better players than the ones they started with.
+            Set academies weaker and it fades the same way. Leave them equal and it holds its level,
+            which is what all eight shipped countries do.
+          </p>
+          <p>
+            Money is tied to strength by default and you should think twice before unlinking it. A
+            weak league with big money climbs the pecking order over a long save until it finishes
+            above leagues it generated well below, which is usually not what you were going for. The
+            panel warns you when your settings would do that.
+          </p>
+          <p>
+            Continental places can't overlap however you set them: the Shield always starts at the
+            place directly below the Cup's last one in that same league. If a league sends 1 to the
+            Cup and 3 to the Shield, that's its champion in the Cup and 2nd through 4th in the
+            Shield. If your world's leagues send an odd total, the Cup takes the best qualifiers it
+            can build a draw from and the rest miss out.
+          </p>
           <p className="text-muted small">
-            Saves you created before this feature shipped stay England-only forever. There's no
-            mid-save world expansion.
+            World setup only applies when you create a save. There's no mid-save world expansion, and
+            saves created before it shipped keep whatever countries they were made with. It's also
+            hidden when you're importing a roster file, because a roster file maps its clubs onto the
+            world's slots by position and moving both at once would hand squads to the wrong clubs.
           </p>
         </Section>
 

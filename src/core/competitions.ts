@@ -11,6 +11,7 @@
  */
 import {
   COUNTRY_STRENGTH_OFFSET, COUNTRY_BUDGET_SCALE, LEAGUE_BASE, DIVISION_2_OFFSET,
+  CUP_STRONG_LEAGUE_SLOTS, CUP_WEAK_LEAGUE_SLOTS, CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS,
 } from "./constants.js";
 
 export interface Competition {
@@ -136,6 +137,159 @@ export function worldCompetitions(): Competition[] {
     { id: 14, country: "Turkey", tier: 1, name: "Turkish Division 1" },
     { id: 15, country: "Turkey", tier: 2, name: "Turkish Division 2" },
   ];
+}
+
+/* ── Building a world's table ────────────────────────────────────────────────
+ * A save's competitions table is fixed at creation and never regenerated, so
+ * this is the only place a world's shape is decided. The new-league screen
+ * assembles a list of these and hands the result to createLeagueState. */
+
+/**
+ * One country in a world: its two divisions and the knobs they carry. A country
+ * is always a two-division pyramid — promotion/relegation pairs a tier-1
+ * competition with exactly one tier-2 partner (see partnerOf), and a one-tier
+ * country would have nothing to be relegated into.
+ *
+ * Every knob is optional, and leaving one out is meaningfully different from
+ * setting it: absent means "fall back to the shipped country table", which is
+ * what keeps a world built from the shipped countries identical to
+ * worldCompetitions().
+ */
+export interface LeagueSpec {
+  country: string;
+  /** Defaults to "<country> Division 1" / "... 2". */
+  d1Name?: string;
+  d2Name?: string;
+  strengthOffset?: number;
+  academyOffset?: number;
+  budgetScale?: number;
+  /** Places sent to the Continental Cup / Shield. Absent → the format default. */
+  cupSlots?: number;
+  shieldSlots?: number;
+}
+
+/** Drop keys whose value is undefined, so an untouched knob stays *absent*. */
+function withDefined<T extends object>(obj: T): T {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
+}
+
+/**
+ * Build a competitions table from a list of countries, in the order given. Ids
+ * are handed out sequentially in table order, which is also the order
+ * generateWorld walks countries in, so a country's position here decides its
+ * clubs' tids.
+ */
+export function buildCompetitions(specs: LeagueSpec[]): Competition[] {
+  const out: Competition[] = [];
+  for (const spec of specs) {
+    const slots = withDefined({ continental: spec.cupSlots, shield: spec.shieldSlots });
+    const shared = withDefined({
+      strengthOffset: spec.strengthOffset,
+      academyOffset: spec.academyOffset,
+      budgetScale: spec.budgetScale,
+      continentalSlots: Object.keys(slots).length > 0 ? slots : undefined,
+    });
+    out.push({
+      id: out.length,
+      country: spec.country,
+      tier: 1,
+      name: spec.d1Name ?? `${spec.country} Division 1`,
+      ...shared,
+    });
+    out.push({
+      id: out.length,
+      country: spec.country,
+      tier: 2,
+      name: spec.d2Name ?? `${spec.country} Division 2`,
+      ...shared,
+    });
+  }
+  return out;
+}
+
+/**
+ * The money scale that keeps a league of this strength in step with the shipped
+ * ladder. Fitted to the shipped pairs (offset 0 → 1.0, 10 → 0.5, 12 → 0.4), and
+ * used as the default when a player adds a league so the common case lands on a
+ * world that behaves.
+ */
+export function suggestedBudgetScale(strengthOffset: number): number {
+  const scale = 1 - 0.05 * strengthOffset;
+  return Math.round(Math.min(1, Math.max(0.25, scale)) * 100) / 100;
+}
+
+/**
+ * Problems with a world's tuning that the player should see before generating
+ * it. Advisory, never blocking — it is their world — but these are failure modes
+ * that take a dynasty to show up and read as bugs when they do, so they are
+ * worth saying out loud at the one moment they can still be changed.
+ *
+ * The money-versus-strength check is the important one and is measured, not
+ * theoretical: a weaker-but-richer league climbs the ladder over 20 seasons and
+ * overtakes a stronger-but-poorer one (see COUNTRY_BUDGET_SCALE's comment for
+ * the 2.23-OVR inversion this describes).
+ */
+export function worldTuningWarnings(specs: LeagueSpec[]): string[] {
+  const out: string[] = [];
+  if (specs.length === 0) return ["A world needs at least one league."];
+
+  const named = specs.map((s) => ({
+    country: s.country,
+    strength: s.strengthOffset ?? COUNTRY_STRENGTH_OFFSET[s.country] ?? 0,
+    money: s.budgetScale ?? COUNTRY_BUDGET_SCALE[s.country] ?? 1,
+  }));
+  for (const a of named) {
+    for (const b of named) {
+      // a is the weaker league (higher offset) but has the bigger budget.
+      if (a.strength > b.strength && a.money > b.money) {
+        out.push(
+          `${a.country} is weaker than ${b.country} but richer. Over a long save the`
+          + ` richer league climbs, so ${a.country} will likely end up above`
+          + ` ${b.country} rather than below it.`,
+        );
+      }
+    }
+  }
+
+  const duplicates = specs
+    .map((s) => s.country.trim().toLowerCase())
+    .filter((c, i, all) => all.indexOf(c) !== i);
+  for (const dupe of new Set(duplicates)) {
+    out.push(`Two leagues are both called "${dupe}". Give them different countries.`);
+  }
+
+  // The Continental Cup needs a field big enough to seed its whole structure
+  // (four direct quarter-finalists plus an eight-team playoff). Short of that it
+  // simply doesn't run — a legitimate world, but a surprising thing to discover
+  // a season in. Counted the same way cupPlan counts it, defaults included,
+  // rather than guessed from the number of countries.
+  const cupField = named.reduce((total, league, i) => {
+    const spec = specs[i];
+    const fallback = league.strength > 0 ? CUP_WEAK_LEAGUE_SLOTS : CUP_STRONG_LEAGUE_SLOTS;
+    return total + (spec.cupSlots ?? fallback);
+  }, 0);
+  if (cupField < CUP_LP_DIRECT_QF + CUP_LP_PLAYOFF_TEAMS) {
+    out.push(
+      `Only ${cupField} clubs would qualify for the Continental Cup, and it needs`
+      + ` ${CUP_LP_DIRECT_QF + CUP_LP_PLAYOFF_TEAMS}. Add more leagues or more places`
+      + ` per league, or it won't run.`,
+    );
+  }
+  return [...new Set(out)];
+}
+
+/**
+ * The shipped world expressed as specs, so the new-league screen can start from
+ * it and let the player toggle countries off, retune one, or append their own.
+ * Every knob is left absent, so building these back returns exactly
+ * worldCompetitions() — pinned by a test.
+ */
+export function worldLeagueSpecs(): LeagueSpec[] {
+  return tier1Pairs(worldCompetitions()).map(({ d1, d2 }) => ({
+    country: d1.country,
+    d1Name: d1.name,
+    d2Name: d2.name,
+  }));
 }
 
 export function competitionOf(competitions: Competition[], compId: number): Competition {
