@@ -9,7 +9,9 @@ import {
   emptyTotals, emptyBestSeasons, ALL_TIME_STAT_KEYS, type AllTimeStatKey,
 } from "../../src/core/frivolities/stats.js";
 import { allTimeLeaderBoards, type LeaderScope } from "../../src/core/frivolities/leaders.js";
-import { allTimeInternational, cappedNationalities } from "../../src/core/frivolities/international.js";
+import {
+  allTimeInternationalBoards, cappedNationalities, type IntlAllTimeKey,
+} from "../../src/core/frivolities/international.js";
 import {
   computeHonours, playerGoatRanking, teamGoatRanking, pointsOf,
 } from "../../src/core/frivolities/goat.js";
@@ -284,7 +286,15 @@ describe("allTimeLeaderBoards", () => {
   });
 });
 
-describe("allTimeInternational", () => {
+describe("allTimeInternationalBoards", () => {
+  /** One counter's board, the way the page reads a card or a full list out. */
+  const intl = (
+    store: LeagueStore,
+    key: IntlAllTimeKey,
+    nationality: string | null = null,
+    limit?: number,
+  ) => allTimeInternationalBoards(store, nationality, limit)[key];
+
   const store = makeStore({
     players: [
       makePlayer({ pid: 1, nationality: "eng", lines: [[2029, 1, 30, 20, 4]], intl: [40, 18, 0] }),
@@ -302,28 +312,28 @@ describe("allTimeInternational", () => {
     // A nation's all-time top scorer is by definition a long career, so he is
     // usually retired. A board off the live pool alone would hand the record to
     // a new man every few seasons.
-    const rows = allTimeInternational(store, "intlGoals");
+    const rows = intl(store, "intlGoals");
     expect(rows.map((r) => r.pid)).toEqual([99, 3, 1, 2]);
     expect(rows[0].intlGoals).toBe(50);
     expect(rows[0].active).toBe(false);
   });
 
   it("ranks by caps and by World Cups won when asked", () => {
-    expect(allTimeInternational(store, "caps").map((r) => r.pid)).toEqual([99, 2, 1, 3]);
+    expect(intl(store, "caps").map((r) => r.pid)).toEqual([99, 2, 1, 3]);
     // Only one player in the fixture has ever won one, so the board is a single
     // row rather than a list padded with zeroes.
-    expect(allTimeInternational(store, "intlTitles").map((r) => r.pid)).toEqual([2]);
+    expect(intl(store, "intlTitles").map((r) => r.pid)).toEqual([2]);
   });
 
   it("filters to one country's record book", () => {
     // The question the page is really for: who is *our* all-time top scorer.
-    expect(allTimeInternational(store, "intlGoals", "eng").map((r) => r.pid)).toEqual([1, 2]);
-    expect(allTimeInternational(store, "intlGoals", "esp").map((r) => r.pid)).toEqual([99]);
+    expect(intl(store, "intlGoals", "eng").map((r) => r.pid)).toEqual([1, 2]);
+    expect(intl(store, "intlGoals", "esp").map((r) => r.pid)).toEqual([99]);
   });
 
   it("leaves out players who were never capped", () => {
-    expect(allTimeInternational(store, "caps").map((r) => r.pid)).not.toContain(4);
-    expect(allTimeInternational(store, "intlGoals").map((r) => r.pid)).not.toContain(4);
+    expect(intl(store, "caps").map((r) => r.pid)).not.toContain(4);
+    expect(intl(store, "intlGoals").map((r) => r.pid)).not.toContain(4);
   });
 
   it("offers only countries that have a capped career on record", () => {
@@ -332,7 +342,14 @@ describe("allTimeInternational", () => {
   });
 
   it("honours the row limit", () => {
-    expect(allTimeInternational(store, "intlGoals", null, 2)).toHaveLength(2);
+    expect(intl(store, "intlGoals", null, 2)).toHaveLength(2);
+  });
+
+  it("covers every counter in one call", () => {
+    // The grid renders a card per counter off one result, so a missing key is a
+    // silently missing board rather than a crash.
+    expect(Object.keys(allTimeInternationalBoards(store)).sort())
+      .toEqual(["caps", "intlGoals", "intlTitles"]);
   });
 });
 

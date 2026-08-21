@@ -12,8 +12,8 @@ import {
   type AllTimeLeaderRow, type LeaderScope,
 } from "../../core/frivolities/leaders.js";
 import {
-  allTimeInternational, cappedNationalities,
-  INTL_ALL_TIME_KEYS, type IntlAllTimeKey,
+  allTimeInternationalBoards, cappedNationalities, intlStatOf,
+  INTL_ALL_TIME_KEYS, INTL_ALL_TIME_LIMIT, INTL_OVERVIEW_LIMIT, type IntlAllTimeKey,
 } from "../../core/frivolities/international.js";
 import {
   playerGoatRanking, teamGoatRanking,
@@ -925,7 +925,7 @@ function RecordsTab() {
   );
 }
 
-// --- All-time leaders ------------------------------------------------------
+// --- Summary grids ---------------------------------------------------------
 
 /** A club as a crest and its three letters — the compact form the grid cards use. */
 function ClubBadge({ tid }: { tid: number | null }) {
@@ -940,16 +940,31 @@ function ClubBadge({ tid }: { tid: number | null }) {
   );
 }
 
+/** One row of a summary card, flattened from whatever board it came from. */
+interface CardRow {
+  pid: number;
+  name: string;
+  nationality: string;
+  tid: number | null;
+  /** Already formatted — a card shows one number and the board decides which. */
+  value: string;
+  /** An extra muted column before the value, e.g. which season a figure is from. */
+  note?: string;
+}
+
 /**
- * One stat's top ten, as a card that opens the full board.
+ * One board's top ten, as a card that opens the full list.
  *
  * The header is the click target rather than the whole card: the rows carry
  * player links of their own, and a button can't legally contain them.
+ *
+ * Shared by both grids on this page (all-time leaders and international) so
+ * they stay one visual idea rather than drifting into two.
  */
-function LeaderCard({ stat, scope, rows, onOpen }: {
-  stat: AllTimeStatKey;
-  scope: LeaderScope;
-  rows: AllTimeLeaderRow[];
+function BoardCard({ title, empty, rows, onOpen }: {
+  title: string;
+  empty: string;
+  rows: CardRow[];
   onOpen: () => void;
 }) {
   return (
@@ -960,7 +975,7 @@ function LeaderCard({ stat, scope, rows, onOpen }: {
         className={"btn btn-link text-decoration-none w-100 text-start"
           + " d-flex align-items-center justify-content-between px-3 pt-3 pb-1"}
       >
-        <span className="text-body text-uppercase small fw-semibold">{STAT_LABELS[stat]}</span>
+        <span className="text-body text-uppercase small fw-semibold">{title}</span>
         <span className="small">
           Full list
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="ms-1"
@@ -970,27 +985,23 @@ function LeaderCard({ stat, scope, rows, onOpen }: {
         </span>
       </button>
       <div className="card-body pt-1">
-        {rows.length === 0 ? <Empty what="recorded seasons" /> : (
+        {rows.length === 0 ? <Empty what={empty} /> : (
           <table className="table table-sm align-middle mb-0">
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.career.pid}>
+                <tr key={r.pid}>
                   <td className="text-muted ps-0" style={{ width: "1.75rem" }}>{i + 1}</td>
-                  {/* No retired badge here, unlike the full board: fourteen
-                      cards sit three to a row, and a badge on a name is enough
-                      to wrap every row it lands on. */}
+                  {/* No retired badge here, unlike the full board: the cards sit
+                      three to a row, and a badge on a name is enough to wrap
+                      every row it lands on. */}
                   <td className="text-nowrap">
-                    <PlayerCell
-                      pid={r.career.pid}
-                      name={r.career.name}
-                      nationality={r.career.nationality}
-                    />
+                    <PlayerCell pid={r.pid} name={r.name} nationality={r.nationality} />
                   </td>
-                  <td className="text-end"><ClubBadge tid={r.career.tid} /></td>
-                  {scope === "single" && (
-                    <td className="text-end text-muted small">{seasonYear(r.season ?? 0)}</td>
+                  <td className="text-end"><ClubBadge tid={r.tid} /></td>
+                  {r.note !== undefined && (
+                    <td className="text-end text-muted small">{r.note}</td>
                   )}
-                  <td className="text-end pe-0 fw-semibold">{formatStat(stat, r.value)}</td>
+                  <td className="text-end pe-0 fw-semibold">{r.value}</td>
                 </tr>
               ))}
             </tbody>
@@ -1001,6 +1012,22 @@ function LeaderCard({ stat, scope, rows, onOpen }: {
   );
 }
 
+/** The grid both summary views lay their cards out on. */
+function CardGrid({ children }: { children: ReactNode }) {
+  return <div className="row g-3">{children}</div>;
+}
+
+/** The button that takes a full board back to its grid. */
+function BackToGrid({ onBack }: { onBack: () => void }) {
+  return (
+    <button type="button" className="btn btn-sm btn-outline-secondary mb-3" onClick={onBack}>
+      &larr; All categories
+    </button>
+  );
+}
+
+// --- All-time leaders ------------------------------------------------------
+
 /** One stat's full board, the view a grid card opens into. */
 function LeaderBoard({ stat, scope, rows, onBack }: {
   stat: AllTimeStatKey;
@@ -1010,9 +1037,7 @@ function LeaderBoard({ stat, scope, rows, onBack }: {
 }) {
   return (
     <>
-      <button type="button" className="btn btn-sm btn-outline-secondary mb-3" onClick={onBack}>
-        &larr; All categories
-      </button>
+      <BackToGrid onBack={onBack} />
       <Panel
         title={scope === "career"
           ? `Career ${STAT_LABELS[stat]}`
@@ -1095,18 +1120,25 @@ export function LeadersTab() {
           onBack={() => setOpen(null)}
         />
       ) : (
-        <div className="row g-3">
+        <CardGrid>
           {ALL_TIME_STAT_KEYS.map((k) => (
             <div key={k} className="col-12 col-lg-6 col-xxl-4">
-              <LeaderCard
-                stat={k}
-                scope={scope}
-                rows={boards[k].slice(0, ALL_TIME_OVERVIEW_LIMIT)}
+              <BoardCard
+                title={STAT_LABELS[k]}
+                empty="recorded seasons"
+                rows={boards[k].slice(0, ALL_TIME_OVERVIEW_LIMIT).map((r) => ({
+                  pid: r.career.pid,
+                  name: r.career.name,
+                  nationality: r.career.nationality,
+                  tid: r.career.tid,
+                  value: formatStat(k, r.value),
+                  note: scope === "single" ? String(seasonYear(r.season ?? 0)) : undefined,
+                }))}
                 onOpen={() => setOpen(k)}
               />
             </div>
           ))}
-        </div>
+        </CardGrid>
       )}
     </>
   );
@@ -1133,17 +1165,53 @@ const INTL_EMPTY_LABELS: Record<IntlAllTimeKey, string> = {
   intlTitles: "World Cup winners",
 };
 
-function InternationalTab() {
+/** One international counter's full board, the view a grid card opens into. */
+function IntlBoard({ intlKey, country, rows, onBack }: {
+  intlKey: IntlAllTimeKey;
+  country: string;
+  rows: CareerRow[];
+  onBack: () => void;
+}) {
+  return (
+    <>
+      <BackToGrid onBack={onBack} />
+      <Panel title={country
+        ? `${country}: all-time ${INTL_STAT_LABELS[intlKey]}`
+        : `All-time ${INTL_STAT_LABELS[intlKey]}`}
+      >
+        <RankTable
+          rows={rows}
+          headers={["Player", "Club", "Caps", "Goals", "World Cups"]}
+          render={(r: CareerRow) => [
+            <PlayerCell pid={r.pid} name={r.name} nationality={r.nationality} active={r.active} />,
+            <ClubCell tid={r.tid} />,
+            // The ranked column reads bold, so it's obvious which one the order follows.
+            <span className={intlKey === "caps" ? "fw-bold" : undefined}>{r.caps}</span>,
+            <span className={intlKey === "intlGoals" ? "fw-bold" : undefined}>{r.intlGoals}</span>,
+            <span className={intlKey === "intlTitles" ? "fw-bold" : undefined}>
+              {r.intlTitles || <span className="text-muted">&ndash;</span>}
+            </span>,
+          ]}
+          empty={INTL_EMPTY_LABELS[intlKey]}
+        />
+      </Panel>
+    </>
+  );
+}
+
+export function InternationalTab() {
   const { league } = useLeague();
-  const [key, setKey] = useState<IntlAllTimeKey>("intlGoals");
+  const [open, setOpen] = useState<IntlAllTimeKey | null>(null);
   const [country, setCountry] = useState("");
 
   const countries = useMemo(() => (league ? cappedNationalities(league) : []), [league]);
-  const rows = useMemo(
-    () => (league ? allTimeInternational(league, key, country || null) : []),
-    [league, key, country],
+  // All three counters from one walk over the careers, and one application of
+  // the country filter, for the same reason the leaders grid does it.
+  const boards = useMemo(
+    () => (league ? allTimeInternationalBoards(league, country || null) : null),
+    [league, country],
   );
-  if (!league) return null;
+  if (!league || !boards) return null;
 
   return (
     <>
@@ -1155,18 +1223,7 @@ function InternationalTab() {
         they read on a player's profile.
       </p>
 
-      <div className="mb-3 d-flex gap-2 flex-wrap">
-        <select
-          className="form-select form-select-sm"
-          style={{ width: "auto" }}
-          value={key}
-          onChange={(e) => setKey(e.target.value as IntlAllTimeKey)}
-          aria-label="Stat"
-        >
-          {INTL_ALL_TIME_KEYS.map((k) => (
-            <option key={k} value={k}>{INTL_STAT_LABELS[k]}</option>
-          ))}
-        </select>
+      <div className="mb-3 d-flex gap-2 flex-wrap align-items-center">
         <select
           className="form-select form-select-sm"
           style={{ width: "auto" }}
@@ -1179,25 +1236,40 @@ function InternationalTab() {
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
+        {open === null && (
+          <span className="text-muted small">
+            Top {INTL_OVERVIEW_LIMIT} in each. Click a category for the top {INTL_ALL_TIME_LIMIT}.
+          </span>
+        )}
       </div>
 
-      <Panel title={country ? `${country}: all-time ${INTL_STAT_LABELS[key]}` : `All-time ${INTL_STAT_LABELS[key]}`}>
-        <RankTable
-          rows={rows}
-          headers={["Player", "Club", "Caps", "Goals", "World Cups"]}
-          render={(r: CareerRow) => [
-            <PlayerCell pid={r.pid} name={r.name} nationality={r.nationality} active={r.active} />,
-            <ClubCell tid={r.tid} />,
-            // The ranked column reads bold, so it's obvious which one the order follows.
-            <span className={key === "caps" ? "fw-bold" : undefined}>{r.caps}</span>,
-            <span className={key === "intlGoals" ? "fw-bold" : undefined}>{r.intlGoals}</span>,
-            <span className={key === "intlTitles" ? "fw-bold" : undefined}>
-              {r.intlTitles || <span className="text-muted">&ndash;</span>}
-            </span>,
-          ]}
-          empty={INTL_EMPTY_LABELS[key]}
+      {open !== null ? (
+        <IntlBoard
+          intlKey={open}
+          country={country}
+          rows={boards[open]}
+          onBack={() => setOpen(null)}
         />
-      </Panel>
+      ) : (
+        <CardGrid>
+          {INTL_ALL_TIME_KEYS.map((k) => (
+            <div key={k} className="col-12 col-lg-6 col-xxl-4">
+              <BoardCard
+                title={INTL_STAT_LABELS[k]}
+                empty={INTL_EMPTY_LABELS[k]}
+                rows={boards[k].slice(0, INTL_OVERVIEW_LIMIT).map((r) => ({
+                  pid: r.pid,
+                  name: r.name,
+                  nationality: r.nationality,
+                  tid: r.tid,
+                  value: String(intlStatOf(r, k)),
+                }))}
+                onOpen={() => setOpen(k)}
+              />
+            </div>
+          ))}
+        </CardGrid>
+      )}
     </>
   );
 }
