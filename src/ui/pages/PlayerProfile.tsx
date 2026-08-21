@@ -621,7 +621,10 @@ export function PlayerProfile() {
               </p>
             ) : (
               <div className="table-responsive">
-                <table className="table table-striped table-sm mb-0">
+                {/* text-nowrap so the responsive wrapper scrolls on a narrow
+                    screen instead of crushing twenty-odd columns into it,
+                    which wraps the season cell and doubles every row. */}
+                <table className="table table-striped table-sm text-nowrap mb-0">
                   <thead>
                     <tr>
                       <th>Season</th>
@@ -669,7 +672,7 @@ export function PlayerProfile() {
             <p className="text-muted mb-0">No matches played yet.</p>
           ) : (
             <div className="table-responsive">
-              <table className="table table-striped table-sm mb-0">
+              <table className="table table-striped table-sm text-nowrap mb-0">
                 <thead>
                   <tr>
                     <th>Season</th>

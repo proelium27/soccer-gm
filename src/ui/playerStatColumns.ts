@@ -115,7 +115,9 @@ const ATTACK: StatColumn[] = [
 const EXPECTED: StatColumn[] = [
   { key: "xg", label: "xG", title: "Expected goals", kind: "decimal", value: (r) => r.xg ?? null },
   {
-    key: "xgdiff", label: "xG+/-",
+    // Labelled as the subtraction it is, rather than "xG+/-", which reads as
+    // "xG+/-/90" once the per-90 suffix goes on it.
+    key: "xgdiff", label: "G-xG",
     title: "Goals minus expected goals: finishing above or below the chances he got",
     kind: "signed", value: (r) => (r.xg === undefined ? null : r.goals - r.xg),
   },
