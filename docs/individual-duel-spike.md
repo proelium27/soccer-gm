@@ -244,7 +244,9 @@ itself (inert → full: +6%). The big fix was plumbing `passing` onto
 `MatchPlayer` at all; the mean-zero machinery adds texture on top of that rather
 than being the main event.
 
-**Calibration.** The M1 table-spread gate passes over 20 seeded seasons. At the
+**Calibration. All 20 validation gates pass again with the extension in place**
+— M1 table spread (20 seeded seasons), M3 top scorer, M4 multi-season, M4
+multi-season integrity, and both benchmark files. At the
 2-season league scale goals/game reads 3.07 against the duels-only 3.02, but
 that is **stream shift, not the new term** — setting `CREATOR_CHANCE_WEIGHT=0`
 gives 3.08, i.e. indistinguishable from the full weight, so the extra per-shot
