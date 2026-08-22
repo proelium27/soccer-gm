@@ -11,6 +11,7 @@ import { cullFreeAgentPool } from "./players/freeAgentCull.js";
 import { summarizeRetirements } from "./players/retirements.js";
 import { clearSuspension } from "./suspensions.js";
 import { extendRetireeArchive } from "./players/archive.js";
+import { extendPlayerNames } from "./players/playerNames.js";
 import { archiveCup } from "./cup/archive.js";
 import {
   releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
@@ -648,5 +649,17 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
   // from `players`, and any rng draw that iterated the pool after this point
   // would shift — breaking the seeded-stream invariant. Ages are judged against
   // the new season, which is what `rolled` already carries.
-  return cullFreeAgentPool(rolled);
+  const culled = cullFreeAgentPool(rolled);
+
+  // Keep the name of every retiree the save still points at. This runs *after*
+  // the cull for two reasons: the cull deletes its own victims' transfers and
+  // news events, so waiting means `referencedPids` counts only references that
+  // actually survive; and this offseason's own records (the summer window's
+  // transfers, the awards, the archived cups) all exist by now, so a retiree
+  // is judged against the finished history rather than a half-written one.
+  // Pure and rng-free — nothing below draws.
+  return {
+    ...culled,
+    playerNames: extendPlayerNames(culled.playerNames ?? [], retirees, culled),
+  };
 }

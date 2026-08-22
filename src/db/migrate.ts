@@ -307,6 +307,13 @@ function migrateFields(league: LeagueStore): LeagueStore {
     // offseason onward — the all-time lists are honest about covering only the
     // seasons the save has actually recorded.
     retiredPlayers: anyVersion.retiredPlayers ?? [],
+    // Same one-way door, and there is genuinely nothing to backfill from. The
+    // sources that could name an old retiree — the live pool, the archive, the
+    // farewell lists, the award snapshots — are all read directly by the UI
+    // already, so copying them in here would duplicate rows that resolve
+    // anyway and still name nobody new. An old save starts empty and stops
+    // losing names from its next offseason on.
+    playerNames: anyVersion.playerNames ?? [],
     // Older saves have no record of past seasons' final tables; they simply
     // start accumulating history from this point forward. Saves from before
     // Team Stat Leaders history has team totals per completed season either:

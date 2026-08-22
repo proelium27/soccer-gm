@@ -9,6 +9,7 @@ import type { ArchivedSeason } from "../players/archive.js";
 import { computeHonours, type PlayerHonours } from "./goat.js";
 import { type AwardWinner } from "../awardWinners.js";
 import { farewellIndex } from "../players/retirements.js";
+import { playerNameIndex } from "../players/playerNames.js";
 
 /** How many rows each awards board shows. */
 export const AWARD_LIST_LIMIT = 25;
@@ -236,6 +237,7 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
   const winnerByPid = new Map<number, AwardWinner>();
   // The other permanent copy of a name, and the older one: it predates the award
   // snapshots, so it reaches winners in saves those snapshots never covered.
+  const named = playerNameIndex(league.playerNames);
   const farewell = farewellIndex(league.seasonHistory);
   // The seasons each winner is on record for, which is every season he won
   // something and no others — enough to stand a career row up for a player the
@@ -288,6 +290,11 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
     }
     const w = winnerByPid.get(pid);
     if (w) return { name: w.name, nationality: w.nationality, born: w.born, active: false };
+    // The name table, kept at retirement for every referenced pid. It stores a
+    // real birth season, so unlike the farewell tier below it can still date
+    // what he did.
+    const n = named.get(pid);
+    if (n) return { name: n.name, nationality: n.nationality, born: n.born, active: false };
     // Saves written before `awardWinners` existed have unnamed pids going back
     // to season 1 that migration could not fill. The farewell lists have been
     // copying names down since long before that field, so they name a few more.
