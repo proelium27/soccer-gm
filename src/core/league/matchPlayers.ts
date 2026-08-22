@@ -22,6 +22,7 @@ export function toMatchPlayer(p: Player, slot: Position = p.pos): MatchPlayer {
     heading: p.ratings.jumping,
     stamina: p.ratings.stamina,
     interceptions: p.ratings.interceptions,
+    passing: (p.ratings.shortPass + p.ratings.longPass) / 2,
   };
 }
 

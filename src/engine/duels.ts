@@ -1,5 +1,5 @@
 import type { MatchPlayer, MatchPosition } from "./attribution.js";
-import { CARRIER_WEIGHTS, TACKLE_WEIGHTS } from "./attribution.js";
+import { ASSIST_WEIGHTS, CARRIER_WEIGHTS, TACKLE_WEIGHTS } from "./attribution.js";
 import { ENERGY_START, FATIGUE_PHYSICAL_WEIGHT } from "./constants.js";
 
 /**
@@ -71,9 +71,16 @@ export function drawActor(
   rng: () => number,
   players: MatchPlayer[],
   posWeights: Record<MatchPosition, number>,
-  ratingKey: "dribbling" | "tackling",
+  /**
+   * The rating that drives selection. An accessor rather than a key so callers
+   * can use `passing`, which is optional on MatchPlayer and needs its documented
+   * fallback applied before it reaches the arithmetic.
+   */
+  ratingOf: (p: MatchPlayer) => number,
   quality: (p: MatchPlayer, energy: number) => number,
   energyOf: (p: MatchPlayer) => number,
+  /** Excluded from both the draw and the baseline — used to keep a shooter from assisting himself. */
+  excludePid?: number,
 ): DuelActor | null {
   // ALLOCATION-FREE ON PURPOSE. This runs twice per tick and a match is ~940
   // ticks, so the obvious version — filter() for the outfielders plus a weights
@@ -87,8 +94,8 @@ export function drawActor(
   let total = 0;
   let weightedSum = 0;
   for (const p of players) {
-    if (p.slot === "GK") continue;
-    const w = posWeights[p.slot] * (p[ratingKey] + 10);
+    if (p.slot === "GK" || p.pid === excludePid) continue;
+    const w = posWeights[p.slot] * (ratingOf(p) + 10);
     total += w;
     weightedSum += w * quality(p, energyOf(p));
   }
@@ -98,9 +105,9 @@ export function drawActor(
   let r = rng() * total;
   let chosen: MatchPlayer | null = null;
   for (const p of players) {
-    if (p.slot === "GK") continue;
+    if (p.slot === "GK" || p.pid === excludePid) continue;
     chosen = p; // keeps the last outfielder as the float-rounding fallback
-    r -= posWeights[p.slot] * (p[ratingKey] + 10);
+    r -= posWeights[p.slot] * (ratingOf(p) + 10);
     if (r <= 0) break;
   }
   if (chosen === null) return null;
@@ -108,13 +115,19 @@ export function drawActor(
   return { player: chosen, deviation: quality(chosen, energyOf(chosen)) - baseline };
 }
 
+/** Hoisted so the hot loop allocates no closures. */
+const dribblingOf = (p: MatchPlayer): number => p.dribbling;
+const tacklingOf = (p: MatchPlayer): number => p.tackling;
+/** See MatchPlayer.passing — unset falls back to dribbling, pickAssister's original proxy. */
+export const visionOf = (p: MatchPlayer): number => p.passing ?? p.dribbling;
+
 /** Draw the man on the ball this tick. */
 export function drawCarrier(
   rng: () => number,
   players: MatchPlayer[],
   energyOf: (p: MatchPlayer) => number,
 ): DuelActor | null {
-  return drawActor(rng, players, CARRIER_WEIGHTS, "dribbling", carrierQuality, energyOf);
+  return drawActor(rng, players, CARRIER_WEIGHTS, dribblingOf, carrierQuality, energyOf);
 }
 
 /** Draw the man closing him down. */
@@ -123,7 +136,37 @@ export function drawContester(
   players: MatchPlayer[],
   energyOf: (p: MatchPlayer) => number,
 ): DuelActor | null {
-  return drawActor(rng, players, TACKLE_WEIGHTS, "tackling", contesterQuality, energyOf);
+  return drawActor(rng, players, TACKLE_WEIGHTS, tacklingOf, contesterQuality, energyOf);
+}
+
+/**
+ * How good a chance this player makes for someone else: vision to pick the pass,
+ * dribbling to get into a position worth passing from. On 0..1.
+ */
+export function creatorQuality(p: MatchPlayer, energy: number): number {
+  return ((visionOf(p) + p.dribbling) / 2 / 100) * fatigueFactor(energy);
+}
+
+/**
+ * Draw the man who created the chance, BEFORE the shot is resolved.
+ *
+ * This is the whole point of the attacking half. `pickAssister` runs inside
+ * `if (outcome === "goal")`, so today's assister is chosen after the goal already
+ * exists and his attributes change nothing — the purest case of a stat being
+ * assigned rather than earned (measured: league assists are a flat ~0.72x league
+ * goals, and an attacking mid's creativity barely predicts his assist count).
+ *
+ * Drawing him first lets his own quality feed the chance, so his assists are
+ * something he caused. Same ASSIST_WEIGHTS shape as before, so the POSITIONAL
+ * distribution of assists is unchanged and only the within-position spread moves.
+ */
+export function drawCreator(
+  rng: () => number,
+  players: MatchPlayer[],
+  shooterPid: number,
+  energyOf: (p: MatchPlayer) => number,
+): DuelActor | null {
+  return drawActor(rng, players, ASSIST_WEIGHTS, visionOf, creatorQuality, energyOf, shooterPid);
 }
 
 /**

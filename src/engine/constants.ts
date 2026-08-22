@@ -42,6 +42,20 @@ export const DUEL_TURNOVER_WEIGHT = envNum("SGM_DUEL_TURNOVER_WEIGHT", 0.1);
 /** Added to the per-tick chance-creation probability (base 0.0304). */
 export const DUEL_CHANCE_WEIGHT = envNum("SGM_DUEL_CHANCE_WEIGHT", 0.02);
 
+// How much the man who created a chance shifts its quality, on the same 0..1
+// scale as the finishing composite. Deliberately the same magnitude as
+// SHOOTER_FINISH_WEIGHT: creating a chance and burying it should be worth
+// comparable amounts. Mean-zero over the creator draw, so it redistributes
+// assists toward genuine playmakers without changing how many goals are scored.
+export const CREATOR_CHANCE_WEIGHT = envNum("SGM_CREATOR_CHANCE_WEIGHT", 0.3);
+
+/**
+ * Share of goals with no assist at all (a solo goal, a rebound, a deflection).
+ * Was an unnamed 0.25 literal inside pickAssister; named here because the
+ * creator is now drawn before the shot resolves and the roll moved with it.
+ */
+export const ASSIST_NONE_PROB = 0.25;
+
 export const TURNOVER_BASE = 0.14; // per-tick prob possession changes hands
 // Of every turnover (see TURNOVER_BASE above), the share credited as a
 // stat-worthy defensive action at all vs. no credit (a real match has plenty

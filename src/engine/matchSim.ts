@@ -13,6 +13,8 @@ import {
   INTERCEPTION_SHARE_OF_CREDIT,
   DUEL_TURNOVER_WEIGHT,
   DUEL_CHANCE_WEIGHT,
+  CREATOR_CHANCE_WEIGHT,
+  ASSIST_NONE_PROB,
   REBOUND_PROB,
   HOME_ATTACK_BONUS,
   FOUL_BASE,
@@ -49,11 +51,11 @@ import {
 } from "./constants.js";
 import type { Composites } from "./composites.js";
 import { familiarityPenalty } from "./positionFit.js";
-import { drawCarrier, drawContester, duelEdge, interceptionShare } from "./duels.js";
+import { drawCarrier, drawContester, drawCreator, duelEdge, interceptionShare } from "./duels.js";
+import type { DuelActor } from "./duels.js";
 import type { MatchPlayer, MatchPosition, MatchEvent, BoxScore, PlayerMatchLine, TouchSide } from "./attribution.js";
 import {
   pickShooter,
-  pickAssister,
   pickFouler,
   pickHeader,
   eventTypeFromShot,
@@ -153,8 +155,21 @@ export function resolveShot(
    * xG below (xG stays the "average attacker" baseline on purpose).
    */
   finishAdj: number = 0,
+  /**
+   * Chance-quality adjustment from the man who CREATED the chance (see
+   * engine/duels.ts's drawCreator), already scaled by CREATOR_CHANCE_WEIGHT.
+   *
+   * Unlike finishAdj this DOES enter xG, and the asymmetry is the point: xG is
+   * defined as the quality of the chance independent of who is shooting, so a
+   * better pass genuinely produces a higher-xG chance while a better finisher
+   * does not. Keeping the creator out of xG would make a playmaker's chances
+   * look identical to a hopeless one's; keeping the shooter out is what still
+   * lets "goals vs xG" isolate finishing skill. Mean-zero over the creator draw,
+   * so league-wide xG and scoring are unmoved.
+   */
+  chanceAdj: number = 0,
 ): ShotResult {
-  const effFinishing = clamp(off.finishing + finishAdj, 0.05, 0.95);
+  const effFinishing = clamp(off.finishing + finishAdj + chanceAdj, 0.05, 0.95);
   const blockP = clamp(BLOCK_BASE * (1 + 0.6 * (def.defense - 0.5)), 0.05, 0.6);
   const onTargetP = clamp(
     ONTARGET_BASE * (1 + 0.5 * (effFinishing - 0.5)),
@@ -172,8 +187,13 @@ export function resolveShot(
   // is centered on elsewhere in this file). These never drive the RNG rolls
   // below — only the real onTargetP/saveP (which do include off.finishing)
   // decide the actual outcome, so match balance/tuning is untouched.
-  const xgOnTargetP = clamp(ONTARGET_BASE, 0.1, 0.9);
-  const xgSaveP = clamp(SAVE_BASE * (1 + 0.5 * (def.keeping - 0.5)), 0.2, 0.95);
+  // Neutral finishing (0.5) plus the creator's contribution — see chanceAdj.
+  const xgOnTargetP = clamp(ONTARGET_BASE * (1 + 0.5 * chanceAdj), 0.1, 0.9);
+  const xgSaveP = clamp(
+    SAVE_BASE * (1 + 0.5 * (def.keeping - 0.5)) - 0.3 * chanceAdj,
+    0.2,
+    0.95,
+  );
   const xg = (1 - blockP) * xgOnTargetP * (1 - xgSaveP);
 
   if (rng() < blockP) return { outcome: "blocked", xg };
@@ -486,6 +506,18 @@ export function simMatchDetailed(
 
   /** One player's own energy, for the individual duel terms. Hoisted out of the tick loop. */
   const energyOf = (p: MatchPlayer): number => energy.get(p.pid) ?? ENERGY_START;
+
+  /**
+   * Draw whoever created this chance, before it is resolved. Null means a solo
+   * goal — the ASSIST_NONE_PROB roll that used to live unnamed inside
+   * pickAssister, moved here with the draw so the share of unassisted goals is
+   * unchanged. Returning the actor (not just the player) carries his mean-zero
+   * deviation through to the chance's quality.
+   */
+  const drawChanceCreator = (side: Side, shooterPid: number): DuelActor | null => {
+    if (rng() < ASSIST_NONE_PROB) return null;
+    return drawCreator(rng, onPitch[side], shooterPid, energyOf);
+  };
 
   /**
    * A fresh bench player's value if brought on: his ovr, plus a small bonus for
@@ -911,8 +943,15 @@ export function simMatchDetailed(
     stat[poss].shots++;
     shooterLine.shots++;
 
+    // The creator is drawn BEFORE the shot is resolved, so his quality feeds the
+    // chance he made rather than being stamped on a goal that already happened.
+    const creator = drawChanceCreator(poss, shooter.pid);
     const { outcome, xg } = resolveShot(
-      rng, off, def, finisherAdj(shooter, onPitch[poss], "shooting"),
+      rng,
+      off,
+      def,
+      finisherAdj(shooter, onPitch[poss], "shooting"),
+      creator ? CREATOR_CHANCE_WEIGHT * creator.deviation : 0,
     );
     shooterLine.xg += xg;
 
@@ -934,10 +973,9 @@ export function simMatchDetailed(
       stat[poss].goals++;
       shooterLine.goals++;
 
-      const assister = pickAssister(rng, onPitch[poss], shooter.pid);
-      if (assister) {
-        lines.get(assister.pid)!.assists++;
-        pids.push(assister.pid);
+      if (creator) {
+        lines.get(creator.player.pid)!.assists++;
+        pids.push(creator.player.pid);
       }
 
       events.push({ clock, type: evtType, side: poss, pids });
@@ -958,8 +996,16 @@ export function simMatchDetailed(
       stat[poss].shots++;
       headerLine.shots++;
 
+      // On a corner the "creator" is the man who delivered it — same treatment
+      // as open play, so a good crosser makes a better chance rather than
+      // collecting an assist he had no hand in.
+      const cornerCreator = drawChanceCreator(poss, header.pid);
       const { outcome: cornerOutcome, xg: cornerXg } = resolveShot(
-        rng, off, def, finisherAdj(header, onPitch[poss], "heading"),
+        rng,
+        off,
+        def,
+        finisherAdj(header, onPitch[poss], "heading"),
+        cornerCreator ? CREATOR_CHANCE_WEIGHT * cornerCreator.deviation : 0,
       );
       headerLine.xg += cornerXg;
       if (cornerOutcome === "saved" || cornerOutcome === "goal") {
@@ -975,10 +1021,9 @@ export function simMatchDetailed(
       if (cornerOutcome === "goal") {
         stat[poss].goals++;
         headerLine.goals++;
-        const assister = pickAssister(rng, onPitch[poss], header.pid);
-        if (assister) {
-          lines.get(assister.pid)!.assists++;
-          cornerPids.push(assister.pid);
+        if (cornerCreator) {
+          lines.get(cornerCreator.player.pid)!.assists++;
+          cornerPids.push(cornerCreator.player.pid);
         }
         events.push({ clock, type: "goal", side: poss, pids: cornerPids });
         poss = defSide;

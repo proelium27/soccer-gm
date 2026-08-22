@@ -61,27 +61,47 @@ console.log(`league goals:   ${goals}`);
 console.log(`league assists: ${assists}`);
 console.log(`assists / goals = ${(assists / goals).toFixed(4)}   (1 - 0.25 no-assist roll = 0.75)\n`);
 
-// Within one slot, does creativity predict assists? Restricted to AM so the
-// position weight is held constant and only the rating varies.
-const xs: number[] = [];
-const ys: number[] = [];
+// Within one slot, does creativity predict assists? Restricted to the creative
+// slots so ASSIST_WEIGHTS is roughly held constant and only the rating varies.
+//
+// Three attributes are reported because the extension changes two things at
+// once: the creator is now drawn on PASSING (pickAssister used dribbling, the
+// only proxy available before MatchPlayer carried passing), and his quality now
+// feeds the chance. Correlating against dribbling alone would therefore read as
+// a regression when it is really the draw having moved to a better attribute.
+const rows: { passing: number; dribbling: number; creator: number; per: number }[] = [];
 for (const [pid, n] of appsByPid) {
   if (n < 10) continue;
   const p = byPid.get(pid);
-  if (!p || p.pos !== "AM") continue;
-  xs.push(p.ratings.dribbling);
-  ys.push((aByPid.get(pid) ?? 0) / n);
+  if (!p || !["AM", "W", "CM"].includes(p.pos)) continue;
+  const passing = (p.ratings.shortPass + p.ratings.longPass) / 2;
+  rows.push({
+    passing,
+    dribbling: p.ratings.dribbling,
+    creator: (passing + p.ratings.dribbling) / 2,
+    per: (aByPid.get(pid) ?? 0) / n,
+  });
 }
+
 const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
-const mx = mean(xs);
-const my = mean(ys);
-let num = 0, dx = 0, dy = 0;
-for (let i = 0; i < xs.length; i++) {
-  num += (xs[i] - mx) * (ys[i] - my);
-  dx += (xs[i] - mx) ** 2;
-  dy += (ys[i] - my) ** 2;
+function corr(xs: number[], ys: number[]): { r: number; slope: number } {
+  const mx = mean(xs);
+  const my = mean(ys);
+  let num = 0, dx = 0, dy = 0;
+  for (let i = 0; i < xs.length; i++) {
+    num += (xs[i] - mx) * (ys[i] - my);
+    dx += (xs[i] - mx) ** 2;
+    dy += (ys[i] - my) ** 2;
+  }
+  return { r: num / Math.sqrt(dx * dy), slope: num / dx };
 }
-console.log(`attacking mids sampled: ${xs.length}`);
-console.log(`mean assists per appearance: ${my.toFixed(3)}`);
-console.log(`correlation(dribbling, assists/app) r = ${(num / Math.sqrt(dx * dy)).toFixed(3)}`);
-console.log(`slope: +${((num / dx) * 10).toFixed(4)} assists/app per 10 dribbling points`);
+
+const per = rows.map((r) => r.per);
+console.log(`creative players sampled (AM/W/CM): ${rows.length}`);
+console.log(`mean assists per appearance: ${mean(per).toFixed(3)}\n`);
+for (const key of ["creator", "passing", "dribbling"] as const) {
+  const { r, slope } = corr(rows.map((x) => x[key]), per);
+  console.log(
+    `  ${key.padEnd(10)} r = ${r.toFixed(3)}   slope ${(slope * 10 >= 0 ? "+" : "")}${(slope * 10).toFixed(4)} assists/app per 10 pts`,
+  );
+}

@@ -46,6 +46,16 @@ export interface MatchPlayer {
   stamina: number;
   interceptions: number;
   /**
+   * Vision/distribution — (shortPass + longPass) / 2, set by toMatchPlayer.
+   *
+   * OPTIONAL only so the ~30 hand-written MatchPlayer literals in the test
+   * fixtures don't all need updating; production always sets it. Every reader
+   * falls back to `dribbling`, which is what pickAssister has always used as its
+   * creativity proxy, so an unset value reproduces the previous behaviour rather
+   * than inventing a new one. Worth making required in a later pass.
+   */
+  passing?: number;
+  /**
    * User-flagged "give this player more minutes" (see StoredTeam.moreMinutes).
    * When true, this bench player gets a quality bonus in the sub decision so he's
    * subbed on more readily. Only ever set on the user's own bench players.
@@ -113,7 +123,7 @@ const SHOT_WEIGHTS: Record<MatchPosition, number> = {
   ST: 2.5, W: 2, AM: 1.5, CM: 1, DM: 0.5, FB: 0.3, CB: 0.2, GK: 0,
 };
 
-const ASSIST_WEIGHTS: Record<MatchPosition, number> = {
+export const ASSIST_WEIGHTS: Record<MatchPosition, number> = {
   AM: 3, W: 2.5, CM: 2, ST: 1.5, DM: 1, FB: 1, CB: 0.3, GK: 0.1,
 };
 
