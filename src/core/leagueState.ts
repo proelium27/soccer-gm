@@ -178,9 +178,9 @@ export function createLeagueState(
   rng: () => number,
   seed = 0,
   difficulty: Difficulty = DEFAULT_DIFFICULTY,
+  competitions: Competition[] = worldCompetitions(),
 ): LeagueStore {
-  const league = generateWorld(rng, seed);
-  const competitions = worldCompetitions();
+  const league = generateWorld(rng, seed, competitions);
   // Each AI club lines up in the formation that fields its strongest XI; the
   // user's club keeps the neutral 4-3-3 default and picks its own on the Roster page.
   const teams = assignAIFormations(
