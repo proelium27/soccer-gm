@@ -12,6 +12,7 @@
 import {
   COUNTRY_STRENGTH_OFFSET, COUNTRY_BUDGET_SCALE, LEAGUE_BASE, DIVISION_2_OFFSET,
   CUP_STRONG_LEAGUE_SLOTS, CUP_WEAK_LEAGUE_SLOTS, CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS,
+  SHIELD_STRONG_LEAGUE_SLOTS, SHIELD_WEAK_LEAGUE_SLOTS, largestValidCupField,
 } from "./constants.js";
 
 export interface Competition {
@@ -258,22 +259,41 @@ export function worldTuningWarnings(specs: LeagueSpec[]): string[] {
     out.push(`Two leagues are both called "${dupe}". Give them different countries.`);
   }
 
-  // The Continental Cup needs a field big enough to seed its whole structure
-  // (four direct quarter-finalists plus an eight-team playoff). Short of that it
-  // simply doesn't run — a legitimate world, but a surprising thing to discover
-  // a season in. Counted the same way cupPlan counts it, defaults included,
-  // rather than guessed from the number of countries.
-  const cupField = named.reduce((total, league, i) => {
-    const spec = specs[i];
-    const fallback = league.strength > 0 ? CUP_WEAK_LEAGUE_SLOTS : CUP_STRONG_LEAGUE_SLOTS;
-    return total + (spec.cupSlots ?? fallback);
-  }, 0);
-  if (cupField < CUP_LP_DIRECT_QF + CUP_LP_PLAYOFF_TEAMS) {
-    out.push(
-      `Only ${cupField} clubs would qualify for the Continental Cup, and it needs`
-      + ` ${CUP_LP_DIRECT_QF + CUP_LP_PLAYOFF_TEAMS}. Add more leagues or more places`
-      + ` per league, or it won't run.`,
-    );
+  // Each continental competition needs a field it can actually build (see
+  // isValidCupFieldSize): big enough to seed the whole structure, and a size the
+  // league-phase draw can pair. Counted the same way cupPlan counts it, defaults
+  // included, rather than guessed from the number of countries.
+  //
+  // Both failures are worth saying out loud, and the second is the one players
+  // won't see coming: places are NOT redistributed, so adding a league grows the
+  // field — but only up to the next size the draw can build. Land on an awkward
+  // total and the lowest-placed qualifiers in the WORLD are cut, which quietly
+  // costs a different league a place it thought it had.
+  const fields: [string, number][] = [
+    ["Continental Cup", specs.reduce((total, spec, i) => total + (
+      spec.cupSlots ?? (named[i].strength > 0 ? CUP_WEAK_LEAGUE_SLOTS : CUP_STRONG_LEAGUE_SLOTS)
+    ), 0)],
+    ["Continental Shield", specs.reduce((total, spec, i) => total + (
+      spec.shieldSlots ?? (named[i].strength > 0 ? SHIELD_WEAK_LEAGUE_SLOTS : SHIELD_STRONG_LEAGUE_SLOTS)
+    ), 0)],
+  ];
+
+  for (const [name, asked] of fields) {
+    const played = largestValidCupField(asked);
+    if (played === 0) {
+      out.push(
+        `Only ${asked} clubs would qualify for the ${name}, and it needs`
+        + ` ${CUP_LP_DIRECT_QF + CUP_LP_PLAYOFF_TEAMS}. Add more leagues or more places`
+        + ` per league, or it won't run.`,
+      );
+    } else if (played < asked) {
+      out.push(
+        `${asked} clubs would qualify for the ${name} but it can only field ${played},`
+        + ` so the ${asked - played} lowest-placed of them would miss out every season —`
+        + ` taking the place off whichever league finished worst, not off the one that`
+        + ` added them. Field sizes go up in fours.`,
+      );
+    }
   }
   return [...new Set(out)];
 }

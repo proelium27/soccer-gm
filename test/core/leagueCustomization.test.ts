@@ -252,7 +252,10 @@ describe("world tuning warnings", () => {
       ...worldLeagueSpecs(),
       { country: "Weak And Poor", strengthOffset: 15, budgetScale: 0.3 },
     ];
-    expect(worldTuningWarnings(specs)).toEqual([]);
+    // Scoped to the money check on purpose: a ninth league also shifts both
+    // continental totals off a buildable size, which is a separate warning with
+    // its own tests below.
+    expect(worldTuningWarnings(specs).some((w) => w.includes("richer"))).toBe(false);
   });
 
   it("flags a world too small to field the Continental Cup", () => {
@@ -262,8 +265,37 @@ describe("world tuning warnings", () => {
 
   it("counts custom slot allocations toward the cup field, not the country count", () => {
     // Two countries, but each sending six — enough to seed the field.
-    const specs = worldLeagueSpecs().slice(0, 2).map((s) => ({ ...s, cupSlots: 6 }));
+    const specs = worldLeagueSpecs().slice(0, 2).map((s) => ({ ...s, cupSlots: 6, shieldSlots: 6 }));
     expect(worldTuningWarnings(specs).some((w) => w.includes("Continental Cup"))).toBe(false);
+  });
+
+  it("warns when a total would be trimmed, and names what it costs", () => {
+    // The trap: adding one league taking 2 asks for 26, which the Cup can't
+    // draw, so two clubs are cut from leagues that had nothing to do with it.
+    const specs = [...worldLeagueSpecs(), { country: "Neverland", cupSlots: 2, shieldSlots: 2 }];
+    const warnings = worldTuningWarnings(specs);
+    const cup = warnings.find((w) => w.includes("Continental Cup"))!;
+    expect(cup).toContain("26");
+    expect(cup).toContain("24");
+    expect(cup).toContain("miss out");
+  });
+
+  it("warns about the Shield's own total separately from the Cup's", () => {
+    // 4 Cup places lands the Cup on 28 (fine) while the Shield still goes to 18.
+    const specs = [...worldLeagueSpecs(), { country: "Neverland", cupSlots: 4, shieldSlots: 2 }];
+    const warnings = worldTuningWarnings(specs);
+    expect(warnings.some((w) => w.includes("Continental Cup"))).toBe(false);
+    expect(warnings.some((w) => w.includes("Continental Shield"))).toBe(true);
+  });
+
+  it("says nothing when both totals land on a size the draw can build", () => {
+    // One country off and an added league taking 4 keeps the Cup at 24, and
+    // both leagues at 2 Shield places keeps the Shield at 16.
+    const specs = [
+      ...worldLeagueSpecs().filter((s) => s.country !== "England"),
+      { country: "Neverland", cupSlots: 4, shieldSlots: 2 },
+    ];
+    expect(worldTuningWarnings(specs)).toEqual([]);
   });
 
   it("flags duplicate country names and an empty world", () => {
