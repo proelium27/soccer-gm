@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from "../types.js";
 
 const entry: ChangelogEntry = {
-  date: "2026-08-21",
+  date: "2026-08-22",
   title: "The Team of the Season has room for an attacking midfielder",
   items: [
     "**Team of the Season** is picked as a 4-3-3, and that shape had two central midfielders in it and no attacking midfielder. So there was no slot an attacking midfielder could be picked into. He could win **Player of the Season** and still be missing from his own league's XI that same season.",
