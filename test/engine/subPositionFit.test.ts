@@ -27,6 +27,7 @@ function player(pid: number, pos: MatchPlayer["pos"], ovr: number, stamina = 50)
     heading: 45,
     stamina,
     interceptions: pos === "CB" || pos === "DM" ? 75 : 35,
+    passing: 50,
   };
 }
 

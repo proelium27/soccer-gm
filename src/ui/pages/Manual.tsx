@@ -800,7 +800,7 @@ export function Manual() {
             Matches are simulated event by event, and everything below shows up in the box score:
           </p>
           <ul>
-            <li><strong>Goals &amp; assists</strong>. Credited to individual players, weighted by who's actually on the pitch and how good they are.</li>
+            <li><strong>Goals &amp; assists</strong>. Credited to individual players, weighted by who's actually on the pitch and how good they are. A goal goes to whoever was in a position to shoot, leaning on his finishing, and the assist goes to a creator picked on his passing &mdash; so the playmaker in your side really does rack up the assists, rather than them landing on whoever happened to be nearby. Attacking midfielders and wingers pick up the most, defenders the fewest, and about a quarter of goals are scored with no assist at all.</li>
             <li><strong>Passes, crosses &amp; fouls</strong>. Every box score also carries per-player passing (completed / attempted), crosses, and fouls committed. Central and deep players move the ball most, wide players do most of the crossing. These are just stat-sheet detail, they don't change the scoreline.</li>
             <li><strong>Cards</strong>. Yellows, second yellows, and straight reds. Going a man down is a real hit to your side's strength for the rest of the match, and cards now carry a cost past the final whistle too &mdash; see Suspensions below.</li>
             <li><strong>Set pieces</strong>. Corners, and penalty kicks resolved as a duel between the taker and the keeper (saved, scored, or dragged wide).</li>

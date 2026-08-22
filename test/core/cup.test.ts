@@ -63,6 +63,7 @@ function fakeMatchData(tid: number, strength: number): TeamMatchData {
     heading: 50 + strength * 40,
     stamina: 80,
     interceptions: 50 + strength * 40,
+    passing: 50 + strength * 40,
   }));
   return { composites, xi, bench: [], recompute: () => composites };
 }

@@ -22,6 +22,7 @@ function makeSquad(pidOffset: number): MatchPlayer[] {
     heading: 45,
     stamina: 50,
     interceptions: pos === "CB" || pos === "DM" ? 70 : 40,
+    passing: 50,
   }));
 }
 
@@ -41,6 +42,7 @@ function makeBench(pidOffset: number): MatchPlayer[] {
     heading: 45,
     stamina: 50,
     interceptions: 50,
+    passing: 50,
   }));
 }
 

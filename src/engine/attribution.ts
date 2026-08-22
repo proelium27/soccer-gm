@@ -46,6 +46,17 @@ export interface MatchPlayer {
   stamina: number;
   interceptions: number;
   /**
+   * Vision and distribution — (shortPass + longPass) / 2.
+   *
+   * Added because the engine had no passing attribute at all, which is why
+   * pickAssister had to weight the assist draw by `dribbling`: an assist was
+   * effectively a dribbling stat. Measured over a simmed league season, that
+   * left a creative midfielder's actual passing ability almost unrelated to his
+   * assist count (r = 0.08); keying the draw off this instead takes it to
+   * r = 0.31, so the board finally ranks the players it claims to.
+   */
+  passing: number;
+  /**
    * User-flagged "give this player more minutes" (see StoredTeam.moreMinutes).
    * When true, this bench player gets a quality bonus in the sub decision so he's
    * subbed on more readily. Only ever set on the user's own bench players.
@@ -171,7 +182,12 @@ export function pickAssister(
   const candidates = players.filter((p) => p.slot !== "GK" && p.pid !== shooterPid);
   if (candidates.length === 0) return null;
   if (rng() < 0.25) return null;
-  return weightedPick(rng, candidates, ASSIST_WEIGHTS, "dribbling");
+  // Weighted by passing, not dribbling: the man who threads the pass is the one
+  // credited. Same draw count as before, so the rng stream is unshifted — but a
+  // different player is picked, his assists feed computeMatchRating, and match
+  // ratings drive substitutions, so scorelines do move. See the scoreline
+  // baseline note in touchStats.test.ts.
+  return weightedPick(rng, candidates, ASSIST_WEIGHTS, "passing");
 }
 
 /**
