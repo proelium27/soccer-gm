@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { summarizeRetirements } from "../../src/core/players/retirements.js";
+import { summarizeRetirements, farewellIndex } from "../../src/core/players/retirements.js";
 import { RETIREMENT_NOTABLE_LIMIT } from "../../src/core/constants.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
 
@@ -122,5 +122,38 @@ describe("summarizeRetirements", () => {
   it("handles an offseason where nobody retired", () => {
     expect(summarizeRetirements([], SEASON, new Map(), 0))
       .toEqual({ total: 0, rostered: 0, notable: [] });
+  });
+});
+
+describe("farewellIndex", () => {
+  const row = (pid: number, name: string) => ({
+    pid, name, nationality: "eng", pos: "ST" as const, age: 34, ovr: 70,
+    tid: 1, seasonsPlayed: 10, appearances: 300, goals: 90, assists: 40, caps: 0,
+  });
+
+  it("names every retiree the season history said farewell to", () => {
+    const index = farewellIndex([
+      { retirements: { total: 400, rostered: 90, notable: [row(1, "Ade Bello"), row(2, "Cai Duarte")] } },
+      { retirements: { total: 380, rostered: 88, notable: [row(3, "Eli Fournier")] } },
+    ]);
+    expect([...index.keys()].sort((a, b) => a - b)).toEqual([1, 2, 3]);
+    expect(index.get(2)?.name).toBe("Cai Duarte");
+  });
+
+  it("skips seasons that never recorded a farewell list", () => {
+    // The field is optional and deliberately never backfilled: a season played
+    // before the record existed deleted its retirees without a trace, so the
+    // index has to tolerate a history that is only partly populated.
+    const index = farewellIndex([
+      {},
+      { retirements: { total: 1, rostered: 1, notable: [row(7, "Gus Halle")] } },
+      {},
+    ]);
+    expect(index.size).toBe(1);
+    expect(index.get(7)?.name).toBe("Gus Halle");
+  });
+
+  it("is empty for a save with no history at all", () => {
+    expect(farewellIndex([]).size).toBe(0);
   });
 });

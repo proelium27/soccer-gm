@@ -9,6 +9,7 @@ import type { BallonDOrEntry } from "../../core/worldAwards.js";
 import type { AwardWinner } from "../../core/awardWinners.js";
 import type { Player, Position } from "../../core/players/types.js";
 import type { LeagueStore } from "../../core/leagueState.js";
+import { farewellIndex } from "../../core/players/retirements.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
 import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
@@ -42,8 +43,15 @@ interface AwardSubject {
   name: string;
   nationality: string;
   pos: Position;
-  /** The rating he carried that season. */
-  ovr: number;
+  /**
+   * The rating he carried that season, when a source knows it.
+   *
+   * Undefined for a winner recovered from a farewell list: that row records the
+   * season he *retired* in, which for an award won a decade earlier is a
+   * different number entirely. Showing it would be a confident wrong answer, so
+   * the chip shows no rating instead.
+   */
+  ovr: number | undefined;
   /** The club he was at that season, if it's on record. */
   tid: number | undefined;
   player: Player | undefined;
@@ -71,6 +79,7 @@ function subjectResolver(
   winners: AwardWinner[] | undefined,
 ): (pid: number) => AwardSubject | undefined {
   const winnerByPid = new Map((winners ?? []).map((w) => [w.pid, w]));
+  const farewell = farewellIndex(league.seasonHistory);
   return (pid) => {
     const player = playersByPid.get(pid);
     if (player) {
@@ -95,7 +104,27 @@ function subjectResolver(
       // which is the whole reason it does — without this the card claimed
       // nobody had qualified for an award that was very much handed out.
       const w = winnerByPid.get(pid);
-      if (!w) return undefined;
+      if (!w) {
+        // Older than the award snapshots themselves: a save written before
+        // `awardWinners` existed has pids going back to season 1 with no names
+        // for any of them, and migration can only name the ones still in the
+        // pool or the archive. The farewell lists reach a few more, because they
+        // have been copying names down since long before either.
+        const r = farewell.get(pid);
+        if (!r) return undefined;
+        return {
+          pid,
+          name: r.name,
+          nationality: r.nationality,
+          pos: r.pos,
+          // His retirement-season figures describe a different season; see
+          // AwardSubject.ovr.
+          ovr: undefined,
+          tid: undefined,
+          player: undefined,
+          linkable: false,
+        };
+      }
       return {
         pid,
         name: w.name,
@@ -182,13 +211,14 @@ function TeamOfSeasonField({
               (subject.pos === "GK" ? " pitch-chip--gk" : "") +
               (isUserPlayer ? " pitch-chip--user" : "")
             }
-            style={{ borderColor: getRatingColor(subject.ovr) }}
+            style={subject.ovr !== undefined ? { borderColor: getRatingColor(subject.ovr) } : undefined}
           >
             <SubjectName
               subject={{ ...subject, name: shortName(subject.name) }}
               className="pitch-chip-name"
             />
-            <span className="pitch-chip-ovr">{subject.ovr}</span>
+            {/* No rating rather than a wrong one — see AwardSubject.ovr. */}
+            <span className="pitch-chip-ovr">{subject.ovr ?? "–"}</span>
           </span>
         );
         return (

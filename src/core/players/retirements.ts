@@ -118,3 +118,38 @@ export function summarizeRetirements(
     notable: [...mine.slice(0, limit), ...theirs].sort(byOvr),
   };
 }
+
+/**
+ * pid -> farewell snapshot, across every season on record.
+ *
+ * The farewell list is written for the Season Preview, but it is also the only
+ * *permanent copy of a name* the save keeps for a player nothing else kept.
+ * Retirement deletes him from `league.players`; the retiree archive catches him
+ * only if his career clears `isArchiveWorthy` and survives the
+ * `RETIREE_ARCHIVE_LIMIT` prune, which on a long save most careers do not —
+ * measured on a real season-101 save, the archive's prune bar had risen to peak
+ * ovr 79 and 78% of every historical pid reference in the save resolved to
+ * nobody.
+ *
+ * These rows resolve a slice of that back, for free and retroactively: they are
+ * already in every save, already persisted, and were never consulted. Read-only
+ * and derived, so there is no schema change and nothing to migrate — an old
+ * save gets the names back the moment it is loaded.
+ *
+ * Bounded by construction: `RETIREMENT_NOTABLE_LIMIT` rows per offseason, so a
+ * century of play indexes ~1,500 entries.
+ *
+ * **A farewell row describes his final season, not any earlier one.** `ovr` and
+ * `tid` are what he retired at, so a caller showing an award he won a decade
+ * before must not present them as that season's — take the name, country and
+ * position, and leave the rest to a source that knows.
+ */
+export function farewellIndex(
+  history: { retirements?: RetirementSummary }[],
+): Map<number, RetiredPlayer> {
+  const map = new Map<number, RetiredPlayer>();
+  for (const h of history) {
+    for (const r of h.retirements?.notable ?? []) map.set(r.pid, r);
+  }
+  return map;
+}

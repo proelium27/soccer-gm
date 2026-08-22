@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { LeagueStore } from "../../core/leagueState.js";
+import { farewellIndex } from "../../core/players/retirements.js";
 
 /**
  * Everything a surface needs to render a player's name, whether he's still in
@@ -66,6 +67,20 @@ function refsFor(league: LeagueStore): Map<number, PlayerRef> {
           pid: w.pid, name: w.name, nationality: w.nationality, retired: true, linkable: false,
         });
       }
+    }
+  }
+  // Last of all: the Season Preview's farewell lists, the other place a name is
+  // kept as a copy rather than a pid. These reach the players the award
+  // snapshots can't — anyone who never won anything — and, unlike those
+  // snapshots, they are already in saves written long before either field
+  // existed, so an old save gets these names back on load with nothing to
+  // migrate. Bounded at RETIREMENT_NOTABLE_LIMIT a season; a name only, hence
+  // `linkable: false`. See core/players/retirements.ts `farewellIndex`.
+  for (const [pid, r] of farewellIndex(league.seasonHistory)) {
+    if (!map.has(pid)) {
+      map.set(pid, {
+        pid, name: r.name, nationality: r.nationality, retired: true, linkable: false,
+      });
     }
   }
   cache.set(league, map);
