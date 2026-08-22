@@ -196,6 +196,62 @@ Recorded because both were wrong in the direction of flattering the change:
    returned byte-identical numbers. `runArm` now pins the natural XI as manual
    `starters` first.
 
+## Extension — earned attacking credit
+
+Added after the above, on the observation that goals and assists had the same
+"assigned, not earned" problem, and that assists are in the class the mean-zero
+design *can* fix (who gets credit within a team is redistribution, not team
+strength).
+
+**What was wrong.** `pickAssister` ran strictly inside `if (outcome === "goal")`,
+so the assister was chosen after the goal already existed and his attributes
+changed nothing about whether it happened. Measured on main: league assists are a
+flat **0.735 x** league goals — the 25% no-assist roll and nothing else — so a
+team's assist total carried no information at all beyond its goal total. Goals
+were in better shape already: `SHOOTER_FINISH_WEIGHT` (0.3) has let a finisher's
+own skill move conversion since July.
+
+**What changed.** `drawCreator` picks the creator *before* the shot resolves,
+and his mean-zero quality feeds the chance through `resolveShot`'s new
+`chanceAdj`. He is now drawn on **passing** rather than dribbling — `MatchPlayer`
+gained an optional `passing`, which it simply never carried before, which is why
+`pickAssister` used dribbling as its creativity proxy.
+
+`chanceAdj` enters xG where `finishAdj` deliberately does not. That asymmetry is
+the point: a better pass really does produce a higher-xG chance, while a better
+finisher does not — so "goals vs xG" still isolates finishing.
+
+**Measured** (`scripts/assistProbe.ts`, one simmed league season, AM/W/CM with
+10+ appearances; the middle column is the extension with
+`CREATOR_CHANCE_WEIGHT=0`, i.e. the creator drawn early but inert):
+
+| | main | drawn early, inert | full |
+|---|---|---|---|
+| r(passing, assists/app) | **0.077** | 0.309 | **0.318** |
+| slope per 10 passing pts | +0.0053 | +0.0238 | **+0.0244** |
+| r(dribbling, assists/app) | 0.320 | 0.158 | 0.178 |
+| r(creator quality) | 0.285 | 0.375 | 0.397 |
+| slope per 10 creator pts | +0.0335 | +0.0491 | +0.0518 |
+
+A playmaker's actual passing ability went from **essentially unrelated to his
+assists (r = 0.077) to genuinely predictive (r = 0.318)** — a 4.6x slope. As
+designed, dribbling's grip loosens: assists were a dribbling stat and are now a
+passing stat.
+
+**Be honest about where the win came from.** Most of it is the attribute change
+(main → inert: slope +47%), and only a small increment is the earning mechanism
+itself (inert → full: +6%). The big fix was plumbing `passing` onto
+`MatchPlayer` at all; the mean-zero machinery adds texture on top of that rather
+than being the main event.
+
+**Calibration.** The M1 table-spread gate passes over 20 seeded seasons. At the
+2-season league scale goals/game reads 3.07 against the duels-only 3.02, but
+that is **stream shift, not the new term** — setting `CREATOR_CHANCE_WEIGHT=0`
+gives 3.08, i.e. indistinguishable from the full weight, so the extra per-shot
+draws moved the dice and the quality term itself did not move scoring. No new
+test failures: the same two as above (`touchStats` hash, the under-powered
+fatigue assertion) and nothing else.
+
 ## If this were to go further
 
 1. Ship nothing as-is. The `envNum` override must go, and the scoreline hash and
