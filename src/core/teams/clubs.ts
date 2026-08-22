@@ -1,5 +1,8 @@
 import type { League } from "../league/generate.js";
 import type { Competition } from "../competitions.js";
+import { competitionOf, countryClubRanges, worldCompetitions } from "../competitions.js";
+import { generateClubIdentities } from "./clubNames.js";
+import { NUM_TEAMS, NUM_TEAMS_D2 } from "../constants.js";
 import type { FormationId } from "../lineup/formations.js";
 import { chooseBestFormation } from "../lineup/formations.js";
 import type { Player } from "../players/types.js";
@@ -488,6 +491,68 @@ export interface StoredTeam {
  * on, `chargeSeasonStart` in offseason.ts applies the scale the normal way and
  * going broke becomes a consequence of how the user runs the club.
  */
+/**
+ * The shipped club block for a country, or null for a country the game does not
+ * ship (one the player added). Derived from the shipped world's own tid layout
+ * rather than from hardcoded block bounds, so it cannot drift from CLUBS.
+ */
+export function shippedClubsFor(country: string): ClubIdentity[] | null {
+  const range = SHIPPED_RANGES.find((r) => r.country === country);
+  return range ? CLUBS.slice(range.start, range.end) : null;
+}
+
+const SHIPPED_RANGES = countryClubRanges(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2);
+
+/**
+ * The `count` club identities a country's clubs take, in slot order: its shipped
+ * block where the game has one, generated names where it doesn't (and for any
+ * slot past the end of a shipped block).
+ *
+ * Shared by world creation and by the new-league club picker, which is the point
+ * — the picker previews clubs for a world that does not exist yet, so the two
+ * must derive names the same way or the save renames every club the moment it
+ * opens.
+ */
+export function clubIdentitiesFor(country: string, count: number): ClubIdentity[] {
+  const shipped = shippedClubsFor(country);
+  if (shipped && shipped.length >= count) return shipped.slice(0, count);
+  const generated = generateClubIdentities(country, count);
+  return Array.from({ length: count }, (_, i) => shipped?.[i] ?? generated[i]);
+}
+
+/**
+ * Every club's identity, keyed by tid: its country's shipped block where there
+ * is one, generated names where there isn't.
+ *
+ * Anchored to the club's **position within its own country**, never to its
+ * absolute tid. That distinction is load-bearing the moment the world stops
+ * being the shipped one: tids are handed out per country in table order, so
+ * leaving a country out (or adding one ahead of another) shifts every later
+ * country's tids, and a tid-indexed lookup would then hand Spain's clubs
+ * England's names. Indexing within the country is invariant to both.
+ *
+ * For the shipped world this is exactly the old tid lookup — the country blocks
+ * are contiguous and in the same order — which a test pins.
+ */
+function clubIdentities(
+  league: League,
+  competitions: Competition[],
+): Map<number, ClubIdentity> {
+  const byCountry = new Map<string, number[]>();
+  for (const t of league.teams) {
+    const country = competitionOf(competitions, t.compId).country;
+    const tids = byCountry.get(country) ?? [];
+    tids.push(t.tid);
+    byCountry.set(country, tids);
+  }
+  const out = new Map<number, ClubIdentity>();
+  for (const [country, tids] of byCountry) {
+    const identities = clubIdentitiesFor(country, tids.length);
+    tids.sort((a, b) => a - b).forEach((tid, i) => out.set(tid, identities[i]));
+  }
+  return out;
+}
+
 export function assignIdentities(
   league: League,
   competitions: Competition[],
@@ -496,8 +561,9 @@ export function assignIdentities(
 ): StoredTeam[] {
   const salaryMap = new Map(league.players.map((p) => [p.pid, p.contract.salary]));
   const openingScale = difficultyProfile(difficulty).budgetScale;
+  const identities = clubIdentities(league, competitions);
   return league.teams.map((t) => {
-    const club = CLUBS[t.tid];
+    const club = identities.get(t.tid)!;
     const opening = chargeSeasonStart(0, wageBill(t.roster, salaryMap), financeScale(competitions, t.compId), HYPE_INITIAL);
     const budget = t.tid === userTid && opening > 0 ? Math.round(opening * openingScale) : opening;
     return {

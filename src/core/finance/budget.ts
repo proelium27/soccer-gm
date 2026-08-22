@@ -2,11 +2,11 @@ import {
   BASE_SEASON_BUDGET, MAX_BUDGET, MAX_BUDGET_FLOOR, HYPE_MAX,
   HYPE_REVENUE_PER_POINT, HYPE_REVENUE_DAMPING,
   PRIZE_CHAMPION, PRIZE_TOP_5, PRIZE_TOP_10, PRIZE_TOP_5_CUTOFF, PRIZE_TOP_10_CUTOFF,
-  DIVISION_2_BUDGET_SCALE, countryBudgetScale,
+  DIVISION_2_BUDGET_SCALE,
   difficultyProfile, type Difficulty,
 } from "../constants.js";
 import type { Competition } from "../competitions.js";
-import { competitionOf } from "../competitions.js";
+import { competitionOf, competitionBudgetScale } from "../competitions.js";
 
 /**
  * A competition's money scale — its country's scale times its tier's scale.
@@ -23,7 +23,7 @@ function tierScale(tier: 1 | 2): number {
 
 export function financeScale(competitions: Competition[], compId: number): number {
   const c = competitionOf(competitions, compId);
-  return countryBudgetScale(c.country) * tierScale(c.tier);
+  return competitionBudgetScale(c) * tierScale(c.tier);
 }
 
 /**
