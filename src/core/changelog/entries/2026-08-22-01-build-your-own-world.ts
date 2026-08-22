@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from "../types.js";
 
 const entry: ChangelogEntry = {
-  date: "2026-08-21",
+  date: "2026-08-22",
   title: "Build your own world",
   items: [
     "**New League** has a **World setup** panel now. You choose which of the eight countries are in your save, and you can add leagues of your own on top of them. None of it can be changed later, so it's worth a minute before you start.",
