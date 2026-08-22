@@ -48,7 +48,6 @@ function withAddedLeague(): WorldEntry[] {
       spec: {
         country: "Neverland",
         strengthOffset: 8,
-        academyOffset: 3,
         budgetScale: 0.6,
         cupSlots: 2,
         shieldSlots: 2,
@@ -74,12 +73,9 @@ describe("WorldSetup renders", () => {
     const html = render(withAddedLeague());
     expect(html).toContain("Neverland");
     expect(html).toContain("Strength");
-    expect(html).toContain("Academies");
     expect(html).toContain("Money");
     expect(html).toContain("Continental Cup places");
     expect(html).toContain("Continental Shield places");
-    // The academy label says which way the league will move.
-    expect(html).toContain("rising");
     expect(html).toContain("9 leagues, 360 clubs");
   });
 

@@ -91,9 +91,14 @@ function newLeagueEntry(index: number): WorldEntry {
   return {
     id: `added:${nextAddedId++}`,
     spec: {
+      // academyOffset is deliberately left unset: it falls back to strength, so
+      // an added league holds its level for the life of the save exactly like
+      // the shipped eight do. The field still exists on Competition and the
+      // engine still reads it — there is simply no control for it, because a
+      // second 0-20 slider made you do arithmetic against the first one to work
+      // out which way the league was pointing.
       country: `New Country ${index}`,
       strengthOffset,
-      academyOffset: strengthOffset,
       budgetScale: suggestedBudgetScale(strengthOffset),
       cupSlots: 2,
       shieldSlots: 2,
@@ -189,16 +194,6 @@ export function WorldSetup({ entries, onChange }: Props) {
                     value={entry.spec.strengthOffset ?? 0}
                     display={String(entry.spec.strengthOffset ?? 0)}
                     onChange={(v) => updateSpec(i, { strengthOffset: v })}
-                  />
-                  <Slider
-                    label="Academies"
-                    hint="What its clubs keep producing. Set this stronger than Strength and the league rises over the years; set it weaker and the league fades."
-                    min={0}
-                    max={20}
-                    step={1}
-                    value={entry.spec.academyOffset ?? 0}
-                    display={academyLabel(entry.spec)}
-                    onChange={(v) => updateSpec(i, { academyOffset: v })}
                   />
                   <Slider
                     label="Money"
@@ -378,15 +373,6 @@ function RosterPicker({
       {error && <div className="small text-danger mt-1">{error}</div>}
     </div>
   );
-}
-
-/** Says which way an academy setting will push the league, in words. */
-function academyLabel(spec: LeagueSpec): string {
-  const strength = spec.strengthOffset ?? 0;
-  const academy = spec.academyOffset ?? strength;
-  if (academy < strength) return `${academy} — rising`;
-  if (academy > strength) return `${academy} — fading`;
-  return `${academy} — steady`;
 }
 
 function clampInt(raw: string, min: number, max: number): number {

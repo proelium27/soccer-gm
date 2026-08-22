@@ -413,19 +413,14 @@ export function Manual() {
             the game ships no real clubs.
           </p>
           <p>
-            Each league you add carries four settings. <strong>Strength</strong> is how good its
-            squads are on day one, on the same scale as the step-downs above, where 0 sits level with
-            the big four and higher is weaker. <strong>Academies</strong> is what its clubs keep
-            producing year after year. <strong>Money</strong> is what its clubs earn and can bank,
-            against 1 for the richest leagues. And you set how many places it sends to the{" "}
+            Each league you add carries three settings. <strong>Strength</strong> is how good its
+            squads are, on the same scale as the step-downs above, where 0 sits level with the big
+            four and each point costs about 0.94 OVR. At 5 its champion is about as good as the
+            5th-best club in England; at 10 about the 12th; at 18 about the very worst one.{" "}
+            <strong>Money</strong> is what its clubs earn and can bank, against 1 for the richest
+            leagues. And you set how many places it sends to the{" "}
             <a href="#cup">Continental Cup</a> and the <a href="#shield">Continental Shield</a>.
-          </p>
-          <p>
-            Strength and academies being separate is the interesting part, because it decides which
-            way a league moves over a dynasty. Set academies stronger than strength and the league
-            climbs, because its clubs keep producing better players than the ones they started with.
-            Set academies weaker and it fades the same way. Leave them equal and it holds its level,
-            which is what all eight shipped countries do.
+            Like the shipped countries, a league you add holds its level for the life of the save.
           </p>
           <p>
             Money is tied to strength by default and you should think twice before unlinking it. A
