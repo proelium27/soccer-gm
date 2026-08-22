@@ -9,8 +9,8 @@ import type { BallonDOrEntry } from "../../core/worldAwards.js";
 import type { AwardWinner } from "../../core/awardWinners.js";
 import type { Player, Position } from "../../core/players/types.js";
 import type { LeagueStore } from "../../core/leagueState.js";
-import { FORMATIONS } from "../../core/lineup/formations.js";
-import { layoutSlots } from "../pitchLayout.js";
+import { TOTS_SLOTS } from "../../core/awards.js";
+import { TOTS_LAYOUT } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { Flag } from "../components/Flag.js";
@@ -18,8 +18,8 @@ import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { seasonYear } from "../format.js";
 
-const SLOTS = FORMATIONS["4-3-3"];
-const COORDS = layoutSlots("4-3-3");
+const SLOTS = TOTS_SLOTS;
+const COORDS = TOTS_LAYOUT;
 
 function shortName(name: string): string {
   const parts = name.trim().split(/\s+/);

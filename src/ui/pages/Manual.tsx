@@ -857,10 +857,14 @@ export function Manual() {
             this game he scores and creates about as much as a winger does, so his goals are priced
             the same as a winger's rather than at the scarcer midfield rate. The{" "}
             <strong>Golden Boot</strong> is just the league's top
-            goalscorer. <strong>Team of the Season</strong> fills an 11-man pitch (one XI slot per
-            position) with whoever rates highest at that position across the whole league, blending
-            match rating with the stats that matter most for the role: goals and assists up front,
-            tackles and interceptions in defense and midfield, saves for the keeper. Both Player of
+            goalscorer. <strong>Team of the Season</strong> fills an 11-man pitch, laid out as a
+            4-3-3 &mdash; a keeper, a back four, a midfield three of a holding man, a central
+            midfielder and an attacking midfielder, and a front three of two wingers and a striker
+            &mdash; with whoever rates highest at each of those positions across the whole league,
+            blending match rating with the stats that matter most for the role: goals and assists up
+            front, tackles and interceptions in defense and midfield, saves for the keeper. Every
+            slot takes a player who actually plays that position, so a great season at a position
+            the shape has only one of (striker, say) can still miss out. Both Player of
             the Season and Team of the Season also factor in overall quality, not just the stat
             line, so a modest player who piled up a big statistical season (often just from facing
             heavy pressure on a weaker side) won't out-rank a genuinely elite one. Only players who
@@ -1499,7 +1503,10 @@ export function Manual() {
             a domestic one. A player can only hold one slot, so someone picked at two positions over
             his career takes his stronger one and the next best man gets the other. A position
             nobody has ever been picked in is left empty rather than filled with the nearest
-            approximation.
+            approximation. One wrinkle on a save that predates the attacking-midfield slot: those
+            older seasons picked two central midfielders instead, and since past awards are never
+            re-run, a central midfielder from back then can show up in the attacking-midfield slot.
+            It sorts itself out as new seasons pile up.
           </p>
           <p>
             <strong>Records</strong> covers the most dominant and worst team seasons, the highest

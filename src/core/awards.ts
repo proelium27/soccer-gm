@@ -1,5 +1,4 @@
 import type { Player, Position, SeasonStats } from "./players/types.js";
-import { FORMATIONS } from "./lineup/formations.js";
 import {
   AWARD_MIN_APPEARANCES, AWARD_OVR_BASELINE, AWARD_OVR_WEIGHT,
   POTY_GOAL_WEIGHT, POTY_ASSIST_WEIGHT,
@@ -46,11 +45,74 @@ export function positionGroup(pos: Position): PositionGroup {
   }
 }
 
+/**
+ * The eleven slots a Team of the Season is picked in.
+ *
+ * Deliberately its own list rather than FORMATIONS["4-3-3"], for two reasons.
+ * A showcase XI never has to be a *fieldable* shape, so borrowing the sim's
+ * formation table would let a future tactical retune silently reshape an award.
+ * And the 4-3-3 has no AM slot at all, which made an attacking midfielder
+ * structurally ineligible: he could win Player of the Season and never appear
+ * in the XI. Measured over 6 seasons x 2 seeds x 16 competitions
+ * (`scripts/totsSlotProbe.ts`), *every* AM who won Player of the Season missed
+ * out — 14 of 14, two thirds of all misses — and swapping one CM slot for an
+ * AM takes POTY-in-XI from 88.5% to 95.3%. 4-2-3-1 was the other candidate and
+ * is worse (93.2%): it buys the AM slot with a CM slot, so CM winners start
+ * missing instead (1 -> 5).
+ *
+ * Careful re-measuring those two figures, because changing this list shifts the
+ * seeded RNG stream. `teamOfSeason` feeds `isProtectedStar`, and
+ * `runAITransferMarket` skips a protected pid *before* that candidate's jitter
+ * draw, so a different XI means a different draw count and a different world
+ * from the next season on. That is inherent to the award gating the market and
+ * would be true of any change here. It means a pre/post scoreline comparison
+ * proves nothing, and that the probe's baseline row is only a true baseline on
+ * an UNMODIFIED tree: rows inside one run share their worlds and compare
+ * cleanly, but a "shipped" row measured on a tree that already carries this
+ * change reads 82.8% against the 88.5% above.
+ *
+ * Still a 4-3-3 in shape — back four, midfield three, front three — so it reads
+ * as a real formation on the pitch view; only the midfield trio changes, from
+ * DM-CM-CM to DM-CM-AM.
+ *
+ * **The obvious alternative — let a slot take a player who covers it, the way a
+ * real Team of the Year fields men out of position — was built two ways,
+ * measured, and rejected both times.** Ranked against each other on identical
+ * worlds (`scripts/totsSlotProbe.ts`): this list 91.7% POTY-in-XI, the shipped
+ * exact-match list 82.8%, the engine's flat ADJACENCY table 86.5%, and real
+ * per-player `secondaryPositions` **75.0%** — *below* the baseline it was meant
+ * to beat. Both cover-rules wreck the XI the same way: centre-backs take 39-41%
+ * of all slots and wingers fall from 18.2% to under 1%.
+ *
+ * The cause is not the versatility model, and this is the durable lesson.
+ * `totsScore` is a *within-position* statistic: TOTS_TACKLE_WEIGHT and
+ * TOTS_INTERCEPTION_WEIGHT pay a defender 0.03 apiece against a forward's 0.01,
+ * on stats defenders collect in vastly greater volume, so a centre-back's score
+ * is not commensurable with a winger's at all. Exact matching is not an
+ * oversight hiding that — it is the guardrail that keeps the formula valid, by
+ * only ever comparing a player against others at his own position.
+ * `secondaryPositions` is the *better* of the two cover-rules by construction
+ * (per-player, gated on his own rating at that slot, and COVERABLE never lets a
+ * centre-back reach the wing) and it scored **worse**, which is the tell: the
+ * count of eligible players was never the binding constraint, the score gap
+ * was. Admitting even a calibrated few centre-backs hands them every full-back
+ * and holding slot. Doing this properly means normalizing totsScore within each
+ * position first — a separate design change, not a slot-list edit. The probe
+ * keeps both cover-rules so the rejection stays reproducible.
+ *
+ * Changing this list does NOT rewrite history: migrate.ts only computes awards
+ * for a season that has none, so seasons already played keep the XI they were
+ * picked with. See the note on XI_SLOTS in frivolities/honours.ts for the one
+ * visible consequence.
+ */
+export const TOTS_SLOTS: Position[] =
+  ["GK", "CB", "CB", "FB", "FB", "DM", "CM", "AM", "W", "W", "ST"];
+
 /** One completed season's individual/team honors, stored on SeasonHistoryEntry. */
 export interface SeasonAwards {
   playerOfSeasonPid: number | null;
   goldenBootPid: number | null;
-  /** 11 pids (or null if no eligible player existed), index-aligned with FORMATIONS["4-3-3"]. */
+  /** 11 pids (or null if no eligible player existed), index-aligned with TOTS_SLOTS. */
   teamOfSeason: (number | null)[];
 }
 
@@ -191,6 +253,6 @@ export function computeSeasonAwards(players: Player[], season: number): SeasonAw
   return {
     playerOfSeasonPid: pickPlayerOfSeason(entries, season),
     goldenBootPid: pickGoldenBoot(entries),
-    teamOfSeason: pickTeamOfSeason(entries, FORMATIONS["4-3-3"], season),
+    teamOfSeason: pickTeamOfSeason(entries, TOTS_SLOTS, season),
   };
 }
