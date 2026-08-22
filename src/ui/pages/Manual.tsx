@@ -444,8 +444,29 @@ export function Manual() {
             Continental places can't overlap however you set them: the Shield always starts at the
             place directly below the Cup's last one in that same league. If a league sends 1 to the
             Cup and 3 to the Shield, that's its champion in the Cup and 2nd through 4th in the
-            Shield. If your world's leagues send an odd total, the Cup takes the best qualifiers it
-            can build a draw from and the rest miss out.
+            Shield.
+          </p>
+          <p>
+            <strong>Giving a league places doesn't take them off anybody, unless the total comes out
+            wrong.</strong> Each league keeps its own allowance and the field grows to fit. But a
+            competition can only be played at certain field sizes, going up in fours from twelve, so
+            if your world's leagues ask for a total in between, the field is cut back to the size
+            below and the lowest-placed qualifiers <em>in the world</em> miss out.
+          </p>
+          <p>
+            That's worth understanding because the cost doesn't land on the league that caused it.
+            Add a ninth league taking 2 Cup places and the world asks for 26, which isn't a size the
+            Cup can play, so it fields 24 and two clubs are cut. Your new league keeps both of its
+            places, since its champion and runner-up outrank every 4th-placed club anywhere; it's two
+            of the big four that lose a place. Which two comes down to who finished worst that
+            season, so it moves around from year to year.
+          </p>
+          <p>
+            The Shield counts its own total the same way, and it's the one that catches people out.
+            Every league sends it 2, so any ninth league takes it from 16 to 18 and trims two clubs
+            no matter what you did with the Cup. Switching a shipped country off keeps both totals
+            clean, and so does giving your league 4 Cup places instead of 2. The panel warns you
+            about each competition separately and tells you how many clubs a bad total would cost.
           </p>
           <p className="text-muted small">
             World setup only applies when you create a save. There's no mid-save world expansion, and
