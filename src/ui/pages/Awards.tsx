@@ -10,6 +10,7 @@ import type { AwardWinner } from "../../core/awardWinners.js";
 import type { Player, Position } from "../../core/players/types.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import { farewellIndex } from "../../core/players/retirements.js";
+import { playerNameIndex } from "../../core/players/playerNames.js";
 import { FORMATIONS } from "../../core/lineup/formations.js";
 import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
@@ -79,6 +80,7 @@ function subjectResolver(
   winners: AwardWinner[] | undefined,
 ): (pid: number) => AwardSubject | undefined {
   const winnerByPid = new Map((winners ?? []).map((w) => [w.pid, w]));
+  const named = playerNameIndex(league.playerNames);
   const farewell = farewellIndex(league.seasonHistory);
   return (pid) => {
     const player = playersByPid.get(pid);
@@ -108,17 +110,17 @@ function subjectResolver(
         // Older than the award snapshots themselves: a save written before
         // `awardWinners` existed has pids going back to season 1 with no names
         // for any of them, and migration can only name the ones still in the
-        // pool or the archive. The farewell lists reach a few more, because they
-        // have been copying names down since long before either.
-        const r = farewell.get(pid);
-        if (!r) return undefined;
+        // pool or the archive. The name table and the farewell lists each reach
+        // a few more. Neither knows what he was rated *that* season, so both
+        // leave `ovr` undefined rather than quoting a different season's figure
+        // (see AwardSubject.ovr).
+        const n = named.get(pid) ?? farewell.get(pid);
+        if (!n) return undefined;
         return {
           pid,
-          name: r.name,
-          nationality: r.nationality,
-          pos: r.pos,
-          // His retirement-season figures describe a different season; see
-          // AwardSubject.ovr.
+          name: n.name,
+          nationality: n.nationality,
+          pos: n.pos,
           ovr: undefined,
           tid: undefined,
           player: undefined,

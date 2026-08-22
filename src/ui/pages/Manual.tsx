@@ -1580,6 +1580,16 @@ export function Manual() {
             can't be recovered, and the ones still on record when you load it are kept from then on.
           </p>
           <p>
+            Separately from that permanent career record, the game keeps a plain name for every
+            retiree your save still mentions anywhere &mdash; an old transfer, a news item, an
+            awards board, a cup stat line. That's a much shorter record than a career page, so
+            there's no limit on it the way there is on the career records: if something in your
+            history points at a player, his name stays. It costs about 20 KB a season. This is
+            what stops a long save filling up with "Player #4821" where a name should be. He's
+            still a name and not a career, so he isn't a link. And it only covers players who
+            retire from this update on: anyone your save had already deleted is gone.
+          </p>
+          <p>
             One more place names survive: the Season Preview's retirements list. Every offseason it
             writes down the biggest names who went, and the game now reads that list back. So a
             player who made that table when he hung his boots up keeps his name everywhere he comes

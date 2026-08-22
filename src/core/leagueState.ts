@@ -6,6 +6,7 @@ import type { CompletedTransfer, TransferNegotiation } from "./transfers/negotia
 import type { InboundOffer } from "./transfers/inboundOffers.js";
 import type { NewsEvent } from "./newsEvents.js";
 import type { ArchivedPlayer } from "./players/archive.js";
+import type { PlayerName } from "./players/playerNames.js";
 import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { ActiveLoan, LoanListing, LoanRejection } from "./loans.js";
 import type { Competition } from "./competitions.js";
@@ -79,6 +80,26 @@ export interface LeagueStore {
    * reconstruct.
    */
   retiredPlayers: ArchivedPlayer[];
+  /**
+   * Who every *other* deleted player was: five fields, no career.
+   *
+   * The companion to `retiredPlayers` and deliberately not the same list. That
+   * one is a leaderboard and is capped for it; this one exists so the records
+   * still pointing at a deleted player can name him, which is a question about
+   * every referenced pid rather than about the best 2,000 careers. Without it a
+   * long save forgets its own history — measured at season 101, the archive's
+   * prune bar sits at peak ovr 79 and 78% of historical pid references resolve
+   * to nobody.
+   *
+   * Written only for retirees, and only for pids the history actually
+   * references, so it is bounded by the records that need it rather than by a
+   * cap (see players/playerNames.ts). ~102 bytes a row.
+   *
+   * Old saves backfill to empty and fill from their next offseason on. Anyone
+   * already deleted stays nameless: this is the same one-way door
+   * `awardWinners` documents, and no migration can reopen it.
+   */
+  playerNames: PlayerName[];
   /**
    * Power-rankings snapshots taken at fixed points during every season (every
    * POWER_SNAPSHOT_INTERVAL matchdays plus the finale — see simThrough),
@@ -217,6 +238,7 @@ export function createLeagueState(
     seasonHistory: [],
     newsEvents: [],
     retiredPlayers: [],
+    playerNames: [],
     powerRankingHistory: [],
     activeLoans: [],
     loanListings: [],
