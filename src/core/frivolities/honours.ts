@@ -2,7 +2,7 @@ import type { LeagueStore } from "../leagueState.js";
 import type { Position } from "../players/types.js";
 import type { BallonDOrEntry } from "../worldAwards.js";
 import { BALLON_DOR_SHORTLIST, GOAT_WORLD_XI_WEIGHT, GOAT_TOTS_WEIGHT } from "../constants.js";
-import { FORMATIONS } from "../lineup/formations.js";
+import { TOTS_SLOTS } from "../awards.js";
 import { allCareers, type CareerRow } from "./careers.js";
 import { computeHonours, type PlayerHonours } from "./goat.js";
 
@@ -123,11 +123,21 @@ export interface NationAwardRow extends AwardTally { nationality: string }
  * The shape every slot-keyed award is picked in.
  *
  * Both the World Team of the Year and every competition's Team of the Season
- * are stored as 11 pids index-aligned with this formation, so a selection
- * already carries the position it was made at — which is what makes a club's
- * all-time XI derivable rather than invented.
+ * are stored as 11 pids index-aligned with this list, so a selection already
+ * carries the position it was made at — which is what makes a club's all-time
+ * XI derivable rather than invented. It must therefore stay the *same* list the
+ * awards are picked with, or a slot here labels a player with a position he was
+ * never selected at.
+ *
+ * Known, accepted drift: slot 7 was a second CM before TOTS_SLOTS gave the AM a
+ * place, and stored history is never recomputed (migrate.ts only fills a season
+ * that has no awards at all). So in seasons played before that change, slot 7
+ * holds a central midfielder and is labelled AM here. It is one slot, only in
+ * older seasons, and it ages out as new seasons accumulate. Recomputing those
+ * XIs is not sound — retirees are gone from the player pool, so a rebuild would
+ * quietly re-pick every old XI from survivors only.
  */
-const XI_SLOTS: readonly Position[] = FORMATIONS["4-3-3"];
+const XI_SLOTS: readonly Position[] = TOTS_SLOTS;
 
 /** One player's selections in a single slot, for a single club. */
 export interface AwardXICandidate {
@@ -135,7 +145,7 @@ export interface AwardXICandidate {
   name: string;
   nationality: string;
   active: boolean;
-  /** Index into the 4-3-3, i.e. which slot he was picked in. */
+  /** Index into TOTS_SLOTS, i.e. which slot he was picked in. */
   slot: number;
   worldXI: number;
   teamOfSeason: number;
