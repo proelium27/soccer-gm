@@ -265,9 +265,23 @@ describe("simOffseason", () => {
       expect(w.tid).toBe(player.stats.find((st) => st.season === league.season)!.tid);
     }
 
-    // The point of taking it at all: some of these men are already gone.
+    // The snapshot exists because a pid stops resolving once retirement deletes
+    // the player, so assert that this offseason really does delete players —
+    // that is what makes taking the snapshot load-bearing rather than decorative.
+    //
+    // It deliberately does NOT assert that one of the deleted players is an
+    // award winner. That was the original assertion and it measures seed luck
+    // rather than a property of the code: award winners are prime-age players,
+    // so whether any of the ~200 of them retires in one particular offseason
+    // swings on the seed. Measured on origin/main with no code change at all,
+    // this test passes on seed 31 and FAILS on seed 32 — so anything that
+    // reshuffles which players win awards flips it for reasons unrelated to what
+    // it guards, which is exactly what moving assists onto passing did. The
+    // completeness and correctness of the snapshot is asserted above and is the
+    // real contract. Same lesson as the roster-floor test earlier in this file:
+    // fix the statistic rather than the seed.
     const survivors = new Set(next.players.map((p) => p.pid));
-    expect([...named.keys()].some((pid) => !survivors.has(pid))).toBe(true);
+    expect([...before.keys()].some((pid) => !survivors.has(pid))).toBe(true);
   });
 
   it("archives the retirees worth keeping, and only those", () => {
