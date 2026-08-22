@@ -1,8 +1,12 @@
-import type { LeagueSpec } from "../../core/competitions.js";
+import { useRef, useState } from "react";
+import type { LeagueSpec, Competition } from "../../core/competitions.js";
 import {
   worldLeagueSpecs, worldTuningWarnings, suggestedBudgetScale,
 } from "../../core/competitions.js";
 import { NUM_TEAMS, NUM_TEAMS_D2 } from "../../core/constants.js";
+import {
+  parseRosterFile, retargetRosterFile, type NamedRosterFile,
+} from "../../core/teams/rosterFile.js";
 
 /**
  * One row of the world editor. Kept as its own shape rather than a bare
@@ -23,6 +27,14 @@ export interface WorldEntry {
   shipped: boolean;
   /** Keep money in step with strength. See the note by the money slider. */
   linkMoney: boolean;
+  /**
+   * Roster files loaded for THIS league only, in load order. Their competitions
+   * are retargeted onto this league's divisions at build time, so a file written
+   * for any world at all can be dropped into a league the player just invented.
+   * Added leagues only — a shipped country is dressed through the world-wide
+   * Import Custom League flow instead.
+   */
+  rosterSources?: NamedRosterFile[];
 }
 
 export function defaultWorldEntries(): WorldEntry[] {
@@ -37,6 +49,39 @@ let nextAddedId = 0;
 /** The leagues that will actually be built, in order. */
 export function includedSpecs(entries: WorldEntry[]): LeagueSpec[] {
   return entries.filter((e) => e.included).map((e) => e.spec);
+}
+
+/**
+ * Every per-league roster file, retargeted onto the division names its league
+ * will actually have in the world being built, ready to be folded together and
+ * applied like any other roster import.
+ *
+ * Retargeting has to happen here rather than at pick time because a league's
+ * division names follow its country name, and the player can still rename it
+ * after loading the file.
+ */
+export function leagueRosterFiles(
+  entries: WorldEntry[],
+  competitions: Competition[],
+): { files: NamedRosterFile[]; warnings: string[] } {
+  const files: NamedRosterFile[] = [];
+  const warnings: string[] = [];
+
+  for (const entry of entries) {
+    if (!entry.included || !entry.rosterSources?.length) continue;
+    const divisions = competitions
+      .filter((c) => c.country === entry.spec.country)
+      .sort((a, b) => a.tier - b.tier)
+      .map((c) => c.name);
+    if (divisions.length === 0) continue;
+
+    for (const source of entry.rosterSources) {
+      const { file, warnings: w } = retargetRosterFile(source.file, divisions);
+      files.push({ name: `${source.name} (${entry.spec.country})`, file });
+      warnings.push(...w);
+    }
+  }
+  return { files, warnings };
 }
 
 const CLUBS_PER_COUNTRY = NUM_TEAMS + NUM_TEAMS_D2;
@@ -215,6 +260,11 @@ export function WorldSetup({ entries, onChange }: Props) {
                     {entry.spec.cupSlots ?? 2} to the Cup and the next{" "}
                     {entry.spec.shieldSlots ?? 2} to the Shield.
                   </p>
+
+                  <RosterPicker
+                    entry={entry}
+                    onChange={(rosterSources) => update(i, { rosterSources })}
+                  />
                 </div>
               )}
             </li>
@@ -237,6 +287,95 @@ export function WorldSetup({ entries, onChange }: Props) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Load roster files for one added league. Scoped deliberately: the file's own
+ * competition names are ignored and its competitions are mapped onto THIS
+ * league's divisions in order, so a file written for any world can dress a
+ * league that did not exist when it was authored.
+ */
+function RosterPicker({
+  entry,
+  onChange,
+}: {
+  entry: WorldEntry;
+  onChange: (sources: NamedRosterFile[] | undefined) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const sources = entry.rosterSources ?? [];
+
+  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (picked.length === 0) return;
+
+    const loaded: NamedRosterFile[] = [];
+    const failed: string[] = [];
+    for (const file of picked) {
+      try {
+        loaded.push({ name: file.name, file: parseRosterFile(await file.text()) });
+      } catch (err) {
+        // Named rather than swallowed: a batch of files where one is the wrong
+        // shape should still load the rest, and say which one didn't.
+        failed.push(`${file.name} (${err instanceof Error ? err.message : "unreadable"})`);
+      }
+    }
+    setError(failed.length > 0 ? `Couldn't read ${failed.join(", ")}` : null);
+    if (loaded.length > 0) onChange([...sources, ...loaded]);
+  }
+
+  const clubs = sources.reduce(
+    (n, s) => n + s.file.competitions.reduce((m, c) => m + c.clubs.length, 0),
+    0,
+  );
+
+  return (
+    <div className="mt-3 pt-2 border-top">
+      <div className="d-flex align-items-baseline justify-content-between gap-2">
+        <label className="form-label small mb-1">Clubs and squads</label>
+        {sources.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-link btn-sm p-0"
+            onClick={() => { onChange(undefined); setError(null); }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {sources.length === 0 ? (
+        <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
+          Leave this alone and the league gets invented clubs. Or load a roster file to
+          use your own, and its first competition fills the top division.
+        </p>
+      ) : (
+        <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
+          {sources.map((s) => s.name).join(", ")} — {clubs} {clubs === 1 ? "club" : "clubs"}.
+        </p>
+      )}
+
+      <button
+        type="button"
+        className="btn btn-outline-secondary btn-sm"
+        onClick={() => inputRef.current?.click()}
+      >
+        {sources.length > 0 ? "Add another file" : "Import roster"}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".json,application/json"
+        multiple
+        className="d-none"
+        onChange={handleFiles}
+      />
+
+      {error && <div className="small text-danger mt-1">{error}</div>}
     </div>
   );
 }

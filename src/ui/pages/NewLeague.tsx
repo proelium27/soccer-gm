@@ -17,7 +17,7 @@ import {
   worldTeamSlots,
 } from "../../core/competitions.js";
 import {
-  WorldSetup, defaultWorldEntries, includedSpecs, type WorldEntry,
+  WorldSetup, defaultWorldEntries, includedSpecs, leagueRosterFiles, type WorldEntry,
 } from "../components/WorldSetup.js";
 import {
   parseRosterFile,
@@ -100,6 +100,18 @@ export function NewLeague() {
   const [worldEntries, setWorldEntries] = useState<WorldEntry[]>(defaultWorldEntries);
   const world = useMemo(() => describeWorld(includedSpecs(worldEntries)), [worldEntries]);
 
+  /**
+   * Roster files loaded per added league, folded into the one file the importer
+   * applies. Shares every downstream path with the world-wide import — slot
+   * resolution, the picker preview, crest suppression — so the two can't drift.
+   */
+  const leagueRoster = useMemo((): LoadedRoster | null => {
+    const { files, warnings } = leagueRosterFiles(worldEntries, world.competitions);
+    if (files.length === 0) return null;
+    const described = describeRoster(files, world.slotWorld);
+    return { ...described, warnings: [...warnings, ...described.warnings] };
+  }, [worldEntries, world]);
+
   /** Competition name for a country's given tier (e.g. "English Division 1"). */
   function divisionName(countryName: string, tier: 1 | 2): string {
     return (
@@ -145,6 +157,14 @@ export function NewLeague() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const rosterInputRef = useRef<HTMLInputElement>(null);
 
+  /**
+   * The roster being applied, whichever way it was loaded: the world-wide
+   * Import Custom League flow, or files attached to individual added leagues.
+   * The two are mutually exclusive in the UI (World setup is hidden once a
+   * world-wide file is loaded), so this never has to merge them.
+   */
+  const activeRoster = roster ?? leagueRoster;
+
   // Which tier the chosen club plays in: tier-1 clubs fill the first NUM_TEAMS
   // slots of a country's range, tier-2 the rest (see countryClubRanges).
   function tierForTid(tid: number): 1 | 2 {
@@ -156,8 +176,8 @@ export function NewLeague() {
     const seed = Date.now();
     const rng = mulberry32(seed);
     const generated = createLeagueState(tid, rng, seed, difficulty, world.competitions);
-    const league = roster
-      ? applyRosterFileToNewLeague(generated, roster.file, tid).league
+    const league = activeRoster
+      ? applyRosterFileToNewLeague(generated, activeRoster.file, tid).league
       : generated;
     return {
       ...league,
@@ -388,7 +408,7 @@ export function NewLeague() {
   const range = world.ranges.find((r) => r.country === activeCountry);
   const countryClubs = (range ? clubIdentitiesFor(activeCountry, range.end - range.start) : []).map((club, i) => {
     const tid = range!.start + i;
-    const imported = roster?.byTid.get(tid);
+    const imported = activeRoster?.byTid.get(tid);
     // An imported club takes over the slot's identity outright, so the picker
     // shows what the club will actually be called once the save exists.
     return {
@@ -412,7 +432,7 @@ export function NewLeague() {
     // The picker previews the world the import will produce, so it has to hide
     // the same crests the league itself will — otherwise a club shows a badge
     // here and a colour swatch the moment the save opens.
-    <CrestArtProvider tids={roster ? [...roster.byTid.keys()] : []}>
+    <CrestArtProvider tids={activeRoster ? [...activeRoster.byTid.keys()] : []}>
     <div className="container py-4" style={{ maxWidth: 600 }}>
       <h2 className="mb-3">{roster ? "Import Custom League" : "New League"}</h2>
       <p className="text-muted">

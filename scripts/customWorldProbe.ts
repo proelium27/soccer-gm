@@ -24,6 +24,9 @@ import {
   competitionOf, type LeagueSpec,
 } from "../src/core/competitions.js";
 import { cupSlotRange, CUP_STAGE_LEAGUE_PHASE } from "../src/core/cup/cup.js";
+import type { RosterFile } from "../src/core/teams/rosterFile.js";
+import { retargetRosterFile, ROSTER_FILE_FORMAT } from "../src/core/teams/rosterFile.js";
+import { applyRosterFileToNewLeague } from "../src/core/teams/rosterImport.js";
 import { CONTINENTAL_CUP_FORMAT, SHIELD_FORMAT } from "../src/core/constants.js";
 
 const SEASONS = Number(process.argv[2] ?? 6);
@@ -81,6 +84,33 @@ function main(): void {
   const competitions = buildCompetitions(SPECS);
   let league = createLeagueState(USER_TID, mulberry32(SEED), SEED, undefined, competitions);
   console.log(`\nGenerated ${league.teams.length} clubs, ${league.players.length} players.`);
+
+  // Per-league roster import: a file that names a competition this world has
+  // never heard of, retargeted onto one added league's top division and applied.
+  if (!SHIPPED) {
+    const target = competitions.find((c) => c.country === "Ascalon" && c.tier === 1)!;
+    const source: RosterFile = {
+      format: ROSTER_FILE_FORMAT,
+      formatVersion: 1,
+      competitions: [{
+        match: "A League That Does Not Exist",
+        clubs: ["Real Ascalon", "Ascalon City", "Sporting Ascalon"].map((name) => ({
+          name,
+          abbrev: name.slice(0, 3).toUpperCase(),
+          colors: ["#101010", "#f0f0f0"] as [string, string],
+        })),
+      }],
+    };
+    const { file } = retargetRosterFile(source, [target.name]);
+    const applied = applyRosterFileToNewLeague(league, file, USER_TID);
+    league = applied.league;
+    const named = league.teams.filter((t) => t.compId === target.id).slice(0, 4).map((t) => t.name);
+    console.log(`\nPer-league roster import into ${target.name}:`);
+    console.log(`  first four clubs now: ${named.join(", ")}`);
+    const ok = named[0] === "Real Ascalon" && named[3] !== undefined && !named[3].startsWith("Real");
+    console.log(`  replaced the named clubs and left the rest alone: ${ok ? "yes" : "NO"}`);
+    if (!ok) process.exitCode = 1;
+  }
 
   // Club identities: each country's clubs should be its own.
   for (const country of SPECS.slice(0, 2).concat(SPECS.slice(-2)).map((s) => s.country)) {

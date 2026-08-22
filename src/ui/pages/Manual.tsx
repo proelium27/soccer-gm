@@ -434,6 +434,18 @@ export function Manual() {
             panel warns you when your settings would do that.
           </p>
           <p>
+            <strong>Bringing your own clubs to an added league.</strong> Each added league has an
+            <strong> Import roster</strong> button of its own. It takes the same roster files the
+            world-wide import takes, but it applies them to that one league, and it ignores what
+            the file calls its competitions: the file's first competition fills the league's top
+            division, the second fills its second division, and anything past that is skipped with
+            a note. That means a file someone wrote for an entirely different world still works,
+            since the league you're dropping it into didn't exist when the file was written. Clubs
+            land on slots in order, and any slot the file doesn't cover keeps the invented club it
+            was given. The league's name decides its division names, so renaming it after loading a
+            file is fine.
+          </p>
+          <p>
             Continental places can't overlap however you set them: the Shield always starts at the
             place directly below the Cup's last one in that same league. If a league sends 1 to the
             Cup and 3 to the Shield, that's its champion in the Cup and 2nd through 4th in the

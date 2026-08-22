@@ -4,8 +4,12 @@ import {
   worldCompetitions, competitionStrengthOffset, competitionAcademyOffset,
   competitionBudgetScale, isWeakLeague, academyBaseCenterOf,
   buildCompetitions, worldLeagueSpecs, tier1Pairs, countryClubRanges,
-  worldTuningWarnings, suggestedBudgetScale,
+  worldTuningWarnings, suggestedBudgetScale, worldTeamSlots,
 } from "../../src/core/competitions.js";
+import type { RosterFile } from "../../src/core/teams/rosterFile.js";
+import {
+  retargetRosterFile, resolveRosterSlots, ROSTER_FILE_FORMAT,
+} from "../../src/core/teams/rosterFile.js";
 import {
   COUNTRY_STRENGTH_OFFSET, COUNTRY_BUDGET_SCALE, LEAGUE_BASE, DIVISION_2_OFFSET,
   CONTINENTAL_CUP_FORMAT, SHIELD_FORMAT, NUM_TEAMS, NUM_TEAMS_D2,
@@ -291,6 +295,76 @@ describe("club identities are anchored to a country, not to a tid", () => {
 
   it("has no shipped block for a country the player added", () => {
     expect(shippedClubsFor("Neverland")).toBeNull();
+  });
+});
+
+describe("retargeting a roster file onto an added league", () => {
+  const club = (name: string) => ({ name, abbrev: name.slice(0, 3).toUpperCase(), colors: ["#000", "#fff"] as [string, string] });
+  const file = (...matches: string[]): RosterFile => ({
+    format: ROSTER_FILE_FORMAT,
+    formatVersion: 1,
+    competitions: matches.map((match, i) => ({ match, clubs: [club(`${match} club ${i}`)] })),
+  });
+
+  it("points the file's competitions at this league's divisions, in order", () => {
+    const { file: out, warnings } = retargetRosterFile(
+      file("English Division 1", "English Division 2"),
+      ["Neverland Division 1", "Neverland Division 2"],
+    );
+    expect(out.competitions.map((c) => c.match)).toEqual([
+      "Neverland Division 1", "Neverland Division 2",
+    ]);
+    expect(warnings).toEqual([]);
+  });
+
+  it("keeps the clubs untouched — only the target changes", () => {
+    const source = file("Whatever");
+    const { file: out } = retargetRosterFile(source, ["Neverland Division 1"]);
+    expect(out.competitions[0].clubs).toEqual(source.competitions[0].clubs);
+  });
+
+  it("fills the top division from a single-competition file", () => {
+    const { file: out } = retargetRosterFile(file("Anything"), ["N D1", "N D2"]);
+    expect(out.competitions).toHaveLength(1);
+    expect(out.competitions[0].match).toBe("N D1");
+  });
+
+  it("drops what won't fit and says so, rather than silently overwriting", () => {
+    const { file: out, warnings } = retargetRosterFile(
+      file("One", "Two", "Three"),
+      ["N D1", "N D2"],
+    );
+    expect(out.competitions.map((c) => c.match)).toEqual(["N D1", "N D2"]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("Three");
+  });
+
+  it("does not mutate the file it was given", () => {
+    const source = file("English Division 1");
+    retargetRosterFile(source, ["Neverland Division 1"]);
+    expect(source.competitions[0].match).toBe("English Division 1");
+  });
+
+  it("resolves onto real slots once retargeted, where the original would not", () => {
+    const competitions = buildCompetitions([
+      ...worldLeagueSpecs(),
+      { country: "Neverland" },
+    ]);
+    const world = {
+      competitions,
+      teams: worldTeamSlots(competitions, NUM_TEAMS, NUM_TEAMS_D2),
+    };
+    const source = file("Some Other League");
+    // As authored, nothing in the world is called that.
+    expect(resolveRosterSlots(world, source).slots).toHaveLength(0);
+
+    const { file: retargeted } = retargetRosterFile(source, ["Neverland Division 1"]);
+    const resolved = resolveRosterSlots(world, retargeted);
+    expect(resolved.slots).toHaveLength(1);
+    // And it lands in Neverland, not in someone else's division.
+    const neverlandD1 = competitions.find((c) => c.country === "Neverland" && c.tier === 1)!;
+    const slotTid = resolved.slots[0].tid;
+    expect(world.teams.find((t) => t.tid === slotTid)!.compId).toBe(neverlandD1.id);
   });
 });
 

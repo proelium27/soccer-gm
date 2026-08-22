@@ -2,9 +2,27 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  WorldSetup, defaultWorldEntries, includedSpecs, type WorldEntry,
+  WorldSetup, defaultWorldEntries, includedSpecs, leagueRosterFiles, type WorldEntry,
 } from "../../src/ui/components/WorldSetup.js";
 import { buildCompetitions, countriesOf } from "../../src/core/competitions.js";
+import type { RosterFile } from "../../src/core/teams/rosterFile.js";
+import { ROSTER_FILE_FORMAT } from "../../src/core/teams/rosterFile.js";
+
+/** A roster file naming one competition with `clubs` clubs in it. */
+function rosterFile(match: string, clubs: number): RosterFile {
+  return {
+    format: ROSTER_FILE_FORMAT,
+    formatVersion: 1,
+    competitions: [{
+      match,
+      clubs: Array.from({ length: clubs }, (_, i) => ({
+        name: `Club ${i + 1}`,
+        abbrev: `C${i + 1}`,
+        colors: ["#101010", "#f0f0f0"] as [string, string],
+      })),
+    }],
+  };
+}
 
 /**
  * Render harness for the world editor. Typecheck can't reach a render path, and
@@ -91,6 +109,73 @@ describe("WorldSetup renders", () => {
     expect(html).toContain("at least one league");
   });
 
+  it("offers a roster import on an added league and not on a shipped one", () => {
+    const html = render(withAddedLeague());
+    expect(html).toContain("Import roster");
+    // One picker, on the one added league.
+    expect(html.match(/Import roster/g)).toHaveLength(1);
+  });
+
+  it("names the loaded files and counts their clubs", () => {
+    const entries = withAddedLeague();
+    entries[entries.length - 1] = {
+      ...entries[entries.length - 1],
+      rosterSources: [{ name: "neverland.json", file: rosterFile("Top Flight", 3) }],
+    };
+    const html = render(entries);
+    expect(html).toContain("neverland.json");
+    expect(html).toContain("3 clubs");
+    expect(html).toContain("Add another file");
+  });
+});
+
+describe("per-league roster files are retargeted onto their own league", () => {
+  it("points a file at the divisions of the league it was attached to", () => {
+    const entries = withAddedLeague();
+    entries[entries.length - 1] = {
+      ...entries[entries.length - 1],
+      rosterSources: [{ name: "a.json", file: rosterFile("Whatever It Was Called", 2) }],
+    };
+    const competitions = buildCompetitions(includedSpecs(entries));
+    const { files } = leagueRosterFiles(entries, competitions);
+
+    expect(files).toHaveLength(1);
+    expect(files[0].file.competitions[0].match).toBe("Neverland Division 1");
+    expect(files[0].name).toContain("Neverland");
+  });
+
+  it("follows the league's current name, so renaming after loading still works", () => {
+    const entries = withAddedLeague();
+    const last = entries.length - 1;
+    entries[last] = {
+      ...entries[last],
+      spec: { ...entries[last].spec, country: "Ruritania" },
+      rosterSources: [{ name: "a.json", file: rosterFile("Anything", 1) }],
+    };
+    const competitions = buildCompetitions(includedSpecs(entries));
+    const { files } = leagueRosterFiles(entries, competitions);
+    expect(files[0].file.competitions[0].match).toBe("Ruritania Division 1");
+  });
+
+  it("ignores a file on a league that has been switched off", () => {
+    const entries = withAddedLeague();
+    entries[entries.length - 1] = {
+      ...entries[entries.length - 1],
+      included: false,
+      rosterSources: [{ name: "a.json", file: rosterFile("Anything", 1) }],
+    };
+    const competitions = buildCompetitions(includedSpecs(entries));
+    expect(leagueRosterFiles(entries, competitions).files).toHaveLength(0);
+  });
+
+  it("returns nothing when no league carries a file", () => {
+    const entries = withAddedLeague();
+    const competitions = buildCompetitions(includedSpecs(entries));
+    expect(leagueRosterFiles(entries, competitions).files).toHaveLength(0);
+  });
+});
+
+describe("WorldSetup wiring", () => {
   it("keeps the entries it renders in step with the world they build", () => {
     const entries = withAddedLeague();
     const countries = countriesOf(buildCompetitions(includedSpecs(entries)));
