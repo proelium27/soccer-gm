@@ -277,8 +277,15 @@ export function Manual() {
             A season is a double round-robin: 38 matchdays from August to May, every club playing
             every other home and away. A win is 3 points, a draw is 1. Alongside the league, the
             world's best clubs fight it out in the <a href="#cup">Continental Cup</a> on fixed
-            matchdays. Every save's first season shows as 2026, and it ticks up a year each time
+            matchdays. Seasons show as real years, starting at 2026 and ticking up one each time
             you go to the offseason.
+          </p>
+          <p>
+            <strong>Start year.</strong> 2026 is just the default. There's a start year box on the
+            New League screen, so you can begin in 1994, or 2038, or whatever year you want your
+            save to be set in. It's purely cosmetic. Nothing in the game reads it, so a save that
+            starts in 1994 plays exactly the same as one that starts in 2026, and behind the scenes
+            it's still season 1. Saves you already have keep showing 2026.
           </p>
           <p>
             <strong>Historic seasons.</strong> Every so often, a club's whole season just clicks.

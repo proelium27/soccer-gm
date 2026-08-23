@@ -72,6 +72,15 @@ export interface LeagueStore {
     name: string;
     created: number;
     userTid: number;
+    /**
+     * The real-world year this save's season 1 is displayed as, chosen when
+     * the league was created. **Cosmetic only** — seasons stay a 1-based
+     * counter everywhere in the sim, and nothing reads this but the UI's
+     * `seasonYear` formatter. Optional, and deliberately not backfilled: a
+     * save written before the picker existed has no answer, and absent
+     * already means the 2026 those saves have always displayed.
+     */
+    startYear?: number;
   };
   /** The leagues in this save's world, one entry per division per country (see competitions.ts). */
   competitions: Competition[];

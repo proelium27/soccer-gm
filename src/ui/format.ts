@@ -53,10 +53,53 @@ export function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-/** Internally seasons are a 1-based counter; display them as real years starting 2026. */
+/**
+ * The year season 1 falls in when a save doesn't say otherwise — every save
+ * made before the start-year picker existed, and the value the picker itself
+ * defaults to.
+ */
 export const SEASON_START_YEAR = 2026;
+
+/**
+ * Internally a season is a 1-based counter; every surface shows it as a real
+ * year instead. Which year season 1 lands on is a per-save choice
+ * (`meta.startYear`), purely cosmetic — nothing in the sim reads it.
+ *
+ * The active save's value is held here as module state rather than passed to
+ * all ~90 call sites, because it changes exactly once per save load and half
+ * those call sites are inside render helpers with no league to hand. Set it
+ * through `setSeasonStartYear` from LeagueContext's `commitLeague`, which is
+ * the single funnel every league (loaded, created, imported, switched away)
+ * passes through — so there is no path that can leave this stale. Anything
+ * rendering a season for a save that is NOT the active one must use
+ * `seasonYearFrom` with that save's own start year.
+ */
+let activeStartYear = SEASON_START_YEAR;
+
+/** Point the display at a save's start year; `undefined` restores the default. */
+export function setSeasonStartYear(startYear: number | undefined): void {
+  activeStartYear = startYear ?? SEASON_START_YEAR;
+}
+
 export function seasonYear(season: number): number {
-  return SEASON_START_YEAR + season - 1;
+  return seasonYearFrom(activeStartYear, season);
+}
+
+/** Season → year against an explicit start year, for saves other than the active one. */
+export function seasonYearFrom(startYear: number, season: number): number {
+  return startYear + season - 1;
+}
+
+/** Bounds on the start-year picker: wide enough to be fun, narrow enough to stay a year. */
+export const MIN_START_YEAR = 1900;
+export const MAX_START_YEAR = 2400;
+
+/** A start year the picker will accept, or null if it isn't a usable year. */
+export function normalizeStartYear(input: string): number | null {
+  if (!/^\d{1,4}$/.test(input.trim())) return null;
+  const year = Number(input.trim());
+  if (year < MIN_START_YEAR || year > MAX_START_YEAR) return null;
+  return year;
 }
 
 /** Flavor text for a negotiation that collapsed (lowball/non-improving repeat/patience ran out). */
