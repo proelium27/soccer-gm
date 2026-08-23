@@ -2,8 +2,16 @@ import { useRef, useState } from "react";
 import type { LeagueSpec, Competition } from "../../core/competitions.js";
 import {
   worldLeagueSpecs, worldTuningWarnings, suggestedBudgetScale,
+  buildCompetitions, competitionTeamCount, worldCompetitions,
+  competitionStrengthOffset, competitionBudgetScale,
 } from "../../core/competitions.js";
-import { NUM_TEAMS, NUM_TEAMS_D2 } from "../../core/constants.js";
+import { NUM_TEAMS } from "../../core/constants.js";
+
+/** What the code box suggests when left empty — the same rule competitionAbbrev uses. */
+function defaultAbbrev(country: string): string {
+  return country.replace(/[^A-Za-z]/g, "").toUpperCase().slice(0, 3);
+}
+import { MIN_DIVISION_TEAMS, MAX_DIVISION_TEAMS } from "../../core/calendar.js";
 import {
   parseRosterFile, retargetRosterFile, type NamedRosterFile,
 } from "../../core/teams/rosterFile.js";
@@ -84,7 +92,37 @@ export function leagueRosterFiles(
   return { files, warnings };
 }
 
-const CLUBS_PER_COUNTRY = NUM_TEAMS + NUM_TEAMS_D2;
+/**
+ * Division sizes on offer. Even only, because the fixture generator pairs clubs
+ * off each round and an odd field leaves one unpaired; capped because a division
+ * of n clubs plays 2(n-1) matchdays and the season is a fixed grid.
+ */
+/**
+ * The engine stores league strength as a HANDICAP (`strengthOffset`), where 0 is
+ * level with the strongest leagues and higher is weaker. That reads backwards on
+ * a slider labelled "Strength", so the control shows it flipped: the number the
+ * player moves counts UP toward stronger, and only this pair of functions knows
+ * about the flip.
+ *
+ * Deliberately a display concern rather than a change to the field. The offset's
+ * direction is baked into COUNTRY_STRENGTH_OFFSET, the ladder audits and a lot
+ * of documented reasoning; inverting it in the engine would be a large, risky
+ * rename that buys the player nothing this doesn't.
+ */
+const STRENGTH_SCALE_MAX = 20;
+
+export function strengthDial(offset: number): number {
+  return STRENGTH_SCALE_MAX - offset;
+}
+
+export function strengthOffsetFromDial(dial: number): number {
+  return STRENGTH_SCALE_MAX - dial;
+}
+
+const DIVISION_SIZES = Array.from(
+  { length: (MAX_DIVISION_TEAMS - MIN_DIVISION_TEAMS) / 2 + 1 },
+  (_, i) => MIN_DIVISION_TEAMS + i * 2,
+);
 
 function newLeagueEntry(index: number): WorldEntry {
   const strengthOffset = 8;
@@ -117,7 +155,7 @@ interface Props {
 export function WorldSetup({ entries, onChange }: Props) {
   const specs = includedSpecs(entries);
   const warnings = worldTuningWarnings(specs);
-  const clubs = specs.length * CLUBS_PER_COUNTRY;
+  const clubs = buildCompetitions(specs).reduce((n, c) => n + competitionTeamCount(c), 0);
 
   function update(index: number, next: Partial<WorldEntry>) {
     onChange(entries.map((e, i) => (i === index ? { ...e, ...next } : e)));
@@ -164,6 +202,7 @@ export function WorldSetup({ entries, onChange }: Props) {
                     {entry.spec.country}
                   </label>
                 ) : (
+                  <>
                   <input
                     type="text"
                     className="form-control form-control-sm flex-grow-1"
@@ -171,6 +210,24 @@ export function WorldSetup({ entries, onChange }: Props) {
                     aria-label="Country name"
                     onChange={(e) => updateSpec(i, { country: e.target.value })}
                   />
+                  {/*
+                    A placeholder rather than a pre-filled value: leaving the box
+                    empty falls back to the country's first three letters, so
+                    showing that as a suggestion is honest, and typing over it is
+                    the only thing that stores anything.
+                  */}
+                  <input
+                    type="text"
+                    className="form-control form-control-sm text-uppercase"
+                    style={{ width: 72, flex: "0 0 auto" }}
+                    maxLength={3}
+                    value={entry.spec.abbrev ?? ""}
+                    aria-label="Three-letter code"
+                    placeholder={defaultAbbrev(entry.spec.country)}
+                    title="Three-letter code, shown where a flag would go"
+                    onChange={(e) => updateSpec(i, { abbrev: e.target.value.toUpperCase() })}
+                  />
+                  </>
                 )}
                 {!entry.shipped && (
                   <button
@@ -187,17 +244,15 @@ export function WorldSetup({ entries, onChange }: Props) {
                 <div className="mt-2 ps-4">
                   <Slider
                     label="Strength"
-                    hint="How good this league's squads are to begin with. 0 is on a level with the strongest leagues in the game; higher is weaker."
                     min={0}
-                    max={20}
+                    max={STRENGTH_SCALE_MAX}
                     step={1}
-                    value={entry.spec.strengthOffset ?? 0}
-                    display={String(entry.spec.strengthOffset ?? 0)}
-                    onChange={(v) => updateSpec(i, { strengthOffset: v })}
+                    value={strengthDial(entry.spec.strengthOffset ?? 0)}
+                    display={String(strengthDial(entry.spec.strengthOffset ?? 0))}
+                    onChange={(v) => updateSpec(i, { strengthOffset: strengthOffsetFromDial(v) })}
                   />
                   <Slider
                     label="Money"
-                    hint="What its clubs earn and can bank, against the richest leagues at 1."
                     min={0.2}
                     max={1.2}
                     step={0.05}
@@ -226,6 +281,48 @@ export function WorldSetup({ entries, onChange }: Props) {
                       Keep money in step with strength
                     </label>
                   </div>
+
+                  {/*
+                    Sits directly under the two sliders it calibrates rather than
+                    at the foot of the card: the numbers only mean anything
+                    against the leagues already in the game, and a reference you
+                    have to scroll away to find is one you don't use.
+                  */}
+                  <ShippedLeagueTable />
+
+                  <div className="row g-2 mb-2">
+                    <div className="col">
+                      <label className="form-label small mb-1">Divisions</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={entry.spec.divisions ?? 2}
+                        onChange={(e) => updateSpec(i, {
+                          divisions: Number(e.target.value) === 1 ? 1 : 2,
+                        })}
+                      >
+                        <option value={2}>Two, with promotion</option>
+                        <option value={1}>One, no promotion</option>
+                      </select>
+                    </div>
+                    <div className="col">
+                      <label className="form-label small mb-1">Clubs per division</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={entry.spec.d1Teams ?? NUM_TEAMS}
+                        onChange={(e) => {
+                          // One control sets both divisions. The underlying
+                          // fields are separate, so splitting them later is a UI
+                          // change rather than a data one.
+                          const n = Number(e.target.value);
+                          updateSpec(i, { d1Teams: n, d2Teams: n });
+                        }}
+                      >
+                        {DIVISION_SIZES.map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                   <div className="row g-2">
                     <div className="col">
                       <label className="form-label small mb-1">Continental Cup places</label>
@@ -250,11 +347,20 @@ export function WorldSetup({ entries, onChange }: Props) {
                       />
                     </div>
                   </div>
-                  <p className="text-muted small mt-2 mb-0">
-                    The Shield starts where the Cup stops, so this league sends its top{" "}
-                    {entry.spec.cupSlots ?? 2} to the Cup and the next{" "}
-                    {entry.spec.shieldSlots ?? 2} to the Shield.
-                  </p>
+                  {/*
+                    The only explanation the controls need. The division and
+                    continental rows say what they do in their own labels and
+                    options, so a paragraph restating them was just noise.
+                  */}
+                  <div className="text-muted mt-2" style={{ fontSize: "0.75rem" }}>
+                    <p className="mb-0">
+                      <strong>Strength</strong> is how good its squads are: higher is stronger, and
+                      20 is level with England, Spain, Italy and Germany. <strong>Money</strong> is
+                      what its clubs earn and can bank, against 1 for the richest leagues. The
+                      three-letter code beside the name stands in for a flag, since the game has
+                      no flag art for a country you invented.
+                    </p>
+                  </div>
 
                   <RosterPicker
                     entry={entry}
@@ -346,7 +452,9 @@ function RosterPicker({
       {sources.length === 0 ? (
         <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
           Leave this alone and the league gets invented clubs. Or load a roster file to
-          use your own, and its first competition fills the top division.
+          use your own, and its first competition fills the top division. You can also
+          name and colour every club by hand instead: tick <strong>Name the clubs
+          yourself</strong> further down this page.
         </p>
       ) : (
         <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
@@ -375,6 +483,57 @@ function RosterPicker({
   );
 }
 
+/**
+ * Where the leagues already in the game sit, so the sliders have a baseline to
+ * read against rather than being bare numbers.
+ *
+ * Derived from the shipped competitions through the same accessors the engine
+ * uses, so it cannot drift from the values it is describing.
+ */
+function ShippedLeagueTable() {
+  const rows = worldCompetitions()
+    .filter((c) => c.tier === 1)
+    .map((c) => ({
+      country: c.country,
+      strength: strengthDial(competitionStrengthOffset(c)),
+      money: competitionBudgetScale(c),
+    }));
+
+  return (
+    <details className="mb-2">
+      <summary className="small text-muted" style={{ cursor: "pointer" }}>
+        Where the leagues already in the game sit
+      </summary>
+      <div className="table-responsive mt-2">
+        <table className="table table-sm mb-1" style={{ fontSize: "0.8rem" }}>
+          <thead>
+            <tr>
+              <th scope="col">League</th>
+              <th scope="col" className="text-end">Strength</th>
+              <th scope="col" className="text-end">Money</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.country}>
+                <td>{r.country}</td>
+                <td className="text-end">{r.strength}</td>
+                <td className="text-end">{r.money.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-muted mb-0" style={{ fontSize: "0.75rem" }}>
+        Strength 20 is the top of the game. Each point below costs a league about
+        1 OVR across its squads, so a league at 10 has a champion around the
+        quality of a mid-table English club. Money is against 1.00 for the
+        richest leagues.
+      </p>
+    </details>
+  );
+}
+
 function clampInt(raw: string, min: number, max: number): number {
   const n = Math.round(Number(raw));
   if (!Number.isFinite(n)) return min;
@@ -383,7 +542,8 @@ function clampInt(raw: string, min: number, max: number): number {
 
 interface SliderProps {
   label: string;
-  hint: string;
+  /** Optional: the world editor collects its explanations below the controls instead. */
+  hint?: string;
   min: number;
   max: number;
   step: number;
@@ -409,7 +569,7 @@ function Slider({ label, hint, min, max, step, value, display, onChange }: Slide
         aria-label={label}
         onChange={(e) => onChange(Number(e.target.value))}
       />
-      <div className="text-muted" style={{ fontSize: "0.75rem" }}>{hint}</div>
+      {hint && <div className="text-muted" style={{ fontSize: "0.75rem" }}>{hint}</div>}
     </div>
   );
 }

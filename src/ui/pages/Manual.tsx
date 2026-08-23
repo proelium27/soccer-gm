@@ -413,10 +413,24 @@ export function Manual() {
             the game ships no real clubs.
           </p>
           <p>
-            Each league you add carries three settings. <strong>Strength</strong> is how good its
-            squads are, on the same scale as the step-downs above, where 0 sits level with the big
-            four and each point costs about 0.94 OVR. At 5 its champion is about as good as the
-            5th-best club in England; at 10 about the 12th; at 18 about the very worst one.{" "}
+            You also choose its <strong>shape</strong>: one division or two, and how many clubs are
+            in each. Two divisions is the default and works like every shipped country, with 3 up
+            and 3 down between them. One division means exactly that, and nothing is promoted or
+            relegated there at all. Divisions run from 8 to 20 clubs, in even numbers, because the
+            fixture list pairs clubs off each round and the season is a fixed 38-matchday calendar
+            that a 20-club double round robin already fills exactly. A smaller division plays fewer
+            games, spread across the same season with blank matchdays in between, so its run-in
+            still lines up with everyone else's and the transfer deadline still falls mid-season
+            for it. Three divisions isn't offered.
+          </p>
+          <p>
+            Each league you add carries three more settings. <strong>Strength</strong> runs 0 to
+            20 and higher is stronger, with <strong>20</strong> level with England, Spain, Italy
+            and Germany. Each point below that costs a league about 1 OVR across its squads, so at{" "}
+            <strong>15</strong> (where France sits) its champion is about as good as England's
+            5th-best club, at <strong>10</strong> (Portugal) about the 12th, and at{" "}
+            <strong>2</strong> its champion is weaker than England's worst club. The panel shows a
+            table of where every shipped league sits so you have something to aim at.{" "}
             <strong>Money</strong> is what its clubs earn and can bank, against 1 for the richest
             leagues. And you set how many places it sends to the{" "}
             <a href="#cup">Continental Cup</a> and the <a href="#shield">Continental Shield</a>.
@@ -467,6 +481,15 @@ export function Manual() {
             no matter what you did with the Cup. Switching a shipped country off keeps both totals
             clean, and so does giving your league 4 Cup places instead of 2. The panel warns you
             about each competition separately and tells you how many clubs a bad total would cost.
+          </p>
+          <p>
+            <strong>Naming the clubs.</strong> Tick <strong>Name the clubs yourself</strong> before
+            you start and you get an editor once the world is built, listing every club in every
+            competition with its name, its three-letter abbreviation and both of its colours. It
+            covers leagues you invented as well as the shipped ones, and nothing is written to disk
+            until you're finished, so you can back out. The same editor is on the Leagues page as
+            Customize Teams if you'd rather come at it that way, and you can still rename any club
+            later from there.
           </p>
           <p className="text-muted small">
             World setup only applies when you create a save. There's no mid-save world expansion, and

@@ -2,7 +2,6 @@ import type { League } from "../league/generate.js";
 import type { Competition } from "../competitions.js";
 import { competitionOf, countryClubRanges, worldCompetitions } from "../competitions.js";
 import { generateClubIdentities } from "./clubNames.js";
-import { NUM_TEAMS, NUM_TEAMS_D2 } from "../constants.js";
 import type { FormationId } from "../lineup/formations.js";
 import { chooseBestFormation } from "../lineup/formations.js";
 import type { Player } from "../players/types.js";
@@ -501,7 +500,7 @@ export function shippedClubsFor(country: string): ClubIdentity[] | null {
   return range ? CLUBS.slice(range.start, range.end) : null;
 }
 
-const SHIPPED_RANGES = countryClubRanges(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2);
+const SHIPPED_RANGES = countryClubRanges(worldCompetitions());
 
 /**
  * The `count` club identities a country's clubs take, in slot order: its shipped

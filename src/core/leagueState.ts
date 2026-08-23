@@ -18,6 +18,7 @@ import { emptyInternationalState } from "./international/index.js";
 import { generateWorld } from "./league/generate.js";
 import { assignIdentities, assignAIFormations } from "./teams/clubs.js";
 import { generateSchedule } from "./schedule.js";
+import { SEASON_MATCHDAYS } from "./calendar.js";
 import { worldCompetitions } from "./competitions.js";
 import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
 import { DEFAULT_DIFFICULTY, type Difficulty } from "./constants.js";
@@ -30,9 +31,39 @@ export function buildCompetitionSchedule(
   teams: Pick<StoredTeam, "tid" | "compId">[],
   competitions: Competition[],
 ): ScheduleGame[] {
-  return competitions.flatMap((comp) =>
-    generateSchedule(teams.filter((t) => t.compId === comp.id).map((t) => t.tid)),
-  );
+  return competitions.flatMap((comp) => {
+    const fixtures = generateSchedule(
+      teams.filter((t) => t.compId === comp.id).map((t) => t.tid),
+    );
+    return spreadOverSeason(fixtures);
+  });
+}
+
+/**
+ * Stretch a competition's rounds across the fixed SEASON_MATCHDAYS grid, so a
+ * division of any size still starts near matchday 1 and finishes on the last
+ * one, taking blank matchdays in between.
+ *
+ * A 20-club division plays 38 rounds and maps one-to-one, so **the shipped world
+ * is untouched** — round r keeps matchday r. A 16-club division plays 30 rounds
+ * and sits them at 1, 3, 4, 5, 6, 8 … 38.
+ *
+ * Spreading rather than letting a short season simply end early is what keeps
+ * the rest of the calendar meaningful for it: the winter window still opens
+ * mid-season, deadline day still falls with games left to play, and its run-in
+ * still lines up with the continental finals. Blank matchdays are also why
+ * injuries and bans have to tick per club that actually played (see
+ * simThrough), not once per matchday for everyone.
+ */
+function spreadOverSeason(fixtures: ScheduleGame[]): ScheduleGame[] {
+  const rounds = fixtures.length === 0
+    ? 0
+    : Math.max(...fixtures.map((g) => g.matchday));
+  if (rounds === 0 || rounds === SEASON_MATCHDAYS) return fixtures;
+  return fixtures.map((g) => ({
+    ...g,
+    matchday: Math.round((g.matchday * SEASON_MATCHDAYS) / rounds),
+  }));
 }
 
 export interface LeagueStore {

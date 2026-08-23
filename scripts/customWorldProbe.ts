@@ -53,13 +53,35 @@ const CUSTOM_SPECS: LeagueSpec[] = [
   },
   {
     // Generated weak, but its academies keep producing at big-four level, so it
-    // should climb over a dynasty. This is the knob that did not exist before.
+    // should climb over a dynasty. The academy knob has no UI control any more,
+    // but the engine still reads it, so this keeps that path exercised.
     country: "Ascalon",
     strengthOffset: 10,
     academyOffset: 2,
     budgetScale: 0.5,
     cupSlots: 1,
     shieldSlots: 3,
+  },
+  {
+    // A small two-division country: 12 clubs a side, so 22 rounds spread across
+    // the 38-matchday grid with blank matchdays in between.
+    country: "Lyonesse",
+    strengthOffset: 6,
+    budgetScale: 0.7,
+    d1Teams: 12,
+    d2Teams: 12,
+    cupSlots: 2,
+    shieldSlots: 2,
+  },
+  {
+    // One division, so nothing is promoted or relegated here at all.
+    country: "Thule",
+    divisions: 1,
+    strengthOffset: 12,
+    budgetScale: 0.4,
+    d1Teams: 10,
+    cupSlots: 1,
+    shieldSlots: 1,
   },
 ];
 
@@ -131,6 +153,25 @@ function main(): void {
     );
     if (overlap) process.exitCode = 1;
   }
+
+  // Division shapes and how each one's fixtures sit on the season grid.
+  console.log("\nDivision shapes:");
+  for (const comp of league.competitions) {
+    const clubs = league.teams.filter((t) => t.compId === comp.id).length;
+    const mds = [...new Set(
+      league.schedule.filter((g) => {
+        const home = league.teams.find((t) => t.tid === g.home);
+        return home?.compId === comp.id;
+      }).map((g) => g.matchday),
+    )].sort((a, b) => a - b);
+    if (comp.tier !== 1) continue;
+    console.log(
+      `  ${comp.name.padEnd(26)} ${String(clubs).padStart(2)} clubs, `
+      + `${String(mds.length).padStart(2)} matchdays, first ${mds[0]}, last ${mds[mds.length - 1]}`,
+    );
+  }
+  const countriesWithOneDivision = SPECS.filter((s) => s.divisions === 1).map((s) => s.country);
+  console.log(`  one-division countries: ${countriesWithOneDivision.join(", ") || "none"}`);
 
   const startOvr = new Map(SPECS.map((s) => [s.country, meanD1Ovr(league, s.country)]));
 

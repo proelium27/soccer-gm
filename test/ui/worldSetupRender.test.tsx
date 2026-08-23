@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  WorldSetup, defaultWorldEntries, includedSpecs, leagueRosterFiles, type WorldEntry,
+  WorldSetup, defaultWorldEntries, includedSpecs, leagueRosterFiles,
+  strengthDial, strengthOffsetFromDial, type WorldEntry,
 } from "../../src/ui/components/WorldSetup.js";
-import { buildCompetitions, countriesOf } from "../../src/core/competitions.js";
+import {
+  buildCompetitions, countriesOf, worldCompetitions, competitionStrengthOffset,
+} from "../../src/core/competitions.js";
 import type { RosterFile } from "../../src/core/teams/rosterFile.js";
 import { ROSTER_FILE_FORMAT } from "../../src/core/teams/rosterFile.js";
 
@@ -112,6 +115,43 @@ describe("WorldSetup renders", () => {
     expect(html.match(/Import roster/g)).toHaveLength(1);
   });
 
+  it("offers a three-letter code box, suggesting one from the country name", () => {
+    const html = render(withAddedLeague());
+    expect(html).toContain('aria-label="Three-letter code"');
+    // Neverland has no code set, so the box suggests NEV rather than pre-filling it.
+    expect(html).toContain('placeholder="NEV"');
+    expect(html).toContain('value=""');
+  });
+
+  it("keeps a code the player typed", () => {
+    const entries = withAddedLeague();
+    entries[entries.length - 1] = {
+      ...entries[entries.length - 1],
+      spec: { ...entries[entries.length - 1].spec, abbrev: "NVL" },
+    };
+    expect(render(entries)).toContain('value="NVL"');
+  });
+
+  it("points at manual editing beside the roster import", () => {
+    // Two ways to get your own clubs in, and the file picker is the one people
+    // find first, so it says what the other one is.
+    const html = render(withAddedLeague());
+    expect(html).toContain("Name the clubs");
+    expect(html).toContain("yourself");
+  });
+
+  it("collects the explanations under the controls rather than between them", () => {
+    const html = render(withAddedLeague());
+    const money = html.indexOf('aria-label="Money"');
+    const cupPlaces = html.indexOf("Continental Cup places");
+    const strengthProse = html.indexOf("is how good its squads are");
+    expect(money).toBeGreaterThan(-1);
+    expect(cupPlaces).toBeGreaterThan(-1);
+    // The prose explaining strength sits after the last control, not after its slider.
+    expect(strengthProse).toBeGreaterThan(cupPlaces);
+    expect(cupPlaces).toBeGreaterThan(money);
+  });
+
   it("names the loaded files and counts their clubs", () => {
     const entries = withAddedLeague();
     entries[entries.length - 1] = {
@@ -122,6 +162,49 @@ describe("WorldSetup renders", () => {
     expect(html).toContain("neverland.json");
     expect(html).toContain("3 clubs");
     expect(html).toContain("Add another file");
+  });
+});
+
+describe("the strength dial reads the way a player expects", () => {
+  it("counts up toward stronger, opposite the engine's handicap", () => {
+    // The engine stores a handicap: 0 is the top of the game, higher is weaker.
+    // The control shows the reverse.
+    expect(strengthDial(0)).toBe(20);
+    expect(strengthDial(20)).toBe(0);
+    expect(strengthDial(5)).toBe(15);
+  });
+
+  it("round-trips, so moving the slider can't drift the stored value", () => {
+    for (let dial = 0; dial <= 20; dial++) {
+      expect(strengthDial(strengthOffsetFromDial(dial))).toBe(dial);
+    }
+  });
+
+  it("puts the shipped leagues where the table says they are", () => {
+    const byCountry = new Map(
+      worldCompetitions().filter((c) => c.tier === 1).map((c) => [c.country, c]),
+    );
+    expect(strengthDial(competitionStrengthOffset(byCountry.get("England")!))).toBe(20);
+    expect(strengthDial(competitionStrengthOffset(byCountry.get("France")!))).toBe(15);
+    expect(strengthDial(competitionStrengthOffset(byCountry.get("Portugal")!))).toBe(10);
+    expect(strengthDial(competitionStrengthOffset(byCountry.get("Turkey")!))).toBe(8);
+  });
+
+  it("shows the baseline table beside the sliders it calibrates", () => {
+    const html = render(withAddedLeague());
+    expect(html).toContain("Where the leagues already in the game sit");
+    // Every shipped country, with its dial value and its money scale.
+    for (const country of ["England", "France", "Portugal", "Turkey"]) {
+      expect(html).toContain(country);
+    }
+    expect(html).toContain("0.40");
+    expect(html).toContain("1.00");
+  });
+
+  it("doesn't show it when there is no league being set up", () => {
+    // It belongs to the per-league editor, so a world of shipped countries only
+    // — none of which are editable — has nothing to calibrate against.
+    expect(render(defaultWorldEntries())).not.toContain("Where the leagues already in the game sit");
   });
 });
 
