@@ -103,9 +103,18 @@ describe("a contract that expires while the player is out on loan", () => {
 
       const rosteredAt = league.teams.filter((t) => t.roster.includes(pid));
       expect(rosteredAt.length).toBeLessThanOrEqual(1);
-      if (league.activeLoans.some((l) => l.pid === pid)) {
+      const loan = league.activeLoans.find((l) => l.pid === pid);
+      if (loan) {
         // Mid-loan: still playing for the club that borrowed him, not nowhere.
-        expect(rosteredAt.map((t) => t.tid)).toEqual([loanee.tid]);
+        //
+        // Read the CURRENT loan's loanee, not the one this test set up. Once his
+        // original deal expires he is released, and another club can sign him
+        // out of free agency and loan him out again — a different loan, and a
+        // perfectly valid one. Pinning the original tid asserted that the AI
+        // happened not to do that, which is seed luck rather than an invariant:
+        // it holds on this seed until anything perturbs match results, and the
+        // real contract is that a loaned player sits on his loanee's roster.
+        expect(rosteredAt.map((t) => t.tid)).toEqual([loan.loaneeTid]);
       } else if (rosteredAt.length === 0) {
         // Released — then he's a real free agent anyone can sign, not invisible.
         expect(freeAgentPids(league.teams, league.players, league.activeLoans).has(pid)).toBe(true);

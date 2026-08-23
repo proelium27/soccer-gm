@@ -7,6 +7,7 @@ import {
   PASS_COMPLETION_CONTROL_K,
   CROSSES_PER_TICK,
   CROSS_NOISE,
+  ATTRIBUTION_RATING_EXPONENT,
 } from "./constants.js";
 
 export type MatchPosition =
@@ -149,6 +150,7 @@ function weightedPick(
   players: MatchPlayer[],
   posWeights: Record<MatchPosition, number>,
   ratingKey: keyof MatchPlayer,
+  exponent = 1,
 ): MatchPlayer {
   let total = 0;
   const weights: number[] = [];
@@ -156,7 +158,8 @@ function weightedPick(
     // Weighted by the slot he's filling, not what he is: the man playing centre
     // forward takes the centre forward's share of the shots even if he's a
     // centre-back doing an emergency job up there.
-    const w = posWeights[p.slot] * ((p[ratingKey] as number) + 10);
+    const rating = (p[ratingKey] as number) + 10;
+    const w = posWeights[p.slot] * (exponent === 1 ? rating : rating ** exponent);
     weights.push(w);
     total += w;
   }
@@ -171,7 +174,7 @@ function weightedPick(
 export function pickShooter(rng: () => number, players: MatchPlayer[]): MatchPlayer {
   const outfield = players.filter((p) => p.slot !== "GK");
   if (outfield.length === 0) return players[0];
-  return weightedPick(rng, outfield, SHOT_WEIGHTS, "shooting");
+  return weightedPick(rng, outfield, SHOT_WEIGHTS, "shooting", ATTRIBUTION_RATING_EXPONENT);
 }
 
 export function pickAssister(
@@ -187,7 +190,7 @@ export function pickAssister(
   // different player is picked, his assists feed computeMatchRating, and match
   // ratings drive substitutions, so scorelines do move. See the scoreline
   // baseline note in touchStats.test.ts.
-  return weightedPick(rng, candidates, ASSIST_WEIGHTS, "passing");
+  return weightedPick(rng, candidates, ASSIST_WEIGHTS, "passing", ATTRIBUTION_RATING_EXPONENT);
 }
 
 /**
@@ -202,7 +205,7 @@ function pickDefensiveAction(
 ): MatchPlayer {
   const outfield = players.filter((p) => p.slot !== "GK");
   if (outfield.length === 0) return players[0];
-  return weightedPick(rng, outfield, TACKLE_WEIGHTS, ratingKey);
+  return weightedPick(rng, outfield, TACKLE_WEIGHTS, ratingKey, ATTRIBUTION_RATING_EXPONENT);
 }
 
 export function pickTackler(rng: () => number, players: MatchPlayer[]): MatchPlayer {
@@ -225,7 +228,7 @@ export function pickFouler(rng: () => number, players: MatchPlayer[]): MatchPlay
 export function pickHeader(rng: () => number, players: MatchPlayer[]): MatchPlayer {
   const outfield = players.filter((p) => p.slot !== "GK");
   if (outfield.length === 0) return players[0];
-  return weightedPick(rng, outfield, HEADER_WEIGHTS, "heading");
+  return weightedPick(rng, outfield, HEADER_WEIGHTS, "heading", ATTRIBUTION_RATING_EXPONENT);
 }
 
 /** Picks who was carrying the ball when tackled, weighted toward ball-playing positions. */
