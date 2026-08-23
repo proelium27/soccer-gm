@@ -424,10 +424,13 @@ export function Manual() {
             for it. Three divisions isn't offered.
           </p>
           <p>
-            Each league you add carries three more settings. <strong>Strength</strong> is how good its
-            squads are, on the same scale as the step-downs above, where 0 sits level with the big
-            four and each point costs about 0.94 OVR. At 5 its champion is about as good as the
-            5th-best club in England; at 10 about the 12th; at 18 about the very worst one.{" "}
+            Each league you add carries three more settings. <strong>Strength</strong> runs 0 to
+            20 and higher is stronger, with <strong>20</strong> level with England, Spain, Italy
+            and Germany. Each point below that costs a league about 1 OVR across its squads, so at{" "}
+            <strong>15</strong> (where France sits) its champion is about as good as England's
+            5th-best club, at <strong>10</strong> (Portugal) about the 12th, and at{" "}
+            <strong>2</strong> its champion is weaker than England's worst club. The panel shows a
+            table of where every shipped league sits so you have something to aim at.{" "}
             <strong>Money</strong> is what its clubs earn and can bank, against 1 for the richest
             leagues. And you set how many places it sends to the{" "}
             <a href="#cup">Continental Cup</a> and the <a href="#shield">Continental Shield</a>.
