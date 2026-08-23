@@ -245,3 +245,29 @@ export const FORMATION_LAYOUTS: Record<FormationId, SlotCoord[]> = {
 export function layoutSlots(formation: FormationId): SlotCoord[] {
   return FORMATION_LAYOUTS[formation];
 }
+
+/**
+ * Pitch coordinates for an award XI, index-aligned with TOTS_SLOTS.
+ *
+ * Its own array rather than a FORMATION_LAYOUTS lookup, for the same reason
+ * TOTS_SLOTS is its own list: the award XI is a showcase shape, not a tactical
+ * one, and must not shift because the sim's formation table was retuned.
+ *
+ * It is still drawn as a 4-3-3 — back four, midfield three, front three — and
+ * every coordinate matches that layout except slot 7, which holds the AM rather
+ * than a second CM and so sits further forward (x 55 -> 62) so the 10 reads as
+ * playing ahead of the 8.
+ */
+export const TOTS_LAYOUT: SlotCoord[] = [
+  { x: 8, y: 50 },   // GK
+  { x: 25, y: 35 },  // CB
+  { x: 25, y: 65 },  // CB
+  { x: 28, y: 12 },  // FB
+  { x: 28, y: 88 },  // FB
+  { x: 42, y: 50 },  // DM
+  { x: 55, y: 35 },  // CM
+  { x: 62, y: 65 },  // AM
+  { x: 75, y: 15 },  // W
+  { x: 75, y: 85 },  // W
+  { x: 90, y: 50 },  // ST
+];

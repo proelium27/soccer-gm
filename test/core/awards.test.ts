@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  computeSeasonAwards, positionGroup, potyScore,
+  computeSeasonAwards, positionGroup, potyScore, TOTS_SLOTS,
 } from "../../src/core/awards.js";
 import { emptySeasonStats, type Player, type Position } from "../../src/core/players/types.js";
 
@@ -73,5 +73,30 @@ describe("award position groups", () => {
     const cb = player({ pid: 1, pos: "CB", goals: 10 });
     const st = player({ pid: 2, pos: "ST", goals: 10 });
     expect(potyScore(cb, cb.stats[0], SEASON)).toBeGreaterThan(potyScore(st, st.stats[0], SEASON));
+  });
+});
+
+describe("Team of the Season slots", () => {
+  it("gives the attacking midfielder a slot", () => {
+    // Without one an AM is structurally ineligible: he can win Player of the
+    // Season and never appear in the XI. Measured before this slot existed,
+    // every AM who won it missed out — 14 of 14 over 6 seasons x 2 seeds.
+    expect(TOTS_SLOTS).toContain("AM");
+  });
+
+  it("is eleven slots in a 4-3-3 shape", () => {
+    // Still a real formation, so it reads correctly on the pitch view: one
+    // keeper, a back four, a midfield three, a front three.
+    expect(TOTS_SLOTS).toHaveLength(11);
+    const count = (...of: Position[]) => TOTS_SLOTS.filter((p) => of.includes(p)).length;
+    expect(count("GK")).toBe(1);
+    expect(count("CB", "FB")).toBe(4);
+    expect(count("DM", "CM", "AM")).toBe(3);
+    expect(count("W", "ST")).toBe(3);
+  });
+
+  it("actually picks an attacking midfielder into the XI", () => {
+    const am = player({ pid: 1, pos: "AM", goals: 15, assists: 12 });
+    expect(computeSeasonAwards([am], SEASON).teamOfSeason).toContain(1);
   });
 });

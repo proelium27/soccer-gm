@@ -300,6 +300,44 @@ export interface CombinedRosterFile {
 }
 
 /**
+ * Point a roster file's competitions at one specific league's divisions,
+ * whatever the file itself calls them.
+ *
+ * A file normally names the competition it belongs to ("English Division 1"),
+ * which is right when someone is dressing an existing world. It is exactly
+ * wrong when the file is being loaded *into* a league the player has just
+ * invented: that league's divisions did not exist when the file was written, so
+ * nothing in it can name them, and `resolveRosterSlots` would skip every
+ * competition as unrecognised.
+ *
+ * Competitions are taken **in the file's own order** onto the divisions given,
+ * top tier first — the same positional rule clubs already follow onto slots. A
+ * one-competition file therefore fills the top division and leaves the second
+ * alone, which is the common case.
+ */
+export function retargetRosterFile(
+  file: RosterFile,
+  divisionNames: string[],
+): CombinedRosterFile {
+  const warnings: string[] = [];
+  const competitions: RosterFileCompetition[] = [];
+
+  file.competitions.forEach((comp, i) => {
+    const match = divisionNames[i];
+    if (match === undefined) {
+      warnings.push(
+        `"${comp.match}" was left out: this league has ${divisionNames.length} `
+        + `${divisionNames.length === 1 ? "division" : "divisions"} and the file lists more.`,
+      );
+      return;
+    }
+    competitions.push({ ...comp, match });
+  });
+
+  return { file: { ...file, competitions }, warnings };
+}
+
+/**
  * Fold several roster files into the single one the importer applies.
  *
  * Authoring a whole world in one file is impractical when squads are involved

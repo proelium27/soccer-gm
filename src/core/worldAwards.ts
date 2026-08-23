@@ -6,11 +6,10 @@ import { cupStatsByPid, cupAvgRating } from "./cup/cupStats.js";
 import { cupRoundsFromFinal } from "./cup/cup.js";
 import type { DomesticCupState } from "./domesticCup/types.js";
 import { domesticStatsByPid } from "./domesticCup/stats.js";
-import { FORMATIONS } from "./lineup/formations.js";
 import { RATING_BASELINE } from "../engine/matchRating.js";
 import {
   type PositionGroup,
-  positionGroup, statsFor, ovrDuringSeason, potyScore, totsScore,
+  positionGroup, statsFor, ovrDuringSeason, potyScore, totsScore, TOTS_SLOTS,
 } from "./awards.js";
 import {
   AWARD_MIN_APPEARANCES, AWARD_OVR_BASELINE, BALLON_DOR_SHORTLIST, WORLD_AWARD_OVR_WEIGHT,
@@ -54,7 +53,7 @@ export interface BallonDOrEntry {
 export interface WorldAwards {
   /** The ranking, best first, up to BALLON_DOR_SHORTLIST. `[0]` is the winner; empty if nobody was eligible. */
   ballonDOr: BallonDOrEntry[];
-  /** 11 pids (or null where no eligible player existed), index-aligned with FORMATIONS["4-3-3"]. */
+  /** 11 pids (or null where no eligible player existed), index-aligned with TOTS_SLOTS. */
   worldTeamOfYear: (number | null)[];
 }
 
@@ -316,7 +315,7 @@ function pickWorldTeam(
   scores: Map<number, number>,
 ): (number | null)[] {
   const used = new Set<number>();
-  return FORMATIONS["4-3-3"].map((slotPos) => {
+  return TOTS_SLOTS.map((slotPos) => {
     let best: Entry | null = null;
     let bestScore = 0;
     for (const e of entries) {
@@ -382,7 +381,7 @@ export function computeWorldAwards(
       strength: 0,
     });
   }
-  if (entries.length === 0) return { ballonDOr: [], worldTeamOfYear: FORMATIONS["4-3-3"].map(() => null) };
+  if (entries.length === 0) return { ballonDOr: [], worldTeamOfYear: TOTS_SLOTS.map(() => null) };
 
   const offsets = leagueStrengthOffsets(entries);
   for (const e of entries) e.strength = offsets.get(e.compId) ?? 0;

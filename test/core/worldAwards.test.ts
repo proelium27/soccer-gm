@@ -4,7 +4,7 @@ import { emptySeasonStats, type Player, type Position } from "../../src/core/pla
 import type { CupState, CupTie } from "../../src/core/cup/types.js";
 import { archiveCup } from "../../src/core/cup/archive.js";
 import type { BoxScore, PlayerMatchLine } from "../../src/engine/attribution.js";
-import { FORMATIONS } from "../../src/core/lineup/formations.js";
+import { TOTS_SLOTS } from "../../src/core/awards.js";
 import {
   BALLON_DOR_SHORTLIST, AWARD_MIN_APPEARANCES,
   WORLD_AWARD_DOMESTIC_CUP_BONUS, WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT,
@@ -71,7 +71,7 @@ function player(spec: PlayerSpec): Player {
 
 /** A squad of filler players so every Team-of-the-Year slot has candidates. */
 function squad(startPid: number, tid: number, ovr: number): Player[] {
-  return FORMATIONS["4-3-3"].map((pos, i) =>
+  return TOTS_SLOTS.map((pos, i) =>
     player({ pid: startPid + i, tid, ovr, pos, avgRating: 6.4 }),
   );
 }
@@ -354,7 +354,7 @@ describe("computeWorldAwards — shape and determinism", () => {
     expect(worldTeamOfYear).toHaveLength(11);
     worldTeamOfYear.forEach((pid, i) => {
       expect(pid).not.toBeNull();
-      expect(byPid.get(pid!)!.pos).toBe(FORMATIONS["4-3-3"][i]);
+      expect(byPid.get(pid!)!.pos).toBe(TOTS_SLOTS[i]);
     });
     expect(new Set(worldTeamOfYear).size).toBe(11);
   });
