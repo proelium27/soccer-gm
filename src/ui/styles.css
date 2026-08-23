@@ -807,11 +807,20 @@ a:hover {
   box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.25);
   object-fit: cover;
 }
+/* Stands in for flag art the game doesn't have, which is every country a player
+   invented. Carries that country's three-letter code when one is passed, so the
+   swatch reads as a label rather than a failed image. */
 .country-flag-fallback {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   vertical-align: middle;
   border-radius: 2px;
   background: var(--sg-surface-2, #333);
+  color: var(--sg-text-muted, #bbb);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  overflow: hidden;
 }
 /* CSS-only hover tooltip naming the country (mouse aid; aria-label covers AT). */
 .player-flag-tip {

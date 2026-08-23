@@ -7,11 +7,11 @@ import { mulberry32 } from "../../engine/rng.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { readLeagueFileText } from "../../db/exportImport.js";
 import {
-  NUM_TEAMS, NUM_TEAMS_D2,
   DIFFICULTIES, DIFFICULTY_ORDER, DEFAULT_DIFFICULTY, type Difficulty,
 } from "../../core/constants.js";
 import {
   buildCompetitions,
+  competitionAbbrev,
   countryClubRanges,
   countriesOf,
   worldTeamSlots,
@@ -54,10 +54,10 @@ function describeWorld(specs: ReturnType<typeof includedSpecs>) {
   return {
     competitions,
     countries: countriesOf(competitions),
-    ranges: countryClubRanges(competitions, NUM_TEAMS, NUM_TEAMS_D2),
+    ranges: countryClubRanges(competitions),
     slotWorld: {
       competitions,
-      teams: worldTeamSlots(competitions, NUM_TEAMS, NUM_TEAMS_D2),
+      teams: worldTeamSlots(competitions),
     },
   };
 }
@@ -132,6 +132,11 @@ export function NewLeague() {
   // seasons from 1 either way), so it's held as raw text and only turned into a
   // number once it reads as a usable year, letting the field go empty mid-edit.
   const [startYear, setStartYear] = useState(String(SEASON_START_YEAR));
+  // Name and colour every club before the save is written. The editor itself
+  // already existed behind the Leagues page's Customize Teams button; this just
+  // offers the same step from the ordinary flow, which is where someone who has
+  // just invented a league actually is.
+  const [nameClubs, setNameClubs] = useState(false);
   const [pending, setPending] = useState<LeagueStore | null>(null);
   const [saving, setSaving] = useState(false);
   // Every path on this page that writes a save goes through one gate. Building a
@@ -174,11 +179,18 @@ export function NewLeague() {
 
   const parsedStartYear = normalizeStartYear(startYear);
 
-  // Which tier the chosen club plays in: tier-1 clubs fill the first NUM_TEAMS
-  // slots of a country's range, tier-2 the rest (see countryClubRanges).
+  /** The country's code, for the flag stand-in on its tab. */
+  function abbrevForCountry(countryName: string): string {
+    const comp = world.competitions.find((c) => c.country === countryName);
+    return comp ? competitionAbbrev(comp) : "";
+  }
+
+  // Which tier the chosen club plays in. Read off the slot layout rather than
+  // assumed from position in the country's block, because divisions can be
+  // different sizes and a country can have only one of them.
   function tierForTid(tid: number): 1 | 2 {
-    const range = world.ranges.find((r) => tid >= r.start && tid < r.end);
-    return range && tid < range.start + NUM_TEAMS ? 1 : 2;
+    const compId = world.slotWorld.teams.find((t) => t.tid === tid)?.compId;
+    return world.competitions.find((c) => c.id === compId)?.tier ?? 1;
   }
 
   function buildLeague(tid: number): LeagueStore {
@@ -213,7 +225,7 @@ export function NewLeague() {
       await yieldToPaint();
       try {
         const league = buildLeague(selectedTid);
-        if (customize) {
+        if (customize || nameClubs) {
           // Hold the generated league in memory and let the user edit team
           // identities before anything is persisted.
           setPending(league);
@@ -431,10 +443,10 @@ export function NewLeague() {
       squad: imported?.players?.length ?? 0,
     };
   });
-  // Within a country's block, generateWorld() lays out the tier-1 clubs
-  // first, then the tier-2 clubs — so the first NUM_TEAMS are Division 1.
-  const d1Clubs = countryClubs.slice(0, NUM_TEAMS);
-  const d2Clubs = countryClubs.slice(NUM_TEAMS);
+  // Split by the tier each slot actually belongs to. A country can have one
+  // division or two, and they need not be the same size.
+  const d1Clubs = countryClubs.filter((c) => tierForTid(c.tid) === 1);
+  const d2Clubs = countryClubs.filter((c) => tierForTid(c.tid) === 2);
 
   function selectCountry(c: string) {
     setCountry(c);
@@ -521,7 +533,7 @@ export function NewLeague() {
             }`}
             onClick={() => selectCountry(c)}
           >
-            <CountryFlag country={c} />
+            <CountryFlag country={c} fallback={abbrevForCountry(c)} />
             {c}
           </button>
         ))}
@@ -610,6 +622,27 @@ export function NewLeague() {
         </div>
       )}
 
+      {/* Redundant when you arrived through Customize Teams, which always
+          opens the editor. */}
+      {!customize && (
+        <div className="form-check mb-3">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            id="name-clubs"
+            checked={nameClubs}
+            onChange={(e) => setNameClubs(e.target.checked)}
+          />
+          <label className="form-check-label" htmlFor="name-clubs">
+            Name the clubs yourself
+            <span className="text-muted small d-block">
+              Opens an editor after the world is built, where you can rename any club
+              and set its colours. Nothing is saved until you're done.
+            </span>
+          </label>
+        </div>
+      )}
+
       <div className="d-flex gap-2 align-items-center">
         <button
           className="btn btn-primary"
@@ -618,8 +651,8 @@ export function NewLeague() {
         >
           {saving
             ? "Building your world..."
-            : customize
-              ? "Next: Customize Teams"
+            : customize || nameClubs
+              ? "Next: Name Your Clubs"
               : "Start League"}
         </button>
 

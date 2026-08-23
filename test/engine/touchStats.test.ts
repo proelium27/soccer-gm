@@ -44,8 +44,27 @@ const SEASON = simSeason(mulberry32(12345));
  * longer matches, since every card calls bumpEvent() and stoppage time scales
  * with events. Measured, that last channel is worth ~+0.01 goals/match
  * (scripts/cardRateSweep.ts), well inside seed noise.
+ *
+ * And now once more, when pickAssister began weighting the assist draw by the
+ * new MatchPlayer.passing instead of dribbling. Same class as the card change
+ * above: the draw count and stream order are untouched (the same weightedPick
+ * runs either way), only the player it lands on moves. It reaches the scoreline
+ * because an assist feeds computeMatchRating, match ratings drive subPriority
+ * and the bench-quality gate, and substitutions change who is on the pitch —
+ * the one feedback path from attribution back into the sim. Assist ATTRIBUTION
+ * was the point: measured over a simmed league season, a creative midfielder's
+ * passing went from r = 0.08 against his assists to r = 0.31.
+ *
+ * And again for ATTRIBUTION_RATING_EXPONENT, which steepens the rating term in
+ * the same four credit draws so a good player takes a bigger share of the events
+ * he is good at (an 80 vs a 40 at the same position goes from 1.8x apart to
+ * 3.2x). Same class again: the draw count is unchanged, only who it lands on,
+ * and it reaches the scoreline through the same match-rating -> substitution
+ * path. Measured, scoring barely moves (goals/game 3.021 -> 3.029, top scorer
+ * 24 -> 26) while every stat gets more specific to its own skill — see the
+ * constant for the full per-axis table.
  */
-const BASELINE_SCORELINE_HASH = 1951366502;
+const BASELINE_SCORELINE_HASH = 2889758683;
 
 function scorelineHash(matches: typeof SEASON.matches): number {
   const s = matches.map((m) => `${m.home}:${m.homeGoals}-${m.awayGoals}:${m.away}`).join("|");

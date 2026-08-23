@@ -1,5 +1,6 @@
 import type { LeagueStore } from "../core/leagueState.js";
 import type { Player } from "../core/players/types.js";
+import type { ArchivedPlayer } from "../core/players/archive.js";
 import { getDb, type StoredLeague } from "./database.js";
 import { migrateLeague } from "./migrate.js";
 
@@ -12,6 +13,11 @@ import { migrateLeague } from "./migrate.js";
  * pool without needing an index or a sentinel pid.
  */
 function playerRange(lid: number): IDBKeyRange {
+  return IDBKeyRange.bound([lid], [lid, []]);
+}
+
+/** Every archived-retiree row for one league. Same key shape as `playerRange`. */
+function retireeRange(lid: number): IDBKeyRange {
   return IDBKeyRange.bound([lid], [lid, []]);
 }
 
@@ -33,7 +39,21 @@ function playerRange(lid: number): IDBKeyRange {
  * it empty makes the first save of a session a full write and every later one
  * incremental, which is both obviously correct and cheap.
  */
-let lastWritten: { lid: number; seq: number; players: Player[] } | null = null;
+let lastWritten: {
+  lid: number;
+  seq: number;
+  players: Player[];
+  /**
+   * The archive as last written, for the same identity diff. One slot for both
+   * because they are written in the same transaction under the same `writeSeq`,
+   * so they can never disagree about what is on disk.
+   *
+   * Cheaper to hold than the pool: an `ArchivedPlayer` is created once at
+   * retirement and never touched again, so in practice the diff finds only the
+   * rows this offseason added and the rows the cap dropped.
+   */
+  retirees: ArchivedPlayer[];
+} | null = null;
 
 /** Exported for tests: forget what this tab thinks is on disk. */
 export function resetWriteCache(): void {
@@ -69,6 +89,36 @@ function playersToWrite(
 }
 
 /**
+ * The same diff for the retiree archive.
+ *
+ * Identity rather than pid-only, even though an `ArchivedPlayer` is written once
+ * and never edited: an identity check is correct whether or not that holds, and
+ * a pid check would silently skip a row whose contents ever did change.
+ *
+ * `remove` matters here in a way it rarely does for players — the archive is
+ * pruned to `RETIREE_ARCHIVE_LIMIT`, so rows genuinely leave it.
+ */
+function retireesToWrite(
+  lid: number,
+  retirees: ArchivedPlayer[],
+  storedSeq: number | undefined,
+): { write: ArchivedPlayer[]; remove: number[]; full: boolean } {
+  const cached = lastWritten;
+  if (!cached || cached.lid !== lid || storedSeq === undefined || cached.seq !== storedSeq) {
+    return { write: retirees, remove: [], full: true };
+  }
+
+  const prev = new Map(cached.retirees.map((r) => [r.pid, r]));
+  const write: ArchivedPlayer[] = [];
+  for (const r of retirees) {
+    const old = prev.get(r.pid);
+    if (old === undefined || old !== r) write.push(r);
+    prev.delete(r.pid);
+  }
+  return { write, remove: [...prev.keys()], full: false };
+}
+
+/**
  * Save a league into IndexedDB. Returns the lid (key).
  *
  * The league record and the player rows are written in **one** transaction. That
@@ -90,11 +140,12 @@ function playersToWrite(
  */
 export async function saveLeague(league: LeagueStore): Promise<number> {
   const db = await getDb();
-  const { players, ...rest } = league;
+  const { players, retiredPlayers, ...rest } = league;
 
-  const tx = db.transaction(["leagues", "players"], "readwrite");
+  const tx = db.transaction(["leagues", "players", "retirees"], "readwrite");
   const leagues = tx.objectStore("leagues");
   const playerStore = tx.objectStore("players");
+  const retireeStore = tx.objectStore("retirees");
 
   let lid: number;
   let storedSeq: number | undefined;
@@ -122,13 +173,20 @@ export async function saveLeague(league: LeagueStore): Promise<number> {
   // (retirement, the free-agent cull) cannot linger as orphan rows. An
   // incremental one deletes exactly the pids that went away.
   if (full) await playerStore.delete(playerRange(lid));
+
+  const archive = retiredPlayers ?? [];
+  const retirees = retireesToWrite(lid, archive, storedSeq);
+  if (retirees.full) await retireeStore.delete(retireeRange(lid));
+
   await Promise.all([
     ...remove.map((pid) => playerStore.delete([lid, pid])),
     ...write.map((p) => playerStore.put(p, [lid, p.pid])),
+    ...retirees.remove.map((pid) => retireeStore.delete([lid, pid])),
+    ...retirees.write.map((r) => retireeStore.put(r, [lid, r.pid])),
   ]);
 
   await tx.done;
-  lastWritten = { lid, seq, players };
+  lastWritten = { lid, seq, players, retirees: archive };
   return lid;
 }
 
@@ -151,17 +209,31 @@ export async function loadLeague(
 ): Promise<LeagueStore | undefined> {
   const db = await getDb();
 
-  const tx = db.transaction(["leagues", "players"], "readonly");
+  const tx = db.transaction(["leagues", "players", "retirees"], "readonly");
   const stored = await tx.objectStore("leagues").get(lid);
   if (!stored) return undefined;
   const rows = await tx.objectStore("players").getAll(playerRange(lid));
+  const retireeRows = await tx.objectStore("retirees").getAll(retireeRange(lid));
   await tx.done;
 
-  const { players: inline, ...meta } = stored;
-  const assembled = { ...meta, players: inline ?? rows } as LeagueStore;
+  const { players: inline, retiredPlayers: inlineRetirees, ...meta } = stored;
+  const assembled = {
+    ...meta,
+    players: inline ?? rows,
+    // An inline archive means a v1/v2 record that has not been split yet. Note
+    // an empty inline array is still "inline" and must win over the (also
+    // empty) store read, or a save whose archive is legitimately empty would
+    // look unsplit forever and rewrite itself on every load.
+    retiredPlayers: inlineRetirees ?? retireeRows,
+  } as LeagueStore;
 
   const migrated = migrateLeague(assembled);
-  if (inline !== undefined || shrankOnLoad(assembled, migrated) || namedAwardWinners(assembled, migrated)) {
+  if (
+    inline !== undefined
+    || inlineRetirees !== undefined
+    || shrankOnLoad(assembled, migrated)
+    || namedAwardWinners(assembled, migrated)
+  ) {
     await saveLeague(migrated);
   }
   return migrated;
@@ -223,10 +295,11 @@ export async function listLeagues(): Promise<
 /** Delete a league by lid, along with all of its player rows. */
 export async function deleteLeague(lid: number): Promise<void> {
   const db = await getDb();
-  const tx = db.transaction(["leagues", "players"], "readwrite");
+  const tx = db.transaction(["leagues", "players", "retirees"], "readwrite");
   await Promise.all([
     tx.objectStore("leagues").delete(lid),
     tx.objectStore("players").delete(playerRange(lid)),
+    tx.objectStore("retirees").delete(retireeRange(lid)),
   ]);
   await tx.done;
   // Drop the pool we were holding for it, rather than pinning a deleted
@@ -238,4 +311,10 @@ export async function deleteLeague(lid: number): Promise<void> {
 export async function storedPlayerRows(lid: number): Promise<Player[]> {
   const db = await getDb();
   return db.getAll("players", playerRange(lid));
+}
+
+/** Exported for tests: the archived-retiree rows currently stored for a league. */
+export async function storedRetireeRows(lid: number): Promise<ArchivedPlayer[]> {
+  const db = await getDb();
+  return db.getAll("retirees", retireeRange(lid));
 }

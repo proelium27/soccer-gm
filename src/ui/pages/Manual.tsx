@@ -420,10 +420,24 @@ export function Manual() {
             the game ships no real clubs.
           </p>
           <p>
-            Each league you add carries three settings. <strong>Strength</strong> is how good its
-            squads are, on the same scale as the step-downs above, where 0 sits level with the big
-            four and each point costs about 0.94 OVR. At 5 its champion is about as good as the
-            5th-best club in England; at 10 about the 12th; at 18 about the very worst one.{" "}
+            You also choose its <strong>shape</strong>: one division or two, and how many clubs are
+            in each. Two divisions is the default and works like every shipped country, with 3 up
+            and 3 down between them. One division means exactly that, and nothing is promoted or
+            relegated there at all. Divisions run from 8 to 20 clubs, in even numbers, because the
+            fixture list pairs clubs off each round and the season is a fixed 38-matchday calendar
+            that a 20-club double round robin already fills exactly. A smaller division plays fewer
+            games, spread across the same season with blank matchdays in between, so its run-in
+            still lines up with everyone else's and the transfer deadline still falls mid-season
+            for it. Three divisions isn't offered.
+          </p>
+          <p>
+            Each league you add carries three more settings. <strong>Strength</strong> runs 0 to
+            20 and higher is stronger, with <strong>20</strong> level with England, Spain, Italy
+            and Germany. Each point below that costs a league about 1 OVR across its squads, so at{" "}
+            <strong>15</strong> (where France sits) its champion is about as good as England's
+            5th-best club, at <strong>10</strong> (Portugal) about the 12th, and at{" "}
+            <strong>2</strong> its champion is weaker than England's worst club. The panel shows a
+            table of where every shipped league sits so you have something to aim at.{" "}
             <strong>Money</strong> is what its clubs earn and can bank, against 1 for the richest
             leagues. And you set how many places it sends to the{" "}
             <a href="#cup">Continental Cup</a> and the <a href="#shield">Continental Shield</a>.
@@ -474,6 +488,15 @@ export function Manual() {
             no matter what you did with the Cup. Switching a shipped country off keeps both totals
             clean, and so does giving your league 4 Cup places instead of 2. The panel warns you
             about each competition separately and tells you how many clubs a bad total would cost.
+          </p>
+          <p>
+            <strong>Naming the clubs.</strong> Tick <strong>Name the clubs yourself</strong> before
+            you start and you get an editor once the world is built, listing every club in every
+            competition with its name, its three-letter abbreviation and both of its colours. It
+            covers leagues you invented as well as the shipped ones, and nothing is written to disk
+            until you're finished, so you can back out. The same editor is on the Leagues page as
+            Customize Teams if you'd rather come at it that way, and you can still rename any club
+            later from there.
           </p>
           <p className="text-muted small">
             World setup only applies when you create a save. There's no mid-save world expansion, and
@@ -872,7 +895,7 @@ export function Manual() {
             Matches are simulated event by event, and everything below shows up in the box score:
           </p>
           <ul>
-            <li><strong>Goals &amp; assists</strong>. Credited to individual players, weighted by who's actually on the pitch and how good they are.</li>
+            <li><strong>Who gets credited</strong>. Every event is pinned on a real player, picked from who's on the pitch using both his position and how good he is at that particular thing. Goals lean on finishing, assists on passing, tackles and interceptions on tackling and reading the game, corners on heading. Ability counts for a lot in that pick, so your best defender really does top your tackles chart and your playmaker really does rack up the assists, rather than them landing on whoever happened to be nearby. Fouls are the deliberate exception: they're spread by position and not sharpened by ability, because "best defender" and "most booked" shouldn't be the same list. Around a quarter of goals are scored with no assist at all.</li>
             <li><strong>Passes, crosses &amp; fouls</strong>. Every box score also carries per-player passing (completed / attempted), crosses, and fouls committed. Central and deep players move the ball most, wide players do most of the crossing. These are just stat-sheet detail, they don't change the scoreline.</li>
             <li><strong>Cards</strong>. Yellows, second yellows, and straight reds. Going a man down is a real hit to your side's strength for the rest of the match, and cards now carry a cost past the final whistle too &mdash; see Suspensions below.</li>
             <li><strong>Set pieces</strong>. Corners, and penalty kicks resolved as a duel between the taker and the keeper (saved, scored, or dragged wide).</li>
@@ -1657,6 +1680,13 @@ export function Manual() {
             There's no career page behind him, so his name isn't a link. This only covers seasons
             played from this update on: on an older save, winners who had already been deleted
             can't be recovered, and the ones still on record when you load it are kept from then on.
+          </p>
+          <p>
+            The permanent career record now holds ten times as many careers as it used to, so a lot
+            more retirees keep a full page instead of just a name. It used to be a small number for a
+            technical reason that's gone: the whole list was rewritten every time you touched
+            anything, so a big one slowed down changing your lineup. It lives in its own place now
+            and only new entries get written, which is why it can afford to be big.
           </p>
           <p>
             Separately from that permanent career record, the game keeps a plain name for every

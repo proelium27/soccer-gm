@@ -5,7 +5,7 @@ import { applyRosterFile, applyRosterFileToNewLeague } from "../../src/core/team
 import { assignAIFormations } from "../../src/core/teams/clubs.js";
 import { worldCompetitions, worldTeamSlots } from "../../src/core/competitions.js";
 import { POSITIONS, SKILL_KEYS, type PlayerRatings } from "../../src/core/players/types.js";
-import { ROSTER_COMPOSITION, NUM_TEAMS, NUM_TEAMS_D2 } from "../../src/core/constants.js";
+import { ROSTER_COMPOSITION } from "../../src/core/constants.js";
 
 const base = makeLeague(0, 11, 11);
 const league = { ...base, meta: { ...base.meta, name: base.teams[0].name } };
@@ -310,7 +310,7 @@ describe("pre-generation slot resolution", () => {
   // layout matches what generateWorld actually produces — this is the guard
   // against the two drifting apart.
   it("worldTeamSlots matches a real generated world's tid -> competition", () => {
-    const projected = worldTeamSlots(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2);
+    const projected = worldTeamSlots(worldCompetitions());
     const actual = league.teams
       .map((t) => ({ tid: t.tid, compId: t.compId }))
       .sort((a, b) => a.tid - b.tid);
@@ -322,7 +322,7 @@ describe("pre-generation slot resolution", () => {
     const projected = resolveRosterSlots(
       {
         competitions: worldCompetitions(),
-        teams: worldTeamSlots(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2),
+        teams: worldTeamSlots(worldCompetitions()),
       },
       file,
     );

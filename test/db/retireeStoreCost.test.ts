@@ -1,0 +1,98 @@
+import "fake-indexeddb/auto";
+import { describe, it, expect, beforeEach } from "vitest";
+import { createLeagueState } from "../../src/core/leagueState.js";
+import { mulberry32 } from "../../src/engine/rng.js";
+import {
+  saveLeague, getDb, resetDb, resetWriteCache, storedRetireeRows,
+} from "../../src/db/index.js";
+import type { ArchivedPlayer } from "../../src/core/players/archive.js";
+import type { LeagueStore } from "../../src/core/leagueState.js";
+
+/**
+ * The point of splitting the archive out was never disk, it was the write paid
+ * on *every* mutation: `saveLeague` rewrites the whole non-player league record,
+ * so an inline archive was re-serialised when the user changed a lineup.
+ *
+ * These pin the property that makes `RETIREE_ARCHIVE_LIMIT` affordable at
+ * 20,000. If they ever fail, raising that cap silently starts costing latency on
+ * every action again, which is the regression PR #210 exists to have fixed.
+ */
+
+let base: LeagueStore | null = null;
+function makeLeague(): LeagueStore {
+  base ??= createLeagueState(3, mulberry32(42));
+  return structuredClone(base);
+}
+
+const retiree = (pid: number): ArchivedPlayer => ({
+  pid, name: `Retiree ${pid}`, nationality: "eng", pos: "ST", born: 2000, heightCm: 180,
+  retiredSeason: 12, retiredAge: 34, firstSeason: 2, seasonsPlayed: 10,
+  peakOvr: 78, peakSeason: 8, finalOvr: 71, clubs: [1],
+  seasons: [{ season: 8, tid: 1, ovr: 78, apps: 30 }],
+  totals: {} as ArchivedPlayer["totals"], best: {} as ArchivedPlayer["best"],
+  caps: 0, intlGoals: 0, intlTitles: 0,
+});
+
+beforeEach(async () => {
+  const db = await getDb();
+  await db.clear("leagues");
+  await db.clear("players");
+  await db.clear("retirees");
+  resetWriteCache();
+  db.close();
+  resetDb();
+});
+
+describe("archive write cost", () => {
+  it("writes no retiree rows on a save that only changed a lineup", async () => {
+    const league = makeLeague();
+    league.retiredPlayers = Array.from({ length: 50 }, (_, i) => retiree(9000 + i));
+    const lid = await saveLeague(league);
+    league.lid = lid;
+
+    // Tamper with one row directly, behind saveLeague's back. If the next save
+    // rewrites the archive the doctored name is overwritten; if the diff skips
+    // it, the tampering survives. That is observable proof of a skipped write
+    // rather than an assertion that the data merely still looks right.
+    const db = await getDb();
+    const doctored = { ...retiree(9000), name: "TAMPERED" };
+    await db.put("retirees", doctored, [lid, 9000]);
+
+    // A lineup change: the archive array is the same object by reference, and
+    // one team object is replaced, which is what a real mutation looks like.
+    league.teams = league.teams.map((t, i) => (i === 0 ? { ...t, formation: "4-4-2" } : t));
+    await saveLeague(league);
+
+    const rows = await storedRetireeRows(lid);
+    expect(rows).toHaveLength(50);
+    expect(rows.find((r) => r.pid === 9000)!.name).toBe("TAMPERED");
+  });
+
+  it("writes only the rows an offseason added", async () => {
+    const league = makeLeague();
+    const first = Array.from({ length: 20 }, (_, i) => retiree(9000 + i));
+    league.retiredPlayers = first;
+    const lid = await saveLeague(league);
+    league.lid = lid;
+
+    // An offseason appends, keeping every existing row by reference — which is
+    // exactly what extendRetireeArchive does when under the cap.
+    league.retiredPlayers = [...first, retiree(9100), retiree(9101)];
+    await saveLeague(league);
+
+    expect(await storedRetireeRows(lid)).toHaveLength(22);
+  });
+
+  it("keeps the league record free of the archive at any size", async () => {
+    const league = makeLeague();
+    league.retiredPlayers = Array.from({ length: 500 }, (_, i) => retiree(9000 + i));
+    const lid = await saveLeague(league);
+
+    const db = await getDb();
+    const raw = await db.get("leagues", lid);
+    expect(raw!.retiredPlayers).toBeUndefined();
+    // The whole point: the record the user pays for on every save carries none
+    // of this, however long the dynasty runs.
+    expect(JSON.stringify(raw)).not.toContain("Retiree 9000");
+  });
+});

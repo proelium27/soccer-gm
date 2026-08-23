@@ -6,6 +6,7 @@ import { hashInts } from "../../engine/rng.js";
 import type { Competition } from "../competitions.js";
 import {
   worldCompetitions, tier1Pairs, competitionStrengthOffset, competitionAcademyOffset,
+  competitionTeamCount,
 } from "../competitions.js";
 import {
   NUM_TEAMS, NUM_TEAMS_D2, LEAGUE_BASE, TEAM_STRENGTH_SPREAD, DIVISION_2_OFFSET,
@@ -201,22 +202,29 @@ export function generateWorld(
     // doesn't alter rng-stream consumption, and the weak leagues are generated
     // last, so this can't perturb any other country's players.
     const d1Result = generateDivisionTeams(
-      rng, tidCursor, NUM_TEAMS,
+      rng, tidCursor, competitionTeamCount(d1),
       competitionStrengthOffset(d1), competitionAcademyOffset(d1),
       d1.id, genSeed, pid, d1.country,
     );
     pid = d1Result.nextPid;
-    tidCursor += NUM_TEAMS;
+    tidCursor += competitionTeamCount(d1);
+    teams.push(...d1Result.teams);
+    players.push(...d1Result.players);
+    // A one-division country stops here. Its clubs still occupy a contiguous
+    // tid block, so every later country shifts up by exactly the division it
+    // doesn't have — which is why club identities key off position within the
+    // country rather than the absolute tid.
+    if (!d2) continue;
     const d2Result = generateDivisionTeams(
-      rng, tidCursor, NUM_TEAMS_D2,
+      rng, tidCursor, competitionTeamCount(d2),
       DIVISION_2_OFFSET + competitionStrengthOffset(d2),
       DIVISION_2_OFFSET + competitionAcademyOffset(d2),
       d2.id, genSeed, pid, d2.country,
     );
     pid = d2Result.nextPid;
-    tidCursor += NUM_TEAMS_D2;
-    teams.push(...d1Result.teams, ...d2Result.teams);
-    players.push(...d1Result.players, ...d2Result.players);
+    tidCursor += competitionTeamCount(d2);
+    teams.push(...d2Result.teams);
+    players.push(...d2Result.players);
   }
   return { teams, players };
 }
