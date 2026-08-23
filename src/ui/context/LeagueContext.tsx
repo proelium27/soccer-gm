@@ -4,6 +4,7 @@ import type { SimThrough, IntlMode } from "../../worker/protocol.js";
 import { useSimWorker, type SimProgress, type JumpProgressUpdate } from "../useSimWorker.js";
 import { saveLeague, loadLeague } from "../../db/leagueDb.js";
 import { getActiveLid, setActiveLid, clearActiveLid } from "../../db/activeLeague.js";
+import { setSeasonStartYear } from "../format.js";
 import { exportLeagueJSON, importLeagueJSON } from "../../db/exportImport.js";
 import {
   signFreeAgent, releasePlayer, signToAcademy, promoteFromAcademy, releaseAcademyPlayer,
@@ -156,6 +157,10 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
 
   const commitLeague = useCallback((l: LeagueStore | null) => {
     leagueRef.current = l;
+    // Every league — loaded, created, imported, or switched away from — passes
+    // through here, which is why the season→year display offset is set here
+    // rather than at the ~90 places that format a season (see format.ts).
+    setSeasonStartYear(l?.meta.startYear);
     setLeagueState(l);
   }, []);
 

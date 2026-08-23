@@ -33,6 +33,9 @@ import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentit
 import { ClubCrest, CrestArtProvider } from "../components/ClubCrest.js";
 import { CountryFlag } from "../components/CountryFlag.js";
 import { trackEvent } from "../analytics.js";
+import {
+  SEASON_START_YEAR, MIN_START_YEAR, MAX_START_YEAR, normalizeStartYear,
+} from "../format.js";
 import { ROSTER_DOWNLOAD_URL } from "../rosterDownload.js";
 import { createGate, yieldToPaint } from "../singleFlight.js";
 
@@ -125,6 +128,10 @@ export function NewLeague() {
   // Fixed for the save's lifetime once it's created, so it is chosen here and
   // nowhere else (see the DIFFICULTIES block in core/constants.ts).
   const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
+  // Which year season 1 gets labelled as. Purely cosmetic (the sim counts
+  // seasons from 1 either way), so it's held as raw text and only turned into a
+  // number once it reads as a usable year, letting the field go empty mid-edit.
+  const [startYear, setStartYear] = useState(String(SEASON_START_YEAR));
   const [pending, setPending] = useState<LeagueStore | null>(null);
   const [saving, setSaving] = useState(false);
   // Every path on this page that writes a save goes through one gate. Building a
@@ -165,6 +172,8 @@ export function NewLeague() {
    */
   const activeRoster = roster ?? leagueRoster;
 
+  const parsedStartYear = normalizeStartYear(startYear);
+
   // Which tier the chosen club plays in: tier-1 clubs fill the first NUM_TEAMS
   // slots of a country's range, tier-2 the rest (see countryClubRanges).
   function tierForTid(tid: number): 1 | 2 {
@@ -187,6 +196,10 @@ export function NewLeague() {
       meta: {
         ...league.meta,
         name: league.teams.find((t) => t.tid === tid)?.name ?? `Club ${tid}`,
+        // Display only: seasons stay a 1-based counter, this just decides which
+        // year the UI calls season 1. The Start button is disabled while the
+        // field is unusable, so the fallback only keeps the type honest.
+        startYear: parsedStartYear ?? SEASON_START_YEAR,
       },
     };
   }
@@ -563,6 +576,33 @@ export function NewLeague() {
         </p>
       </div>
 
+      <div className="mb-3">
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Start year</h6>
+        <div className="d-flex align-items-center gap-2">
+          <input
+            type="number"
+            className={`form-control${parsedStartYear === null ? " is-invalid" : ""}`}
+            style={{ maxWidth: 140 }}
+            value={startYear}
+            min={MIN_START_YEAR}
+            max={MAX_START_YEAR}
+            aria-label="Start year"
+            onChange={(e) => setStartYear(e.target.value)}
+          />
+          {parsedStartYear !== null && (
+            <span className="text-muted small">
+              Your first season is {parsedStartYear}-
+              {String((parsedStartYear + 1) % 100).padStart(2, "0")}.
+            </span>
+          )}
+        </div>
+        <p className="text-muted small mt-2 mb-0">
+          {parsedStartYear === null
+            ? `Pick a year between ${MIN_START_YEAR} and ${MAX_START_YEAR}.`
+            : "Just for looks. It's the year the game puts on your first season, and every season after counts up from there."}
+        </p>
+      </div>
+
       {importError && (
         <div className="alert alert-danger py-2" role="alert">
           <div>Couldn't import that file.</div>
@@ -573,7 +613,7 @@ export function NewLeague() {
       <div className="d-flex gap-2 align-items-center">
         <button
           className="btn btn-primary"
-          disabled={selectedTid === null || saving}
+          disabled={selectedTid === null || saving || parsedStartYear === null}
           onClick={handleStart}
         >
           {saving
