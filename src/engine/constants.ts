@@ -20,6 +20,56 @@ export const SAVE_BASE = 0.68; // on-target shot is saved (else goal)
 // reveals finishing skill). The fast composite-only simMatch is unaffected.
 export const SHOOTER_FINISH_WEIGHT = 0.3;
 
+/**
+ * How sharply a player's own rating decides whether HE is the one credited with
+ * an event, in the box-score attribution draws (engine/attribution.ts).
+ *
+ * Each draw weights a candidate by `positionWeight × (rating + 10)`. Linear with
+ * a +10 floor is a very weak discriminator: an 80-rated player takes only 1.8×
+ * the share of a 40-rated one at the same position, so the box score barely
+ * distinguished a great player from a poor one at the same job. This raises the
+ * RATING term to a power — the position weight is untouched, so a centre-back
+ * still takes a centre-back's share of the tackles. At 2 that pair is 3.2× apart.
+ *
+ * Measured over a full simmed league season (`scripts/attributionSweep.ts`),
+ * correlation between the relevant skill and per-appearance output, linear → 2:
+ *
+ *     defence (tackles+interceptions)   0.294 → 0.408
+ *     creation (assists)                0.307 → 0.451
+ *     shooting (shots)                  0.358 → 0.420
+ *     finishing (goals)                 0.419 → 0.482
+ *
+ * Three things bound it, all measured before settling on 2:
+ *
+ *   - CALIBRATION is what stops it going higher. Concentrating shots on the best
+ *     finisher COMPOUNDS with SHOOTER_FINISH_WEIGHT, since he also converts
+ *     better — so the top scorer is the number most at risk. Measured: top
+ *     scorer 24 → 26 at 2, but 30 at 3, with goals/game 3.021 → 3.029 at 2 and
+ *     3.050 at 3. The M3 gate bands the tier-1 top scorer at 18-36, and 3 spends
+ *     real headroom in it for a modest further gain.
+ *   - REALISM. Total credited events per match is FIXED (by
+ *     CREDITED_TURNOVER_PROB and the shot rolls), so this only redistributes
+ *     them — push far enough and one man takes his club's whole workload.
+ *     The busiest defender's share of his club's actions goes 26.0% → 27.2% at
+ *     2 (and 31% at 5, where his workload hits the top of the plausible band).
+ *   - IT MUST NOT BECOME A RESTATEMENT OF OVR, or the board says nothing a
+ *     rating column doesn't. It goes the other way: the gap between r(skill) and
+ *     r(ovr) WIDENS on every axis — defence 0.081 → 0.158, creation 0.115 →
+ *     0.291, shooting 0.016 → 0.062 — so each stat becomes more specific to the
+ *     skill it names rather than tracking general quality.
+ *
+ * NOT SCORELINE-INERT: tackles and assists feed computeMatchRating, ratings feed
+ * subPriority and the bench-quality gate, so who is credited changes
+ * substitutions and therefore results. Small (goals/game +0.26%) but real, and
+ * the touchStats baseline hash is rebased for it.
+ *
+ * Applied to the four CREDIT draws only — shooter, assister, tackler/interceptor,
+ * header. Deliberately NOT to pickFouler or pickCarrier: fouls are weighted by
+ * tackling, so steepening would make a club's best defender its most-booked
+ * player, and pickCarrier picks who LOST the ball. Steepen credit, not blame.
+ */
+export const ATTRIBUTION_RATING_EXPONENT = 2;
+
 export const TURNOVER_BASE = 0.14; // per-tick prob possession changes hands
 // Of every turnover (see TURNOVER_BASE above), the share credited as a
 // stat-worthy defensive action at all vs. no credit (a real match has plenty
