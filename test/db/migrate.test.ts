@@ -10,6 +10,7 @@ import { generateTwoDivisionLeague } from "../../src/core/league/generate.js";
 import { englandCompetitions } from "../../src/core/competitions.js";
 import { assignIdentities } from "../../src/core/teams/clubs.js";
 import { awardWinnerPids } from "../../src/core/awardWinners.js";
+import { emptyManagerState } from "../../src/core/manager/types.js";
 
 /** An England-only LeagueStore, matching what createLeagueState produced before the more-leagues world refactor — used by tests that specifically simulate a pre-refactor save. */
 function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed = 0): LeagueStore {
@@ -51,6 +52,7 @@ function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed =
     powerRankingHistory: [],
     godMode: false,
     difficulty: "normal",
+    manager: emptyManagerState(userTid, 1),
   };
 }
 

@@ -15,6 +15,8 @@ import type { DomesticCupState } from "./domesticCup/types.js";
 import { buildDomesticCups } from "./domesticCup/cup.js";
 import type { InternationalState } from "./international/types.js";
 import { emptyInternationalState } from "./international/index.js";
+import type { ManagerState } from "./manager/types.js";
+import { emptyManagerState } from "./manager/types.js";
 import { generateWorld } from "./league/generate.js";
 import { assignIdentities, assignAIFormations } from "./teams/clubs.js";
 import { generateSchedule } from "./schedule.js";
@@ -213,6 +215,16 @@ export interface LeagueStore {
    */
   nextPid: number;
   /**
+   * The user's managerial career: board confidence at the current club, the
+   * clubs managed so far, and any job offers on the table.
+   *
+   * `meta.userTid` remains the single source of truth for *which* club the user
+   * owns — this is the career around it, and the reason that field can now
+   * change mid-save. Backfilled for old saves at full confidence with one open
+   * stint, so upgrading can't get anyone sacked for seasons the board never saw.
+   */
+  manager: ManagerState;
+  /**
    * Seasons the AI managed the user's club, because they jumped forward past
    * them (see core/autopilot.ts). Oldest first, normally empty.
    *
@@ -288,6 +300,7 @@ export function createLeagueState(
     domesticCupHistory: [],
     international: emptyInternationalState(),
     godMode: false,
+    manager: emptyManagerState(userTid, 1),
     difficulty,
     // Same value the old derived `max(pid) + 1` produced at first use, so a
     // fresh world generates identically to before.

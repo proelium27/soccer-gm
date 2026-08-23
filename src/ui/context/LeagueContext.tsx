@@ -27,6 +27,7 @@ import {
   movePlayerToClub, detachPlayer, applyPlayerEdit, createCustomPlayer, setClubFinances,
   type PlayerEdit, type NewPlayerSpec,
 } from "../../core/godMode.js";
+import { switchClub } from "../../core/manager/switchClub.js";
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
 import { teamSlots, chooseBestFormation, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { SimOverlay } from "../components/SimOverlay.js";
@@ -84,6 +85,12 @@ interface LeagueContextValue {
   autoPickBestXIAction: () => Promise<void>;
   // God Mode sandbox actions (no-ops in the UI unless league.godMode is true).
   setGodModeAction: (on: boolean) => Promise<void>;
+  /** Take one of the jobs on the table, handing the current club to the AI. */
+  acceptJobOfferAction: (tid: number) => Promise<void>;
+  /** Turn down every offer and stay put. Only available while you still have a job. */
+  declineJobOffersAction: () => Promise<void>;
+  /** Save-level switch for whether the board can sack you at all. */
+  setSackingEnabledAction: (on: boolean) => Promise<void>;
   movePlayerToClubAction: (pid: number, tid: number) => Promise<void>;
   releasePlayerGodModeAction: (pid: number) => Promise<void>;
   editPlayerAction: (pid: number, edit: PlayerEdit) => Promise<void>;
@@ -663,6 +670,30 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     [mutate],
   );
 
+  const acceptJobOfferAction = useCallback(
+    (tid: number) => mutate((l) => {
+      // Only a club that actually offered — the page can't be trusted to have a
+      // fresh list, and taking a job nobody offered is the whole feature bypassed.
+      if (!l.manager.offers.some((o) => o.tid === tid)) return null;
+      return switchClub(l, tid, l.manager.sacked ? "sacked" : "left");
+    }),
+    [mutate],
+  );
+
+  const declineJobOffersAction = useCallback(
+    () => mutate((l) => (
+      // A sacked manager has no club to stay at, so declining is not an option
+      // for them — the offer list is the only way the save continues.
+      l.manager.sacked ? null : { ...l, manager: { ...l.manager, offers: [] } }
+    )),
+    [mutate],
+  );
+
+  const setSackingEnabledAction = useCallback(
+    (on: boolean) => mutate((l) => ({ ...l, manager: { ...l.manager, sackingEnabled: on } })),
+    [mutate],
+  );
+
   const releasePlayerGodModeAction = useCallback(
     (pid: number) => mutate((l) => detachPlayer(l, pid)),
     [mutate],
@@ -765,6 +796,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     setFormationAction,
     autoPickBestXIAction,
     setGodModeAction,
+    acceptJobOfferAction, declineJobOffersAction, setSackingEnabledAction,
     movePlayerToClubAction,
     releasePlayerGodModeAction,
     editPlayerAction,
@@ -790,6 +822,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     rejectLoanOfferAction, setTransferListedAction, setMoreMinutesAction, setLineupAction, setFormationAction,
     autoPickBestXIAction,
     setGodModeAction, movePlayerToClubAction, releasePlayerGodModeAction,
+    acceptJobOfferAction, declineJobOffersAction, setSackingEnabledAction,
     editPlayerAction, createPlayerAction, setClubFinancesAction,
     simming, simOverlayOpen, watchable, jumpOpen, busy, saveToDb, doExport, doImport,
   ]);

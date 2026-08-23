@@ -15,6 +15,7 @@ import { useSportName } from "../sportName.js";
 const SECTIONS: [id: string, title: string][] = [
   ["overview", "Overview"],
   ["difficulty", "Difficulty"],
+  ["manager", "Your Job: Confidence, Offers & Sackings"],
   ["pages", "The Pages"],
   ["season", "The Season & Simming"],
   ["world", "The World"],
@@ -240,9 +241,81 @@ export function Manual() {
           </p>
         </Section>
 
+        <Section id="manager" title="Your Job: Confidence, Offers & Sackings">
+          <p>
+            You're a manager, not an owner. The club you start at is a job you can lose, and other
+            clubs can offer you a better one. All of it happens at the end of a season, never
+            mid-season.
+          </p>
+          <h6>Board confidence</h6>
+          <p>
+            Your board keeps a running confidence in you, shown as a bar on the Dashboard and on the
+            Manager page. It moves once a season, and what moves it is <strong>where you finished
+            against what your squad is worth</strong> &mdash; not where you finished on its own. The
+            game ranks every squad in your division by quality, and that rank is what you're judged
+            against. Finish 6th with the 12th-best squad and the board is delighted. Finish 6th with
+            the best squad and you're in trouble, even though 6th is the same 6th.
+          </p>
+          <p>
+            Trophies are counted on top, and so are promotion and relegation. Winning your division
+            is worth a lot. Going down is worth a lot in the other direction, but it isn't an
+            automatic sacking: if you'd spent years overachieving before it happened, the goodwill
+            you banked can carry you through. That's the point of a running balance rather than a
+            "two bad seasons and you're out" rule.
+          </p>
+          <h6>Not every board is as patient</h6>
+          <p>
+            Two things make a board harder to please. The first is <strong>how big a job it
+            is</strong>: a superclub's board treats winning as the baseline, so it gives you less
+            credit for a good season and charges you more for a bad one. The same finish that keeps
+            you comfortable at a small club can start costing you at a giant, and being the biggest
+            club in a strong league is the most demanding job of all.
+          </p>
+          <p>
+            The second is your save's <strong>difficulty</strong>. Easy boards are forgiving, Brutal
+            boards are not, with Normal and Hard in between. It's the one difficulty knob that has no
+            effect at all on the world around you &mdash; it changes how long you keep your job,
+            nothing else.
+          </p>
+          <p>
+            You always get a full season's grace at a new club before the board can sack you, so
+            inheriting a mess can't end your job before you've had a transfer window of your own.
+          </p>
+          <h6>Job offers</h6>
+          <p>
+            Beat expectations and clubs come calling in the offseason. Which clubs depends on your
+            reputation, which is built from the titles and cups you've won, how consistently you've
+            beaten what your squads were worth, and how long you've been at it &mdash; with a
+            sacking counting against you. While you're employed you'll only ever be offered jobs at
+            least as big as your current one, so the list is worth reading rather than noise.
+          </p>
+          <p>
+            Taking a job has real costs, and they're worth knowing before you click. Your current
+            squad goes straight to the AI. Your youth academy graduates onto that club's senior
+            roster on the way out, so those prospects are gone. Any transfer talks, incoming bids and
+            loan listings you had open are dropped. And you arrive at the new club knowing its
+            players' ratings but <em>not</em> their potential &mdash; scouting starts from scratch,
+            exactly as if you'd just signed all of them. The club keeps its own money, so you inherit
+            its budget and its wage bill, not your old club's.
+          </p>
+          <h6>Getting sacked</h6>
+          <p>
+            If confidence hits zero, you're out. You'll be shown a list of clubs still willing to
+            take you on, generally a rung below the one that just let you go, and you have to pick
+            one &mdash; there's no sitting a season out. The save carries on from there with your
+            record intact, sacking and all.
+          </p>
+          <p>
+            <strong>If you'd rather not play this way</strong>, there's a "Never sack me" switch on
+            the Manager page. Job offers still arrive, so you keep the ability to move clubs when you
+            want to; the board just can't move you.
+          </p>
+        </Section>
+
         <Section id="pages" title="The Pages">
           <p>Every screen in the game and what it's for:</p>
           <ul>
+            <li><strong>Manager</strong>. Your job: how the board feels about you, any clubs that want to hire you, and the record of every club you've managed. Also where the "never sack me" switch lives.</li>
             <li><strong>Dashboard</strong>. Your current W/D/L record and next fixture front and center, with your division's standings on the left and the latest news headlines on the right. Below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim controls.</li>
             <li><strong>Standings</strong>. The league table, plus each club's current OVR/POT. A season dropdown lets you pull up any past season&apos;s final table next to the current one. The champion&apos;s row is highlighted, and the <a href="#cup">Continental Cup</a> and <a href="#shield">Continental Shield</a> qualification places are shaded.</li>
             <li><strong>Continental Cup</strong>. The live league-phase table and knockout bracket for the current season, plus past winners via a season dropdown. More in <a href="#cup">The Continental Cup</a>.</li>

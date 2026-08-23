@@ -1405,6 +1405,16 @@ export interface DifficultyProfile {
   protectedStarOvr: number;
   protectedStarTopFinish: number;
   fogScale: number;
+  /**
+   * How patient the board is, as a multiplier on manager confidence movement
+   * (see core/manager/confidence.ts): good seasons are credited x this, bad
+   * seasons charged / this. Above 1 is forgiving, below 1 impatient.
+   *
+   * The only lever here with no effect on the world — it changes how long you
+   * keep your job, not what your club can buy — so it needs no difficultyProbe
+   * recalibration when it moves.
+   */
+  boardPatience: number;
 }
 
 export const DEFAULT_DIFFICULTY: Difficulty = "normal";
@@ -1423,6 +1433,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyProfile> = {
     protectedStarOvr: 85,
     protectedStarTopFinish: 1,
     fogScale: 0.5,
+    boardPatience: 1.7,
   },
   normal: {
     id: "normal",
@@ -1434,6 +1445,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyProfile> = {
     protectedStarOvr: PROTECTED_STAR_OVR,
     protectedStarTopFinish: PROTECTED_STAR_TOP_FINISH,
     fogScale: 1,
+    boardPatience: 1,
   },
   hard: {
     id: "hard",
@@ -1445,6 +1457,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyProfile> = {
     protectedStarOvr: 78,
     protectedStarTopFinish: 5,
     fogScale: 1.25,
+    boardPatience: 0.75,
   },
   brutal: {
     id: "brutal",
@@ -1456,6 +1469,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyProfile> = {
     protectedStarOvr: 76,
     protectedStarTopFinish: 6,
     fogScale: 1.5,
+    boardPatience: 0.55,
   },
 };
 
@@ -3047,3 +3061,119 @@ export const GOAT_TEAM_PPG_BASELINE = 1.4;
 export const GOAT_TEAM_PPG_WEIGHT = 20;
 /** Tier-2 seasons contribute this fraction of their points-per-game surplus. */
 export const GOAT_TEAM_SECOND_TIER_SCALE = 0.5;
+
+// ---------------------------------------------------------------------------
+// Manager career: board confidence, sackings, and job offers
+// (see src/core/manager/). All of this is offseason-only and touches no player
+// ratings, valuations or rng draws — it decides *which club the user owns*, not
+// anything about the world the clubs live in.
+// ---------------------------------------------------------------------------
+
+/**
+ * Board confidence a manager starts a new job on, 0-100. A honeymoon rather
+ * than a neutral 50: a board that has just appointed you believes in you, which
+ * is what buys a first-season rebuild the room it needs.
+ */
+export const MANAGER_START_CONFIDENCE = 65;
+/**
+ * Confidence swing for finishing a *whole division's worth* of places away from
+ * where the squad said you should.
+ *
+ * **Sized against measured variance, not intuition** (`scripts/managerTenureProbe.ts`,
+ * 2552 club-seasons). An ordinary season lands within ±0.158 of a division
+ * (p25-p75, so about ±3 places in a 20-club league) and a bad one around -0.368
+ * (p10). At the first-guess 130 a single p10 season cost ~68 confidence against a
+ * starting 65, i.e. one bottom-decile year very nearly ended a career, and normal
+ * difficulty sacked a manager every 8 seasons. At 70 it takes two p10 seasons
+ * back to back, or about six straight below-median ones, which is the intent.
+ */
+export const MANAGER_CONFIDENCE_SWING = 70;
+/**
+ * How far confidence drifts back toward `MANAGER_START_CONFIDENCE` each season,
+ * as a fraction of the gap, applied before the season's verdict.
+ *
+ * Boards forget. Without this, confidence only ever moves on over- or
+ * underperformance, so a manager sitting at 20 who then finishes *exactly* to
+ * expectation every year stays at 20 forever, permanently one bad season from
+ * the sack with no way back. It cuts both ways deliberately: a long-banked 100
+ * also decays, so a title six years ago stops being a shield.
+ */
+export const MANAGER_CONFIDENCE_RECOVERY = 0.12;
+/** Winning your division, on top of whatever the finish itself was worth. */
+export const MANAGER_TITLE_CONFIDENCE = 30;
+/** Any other trophy: a domestic cup, the shield, the Continental Cup. */
+export const MANAGER_TROPHY_CONFIDENCE = 12;
+/**
+ * Relegation, on top of the finish. Deliberately brutal and deliberately *not*
+ * an automatic sacking: a manager who went down having overachieved all the way
+ * to the drop can still have banked enough goodwill to get another year, which
+ * is the kind of judgement call a flat "relegated = fired" rule can't make.
+ */
+export const MANAGER_RELEGATION_CONFIDENCE = -35;
+/** Promotion, on top of the finish (and on top of the tier-2 title, if you won it). */
+export const MANAGER_PROMOTION_CONFIDENCE = 20;
+/**
+ * How much more harshly the most demanding board punishes a bad season: a
+ * demand of 1.0 multiplies the drop by 1 + this. The reward side is damped
+ * instead (below), because the asymmetry *is* the difficulty — a superclub
+ * board treats winning as the baseline and losing as a crisis.
+ */
+export const MANAGER_DEMAND_PENALTY_SCALE = 0.85;
+/** How much of a good season's credit the most demanding board withholds. */
+export const MANAGER_DEMAND_REWARD_DAMPING = 0.45;
+/**
+ * How board demand splits between "how big is this club within its own league"
+ * and "how strong is that league in world terms". Both matter and neither alone
+ * is right: the biggest club in Turkey's second tier is a demanding job in its
+ * own small world, but it is not the Bernabéu.
+ */
+export const MANAGER_DEMAND_W_CLUB = 0.6;
+export const MANAGER_DEMAND_W_LEAGUE = 0.4;
+/**
+ * Seasons at a club before the board will sack you. One: you always get a full
+ * second season, so inheriting a mess in the summer can't end your job before
+ * you've had a transfer window of your own.
+ */
+export const MANAGER_GRACE_SEASONS = 1;
+/** Confidence at or below this and you're gone. */
+export const MANAGER_SACK_THRESHOLD = 0;
+
+/**
+ * Confidence below this reads as "on thin ice" in the UI — purely a label
+ * boundary, the sacking rule is the threshold above.
+ */
+export const MANAGER_CONFIDENCE_DANGER = 25;
+/** Confidence below this reads as "under pressure". */
+export const MANAGER_CONFIDENCE_UNEASY = 50;
+
+/** Most job offers on the table at once. */
+export const MANAGER_MAX_OFFERS = 4;
+/**
+ * How far from the job your reputation says you deserve a club can be and still
+ * come calling, on the [0,1] prestige scale. Wide enough that a good season at a
+ * mid-table club opens real doors, narrow enough that Europe's biggest club
+ * doesn't ring an unproven manager.
+ */
+export const MANAGER_OFFER_BAND = 0.2;
+/** Chance a matching club comes calling after an ordinary season. */
+export const MANAGER_OFFER_BASE_CHANCE = 0.22;
+/** How much a season spent beating expectation raises that chance. */
+export const MANAGER_OFFER_FORM_WEIGHT = 0.9;
+export const MANAGER_OFFER_MAX_CHANCE = 0.8;
+/**
+ * How far down the prestige scale a sacking knocks you. Applied to the band
+ * offers are drawn from when you're dismissed, so the clubs that will take you
+ * are a step below the one that just let you go.
+ */
+export const MANAGER_SACKED_PRESTIGE_PENALTY = 0.18;
+
+/** Reputation a manager starts a career on, before any results, 0-100. */
+export const MANAGER_REP_BASE = 30;
+export const MANAGER_REP_TITLE_WEIGHT = 13;
+export const MANAGER_REP_TROPHY_WEIGHT = 6;
+/** Per unit of cumulative finish-versus-expectation across the whole career. */
+export const MANAGER_REP_OVERPERFORMANCE_WEIGHT = 9;
+export const MANAGER_REP_SEASON_WEIGHT = 0.8;
+/** Seasons past this stop adding experience credit — longevity isn't a career on its own. */
+export const MANAGER_REP_SEASON_CAP = 15;
+export const MANAGER_REP_SACKING_PENALTY = 8;
