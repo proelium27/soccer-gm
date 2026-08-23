@@ -77,7 +77,20 @@ export function reviewSeason(input: ReviewInput): ManagerReview {
   const manager = league.manager;
   const userTid = league.meta.userTid;
 
-  const expectations = deriveExpectations(teams, players, league.competitions);
+  // `league.seasonHistory` deliberately does NOT yet contain the season being
+  // judged — it is appended during the offseason that follows — so the bar is
+  // set by what the club had already done before it played. That is the whole
+  // point: a manager must not be able to move their own target.
+  // Judge each season exactly once. `enteringOffseason` in simThrough is true
+  // whenever the schedule is empty, which includes a league already sitting in
+  // the offseason, so a second call would decay confidence twice, apply the same
+  // delta twice and count one season as two. The winter market next door guards
+  // itself the same way with `winterMarketRunSeason`.
+  if (manager.lastVerdict?.season === league.season) return { manager, verdict: null };
+
+  const expectations = deriveExpectations(
+    teams, players, league.competitions, league.seasonHistory,
+  );
   const mine = expectations.get(userTid);
   const stint = currentStint(manager);
   // No club to judge. This is the load-bearing case for a **multi-season jump**:
@@ -157,15 +170,27 @@ export function reviewSeason(input: ReviewInput): ManagerReview {
     moves,
   });
 
+  // `ManagerState.sacked` promises a non-empty offer list, because there is no
+  // unemployed state for the save to fall back on. `generateJobOffers` drops its
+  // filters rather than return nothing, but a world with no other club at all
+  // (reachable through the custom world editor) can still leave it empty — and a
+  // sacking there would strand the save with no way forward. Keeping the job is
+  // the only safe resolution.
+  const stranded = verdict.sacked && offers.length === 0;
+  const sacked = verdict.sacked && !stranded;
+
   return {
     manager: {
       ...manager,
       confidence: verdict.confidence,
       stints,
       offers,
-      sacked: verdict.sacked,
+      sacked,
+      lastVerdict: {
+        ...verdict, sacked, season: league.season, previousConfidence: manager.confidence,
+      },
     },
-    verdict,
+    verdict: { ...verdict, sacked },
   };
 }
 

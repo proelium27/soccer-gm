@@ -15,6 +15,7 @@ import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
 import { domesticFinalists } from "../../core/domesticCup/cup.js";
 import { isIntlStagePending, roundsRemaining } from "../../core/international/index.js";
 import { confidenceMood, confidenceLabel } from "../../core/manager/confidence.js";
+import { cachedExpectations } from "../../core/manager/expectation.js";
 
 /** Bootstrap bar colour per board mood — kept beside the Manager page's copy of the same map. */
 const BOARD_MOOD_CLASS: Record<string, string> = {
@@ -382,6 +383,12 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
 
   const disableSim = simming || league.phase === "offseason";
   const boardMood = confidenceMood(league.manager.confidence, league.manager.sackingEnabled);
+  // Memoized on the league object (fresh per commit), since the expectation pass
+  // walks every club in the world.
+  const boardExpectation = useMemo(
+    () => cachedExpectations(league).get(league.meta.userTid) ?? null,
+    [league],
+  );
   // The matchday the club is standing on, and the last one left this season —
   // the bounds the "sim to matchday" box accepts.
   const nextMd = nextMatchday(league);
@@ -564,7 +571,12 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
               style={{ width: `${Math.round(league.manager.confidence)}%` }}
             />
           </div>
-          <div className="text-muted small mt-1">{confidenceLabel(boardMood)}</div>
+          <div className="text-muted small mt-1">
+            {confidenceLabel(boardMood)}
+            {boardExpectation && (
+              <> · they expect around {ordinal(boardExpectation.expectedRank)} of {boardExpectation.clubs}</>
+            )}
+          </div>
         </div>
       </div>
 

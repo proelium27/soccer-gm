@@ -5,6 +5,8 @@ import { ClubCrest } from "../components/ClubCrest.js";
 import { seasonYear, ordinal } from "../format.js";
 import { confidenceMood, confidenceLabel } from "../../core/manager/confidence.js";
 import { managerReputation } from "../../core/manager/jobOffers.js";
+import { cachedExpectations } from "../../core/manager/expectation.js";
+import { ExpectationPanel, LastSeasonPanel } from "./managerPanels.js";
 import { difficultyProfile } from "../../core/constants.js";
 import type { JobOffer, ManagerStint } from "../../core/manager/types.js";
 
@@ -31,6 +33,15 @@ export function Manager() {
 
   const reputation = useMemo(
     () => (league ? managerReputation(league.manager.stints) : 0),
+    [league],
+  );
+
+  // The world-wide pass costs ~22ms, so it is memoized on the league object the
+  // context hands out fresh per commit, not recomputed per render.
+  const expectation = useMemo(
+    () => (league
+      ? cachedExpectations(league).get(league.meta.userTid) ?? null
+      : null),
     [league],
   );
 
@@ -67,8 +78,7 @@ export function Manager() {
             )}
           </div>
           <div className="text-muted small">
-            Squad rated {ordinal(offer.expectedRank)} of {offer.clubs} in the division
-            they just played
+            Their board would expect {ordinal(offer.expectedRank)} of {offer.clubs}
           </div>
         </div>
         <button
@@ -183,6 +193,13 @@ export function Manager() {
           </div>
         </div>
       </div>
+
+      <ExpectationPanel
+        expectation={expectation}
+        competitionName={expectation ? compName(expectation.compId) : ""}
+      />
+
+      {manager.lastVerdict && <LastSeasonPanel verdict={manager.lastVerdict} />}
 
       <h5>
         {manager.sacked ? "Clubs willing to take you on" : "Clubs who want you"}

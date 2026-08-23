@@ -28,6 +28,7 @@ import {
   type PlayerEdit, type NewPlayerSpec,
 } from "../../core/godMode.js";
 import { switchClub } from "../../core/manager/switchClub.js";
+import { isManagerDecisionPending } from "../../core/manager/index.js";
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
 import { teamSlots, chooseBestFormation, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { SimOverlay } from "../components/SimOverlay.js";
@@ -417,10 +418,20 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const offseasonAction = useCallback(() => runExclusive(async () => {
     const current = leagueRef.current;
     if (!current) return;
+    // A sacked manager has to answer the offer list before the save moves on.
+    // The Dashboard swaps its Advance button for that gate, but /set-scouting
+    // renders on phase alone and its own button calls straight through here, so
+    // a typed URL or a back-navigation would otherwise advance the season with
+    // `sacked` still set and offers belonging to a season that has gone.
+    if (isManagerDecisionPending(current.manager)) return;
     try {
       const result = await runOffseason(current);
-      const lid = await saveLeague(result);
-      commitLeague({ ...result, lid });
+      // Offers belong to the boundary that produced them. Left in place they
+      // survive into the next season, where accepting one is neither the job
+      // the user was offered nor a move `switchClub` is safe to make.
+      const advanced = { ...result, manager: { ...result.manager, offers: [] } };
+      const lid = await saveLeague(advanced);
+      commitLeague({ ...advanced, lid });
       trackEvent("offseason_advanced");
     } catch (err) {
       console.error("Offseason failed:", err);
@@ -675,6 +686,12 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       // Only a club that actually offered — the page can't be trusted to have a
       // fresh list, and taking a job nobody offered is the whole feature bypassed.
       if (!l.manager.offers.some((o) => o.tid === tid)) return null;
+      // Offseason only. `switchClub` assumes it runs at the boundary: it opens
+      // the new stint at `season + 1`, and the season's wages are already
+      // charged to both clubs. Accepting on matchday 20 would date the stint a
+      // year into the future and leave the board judging the user on a season
+      // they managed half of.
+      if (l.phase !== "offseason") return null;
       return switchClub(l, tid, l.manager.sacked ? "sacked" : "left");
     }),
     [mutate],

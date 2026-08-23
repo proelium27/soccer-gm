@@ -3135,6 +3135,66 @@ export const MANAGER_DEMAND_W_LEAGUE = 0.4;
  * you've had a transfer window of your own.
  */
 export const MANAGER_GRACE_SEASONS = 1;
+
+/**
+ * How the board's expectation of a club is built — see core/manager/expectation.ts.
+ *
+ * **Squad quality is deliberately absent.** Grading a manager on the squad they
+ * assembled grades them on the one variable they fully control: tear the team
+ * down and the bar drops with it, so finishing next-to-last with a wrecked squad
+ * scores as beating expectations. Standing is therefore read off what a transfer
+ * window cannot touch — where the club has recently finished, how famous it is,
+ * and how much money it holds. Squad rating survives only as the season-1
+ * fallback, weighted out as real results accumulate, and that is the squad the
+ * manager was handed rather than one they built.
+ */
+/** How many recent seasons of finishes feed the expectation. */
+export const MANAGER_EXPECTATION_HISTORY_SEASONS = 3;
+/** Weight of each older season relative to the one after it. */
+export const MANAGER_EXPECTATION_SEASON_DECAY = 0.6;
+/**
+ * Recent finishes dominate: they are the most direct statement of what this club
+ * is, and unlike fame or cash they cannot be moved at all by a transfer window.
+ */
+export const MANAGER_EXPECTATION_W_HISTORY = 0.7;
+/**
+ * Fame is the only other input, and it is here because it is the one measure of
+ * club size that **no transfer can move at all**. It follows results and moves
+ * slowly, so it captures "this is a big club" without ever handing the manager a
+ * lever on their own target.
+ */
+export const MANAGER_EXPECTATION_W_HYPE = 0.3;
+/*
+ * There is deliberately **no money term**, and two attempts at one are why.
+ *
+ * Bank balance alone is actively backwards: spending the transfer kitty is the
+ * normal thing a manager does, and emptying the balance *lowered* the bar,
+ * measured at six places easier on a mid-table top-flight club while fielding a
+ * stronger squad for it. Balance plus wage bill fixes buying and selling (each
+ * just moves value between the two halves) but not releasing: let players go for
+ * nothing and the wage bill falls with no fee arriving, so a determined teardown
+ * still drags the target down. That one is self-harming rather than free, but
+ * self-harming is not the same as impossible, and this model exists precisely so
+ * that no sequence of transfer decisions can move the bar.
+ *
+ * Recent finishes and fame have no such channel, so they carry the whole weight.
+ * The cost is that a suddenly-rich club is not expected to improve until it
+ * actually does, which is the right way round for a board that judges results.
+ */
+/**
+ * Where the two divisions meet on one world-comparable scale: a second-division
+ * title and a last-place top-flight finish are both worth exactly this.
+ *
+ * That seam is the point, and getting it one-directional was a real bug. Scaling
+ * tier 2 down while leaving tier 1 untouched puts a bottom-of-the-top-flight
+ * percentile (~0) *below* a mid-table second-division one (0.5 x 0.35), so a
+ * club relegated after years of struggle was expected to finish 16th of 20 in
+ * the division it dropped into — and banked confidence for finishing mid-table
+ * with a squad that should have walked it. Tier 1 now spans [seam, 1] and tier 2
+ * spans [0, seam], which is what makes promotion and relegation continuous.
+ */
+export const MANAGER_EXPECTATION_TIER_SEAM = 0.35;
+
 /** Confidence at or below this and you're gone. */
 export const MANAGER_SACK_THRESHOLD = 0;
 

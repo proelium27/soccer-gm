@@ -59,7 +59,10 @@ function main(): void {
   for (let s = 0; s < SEASONS; s++) {
     league = simThrough(league, "season", mulberry32(league.lid * 1000 + league.played.length));
 
-    const expectations = deriveExpectations(league.teams, league.players, league.competitions);
+    // History through last season only — the bar the club carried into this one.
+    const expectations = deriveExpectations(
+      league.teams, league.players, league.competitions, league.seasonHistory,
+    );
     const tables = tablesByCompetition(league.teams, league.competitions, league.played);
     const swaps = computeCountrySwaps(league.competitions, tables);
     const promoted = new Set(swaps.flatMap((x) => x.promoted));

@@ -533,7 +533,7 @@ function migrateFields(league: LeagueStore): LeagueStore {
  * that upgrades mid-dynasty must not be one bad year away from a sacking for
  * results nobody was judging at the time. And the honours *are* reconstructed
  * from `seasonHistory` rather than zeroed, because a fifteen-season dynasty
- * arriving with a blank repṫutation would be offered nothing but minnow jobs.
+ * arriving with a blank reputation would be offered nothing but minnow jobs.
  *
  * `overperformance` is the one thing left at 0 — it needs each past season's
  * squad rating, which no save stores. That understates an old career's
@@ -576,5 +576,8 @@ function backfillManager(anyVersion: LeagueStoreAnyVersion): ManagerState {
     offers: [],
     sacked: false,
     sackingEnabled: true,
+    // Nothing to reconstruct: the board never judged any of these seasons, so
+    // there is no verdict to explain. Fills in from the next season on.
+    lastVerdict: null,
   };
 }

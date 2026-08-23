@@ -150,6 +150,10 @@ export function switchClub(
     stints: [...stints, newStint(newTid, league.season + 1)],
     offers: [],
     sacked: false,
+    // Belongs to the club just left. Kept, it renders beside the new club's
+    // fresh bar as "confidence went 12 -> 0" with no club named, which reads as
+    // the new board's verdict on a season it never saw.
+    lastVerdict: null,
   };
 
   return {

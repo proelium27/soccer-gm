@@ -7,6 +7,7 @@
  * career that spans clubs rather than a single permanent appointment.
  */
 import { MANAGER_START_CONFIDENCE } from "../constants.js";
+import type { SeasonVerdict } from "./confidence.js";
 
 /**
  * One spell in charge of one club, oldest first. Raw results, not a derived
@@ -69,6 +70,21 @@ export interface JobOffer {
   clubs: number;
 }
 
+/**
+ * The board's verdict on one season, kept so the UI can explain why confidence
+ * moved rather than just showing it move.
+ *
+ * A bar that jumps with no account of itself is exactly the "the sacking came
+ * out of nowhere" feeling a visible meter is supposed to prevent, and every term
+ * behind the number is already computed — it was simply being thrown away.
+ */
+export interface ManagerVerdictRecord extends SeasonVerdict {
+  /** The season judged. */
+  season: number;
+  /** Confidence before this verdict, so the UI can show the move, not just the result. */
+  previousConfidence: number;
+}
+
 export interface ManagerState {
   /**
    * The board's confidence in you at your current club, 0-100. Falls when you
@@ -96,6 +112,11 @@ export interface ManagerState {
    * the risk of being moved for you.
    */
   sackingEnabled: boolean;
+  /**
+   * The board's verdict on the most recent season it judged. Null on a new save
+   * and on any save whose seasons all predate the board.
+   */
+  lastVerdict: ManagerVerdictRecord | null;
 }
 
 /** The manager state a brand-new save starts with: one open-ended stint, full honeymoon. */
@@ -110,6 +131,7 @@ export function emptyManagerState(
     offers: [],
     sacked: false,
     sackingEnabled,
+    lastVerdict: null,
   };
 }
 

@@ -11,6 +11,7 @@ import {
   MANAGER_START_CONFIDENCE, MANAGER_GRACE_SEASONS, DIFFICULTIES,
 } from "../../src/core/constants.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
+import type { SeasonHistoryEntry } from "../../src/core/standings.js";
 import { AUTOPILOT_TID } from "../../src/core/autopilot.js";
 
 const USER = 0;
@@ -248,7 +249,7 @@ describe("reputation", () => {
 
 describe("job offers", () => {
   const league = makeLeague(USER, 11);
-  const expectations = deriveExpectations(league.teams, league.players, league.competitions);
+  const expectations = deriveExpectations(league.teams, league.players, league.competitions, league.seasonHistory);
 
   it("always gives a sacked manager somewhere to go", () => {
     // There is no unemployed state, so this list is load-bearing: an empty one
@@ -322,7 +323,7 @@ describe("job offers", () => {
 
 describe("expectations", () => {
   const league = makeLeague(USER, 11);
-  const expectations = deriveExpectations(league.teams, league.players, league.competitions);
+  const expectations = deriveExpectations(league.teams, league.players, league.competitions, league.seasonHistory);
 
   it("ranks every club inside its own competition", () => {
     expect(expectations.size).toBe(league.teams.length);
@@ -351,6 +352,239 @@ describe("expectations", () => {
     }
     const demands = [...topByComp.values()];
     expect(Math.max(...demands)).toBeGreaterThan(Math.min(...demands));
+  });
+});
+
+
+describe("expectations resist a teardown", () => {
+  const league = makeLeague(USER, 11);
+  const comp = league.competitions[0];
+  const members = league.teams.filter((t) => t.compId === comp.id);
+
+  /**
+   * A fabricated finishing table for one competition, in the given tid order.
+   * Only `table` and `compsByTid` are read by the expectation model; the rest of
+   * a history entry is filled in minimally so the fixture stays readable.
+   */
+  function historyEntry(season: number, order: number[]): SeasonHistoryEntry {
+    return {
+      season,
+      table: order.map((tid, i) => ({
+        tid, played: 38, won: 38 - i, drawn: 0, lost: i,
+        gf: 80 - i, ga: 20 + i, gd: 60 - 2 * i, points: 114 - 3 * i,
+      })),
+      teamStats: [],
+      awards: {},
+      world: { ballonDOr: [], worldTeamOfYear: [] },
+      compsByTid: Object.fromEntries(order.map((tid) => [tid, comp.id])),
+      championTidByCompId: { [comp.id]: order[0] },
+    } as unknown as SeasonHistoryEntry;
+  }
+
+  /** Strip a club down to a skeleton squad, the way a ruinous sell-off would. */
+  function gut(l: LeagueStore, tid: number): LeagueStore {
+    return {
+      ...l,
+      teams: l.teams.map((t) => (t.tid === tid ? { ...t, roster: t.roster.slice(0, 11), starters: null } : t)),
+      players: l.players.map((p) => {
+        const team = l.teams.find((t) => t.tid === tid);
+        return team && team.roster.slice(0, 11).includes(p.pid) ? { ...p, ovr: 20, potential: 20 } : p;
+      }),
+    };
+  }
+
+  it("does not lower the bar when the manager wrecks the squad", () => {
+    // The exploit this model exists to close: if expectations tracked the
+    // current squad, gutting it would drop the bar and finishing next-to-last
+    // would score as beating expectations.
+    const order = members.map((t) => t.tid);
+    const history = [1, 2, 3].map((n) => historyEntry(n, order));
+    const target = order[2];
+
+    const before = deriveExpectations(league.teams, league.players, league.competitions, history);
+    const after = deriveExpectations(
+      ...(() => {
+        const g = gut(league, target);
+        return [g.teams, g.players, g.competitions, history] as const;
+      })(),
+    );
+
+    expect(before.get(target)!.historyCoverage).toBe(1);
+    expect(after.get(target)!.expectedRank).toBe(before.get(target)!.expectedRank);
+  });
+
+  it("falls back to the squad it was handed when there is no history yet", () => {
+    const none = deriveExpectations(league.teams, league.players, league.competitions, []);
+    for (const e of none.values()) expect(e.historyCoverage).toBe(0);
+
+    // With no history the strongest squad in a competition is expected to top it.
+    const inComp = [...none.values()].filter((e) => e.compId === comp.id);
+    const best = inComp.reduce((a, b) => (b.rating > a.rating ? b : a));
+    expect(best.expectedRank).toBe(1);
+  });
+
+  it("ranks a club that keeps winning above one that keeps losing, whatever their squads", () => {
+    const order = members.map((t) => t.tid);
+    const winner = order[0];
+    const loser = order[order.length - 1];
+    const history = [1, 2, 3].map((n) => historyEntry(n, order));
+
+    const exp = deriveExpectations(league.teams, league.players, league.competitions, history);
+    expect(exp.get(winner)!.expectedRank).toBeLessThan(exp.get(loser)!.expectedRank);
+  });
+
+  it("does not expect a promoted club to win the division it just joined", () => {
+    // A second-division title is a percentile of a weaker division, so it must
+    // not carry a "1st" into the top flight.
+    const d2 = league.competitions.find((c) => c.country === comp.country && c.tier === 2);
+    if (!d2) return;
+    const d2Members = league.teams.filter((t) => t.compId === d2.id).map((t) => t.tid);
+    const d1Members = members.map((t) => t.tid);
+    const champion = d2Members[0];
+
+    const history = [1, 2, 3].map((n) => {
+      const entry = historyEntry(n, d1Members);
+      const d2Rows = d2Members.map((tid, i) => ({
+        tid, played: 38, won: 38 - i, drawn: 0, lost: i,
+        gf: 80 - i, ga: 20 + i, gd: 60 - 2 * i, points: 114 - 3 * i,
+      }));
+      return {
+        ...entry,
+        table: [...entry.table, ...d2Rows],
+        compsByTid: {
+          ...entry.compsByTid,
+          ...Object.fromEntries(d2Members.map((tid) => [tid, d2.id])),
+        },
+      } as SeasonHistoryEntry;
+    });
+
+    // Promote the champion into the top flight, as the offseason would.
+    const promoted: LeagueStore = {
+      ...league,
+      teams: league.teams.map((t) => (t.tid === champion ? { ...t, compId: comp.id } : t)),
+    };
+    const exp = deriveExpectations(
+      promoted.teams, promoted.players, promoted.competitions, history,
+    );
+    const mine = exp.get(champion)!;
+    expect(mine.compId).toBe(comp.id);
+    // Bottom half of its new division, not top of it.
+    expect(mine.expectedRank).toBeGreaterThan(mine.clubs / 2);
+  });
+});
+
+
+describe("review guards", () => {
+  function judged(l: LeagueStore) {
+    return reviewSeason({
+      league: l, teams: l.teams, players: l.players, played: l.played,
+      cup: l.cup, shield: l.shield, domesticCups: l.domesticCups,
+    });
+  }
+
+  it("judges a season only once", () => {
+    // simThrough's `enteringOffseason` is true whenever the schedule is empty,
+    // which includes a league already in the offseason. A second pass would
+    // decay confidence twice and count one season as two.
+    const base = makeLeague(USER, 11);
+    const league: LeagueStore = {
+      ...base,
+      manager: {
+        ...base.manager,
+        lastVerdict: {
+          season: base.season, previousConfidence: 65, finish: 5, expectedRank: 5,
+          clubs: 20, overperformance: 0, titles: 0, trophies: 0, promoted: false,
+          relegated: false, demand: 0.5, delta: 0, confidence: 65, sacked: false,
+        },
+      },
+    };
+    const review = judged(league);
+    expect(review.verdict).toBeNull();
+    expect(review.manager).toBe(league.manager);
+  });
+
+  it("keeps a manager in post rather than stranding the save with no offers", () => {
+    // `sacked` promises a non-empty offer list, because there is no unemployed
+    // state. A world with no other club cannot honour that, so the job is kept.
+    const base = makeLeague(USER, 11);
+    const userComp = base.teams.find((t) => t.tid === USER)!.compId;
+    const solo: LeagueStore = {
+      ...base,
+      teams: base.teams.filter((t) => t.tid === USER),
+      competitions: base.competitions.filter((c) => c.id === userComp),
+    };
+    expect(judged(solo).manager.sacked).toBe(false);
+  });
+});
+
+describe("switchClub clears the outgoing board's verdict", () => {
+  it("does not show the old club's verdict beside the new club's bar", () => {
+    const base = makeLeague(USER, 11);
+    const league: LeagueStore = {
+      ...base,
+      manager: {
+        ...base.manager,
+        lastVerdict: {
+          season: base.season, previousConfidence: 12, finish: 20, expectedRank: 3,
+          clubs: 20, overperformance: -0.9, titles: 0, trophies: 0, promoted: false,
+          relegated: true, demand: 0.8, delta: -60, confidence: 0, sacked: true,
+        },
+      },
+    };
+    expect(switchClub(league, OTHER, "sacked").manager.lastVerdict).toBeNull();
+  });
+});
+
+describe("money cannot move the bar in either direction", () => {
+  // Two money terms were tried and both handed the manager a lever. Bank balance
+  // alone meant spending your kitty made the target easier. Balance plus wage
+  // bill fixed buying and selling but not releasing, where wages fall and no fee
+  // arrives. Neither survives, so no financial state is an input at all.
+  const league = makeLeague(USER, 11);
+  const comp = league.competitions[0];
+  const members = league.teams.filter((t) => t.compId === comp.id).map((t) => t.tid);
+  const target = members[6];
+
+  const history = [1, 2, 3].map((n) => ({
+    season: n,
+    table: members.map((tid, i) => ({
+      tid, played: 38, won: 38 - i, drawn: 0, lost: i,
+      gf: 80 - i, ga: 20 + i, gd: 60 - 2 * i, points: 114 - 3 * i,
+    })),
+    teamStats: [], awards: {}, world: { ballonDOr: [], worldTeamOfYear: [] },
+    compsByTid: Object.fromEntries(members.map((tid) => [tid, comp.id])),
+    championTidByCompId: { [comp.id]: members[0] },
+  }) as unknown as SeasonHistoryEntry);
+
+  const rankOf = (l: LeagueStore): number =>
+    deriveExpectations(l.teams, l.players, l.competitions, history).get(target)!.expectedRank;
+
+  it("ignores the bank balance, however it was spent", () => {
+    const baseline = rankOf(league);
+    const broke: LeagueStore = {
+      ...league,
+      teams: league.teams.map((t) => (t.tid === target ? { ...t, budget: 0 } : t)),
+    };
+    const flush: LeagueStore = {
+      ...league,
+      teams: league.teams.map((t) => (t.tid === target ? { ...t, budget: 5_000_000_000 } : t)),
+    };
+    expect(rankOf(broke)).toBe(baseline);
+    expect(rankOf(flush)).toBe(baseline);
+  });
+
+  it("ignores the wage bill, so releasing players for nothing gains nothing", () => {
+    const baseline = rankOf(league);
+    const targetRoster = league.teams.find((t) => t.tid === target)!.roster;
+    const stripped: LeagueStore = {
+      ...league,
+      players: league.players.map((p) =>
+        targetRoster.includes(p.pid)
+          ? { ...p, contract: { ...p.contract, salary: 0 } }
+          : p,
+      ),
+    };
+    expect(rankOf(stripped)).toBe(baseline);
   });
 });
 

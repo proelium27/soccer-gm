@@ -251,10 +251,26 @@ export function Manual() {
           <p>
             Your board keeps a running confidence in you, shown as a bar on the Dashboard and on the
             Manager page. It moves once a season, and what moves it is <strong>where you finished
-            against what your squad is worth</strong> &mdash; not where you finished on its own. The
-            game ranks every squad in your division by quality, and that rank is what you're judged
-            against. Finish 6th with the 12th-best squad and the board is delighted. Finish 6th with
-            the best squad and you're in trouble, even though 6th is the same 6th.
+            against where a club like yours is expected to finish</strong> &mdash; not where you
+            finished on its own. Finish 6th when they expected 12th and they're delighted. Finish
+            6th when they expected 2nd and you're in trouble, even though 6th is the same 6th. The
+            Manager page always tells you the number you're being measured against.
+          </p>
+          <p>
+            That expectation comes from <strong>what the club is</strong>, not what your squad is:
+            where you've finished over the last few seasons, and how well known the club is.
+            Nothing you do in the transfer market feeds into it. If it did, you could sell every
+            good player, finish next to last, and have the board congratulate you for beating a bar
+            you'd just lowered yourself. Building the squad is your job, so it can't also be your
+            grade. Your bank balance is left out for the same reason &mdash; otherwise spending
+            your budget, which is simply doing the job, would quietly make the target easier.
+          </p>
+          <p>
+            One consequence worth planning around: keep succeeding and the bar rises with you, so a
+            club you dragged up from mid-table will eventually expect to be there. Sustained decline
+            lowers it too, but slowly, over seasons rather than in one summer. Early in a save there
+            aren't enough recorded seasons to read yet, so the expectation starts from the squad
+            at the club and shifts onto results as they accumulate.
           </p>
           <p>
             Trophies are counted on top, and so are promotion and relegation. Winning your division
