@@ -965,7 +965,39 @@ export const RETIREMENT_NOTABLE_LIMIT = 15;
  */
 export const RETIREE_ARCHIVE_MIN_PEAK_OVR = 70;
 export const RETIREE_ARCHIVE_MIN_APPEARANCES = 200;
-export const RETIREE_ARCHIVE_LIMIT = 2_000;
+/**
+ * Raised 2,000 -> 20,000 on 2026-08-22, once splitting the archive into its own
+ * IndexedDB store (`DB_VERSION` 3) removed the reason it had to be small.
+ *
+ * **The old cap was bounding write latency, not disk.** `saveLeague` rewrites
+ * the whole non-player league record on every mutation, and the archive rode
+ * along, so it was re-serialised on every lineup change and signing. Measured at
+ * 2,204 bytes a row (`scripts/archiveWriteCost.ts`): 11ms per save at 2,000
+ * rows, 46ms at 10,000, 91ms at 20,000, before mobile's documented 5-10x. That
+ * is the budget PR #210 spent months of work to reclaim. With the archive in its
+ * own store only the rows that changed are written, which for an offseason is
+ * the few hundred just added, so the cap costs nothing per action and the
+ * remaining question is only disk.
+ *
+ * **Sized against the rate that feeds it, not a round number.**
+ * `scripts/archiveGateProbe.ts` (22 seasons, 320 clubs) measures the quality
+ * gate above admitting ~**270 retirees a season** at maturity — the early
+ * seasons are far lower (5 in season 3, 184 by season 11) because careers have
+ * to lengthen before anyone clears 200 appearances, so a short probe badly
+ * under-reads it. 20,000 rows is therefore ~75 mature seasons of full coverage,
+ * against ~7 at the old cap, and 44 MB on disk at the measured row width.
+ *
+ * **The failure mode past it is now soft.** `LeagueStore.playerNames` keeps an
+ * 82-byte identity row for every referenced retiree with no cap at all, so a
+ * career dropped here still has a name everywhere it appears; it just has no
+ * career page. Before that existed, overflowing this cap meant the save forgot
+ * the player entirely — at season 101 the prune bar had risen to peak ovr 79 and
+ * 78% of historical references resolved to nobody.
+ *
+ * Re-measure both scripts before moving it again, and note the gate above is the
+ * *other* half: a retiree who clears neither bar gets no row at any cap.
+ */
+export const RETIREE_ARCHIVE_LIMIT = 20_000;
 
 /**
  * Wages (2026-07-11 rework, replacing the flat 20k-per-ovr placeholder;
