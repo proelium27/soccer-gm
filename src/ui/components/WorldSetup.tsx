@@ -5,7 +5,7 @@ import {
   buildCompetitions, competitionTeamCount, worldCompetitions,
   competitionStrengthOffset, competitionBudgetScale,
 } from "../../core/competitions.js";
-import { NUM_TEAMS, PROMOTION_RELEGATION_COUNT } from "../../core/constants.js";
+import { NUM_TEAMS } from "../../core/constants.js";
 import { MIN_DIVISION_TEAMS, MAX_DIVISION_TEAMS } from "../../core/calendar.js";
 import {
   parseRosterFile, retargetRosterFile, type NamedRosterFile,
@@ -324,28 +324,15 @@ export function WorldSetup({ entries, onChange }: Props) {
                     </div>
                   </div>
                   {/*
-                    Every explanation for the controls above, collected in one
-                    place under them. Interleaving a paragraph after each control
-                    pushed the controls far enough apart that the group stopped
-                    reading as one thing.
+                    The only explanation the controls need. The division and
+                    continental rows say what they do in their own labels and
+                    options, so a paragraph restating them was just noise.
                   */}
                   <div className="text-muted mt-2" style={{ fontSize: "0.75rem" }}>
-                    <p className="mb-1">
+                    <p className="mb-0">
                       <strong>Strength</strong> is how good its squads are: higher is stronger, and
                       20 is level with England, Spain, Italy and Germany. <strong>Money</strong> is
                       what its clubs earn and can bank, against 1 for the richest leagues.
-                    </p>
-                    <p className="mb-1">
-                      {(entry.spec.divisions ?? 2) === 1
-                        ? `One division of ${entry.spec.d1Teams ?? NUM_TEAMS}, so nothing is promoted or relegated here.`
-                        : `Two divisions of ${entry.spec.d1Teams ?? NUM_TEAMS}, ${PROMOTION_RELEGATION_COUNT} up and ${PROMOTION_RELEGATION_COUNT} down between them.`}
-                      {(entry.spec.d1Teams ?? NUM_TEAMS) < NUM_TEAMS
-                        && " A smaller division plays fewer games, spread across the same season."}
-                    </p>
-                    <p className="mb-0">
-                      The Shield starts where the Cup stops, so this league sends its top{" "}
-                      {entry.spec.cupSlots ?? 2} to the Cup and the next{" "}
-                      {entry.spec.shieldSlots ?? 2} to the Shield.
                     </p>
                   </div>
 
