@@ -208,7 +208,12 @@ export interface IntlPowerSnapshot {
  * is withheld until the stage reaches "done".
  *  - "qualifying": qualifying groups are drawn but unplayed
  *  - "groups": tournament groups are drawn but unplayed
- *  - "qf" | "sf" | "final": that knockout round is the next to play
+ *  - "knockout": the tournament's next knockout round is the one to play. A
+ *    single stage that repeats rather than one per round, because how many
+ *    rounds a bracket has is a function of the field (four at INTL_FIELD_SIZE
+ *    32, three when it was 16, and a confederation cup's can be shorter still).
+ *    roundsRemaining reads it off the fixtures, which is also what names the
+ *    round in the UI. Old saves' "qf"/"sf"/"final" migrate onto this.
  *  - "confederation-groups": every confederation cup's group stage is next
  *  - "confederation-ko": the next knockout round of every cup that has
  *    one left, played across all of them at once (see confederationCup.ts for why
@@ -220,7 +225,7 @@ export interface IntlPowerSnapshot {
  * cups (see isConfederationCupSeason).
  */
 export type IntlStage =
-  | "qualifying" | "groups" | "qf" | "sf" | "final"
+  | "qualifying" | "groups" | "knockout"
   | "confederation-groups" | "confederation-ko"
   | "done" | null;
 

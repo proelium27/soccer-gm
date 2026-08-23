@@ -5,7 +5,8 @@ import { emptyIntlCareer } from "./types.js";
 import { emptyCareerDelta } from "./simIntl.js";
 import { initQualifying, playQualifyingRound } from "./qualifying.js";
 import {
-  initTournament, playTournamentGroups, playTournamentRound, summarize, summarizeQualifying,
+  initTournament, playTournamentGroups, playTournamentRound, roundsRemaining,
+  summarize, summarizeQualifying,
 } from "./tournament.js";
 import { buildPowerSnapshot } from "./squads.js";
 import {
@@ -272,13 +273,19 @@ export function playIntlStage(
       if (!state.tournament) return { international: { ...state, stage: "done" }, players };
       const { tournament, delta, injured } = playTournamentGroups(state.tournament, players, lid);
       return {
-        international: { ...state, tournament, stageInjuries: [...state.stageInjuries, ...injured], stage: "qf" },
+        international: {
+          ...state,
+          tournament,
+          stageInjuries: [...state.stageInjuries, ...injured],
+          // A seeded bracket always has at least one round in it; the guard is
+          // for a world too broken to seed one at all, which must not strand
+          // the offseason on a stage that can never complete.
+          stage: roundsRemaining(tournament) > 0 ? "knockout" : "done",
+        },
         players: applyCareerDelta(players, delta, null, null, season, "tournament"),
       };
     }
-    case "qf":
-    case "sf":
-    case "final": {
+    case "knockout": {
       if (!state.tournament) return { international: { ...state, stage: "done" }, players };
       const { tournament, delta, injured } = playTournamentRound(state.tournament, players, lid);
       // caps/goals/assists from this round's matches.
@@ -304,8 +311,16 @@ export function playIntlStage(
         };
       }
 
+      // Another round to come. The stage repeats rather than naming the round,
+      // so a deeper bracket needs no new stage (see IntlStage) — and a bracket
+      // that somehow can't resolve falls through to "done" instead of looping.
       return {
-        international: { ...state, tournament, stageInjuries, stage: state.stage === "qf" ? "sf" : "final" },
+        international: {
+          ...state,
+          tournament,
+          stageInjuries,
+          stage: roundsRemaining(tournament) > 0 ? "knockout" : "done",
+        },
         players: updated,
       };
     }

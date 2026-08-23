@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { useLeague } from "../../context/LeagueContext.js";
 import type { IntlTournament, IntlQualifyingCampaign } from "../../../core/international/index.js";
-import { INTL_TOURNAMENT_NAME } from "../../../core/constants.js";
+import { INTL_TOURNAMENT_NAME, INTL_QUALIFY_PER_GROUP } from "../../../core/constants.js";
 import {
-  NationalTeamsLayout, NationName, KO_ROUND_NAMES, useHasInternational, IntlEmpty, liveCampaign,
+  NationalTeamsLayout, NationName, koRoundName, useHasInternational, IntlEmpty, liveCampaign,
 } from "./shared.js";
 
 /** One fixture row: a played result shows its scoreline, an unplayed one shows "v". */
@@ -27,8 +27,14 @@ function TournamentSchedule({ tournament }: { tournament: IntlTournament }) {
   // Stages: 0 = group stage, then one per knockout round.
   const [stage, setStage] = useState(0);
 
-  const koRounds = KO_ROUND_NAMES.length;
-  const options = ["Group stage", ...KO_ROUND_NAMES];
+  // Round names are derived from this tournament's own depth rather than from
+  // the full KO_ROUND_NAMES list, because depth varies: eight groups of four
+  // give a four-round bracket, while a tournament drawn before the field grew
+  // to 32 has three. Naming off the list directly would label an old save's
+  // quarter-finals "Round of 16". Read off the groups because the bracket is
+  // empty until they are played.
+  const koRounds = Math.max(1, Math.round(Math.log2(tournament.groups.length * INTL_QUALIFY_PER_GROUP)));
+  const options = ["Group stage", ...Array.from({ length: koRounds }, (_, i) => koRoundName(i, koRounds))];
 
   let body;
   if (stage === 0) {
@@ -62,7 +68,7 @@ function TournamentSchedule({ tournament }: { tournament: IntlTournament }) {
         </div>
       );
     } else if (round === 0 && tournament.bracket.length > 0) {
-      // Quarter-finals seeded but not yet played: show the known pairings.
+      // First round seeded but not yet played: show the known pairings.
       const pairs = [];
       for (let i = 0; i + 1 < tournament.bracket.length; i += 2) {
         pairs.push([tournament.bracket[i], tournament.bracket[i + 1]] as const);
@@ -88,7 +94,7 @@ function TournamentSchedule({ tournament }: { tournament: IntlTournament }) {
         value={stage}
         onChange={(e) => setStage(Number(e.target.value))}
       >
-        {options.slice(0, 1 + koRounds).map((label, i) => (
+        {options.map((label, i) => (
           <option key={i} value={i}>{label}</option>
         ))}
       </select>

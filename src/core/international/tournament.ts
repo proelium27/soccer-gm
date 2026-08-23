@@ -112,6 +112,28 @@ export function playTournamentGroups(
 }
 
 /**
+ * How many knockout rounds a tournament still has to play: 0 once it has a
+ * champion, otherwise however many halvings its current field needs. Before the
+ * knockout starts that field is the seeded bracket; afterwards it is the
+ * winners of the last round played.
+ *
+ * Two callers, for the same reason — a stage plays only the tournaments with the
+ * most rounds left. Across the confederation cups that aligns their finals onto
+ * one click; within the World Cup it is how the staged offseason knows whether
+ * a knockout round remains, without the stage machine hard-coding how deep the
+ * bracket is (it is four rounds at INTL_FIELD_SIZE 32 and was three at 16).
+ */
+export function roundsRemaining(t: IntlTournament): number {
+  if (t.championNid !== null) return 0;
+  if (t.ties.length === 0) {
+    return t.bracket.length > 1 ? Math.log2(t.bracket.length) : 0;
+  }
+  const lastRound = Math.max(...t.ties.map((tie) => tie.round));
+  const survivors = t.ties.filter((tie) => tie.round === lastRound).length;
+  return survivors > 1 ? Math.log2(survivors) : 0;
+}
+
+/**
  * The nids contesting the next knockout round: the seeded bracket if no round
  * has been played yet, otherwise the winners of the most recent round in the
  * order they were played (which is the pairing order for the round to come).
