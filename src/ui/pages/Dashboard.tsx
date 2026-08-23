@@ -14,7 +14,7 @@ import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
 import { domesticFinalists } from "../../core/domesticCup/cup.js";
 import { isIntlStagePending, roundsRemaining } from "../../core/international/index.js";
-import type { IntlConfederationCup } from "../../core/international/index.js";
+import type { IntlConfederationCup, IntlTournament } from "../../core/international/index.js";
 import { INTL_TOURNAMENT_NAME, INTL_QUAL_LEGS, qualifyingLeg } from "../../core/constants.js";
 import type { IntlStage } from "../../core/international/index.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
@@ -54,16 +54,33 @@ function confederationCupLabel(tournaments: IntlConfederationCup[]): string {
 }
 
 /**
+ * What to call a knockout round that has `roundsLeft` rounds still to play,
+ * counting backwards from the final. Backwards because bracket depth varies —
+ * four rounds for the World Cup's 32-nation field, three for a 16-nation
+ * confederation cup, one for a tournament that is only a final — so a round's
+ * name follows from how much is left, never from a fixed position.
+ */
+function knockoutRoundName(roundsLeft: number): string {
+  if (roundsLeft >= 4) return "round of 16";
+  if (roundsLeft === 3) return "quarterfinals";
+  if (roundsLeft === 2) return "semifinals";
+  return "final";
+}
+
+/**
  * What the next confederation cup knockout stage is called. The cups are
- * aligned on their finals (see core/international/confederationCup.ts), so the round
- * is however many the deepest one has left: three means quarterfinals, two
- * semifinals, one the finals themselves.
+ * aligned on their finals (see core/international/confederationCup.ts), so the
+ * round is however many the deepest one has left — and since several finish
+ * together the last one is plural: "the finals", not "the final".
  */
 function confederationCupRoundName(tournaments: IntlConfederationCup[]): string {
-  const deepest = Math.max(0, ...tournaments.map(roundsRemaining));
-  if (deepest >= 3) return "quarterfinals";
-  if (deepest === 2) return "semifinals";
-  return "finals";
+  const name = knockoutRoundName(Math.max(0, ...tournaments.map(roundsRemaining)));
+  return name === "final" ? "finals" : name;
+}
+
+/** What the next World Cup knockout round is called, read off its own bracket. */
+function worldCupRoundName(tournament: IntlTournament | null): string {
+  return knockoutRoundName(tournament ? roundsRemaining(tournament) : 1);
 }
 
 /** The button label for playing the next staged international stage. `qualRound` is 1-based. */
@@ -71,18 +88,15 @@ function intlStageButton(
   stage: PlayableStage,
   qualRound: number,
   confederationCups: IntlConfederationCup[],
+  tournament: IntlTournament | null,
 ): string {
   switch (stage) {
     case "qualifying":
       return `Play qualifying (round ${qualRound} of ${INTL_QUAL_LEGS})`;
     case "groups":
       return "Play the group stage";
-    case "qf":
-      return "Play the quarterfinals";
-    case "sf":
-      return "Play the semifinals";
-    case "final":
-      return "Play the final";
+    case "knockout":
+      return `Play the ${worldCupRoundName(tournament)}`;
     case "confederation-groups":
       return "Play the group stage";
     case "confederation-ko":
@@ -90,11 +104,19 @@ function intlStageButton(
   }
 }
 
-/** A one-line status for the staged international campaign on the Dashboard. */
+/**
+ * A one-line status for the staged international campaign on the Dashboard.
+ *
+ * The World Cup knockout is one repeating stage, so its line is built from the
+ * bracket rather than written per round: the lead-in comes from whether any tie
+ * has been played yet, which stays true whatever depth the bracket is (an old
+ * save mid-tournament still has the three-round one).
+ */
 function intlStageHeadline(
   stage: PlayableStage,
   qualRound: number,
   confederationCups: IntlConfederationCup[],
+  tournament: IntlTournament | null,
 ): string {
   switch (stage) {
     case "qualifying":
@@ -103,12 +125,12 @@ function intlStageHeadline(
         : `The final round of World Cup qualifying, ${qualRound} of ${INTL_QUAL_LEGS}. Play it to lock in who reaches the finals.`;
     case "groups":
       return `The ${INTL_TOURNAMENT_NAME} is here. Play the group stage to get things underway.`;
-    case "qf":
-      return "The group stage is done. The quarterfinals are next.";
-    case "sf":
-      return "The last eight is set. On to the semifinals.";
-    case "final":
-      return "Two nations left. It's the final.";
+    case "knockout": {
+      const round = worldCupRoundName(tournament);
+      if (round === "final") return "Two nations left. It's the final.";
+      const lead = (tournament?.ties.length ?? 0) === 0 ? "The group stage is done. " : "";
+      return `${lead}The ${round} ${round === "round of 16" ? "is" : "are"} next.`;
+    }
     case "confederation-groups":
       return `Qualifying is done for the summer. Now for the ${confederationCupLabel(confederationCups)}: play the group stage to get things underway.`;
     case "confederation-ko":
@@ -541,6 +563,7 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                     league.international.stage as PlayableStage,
                     qualifyingLeg(league.season) + 1,
                     league.international.confederationCups,
+                    league.international.tournament,
                   )}{" "}
                   Follow it on the{" "}
                   <Link to={intlStageLink(league.international.stage as PlayableStage)}>
@@ -559,6 +582,7 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                       league.international.stage as PlayableStage,
                       qualifyingLeg(league.season) + 1,
                       league.international.confederationCups,
+                      league.international.tournament,
                     )}
                   </button>
                   {league.international.stage !== "qualifying" && (

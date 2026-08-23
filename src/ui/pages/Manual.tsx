@@ -706,11 +706,19 @@ export function Manual() {
             Every nation with enough players in the world enters qualifying. They're split into
             groups by confederation and play a long home-and-away campaign spread over the three
             qualifying offseasons, and the number of places each confederation gets depends on how
-            many genuinely strong nations it has, so the 16 who make it are a believable field rather
+            many genuinely strong nations it has, so the 32 who make it are a believable field rather
             than whoever happens to be nearby. At the
-            tournament those 16 are drawn into four groups of four; the top two from each go through
-            to the quarter-finals, then semi-finals and a final. Knockout ties level after extra
-            time go to a shootout, exactly like the Continental Cup.
+            tournament those 32 are drawn into eight groups of four; the top two from each go through
+            to a round of 16, then quarter-finals, semi-finals and a final. Knockout ties level after
+            extra time go to a shootout, exactly like the Continental Cup.
+          </p>
+          <p>
+            A 32-nation field is most of the nations that can field a squad at all, so several
+            confederations now send everyone they have and play no qualifying matches — you'll see
+            that on the Qualifying page, where South America, Asia and North America have no groups.
+            The contest is in Europe and Africa, where there are more nations than places. If you'd
+            rather qualifying meant more everywhere, the fix is a deeper world: more countries with
+            leagues means more nations with enough players to enter.
           </p>
           <p>
             The <strong>confederation cups</strong> have no qualifying of their own: each

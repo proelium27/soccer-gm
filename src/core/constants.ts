@@ -2832,7 +2832,8 @@ export function isTournamentSeason(season: number): boolean {
  * Which qualifying leg (0-based) a season's offseason plays, or -1 if that
  * offseason stages the tournament instead. Over the cycle: season%4 ==
  * 1 → leg 0 (a fresh campaign starts), 2 → leg 1, 3 → leg 2 (the campaign
- * finishes and its 16 qualifiers are locked in), 0 → the tournament.
+ * finishes and its INTL_FIELD_SIZE qualifiers are locked in), 0 → the
+ * tournament.
  */
 export function qualifyingLeg(season: number): number {
   return isTournamentSeason(season) ? -1 : (season % INTL_CYCLE_YEARS) - 1;
@@ -2844,13 +2845,31 @@ export function isQualifyingSeason(season: number): boolean {
 }
 
 /**
- * How many nations reach the tournament. 16 splits into INTL_GROUPS groups of
- * INTL_GROUP_SIZE, whose top INTL_QUALIFY_PER_GROUP feed an eight-nation
- * bracket — the same size as the Continental Cup's, so the knockout reuses its
- * seedOrder/resolveCupTie machinery unchanged.
+ * How many nations reach the tournament. 32 splits into INTL_GROUPS groups of
+ * INTL_GROUP_SIZE, whose top INTL_QUALIFY_PER_GROUP feed a sixteen-nation
+ * bracket (round of 16, quarters, semis, final) built out of the Continental
+ * Cup's seedOrder/resolveCupTie machinery, which is size-agnostic.
+ *
+ * Raised from 16 on 2026-08-23, once the world reached 16 competitions. The
+ * binding constraint is nationality depth, not club count: 44 of the 78
+ * nationalities present clear INTL_MIN_POOL on a fresh world (measured, stable
+ * across seeds), and squad rating runs ~76 at the strongest nation, ~70 at
+ * #16, ~64 at #32 and then falls off a cliff to ~56 by #40. So 32 is close to
+ * the largest field this world can fill with nations that are actually worth
+ * watching — a 40-team field would be padded with makeweights.
+ *
+ * The cost, accepted deliberately: qualifying has far less at stake. At a
+ * 16-place field 28 of the 44 eligible nations could miss out; at 32 just 12
+ * can. South America (4 eligible), Asia (1) and North America (1) now qualify
+ * their whole membership automatically, joining Asia and North America which
+ * already did at 16 — a confederation with no more nations than places plays no
+ * qualifying matches at all (see initQualifying). Only Europe (19 of 26) and
+ * Africa (7 of 12) contest anything. Deepening that tail means more league
+ * countries feeding more nationality pools, not a lower INTL_MIN_POOL: dropping
+ * the floor to 15 adds only about five nations and all of them rate below 56.
  */
-export const INTL_FIELD_SIZE = 16;
-export const INTL_GROUPS = 4;
+export const INTL_FIELD_SIZE = 32;
+export const INTL_GROUPS = 8;
 export const INTL_GROUP_SIZE = 4;
 export const INTL_QUALIFY_PER_GROUP = 2;
 export const INTL_KO_SIZE = INTL_GROUPS * INTL_QUALIFY_PER_GROUP;
@@ -2864,8 +2883,11 @@ export const INTL_SQUAD_SIZE = 23;
  * is not cosmetic: selectXI fills a GK slot with an outfielder when no keeper is
  * available, which leaves the keeping composite at its neutral default while
  * still counting the player as an attacker — a silently corrupted match sim.
- * At the shipped world size (240 clubs, 6000 players) roughly 40 of the 75
- * nations with name pools clear this bar, which comfortably fills 16 places.
+ * At the shipped world size (320 clubs, 8000 players) 44 of the 78 nations
+ * present clear this bar — measured, identical on three seeds — which fills
+ * INTL_FIELD_SIZE's 32 places with twelve to spare. Lowering the floor is a
+ * poor way to widen the field: the nations just under it hold 15-18 players
+ * and rate below 56, well beneath the ~64 of the current #32.
  */
 export const INTL_MIN_POOL = 18;
 export const INTL_MIN_KEEPERS = 1;

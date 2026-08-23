@@ -6,8 +6,9 @@ import { simOffseason } from "../../src/core/offseason.js";
 import { simThroughInternational, isIntlStagePending } from "../../src/core/international/index.js";
 import { runTournament } from "../../src/core/international/tournament.js";
 import {
-  initConfederationCups, playConfederationCupGroups, playConfederationCupKnockoutRound, roundsRemaining,
+  initConfederationCups, playConfederationCupGroups, playConfederationCupKnockoutRound,
 } from "../../src/core/international/confederationCup.js";
+import { roundsRemaining } from "../../src/core/international/tournament.js";
 import { playIntlStage } from "../../src/core/international/staging.js";
 import { formatFor, knockoutRounds, TOURNAMENT_FORMATS } from "../../src/core/international/format.js";
 import { seedBracket } from "../../src/core/international/simIntl.js";
@@ -176,7 +177,7 @@ describe("squads", () => {
 });
 
 describe("offseason cycle", () => {
-  it("qualifies 16 over three offseasons then plays the World Cup, on the four-year cadence", () => {
+  it("qualifies a full field over three offseasons then plays the World Cup, on the four-year cadence", () => {
     const league = advance(7, 4); // seasons 1-3 qualify, season 4 is the tournament
     const intl = league.international;
     expect(intl.qualifying?.qualified).toHaveLength(INTL_FIELD_SIZE);
@@ -191,8 +192,8 @@ describe("offseason cycle", () => {
     expect(intl.qualifyingHistory).toHaveLength(1); // one completed campaign (seasons 1-3)
     expect(intl.qualifyingHistory[0].qualified).toHaveLength(INTL_FIELD_SIZE);
     expect(intl.powerRankings.length).toBeGreaterThanOrEqual(4); // a snapshot each offseason
-    expect(intl.history[0].groups).toHaveLength(INTL_GROUPS); // 4 final group tables
-    expect(intl.history[0].knockout).toHaveLength(7); // 4 QF + 2 SF + 1 final
+    expect(intl.history[0].groups).toHaveLength(INTL_GROUPS); // 8 final group tables
+    expect(intl.history[0].knockout).toHaveLength(15); // 8 R16 + 4 QF + 2 SF + 1 final
   });
 
   it("records caps and titles on players who feature", () => {
@@ -424,9 +425,14 @@ describe("tournament shapes", () => {
       return g;
     };
 
-    // Four groups: the World Cup's eight-nation bracket, unchanged.
+    // Eight groups: the World Cup's sixteen-nation bracket.
+    const eight = Array.from({ length: 8 }, (_, g) => played([g * 4, g * 4 + 1, g * 4 + 2, g * 4 + 3]));
+    expect(seedBracket(eight)).toHaveLength(INTL_KO_SIZE);
+
+    // Four groups: an eight-nation bracket (the World Cup's old shape, and the
+    // largest a confederation cup draws).
     const four = [played([0, 1, 2, 3]), played([4, 5, 6, 7]), played([8, 9, 10, 11]), played([12, 13, 14, 15])];
-    expect(seedBracket(four)).toHaveLength(INTL_KO_SIZE);
+    expect(seedBracket(four)).toHaveLength(8);
 
     // Two groups: a four-nation bracket, still crossing winner with runner-up.
     const two = [played([0, 1, 2, 3]), played([4, 5, 6, 7])];
@@ -435,6 +441,35 @@ describe("tournament shapes", () => {
     // One group: its top two go straight to the final.
     const one = [played([0, 1, 2, 3, 4])];
     expect(seedBracket(one)).toHaveLength(2);
+  });
+
+  it("puts a group's two qualifiers in opposite halves, so they can only meet in the final", () => {
+    // Each group's winner is its lowest nid: every fixture is a home win, and
+    // buildGroup's round-robin gives the lower nids more home games.
+    const played = (nids: number[]) => {
+      const g = buildGroup(0, nids, null);
+      g.matches.forEach((m) => { m.homeGoals = 1; m.awayGoals = 0; });
+      return g;
+    };
+    for (const groupCount of [2, 4, 8]) {
+      const groups = Array.from({ length: groupCount }, (_, g) =>
+        played([g * 4, g * 4 + 1, g * 4 + 2, g * 4 + 3]));
+      const bracket = seedBracket(groups);
+      const half = bracket.length / 2;
+      // The two nations out of any one group must not share a half of the draw,
+      // or they replay their group fixture before the final.
+      for (let g = 0; g < groupCount; g++) {
+        const fromGroup = bracket
+          .map((nid, i) => ({ nid, top: i < half }))
+          .filter((e) => Math.floor(e.nid / 4) === g);
+        expect(fromGroup).toHaveLength(2);
+        expect(fromGroup[0].top).not.toBe(fromGroup[1].top);
+      }
+      // And nobody meets a nation from their own group in the first round.
+      for (let i = 0; i + 1 < bracket.length; i += 2) {
+        expect(Math.floor(bracket[i] / 4)).not.toBe(Math.floor(bracket[i + 1] / 4));
+      }
+    }
   });
 });
 
