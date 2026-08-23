@@ -12,7 +12,7 @@ import {
   computePowerRankingSnapshot,
   type PowerRankingSnapshot,
 } from "../../core/teams/powerRanking.js";
-import { competitionOf, tierOf } from "../../core/competitions.js";
+import { competitionOf, tierOf, competitionAbbrev } from "../../core/competitions.js";
 import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
@@ -246,7 +246,7 @@ export function PowerRankings() {
                           }
                           title={comp.name}
                         >
-                          <CountryFlag country={comp.country} size={11} />
+                          <CountryFlag country={comp.country} fallback={competitionAbbrev(comp)} size={11} />
                           <span>D{tier} #{divisionRanks.get(r.tid)}</span>
                         </span>
                       );

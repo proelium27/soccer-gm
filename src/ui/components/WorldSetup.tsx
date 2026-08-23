@@ -6,6 +6,11 @@ import {
   competitionStrengthOffset, competitionBudgetScale,
 } from "../../core/competitions.js";
 import { NUM_TEAMS } from "../../core/constants.js";
+
+/** What the code box suggests when left empty — the same rule competitionAbbrev uses. */
+function defaultAbbrev(country: string): string {
+  return country.replace(/[^A-Za-z]/g, "").toUpperCase().slice(0, 3);
+}
 import { MIN_DIVISION_TEAMS, MAX_DIVISION_TEAMS } from "../../core/calendar.js";
 import {
   parseRosterFile, retargetRosterFile, type NamedRosterFile,
@@ -197,6 +202,7 @@ export function WorldSetup({ entries, onChange }: Props) {
                     {entry.spec.country}
                   </label>
                 ) : (
+                  <>
                   <input
                     type="text"
                     className="form-control form-control-sm flex-grow-1"
@@ -204,6 +210,24 @@ export function WorldSetup({ entries, onChange }: Props) {
                     aria-label="Country name"
                     onChange={(e) => updateSpec(i, { country: e.target.value })}
                   />
+                  {/*
+                    A placeholder rather than a pre-filled value: leaving the box
+                    empty falls back to the country's first three letters, so
+                    showing that as a suggestion is honest, and typing over it is
+                    the only thing that stores anything.
+                  */}
+                  <input
+                    type="text"
+                    className="form-control form-control-sm text-uppercase"
+                    style={{ width: 72, flex: "0 0 auto" }}
+                    maxLength={3}
+                    value={entry.spec.abbrev ?? ""}
+                    aria-label="Three-letter code"
+                    placeholder={defaultAbbrev(entry.spec.country)}
+                    title="Three-letter code, shown where a flag would go"
+                    onChange={(e) => updateSpec(i, { abbrev: e.target.value.toUpperCase() })}
+                  />
+                  </>
                 )}
                 {!entry.shipped && (
                   <button
@@ -332,7 +356,9 @@ export function WorldSetup({ entries, onChange }: Props) {
                     <p className="mb-0">
                       <strong>Strength</strong> is how good its squads are: higher is stronger, and
                       20 is level with England, Spain, Italy and Germany. <strong>Money</strong> is
-                      what its clubs earn and can bank, against 1 for the richest leagues.
+                      what its clubs earn and can bank, against 1 for the richest leagues. The
+                      three-letter code beside the name stands in for a flag, since the game has
+                      no flag art for a country you invented.
                     </p>
                   </div>
 

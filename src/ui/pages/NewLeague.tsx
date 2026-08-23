@@ -11,6 +11,7 @@ import {
 } from "../../core/constants.js";
 import {
   buildCompetitions,
+  competitionAbbrev,
   countryClubRanges,
   countriesOf,
   worldTeamSlots,
@@ -168,6 +169,12 @@ export function NewLeague() {
    * world-wide file is loaded), so this never has to merge them.
    */
   const activeRoster = roster ?? leagueRoster;
+
+  /** The country's code, for the flag stand-in on its tab. */
+  function abbrevForCountry(countryName: string): string {
+    const comp = world.competitions.find((c) => c.country === countryName);
+    return comp ? competitionAbbrev(comp) : "";
+  }
 
   // Which tier the chosen club plays in. Read off the slot layout rather than
   // assumed from position in the country's block, because divisions can be
@@ -513,7 +520,7 @@ export function NewLeague() {
             }`}
             onClick={() => selectCountry(c)}
           >
-            <CountryFlag country={c} />
+            <CountryFlag country={c} fallback={abbrevForCountry(c)} />
             {c}
           </button>
         ))}
