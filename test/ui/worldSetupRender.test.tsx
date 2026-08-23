@@ -115,6 +115,26 @@ describe("WorldSetup renders", () => {
     expect(html.match(/Import roster/g)).toHaveLength(1);
   });
 
+  it("points at manual editing beside the roster import", () => {
+    // Two ways to get your own clubs in, and the file picker is the one people
+    // find first, so it says what the other one is.
+    const html = render(withAddedLeague());
+    expect(html).toContain("Name the clubs");
+    expect(html).toContain("yourself");
+  });
+
+  it("collects the explanations under the controls rather than between them", () => {
+    const html = render(withAddedLeague());
+    const money = html.indexOf('aria-label="Money"');
+    const cupPlaces = html.indexOf("Continental Cup places");
+    const strengthProse = html.indexOf("is how good its squads are");
+    expect(money).toBeGreaterThan(-1);
+    expect(cupPlaces).toBeGreaterThan(-1);
+    // The prose explaining strength sits after the last control, not after its slider.
+    expect(strengthProse).toBeGreaterThan(cupPlaces);
+    expect(cupPlaces).toBeGreaterThan(money);
+  });
+
   it("names the loaded files and counts their clubs", () => {
     const entries = withAddedLeague();
     entries[entries.length - 1] = {
