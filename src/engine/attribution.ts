@@ -144,11 +144,27 @@ const CARRIER_WEIGHTS: Record<MatchPosition, number> = {
   AM: 2, W: 2, CM: 1.5, ST: 1.5, DM: 1, FB: 1, CB: 0.7, GK: 0.2,
 };
 
+/**
+ * EXPERIMENT ONLY (scripts/defensiveCreditSweep.ts). How sharply the rating term
+ * discriminates in the defensive credit draw. 1 reproduces shipped behaviour
+ * exactly. The rating term alone is raised to this power; the position weight is
+ * untouched, so a centre-back still takes a centre-back's share of the tackles.
+ */
+const DEFENSIVE_CREDIT_EXPONENT = (() => {
+  const raw =
+    typeof process !== "undefined" && process.env
+      ? process.env.SGM_DEFENSIVE_CREDIT_EXPONENT
+      : undefined;
+  const n = raw === undefined ? NaN : Number(raw);
+  return Number.isFinite(n) ? n : 1;
+})();
+
 function weightedPick(
   rng: () => number,
   players: MatchPlayer[],
   posWeights: Record<MatchPosition, number>,
   ratingKey: keyof MatchPlayer,
+  exponent = 1,
 ): MatchPlayer {
   let total = 0;
   const weights: number[] = [];
@@ -156,7 +172,8 @@ function weightedPick(
     // Weighted by the slot he's filling, not what he is: the man playing centre
     // forward takes the centre forward's share of the shots even if he's a
     // centre-back doing an emergency job up there.
-    const w = posWeights[p.slot] * ((p[ratingKey] as number) + 10);
+    const rating = (p[ratingKey] as number) + 10;
+    const w = posWeights[p.slot] * (exponent === 1 ? rating : rating ** exponent);
     weights.push(w);
     total += w;
   }
@@ -202,7 +219,7 @@ function pickDefensiveAction(
 ): MatchPlayer {
   const outfield = players.filter((p) => p.slot !== "GK");
   if (outfield.length === 0) return players[0];
-  return weightedPick(rng, outfield, TACKLE_WEIGHTS, ratingKey);
+  return weightedPick(rng, outfield, TACKLE_WEIGHTS, ratingKey, DEFENSIVE_CREDIT_EXPONENT);
 }
 
 export function pickTackler(rng: () => number, players: MatchPlayer[]): MatchPlayer {
