@@ -2,7 +2,8 @@ import { useRef, useState } from "react";
 import type { LeagueSpec, Competition } from "../../core/competitions.js";
 import {
   worldLeagueSpecs, worldTuningWarnings, suggestedBudgetScale,
-  buildCompetitions, competitionTeamCount,
+  buildCompetitions, competitionTeamCount, worldCompetitions,
+  competitionStrengthOffset, competitionBudgetScale,
 } from "../../core/competitions.js";
 import { NUM_TEAMS, PROMOTION_RELEGATION_COUNT } from "../../core/constants.js";
 import { MIN_DIVISION_TEAMS, MAX_DIVISION_TEAMS } from "../../core/calendar.js";
@@ -91,6 +92,28 @@ export function leagueRosterFiles(
  * off each round and an odd field leaves one unpaired; capped because a division
  * of n clubs plays 2(n-1) matchdays and the season is a fixed grid.
  */
+/**
+ * The engine stores league strength as a HANDICAP (`strengthOffset`), where 0 is
+ * level with the strongest leagues and higher is weaker. That reads backwards on
+ * a slider labelled "Strength", so the control shows it flipped: the number the
+ * player moves counts UP toward stronger, and only this pair of functions knows
+ * about the flip.
+ *
+ * Deliberately a display concern rather than a change to the field. The offset's
+ * direction is baked into COUNTRY_STRENGTH_OFFSET, the ladder audits and a lot
+ * of documented reasoning; inverting it in the engine would be a large, risky
+ * rename that buys the player nothing this doesn't.
+ */
+const STRENGTH_SCALE_MAX = 20;
+
+export function strengthDial(offset: number): number {
+  return STRENGTH_SCALE_MAX - offset;
+}
+
+export function strengthOffsetFromDial(dial: number): number {
+  return STRENGTH_SCALE_MAX - dial;
+}
+
 const DIVISION_SIZES = Array.from(
   { length: (MAX_DIVISION_TEAMS - MIN_DIVISION_TEAMS) / 2 + 1 },
   (_, i) => MIN_DIVISION_TEAMS + i * 2,
@@ -197,13 +220,13 @@ export function WorldSetup({ entries, onChange }: Props) {
                 <div className="mt-2 ps-4">
                   <Slider
                     label="Strength"
-                    hint="How good this league's squads are to begin with. 0 is on a level with the strongest leagues in the game; higher is weaker."
+                    hint="How good this league's squads are. Higher is stronger, and 20 is level with England, Spain, Italy and Germany. See the table below for where the rest sit."
                     min={0}
-                    max={20}
+                    max={STRENGTH_SCALE_MAX}
                     step={1}
-                    value={entry.spec.strengthOffset ?? 0}
-                    display={String(entry.spec.strengthOffset ?? 0)}
-                    onChange={(v) => updateSpec(i, { strengthOffset: v })}
+                    value={strengthDial(entry.spec.strengthOffset ?? 0)}
+                    display={String(strengthDial(entry.spec.strengthOffset ?? 0))}
+                    onChange={(v) => updateSpec(i, { strengthOffset: strengthOffsetFromDial(v) })}
                   />
                   <Slider
                     label="Money"
@@ -325,6 +348,8 @@ export function WorldSetup({ entries, onChange }: Props) {
           Add a league
         </button>
 
+        <ShippedLeagueTable />
+
         {warnings.length > 0 && (
           <div className="alert alert-warning py-2 mt-3 mb-0 small" role="alert">
             {warnings.map((w) => (
@@ -423,6 +448,57 @@ function RosterPicker({
 
       {error && <div className="small text-danger mt-1">{error}</div>}
     </div>
+  );
+}
+
+/**
+ * Where the leagues already in the game sit, so the sliders have a baseline to
+ * read against rather than being bare numbers.
+ *
+ * Derived from the shipped competitions through the same accessors the engine
+ * uses, so it cannot drift from the values it is describing.
+ */
+function ShippedLeagueTable() {
+  const rows = worldCompetitions()
+    .filter((c) => c.tier === 1)
+    .map((c) => ({
+      country: c.country,
+      strength: strengthDial(competitionStrengthOffset(c)),
+      money: competitionBudgetScale(c),
+    }));
+
+  return (
+    <details className="mt-3">
+      <summary className="small text-muted" style={{ cursor: "pointer" }}>
+        Where the leagues already in the game sit
+      </summary>
+      <div className="table-responsive mt-2">
+        <table className="table table-sm mb-1" style={{ fontSize: "0.8rem" }}>
+          <thead>
+            <tr>
+              <th scope="col">League</th>
+              <th scope="col" className="text-end">Strength</th>
+              <th scope="col" className="text-end">Money</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.country}>
+                <td>{r.country}</td>
+                <td className="text-end">{r.strength}</td>
+                <td className="text-end">{r.money.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-muted mb-0" style={{ fontSize: "0.75rem" }}>
+        Strength 20 is the top of the game. Each point below costs a league about
+        1 OVR across its squads, so a league at 10 has a champion around the
+        quality of a mid-table English club. Money is against 1.00 for the
+        richest leagues.
+      </p>
+    </details>
   );
 }
 

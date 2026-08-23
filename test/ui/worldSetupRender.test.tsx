@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  WorldSetup, defaultWorldEntries, includedSpecs, leagueRosterFiles, type WorldEntry,
+  WorldSetup, defaultWorldEntries, includedSpecs, leagueRosterFiles,
+  strengthDial, strengthOffsetFromDial, type WorldEntry,
 } from "../../src/ui/components/WorldSetup.js";
-import { buildCompetitions, countriesOf } from "../../src/core/competitions.js";
+import {
+  buildCompetitions, countriesOf, worldCompetitions, competitionStrengthOffset,
+} from "../../src/core/competitions.js";
 import type { RosterFile } from "../../src/core/teams/rosterFile.js";
 import { ROSTER_FILE_FORMAT } from "../../src/core/teams/rosterFile.js";
 
@@ -122,6 +125,43 @@ describe("WorldSetup renders", () => {
     expect(html).toContain("neverland.json");
     expect(html).toContain("3 clubs");
     expect(html).toContain("Add another file");
+  });
+});
+
+describe("the strength dial reads the way a player expects", () => {
+  it("counts up toward stronger, opposite the engine's handicap", () => {
+    // The engine stores a handicap: 0 is the top of the game, higher is weaker.
+    // The control shows the reverse.
+    expect(strengthDial(0)).toBe(20);
+    expect(strengthDial(20)).toBe(0);
+    expect(strengthDial(5)).toBe(15);
+  });
+
+  it("round-trips, so moving the slider can't drift the stored value", () => {
+    for (let dial = 0; dial <= 20; dial++) {
+      expect(strengthDial(strengthOffsetFromDial(dial))).toBe(dial);
+    }
+  });
+
+  it("puts the shipped leagues where the table says they are", () => {
+    const byCountry = new Map(
+      worldCompetitions().filter((c) => c.tier === 1).map((c) => [c.country, c]),
+    );
+    expect(strengthDial(competitionStrengthOffset(byCountry.get("England")!))).toBe(20);
+    expect(strengthDial(competitionStrengthOffset(byCountry.get("France")!))).toBe(15);
+    expect(strengthDial(competitionStrengthOffset(byCountry.get("Portugal")!))).toBe(10);
+    expect(strengthDial(competitionStrengthOffset(byCountry.get("Turkey")!))).toBe(8);
+  });
+
+  it("renders the shipped leagues as a baseline table", () => {
+    const html = render(defaultWorldEntries());
+    expect(html).toContain("Where the leagues already in the game sit");
+    // Every shipped country, with its dial value and its money scale.
+    for (const country of ["England", "France", "Portugal", "Turkey"]) {
+      expect(html).toContain(country);
+    }
+    expect(html).toContain("0.40");
+    expect(html).toContain("1.00");
   });
 });
 
