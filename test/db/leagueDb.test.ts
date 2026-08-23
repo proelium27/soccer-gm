@@ -11,7 +11,9 @@ import {
   resetDb,
   resetWriteCache,
   storedPlayerRows,
+  storedRetireeRows,
 } from "../../src/db/index.js";
+import type { ArchivedPlayer } from "../../src/core/players/archive.js";
 
 // Generating a world costs ~4s, and every test here wants an identical one, so
 // build it once and hand out copies (tests mutate what they are given).
@@ -26,6 +28,7 @@ beforeEach(async () => {
   const db = await getDb();
   await db.clear("leagues");
   await db.clear("players");
+  await db.clear("retirees");
   // Otherwise this tab still believes the pool it wrote in the previous test is
   // on disk, and would write only a diff against a store that was just wiped.
   resetWriteCache();
@@ -228,5 +231,97 @@ describe("leagueDb", () => {
     expect(loaded!.players).toEqual(league.players);
     expect(loaded!.schedule).toEqual(league.schedule);
     expect(loaded!.played).toEqual(league.played);
+  });
+});
+
+/**
+ * The retiree archive lives in its own store as of DB_VERSION 3, for the same
+ * reason the pool does: `saveLeague` rewrites the whole non-player record on
+ * every mutation, so anything left inline is re-serialised on every lineup
+ * change. See the RETIREE_ARCHIVE_LIMIT comment for the measurements.
+ */
+describe("leagueDb retiree store", () => {
+  const retiree = (pid: number, name: string): ArchivedPlayer => ({
+    pid, name, nationality: "eng", pos: "ST", born: 2000, heightCm: 180,
+    retiredSeason: 12, retiredAge: 34, firstSeason: 2, seasonsPlayed: 10,
+    peakOvr: 78, peakSeason: 8, finalOvr: 71, clubs: [1],
+    seasons: [{ season: 8, tid: 1, ovr: 78, apps: 30 }],
+    totals: {} as ArchivedPlayer["totals"], best: {} as ArchivedPlayer["best"],
+    caps: 0, intlGoals: 0, intlTitles: 0,
+  });
+
+  it("writes the archive to its own store, not the league record", async () => {
+    const league = makeLeague();
+    league.retiredPlayers = [retiree(9001, "Ade Bello"), retiree(9002, "Cai Duarte")];
+    const lid = await saveLeague(league);
+
+    expect(await storedRetireeRows(lid)).toHaveLength(2);
+    // The league record must no longer carry it, or the split bought nothing.
+    const db = await getDb();
+    const raw = await db.get("leagues", lid);
+    expect(raw!.retiredPlayers).toBeUndefined();
+  });
+
+  it("reassembles the archive on load", async () => {
+    const league = makeLeague();
+    league.retiredPlayers = [retiree(9001, "Ade Bello")];
+    const lid = await saveLeague(league);
+
+    const loaded = await loadLeague(lid);
+    expect(loaded!.retiredPlayers).toHaveLength(1);
+    expect(loaded!.retiredPlayers[0].name).toBe("Ade Bello");
+  });
+
+  it("splits a v2 record that still carries the archive inline", async () => {
+    // What every existing save looks like on first load after this ships.
+    const league = makeLeague();
+    const lid = await saveLeague(league);
+    const db = await getDb();
+    const stored = await db.get("leagues", lid);
+    await db.put("leagues", {
+      ...stored!,
+      retiredPlayers: [retiree(9003, "Eli Fournier")],
+    });
+    resetWriteCache();
+
+    const loaded = await loadLeague(lid);
+    expect(loaded!.retiredPlayers[0].name).toBe("Eli Fournier");
+    // loadLeague writes it back, so the inline copy is gone and the row is in
+    // the store — otherwise every startup would redo this.
+    expect(await storedRetireeRows(lid)).toHaveLength(1);
+    const after = await db.get("leagues", lid);
+    expect(after!.retiredPlayers).toBeUndefined();
+  });
+
+  it("drops rows the cap pruned rather than leaving them orphaned", async () => {
+    const league = makeLeague();
+    league.retiredPlayers = [retiree(9001, "Ade Bello"), retiree(9002, "Cai Duarte")];
+    const lid = await saveLeague(league);
+
+    league.lid = lid;
+    league.retiredPlayers = [league.retiredPlayers[0]];
+    await saveLeague(league);
+
+    const rows = await storedRetireeRows(lid);
+    expect(rows.map((r) => r.pid)).toEqual([9001]);
+  });
+
+  it("deletes the archive along with the league", async () => {
+    const league = makeLeague();
+    league.retiredPlayers = [retiree(9001, "Ade Bello")];
+    const lid = await saveLeague(league);
+    await deleteLeague(lid);
+    expect(await storedRetireeRows(lid)).toHaveLength(0);
+  });
+
+  it("keeps an empty archive empty instead of rewriting on every load", async () => {
+    // An empty inline array and an empty store read are indistinguishable by
+    // length, so the split has to key off the field being present at all.
+    const league = makeLeague();
+    league.retiredPlayers = [];
+    const lid = await saveLeague(league);
+    const loaded = await loadLeague(lid);
+    expect(loaded!.retiredPlayers).toEqual([]);
+    expect(await storedRetireeRows(lid)).toHaveLength(0);
   });
 });

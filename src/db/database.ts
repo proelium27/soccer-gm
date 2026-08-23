@@ -1,14 +1,22 @@
 import { openDB, type IDBPDatabase, type DBSchema } from "idb";
 import type { LeagueStore } from "../core/leagueState.js";
 import type { Player } from "../core/players/types.js";
+import type { ArchivedPlayer } from "../core/players/archive.js";
 
 const DB_NAME = "soccer-gm";
 /**
  * 2 split `players` out of the league record. See docs/save-performance-plan.md:
  * with one record per league, every mutation rewrote the entire world, so the
  * cost of any action grew with how long the save had been played.
+ *
+ * 3 split `retiredPlayers` out for the same reason, and it is the same bug one
+ * field along: `saveLeague` writes the whole non-player record every time, so
+ * the archive was re-serialised on every lineup change and signing. Measured at
+ * 2,204 bytes a row that is 11ms per save at the old 2,000-row cap and 91ms at
+ * 20,000, before mobile's 5-10x. The cap exists to bound *that*, not disk, so
+ * splitting the store is what lets it rise (RETIREE_ARCHIVE_LIMIT).
  */
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 /**
  * A league as it sits on disk.
@@ -18,8 +26,14 @@ const DB_VERSION = 2;
  * inline until `loadLeague` next rewrites them. Nothing above the db layer sees
  * this — `loadLeague` reassembles a normal `LeagueStore` either way.
  */
-export type StoredLeague = Omit<LeagueStore, "players"> & {
+export type StoredLeague = Omit<LeagueStore, "players" | "retiredPlayers"> & {
   players?: Player[];
+  /**
+   * Same story one field along: v3 records keep the archive in the `retirees`
+   * store, while v1/v2 records still carry it inline until `loadLeague` next
+   * rewrites them. Also absent on a save old enough to predate the archive.
+   */
+  retiredPlayers?: ArchivedPlayer[];
   /**
    * Bumped on every write. Lets `saveLeague` prove the pool on disk is still the
    * one it last wrote before trusting an incremental write — if another tab saved
@@ -42,6 +56,18 @@ export interface SoccerGMDB extends DBSchema {
     key: [number, number];
     value: Player;
   };
+  /**
+   * One record per archived retiree, keyed `[lid, pid]` exactly like `players`.
+   *
+   * Separate from `players` rather than sharing it: the two are read at
+   * different times (the pool on every load, the archive only by the all-time
+   * surfaces) and a shared store would make the pool's range query drag the
+   * archive along with it.
+   */
+  retirees: {
+    key: [number, number];
+    value: ArchivedPlayer;
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<SoccerGMDB>> | null = null;
@@ -63,6 +89,11 @@ export function getDb(): Promise<IDBPDatabase<SoccerGMDB>> {
           // loadLeague does it lazily, so the work is testable and a large
           // save can't stall a versionchange transaction on startup.
           db.createObjectStore("players");
+        }
+        if (!db.objectStoreNames.contains("retirees")) {
+          // Same out-of-line `[lid, pid]` key as `players`, and split from the
+          // league record lazily in loadLeague for the same reasons.
+          db.createObjectStore("retirees");
         }
       },
     });

@@ -50,7 +50,11 @@ export function GodMode() {
 // --- Section A: Create Player ---
 function CreatePlayer() {
   const { league, createPlayerAction } = useLeague();
-  const [name, setName] = useState("New Player");
+  // Starts empty, with "New Player" as a placeholder rather than a value. It
+  // used to be the value, and a created player keeps his name forever: one that
+  // was never typed over ends up on the all-time boards as "New Player", which
+  // is what a real save was found doing.
+  const [name, setName] = useState("");
   const [nationality, setNationality] = useState(NATION_NAMES[0]);
   const [pos, setPos] = useState<Position>("ST");
   const [age, setAge] = useState(20);
@@ -64,14 +68,18 @@ function CreatePlayer() {
 
   if (!league) return null;
 
+  // Trailing spaces would survive into every board he ever appears on.
+  const trimmedName = name.trim();
+
   const submit = async () => {
+    if (!trimmedName) return;
     const spec: NewPlayerSpec = {
-      name, nationality, pos, heightCm, age, ratings, potential,
+      name: trimmedName, nationality, pos, heightCm, age, ratings, potential,
       contract: { salary, expiresSeason: league.season + contractLength },
       tid: tid === "fa" ? null : tid,
     };
     await createPlayerAction(spec);
-    setCreated(name);
+    setCreated(trimmedName);
   };
 
   return (
@@ -79,7 +87,12 @@ function CreatePlayer() {
       <div className="row g-2 mb-3">
         <div className="col-12 col-md-6">
           <label className="form-label form-label-sm">Name</label>
-          <input className="form-control form-control-sm" value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            className="form-control form-control-sm"
+            placeholder="New Player"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
         <div className="col-12 col-md-6">
           <label className="form-label form-label-sm">Nationality</label>
@@ -143,7 +156,9 @@ function CreatePlayer() {
       </div>
 
       <div className="d-flex align-items-center gap-3">
-        <button className="btn btn-sm btn-warning" onClick={submit}>Create Player</button>
+        <button className="btn btn-sm btn-warning" onClick={submit} disabled={!trimmedName}>
+          Create Player
+        </button>
         {created && <span className="text-success small">Created {created}.</span>}
       </div>
     </div>

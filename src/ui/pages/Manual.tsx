@@ -1675,6 +1675,13 @@ export function Manual() {
             can't be recovered, and the ones still on record when you load it are kept from then on.
           </p>
           <p>
+            The permanent career record now holds ten times as many careers as it used to, so a lot
+            more retirees keep a full page instead of just a name. It used to be a small number for a
+            technical reason that's gone: the whole list was rewritten every time you touched
+            anything, so a big one slowed down changing your lineup. It lives in its own place now
+            and only new entries get written, which is why it can afford to be big.
+          </p>
+          <p>
             Separately from that permanent career record, the game keeps a plain name for every
             retiree your save still mentions anywhere &mdash; an old transfer, a news item, an
             awards board, a cup stat line. That's a much shorter record than a career page, so
