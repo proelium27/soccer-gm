@@ -259,6 +259,15 @@ export function WorldSetup({ entries, onChange }: Props) {
                       Keep money in step with strength
                     </label>
                   </div>
+
+                  {/*
+                    Sits directly under the two sliders it calibrates rather than
+                    at the foot of the card: the numbers only mean anything
+                    against the leagues already in the game, and a reference you
+                    have to scroll away to find is one you don't use.
+                  */}
+                  <ShippedLeagueTable />
+
                   <div className="row g-2 mb-2">
                     <div className="col">
                       <label className="form-label small mb-1">Divisions</label>
@@ -347,8 +356,6 @@ export function WorldSetup({ entries, onChange }: Props) {
         >
           Add a league
         </button>
-
-        <ShippedLeagueTable />
 
         {warnings.length > 0 && (
           <div className="alert alert-warning py-2 mt-3 mb-0 small" role="alert">
@@ -468,7 +475,7 @@ function ShippedLeagueTable() {
     }));
 
   return (
-    <details className="mt-3">
+    <details className="mb-2">
       <summary className="small text-muted" style={{ cursor: "pointer" }}>
         Where the leagues already in the game sit
       </summary>
