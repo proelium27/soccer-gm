@@ -405,9 +405,74 @@ export function Manual() {
             grouped by country, so you can browse any of the 16 leagues. It defaults to
             whichever one your own club is currently in.
           </p>
+          <p>
+            <strong>Shaping your own world.</strong> The eight countries above are the default, not
+            the only option. The <strong>World setup</strong> panel on the New League screen lets you
+            switch any of them off and add leagues of your own. An added league is always a
+            two-division pyramid like the rest, and its clubs get generated names and colours, since
+            the game ships no real clubs.
+          </p>
+          <p>
+            Each league you add carries three settings. <strong>Strength</strong> is how good its
+            squads are, on the same scale as the step-downs above, where 0 sits level with the big
+            four and each point costs about 0.94 OVR. At 5 its champion is about as good as the
+            5th-best club in England; at 10 about the 12th; at 18 about the very worst one.{" "}
+            <strong>Money</strong> is what its clubs earn and can bank, against 1 for the richest
+            leagues. And you set how many places it sends to the{" "}
+            <a href="#cup">Continental Cup</a> and the <a href="#shield">Continental Shield</a>.
+            Like the shipped countries, a league you add holds its level for the life of the save.
+          </p>
+          <p>
+            Money is tied to strength by default and you should think twice before unlinking it. A
+            weak league with big money climbs the pecking order over a long save until it finishes
+            above leagues it generated well below, which is usually not what you were going for. The
+            panel warns you when your settings would do that.
+          </p>
+          <p>
+            <strong>Bringing your own clubs to an added league.</strong> Each added league has an
+            <strong> Import roster</strong> button of its own. It takes the same roster files the
+            world-wide import takes, but it applies them to that one league, and it ignores what
+            the file calls its competitions: the file's first competition fills the league's top
+            division, the second fills its second division, and anything past that is skipped with
+            a note. That means a file someone wrote for an entirely different world still works,
+            since the league you're dropping it into didn't exist when the file was written. Clubs
+            land on slots in order, and any slot the file doesn't cover keeps the invented club it
+            was given. The league's name decides its division names, so renaming it after loading a
+            file is fine.
+          </p>
+          <p>
+            Continental places can't overlap however you set them: the Shield always starts at the
+            place directly below the Cup's last one in that same league. If a league sends 1 to the
+            Cup and 3 to the Shield, that's its champion in the Cup and 2nd through 4th in the
+            Shield.
+          </p>
+          <p>
+            <strong>Giving a league places doesn't take them off anybody, unless the total comes out
+            wrong.</strong> Each league keeps its own allowance and the field grows to fit. But a
+            competition can only be played at certain field sizes, going up in fours from twelve, so
+            if your world's leagues ask for a total in between, the field is cut back to the size
+            below and the lowest-placed qualifiers <em>in the world</em> miss out.
+          </p>
+          <p>
+            That's worth understanding because the cost doesn't land on the league that caused it.
+            Add a ninth league taking 2 Cup places and the world asks for 26, which isn't a size the
+            Cup can play, so it fields 24 and two clubs are cut. Your new league keeps both of its
+            places, since its champion and runner-up outrank every 4th-placed club anywhere; it's two
+            of the big four that lose a place. Which two comes down to who finished worst that
+            season, so it moves around from year to year.
+          </p>
+          <p>
+            The Shield counts its own total the same way, and it's the one that catches people out.
+            Every league sends it 2, so any ninth league takes it from 16 to 18 and trims two clubs
+            no matter what you did with the Cup. Switching a shipped country off keeps both totals
+            clean, and so does giving your league 4 Cup places instead of 2. The panel warns you
+            about each competition separately and tells you how many clubs a bad total would cost.
+          </p>
           <p className="text-muted small">
-            Saves you created before this feature shipped stay England-only forever. There's no
-            mid-save world expansion.
+            World setup only applies when you create a save. There's no mid-save world expansion, and
+            saves created before it shipped keep whatever countries they were made with. It's also
+            hidden when you're importing a roster file, because a roster file maps its clubs onto the
+            world's slots by position and moving both at once would hand squads to the wrong clubs.
           </p>
         </Section>
 
@@ -857,10 +922,14 @@ export function Manual() {
             this game he scores and creates about as much as a winger does, so his goals are priced
             the same as a winger's rather than at the scarcer midfield rate. The{" "}
             <strong>Golden Boot</strong> is just the league's top
-            goalscorer. <strong>Team of the Season</strong> fills an 11-man pitch (one XI slot per
-            position) with whoever rates highest at that position across the whole league, blending
-            match rating with the stats that matter most for the role: goals and assists up front,
-            tackles and interceptions in defense and midfield, saves for the keeper. Both Player of
+            goalscorer. <strong>Team of the Season</strong> fills an 11-man pitch, laid out as a
+            4-3-3 &mdash; a keeper, a back four, a midfield three of a holding man, a central
+            midfielder and an attacking midfielder, and a front three of two wingers and a striker
+            &mdash; with whoever rates highest at each of those positions across the whole league,
+            blending match rating with the stats that matter most for the role: goals and assists up
+            front, tackles and interceptions in defense and midfield, saves for the keeper. Every
+            slot takes a player who actually plays that position, so a great season at a position
+            the shape has only one of (striker, say) can still miss out. Both Player of
             the Season and Team of the Season also factor in overall quality, not just the stat
             line, so a modest player who piled up a big statistical season (often just from facing
             heavy pressure on a weaker side) won't out-rank a genuinely elite one. Only players who
@@ -1499,7 +1568,10 @@ export function Manual() {
             a domestic one. A player can only hold one slot, so someone picked at two positions over
             his career takes his stronger one and the next best man gets the other. A position
             nobody has ever been picked in is left empty rather than filled with the nearest
-            approximation.
+            approximation. One wrinkle on a save that predates the attacking-midfield slot: those
+            older seasons picked two central midfielders instead, and since past awards are never
+            re-run, a central midfielder from back then can show up in the attacking-midfield slot.
+            It sorts itself out as new seasons pile up.
           </p>
           <p>
             <strong>Records</strong> covers the most dominant and worst team seasons, the highest
@@ -1580,8 +1652,8 @@ export function Manual() {
             can't be recovered, and the ones still on record when you load it are kept from then on.
           </p>
           <p>
-            That permanent record now holds ten times as many careers as it used to, so a lot more
-            retirees keep a full page instead of just a name. It used to be a small number for a
+            The permanent career record now holds ten times as many careers as it used to, so a lot
+            more retirees keep a full page instead of just a name. It used to be a small number for a
             technical reason that's gone: the whole list was rewritten every time you touched
             anything, so a big one slowed down changing your lineup. It lives in its own place now
             and only new entries get written, which is why it can afford to be big.

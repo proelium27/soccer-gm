@@ -2381,6 +2381,47 @@ export const CUP_LEAGUE_PHASE_MATCHDAYS = [3, 7, 11, 15, 19, 23] as const;
 export const CUP_LP_DIRECT_QF = 4;
 /** League-phase ranks CUP_LP_DIRECT_QF+1 … +CUP_LP_PLAYOFF_TEAMS contest the single-leg playoff. */
 export const CUP_LP_PLAYOFF_TEAMS = 8; // ranks 5–12 → four single-leg ties → four QF places
+
+/**
+ * Whether the league-phase draw can actually build a schedule for a field of
+ * this size. Three conditions, all structural rather than stylistic:
+ *   - the field splits evenly into CUP_LEAGUE_PHASE_POTS pots;
+ *   - each pot is itself even, because the intra-pot rounds are perfect
+ *     matchings *within* a pot and an odd pot leaves a club unpaired;
+ *   - a pot is big enough to supply the intra-pot opponents each club needs.
+ * Plus enough clubs to seed the split (four direct quarter-finalists and the
+ * playoff field).
+ *
+ * The shipped world always produced 24 (and the Shield 16), so nothing ever
+ * exercised this and drawLeaguePhase's own guard quietly omitted the even-pot
+ * condition. Once a player can set a league's slot count, any total is
+ * reachable — a 23-club field crashed the offseason outright.
+ */
+export function isValidCupFieldSize(size: number): boolean {
+  const perPot = CUP_LEAGUE_PHASE_GAMES / CUP_LEAGUE_PHASE_POTS;
+  const potSize = size / CUP_LEAGUE_PHASE_POTS;
+  return (
+    Number.isInteger(perPot)
+    && Number.isInteger(potSize)
+    && potSize % 2 === 0
+    && potSize - 1 >= perPot
+    && size >= CUP_LP_DIRECT_QF + CUP_LP_PLAYOFF_TEAMS
+  );
+}
+
+/**
+ * The biggest field the draw can build that is no larger than `total`, or 0 if
+ * there aren't enough qualifiers for one at all. Qualifying trims to this by
+ * dropping its lowest seeds, so a world that produces an awkward number of
+ * qualifiers still gets a competition — just a slightly smaller one — instead
+ * of throwing.
+ */
+export function largestValidCupField(total: number): number {
+  for (let size = Math.floor(total); size >= 0; size--) {
+    if (isValidCupFieldSize(size)) return size;
+  }
+  return 0;
+}
 /** Size of the knockout bracket the league phase feeds (quarter-finals onward). */
 export const CUP_KO_SIZE = 8;
 
@@ -2493,17 +2534,6 @@ export interface CupFormat {
   id: CupCompetitionId;
   /** Display name, stored on each CupState as it is built. */
   name: string;
-  /**
-   * How many places down a league's final table this competition's slots start
-   * — 0 takes the champion first. This is what keeps the competitions' fields
-   * disjoint, so it must equal the number of places the competition above takes
-   * **from that same league**. It is therefore per league strength, exactly
-   * like the slot counts: the Continental Cup takes four places from a strong
-   * league and two from a weak one, so the Shield starts at 4 and 2
-   * respectively (ranks 5-6 and 3-4).
-   */
-  strongOffset: number;
-  weakOffset: number;
   /** Places a strong (big-four, countryStrengthOffset 0) league earns. */
   strongSlots: number;
   /** Places a weak (offset > 0) league earns. */
@@ -2571,8 +2601,6 @@ export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
   continental: {
     id: "continental",
     name: CUP_NAME,
-    strongOffset: 0,
-    weakOffset: 0,
     strongSlots: CUP_STRONG_LEAGUE_SLOTS,
     weakSlots: CUP_WEAK_LEAGUE_SLOTS,
     fieldSize: CUP_LEAGUE_PHASE_SIZE,
@@ -2590,10 +2618,6 @@ export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
   shield: {
     id: "shield",
     name: SHIELD_NAME,
-    // Start where the Continental Cup stops in each league, so no club can be
-    // drawn into both. Change one of these and you must change the other.
-    strongOffset: CUP_STRONG_LEAGUE_SLOTS,
-    weakOffset: CUP_WEAK_LEAGUE_SLOTS,
     strongSlots: SHIELD_STRONG_LEAGUE_SLOTS,
     weakSlots: SHIELD_WEAK_LEAGUE_SLOTS,
     fieldSize: SHIELD_LEAGUE_PHASE_SIZE,
@@ -2614,6 +2638,22 @@ export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
     },
   },
 };
+
+/**
+ * The continental competitions in qualification order, best first. Each league's
+ * places are handed down this list: the Continental Cup takes from the top of
+ * every table, and the Shield starts exactly where the Cup stopped *in that same
+ * league*.
+ *
+ * A competition's starting place is DERIVED by summing the slots of everything
+ * above it (see cupOffsetForCompetition), rather than stored as a constant per
+ * format. That is what makes the fields provably disjoint now that a league can
+ * set its own slot counts (Competition.continentalSlots): a fixed offset would
+ * silently overlap the two fields, or leave a gap, the moment a league's Cup
+ * allocation differed from the shipped default. Insert a new competition here
+ * and everything below it shifts down on its own.
+ */
+export const CONTINENTAL_ORDER: readonly CupCompetitionId[] = ["continental", "shield"];
 
 /** The Continental Cup's format — the default for every cup helper and every pre-split save. */
 export const CONTINENTAL_CUP_FORMAT = CUP_FORMATS.continental;

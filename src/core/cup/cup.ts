@@ -6,10 +6,10 @@ import type { CupFormat } from "../constants.js";
 import {
   CUP_ROUNDS, CUP_ROUND_MATCHDAYS,
   CUP_KO_SIZE, CUP_KO_ROUND_MATCHDAYS, CUP_KO_LEG_MATCHDAYS,
-  CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS, CUP_PLAYOFF_MATCHDAY,
-  CUP_FORMATS, CONTINENTAL_CUP_FORMAT,
-  countryStrengthOffset,
+  CUP_LP_DIRECT_QF, CUP_PLAYOFF_MATCHDAY,
+  CUP_FORMATS, CONTINENTAL_CUP_FORMAT, CONTINENTAL_ORDER, largestValidCupField,
 } from "../constants.js";
+import { isWeakLeague } from "../competitions.js";
 import {
   drawLeaguePhase, leaguePhaseTable, splitLeaguePhase, leaguePhaseComplete,
 } from "./leaguePhase.js";
@@ -110,11 +110,19 @@ export function cupPlan(
   format: CupFormat = CONTINENTAL_CUP_FORMAT,
 ): CupPlan | null {
   const tier1 = competitions.filter((c) => c.tier === 1);
-  const strong = tier1.filter((c) => countryStrengthOffset(c.country) === 0);
-  const weak = tier1.filter((c) => countryStrengthOffset(c.country) > 0);
-  const total = strong.length * format.strongSlots + weak.length * format.weakSlots;
-  const minField = CUP_LP_DIRECT_QF + CUP_LP_PLAYOFF_TEAMS; // 12: fill four QF + the playoff
-  if (total < minField) return null;
+  const strong = tier1.filter((c) => !isWeakLeague(c));
+  const weak = tier1.filter((c) => isWeakLeague(c));
+  // Summed per league rather than counted by class, because a league can carry
+  // its own slot count (Competition.continentalSlots) that differs from the
+  // strong/weak default its class would give it.
+  const qualified = tier1.reduce((n, c) => n + cupSlotsForCompetition(c, format), 0);
+  // Trim to a size the league-phase draw can actually build (see
+  // isValidCupFieldSize). The shipped world lands exactly on one — 24 for the
+  // Cup, 16 for the Shield — so this changes nothing there; a world whose
+  // leagues send an awkward total now gets the largest valid field rather than
+  // crashing the offseason on the draw.
+  const total = largestValidCupField(qualified);
+  if (total === 0) return null;
   return { strong, weak, total };
 }
 
@@ -134,7 +142,9 @@ export function cupSlotsForCompetition(
   comp: Competition,
   format: CupFormat = CONTINENTAL_CUP_FORMAT,
 ): number {
-  return countryStrengthOffset(comp.country) > 0 ? format.weakSlots : format.strongSlots;
+  const own = comp.continentalSlots?.[format.id];
+  if (own !== undefined) return Math.max(0, Math.floor(own));
+  return isWeakLeague(comp) ? format.weakSlots : format.strongSlots;
 }
 
 /** How many places down this competition starts in a given league's table (0 = the champion). */
@@ -142,7 +152,15 @@ export function cupOffsetForCompetition(
   comp: Competition,
   format: CupFormat = CONTINENTAL_CUP_FORMAT,
 ): number {
-  return countryStrengthOffset(comp.country) > 0 ? format.weakOffset : format.strongOffset;
+  // Sum what every competition above this one takes from THIS league, so the
+  // fields butt up against each other exactly and no club can fall into two of
+  // them (or into neither). See CONTINENTAL_ORDER.
+  let offset = 0;
+  for (const id of CONTINENTAL_ORDER) {
+    if (id === format.id) break;
+    offset += cupSlotsForCompetition(comp, CUP_FORMATS[id]);
+  }
+  return offset;
 }
 
 /**
@@ -197,10 +215,12 @@ export function qualifyCupTeams(
 ): { field: number[]; compOf: Map<number, number> } {
   const plan = cupPlan(competitions, format);
   const compOf = new Map<number, number>();
-  const collect = (comps: Competition[], slots: number, from: number): Qualifier[] => {
+  const collect = (comps: Competition[]): Qualifier[] => {
     const out: Qualifier[] = [];
     for (const comp of comps) {
       const table = tablesByCompId.get(comp.id) ?? [];
+      const slots = cupSlotsForCompetition(comp, format);
+      const from = cupOffsetForCompetition(comp, format);
       for (let i = from; i < from + slots && i < table.length; i++) {
         const row = table[i];
         compOf.set(row.tid, comp.id);
@@ -209,14 +229,14 @@ export function qualifyCupTeams(
     }
     return out;
   };
-  const strong = plan ? plan.strong : competitions.filter((c) => c.tier === 1 && countryStrengthOffset(c.country) === 0);
-  const weak = plan ? plan.weak : competitions.filter((c) => c.tier === 1 && countryStrengthOffset(c.country) > 0);
-  const field = [
-    ...collect(strong, format.strongSlots, format.strongOffset),
-    ...collect(weak, format.weakSlots, format.weakOffset),
-  ]
+  const strong = plan ? plan.strong : competitions.filter((c) => c.tier === 1 && !isWeakLeague(c));
+  const weak = plan ? plan.weak : competitions.filter((c) => c.tier === 1 && isWeakLeague(c));
+  const field = [...collect(strong), ...collect(weak)]
     .sort(seedSort)
-    .map((q) => q.tid);
+    .map((q) => q.tid)
+    // Trimmed AFTER seeding, so what gets dropped is the weakest qualifiers in
+    // the world rather than whichever league happened to be collected last.
+    .slice(0, plan ? plan.total : undefined);
   return { field, compOf };
 }
 
