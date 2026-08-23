@@ -124,6 +124,11 @@ export function NewLeague() {
   // Fixed for the save's lifetime once it's created, so it is chosen here and
   // nowhere else (see the DIFFICULTIES block in core/constants.ts).
   const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
+  // Name and colour every club before the save is written. The editor itself
+  // already existed behind the Leagues page's Customize Teams button; this just
+  // offers the same step from the ordinary flow, which is where someone who has
+  // just invented a league actually is.
+  const [nameClubs, setNameClubs] = useState(false);
   const [pending, setPending] = useState<LeagueStore | null>(null);
   const [saving, setSaving] = useState(false);
   // Every path on this page that writes a save goes through one gate. Building a
@@ -200,7 +205,7 @@ export function NewLeague() {
       await yieldToPaint();
       try {
         const league = buildLeague(selectedTid);
-        if (customize) {
+        if (customize || nameClubs) {
           // Hold the generated league in memory and let the user edit team
           // identities before anything is persisted.
           setPending(league);
@@ -570,6 +575,27 @@ export function NewLeague() {
         </div>
       )}
 
+      {/* Redundant when you arrived through Customize Teams, which always
+          opens the editor. */}
+      {!customize && (
+        <div className="form-check mb-3">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            id="name-clubs"
+            checked={nameClubs}
+            onChange={(e) => setNameClubs(e.target.checked)}
+          />
+          <label className="form-check-label" htmlFor="name-clubs">
+            Name the clubs yourself
+            <span className="text-muted small d-block">
+              Opens an editor after the world is built, where you can rename any club
+              and set its colours. Nothing is saved until you're done.
+            </span>
+          </label>
+        </div>
+      )}
+
       <div className="d-flex gap-2 align-items-center">
         <button
           className="btn btn-primary"
@@ -578,8 +604,8 @@ export function NewLeague() {
         >
           {saving
             ? "Building your world..."
-            : customize
-              ? "Next: Customize Teams"
+            : customize || nameClubs
+              ? "Next: Name Your Clubs"
               : "Start League"}
         </button>
 
