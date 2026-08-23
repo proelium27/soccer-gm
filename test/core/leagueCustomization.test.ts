@@ -5,7 +5,7 @@ import {
   competitionBudgetScale, isWeakLeague, academyBaseCenterOf,
   buildCompetitions, worldLeagueSpecs, tier1Pairs, countryClubRanges,
   worldTuningWarnings, suggestedBudgetScale, worldTeamSlots,
-  competitionTeamCount, partnerOrNull,
+  competitionTeamCount, partnerOrNull, competitionAbbrev,
 } from "../../src/core/competitions.js";
 import { computeCountrySwaps } from "../../src/core/promotion.js";
 import { buildCompetitionSchedule } from "../../src/core/leagueState.js";
@@ -317,6 +317,37 @@ describe("world tuning warnings", () => {
     // Monotonic and floored, so a slider can't produce a free-money league.
     expect(suggestedBudgetScale(40)).toBe(0.25);
     expect(suggestedBudgetScale(5)).toBeGreaterThan(suggestedBudgetScale(9));
+  });
+});
+
+describe("a country's three-letter code", () => {
+  it("derives one from the name when none was typed", () => {
+    const [d1] = buildCompetitions([{ country: "Neverland" }]);
+    expect(competitionAbbrev(d1)).toBe("NEV");
+  });
+
+  it("uses the one that was typed, upper-cased and clipped to three", () => {
+    const [d1] = buildCompetitions([{ country: "Neverland", abbrev: "nvl" }]);
+    expect(competitionAbbrev(d1)).toBe("NVL");
+    const [other] = buildCompetitions([{ country: "Neverland", abbrev: "TOOLONG" }]);
+    expect(competitionAbbrev(other)).toBe("TOO");
+  });
+
+  it("ignores spaces and punctuation in a derived code", () => {
+    const [d1] = buildCompetitions([{ country: "Côte d'Or" }]);
+    expect(competitionAbbrev(d1)).toBe("CTE");
+  });
+
+  it("carries the code onto both divisions", () => {
+    const [d1, d2] = buildCompetitions([{ country: "Neverland", abbrev: "NVL" }]);
+    expect(d1.abbrev).toBe("NVL");
+    expect(d2.abbrev).toBe("NVL");
+  });
+
+  it("leaves every shipped competition without one", () => {
+    // They have real flag art, so the stand-in never shows for them, and the
+    // rebuild-the-shipped-world test depends on untouched knobs staying absent.
+    for (const comp of worldCompetitions()) expect("abbrev" in comp).toBe(false);
   });
 });
 

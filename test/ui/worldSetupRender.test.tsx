@@ -115,6 +115,23 @@ describe("WorldSetup renders", () => {
     expect(html.match(/Import roster/g)).toHaveLength(1);
   });
 
+  it("offers a three-letter code box, suggesting one from the country name", () => {
+    const html = render(withAddedLeague());
+    expect(html).toContain('aria-label="Three-letter code"');
+    // Neverland has no code set, so the box suggests NEV rather than pre-filling it.
+    expect(html).toContain('placeholder="NEV"');
+    expect(html).toContain('value=""');
+  });
+
+  it("keeps a code the player typed", () => {
+    const entries = withAddedLeague();
+    entries[entries.length - 1] = {
+      ...entries[entries.length - 1],
+      spec: { ...entries[entries.length - 1].spec, abbrev: "NVL" },
+    };
+    expect(render(entries)).toContain('value="NVL"');
+  });
+
   it("points at manual editing beside the roster import", () => {
     // Two ways to get your own clubs in, and the file picker is the one people
     // find first, so it says what the other one is.

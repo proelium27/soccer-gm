@@ -78,6 +78,13 @@ export interface Competition {
    * nowhere to put its fixtures.
    */
   teamCount?: number;
+  /**
+   * Three-letter code for the country, used wherever a flag would go and there
+   * is no flag to draw. The game ships flag art keyed by country name, so a
+   * country the player invented has none and would otherwise render an empty
+   * grey swatch. Absent → derived from the country name.
+   */
+  abbrev?: string;
 }
 
 /* ── Per-league tuning accessors ─────────────────────────────────────────────
@@ -99,6 +106,17 @@ export function competitionStrengthOffset(comp: Competition): number {
  */
 export function competitionAcademyOffset(comp: Competition): number {
   return comp.academyOffset ?? competitionStrengthOffset(comp);
+}
+
+/**
+ * The country's three-letter code: its own if it set one, else the first three
+ * letters of its name. Always returns something, so a caller can use it as the
+ * stand-in wherever a flag is missing without checking first.
+ */
+export function competitionAbbrev(comp: Competition): string {
+  const own = comp.abbrev?.trim();
+  if (own) return own.toUpperCase().slice(0, 3);
+  return comp.country.replace(/[^A-Za-z]/g, "").toUpperCase().slice(0, 3);
 }
 
 /** How many clubs play in this division. See Competition.teamCount. */
@@ -182,6 +200,8 @@ export interface LeagueSpec {
    * would need its own promotion chain, ceiling sweep and finance band.
    */
   divisions?: 1 | 2;
+  /** Three-letter country code, used where a flag would go. See Competition.abbrev. */
+  abbrev?: string;
   /** Clubs per division. Even, and at most MAX_DIVISION_TEAMS. */
   d1Teams?: number;
   d2Teams?: number;
@@ -212,6 +232,7 @@ export function buildCompetitions(specs: LeagueSpec[]): Competition[] {
   for (const spec of specs) {
     const slots = withDefined({ continental: spec.cupSlots, shield: spec.shieldSlots });
     const shared = withDefined({
+      abbrev: spec.abbrev,
       strengthOffset: spec.strengthOffset,
       academyOffset: spec.academyOffset,
       budgetScale: spec.budgetScale,
