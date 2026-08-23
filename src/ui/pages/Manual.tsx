@@ -482,6 +482,15 @@ export function Manual() {
             clean, and so does giving your league 4 Cup places instead of 2. The panel warns you
             about each competition separately and tells you how many clubs a bad total would cost.
           </p>
+          <p>
+            <strong>Naming the clubs.</strong> Tick <strong>Name the clubs yourself</strong> before
+            you start and you get an editor once the world is built, listing every club in every
+            competition with its name, its three-letter abbreviation and both of its colours. It
+            covers leagues you invented as well as the shipped ones, and nothing is written to disk
+            until you're finished, so you can back out. The same editor is on the Leagues page as
+            Customize Teams if you'd rather come at it that way, and you can still rename any club
+            later from there.
+          </p>
           <p className="text-muted small">
             World setup only applies when you create a save. There's no mid-save world expansion, and
             saves created before it shipped keep whatever countries they were made with. It's also
