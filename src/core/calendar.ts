@@ -9,6 +9,21 @@
  * Deadline" stops just before it, so the user lands on deadline day with the
  * window still open.
  */
+export const SEASON_MATCHDAYS = 38;
+
+/**
+ * The most clubs a division can hold. A double round robin of n clubs needs
+ * 2(n-1) matchdays, and the season is a fixed SEASON_MATCHDAYS grid that the
+ * transfer windows, both continental competitions and the month mapping are all
+ * pinned to — matchdayToMonth throws outside it. So 20 clubs (38 matchdays) is
+ * the ceiling, and a smaller division spreads its rounds across the same grid
+ * rather than finishing early (see buildCompetitionSchedule).
+ */
+export const MAX_DIVISION_TEAMS = SEASON_MATCHDAYS / 2 + 1;
+
+/** The fewest clubs worth calling a division. Must be even, like every count. */
+export const MIN_DIVISION_TEAMS = 8;
+
 export const TRANSFER_DEADLINE_MATCHDAY = 22;
 
 /** The winter window opens once matchday 17 is played (mid-December). */

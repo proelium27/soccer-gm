@@ -2,8 +2,10 @@ import { useRef, useState } from "react";
 import type { LeagueSpec, Competition } from "../../core/competitions.js";
 import {
   worldLeagueSpecs, worldTuningWarnings, suggestedBudgetScale,
+  buildCompetitions, competitionTeamCount,
 } from "../../core/competitions.js";
-import { NUM_TEAMS, NUM_TEAMS_D2 } from "../../core/constants.js";
+import { NUM_TEAMS, PROMOTION_RELEGATION_COUNT } from "../../core/constants.js";
+import { MIN_DIVISION_TEAMS, MAX_DIVISION_TEAMS } from "../../core/calendar.js";
 import {
   parseRosterFile, retargetRosterFile, type NamedRosterFile,
 } from "../../core/teams/rosterFile.js";
@@ -84,7 +86,15 @@ export function leagueRosterFiles(
   return { files, warnings };
 }
 
-const CLUBS_PER_COUNTRY = NUM_TEAMS + NUM_TEAMS_D2;
+/**
+ * Division sizes on offer. Even only, because the fixture generator pairs clubs
+ * off each round and an odd field leaves one unpaired; capped because a division
+ * of n clubs plays 2(n-1) matchdays and the season is a fixed grid.
+ */
+const DIVISION_SIZES = Array.from(
+  { length: (MAX_DIVISION_TEAMS - MIN_DIVISION_TEAMS) / 2 + 1 },
+  (_, i) => MIN_DIVISION_TEAMS + i * 2,
+);
 
 function newLeagueEntry(index: number): WorldEntry {
   const strengthOffset = 8;
@@ -117,7 +127,7 @@ interface Props {
 export function WorldSetup({ entries, onChange }: Props) {
   const specs = includedSpecs(entries);
   const warnings = worldTuningWarnings(specs);
-  const clubs = specs.length * CLUBS_PER_COUNTRY;
+  const clubs = buildCompetitions(specs).reduce((n, c) => n + competitionTeamCount(c), 0);
 
   function update(index: number, next: Partial<WorldEntry>) {
     onChange(entries.map((e, i) => (i === index ? { ...e, ...next } : e)));
@@ -226,6 +236,47 @@ export function WorldSetup({ entries, onChange }: Props) {
                       Keep money in step with strength
                     </label>
                   </div>
+                  <div className="row g-2 mb-2">
+                    <div className="col">
+                      <label className="form-label small mb-1">Divisions</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={entry.spec.divisions ?? 2}
+                        onChange={(e) => updateSpec(i, {
+                          divisions: Number(e.target.value) === 1 ? 1 : 2,
+                        })}
+                      >
+                        <option value={2}>Two, with promotion</option>
+                        <option value={1}>One, no promotion</option>
+                      </select>
+                    </div>
+                    <div className="col">
+                      <label className="form-label small mb-1">Clubs per division</label>
+                      <select
+                        className="form-select form-select-sm"
+                        value={entry.spec.d1Teams ?? NUM_TEAMS}
+                        onChange={(e) => {
+                          // One control sets both divisions. The underlying
+                          // fields are separate, so splitting them later is a UI
+                          // change rather than a data one.
+                          const n = Number(e.target.value);
+                          updateSpec(i, { d1Teams: n, d2Teams: n });
+                        }}
+                      >
+                        {DIVISION_SIZES.map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
+                    {(entry.spec.divisions ?? 2) === 1
+                      ? `One division of ${entry.spec.d1Teams ?? NUM_TEAMS}, so nothing is promoted or relegated here.`
+                      : `Two divisions of ${entry.spec.d1Teams ?? NUM_TEAMS}, ${PROMOTION_RELEGATION_COUNT} up and ${PROMOTION_RELEGATION_COUNT} down between them.`}
+                    {(entry.spec.d1Teams ?? NUM_TEAMS) < NUM_TEAMS
+                      && " A smaller division plays fewer games, spread across the same season."}
+                  </p>
+
                   <div className="row g-2">
                     <div className="col">
                       <label className="form-label small mb-1">Continental Cup places</label>

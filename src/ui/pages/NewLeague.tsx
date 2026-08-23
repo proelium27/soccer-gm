@@ -7,7 +7,6 @@ import { mulberry32 } from "../../engine/rng.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { readLeagueFileText } from "../../db/exportImport.js";
 import {
-  NUM_TEAMS, NUM_TEAMS_D2,
   DIFFICULTIES, DIFFICULTY_ORDER, DEFAULT_DIFFICULTY, type Difficulty,
 } from "../../core/constants.js";
 import {
@@ -51,10 +50,10 @@ function describeWorld(specs: ReturnType<typeof includedSpecs>) {
   return {
     competitions,
     countries: countriesOf(competitions),
-    ranges: countryClubRanges(competitions, NUM_TEAMS, NUM_TEAMS_D2),
+    ranges: countryClubRanges(competitions),
     slotWorld: {
       competitions,
-      teams: worldTeamSlots(competitions, NUM_TEAMS, NUM_TEAMS_D2),
+      teams: worldTeamSlots(competitions),
     },
   };
 }
@@ -165,11 +164,12 @@ export function NewLeague() {
    */
   const activeRoster = roster ?? leagueRoster;
 
-  // Which tier the chosen club plays in: tier-1 clubs fill the first NUM_TEAMS
-  // slots of a country's range, tier-2 the rest (see countryClubRanges).
+  // Which tier the chosen club plays in. Read off the slot layout rather than
+  // assumed from position in the country's block, because divisions can be
+  // different sizes and a country can have only one of them.
   function tierForTid(tid: number): 1 | 2 {
-    const range = world.ranges.find((r) => tid >= r.start && tid < r.end);
-    return range && tid < range.start + NUM_TEAMS ? 1 : 2;
+    const compId = world.slotWorld.teams.find((t) => t.tid === tid)?.compId;
+    return world.competitions.find((c) => c.id === compId)?.tier ?? 1;
   }
 
   function buildLeague(tid: number): LeagueStore {
@@ -418,10 +418,10 @@ export function NewLeague() {
       squad: imported?.players?.length ?? 0,
     };
   });
-  // Within a country's block, generateWorld() lays out the tier-1 clubs
-  // first, then the tier-2 clubs — so the first NUM_TEAMS are Division 1.
-  const d1Clubs = countryClubs.slice(0, NUM_TEAMS);
-  const d2Clubs = countryClubs.slice(NUM_TEAMS);
+  // Split by the tier each slot actually belongs to. A country can have one
+  // division or two, and they need not be the same size.
+  const d1Clubs = countryClubs.filter((c) => tierForTid(c.tid) === 1);
+  const d2Clubs = countryClubs.filter((c) => tierForTid(c.tid) === 2);
 
   function selectCountry(c: string) {
     setCountry(c);

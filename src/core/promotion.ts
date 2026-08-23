@@ -26,7 +26,10 @@ export function computeCountrySwaps(
   competitions: Competition[],
   tablesByCompId: Map<number, StandingsRow[]>,
 ): CompetitionSwap[] {
-  return tier1Pairs(competitions).map(({ d1, d2 }) => {
+  return tier1Pairs(competitions).flatMap(({ d1, d2 }) => {
+    // Nothing to swap with: a one-division country has no tier 2 to send clubs
+    // down to, so it simply has no promotion or relegation.
+    if (!d2) return [];
     const d1Table = tablesByCompId.get(d1.id)!;
     const d2Table = tablesByCompId.get(d2.id)!;
     return {

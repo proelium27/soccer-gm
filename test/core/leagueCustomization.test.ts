@@ -5,7 +5,14 @@ import {
   competitionBudgetScale, isWeakLeague, academyBaseCenterOf,
   buildCompetitions, worldLeagueSpecs, tier1Pairs, countryClubRanges,
   worldTuningWarnings, suggestedBudgetScale, worldTeamSlots,
+  competitionTeamCount, partnerOrNull,
 } from "../../src/core/competitions.js";
+import { computeCountrySwaps } from "../../src/core/promotion.js";
+import { buildCompetitionSchedule } from "../../src/core/leagueState.js";
+import {
+  SEASON_MATCHDAYS, MIN_DIVISION_TEAMS, MAX_DIVISION_TEAMS,
+} from "../../src/core/calendar.js";
+import { applySuspensions } from "../../src/core/suspensions.js";
 import type { RosterFile } from "../../src/core/teams/rosterFile.js";
 import {
   retargetRosterFile, resolveRosterSlots, ROSTER_FILE_FORMAT,
@@ -185,7 +192,7 @@ describe("building a world's competitions table", () => {
     const table = buildCompetitions(worldLeagueSpecs().filter((s) => s.country !== "England"));
     const pairs = tier1Pairs(table);
     expect(pairs).toHaveLength(7);
-    for (const { d1, d2 } of pairs) expect(d1.country).toBe(d2.country);
+    for (const { d1, d2 } of pairs) expect(d2?.country).toBe(d1.country);
   });
 });
 
@@ -313,11 +320,123 @@ describe("world tuning warnings", () => {
   });
 });
 
+describe("division count and size", () => {
+  it("defaults to two divisions at the shipped sizes", () => {
+    const table = buildCompetitions([{ country: "Neverland" }]);
+    expect(table).toHaveLength(2);
+    expect(competitionTeamCount(table[0])).toBe(NUM_TEAMS);
+    expect(competitionTeamCount(table[1])).toBe(NUM_TEAMS_D2);
+  });
+
+  it("builds a one-division country with no second tier at all", () => {
+    const table = buildCompetitions([{ country: "Neverland", divisions: 1 }]);
+    expect(table).toHaveLength(1);
+    expect(table[0].tier).toBe(1);
+    expect(tier1Pairs(table)[0].d2).toBeNull();
+    expect(partnerOrNull(table, 0)).toBeNull();
+  });
+
+  it("carries per-division team counts", () => {
+    const table = buildCompetitions([{ country: "Neverland", d1Teams: 12, d2Teams: 16 }]);
+    expect(competitionTeamCount(table[0])).toBe(12);
+    expect(competitionTeamCount(table[1])).toBe(16);
+  });
+
+  it("lays out slots and country ranges from the actual sizes", () => {
+    const table = buildCompetitions([
+      { country: "Small", divisions: 1, d1Teams: 10 },
+      { country: "Big", d1Teams: 20, d2Teams: 20 },
+    ]);
+    const slots = worldTeamSlots(table);
+    expect(slots).toHaveLength(50);
+    // The one-division country takes the first 10 tids and nothing more.
+    expect(slots.filter((s) => s.compId === table[0].id)).toHaveLength(10);
+    expect(countryClubRanges(table)).toEqual([
+      { country: "Small", start: 0, end: 10 },
+      { country: "Big", start: 10, end: 50 },
+    ]);
+  });
+
+  it("gives a one-division country no promotion or relegation", () => {
+    const table = buildCompetitions([
+      { country: "Solo", divisions: 1 },
+      { country: "Pair" },
+    ]);
+    const tables = new Map(table.map((c) => [
+      c.id,
+      Array.from({ length: competitionTeamCount(c) }, (_, i) => ({
+        tid: c.id * 100 + i, played: 38, won: 0, drawn: 0, lost: 0,
+        gf: 0, ga: 0, gd: 0, points: 90 - i,
+      })),
+    ]));
+    const swaps = computeCountrySwaps(table, tables as never);
+    expect(swaps.map((s) => s.d1CompId)).toEqual([table[1].id]);
+  });
+});
+
+describe("a division's fixtures spread across the season grid", () => {
+  function scheduleFor(teamCount: number) {
+    const competitions = buildCompetitions([
+      { country: "Solo", divisions: 1, d1Teams: teamCount },
+    ]);
+    const teams = worldTeamSlots(competitions).map((s) => ({ tid: s.tid, compId: s.compId }));
+    return buildCompetitionSchedule(teams, competitions);
+  }
+
+  it("leaves a full-size division exactly as it was — one round per matchday", () => {
+    const games = scheduleFor(NUM_TEAMS);
+    const matchdays = [...new Set(games.map((g) => g.matchday))].sort((a, b) => a - b);
+    expect(matchdays).toEqual(Array.from({ length: SEASON_MATCHDAYS }, (_, i) => i + 1));
+  });
+
+  it("spreads a smaller division over the same season, finishing on the last matchday", () => {
+    const games = scheduleFor(12);
+    const matchdays = [...new Set(games.map((g) => g.matchday))].sort((a, b) => a - b);
+    // 12 clubs play a double round robin of 22 rounds.
+    expect(matchdays).toHaveLength(22);
+    expect(matchdays[matchdays.length - 1]).toBe(SEASON_MATCHDAYS);
+    expect(matchdays[0]).toBeGreaterThanOrEqual(1);
+    // Strictly increasing, so no two rounds collide on one matchday.
+    for (let i = 1; i < matchdays.length; i++) {
+      expect(matchdays[i]).toBeGreaterThan(matchdays[i - 1]);
+    }
+  });
+
+  it("never runs past the end of the calendar, at any allowed size", () => {
+    for (let n = MIN_DIVISION_TEAMS; n <= MAX_DIVISION_TEAMS; n += 2) {
+      const games = scheduleFor(n);
+      expect(games).toHaveLength(n * (n - 1));
+      expect(Math.max(...games.map((g) => g.matchday))).toBe(SEASON_MATCHDAYS);
+    }
+  });
+});
+
+describe("injuries and bans only tick for a club that played", () => {
+  const banned = {
+    pid: 1, suspension: { matchesRemaining: 2, reason: "red card" as const }, yellowCount: 0,
+  } as never as Parameters<typeof applySuspensions>[0][number];
+
+  it("serves a match when the club played", () => {
+    const [after] = applySuspensions([banned], [], () => true);
+    expect(after.suspension?.matchesRemaining).toBe(1);
+  });
+
+  it("serves nothing on a blank matchday", () => {
+    const [after] = applySuspensions([banned], [], () => false);
+    expect(after.suspension?.matchesRemaining).toBe(2);
+  });
+
+  it("defaults to serving, which is what the shipped world does", () => {
+    const [after] = applySuspensions([banned], []);
+    expect(after.suspension?.matchesRemaining).toBe(1);
+  });
+});
+
 describe("club identities are anchored to a country, not to a tid", () => {
   it("gives the shipped world exactly the shipped club blocks", () => {
     // Pins the refactor from CLUBS[tid] to per-country indexing: for the shipped
     // world the two must agree club for club, or every save renames its clubs.
-    const ranges = countryClubRanges(worldCompetitions(), NUM_TEAMS, NUM_TEAMS_D2);
+    const ranges = countryClubRanges(worldCompetitions());
     for (const range of ranges) {
       const block = shippedClubsFor(range.country);
       expect(block).not.toBeNull();
@@ -384,7 +503,7 @@ describe("retargeting a roster file onto an added league", () => {
     ]);
     const world = {
       competitions,
-      teams: worldTeamSlots(competitions, NUM_TEAMS, NUM_TEAMS_D2),
+      teams: worldTeamSlots(competitions),
     };
     const source = file("Some Other League");
     // As authored, nothing in the world is called that.

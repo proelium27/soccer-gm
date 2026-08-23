@@ -76,7 +76,12 @@ function banFor(
  * injuries do, and the reason the touchStats scoreline baseline was rebased
  * when this shipped.
  */
-export function applySuspensions(players: Player[], matches: PlayedMatch[]): Player[] {
+export function applySuspensions(
+  players: Player[],
+  matches: PlayedMatch[],
+  /** See applyInjuries: a ban is counted in matches, so a blank matchday serves none of it. */
+  played: (pid: number) => boolean = () => true,
+): Player[] {
   const cardedThisMatchday = new Map<number, { yellowCards: number; redCards: number }>();
   for (const m of matches) {
     for (const line of [...m.boxScore.home, ...m.boxScore.away]) {
@@ -102,7 +107,7 @@ export function applySuspensions(players: Player[], matches: PlayedMatch[]): Pla
       const suspension = banned > 0 ? { matchesRemaining: banned, reason } : p.suspension ?? null;
       return { ...p, yellowCount, suspension };
     }
-    if (isSuspended(p)) {
+    if (isSuspended(p) && played(p.pid)) {
       const matchesRemaining = p.suspension!.matchesRemaining - 1;
       return {
         ...p,

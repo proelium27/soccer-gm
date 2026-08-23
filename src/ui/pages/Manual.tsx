@@ -413,7 +413,18 @@ export function Manual() {
             the game ships no real clubs.
           </p>
           <p>
-            Each league you add carries three settings. <strong>Strength</strong> is how good its
+            You also choose its <strong>shape</strong>: one division or two, and how many clubs are
+            in each. Two divisions is the default and works like every shipped country, with 3 up
+            and 3 down between them. One division means exactly that, and nothing is promoted or
+            relegated there at all. Divisions run from 8 to 20 clubs, in even numbers, because the
+            fixture list pairs clubs off each round and the season is a fixed 38-matchday calendar
+            that a 20-club double round robin already fills exactly. A smaller division plays fewer
+            games, spread across the same season with blank matchdays in between, so its run-in
+            still lines up with everyone else's and the transfer deadline still falls mid-season
+            for it. Three divisions isn't offered.
+          </p>
+          <p>
+            Each league you add carries three more settings. <strong>Strength</strong> is how good its
             squads are, on the same scale as the step-downs above, where 0 sits level with the big
             four and each point costs about 0.94 OVR. At 5 its champion is about as good as the
             5th-best club in England; at 10 about the 12th; at 18 about the very worst one.{" "}
