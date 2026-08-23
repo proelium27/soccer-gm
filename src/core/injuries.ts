@@ -46,6 +46,12 @@ export function applyInjuries(
   rng: () => number,
   players: Player[],
   matches: PlayedMatch[],
+  /**
+   * Whether this player's club played on this matchday. Defaults to "everyone
+   * did", which is right for callers whose world is one size (and for the
+   * shipped 20-club world, where nobody ever has a blank matchday).
+   */
+  played: (pid: number) => boolean = () => true,
 ): Player[] {
   const injuredThisMatchday = new Set<number>();
   for (const m of matches) {
@@ -58,7 +64,11 @@ export function applyInjuries(
     if (injuredThisMatchday.has(p.pid)) {
       return { ...p, injury: rollInjury(rng) };
     }
-    if (p.injury) {
+    // `gamesRemaining` counts MATCHES, so it may only tick for a club that
+    // actually had one. Divisions can be different sizes, which means a club can
+    // have a blank matchday while the rest of the world plays; ticking globally
+    // would heal it for free (see buildCompetitionSchedule).
+    if (p.injury && played(p.pid)) {
       const gamesRemaining = p.injury.gamesRemaining - 1;
       return { ...p, injury: gamesRemaining > 0 ? { ...p.injury, gamesRemaining } : null };
     }

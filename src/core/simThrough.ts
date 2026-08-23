@@ -529,10 +529,28 @@ export function simThrough(
       };
     });
 
-    currentPlayers = applyInjuries(rng, currentPlayers, mdResults);
+    // Injuries and bans are both counted in MATCHES, so they may only tick for a
+    // club that actually had one. Divisions can be different sizes and spread
+    // their rounds across the season grid, so a club can sit out a matchday the
+    // rest of the world plays (see buildCompetitionSchedule).
+    //
+    // Framed as "who did NOT play" on purpose: that leaves free agents, who are
+    // on no roster and have no fixtures to attach to, ticking down on the global
+    // clock exactly as they always have. On the shipped 20-club world every club
+    // plays every matchday, so this set is empty and nothing changes.
+    const playedTids = new Set(mdResults.flatMap((m) => [m.home, m.away]));
+    const idlePids = new Set<number>();
+    for (const t of currentTeams) {
+      if (playedTids.has(t.tid)) continue;
+      for (const pid of t.roster) idlePids.add(pid);
+      for (const pid of t.academyRoster) idlePids.add(pid);
+    }
+    const hadAMatch = (pid: number): boolean => !idlePids.has(pid);
+
+    currentPlayers = applyInjuries(rng, currentPlayers, mdResults, hadAMatch);
     // Bans from this matchday's cards, and a match served off every ban already
     // running. rng-free, so it can't perturb the shared stream.
-    currentPlayers = applySuspensions(currentPlayers, mdResults);
+    currentPlayers = applySuspensions(currentPlayers, mdResults, hadAMatch);
 
     const goalTotalsAfter = playerGoalTotals(currentPlayers, league.season);
     newEvents.push(

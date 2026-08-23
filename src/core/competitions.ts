@@ -13,6 +13,7 @@ import {
   COUNTRY_STRENGTH_OFFSET, COUNTRY_BUDGET_SCALE, LEAGUE_BASE, DIVISION_2_OFFSET,
   CUP_STRONG_LEAGUE_SLOTS, CUP_WEAK_LEAGUE_SLOTS, CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS,
   SHIELD_STRONG_LEAGUE_SLOTS, SHIELD_WEAK_LEAGUE_SLOTS, largestValidCupField,
+  NUM_TEAMS, NUM_TEAMS_D2,
 } from "./constants.js";
 
 export interface Competition {
@@ -66,6 +67,17 @@ export interface Competition {
    * so the fields cannot overlap or leave a gap whatever these are set to.
    */
   continentalSlots?: Partial<Record<string, number>>;
+  /**
+   * How many clubs play in this division. Absent → the shipped default for the
+   * tier (NUM_TEAMS / NUM_TEAMS_D2).
+   *
+   * Must be EVEN, because the fixture generator builds a double round robin by
+   * the circle method and an odd field leaves a club unpaired every round. It is
+   * also capped: a division of n clubs plays 2(n-1) matchdays and the season
+   * calendar is a fixed grid (see MAX_DIVISION_TEAMS), so a bigger division has
+   * nowhere to put its fixtures.
+   */
+  teamCount?: number;
 }
 
 /* ── Per-league tuning accessors ─────────────────────────────────────────────
@@ -87,6 +99,11 @@ export function competitionStrengthOffset(comp: Competition): number {
  */
 export function competitionAcademyOffset(comp: Competition): number {
   return comp.academyOffset ?? competitionStrengthOffset(comp);
+}
+
+/** How many clubs play in this division. See Competition.teamCount. */
+export function competitionTeamCount(comp: Competition): number {
+  return comp.teamCount ?? (comp.tier === 1 ? NUM_TEAMS : NUM_TEAMS_D2);
 }
 
 /** This league's money multiplier, before the tier scale. See Competition.budgetScale. */
@@ -158,6 +175,16 @@ export function worldCompetitions(): Competition[] {
  */
 export interface LeagueSpec {
   country: string;
+  /**
+   * One or two divisions. Two is the default and the shape everything else
+   * assumes; one is a country with a single professional league and therefore no
+   * promotion or relegation of its own. Deliberately not three — a third tier
+   * would need its own promotion chain, ceiling sweep and finance band.
+   */
+  divisions?: 1 | 2;
+  /** Clubs per division. Even, and at most MAX_DIVISION_TEAMS. */
+  d1Teams?: number;
+  d2Teams?: number;
   /** Defaults to "<country> Division 1" / "... 2". */
   d1Name?: string;
   d2Name?: string;
@@ -196,14 +223,21 @@ export function buildCompetitions(specs: LeagueSpec[]): Competition[] {
       tier: 1,
       name: spec.d1Name ?? `${spec.country} Division 1`,
       ...shared,
+      ...withDefined({ teamCount: spec.d1Teams }),
     });
-    out.push({
-      id: out.length,
-      country: spec.country,
-      tier: 2,
-      name: spec.d2Name ?? `${spec.country} Division 2`,
-      ...shared,
-    });
+    // A one-division country simply has no tier-2 competition. Everything that
+    // walks "each country's divisions" goes through tier1Pairs, which returns a
+    // null partner rather than throwing.
+    if ((spec.divisions ?? 2) === 2) {
+      out.push({
+        id: out.length,
+        country: spec.country,
+        tier: 2,
+        name: spec.d2Name ?? `${spec.country} Division 2`,
+        ...shared,
+        ...withDefined({ teamCount: spec.d2Teams }),
+      });
+    }
   }
   return out;
 }
@@ -308,7 +342,7 @@ export function worldLeagueSpecs(): LeagueSpec[] {
   return tier1Pairs(worldCompetitions()).map(({ d1, d2 }) => ({
     country: d1.country,
     d1Name: d1.name,
-    d2Name: d2.name,
+    ...(d2 ? { d2Name: d2.name } : { divisions: 1 as const }),
   }));
 }
 
@@ -322,10 +356,23 @@ export function tierOf(competitions: Competition[], compId: number): 1 | 2 {
   return competitionOf(competitions, compId).tier;
 }
 
-/** The other tier's competition in the same country (D1<->D2 partner). */
-export function partnerOf(competitions: Competition[], compId: number): Competition {
+/**
+ * The other tier's competition in the same country, or null when the country has
+ * only one division. Nullable rather than throwing because a one-division
+ * country is now a legitimate shape: it has nothing to be promoted to or
+ * relegated into, and callers have to answer that question rather than crash.
+ */
+export function partnerOrNull(
+  competitions: Competition[],
+  compId: number,
+): Competition | null {
   const comp = competitionOf(competitions, compId);
-  const partner = competitions.find((c) => c.country === comp.country && c.id !== comp.id);
+  return competitions.find((c) => c.country === comp.country && c.id !== comp.id) ?? null;
+}
+
+/** The D1<->D2 partner, for callers that already know the country has both. */
+export function partnerOf(competitions: Competition[], compId: number): Competition {
+  const partner = partnerOrNull(competitions, compId);
   if (!partner) throw new Error(`No partner competition for compId ${compId}`);
   return partner;
 }
@@ -338,7 +385,8 @@ export function countriesOf(competitions: Competition[]): string[] {
 /** One D1/D2 pair per country, in the table's tier-1 order. */
 export interface Tier1Pair {
   d1: Competition;
-  d2: Competition;
+  /** Null for a one-division country. */
+  d2: Competition | null;
 }
 
 /**
@@ -350,7 +398,7 @@ export interface Tier1Pair {
 export function tier1Pairs(competitions: Competition[]): Tier1Pair[] {
   return competitions
     .filter((c) => c.tier === 1)
-    .map((d1) => ({ d1, d2: partnerOf(competitions, d1.id) }));
+    .map((d1) => ({ d1, d2: partnerOrNull(competitions, d1.id) }));
 }
 
 export interface CountryClubRange {
@@ -375,41 +423,34 @@ export interface TeamSlot {
  * to know which competition each tid belongs to before paying the cost of
  * generating 6000 players.
  */
-export function worldTeamSlots(
-  competitions: Competition[],
-  teamsPerTier1: number,
-  teamsPerTier2: number,
-): TeamSlot[] {
+export function worldTeamSlots(competitions: Competition[]): TeamSlot[] {
   const slots: TeamSlot[] = [];
   let tid = 0;
   for (const { d1, d2 } of tier1Pairs(competitions)) {
-    for (let i = 0; i < teamsPerTier1; i++) slots.push({ tid: tid++, compId: d1.id });
-    for (let i = 0; i < teamsPerTier2; i++) slots.push({ tid: tid++, compId: d2.id });
+    for (const comp of d2 ? [d1, d2] : [d1]) {
+      for (let i = 0; i < competitionTeamCount(comp); i++) {
+        slots.push({ tid: tid++, compId: comp.id });
+      }
+    }
   }
   return slots;
 }
 
 /**
  * The tid/CLUBS-index range each country occupies, derived the same way
- * generateWorld() assigns tids (tier1Pairs() order, tier-1 block then
- * tier-2 block per country) rather than a hardcoded "40 per country"
- * literal — so a future country added to worldCompetitions() is picked up
- * automatically. teamsPerTier1/teamsPerTier2 are passed in (NUM_TEAMS/
- * NUM_TEAMS_D2 from constants.ts) rather than imported here to keep this
- * file free of a dependency on team-count constants it otherwise has no
- * reason to know about.
+ * generateWorld() assigns tids (tier1Pairs() order, tier-1 block then tier-2
+ * block per country) rather than a hardcoded "40 per country" literal — so a
+ * country added to the table, one with a single division, or one with a
+ * different number of clubs is all picked up automatically.
  */
-export function countryClubRanges(
-  competitions: Competition[],
-  teamsPerTier1: number,
-  teamsPerTier2: number,
-): CountryClubRange[] {
+export function countryClubRanges(competitions: Competition[]): CountryClubRange[] {
   const ranges: CountryClubRange[] = [];
   let cursor = 0;
-  for (const { d1 } of tier1Pairs(competitions)) {
-    const count = teamsPerTier1 + teamsPerTier2;
+  for (const { d1, d2 } of tier1Pairs(competitions)) {
+    const count = competitionTeamCount(d1) + (d2 ? competitionTeamCount(d2) : 0);
     ranges.push({ country: d1.country, start: cursor, end: cursor + count });
     cursor += count;
   }
   return ranges;
 }
+

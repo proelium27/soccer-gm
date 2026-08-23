@@ -37,7 +37,7 @@ import { updateHype } from "./finance/hype.js";
 import { settleSeasonEnd, chargeSeasonStart, wageBill, financeScaleFor } from "./finance/budget.js";
 import { academyContractTerms } from "./contracts.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
-import { competitionOf } from "./competitions.js";
+import { competitionOf, competitionTeamCount } from "./competitions.js";
 import { simThroughInternational, confederationCupChampions } from "./international/index.js";
 import { carryIntlInjuries } from "./injuries.js";
 import { hashInts, mulberry32 } from "../engine/rng.js";
@@ -341,7 +341,9 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
       const rank = rankByTid.get(t.tid) ?? defaultRank;
       const row = rowByTid.get(t.tid);
       const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, scale);
-      const hype = row ? updateHype(t.hype, row, rank) : t.hype;
+      const hype = row
+        ? updateHype(t.hype, row, rank, competitionTeamCount(competitionOf(league.competitions, compId)))
+        : t.hype;
       // The scouting spend the club committed to during the offseason window
       // (nextScoutingSpend) now locks in for the coming season. AI teams never
       // touch it, so it stays at the default they were created with.
