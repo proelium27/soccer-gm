@@ -153,8 +153,8 @@ describe("the strength dial reads the way a player expects", () => {
     expect(strengthDial(competitionStrengthOffset(byCountry.get("Turkey")!))).toBe(8);
   });
 
-  it("renders the shipped leagues as a baseline table", () => {
-    const html = render(defaultWorldEntries());
+  it("shows the baseline table beside the sliders it calibrates", () => {
+    const html = render(withAddedLeague());
     expect(html).toContain("Where the leagues already in the game sit");
     // Every shipped country, with its dial value and its money scale.
     for (const country of ["England", "France", "Portugal", "Turkey"]) {
@@ -162,6 +162,12 @@ describe("the strength dial reads the way a player expects", () => {
     }
     expect(html).toContain("0.40");
     expect(html).toContain("1.00");
+  });
+
+  it("doesn't show it when there is no league being set up", () => {
+    // It belongs to the per-league editor, so a world of shipped countries only
+    // — none of which are editable — has nothing to calibrate against.
+    expect(render(defaultWorldEntries())).not.toContain("Where the leagues already in the game sit");
   });
 });
 
