@@ -220,7 +220,6 @@ export function WorldSetup({ entries, onChange }: Props) {
                 <div className="mt-2 ps-4">
                   <Slider
                     label="Strength"
-                    hint="How good this league's squads are. Higher is stronger, and 20 is level with England, Spain, Italy and Germany. See the table below for where the rest sit."
                     min={0}
                     max={STRENGTH_SCALE_MAX}
                     step={1}
@@ -230,7 +229,6 @@ export function WorldSetup({ entries, onChange }: Props) {
                   />
                   <Slider
                     label="Money"
-                    hint="What its clubs earn and can bank, against the richest leagues at 1."
                     min={0.2}
                     max={1.2}
                     step={0.05}
@@ -301,14 +299,6 @@ export function WorldSetup({ entries, onChange }: Props) {
                       </select>
                     </div>
                   </div>
-                  <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
-                    {(entry.spec.divisions ?? 2) === 1
-                      ? `One division of ${entry.spec.d1Teams ?? NUM_TEAMS}, so nothing is promoted or relegated here.`
-                      : `Two divisions of ${entry.spec.d1Teams ?? NUM_TEAMS}, ${PROMOTION_RELEGATION_COUNT} up and ${PROMOTION_RELEGATION_COUNT} down between them.`}
-                    {(entry.spec.d1Teams ?? NUM_TEAMS) < NUM_TEAMS
-                      && " A smaller division plays fewer games, spread across the same season."}
-                  </p>
-
                   <div className="row g-2">
                     <div className="col">
                       <label className="form-label small mb-1">Continental Cup places</label>
@@ -333,11 +323,31 @@ export function WorldSetup({ entries, onChange }: Props) {
                       />
                     </div>
                   </div>
-                  <p className="text-muted small mt-2 mb-0">
-                    The Shield starts where the Cup stops, so this league sends its top{" "}
-                    {entry.spec.cupSlots ?? 2} to the Cup and the next{" "}
-                    {entry.spec.shieldSlots ?? 2} to the Shield.
-                  </p>
+                  {/*
+                    Every explanation for the controls above, collected in one
+                    place under them. Interleaving a paragraph after each control
+                    pushed the controls far enough apart that the group stopped
+                    reading as one thing.
+                  */}
+                  <div className="text-muted mt-2" style={{ fontSize: "0.75rem" }}>
+                    <p className="mb-1">
+                      <strong>Strength</strong> is how good its squads are: higher is stronger, and
+                      20 is level with England, Spain, Italy and Germany. <strong>Money</strong> is
+                      what its clubs earn and can bank, against 1 for the richest leagues.
+                    </p>
+                    <p className="mb-1">
+                      {(entry.spec.divisions ?? 2) === 1
+                        ? `One division of ${entry.spec.d1Teams ?? NUM_TEAMS}, so nothing is promoted or relegated here.`
+                        : `Two divisions of ${entry.spec.d1Teams ?? NUM_TEAMS}, ${PROMOTION_RELEGATION_COUNT} up and ${PROMOTION_RELEGATION_COUNT} down between them.`}
+                      {(entry.spec.d1Teams ?? NUM_TEAMS) < NUM_TEAMS
+                        && " A smaller division plays fewer games, spread across the same season."}
+                    </p>
+                    <p className="mb-0">
+                      The Shield starts where the Cup stops, so this league sends its top{" "}
+                      {entry.spec.cupSlots ?? 2} to the Cup and the next{" "}
+                      {entry.spec.shieldSlots ?? 2} to the Shield.
+                    </p>
+                  </div>
 
                   <RosterPicker
                     entry={entry}
@@ -429,7 +439,9 @@ function RosterPicker({
       {sources.length === 0 ? (
         <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
           Leave this alone and the league gets invented clubs. Or load a roster file to
-          use your own, and its first competition fills the top division.
+          use your own, and its first competition fills the top division. You can also
+          name and colour every club by hand instead: tick <strong>Name the clubs
+          yourself</strong> further down this page.
         </p>
       ) : (
         <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
@@ -517,7 +529,8 @@ function clampInt(raw: string, min: number, max: number): number {
 
 interface SliderProps {
   label: string;
-  hint: string;
+  /** Optional: the world editor collects its explanations below the controls instead. */
+  hint?: string;
   min: number;
   max: number;
   step: number;
@@ -543,7 +556,7 @@ function Slider({ label, hint, min, max, step, value, display, onChange }: Slide
         aria-label={label}
         onChange={(e) => onChange(Number(e.target.value))}
       />
-      <div className="text-muted" style={{ fontSize: "0.75rem" }}>{hint}</div>
+      {hint && <div className="text-muted" style={{ fontSize: "0.75rem" }}>{hint}</div>}
     </div>
   );
 }
