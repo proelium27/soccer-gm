@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import type { LeagueStore } from "../../core/leagueState.js";
+import { farewellIndex } from "../../core/players/retirements.js";
+import { playerNameIndex } from "../../core/players/playerNames.js";
 
 /**
  * Everything a surface needs to render a player's name, whether he's still in
@@ -54,7 +56,19 @@ function refsFor(league: LeagueStore): Map<number, PlayerRef> {
       });
     }
   }
-  // Last: the winners' names copied onto each season's awards. This is the only
+  // The name table: every retiree the save's own history still points at, kept
+  // at retirement precisely so this lookup can't fail (see
+  // core/players/playerNames.ts). It is the broadest of the fallbacks and the
+  // one that makes the rest belt-and-braces on any save new enough to have it.
+  // A name and nothing else, so `linkable: false`.
+  for (const [pid, n] of playerNameIndex(league.playerNames)) {
+    if (!map.has(pid)) {
+      map.set(pid, {
+        pid, name: n.name, nationality: n.nationality, retired: true, linkable: false,
+      });
+    }
+  }
+  // Next: the winners' names copied onto each season's awards. This is the only
   // record of most award winners on a long save — the archive is capped and
   // drops the modest careers that win a second division's Player of the Season
   // — so without it a century of honours boards reads "Player #4821". He has no
@@ -66,6 +80,20 @@ function refsFor(league: LeagueStore): Map<number, PlayerRef> {
           pid: w.pid, name: w.name, nationality: w.nationality, retired: true, linkable: false,
         });
       }
+    }
+  }
+  // Last of all: the Season Preview's farewell lists, the other place a name is
+  // kept as a copy rather than a pid. These reach the players the award
+  // snapshots can't — anyone who never won anything — and, unlike those
+  // snapshots, they are already in saves written long before either field
+  // existed, so an old save gets these names back on load with nothing to
+  // migrate. Bounded at RETIREMENT_NOTABLE_LIMIT a season; a name only, hence
+  // `linkable: false`. See core/players/retirements.ts `farewellIndex`.
+  for (const [pid, r] of farewellIndex(league.seasonHistory)) {
+    if (!map.has(pid)) {
+      map.set(pid, {
+        pid, name: r.name, nationality: r.nationality, retired: true, linkable: false,
+      });
     }
   }
   cache.set(league, map);

@@ -68,6 +68,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     seasonHistory: [],
     newsEvents: [],
     retiredPlayers: [],
+    playerNames: [],
     activeLoans: [],
     loanListings: [],
     loanRejections: [],

@@ -196,11 +196,13 @@ export function SeasonPreview() {
                   {/* Linked only when the archive kept his career (see
                       isArchiveWorthy) — the farewell list names every notable
                       retiree, but a page only exists for the ones with a record
-                      behind it. */}
+                      behind it. It has to be `linkable`, not mere existence: a
+                      ref now also resolves off the award snapshots and off this
+                      very farewell list, neither of which is a career page. */}
                   <td>
                     <span className="d-inline-flex align-items-center gap-1">
                       <Flag nationality={r.nationality} />
-                      {refOf(r.pid)
+                      {refOf(r.pid)?.linkable
                         ? <Link to={`/player/${r.pid}`}>{r.name}</Link>
                         : r.name}
                     </span>
