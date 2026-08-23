@@ -1,4 +1,5 @@
 import type { Position } from "./players/types.js";
+import { OVR_WEIGHTS } from "./players/templates.js";
 
 /**
  * League-average base rating; a team's base = LEAGUE_BASE + its strength target.
@@ -238,6 +239,43 @@ export const TEAM_SEASON_FORM_PROB = 0.015;
 export const TEAM_SEASON_FORM_DELTA = 0.12;
 
 /**
+ * Per-position OVR level correction, in OVR points, added by `computeOvr`.
+ *
+ * WHAT IT FIXES. A position's OVR weights sit on the very skills its players
+ * generate highest — that is what makes them the position's key skills — so the
+ * weighting and the generation table amplify each other, and a position with
+ * more `star`/`H` tiers under its heavy weights reads several points above the
+ * pack for no reason a player could ever act on. Measured on a fresh world
+ * before this constant existed: mean OVR ran ST 55.9 down to FB 49.4, and
+ * **132 of 320 clubs had a striker as their best player against 1 with a
+ * full-back and 6 with a centre-mid** (each expected ~51 at their roster share).
+ * Full-back is the one position with no `star` skill at all; striker and winger
+ * have two each.
+ *
+ * WHY A CALIBRATION AND NOT A REWEIGHT. The weight rows say what matters at a
+ * position, and they are read by the sim's slot logic, the secondary-position
+ * derivation and the position-change check. Flattening them to equalize levels
+ * would trade a true statement about football for an arithmetic convenience.
+ * The level is a separate question from the shape, so it gets a separate,
+ * visible knob — which the GK row was already doing by hand, summing to 92 so
+ * keepers landed in the pack (see computeOvr, which now normalizes instead).
+ *
+ * ZERO-SUM BY CONSTRUCTION. Weighted by ROSTER_COMPOSITION these sum to ~0, so
+ * the world's mean OVR is unchanged and every constant calibrated against it
+ * still means what it did: LEAGUE_BASE, GROWTH_DAMPING_START (65),
+ * DIVISION_2_REFUSAL_OVR_THRESHOLD (70), PROTECTED_STAR_OVR (80), the wage
+ * curve and the valuation curve. It moves who is rated highly, never how many.
+ *
+ * DERIVED, NOT TASTE. `npx tsx scripts/positionOvrCalibrate.ts` measures each
+ * position's mean against the world mean over several seeded worlds and prints
+ * this table. `test/core/positionOvrBalance.test.ts` fails if any position
+ * drifts back off the pack.
+ */
+export const POSITION_OVR_CALIBRATION: Record<Position, number> = {
+  GK: -3.0, CB: 0.2, FB: 3.3, DM: -0.4, CM: 1.4, AM: -0.3, W: -0.8, ST: -2.9,
+};
+
+/**
  * Std dev of per-player, per-rating gaussian noise. Widened 6→8 alongside the
  * LEAGUE_BASE/TEAM_STRENGTH_SPREAD retune above, so a real elite (80-85+)
  * outlier tail exists from generation itself instead of only emerging after
@@ -257,6 +295,56 @@ export const RATING_MAX = 99;
 export const ROSTER_COMPOSITION: Record<Position, number> = {
   GK: 3, CB: 4, FB: 4, DM: 2, CM: 4, AM: 2, W: 3, ST: 3,
 };
+
+/**
+ * Per-position multiplier on RATING_NOISE_SD at generation — DERIVED from the
+ * OVR weight rows, never hand-tuned.
+ *
+ * THE SECOND HALF OF POSITION_OVR_CALIBRATION. That constant puts every
+ * position on the same mean OVR; this one puts them on the same SPREAD, and
+ * without it the mean fix just hands the problem to whichever position bets its
+ * rating on fewest attributes. OVR is a weighted mean of independent rating
+ * draws, so its noise is `RATING_NOISE_SD * sqrt(sum((w/W)^2))` — a portfolio,
+ * where a concentrated row varies more. Keeper is the extreme: goalkeeping is
+ * over half his weighting, so his multiplier is 0.58 against 0.34-0.42 for the
+ * outfield, and the best of three keepers beat everyone else's best by enough
+ * that **103 of 320 clubs had a goalkeeper as their best player** (expected 38)
+ * once the levels were equalized. Extreme-value statistics: a 0.7-point edge in
+ * spread wins the maximum far more often than 0.7 points suggests.
+ *
+ * WHY THE NOISE AND NOT THE WEIGHT ROW. The alternative is to flatten a
+ * keeper's row until it varies like the rest, and that breaks something real —
+ * the sim's `keeping` composite IS his goalkeeping rating (see
+ * league/matchPlayers.ts), so an OVR that weights it less becomes a worse
+ * prediction of the one thing he does, and the AI prices keepers off OVR. This
+ * says the honest thing instead: keepers vary less in raw attributes than
+ * strikers do. Match composites are z-normalized within a competition, so a
+ * uniform change in a position's raw spread is very nearly invisible to the
+ * sim — it moves the rating scale, not the football.
+ *
+ * The target is the composition-weighted mean multiplier, so the world's OVR
+ * spread is held where it was; only its distribution BETWEEN positions moves.
+ * Derived at module load from OVR_WEIGHTS, so editing a weight row re-derives
+ * this automatically instead of silently reopening the gap.
+ */
+export const POSITION_RATING_SPREAD: Record<Position, number> = (() => {
+  const positions = Object.keys(ROSTER_COMPOSITION) as Position[];
+  // Noise multiplier each row implies: sqrt(sum of squared NORMALIZED weights).
+  // Height is excluded — computeOvr centres it, so it carries no level and its
+  // own spread is a fraction of a point.
+  const mult = {} as Record<Position, number>;
+  for (const pos of positions) {
+    const row = OVR_WEIGHTS[pos];
+    const keys = (Object.keys(row) as (keyof typeof row)[]).filter((k) => k !== "height");
+    const total = keys.reduce((a, k) => a + row[k]!, 0);
+    mult[pos] = Math.sqrt(keys.reduce((a, k) => a + (row[k]! / total) ** 2, 0));
+  }
+  const slots = positions.reduce((a, p) => a + ROSTER_COMPOSITION[p], 0);
+  const target = positions.reduce((a, p) => a + (ROSTER_COMPOSITION[p] / slots) * mult[p], 0);
+  const out = {} as Record<Position, number>;
+  for (const pos of positions) out[pos] = target / mult[pos];
+  return out;
+})();
 
 /**
  * Share of a position's players who pick up any one adjacent position as a
@@ -308,16 +396,27 @@ export const SECONDARY_POSITION_RATE = 0.15;
  * letting the rate run high would quietly dissolve the positional discipline
  * that slot-aware composites exist to enforce. That is the number to watch if
  * these constants are ever retuned.
+ *
+ * **Re-derived when POSITION_OVR_CALIBRATION shipped (2026-08-23), and this is
+ * the reason these bars must never be hand-edited.** They are a percentile of a
+ * per-pair GAP, so any change to a position's OVR level shifts every bar that
+ * touches it by that amount — the table silently becomes a table of something
+ * else. Measured on the old bars under the new formula, "holds any second
+ * position" ran CB 93% and DM 93% against FB 1%, i.e. the fixed share the whole
+ * design rests on had stopped being fixed. Re-running the calibrator restored
+ * it (fresh world, any secondary 34.1%, close to the 35.4% it shipped at). The
+ * per-season drift figures above were measured before that and are the one part
+ * of this note not yet re-checked; the mechanism causing them is untouched.
  */
 export const SECONDARY_POSITION_CUTOFF: Record<Position, Partial<Record<Position, number>>> = {
   GK: {},
-  CB: { FB: -6, DM: -3 },
-  FB: { CB: -1, W: -2 },
-  DM: { CB: 2, FB: -2, CM: -2 },
-  CM: { DM: 0, AM: 1 },
-  AM: { CM: -2, W: 0, ST: -3 },
-  W:  { FB: -6, AM: -3, ST: -4 },
-  ST: { W: -5 },
+  CB: { FB: -1, DM: -2 },
+  FB: { CB: -5, W: -6 },
+  DM: { CB: 1, FB: 1, CM: 0 },
+  CM: { DM: -1, AM: -1 },
+  AM: { CM: -1, W: 0, ST: -6 },
+  W:  { FB: -2, AM: -2, ST: -7 },
+  ST: { W: -3 },
 };
 
 /**

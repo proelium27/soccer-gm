@@ -13,6 +13,7 @@ import {
 import { chargeSeasonStart, wageBill, financeScale } from "../core/finance/budget.js";
 import { englandCompetitions } from "../core/competitions.js";
 import { cullOnLoad } from "../core/players/freeAgentCull.js";
+import { computeOvr } from "../core/players/ovr.js";
 import { archiveCup } from "../core/cup/archive.js";
 import { archiveDomesticCup } from "../core/domesticCup/archive.js";
 import type { IntlStage } from "../core/international/index.js";
@@ -148,8 +149,26 @@ function migrateLine(line: PlayerMatchLineAnyVersion): PlayerMatchLine {
  * minutes/rating defaults below).
  */
 function migratePlayer(p: Player, fallbackTid: number): Player {
+  // OVR is re-derived from stored ratings, not carried over (position-OVR
+  // balance, 2026-08-23). It has to be: progression recomputes `ovr` from
+  // scratch each offseason, so an old save left alone would show its full backs
+  // and central midfielders jump a few points at the next rollover with no
+  // explanation. Doing it at load makes the change arrive with the change.
+  //
+  // Exact, not a guess — the ratings the number is computed from are all stored,
+  // and every past snapshot carries its own. Potential is clamped up to it
+  // because potential is a scout's estimate of a PEAK and so can never sit below
+  // the rating a player already holds; a position whose OVR rose could otherwise
+  // land above its own stored estimate.
+  //
+  // What this can NOT do is re-roll how much a position's players vary
+  // (POSITION_RATING_SPREAD applies at generation), so an old save keeps its
+  // original spread and only new leagues get that half.
+  const ovr = computeOvr(p.pos, p.ratings, p.heightCm);
   return {
     ...p,
+    ovr,
+    potential: Math.max(p.potential, ovr),
     stats: (p.stats as SeasonStatsAnyVersion[]).map((s) => ({
       ...s,
       tid: s.tid ?? fallbackTid,
@@ -181,11 +200,20 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
     // position before that feature existed, so every past snapshot was taken at
     // the position he still holds. (Contrast the academy flag above, which
     // genuinely can't be reconstructed.)
-    hist: (p.hist as (RatingsSnapshot & { academy?: boolean; pos?: Position })[]).map((h) => ({
-      ...h,
-      academy: h.academy ?? false,
-      pos: h.pos ?? p.pos,
-    })),
+    hist: (p.hist as (RatingsSnapshot & { academy?: boolean; pos?: Position })[]).map((h) => {
+      const pos = h.pos ?? p.pos;
+      const histOvr = computeOvr(pos, h.ratings, p.heightCm);
+      return {
+        ...h,
+        academy: h.academy ?? false,
+        pos,
+        // Re-derived on the same rule as the live rating above, so a career OVR
+        // chart reads as one continuous scale instead of stepping at the season
+        // this shipped.
+        ovr: histOvr,
+        potential: Math.max(h.potential, histOvr),
+      };
+    }),
     // Per-campaign international lines (added 2026-07-25). Saves from before
     // them keep their career totals, which stay the authoritative record; the
     // breakdown can't be reconstructed (archived campaigns hold no box scores),

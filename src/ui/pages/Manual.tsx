@@ -798,6 +798,15 @@ export function Manual() {
             <li><strong>90+</strong>. A rare, generational outlier.</li>
           </ul>
           <p>
+            <strong>An OVR means the same thing wherever a player plays.</strong> The weights are
+            different for every position, but the scale they land on isn't: a 78 full back is exactly
+            as rare as a 78 striker, and every position has the same shot at producing your club's
+            best player. That's worth saying out loud because it used to be false. A position whose
+            rating leaned hardest on the handful of skills it's generated best at read several points
+            high, so strikers and keepers filled the top of every list and full backs and central
+            midfielders almost never did.
+          </p>
+          <p>
             <strong>Potential is a scout's guess, not a promise.</strong> The game simulates a
             player's future career a bunch of times and reports the 75th percentile of those peaks,
             so roughly three players in four never quite reach their listed potential, and one in
