@@ -32,6 +32,47 @@
  * should move picks toward good clubs, which do finish top four — so the
  * protected count should go UP and the game should get harder.
  *
+ * ─────────────────────────────────────────────────────────────────────────
+ * MEASURED AND REJECTED, 2026-08-24. 4 seeds x 6 seasons per config, pooled
+ * over all 24 season-measurements (NOT medians of per-seed medians, which is
+ * what an earlier 2-seed read did and is how it reached the wrong answer).
+ *
+ * | config                    | protected/season | GK rank med/mean | DEF rank med/mean | big-four GK | big-four DEF |
+ * |---------------------------|------------------|------------------|-------------------|-------------|--------------|
+ * | shipped   0.03  / x3      | 48.0             | 4.5 / 6.0        | 10.5 / 19.1       | 96%         | 75%          |
+ * | reweighted 0.007 / x1.5   | 55.2  (+15%)     | 5.0 / 8.6        | 8.5 / 15.6        | 100%        | 77%          |
+ * | reweighted 0.007 / x1     | 56.2  (+17%)     | 3.0 / 8.2        | 7.5 / 10.0        | 100%        | 75%          |
+ *                                                                    (x1 row is 2 seeds only)
+ *
+ * Three findings, in order of how much they should change your mind:
+ *
+ *  1. **The difficulty cost is the only consistent number**: +15% protected
+ *     stars, +30% of them arriving via a Team of the Season place, +55% of
+ *     those being defenders. Reproduced on every seed. That is a real change
+ *     to a tuned difficulty lever.
+ *  2. **The award gain is much smaller than a 2-seed read suggested, and is
+ *     not uniform.** Defenders improve (mean rank 19.1 -> 15.6); keepers get
+ *     *worse* (6.0 -> 8.6). League distribution barely moves, because the
+ *     shipped config was already at 96% / 75% big-four winners.
+ *  3. **A smaller multiplier is worse than none.** On identical seeds, x1.5
+ *     produces worse defender winners than x1 (seed 1 mean 11.2 vs 7.0; seed 2
+ *     34 vs 13). Once the weights are sane, ovr carries the signal and extra
+ *     trophy weight dilutes it again. So "halve the multiplier" is not a
+ *     middle ground; zero is the better end of that axis.
+ *
+ * Net: the reweight buys a modest defender improvement, costs a keeper
+ * regression and a 15% difficulty shift, and would need a full dynasty audit
+ * on top because it moves the protected list and therefore the rng stream.
+ * Not shipped. If the defender tail is ever worth attacking on its own (the
+ * shipped config produced winners ranked 138th, 68th and 37th), do it with a
+ * change that cannot touch the per-league Team of the Season.
+ *
+ * **Methodology note worth keeping:** an earlier 2-seed pass reported the
+ * keeper award improving from rank 8.5 to 3 and drove a wrong recommendation.
+ * Two seeds of six seasons is 12 numbers spanning 1 to 138 — the seed-to-seed
+ * noise is larger than every effect being measured except the protected count.
+ * ─────────────────────────────────────────────────────────────────────────
+ *
  * Run it once per variant, comparing the JSON:
  *   RUN=baseline SEASONS=6 SEEDS=1 npx tsx scripts/totsWeightProbe.ts
  *   (edit the TOTS weights, then)
