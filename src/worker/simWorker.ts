@@ -36,7 +36,7 @@ self.onmessage = (e: MessageEvent<WorkerCommand>) => {
   } else if (cmd.type === "offseason") {
     const seed = (cmd.league.lid * 1000 + cmd.league.season) >>> 0;
     const rng = mulberry32(seed);
-    const result = simOffseason(cmd.league, rng);
+    const result = simOffseason(cmd.league, rng, cmd.teamStats);
     const response: WorkerResponse = { type: "offseasonResult", league: result };
     self.postMessage(response);
   } else if (cmd.type === "jump") {

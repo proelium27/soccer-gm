@@ -5,6 +5,9 @@ import type { PlayedMatch } from "../core/standings.js";
 import type { CupTie } from "../core/cup/types.js";
 import type { DomesticTieResult } from "../core/simThrough.js";
 import type { SimThrough, IntlMode, WorkerResponse } from "../worker/protocol.js";
+import type { LeagueArchive } from "../core/simArchive.js";
+import { detachArchive, reattachArchive, detachPlayed, reattachPlayed } from "../core/simArchive.js";
+import { computeTeamSeasonStats } from "../core/standings.js";
 
 export type SimProgress = {
   matchday: number;
@@ -25,6 +28,16 @@ export type JumpProgressUpdate = {
 type Pending = {
   resolve: (league: LeagueStore) => void;
   reject: (err: Error) => void;
+  /**
+   * The append-only history held back from this command (core/simArchive.ts),
+   * folded back onto whatever the worker returns.
+   */
+  archive: LeagueArchive;
+  /**
+   * The real box scores of already-played matches, held back the same way.
+   * `null` when this command was sent with them intact (see `post`).
+   */
+  played: PlayedMatch[] | null;
 };
 
 export function useSimWorker() {
@@ -61,7 +74,13 @@ export function useSimWorker() {
         e.data.type === "jumpResult"
       ) {
         setSimming(false);
-        pendingRef.current?.resolve(e.data.league);
+        const pending = pendingRef.current;
+        if (pending) {
+          let league = e.data.league;
+          if (pending.played) league = reattachPlayed(league, pending.played);
+          if (pending.archive) league = reattachArchive(league, pending.archive);
+          pending.resolve(league);
+        }
         pendingRef.current = null;
         progressRef.current = null;
         jumpProgressRef.current = null;
@@ -100,10 +119,41 @@ export function useSimWorker() {
           return;
         }
         setSimming(true);
-        pendingRef.current = { resolve, reject };
+        // Hold back everything the worker will not read rather than
+        // structured-cloning it out and straight back again — that round trip
+        // is what runs a save out of memory on mobile. See core/simArchive.ts.
+        const { payload: base, archive } = detachArchive(command.league);
+
+        // A multi-season jump crosses offseasons, and `played` is wiped at each
+        // one, so the leading-stub rule reattachPlayed relies on does not hold:
+        // it would be re-merging a previous season's matches into a later one.
+        // Jump therefore carries real box scores. It is one deliberate,
+        // already-slow action, against every matchday advance in a season.
+        const stripPlayed = command.type !== "jump";
+        const { payload, played } = stripPlayed
+          ? detachPlayed(base)
+          : { payload: base, played: null };
+
+        // The offseason is the one place the sim reads a box score it did not
+        // just play (computeTeamSeasonStats). Working it out here is what makes
+        // stripping them safe; without it the offseason would aggregate stubs
+        // and quietly record a season of zeroes.
+        const outgoing =
+          command.type === "offseason" && stripPlayed
+            ? {
+                ...command,
+                league: payload,
+                teamStats: computeTeamSeasonStats(
+                  command.league.teams.map((t) => t.tid),
+                  command.league.played,
+                ),
+              }
+            : { ...command, league: payload };
+
+        pendingRef.current = { resolve, reject, archive, played };
         progressRef.current = handlers.onProgress ?? null;
         jumpProgressRef.current = handlers.onJumpProgress ?? null;
-        workerRef.current?.postMessage(command);
+        workerRef.current?.postMessage(outgoing);
       });
     },
     [],

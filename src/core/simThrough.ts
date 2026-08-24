@@ -564,6 +564,8 @@ export function simThrough(
     // (every POWER_SNAPSHOT_INTERVAL matchdays, plus the finale — 38 matching
     // the "season" target above). Each matchday is simmed exactly once per
     // season, so no duplicate guard is needed however the user batches sims.
+    // The interval is a save-size lever: each snapshot is a row per club for
+    // the whole world and the history is never pruned. See the constant.
     if (matchday % POWER_SNAPSHOT_INTERVAL === 0 || matchday === 38) {
       newSnapshots.push(
         computePowerRankingSnapshot(
