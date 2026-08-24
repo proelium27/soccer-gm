@@ -2058,11 +2058,20 @@ export const WORLD_POSITION_AWARD_SHORTLIST = 5;
 
 /**
  * How much more everything *outside* a player's own league season counts in the
- * Goalkeeper and Defender of the Year than it does in the Ballon d'Or.
+ * awards scored on `totsScore` — the World Team of the Year, the Goalkeeper of
+ * the Year and the Defender of the Year.
  *
  * Scales all four non-league parts of the score together: the Continental Cup,
  * the international campaign, the league title and the domestic cup. The
- * domestic league component is the one thing left alone.
+ * domestic league component is the one thing left alone, because it is the one
+ * part measured entirely inside a single competition.
+ *
+ * **Belongs to the `totsScore` base, not to any one award.** That is why it is
+ * applied inside `worldTotsParts` rather than at the three call sites: all
+ * three awards inherit the same inflated base and so need the same correction,
+ * and applying it to only some of them makes them disagree about the same
+ * player (it did — see the history note at the bottom). The Ballon d'Or is
+ * built on `potyScore` instead and is deliberately untouched by this.
  *
  * **The problem it solves is dilution, not a missing term.** Trophies were
  * already in these awards at full Ballon d'Or weight, via the shared
@@ -2076,11 +2085,11 @@ export const WORLD_POSITION_AWARD_SHORTLIST = 5;
  * **Why it also moves winners into stronger leagues, which is the real point.**
  * Match ratings, tackles and interceptions are all scored against one league.
  * Ovr and the league-strength correction are the only cross-league-meaningful
- * terms the Ballon d'Or has, and they are what put its winners in the big four
- * — and the volume term dilutes them exactly as it dilutes trophies. Measured
- * before this: the *keeper* award already landed like the Ballon d'Or (12 of 16
- * winners in the big four, against the Ballon d'Or's own 12 of 16), while the
- * defender award put 7 of 16 in the weakest leagues.
+ * terms these awards have, and they are what put Ballon d'Or winners in the big
+ * four — and the volume term dilutes them exactly as it dilutes trophies.
+ * Measured before this: the *keeper* award already landed like the Ballon d'Or
+ * (12 of 16 winners in the big four, against the Ballon d'Or's own 12 of 16),
+ * while the defender award put 7 of 16 in the weakest leagues.
  *
  * **Which trophy does that work is not obvious, and picking wrong would do
  * nothing.** A league title is *league-relative*: Belgium's champion wins
@@ -2091,17 +2100,6 @@ export const WORLD_POSITION_AWARD_SHORTLIST = 5;
  * terms that actually pull the award towards strong leagues. Scaling the whole
  * non-league block gets both effects at once, which is why it is one multiplier
  * over four parts rather than a separate knob per trophy.
- *
- * **Deliberately does NOT apply to the World Team of the Year**, which keeps
- * picking its eleven off unmultiplied `worldTotsParts`. That XI is a shipped
- * award and retuning it was not asked for. The cost is that the Goalkeeper of
- * the Year and the XI's keeper now disagree about two thirds of the time
- * (measured 17% and 50% agreement over two seeds x 6 seasons), where before
- * they agreed by construction. That is systematic, not noise: the XI slot goes
- * to the best performer, this award to the best performer who also won things.
- * If that ever needs closing, the fix is to give the XI the same multiplier —
- * the argument for it applies equally, since the XI is scored on the same
- * volume-inflated base — not to lower this number.
  *
  * **Measured at 3, two seeds x 6 seasons (`scripts/positionAwardAudit.ts`),
  * against the same runs' Ballon d'Or at 10 of 12 winners from the big four:**
@@ -2120,8 +2118,18 @@ export const WORLD_POSITION_AWARD_SHORTLIST = 5;
  * 3 -> about 8, which lands it on the Ballon d'Or's own standard (median 8)
  * rather than anywhere unusual. Raising this further buys league strength at
  * the cost of that rank, and the two cannot both be maximised.
+ *
+ * **History, because the shape of the mistake generalises (2026-08-24).** This
+ * shipped for a few hours applied to the two position awards only, leaving the
+ * World XI on the plain score. That looked like the conservative choice — don't
+ * retune a shipped award — and it was the wrong one: the XI slot then went to
+ * the best performer while the award went to the best performer who also won
+ * things, so the Goalkeeper of the Year stopped being the XI's keeper about two
+ * thirds of the time (17% and 50% agreement measured), on two panels of the
+ * same page. **A correction that belongs to a shared base has to be applied at
+ * the base, or the things built on it quietly stop agreeing.**
  */
-export const WORLD_POSITION_AWARD_TROPHY_MULTIPLIER = 3;
+export const WORLD_TOTS_TROPHY_MULTIPLIER = 3;
 
 /* ────────────────────────────────────────────────────────────────────────
  * Goalkeeper of the Year and Defender of the Year (core/worldAwards.ts)

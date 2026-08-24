@@ -1060,11 +1060,11 @@ export function Manual() {
             Ballon d'Or winners do.
           </p>
           <p>
-            One consequence worth knowing so it doesn't look like a bug: the Goalkeeper of the Year
-            is often <em>not</em> the keeper picked in the World Team of the Year below it, and the
-            same goes for the defenders. That's the two answering different questions. The XI picks
-            whoever played best; the award weighs what he won as well. They agree when the best
-            keeper also won something, which is roughly a third of the time.
+            The World Team of the Year is scored the same way, trophies and all, because it's built
+            on the same numbers and had the same problem. So the three agree with each other: the
+            Goalkeeper of the Year is the keeper in that XI, and the Defender of the Year is in its
+            back four. The Ballon d'Or is the one that stands apart, since it's scored on goals and
+            assists rather than on defending, and it keeps its own trophy weighting.
           </p>
           <p>
             One honest caveat about the defender's award. Tackles and interceptions are counts, not

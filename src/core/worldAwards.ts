@@ -13,7 +13,7 @@ import {
 } from "./awards.js";
 import {
   AWARD_MIN_APPEARANCES, AWARD_OVR_BASELINE, BALLON_DOR_SHORTLIST,
-  WORLD_POSITION_AWARD_SHORTLIST, WORLD_POSITION_AWARD_TROPHY_MULTIPLIER,
+  WORLD_POSITION_AWARD_SHORTLIST, WORLD_TOTS_TROPHY_MULTIPLIER,
   WORLD_AWARD_OVR_WEIGHT,
   POTY_GOAL_WEIGHT, POTY_ASSIST_WEIGHT, TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT,
   WORLD_AWARD_LEAGUE_STRENGTH_WEIGHT, WORLD_AWARD_CUP_MULTIPLIER,
@@ -366,32 +366,20 @@ function ballonDOrParts(e: Entry, s: Scoring): WorldAwardEntry {
  *
  * Picks the World Team of the Year's slots *and* decides the Goalkeeper of the
  * Year and Defender of the Year, deliberately off one number, so the trophy and
- * the XI can never disagree about who the best keeper in the world was.
+ * the XI can never disagree about who the best keeper in the world was. The
+ * trophy multiplier is applied inside here rather than at those call sites for
+ * exactly that reason — see WORLD_TOTS_TROPHY_MULTIPLIER's history note.
  */
 function worldTotsParts(e: Entry, s: Scoring): WorldAwardEntry {
-  return worldAwardParts(
+  const base = worldAwardParts(
     e, s, totsScore(e.player, e.stats, s.season), TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT,
   );
-}
-
-/**
- * The same case, with everything beyond his own league season weighted up.
- *
- * The two position awards are decided on this rather than on `worldTotsParts`
- * directly. See WORLD_POSITION_AWARD_TROPHY_MULTIPLIER for why: the defensive
- * counting stats are large enough to drown every other term, trophies and the
- * two cross-league-meaningful terms alike, and multiplying the non-league block
- * restores the proportion the Ballon d'Or already has.
- *
- * Derived from the tots parts rather than recomputed, so there is exactly one
- * place a cross-competition term is calculated and these awards cannot drift
- * away from the Ballon d'Or's definition of a cup run or a league title.
- *
- * `league` is deliberately untouched: it is the one part measured entirely
- * inside a single competition.
- */
-function positionAwardParts(base: WorldAwardEntry): WorldAwardEntry {
-  const m = WORLD_POSITION_AWARD_TROPHY_MULTIPLIER;
+  // Everything beyond his own league season counts for more here than it does
+  // in the Ballon d'Or, because this base is inflated by season-long counting
+  // stats that drown every other term. See WORLD_TOTS_TROPHY_MULTIPLIER — and
+  // note it is applied HERE, at the shared base, precisely so all three awards
+  // built on it stay in agreement about the same player.
+  const m = WORLD_TOTS_TROPHY_MULTIPLIER;
   const cup = base.cup * m;
   const intl = base.intl * m;
   const title = base.title * m;
@@ -407,16 +395,10 @@ function positionAwardParts(base: WorldAwardEntry): WorldAwardEntry {
  * The best player in the world at one position group, and the rest of his
  * shortlist.
  *
- * Built from the `worldTotsParts` already computed for every player to pick the
- * World XI, so an award costs a filter, a reweight and a sort rather than a
- * second scoring pass over the whole world.
- *
- * Note the reweight is why this no longer agrees with the World XI by
- * construction: the XI is picked on the unmultiplied score. Measured, they
- * agree only about a THIRD of the time (17% and 50% over two seeds x 6
- * seasons), and that is systematic rather than noise — the XI slot goes to the
- * best performer and the award goes to the best performer who also won things,
- * so they part company whenever those differ.
+ * Reads the `worldTotsParts` already computed for every player to pick the
+ * World XI, so an award costs a filter and a sort rather than a second scoring
+ * pass over the whole world — and, more importantly, so the award and the XI
+ * cannot disagree about the same player.
  *
  * **Only ever compares a group against itself, and that is a correctness
  * requirement rather than a scoping choice.** `totsScore` prices a defender's
@@ -566,15 +548,10 @@ export function computeWorldAwards(
   const totsParts = new Map<number, WorldAwardEntry>();
   for (const e of entries) totsParts.set(e.player.pid, worldTotsParts(e, scoring));
 
-  // The World XI keeps the plain score; the two position awards use the same
-  // score with everything beyond the domestic league weighted up.
-  const positionParts = new Map<number, WorldAwardEntry>();
-  for (const [pid, parts] of totsParts) positionParts.set(pid, positionAwardParts(parts));
-
   return {
     ballonDOr: ranked,
     worldTeamOfYear: pickWorldTeam(entries, totsParts),
-    goalkeeperOfYear: positionAward(entries, "GK", positionParts),
-    defenderOfYear: positionAward(entries, "DEF", positionParts),
+    goalkeeperOfYear: positionAward(entries, "GK", totsParts),
+    defenderOfYear: positionAward(entries, "DEF", totsParts),
   };
 }
