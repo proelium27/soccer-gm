@@ -71,6 +71,9 @@ let lastDefender: number | null = null;
  * quality of it.
  */
 const volumeShare: number[] = [];
+/** Share of the winning score that came from outside his own league season. */
+const trophyShare: number[] = [];
+const keeperTrophyShare: number[] = [];
 const keeperVolumeShare: number[] = [];
 /** The Ballon d'Or's own country spread over the same run, as a reference point. */
 const ballonCountry = new Map<string, number>();
@@ -135,6 +138,7 @@ for (const seed of SEEDS) {
       const p = byPid.get(w.pid);
       const st = p ? statsFor(p, entry.season) : undefined;
       if (st && w.score > 0) keeperVolumeShare.push((st.saves * TOTS_SAVE_WEIGHT) / w.score);
+      if (w.score > 0) keeperTrophyShare.push((w.score - w.league) / w.score);
       console.log(
         `  s${entry.season} GK  ${p?.name ?? `#${w.pid}`} (${countryOf(w.tid)}, ovr ` +
         `${p ? ovrDuringSeason(p, entry.season) : "?"}) ` +
@@ -169,6 +173,7 @@ for (const seed of SEEDS) {
       if (st && w.score > 0) {
         const vol = st.tackles * TOTS_TACKLE_WEIGHT.DEF + st.interceptions * TOTS_INTERCEPTION_WEIGHT.DEF;
         volumeShare.push(vol / w.score);
+        trophyShare.push((w.score - w.league) / w.score);
       }
       console.log(
         `  s${entry.season} DEF ${p?.name ?? `#${w.pid}`} ${p?.pos ?? "?"} (${countryOf(w.tid)}, ovr ` +
@@ -208,6 +213,10 @@ const mean = (xs: number[]) => (xs.length === 0 ? NaN : xs.reduce((a, b) => a + 
 console.log(`\nHow much of the winning score is raw volume, not quality`);
 console.log(`  keeper, from saves:              ${(mean(keeperVolumeShare) * 100).toFixed(0)}%`);
 console.log(`  defender, from tackles + int:    ${(mean(volumeShare) * 100).toFixed(0)}%`);
+console.log(`
+How much of the winning score came from beyond his own league`);
+console.log(`  keeper:    ${(mean(keeperTrophyShare) * 100).toFixed(0)}%`);
+console.log(`  defender:  ${(mean(trophyShare) * 100).toFixed(0)}%`);
 console.log(`\nCountry spread, for comparison`);
 console.log(`  Ballon d'Or:       ${table(ballonCountry)}`);
 console.log(`  Goalkeeper:        ${table(keeperCountry)}`);

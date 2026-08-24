@@ -1042,14 +1042,29 @@ export function Manual() {
           <p>
             So these two are judged on the things the Ballon d'Or ignores. The keeper's award counts
             saves and holds goals conceded against him; the defender's counts tackles and
-            interceptions and goals conceded, and is open to centre-backs and full-backs. Both then
-            carry exactly the same worldwide extras as the Ballon d'Or on top &mdash; the
-            league-strength correction, your Continental Cup run, your summer with your country,
-            your league title, your domestic cup &mdash; so a keeper at a big club who wins things
-            still beats an equally good one who doesn't. It's the same scoring the World Team of the
-            Year picks its eleven with, which is on purpose: the Goalkeeper of the Year will
-            essentially always be the keeper in that XI, rather than the two awards disagreeing
-            about who the best keeper alive was.
+            interceptions and goals conceded, and is open to centre-backs and full-backs. On top of
+            that come the same worldwide extras the Ballon d'Or uses: the league-strength
+            correction, your Continental Cup run, your summer with your country, your league title,
+            your domestic cup.
+          </p>
+          <p>
+            Those extras count for three times as much here as they do in the Ballon d'Or, and
+            there's a reason for the difference. Tackles, interceptions and saves are counted up
+            over a season and they get big, so a defender's raw defensive work can reach half his
+            score and leave everything else as rounding. Tripling the rest puts trophies back on the
+            footing they have in the Ballon d'Or, and it does something more useful besides: your
+            rating and your league's strength are the only two things in the whole calculation that
+            mean the same in every country, and they were being drowned by the same counting stats.
+            Turning the rest up is what stops these awards drifting to whoever plays in the weakest
+            league. It works &mdash; keepers now win from the strongest leagues about as often as
+            Ballon d'Or winners do.
+          </p>
+          <p>
+            One consequence worth knowing so it doesn't look like a bug: the Goalkeeper of the Year
+            is often <em>not</em> the keeper picked in the World Team of the Year below it, and the
+            same goes for the defenders. That's the two answering different questions. The XI picks
+            whoever played best; the award weighs what he won as well. They agree when the best
+            keeper also won something, which is roughly a third of the time.
           </p>
           <p>
             One honest caveat about the defender's award. Tackles and interceptions are counts, not

@@ -8,6 +8,8 @@ import { TOTS_SLOTS } from "../../src/core/awards.js";
 import {
   BALLON_DOR_SHORTLIST, AWARD_MIN_APPEARANCES, WORLD_POSITION_AWARD_SHORTLIST,
   WORLD_AWARD_DOMESTIC_CUP_BONUS, WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT,
+  WORLD_POSITION_AWARD_TROPHY_MULTIPLIER, WORLD_AWARD_LEAGUE_TITLE_BONUS,
+  WORLD_AWARD_TITLE_FULL_SEASON,
 } from "../../src/core/constants.js";
 import type { DomesticCupState } from "../../src/core/domesticCup/types.js";
 
@@ -489,12 +491,13 @@ describe("computeWorldAwards — domestic cup", () => {
  */
 describe("position awards", () => {
   /** A keeper who did keeper things, so the defensive formula has something to read. */
-  function keeper(pid: number, tid: number, ovr: number, over: Partial<{ saves: number; goalsAgainst: number; avgRating: number }> = {}) {
+  function keeper(pid: number, tid: number, ovr: number, over: Partial<{ saves: number; goalsAgainst: number; avgRating: number; appearances: number }> = {}) {
     return player({
       pid, tid, ovr, pos: "GK",
       saves: over.saves ?? 100,
       goalsAgainst: over.goalsAgainst ?? 40,
       avgRating: over.avgRating ?? 6.8,
+      ...(over.appearances !== undefined ? { appearances: over.appearances } : {}),
     });
   }
 
@@ -576,7 +579,11 @@ describe("position awards", () => {
     expect(goalkeeperOfYear![1].pid).toBe(2);
   });
 
-  it("agrees with the World XI's keeper, which is the point of sharing one score", () => {
+  it("agrees with the World XI's keeper when no trophies separate them", () => {
+    // The two are picked off the same base score, so they agree wherever the
+    // trophy multiplier doesn't reorder anything — as here, where nobody has
+    // won a thing. They are NOT guaranteed to agree in general any more; see
+    // WORLD_POSITION_AWARD_TROPHY_MULTIPLIER.
     const players = [
       keeper(1, 1, 82, { saves: 180, goalsAgainst: 25 }),
       keeper(2, 2, 80, { saves: 90, goalsAgainst: 55 }),
@@ -590,13 +597,10 @@ describe("position awards", () => {
     expect(worldTeamOfYear[0]).toBe(goalkeeperOfYear![0].pid);
   });
 
-  it("puts the Defender of the Year in the World XI's back four, by construction", () => {
-    // Same argument as the keeper: `positionAward` takes the best score in the
-    // DEF group and `pickWorldTeam` takes the best score among candidates for
-    // each back-four slot, off the same map, applying the qualified-first rule
-    // identically. So the winner cannot be absent from the back four -- which
-    // is what makes "this award only names a pick the game already made" a
-    // property rather than a measurement.
+  it("puts the Defender of the Year in the World XI's back four when no trophies separate them", () => {
+    // Same argument as the keeper: both rank on the same base score and apply
+    // the qualified-first rule identically, so with no trophies in play the
+    // winner cannot be absent from the back four.
     const players = [
       defender(1, 1, 80, { pos: "CB", tackles: 240, interceptions: 220, avgRating: 7.3 }),
       defender(2, 2, 76, { pos: "CB", tackles: 120, interceptions: 110, avgRating: 6.9 }),
@@ -656,13 +660,69 @@ describe("position awards", () => {
     expect(defenderOfYear).toEqual([]);
   });
 
-  it("carries the same cross-competition credit the Ballon d'Or does", () => {
-    // A league title is worth the same to a keeper as to anyone else: the
-    // position awards reuse worldAwardParts wholesale.
+  it("weights a trophy WORLD_POSITION_AWARD_TROPHY_MULTIPLIER times what the Ballon d'Or does", () => {
     const players = [keeper(1, 1, 78), keeper(2, 2, 78), ...squad(100, 11, 55)];
+    const champion = ctx({ championTidByCompId: { 0: 1 } });
     const plain = computeWorldAwards(players, SEASON, ctx());
-    const champion = computeWorldAwards(players, SEASON, ctx({ championTidByCompId: { 0: 1 } }));
+    const won = computeWorldAwards(players, SEASON, champion);
+
     expect(plain.goalkeeperOfYear![0].title).toBe(0);
-    expect(champion.goalkeeperOfYear!.find((e) => e.pid === 1)!.title).toBeGreaterThan(0);
+    // Asserted as a ratio against the Ballon d'Or's own credit for the same
+    // title rather than against the raw constant: the bonus is pro-rated by
+    // appearances, and the point being pinned is the multiplier, not the
+    // pro-rating.
+    const positionTitle = won.goalkeeperOfYear!.find((e) => e.pid === 1)!.title;
+    const ballonTitle = won.ballonDOr.find((e) => e.pid === 1)!.title;
+    expect(ballonTitle).toBeGreaterThan(0);
+    expect(positionTitle / ballonTitle).toBeCloseTo(WORLD_POSITION_AWARD_TROPHY_MULTIPLIER, 6);
+  });
+
+  it("leaves the domestic league season unmultiplied, and the World XI alone", () => {
+    const players = [keeper(1, 1, 78), keeper(2, 2, 78), ...squad(100, 11, 55)];
+    const champion = ctx({ championTidByCompId: { 0: 1 } });
+    const { goalkeeperOfYear, worldTeamOfYear, ballonDOr } =
+      computeWorldAwards(players, SEASON, champion);
+
+    // `league` is the one part measured wholly inside one competition, so it is
+    // the one part the multiplier must not touch.
+    const beforeMultiplier = computeWorldAwards(players, SEASON, ctx());
+    expect(goalkeeperOfYear![0].league)
+      .toBeCloseTo(beforeMultiplier.goalkeeperOfYear![0].league, 6);
+
+    // The World XI is picked on the unmultiplied score and is not retuned by
+    // this: its keeper slot is still filled, and the Ballon d'Or still credits
+    // the title at its own weight (pro-rated by appearances, hence the cap).
+    expect(worldTeamOfYear[0]).not.toBeNull();
+    expect(ballonDOr.find((e) => e.pid === 1)!.title)
+      .toBeLessThanOrEqual(WORLD_AWARD_LEAGUE_TITLE_BONUS);
+    expect(goalkeeperOfYear![0].title)
+      .toBeGreaterThan(WORLD_AWARD_LEAGUE_TITLE_BONUS);
+  });
+
+  it("lets a title overturn a league season the title bonus alone could not", () => {
+    // The better keeper is at a club that won nothing; the slightly worse one
+    // won his league. Both play a full season so the bonus isn't pro-rated.
+    const apps = WORLD_AWARD_TITLE_FULL_SEASON;
+    const players = [
+      keeper(1, 2, 78, { saves: 180, goalsAgainst: 28, avgRating: 7.3, appearances: apps }),
+      keeper(2, 1, 78, { saves: 130, goalsAgainst: 34, avgRating: 7.0, appearances: apps }),
+      ...squad(100, 11, 55),
+    ];
+    const noTrophies = computeWorldAwards(players, SEASON, ctx());
+    expect(noTrophies.goalkeeperOfYear![0].pid).toBe(1);
+
+    // How far ahead the better keeper is on league play alone.
+    const gap = noTrophies.goalkeeperOfYear!.find((e) => e.pid === 1)!.league
+      - noTrophies.goalkeeperOfYear!.find((e) => e.pid === 2)!.league;
+
+    // The gap is wider than an unmultiplied title, so at Ballon d'Or weight the
+    // trophy would NOT have been enough. That is the whole reason the
+    // multiplier exists, and pinning it is what stops the fixture drifting into
+    // a gap so small the test would pass without any multiplier at all.
+    expect(gap).toBeGreaterThan(WORLD_AWARD_LEAGUE_TITLE_BONUS);
+
+    const champion = computeWorldAwards(players, SEASON, ctx({ championTidByCompId: { 0: 1 } }));
+    expect(champion.goalkeeperOfYear!.find((e) => e.pid === 2)!.title).toBeGreaterThan(gap);
+    expect(champion.goalkeeperOfYear![0].pid).toBe(2);
   });
 });
