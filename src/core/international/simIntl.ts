@@ -117,12 +117,24 @@ export const TOURNAMENT_KNOCKOUT_STREAM = KNOCKOUT_STREAM;
 
 /**
  * Seed the knockout bracket from completed tournament groups: each group's top
- * `qualifyPerGroup` advance, paired so that a group winner always meets a
- * runner-up from a different group in the quarter-finals (A1-B2, C1-D2, B1-A2,
- * D1-C2) and two nations from the same group can only meet again in the final.
- * Returns the advancing nids in bracket order — consecutive pairs are ties.
- * The group count comes from `groups` rather than a constant, because a
+ * `qualifyPerGroup` advance, paired so a group winner always meets a runner-up
+ * from its partner group (0↔1, 2↔3, …) and the two nations out of any one group
+ * land in opposite halves of the draw, so they can only meet again in the final.
+ * Returns the advancing nids in bracket order — consecutive pairs are ties. The
+ * group count comes from `groups` rather than a constant, because a
  * confederation cup's shape varies with its confederation's size.
+ *
+ * The half split is what the two accumulators are for, and it is load-bearing
+ * rather than tidiness. Emitting each partner pair's two ties adjacently — the
+ * shape this had before the field grew to 32 — puts them together in the *next*
+ * round, so A1 and A2 met in the semi-final of a four-group tournament and in
+ * the quarter-final of an eight-group one. That contradicted what this function
+ * documented, and at eight groups it would have had a third of the round of 16
+ * replaying group fixtures two rounds later. Every mirror tie now goes into the
+ * back half instead, which is also how a real World Cup bracket is laid out.
+ * Note this changes results for existing four-group tournaments too (the World
+ * Cup's old shape, and the confederation cups' largest) — international matches
+ * take no draw from the shared rng, so no club result moves.
  */
 export function seedBracket(
   groups: IntlGroup[],
@@ -134,16 +146,15 @@ export function seedBracket(
   // A one-group tournament (the smallest confederation cup shape) has no partner
   // group to cross with: its top two simply meet in the final.
   if (groups.length === 1) return advancing[0].slice(0, 2);
-  const bracket: number[] = [];
-  // Pair group g's winner with the runner-up of its partner group (0↔1, 2↔3),
-  // then the mirror pairing, so the two halves of the draw stay separated.
+  const top: number[] = [];
+  const bottom: number[] = [];
   for (let pair = 0; pair < Math.floor(groups.length / 2); pair++) {
     const a = pair * 2;
     const b = a + 1;
-    bracket.push(winner(a), runnerUp(b));
-    bracket.push(winner(b), runnerUp(a));
+    top.push(winner(a), runnerUp(b));
+    bottom.push(winner(b), runnerUp(a));
   }
-  return bracket;
+  return [...top, ...bottom];
 }
 
 /**

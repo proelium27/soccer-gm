@@ -366,8 +366,15 @@ export function Manual() {
             A season is a double round-robin: 38 matchdays from August to May, every club playing
             every other home and away. A win is 3 points, a draw is 1. Alongside the league, the
             world's best clubs fight it out in the <a href="#cup">Continental Cup</a> on fixed
-            matchdays. Every save's first season shows as 2026, and it ticks up a year each time
+            matchdays. Seasons show as real years, starting at 2026 and ticking up one each time
             you go to the offseason.
+          </p>
+          <p>
+            <strong>Start year.</strong> 2026 is just the default. There's a start year box on the
+            New League screen, so you can begin in 1994, or 2038, or whatever year you want your
+            save to be set in. It's purely cosmetic. Nothing in the game reads it, so a save that
+            starts in 1994 plays exactly the same as one that starts in 2026, and behind the scenes
+            it's still season 1. Saves you already have keep showing 2026.
           </p>
           <p>
             <strong>Historic seasons.</strong> Every so often, a club's whole season just clicks.
@@ -788,11 +795,19 @@ export function Manual() {
             Every nation with enough players in the world enters qualifying. They're split into
             groups by confederation and play a long home-and-away campaign spread over the three
             qualifying offseasons, and the number of places each confederation gets depends on how
-            many genuinely strong nations it has, so the 16 who make it are a believable field rather
+            many genuinely strong nations it has, so the 32 who make it are a believable field rather
             than whoever happens to be nearby. At the
-            tournament those 16 are drawn into four groups of four; the top two from each go through
-            to the quarter-finals, then semi-finals and a final. Knockout ties level after extra
-            time go to a shootout, exactly like the Continental Cup.
+            tournament those 32 are drawn into eight groups of four; the top two from each go through
+            to a round of 16, then quarter-finals, semi-finals and a final. Knockout ties level after
+            extra time go to a shootout, exactly like the Continental Cup.
+          </p>
+          <p>
+            A 32-nation field is most of the nations that can field a squad at all, so several
+            confederations now send everyone they have and play no qualifying matches — you'll see
+            that on the Qualifying page, where South America, Asia and North America have no groups.
+            The contest is in Europe and Africa, where there are more nations than places. If you'd
+            rather qualifying meant more everywhere, the fix is a deeper world: more countries with
+            leagues means more nations with enough players to enter.
           </p>
           <p>
             The <strong>confederation cups</strong> have no qualifying of their own: each

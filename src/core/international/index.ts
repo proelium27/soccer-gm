@@ -12,12 +12,12 @@ export {
   CONFEDERATION_CUPS, confederationCupSpec, type ConfederationCupSpec,
 } from "./confederations.js";
 export {
-  initConfederationCups, roundsRemaining, confederationCupGroupsPending, confederationCupKnockoutPending,
+  initConfederationCups, confederationCupGroupsPending, confederationCupKnockoutPending,
   summarizeConfederationCups, confederationCupChampions,
 } from "./confederationCup.js";
 export { formatFor, knockoutRounds, type TournamentFormat } from "./format.js";
 export { buildSquads, selectSquad, isEligibleNation, nationPools, buildPowerSnapshot } from "./squads.js";
-export { finalTie, tournamentGoals, summarize, summarizeQualifying } from "./tournament.js";
+export { finalTie, tournamentGoals, roundsRemaining, summarize, summarizeQualifying } from "./tournament.js";
 export { nationRecords, finishOf, type NationRecord } from "./nationHistory.js";
 export {
   isIntlStagePending, initInternationalCampaign, playIntlStage, simThroughInternational,

@@ -5,17 +5,19 @@ import type {
   IntlGroup, InternationalState, IntlTournament, IntlQualifyingCampaign,
 } from "../../../core/international/index.js";
 import { groupTable } from "../../../core/international/index.js";
-import { INTL_TOURNAMENT_NAME, INTL_CYCLE_YEARS, INTL_FIELD_SIZE } from "../../../core/constants.js";
+import {
+  INTL_TOURNAMENT_NAME, INTL_CYCLE_YEARS, INTL_FIELD_SIZE, INTL_GROUPS, INTL_GROUP_SIZE,
+} from "../../../core/constants.js";
 
-/** Knockout round names for the three-round international bracket. */
-export const KO_ROUND_NAMES = ["Quarter-finals", "Semi-finals", "Final"];
+/** Knockout round names for the four-round international bracket, in playing order. */
+export const KO_ROUND_NAMES = ["Round of 16", "Quarter-finals", "Semi-finals", "Final"];
 
 /**
  * What to call knockout round `round` of a bracket that has `totalRounds` of
- * them. Named backwards from the final, because a confederation cup's
- * bracket can be shorter than the World Cup's: a two-round bracket's round 0 is
- * the semi-finals, not the quarters. With no total supplied it falls back to
- * the World Cup's three-round naming.
+ * them. Named backwards from the final, because brackets differ in depth: the
+ * World Cup's is four rounds at a 32-nation field, while a confederation cup's
+ * can be two, whose round 0 is the semi-finals rather than the quarters. With
+ * no total supplied it falls back to the World Cup's full-depth naming.
  */
 export function koRoundName(round: number, totalRounds?: number): string {
   const fromFinal = totalRounds === undefined
@@ -261,7 +263,7 @@ export function liveCampaign(intl: InternationalState): {
   // Only the World Cup's own stages force the tournament view. The confederation cup
   // stages run in a *qualifying* offseason, so they fall through to the
   // more-recent-campaign rule below, which picks the live qualifying campaign.
-  else if (stage === "groups" || stage === "qf" || stage === "sf" || stage === "final") showing = "tournament";
+  else if (stage === "groups" || stage === "knockout") showing = "tournament";
   else if (tournament && qualifying) showing = tournament.season >= qualifying.season ? "tournament" : "qualifying";
   else if (tournament) showing = "tournament";
   else if (qualifying) showing = "qualifying";
@@ -296,8 +298,8 @@ export function IntlEmpty() {
         National teams play in the summer, on a {INTL_CYCLE_YEARS}-year cycle. The first three
         offseasons of each cycle play one round of qualifying apiece, where every nation with enough
         players works through its confederation group for one of {INTL_FIELD_SIZE} places. The fourth
-        offseason, those {INTL_FIELD_SIZE} meet in the {INTL_TOURNAMENT_NAME}: four groups of four,
-        then quarter-finals, semi-finals and a final.
+        offseason, those {INTL_FIELD_SIZE} meet in the {INTL_TOURNAMENT_NAME}: {INTL_GROUPS} groups
+        of {INTL_GROUP_SIZE}, then a round of 16, quarter-finals, semi-finals and a final.
       </p>
       <p className="text-muted">
         Nobody manages a national team, including you. Squads pick themselves from whoever's good

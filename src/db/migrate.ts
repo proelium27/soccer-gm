@@ -17,6 +17,26 @@ import { archiveCup } from "../core/cup/archive.js";
 import { archiveDomesticCup } from "../core/domesticCup/archive.js";
 import { cupRunSummary } from "../core/cup/cup.js";
 import type { ManagerState } from "../core/manager/types.js";
+import type { IntlStage } from "../core/international/index.js";
+
+/**
+ * Map a persisted international stage onto the current IntlStage union. The
+ * only change so far: "qf"/"sf"/"final" were three stages naming a fixed
+ * three-round bracket, and became one repeating "knockout" when the World Cup
+ * grew to eight groups and a round of 16. Anything already valid passes
+ * through, and an unrecognised value becomes null — the campaign is then simply
+ * not pending, which the next offseason resolves by drawing a fresh one.
+ */
+function migrateIntlStage(stage: unknown): IntlStage {
+  if (stage === "qf" || stage === "sf" || stage === "final") return "knockout";
+  if (
+    stage === "qualifying" || stage === "groups" || stage === "knockout"
+    || stage === "confederation-groups" || stage === "confederation-ko" || stage === "done"
+  ) {
+    return stage;
+  }
+  return null;
+}
 
 /**
  * A team as it may exist in a save written before M6 added the finance
@@ -478,7 +498,13 @@ function migrateFields(league: LeagueStore): LeagueStore {
     international: anyVersion.international
       ? {
           ...anyVersion.international,
-          stage: anyVersion.international.stage ?? null,
+          // The three named knockout stages ("qf"/"sf"/"final") collapsed into
+          // one repeating "knockout" when the World Cup field grew to 32 and
+          // its bracket gained a round. A save caught mid-knockout maps onto
+          // it: the round actually played is read off the tournament's own
+          // fixtures (roundsRemaining), never off the stage name, so an
+          // in-progress bracket finishes at whatever size it was drawn at.
+          stage: migrateIntlStage(anyVersion.international.stage),
           // Light archival added later: past qualifying + power-ranking history
           // start empty and fill from the next campaign on; old tournament
           // summaries predate stored group tables / knockout scorelines, so

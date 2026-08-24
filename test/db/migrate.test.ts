@@ -375,3 +375,39 @@ describe("migrateLeague pre-M3 box scores", () => {
     }
   });
 });
+
+describe("migrateLeague international stage", () => {
+  /**
+   * The three named World Cup knockout stages collapsed into one repeating
+   * "knockout" when the field grew to 32 and the bracket gained a round. A save
+   * caught mid-knockout has to land on it, or the offseason sits on a stage the
+   * machine no longer recognises and the campaign can never finish.
+   */
+  const withStage = (stage: string): LeagueStore => {
+    const league = makeLeague(0, 1);
+    return {
+      ...league,
+      international: { ...league.international, stage },
+    } as unknown as LeagueStore;
+  };
+
+  it("maps the retired per-round knockout stages onto the repeating one", () => {
+    for (const old of ["qf", "sf", "final"]) {
+      expect(migrateLeague(withStage(old)).international.stage).toBe("knockout");
+    }
+  });
+
+  it("leaves a current stage alone", () => {
+    const current = [
+      "qualifying", "groups", "knockout", "confederation-groups", "confederation-ko", "done",
+    ];
+    for (const stage of current) {
+      expect(migrateLeague(withStage(stage)).international.stage).toBe(stage);
+    }
+  });
+
+  it("treats an unrecognised stage as nothing pending", () => {
+    // Not a crash: the next offseason simply draws a fresh campaign.
+    expect(migrateLeague(withStage("who-knows")).international.stage).toBeNull();
+  });
+});

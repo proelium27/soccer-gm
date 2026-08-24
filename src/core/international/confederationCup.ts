@@ -3,7 +3,7 @@ import type { IntlConfederationCup, IntlTournamentSummary, NationSquad } from ".
 import type { CareerDelta } from "./simIntl.js";
 import { buildSquads } from "./squads.js";
 import { buildGroup, potDraw } from "./groups.js";
-import { playTournamentGroups, playTournamentRound, summarize } from "./tournament.js";
+import { playTournamentGroups, playTournamentRound, roundsRemaining, summarize } from "./tournament.js";
 import { emptyCareerDelta, mergeCareerDelta } from "./simIntl.js";
 import {
   CONFEDERATION_CUPS, confederationOf, confederationIndex,
@@ -141,25 +141,6 @@ export function initConfederationCups(
     });
   }
   return out;
-}
-
-/**
- * How many knockout rounds a cup still has to play: 0 once it has a
- * champion, otherwise however many halvings its current field needs. Before the
- * knockout starts that field is the seeded bracket; afterwards it is the
- * winners of the last round played.
- *
- * This is what aligns the finals — a stage plays only the tournaments with the
- * most rounds left, so the shorter ones wait and everyone finishes together.
- */
-export function roundsRemaining(t: IntlConfederationCup): number {
-  if (t.championNid !== null) return 0;
-  if (t.ties.length === 0) {
-    return t.bracket.length > 1 ? Math.log2(t.bracket.length) : 0;
-  }
-  const lastRound = Math.max(...t.ties.map((tie) => tie.round));
-  const survivors = t.ties.filter((tie) => tie.round === lastRound).length;
-  return survivors > 1 ? Math.log2(survivors) : 0;
 }
 
 /**
