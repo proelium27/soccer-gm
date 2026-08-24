@@ -79,8 +79,10 @@ export function liveGroupRows(group: IntlGroup, nations: string[]): StandingRow[
 }
 
 /**
- * One group's standings table. `highlight` shades the rows that advanced
- * (qualifiers / top finishers); `compact` drops the W/D/L columns for the denser
+ * One group's standings table. `highlight` marks the rows that advanced
+ * (qualifiers / top finishers) with the app's `.row-selected` treatment — a
+ * green wash and a leading edge bar, the same language the club standings use
+ * for a qualification zone. `compact` drops the W/D/L columns for the denser
  * qualifying view.
  */
 export function GroupStandings({
@@ -111,7 +113,7 @@ export function GroupStandings({
       </thead>
       <tbody>
         {rows.map((r) => (
-          <tr key={r.nation} className={highlight?.(r.nation) ? "table-success" : undefined}>
+          <tr key={r.nation} className={highlight?.(r.nation) ? "row-selected" : undefined}>
             <td><NationName nation={r.nation} /></td>
             <td className="text-end">{r.played}</td>
             {!compact && (

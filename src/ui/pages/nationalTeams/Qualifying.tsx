@@ -30,7 +30,7 @@ function QualifyingView({
         {qualified.length === 0
           ? <span className="text-muted">Qualifying is still being played.</span>
           : qualified.map((nation) => (
-              <span className="badge text-bg-success" key={nation}><NationName nation={nation} /></span>
+              <span className="qualified-pill" key={nation}><NationName nation={nation} /></span>
             ))}
       </div>
 

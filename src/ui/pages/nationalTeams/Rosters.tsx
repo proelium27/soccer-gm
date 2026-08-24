@@ -52,7 +52,7 @@ function SquadTable({ squad, players, season, clubName }: {
       </thead>
       <tbody>
         {sorted.map((p) => (
-          <tr key={p.pid} className={xiPids.has(p.pid) ? "table-success" : undefined}>
+          <tr key={p.pid} className={xiPids.has(p.pid) ? "row-selected" : undefined}>
             <td>{p.pos}</td>
             <td>
               <PlayerRatingsTooltip player={p}>
@@ -116,7 +116,7 @@ export function NTRosters() {
         Every squad named for {isTournamentField ? "this tournament" : "this qualifying campaign"},
         strongest nation first. Squads pick themselves, so each nation takes the best players
         available to it, keeping up to three goalkeepers and preferring fit players over injured
-        ones. The green rows are the eleven that nation would field.
+        ones. The rows with a green bar down the left are the eleven that nation would field.
       </p>
       <div className="row g-3">
         <div className="col-12 col-md-4 col-lg-3">
