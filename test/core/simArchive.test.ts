@@ -2,7 +2,10 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
-import { detachArchive, reattachArchive } from "../../src/core/simArchive.js";
+import {
+  detachArchive, reattachArchive, detachPlayed, reattachPlayed,
+} from "../../src/core/simArchive.js";
+import { computeTeamSeasonStats } from "../../src/core/standings.js";
 import { pruneRetireeArchive } from "../../src/core/players/archive.js";
 import type { ArchivedPlayer } from "../../src/core/players/archive.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
@@ -115,5 +118,82 @@ describe("simArchive", () => {
     const atOnce = pruneRetireeArchive(seasons.flat(), 3);
 
     expect(iterated.map((r) => r.pid)).toEqual(atOnce.map((r) => r.pid));
+  });
+});
+
+/**
+ * The gate for detachPlayed/reattachPlayed.
+ *
+ * Box scores of already-played matches are the heaviest thing in a save (88% of
+ * it by the end of a season on a large world), and the sim reads them in
+ * exactly one place. Same shape of test as above and for the same reason: a
+ * stub the sim *does* read yields zeroes, not an error.
+ */
+describe("simArchive played box scores", () => {
+  let mid: LeagueStore;
+  beforeAll(() => {
+    const rng = mulberry32(77);
+    const fresh = createLeagueState(0, rng, 0, "normal", englandCompetitions());
+    mid = simThrough(fresh, { matchday: 12 }, rng);
+  }, 600_000);
+
+  it("strips the box scores but keeps everything the sim reads", () => {
+    const { payload, played } = detachPlayed(mid);
+
+    expect(played.length).toBeGreaterThan(0);
+    expect(payload.played).toHaveLength(mid.played.length);
+    for (let i = 0; i < payload.played.length; i++) {
+      const before = mid.played[i];
+      const after = payload.played[i];
+      // Scores, possession and matchday are read by standings, form and the
+      // markets, so they must survive untouched.
+      expect(after.home).toBe(before.home);
+      expect(after.away).toBe(before.away);
+      expect(after.homeGoals).toBe(before.homeGoals);
+      expect(after.awayGoals).toBe(before.awayGoals);
+      expect(after.matchday).toBe(before.matchday);
+      expect(after.possessionHome).toBe(before.possessionHome);
+      // The weight is gone.
+      expect(after.boxScore.home).toEqual([]);
+      expect(after.boxScore.away).toEqual([]);
+      expect(after.boxScore.events).toEqual([]);
+    }
+    expect(JSON.stringify(payload).length).toBeLessThan(JSON.stringify(mid).length / 2);
+  });
+
+  it("simming on stripped matches lands where an unstripped run does", () => {
+    const whole = simThrough(mid, { matchday: 20 }, mulberry32(5));
+
+    const { payload, played } = detachPlayed(mid);
+    const stripped = reattachPlayed(simThrough(payload, { matchday: 20 }, mulberry32(5)), played);
+
+    expect(stripped).toEqual(whole);
+  });
+
+  it("a whole season plus its offseason lands where an unstripped run does", () => {
+    const rngA = mulberry32(6);
+    const whole = simOffseason(simThrough(mid, "season", rngA), rngA);
+
+    // What the worker boundary actually does: strip, sim, reattach, then strip
+    // again for the offseason with the team stats worked out on this side.
+    const rngB = mulberry32(6);
+    const a = detachPlayed(mid);
+    const seasonDone = reattachPlayed(simThrough(a.payload, "season", rngB), a.played);
+    const teamStats = computeTeamSeasonStats(
+      seasonDone.teams.map((t) => t.tid),
+      seasonDone.played,
+    );
+    const b = detachPlayed(seasonDone);
+    const stripped = reattachPlayed(simOffseason(b.payload, rngB, teamStats), b.played);
+
+    expect(stripped).toEqual(whole);
+  });
+
+  it("keeps the worker's own matches when the offseason wiped the array", () => {
+    // No leading stubs in the result means `played` was cleared and refilled,
+    // so nothing may be restored over the top of it.
+    const { played } = detachPlayed(mid);
+    const rolled: LeagueStore = { ...mid, played: [] };
+    expect(reattachPlayed(rolled, played).played).toEqual([]);
   });
 });

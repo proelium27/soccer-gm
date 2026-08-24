@@ -25,7 +25,7 @@ import { runAIContractRenewals } from "./ai/renewals.js";
 import { enforceDivision2Ceiling } from "./ai/divisionCeiling.js";
 import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
 import { processLoanReturns, runAILoanMarket } from "./loans.js";
-import { computeStandings, computeTeamSeasonStats, type StandingsRow } from "./standings.js";
+import { computeStandings, computeTeamSeasonStats, type StandingsRow, type TeamSeasonStats } from "./standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
 import { computeWorldAwards } from "./worldAwards.js";
 import { snapshotAwardWinners } from "./awardWinners.js";
@@ -71,7 +71,22 @@ function awardsByCompetition(
  * actions later; youth intake still applies to every club per spec (no
  * draft mechanic).
  */
-export function simOffseason(league: LeagueStore, rng: () => number): LeagueStore {
+export function simOffseason(
+  league: LeagueStore,
+  rng: () => number,
+  /**
+   * This season's team stat totals, when the caller has already worked them
+   * out. Optional and defaulted, so every existing caller is unaffected.
+   *
+   * It exists for one reason: this is the **only** place the sim reads a box
+   * score belonging to a matchday it did not just play, and box scores are by
+   * far the heaviest thing in a save (204.7 MB of a 232.8 MB save by matchday
+   * 38 on a 32-competition world). Letting the caller supply the aggregate is
+   * what allows `core/simArchive.ts` to keep them off the worker entirely.
+   * See `detachPlayed`.
+   */
+  precomputedTeamStats?: TeamSeasonStats[],
+): LeagueStore {
   if (league.phase !== "offseason") {
     return league;
   }
@@ -289,7 +304,8 @@ export function simOffseason(league: LeagueStore, rng: () => number): LeagueStor
     );
   }
   const standings = league.competitions.flatMap((comp) => tablesByCompId.get(comp.id)!);
-  const teamStats = computeTeamSeasonStats(teams.map((t) => t.tid), league.played);
+  const teamStats =
+    precomputedTeamStats ?? computeTeamSeasonStats(teams.map((t) => t.tid), league.played);
   const championTidByCompId: Record<number, number> = Object.fromEntries(
     league.competitions.filter((c) => c.tier === 1).map((c) => [c.id, tablesByCompId.get(c.id)![0].tid]),
   );

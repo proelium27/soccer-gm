@@ -1,6 +1,6 @@
 import type { LeagueStore } from "../core/leagueState.js";
 import type { SimThrough } from "../core/simThrough.js";
-import type { PlayedMatch } from "../core/standings.js";
+import type { PlayedMatch, TeamSeasonStats } from "../core/standings.js";
 import type { CupTie } from "../core/cup/types.js";
 import type { DomesticTieResult } from "../core/simThrough.js";
 
@@ -14,7 +14,14 @@ export type IntlMode = "stage" | "through";
 // UI -> Worker
 export type WorkerCommand =
   | { type: "sim"; through: SimThrough; league: LeagueStore }
-  | { type: "offseason"; league: LeagueStore }
+  /**
+   * `teamStats` is this season's aggregate, worked out on the main thread. The
+   * offseason is the only place the sim reads a box score belonging to a
+   * matchday it did not just play, so supplying it is what lets `detachPlayed`
+   * strip them (see core/simArchive.ts). Optional: without it the offseason
+   * derives its own, which is right for any caller that sent real box scores.
+   */
+  | { type: "offseason"; league: LeagueStore; teamStats?: TeamSeasonStats[] }
   | { type: "intl"; mode: IntlMode; league: LeagueStore }
   /** Play `seasons` whole seasons with the AI running the user's club (core/autopilot.ts). */
   | { type: "jump"; seasons: number; league: LeagueStore };

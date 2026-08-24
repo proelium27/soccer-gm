@@ -1,6 +1,7 @@
 import type { LeagueStore } from "./leagueState.js";
 import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { ArchivedPlayer } from "./players/archive.js";
+import type { PlayedMatch } from "./standings.js";
 import { pruneRetireeArchive } from "./players/archive.js";
 
 /**
@@ -92,4 +93,86 @@ export function reattachArchive(result: LeagueStore, archive: LeagueArchive): Le
       ...(result.retiredPlayers ?? []),
     ]),
   };
+}
+
+/**
+ * A box score replaced by a marker, for a match the worker does not need to
+ * look at again.
+ *
+ * **This is the biggest single thing in a save, by a distance.** Every match of
+ * the current season sits in `league.played` carrying its full box score, and
+ * one box score is ~17.4 KB (25 player lines at 6.6 KB, 181 events at 10.8 KB).
+ * Measured by simming a real user's 32-competition / 640-club save forward, the
+ * league plays 12,160 matches a season and `played` grows straight through it:
+ *
+ * | matchday | box scores | whole save | structuredClone |
+ * | -------- | ---------- | ---------- | --------------- |
+ * | 5        | 26.6 MB    | 44.2 MB    | 480 ms          |
+ * | 20       | 107.5 MB   | 132.9 MB   | 1610 ms         |
+ * | 38       | 204.7 MB   | 232.8 MB   | 3436 ms         |
+ *
+ * So by the end of a season **88% of the save is box scores for matches already
+ * played**, on a save in its *first* season. The shipped 16-competition world
+ * plays 6,080 league matches and so peaks around 106 MB the same way. This is
+ * what the reported "crashing at season 56 on mobile" actually is: it is not a
+ * function of how many seasons have passed at all — `played` is wiped every
+ * offseason and rebuilt every season — which is exactly why a growth curve
+ * measured after each offseason never sees it.
+ *
+ * The sim does not need them. `applyInjuries`, `applySuspensions` and
+ * `detectMatchdayNewsEvents` all take the matchday's own results, which the
+ * worker has just generated; the markets, `computeStandings` and
+ * `computeTeamForm` read scores only. The single exception is
+ * `computeTeamSeasonStats` in the offseason, which is why `simOffseason` takes
+ * a precomputed `teamStats`.
+ *
+ * `stub: true` is what makes the round trip safe. It marks a box score as
+ * hollow so `reattachPlayed` can tell the worker's real ones from the ones it
+ * was handed, without guessing from array positions.
+ */
+const STUB_BOX_SCORE = { home: [], away: [], events: [], stub: true } as const;
+
+function isStub(m: PlayedMatch): boolean {
+  return (m.boxScore as { stub?: boolean }).stub === true;
+}
+
+/**
+ * Replace the box scores of already-played matches with markers.
+ *
+ * Scores, possession and matchday all survive, because the sim genuinely reads
+ * those. Only the per-player lines and the event timeline go, and those are the
+ * whole weight.
+ */
+export function detachPlayed(league: LeagueStore): {
+  payload: LeagueStore;
+  played: PlayedMatch[];
+} {
+  const played = league.played ?? [];
+  if (played.length === 0) return { payload: league, played };
+  return {
+    payload: {
+      ...league,
+      played: played.map((m) => ({ ...m, boxScore: STUB_BOX_SCORE as unknown as PlayedMatch["boxScore"] })),
+    },
+    played,
+  };
+}
+
+/**
+ * Put the real box scores back.
+ *
+ * `simThrough` only ever appends to `played` and the offseason only ever clears
+ * it, so the stubs the worker was handed come back as a **leading run** — and
+ * counting that run is what makes this exact rather than positional guesswork.
+ * A result with no stubs at the front means the offseason wiped the array, so
+ * everything in it is the worker's own and is kept verbatim.
+ */
+export function reattachPlayed(result: LeagueStore, played: PlayedMatch[]): LeagueStore {
+  const out = result.played ?? [];
+  let stubs = 0;
+  while (stubs < out.length && isStub(out[stubs])) stubs++;
+  if (stubs === 0) return result;
+  // Defensive: never invent matches we were not holding.
+  const restored = played.slice(0, Math.min(stubs, played.length));
+  return { ...result, played: [...restored, ...out.slice(stubs)] };
 }
