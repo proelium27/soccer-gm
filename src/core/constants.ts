@@ -2082,24 +2082,29 @@ export const WORLD_POSITION_AWARD_SHORTLIST = 5;
  * score where his 26 league goals are worth 2.08, so it is proportionally about
  * twice as loud. The multiplier restores that proportion and then some.
  *
- * **Why it also moves winners into stronger leagues, which is the real point.**
- * Match ratings, tackles and interceptions are all scored against one league.
- * Ovr and the league-strength correction are the only cross-league-meaningful
- * terms these awards have, and they are what put Ballon d'Or winners in the big
- * four — and the volume term dilutes them exactly as it dilutes trophies.
- * Measured before this: the *keeper* award already landed like the Ballon d'Or
- * (12 of 16 winners in the big four, against the Ballon d'Or's own 12 of 16),
- * while the defender award put 7 of 16 in the weakest leagues.
+ * **Why it also moves winners into stronger leagues.** Measured before this:
+ * the *keeper* award already landed like the Ballon d'Or (12 of 16 winners in
+ * the big four, against the Ballon d'Or's own 12 of 16), while the defender
+ * award put 7 of 16 in the weakest leagues.
  *
- * **Which trophy does that work is not obvious, and picking wrong would do
- * nothing.** A league title is *league-relative*: Belgium's champion wins
- * Belgium as surely as England's wins England, so scaling the title bonus alone
- * is neutral on league strength. The Continental Cup run bonus and the World
- * Cup bonus are not league-relative — a weak league's clubs rarely reach the
- * quarter-finals, and its nations rarely win a World Cup — so those are the
- * terms that actually pull the award towards strong leagues. Scaling the whole
- * non-league block gets both effects at once, which is why it is one multiplier
- * over four parts rather than a separate knob per trophy.
+ * The mechanism is narrower than it looks, and an earlier version of this
+ * comment got it wrong, so be precise about it. The multiplier does **not**
+ * touch ovr or the league-strength correction: both live inside `league`, which
+ * is exactly the part left alone. If anything it makes them a *smaller* share
+ * of the total. The whole effect comes from the two multiplied terms that are
+ * cross-league-meaningful on their own — the **Continental Cup** run, which a
+ * weak league's clubs rarely go deep in, and the **international** campaign,
+ * which weak nations rarely win. The other two multiplied terms, the league
+ * title and the domestic cup, are league-relative and contribute nothing here.
+ *
+ * The corollary is the cost recorded below: diluting ovr is *why* the keeper's
+ * median ovr rank slipped from 3 to about 8. Same lever, both effects.
+ *
+ * **So scaling one trophy would not have worked.** A league title is
+ * *league-relative*: Belgium's champion wins Belgium as surely as England's
+ * wins England. Scaling the whole non-league block is what gets the trophy
+ * effect and the league-strength effect together, which is why this is one
+ * multiplier over four parts rather than a knob per trophy.
  *
  * **Measured at 3, two seeds x 6 seasons (`scripts/positionAwardAudit.ts`),
  * against the same runs' Ballon d'Or at 10 of 12 winners from the big four:**
@@ -2111,6 +2116,17 @@ export const WORLD_POSITION_AWARD_SHORTLIST = 5;
  * | defender winners from Belgium/Turkey | 5/16 | 1/12 |
  * | defender score from tackles + interceptions | 50% | 37% |
  * | defender's worst ovr rank | 112 | 25 |
+ *
+ * **Proportion check, measured on the same runs (2 seeds x 6 seasons):** share
+ * of the winning score coming from beyond the player's own league — Ballon d'Or
+ * **16% / 15%**, defender **20% / 18%**, keeper **29% / 24%**. So against the
+ * yardstick the defender award runs about 1.2x and the keeper award about 1.7x. So the defender award now sits just above the
+ * yardstick and the keeper award well above it, because a keeper's `totsScore`
+ * carries far less volume than a defender's (saves at 0.035 against tackles
+ * *and* interceptions at 0.03 each), leaving the same tripled trophies landing
+ * on a smaller base — a ~16-point score against ~24. If that ever wants
+ * evening up, the honest fix is a per-group multiplier, not a smaller shared
+ * one.
  *
  * The cost, and it is the same trade the Ballon d'Or's own team bonuses make
  * (see WORLD_AWARD_OVR_WEIGHT's sweep): the winner is less reliably the single

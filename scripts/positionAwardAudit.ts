@@ -77,6 +77,8 @@ const keeperTrophyShare: number[] = [];
 const keeperVolumeShare: number[] = [];
 /** The Ballon d'Or's own country spread over the same run, as a reference point. */
 const ballonCountry = new Map<string, number>();
+/** The Ballon d'Or's own beyond-league share, so the two are compared like for like. */
+const ballonTrophyShare: number[] = [];
 /**
  * Whether the Defender of the Year also took a back-four slot in the World XI.
  *
@@ -124,7 +126,11 @@ for (const seed of SEEDS) {
       return pool.findIndex((r) => r.pid === pid) + 1;
     };
 
-    if (world.ballonDOr.length > 0) bump(ballonCountry, countryOf(world.ballonDOr[0].tid));
+    if (world.ballonDOr.length > 0) {
+      const b = world.ballonDOr[0];
+      bump(ballonCountry, countryOf(b.tid));
+      if (b.score > 0) ballonTrophyShare.push((b.score - b.league) / b.score);
+    }
 
     if (keepers.length > 0) {
       const w = keepers[0];
@@ -215,6 +221,7 @@ console.log(`  keeper, from saves:              ${(mean(keeperVolumeShare) * 100
 console.log(`  defender, from tackles + int:    ${(mean(volumeShare) * 100).toFixed(0)}%`);
 console.log(`
 How much of the winning score came from beyond his own league`);
+console.log(`  Ballon d'Or: ${(mean(ballonTrophyShare) * 100).toFixed(0)}%   <- the yardstick`);
 console.log(`  keeper:    ${(mean(keeperTrophyShare) * 100).toFixed(0)}%`);
 console.log(`  defender:  ${(mean(trophyShare) * 100).toFixed(0)}%`);
 console.log(`\nCountry spread, for comparison`);

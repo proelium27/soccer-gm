@@ -1051,13 +1051,19 @@ export function Manual() {
             Those extras count for three times as much here as they do in the Ballon d'Or, and
             there's a reason for the difference. Tackles, interceptions and saves are counted up
             over a season and they get big, so a defender's raw defensive work can reach half his
-            score and leave everything else as rounding. Tripling the rest puts trophies back on the
-            footing they have in the Ballon d'Or, and it does something more useful besides: your
-            rating and your league's strength are the only two things in the whole calculation that
-            mean the same in every country, and they were being drowned by the same counting stats.
-            Turning the rest up is what stops these awards drifting to whoever plays in the weakest
-            league. It works &mdash; keepers now win from the strongest leagues about as often as
-            Ballon d'Or winners do.
+            score and leave everything else as rounding. A league title was worth under 4% of a
+            defender's total. Tripling the rest puts trophies back roughly where they sit in the
+            Ballon d'Or: about a fifth of a defender's winning score now comes from outside his
+            league, against a sixth for a Ballon d'Or winner.
+          </p>
+          <p>
+            It has a second effect that's worth knowing about, because it's the reason the defender
+            award stopped drifting to weak leagues. Two of those extras &mdash; the Continental Cup
+            and your summer with your country &mdash; are the only parts of the whole calculation
+            that put players from different leagues against each other directly, and a club from a
+            weak league rarely goes deep in the cup. Turning them up pulls the award towards the
+            stronger leagues on its own. Your league title and your domestic cup don't help with
+            that at all, since every league crowns a champion regardless of how good it is.
           </p>
           <p>
             The World Team of the Year is scored the same way, trophies and all, because it's built
