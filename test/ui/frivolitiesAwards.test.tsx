@@ -6,7 +6,7 @@ import { makeLeague } from "../helpers/league.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { SeasonHistoryEntry } from "../../src/core/standings.js";
 import type { ArchivedPlayer } from "../../src/core/players/archive.js";
-import type { BallonDOrEntry } from "../../src/core/worldAwards.js";
+import type { WorldAwardEntry } from "../../src/core/worldAwards.js";
 import { emptyTotals, emptyBestSeasons } from "../../src/core/frivolities/stats.js";
 
 /**
@@ -33,7 +33,7 @@ function render(league: LeagueStore): string {
   );
 }
 
-function bdo(pid: number, tid: number, score: number): BallonDOrEntry {
+function bdo(pid: number, tid: number, score: number): WorldAwardEntry {
   return { pid, tid, score, league: score - 1, cup: 0.7, intl: 0.2, title: 0.1 };
 }
 
@@ -49,7 +49,7 @@ function archived(pid: number, name: string): ArchivedPlayer {
   } as ArchivedPlayer;
 }
 
-function history(season: number, shortlist: BallonDOrEntry[], extra: {
+function history(season: number, shortlist: WorldAwardEntry[], extra: {
   worldXI?: (number | null)[];
   poty?: number;
   goldenBoot?: number;

@@ -6,7 +6,7 @@ import { archiveCup } from "../../src/core/cup/archive.js";
 import type { BoxScore, PlayerMatchLine } from "../../src/engine/attribution.js";
 import { TOTS_SLOTS } from "../../src/core/awards.js";
 import {
-  BALLON_DOR_SHORTLIST, AWARD_MIN_APPEARANCES,
+  BALLON_DOR_SHORTLIST, AWARD_MIN_APPEARANCES, WORLD_POSITION_AWARD_SHORTLIST,
   WORLD_AWARD_DOMESTIC_CUP_BONUS, WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT,
 } from "../../src/core/constants.js";
 import type { DomesticCupState } from "../../src/core/domesticCup/types.js";
@@ -43,6 +43,11 @@ interface PlayerSpec {
   appearances?: number;
   nationality?: string;
   intl?: Player["intl"];
+  /** The defensive stats the position awards are scored on. */
+  saves?: number;
+  goalsAgainst?: number;
+  tackles?: number;
+  interceptions?: number;
 }
 
 function player(spec: PlayerSpec): Player {
@@ -53,6 +58,10 @@ function player(spec: PlayerSpec): Player {
     goals: spec.goals ?? 0,
     assists: spec.assists ?? 0,
     avgRating: spec.avgRating ?? 6.5,
+    saves: spec.saves ?? 0,
+    goalsAgainst: spec.goalsAgainst ?? 0,
+    tackles: spec.tackles ?? 0,
+    interceptions: spec.interceptions ?? 0,
     minutesPlayed: appearances * 90,
   };
   return {
@@ -468,5 +477,192 @@ describe("computeWorldAwards — domestic cup", () => {
     const players = [player({ pid: 1, tid: 1, ovr: 80, goals: 20 }), ...squad(100, 1, 60)];
     expect(computeWorldAwards(players, SEASON, ctx({ domesticCups: [] })))
       .toEqual(computeWorldAwards(players, SEASON, ctx()));
+  });
+});
+
+/**
+ * Goalkeeper of the Year and Defender of the Year.
+ *
+ * These exist because `potyScore` — and therefore the Ballon d'Or — carries
+ * no defensive statistics at all, so the tests that matter most are the ones
+ * showing these awards are decided by the stats that award ignores.
+ */
+describe("position awards", () => {
+  /** A keeper who did keeper things, so the defensive formula has something to read. */
+  function keeper(pid: number, tid: number, ovr: number, over: Partial<{ saves: number; goalsAgainst: number; avgRating: number }> = {}) {
+    return player({
+      pid, tid, ovr, pos: "GK",
+      saves: over.saves ?? 100,
+      goalsAgainst: over.goalsAgainst ?? 40,
+      avgRating: over.avgRating ?? 6.8,
+    });
+  }
+
+  function defender(pid: number, tid: number, ovr: number, over: Partial<{ tackles: number; interceptions: number; avgRating: number; pos: Position }> = {}) {
+    return player({
+      pid, tid, ovr, pos: over.pos ?? "CB",
+      tackles: over.tackles ?? 100,
+      interceptions: over.interceptions ?? 100,
+      avgRating: over.avgRating ?? 6.8,
+    });
+  }
+
+  it("gives the keeper's award to a keeper and the defender's to a defender", () => {
+    const players = [
+      // A striker who would win any award open to him.
+      player({ pid: 1, tid: 1, ovr: 90, goals: 40, assists: 20, avgRating: 8 }),
+      keeper(2, 1, 78),
+      defender(3, 1, 78),
+      ...squad(100, 2, 60),
+    ];
+    const { goalkeeperOfYear, defenderOfYear, ballonDOr } = computeWorldAwards(players, SEASON, ctx());
+    expect(goalkeeperOfYear![0].pid).toBe(2);
+    expect(defenderOfYear![0].pid).toBe(3);
+    // ...and the striker still wins the award that is open to everyone.
+    expect(ballonDOr[0].pid).toBe(1);
+  });
+
+  it("never shortlists a player from outside the position group", () => {
+    const players = [
+      player({ pid: 1, tid: 1, ovr: 90, goals: 40, avgRating: 8 }),
+      player({ pid: 2, tid: 1, ovr: 88, pos: "DM", tackles: 300, interceptions: 300, avgRating: 8 }),
+      player({ pid: 3, tid: 1, ovr: 88, pos: "CM", tackles: 300, interceptions: 300, avgRating: 8 }),
+      keeper(4, 1, 60),
+      defender(5, 1, 60),
+      ...squad(100, 2, 55),
+    ];
+    const { goalkeeperOfYear, defenderOfYear } = computeWorldAwards(players, SEASON, ctx());
+    // A holding midfielder out-tackles every defender here and still can't
+    // appear: DM and CM are the MID group, not DEF.
+    const keeperPos = goalkeeperOfYear!.map((e) => players.find((p) => p.pid === e.pid)!.pos);
+    const defPos = defenderOfYear!.map((e) => players.find((p) => p.pid === e.pid)!.pos);
+    expect(new Set(keeperPos)).toEqual(new Set(["GK"]));
+    expect(defPos.every((pos) => pos === "CB" || pos === "FB")).toBe(true);
+  });
+
+  it("full-backs are eligible alongside centre-backs", () => {
+    const players = [
+      defender(1, 1, 70, { pos: "FB", tackles: 250, interceptions: 250, avgRating: 7.5 }),
+      defender(2, 1, 70, { pos: "CB", tackles: 60, interceptions: 60, avgRating: 6.2 }),
+      ...squad(100, 2, 55),
+    ];
+    const { defenderOfYear } = computeWorldAwards(players, SEASON, ctx());
+    expect(defenderOfYear![0].pid).toBe(1);
+  });
+
+  it("is decided by defensive work, which the Ballon d'Or cannot see", () => {
+    const busy = defender(1, 1, 70, { tackles: 300, interceptions: 300 });
+    const quiet = defender(2, 1, 70, { tackles: 10, interceptions: 10 });
+    const players = [busy, quiet, ...squad(100, 2, 55)];
+    const { defenderOfYear, ballonDOr } = computeWorldAwards(players, SEASON, ctx());
+
+    expect(defenderOfYear![0].pid).toBe(1);
+    // The same two players are indistinguishable to the Ballon d'Or, which is
+    // the entire reason this award exists: potyScore has no tackle term, so
+    // their league scores are identical and only the pid tiebreak separates them.
+    const a = ballonDOr.find((e) => e.pid === 1)!;
+    const b = ballonDOr.find((e) => e.pid === 2)!;
+    expect(a.score).toBeCloseTo(b.score, 6);
+  });
+
+  it("pays a keeper for saves and charges him for goals conceded", () => {
+    const players = [
+      keeper(1, 1, 70, { saves: 200, goalsAgainst: 20 }),
+      keeper(2, 1, 70, { saves: 20, goalsAgainst: 80 }),
+      ...squad(100, 2, 55),
+    ];
+    const { goalkeeperOfYear } = computeWorldAwards(players, SEASON, ctx());
+    expect(goalkeeperOfYear![0].pid).toBe(1);
+    expect(goalkeeperOfYear![1].pid).toBe(2);
+  });
+
+  it("agrees with the World XI's keeper, which is the point of sharing one score", () => {
+    const players = [
+      keeper(1, 1, 82, { saves: 180, goalsAgainst: 25 }),
+      keeper(2, 2, 80, { saves: 90, goalsAgainst: 55 }),
+      keeper(3, 11, 76, { saves: 140, goalsAgainst: 60 }),
+      ...squad(100, 1, 65),
+      ...squad(200, 2, 62),
+    ];
+    const { goalkeeperOfYear, worldTeamOfYear } = computeWorldAwards(players, SEASON, ctx());
+    // Slot 0 of TOTS_SLOTS is the keeper's.
+    expect(TOTS_SLOTS[0]).toBe("GK");
+    expect(worldTeamOfYear[0]).toBe(goalkeeperOfYear![0].pid);
+  });
+
+  it("puts the Defender of the Year in the World XI's back four, by construction", () => {
+    // Same argument as the keeper: `positionAward` takes the best score in the
+    // DEF group and `pickWorldTeam` takes the best score among candidates for
+    // each back-four slot, off the same map, applying the qualified-first rule
+    // identically. So the winner cannot be absent from the back four -- which
+    // is what makes "this award only names a pick the game already made" a
+    // property rather than a measurement.
+    const players = [
+      defender(1, 1, 80, { pos: "CB", tackles: 240, interceptions: 220, avgRating: 7.3 }),
+      defender(2, 2, 76, { pos: "CB", tackles: 120, interceptions: 110, avgRating: 6.9 }),
+      defender(3, 1, 78, { pos: "FB", tackles: 200, interceptions: 150, avgRating: 7.1 }),
+      defender(4, 11, 72, { pos: "FB", tackles: 90, interceptions: 80, avgRating: 6.6 }),
+      ...squad(100, 1, 65),
+      ...squad(200, 2, 62),
+    ];
+    const { defenderOfYear, worldTeamOfYear } = computeWorldAwards(players, SEASON, ctx());
+    // Slots 1-4 of TOTS_SLOTS are the back four.
+    expect(TOTS_SLOTS.slice(1, 5)).toEqual(["CB", "CB", "FB", "FB"]);
+    expect(worldTeamOfYear.slice(1, 5)).toContain(defenderOfYear![0].pid);
+  });
+
+  it("keeps a shortlist no longer than WORLD_POSITION_AWARD_SHORTLIST", () => {
+    const keepers = Array.from({ length: WORLD_POSITION_AWARD_SHORTLIST + 6 }, (_, i) =>
+      keeper(500 + i, 1, 70, { saves: 100 + i }),
+    );
+    const { goalkeeperOfYear } = computeWorldAwards([...keepers, ...squad(100, 2, 55)], SEASON, ctx());
+    expect(goalkeeperOfYear).toHaveLength(WORLD_POSITION_AWARD_SHORTLIST);
+    // Best first.
+    const scores = goalkeeperOfYear!.map((e) => e.score);
+    expect([...scores].sort((a, b) => b - a)).toEqual(scores);
+  });
+
+  it("falls back below the appearance bar rather than leaving the award vacant", () => {
+    // Nobody in the world played a full season, exactly like the Ballon d'Or's
+    // own fallback.
+    const players = [
+      keeper(1, 1, 70, { saves: 40 }),
+      defender(2, 1, 70, { tackles: 40 }),
+    ].map((p) => ({
+      ...p,
+      stats: [{ ...p.stats[0], appearances: AWARD_MIN_APPEARANCES - 1 }],
+    })) as unknown as Player[];
+    const { goalkeeperOfYear, defenderOfYear } = computeWorldAwards(players, SEASON, ctx());
+    expect(goalkeeperOfYear![0].pid).toBe(1);
+    expect(defenderOfYear![0].pid).toBe(2);
+  });
+
+  it("prefers a qualified player over an unqualified one who scored higher", () => {
+    const parttime = keeper(1, 1, 90, { saves: 500, goalsAgainst: 0 });
+    const fulltime = keeper(2, 1, 60, { saves: 50, goalsAgainst: 50 });
+    const players = [
+      { ...parttime, stats: [{ ...parttime.stats[0], appearances: AWARD_MIN_APPEARANCES - 1 }] },
+      fulltime,
+      ...squad(100, 2, 55),
+    ] as unknown as Player[];
+    const { goalkeeperOfYear } = computeWorldAwards(players, SEASON, ctx());
+    expect(goalkeeperOfYear![0].pid).toBe(2);
+    expect(goalkeeperOfYear!.map((e) => e.pid)).not.toContain(1);
+  });
+
+  it("returns empty awards rather than throwing when nobody played", () => {
+    const { goalkeeperOfYear, defenderOfYear } = computeWorldAwards([], SEASON, ctx());
+    expect(goalkeeperOfYear).toEqual([]);
+    expect(defenderOfYear).toEqual([]);
+  });
+
+  it("carries the same cross-competition credit the Ballon d'Or does", () => {
+    // A league title is worth the same to a keeper as to anyone else: the
+    // position awards reuse worldAwardParts wholesale.
+    const players = [keeper(1, 1, 78), keeper(2, 2, 78), ...squad(100, 11, 55)];
+    const plain = computeWorldAwards(players, SEASON, ctx());
+    const champion = computeWorldAwards(players, SEASON, ctx({ championTidByCompId: { 0: 1 } }));
+    expect(plain.goalkeeperOfYear![0].title).toBe(0);
+    expect(champion.goalkeeperOfYear!.find((e) => e.pid === 1)!.title).toBeGreaterThan(0);
   });
 });

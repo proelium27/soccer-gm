@@ -357,6 +357,8 @@ export function PlayerProfile() {
                 <div className="award-pills">
                   <AwardPill label="Ballon d'Or" seasons={honors.ballonDOr} />
                   <AwardPill label="World Team of the Year" seasons={honors.worldTeamOfYear} />
+                  <AwardPill label="Goalkeeper of the Year" seasons={honors.goalkeeperOfYear} />
+                  <AwardPill label="Defender of the Year" seasons={honors.defenderOfYear} />
                   <AwardPill label="Player of the Season" seasons={honors.playerOfSeason} />
                   <AwardPill label="Golden Boot" seasons={honors.goldenBoot} icon={<GoldenBootIcon />} />
                   <AwardPill label="Team of the Season" seasons={honors.teamOfSeason} />

@@ -1,12 +1,12 @@
 import type { LeagueStore } from "../leagueState.js";
 import type { Position } from "../players/types.js";
-import type { BallonDOrEntry } from "../worldAwards.js";
+import type { WorldAwardEntry } from "../worldAwards.js";
 import { BALLON_DOR_SHORTLIST, GOAT_WORLD_XI_WEIGHT, GOAT_TOTS_WEIGHT } from "../constants.js";
 import { TOTS_SLOTS } from "../awards.js";
 import { allCareers, type CareerRow } from "./careers.js";
 import { totalsOf, bestSeasonsOf } from "./stats.js";
 import type { ArchivedSeason } from "../players/archive.js";
-import { computeHonours, type PlayerHonours } from "./goat.js";
+import { computeHonours, emptyHonours, type PlayerHonours } from "./goat.js";
 import { type AwardWinner } from "../awardWinners.js";
 import { farewellIndex } from "../players/retirements.js";
 import { playerNameIndex } from "../players/playerNames.js";
@@ -24,29 +24,37 @@ export const AWARD_CAREER_LIMIT = 50;
  * is the sum of the other five, which is the default ordering.
  */
 export const AWARD_KEYS = [
-  "total", "ballonDOr", "worldXI", "playerOfSeason", "goldenBoot", "teamOfSeason",
+  "total", "ballonDOr", "worldXI", "goalkeeperOfYear", "defenderOfYear",
+  "playerOfSeason", "goldenBoot", "teamOfSeason",
 ] as const;
 export type AwardKey = typeof AWARD_KEYS[number];
 
-/** The five individual awards, in the order the boards display them. */
+/**
+ * The individual awards, in the order the boards display them: the worldwide
+ * ones first, then the three handed out league by league.
+ */
 const INDIVIDUAL_KEYS = [
-  "ballonDOr", "worldXI", "playerOfSeason", "goldenBoot", "teamOfSeason",
+  "ballonDOr", "worldXI", "goalkeeperOfYear", "defenderOfYear",
+  "playerOfSeason", "goldenBoot", "teamOfSeason",
 ] as const;
 
 /** How many of each individual award something (a player, a club, a country) has collected. */
 export interface AwardTally {
   ballonDOr: number;
   worldXI: number;
+  goalkeeperOfYear: number;
+  defenderOfYear: number;
   playerOfSeason: number;
   goldenBoot: number;
   teamOfSeason: number;
-  /** The five above, added up. */
+  /** Every award above, added up. */
   total: number;
 }
 
 function emptyTally(): AwardTally {
   return {
-    ballonDOr: 0, worldXI: 0, playerOfSeason: 0, goldenBoot: 0, teamOfSeason: 0, total: 0,
+    ballonDOr: 0, worldXI: 0, goalkeeperOfYear: 0, defenderOfYear: 0,
+    playerOfSeason: 0, goldenBoot: 0, teamOfSeason: 0, total: 0,
   };
 }
 
@@ -103,7 +111,7 @@ export interface BallonDOrSeason {
   /** Where he finished that season, 1 for the winner. */
   rank: number;
   /** The stored entry: total score plus the four parts that made it. */
-  entry: BallonDOrEntry;
+  entry: WorldAwardEntry;
   pid: number;
   /**
    * His name off his career, or off the award itself once the save has stopped
@@ -373,7 +381,7 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
   const dominantSeasons: BallonDOrSeason[] = [];
   const rollOfHonour: RollOfHonourRow[] = [];
 
-  const asSeason = (entry: BallonDOrEntry, season: number, rank: number): BallonDOrSeason => {
+  const asSeason = (entry: WorldAwardEntry, season: number, rank: number): BallonDOrSeason => {
     const who = identity(entry.pid);
     return {
       season,
@@ -509,11 +517,7 @@ export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
     if (tally.total === 0 && b.shortlists === 0) continue;
     rows.push({
       career,
-      honours: h ?? {
-        ballonDOr: 0, worldXI: 0, playerOfSeason: 0, goldenBoot: 0,
-        teamOfSeason: 0, leagueTitles: 0, cupTitles: 0, shieldTitles: 0,
-        domesticCupTitles: 0, worldCups: 0,
-      },
+      honours: h ?? emptyHonours(),
       tally,
       ballon: b,
     });

@@ -12,7 +12,8 @@ import {
   positionGroup, statsFor, ovrDuringSeason, potyScore, totsScore, TOTS_SLOTS,
 } from "./awards.js";
 import {
-  AWARD_MIN_APPEARANCES, AWARD_OVR_BASELINE, BALLON_DOR_SHORTLIST, WORLD_AWARD_OVR_WEIGHT,
+  AWARD_MIN_APPEARANCES, AWARD_OVR_BASELINE, BALLON_DOR_SHORTLIST,
+  WORLD_POSITION_AWARD_SHORTLIST, WORLD_AWARD_OVR_WEIGHT,
   POTY_GOAL_WEIGHT, POTY_ASSIST_WEIGHT, TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT,
   WORLD_AWARD_LEAGUE_STRENGTH_WEIGHT, WORLD_AWARD_CUP_MULTIPLIER,
   WORLD_AWARD_CUP_RATING_WEIGHT, WORLD_AWARD_CUP_FULL_INVOLVEMENT, WORLD_AWARD_CUP_RUN_BONUS,
@@ -23,15 +24,28 @@ import {
 } from "./constants.js";
 
 /**
- * One player's Ballon d'Or case, broken into the parts that made it up so the
- * award page can show *why* he won rather than just a number.
+ * One player's case for a worldwide award, broken into the parts that made it
+ * up so the award page can show *why* he won rather than just a number.
+ *
+ * Shared by all three worldwide awards - the Ballon d'Or, the Goalkeeper of
+ * the Year and the Defender of the Year - because they differ only in the
+ * formula behind `league` and in who they are open to, never in the shape of
+ * the case. One interface is what lets the awards page render all three
+ * through the same table.
  */
-export interface BallonDOrEntry {
+export interface WorldAwardEntry {
   pid: number;
   /** Club he finished the season at (SeasonStats.tid), for display after he later moves. */
   tid: number;
   score: number;
-  /** Domestic league season, league-strength corrected, including both ovr terms (AWARD_OVR_WEIGHT + WORLD_AWARD_OVR_WEIGHT). */
+  /**
+   * Domestic league season, league-strength corrected, including both ovr terms
+   * (AWARD_OVR_WEIGHT + WORLD_AWARD_OVR_WEIGHT).
+   *
+   * Which formula produced it depends on the award: the Ballon d'Or uses
+   * `potyScore`, the two position awards use `totsScore`. That is the whole
+   * difference between them.
+   */
   league: number;
   /** Continental Cup: his own end product and rating there, plus how far his club went. */
   cup: number;
@@ -52,9 +66,25 @@ export interface BallonDOrEntry {
 /** One completed season's worldwide honors, stored on SeasonHistoryEntry alongside the per-competition ones. */
 export interface WorldAwards {
   /** The ranking, best first, up to BALLON_DOR_SHORTLIST. `[0]` is the winner; empty if nobody was eligible. */
-  ballonDOr: BallonDOrEntry[];
+  ballonDOr: WorldAwardEntry[];
   /** 11 pids (or null where no eligible player existed), index-aligned with TOTS_SLOTS. */
   worldTeamOfYear: (number | null)[];
+  /**
+   * The best goalkeeper in the world, and the rest of his shortlist, up to
+   * WORLD_POSITION_AWARD_SHORTLIST.
+   *
+   * **Optional, on the same terms as `WorldAwardEntry.domesticCup`**: every
+   * WorldAwards already persisted on a save predates this award, so readers
+   * default it to empty rather than treating its absence as a bug. Note what
+   * that means in practice - an existing save picks these up from its next
+   * completed season onward and its past seasons stay without them. That is
+   * deliberate: `migrate.ts` only computes awards for a season that has none,
+   * because rescoring a played season would judge it on the survivors still in
+   * the player pool and could hand its Ballon d'Or to somebody else.
+   */
+  goalkeeperOfYear?: WorldAwardEntry[];
+  /** The best defender in the world (CB and FB), same shape and same caveats as `goalkeeperOfYear`. */
+  defenderOfYear?: WorldAwardEntry[];
 }
 
 /**
@@ -262,25 +292,51 @@ function domesticCupComponent(
 }
 
 /**
- * The Ballon d'Or score: a POTY-style domestic season on a worldwide scale,
- * plus the cross-league competitions the domestic award can't see.
+ * Everything a worldwide award needs beyond the player himself, gathered once
+ * per season rather than threaded through every scoring function as six
+ * separate parameters. Built at the top of computeWorldAwards; nothing in it
+ * varies by player, or by which of the three awards is being scored.
  */
-function ballonDOrParts(
+interface Scoring {
+  season: number;
+  ctx: WorldAwardContext;
+  /** tid -> how many rounds from the Continental Cup final his club got. */
+  roundsFromFinal: Map<number, number>;
+  /** The tids that won their domestic cup that season. */
+  domesticChampions: ReadonlySet<number>;
+  /** pid -> his domestic cup line, for pro-rating the winner's bonus by ties played. */
+  domesticLines: Map<number, CupStatLine>;
+}
+
+/**
+ * One award case: a base domestic score plus the cross-competition credit every
+ * worldwide award shares.
+ *
+ * The *only* thing that differs between the three awards is what `base` is and
+ * which weight columns his cup end product is priced with — the Ballon d'Or
+ * passes `potyScore` and the POTY weights, the two position awards pass
+ * `totsScore` and the TOTS weights. Everything after that (league strength, the
+ * extra ovr term, the Continental Cup, the international campaign, a league
+ * title, a domestic cup) is identical by construction, which is what stops the
+ * awards drifting apart as any one of those terms is retuned.
+ */
+function worldAwardParts(
   e: Entry,
-  season: number,
-  ctx: WorldAwardContext,
-  roundsFromFinal: Map<number, number>,
-  domesticChampions: ReadonlySet<number>,
-  domesticLines: Map<number, CupStatLine>,
-): BallonDOrEntry {
+  s: Scoring,
+  base: number,
+  goalWeight: Record<PositionGroup, number>,
+  assistWeight: Record<PositionGroup, number>,
+): WorldAwardEntry {
   // The ovr terms fold into `league` rather than becoming a fifth part: the UI
   // already labels that column as including an ovr term, and adding a field
   // would break WorldAwards entries already persisted on old saves.
-  const league = potyScore(e.player, e.stats, season) + e.strength + worldOvrComponent(e);
-  const cup = cupComponent(e, roundsFromFinal, POTY_GOAL_WEIGHT, POTY_ASSIST_WEIGHT);
-  const intl = intlComponent(e.player, season, ctx.worldCupChampion, ctx.confederationCupChampions ?? NO_CHAMPIONS);
-  const title = titleComponent(e, ctx.championTidByCompId);
-  const domesticCup = domesticCupComponent(e, domesticChampions, domesticLines);
+  const league = base + e.strength + worldOvrComponent(e);
+  const cup = cupComponent(e, s.roundsFromFinal, goalWeight, assistWeight);
+  const intl = intlComponent(
+    e.player, s.season, s.ctx.worldCupChampion, s.ctx.confederationCupChampions ?? NO_CHAMPIONS,
+  );
+  const title = titleComponent(e, s.ctx.championTidByCompId);
+  const domesticCup = domesticCupComponent(e, s.domesticChampions, s.domesticLines);
   return {
     pid: e.player.pid, tid: e.stats.tid,
     score: league + cup + intl + title + domesticCup,
@@ -289,30 +345,82 @@ function ballonDOrParts(
 }
 
 /**
- * The World Team of the Year score: the same worldwide adjustments, but built
- * on the Team-of-the-Season formula, which credits defensive work and clean
- * sheets so defenders and keepers can win their slots on merit.
+ * The Ballon d'Or score: a POTY-style domestic season on a worldwide scale,
+ * plus the cross-league competitions the domestic award can't see.
+ *
+ * `potyScore` carries no defensive statistics of any kind, which is not an
+ * oversight to be patched here but the reason goalkeepers and defenders have
+ * awards of their own — see the block above WORLD_POSITION_AWARD_SHORTLIST in
+ * constants.ts.
  */
-function worldTotsScore(
-  e: Entry,
-  season: number,
-  ctx: WorldAwardContext,
-  roundsFromFinal: Map<number, number>,
-  domesticChampions: ReadonlySet<number>,
-  domesticLines: Map<number, CupStatLine>,
-): number {
-  return totsScore(e.player, e.stats, season)
-    + e.strength
-    + worldOvrComponent(e)
-    + cupComponent(e, roundsFromFinal, TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT)
-    + intlComponent(e.player, season, ctx.worldCupChampion, ctx.confederationCupChampions ?? NO_CHAMPIONS)
-    + titleComponent(e, ctx.championTidByCompId)
-    + domesticCupComponent(e, domesticChampions, domesticLines);
+function ballonDOrParts(e: Entry, s: Scoring): WorldAwardEntry {
+  return worldAwardParts(
+    e, s, potyScore(e.player, e.stats, s.season), POTY_GOAL_WEIGHT, POTY_ASSIST_WEIGHT,
+  );
+}
+
+/**
+ * The defensive-aware score, built on the Team-of-the-Season formula, which
+ * does credit tackles, interceptions, saves and goals conceded.
+ *
+ * Picks the World Team of the Year's slots *and* decides the Goalkeeper of the
+ * Year and Defender of the Year, deliberately off one number, so the trophy and
+ * the XI can never disagree about who the best keeper in the world was.
+ */
+function worldTotsParts(e: Entry, s: Scoring): WorldAwardEntry {
+  return worldAwardParts(
+    e, s, totsScore(e.player, e.stats, s.season), TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT,
+  );
+}
+
+/**
+ * The best player in the world at one position group, and the rest of his
+ * shortlist.
+ *
+ * Reads the `worldTotsParts` already computed for every player to pick the
+ * World XI, so an award costs a filter and a sort rather than a second scoring
+ * pass over the whole world.
+ *
+ * **Only ever compares a group against itself, and that is a correctness
+ * requirement rather than a scoping choice.** `totsScore` prices a defender's
+ * tackle at 0.03 against a forward's 0.01, on a statistic defenders collect in
+ * vastly greater volume, so its scores are commensurable *within* a position
+ * group and meaningless across one — the same property that makes the Team of
+ * the Season pick into fixed positional slots (see TOTS_SLOTS, which has the
+ * measurements behind it).
+ *
+ * The appearance bar falls back exactly like the Ballon d'Or's: if no keeper in
+ * the world played a full season's worth of games, the award goes to the best
+ * of whoever did play rather than going vacant.
+ */
+function positionAward(
+  entries: Entry[],
+  group: PositionGroup,
+  parts: Map<number, WorldAwardEntry>,
+): WorldAwardEntry[] {
+  const inGroup = entries.filter((e) => e.group === group);
+  const qualified = inGroup.filter((e) => e.stats.appearances >= AWARD_MIN_APPEARANCES);
+  const pool = qualified.length > 0 ? qualified : inGroup;
+  return pool
+    .map((e) => ({ entry: e, parts: parts.get(e.player.pid)! }))
+    // Ties break on average match rating, then pid — deliberately NOT the
+    // Ballon d'Or's goals-plus-assists, which is the wrong yardstick for an
+    // award a goalkeeper can win and would separate two level centre-backs by
+    // which of them got on the end of more corners.
+    .sort((a, b) => {
+      if (b.parts.score !== a.parts.score) return b.parts.score - a.parts.score;
+      if (b.entry.stats.avgRating !== a.entry.stats.avgRating) {
+        return b.entry.stats.avgRating - a.entry.stats.avgRating;
+      }
+      return a.parts.pid - b.parts.pid;
+    })
+    .slice(0, WORLD_POSITION_AWARD_SHORTLIST)
+    .map((x) => x.parts);
 }
 
 function pickWorldTeam(
   entries: Entry[],
-  scores: Map<number, number>,
+  parts: Map<number, WorldAwardEntry>,
 ): (number | null)[] {
   const used = new Set<number>();
   return TOTS_SLOTS.map((slotPos) => {
@@ -323,7 +431,8 @@ function pickWorldTeam(
       // Qualified players always outrank unqualified ones, so a thin position
       // still fills its slot rather than going empty (same rule as the
       // per-competition Team of the Season).
-      const score = (e.stats.appearances >= AWARD_MIN_APPEARANCES ? 1000 : 0) + scores.get(e.player.pid)!;
+      const score =
+        (e.stats.appearances >= AWARD_MIN_APPEARANCES ? 1000 : 0) + parts.get(e.player.pid)!.score;
       if (best === null || score > bestScore) {
         best = e;
         bestScore = score;
@@ -336,9 +445,10 @@ function pickWorldTeam(
 }
 
 /**
- * Compute a completed season's worldwide honors — the Ballon d'Or ranking and
- * the World Team of the Year — from every player in the world who featured that
- * season, however many competitions they're spread across.
+ * Compute a completed season's worldwide honors — the Ballon d'Or ranking, the
+ * World Team of the Year, and the Goalkeeper and Defender of the Year — from
+ * every player in the world who featured that season, however many competitions
+ * they're spread across.
  *
  * Pure and re-runnable, exactly like computeSeasonAwards: it reads only
  * append-only records (Player.stats / Player.hist / Player.intl.seasons) plus a
@@ -381,10 +491,19 @@ export function computeWorldAwards(
       strength: 0,
     });
   }
-  if (entries.length === 0) return { ballonDOr: [], worldTeamOfYear: TOTS_SLOTS.map(() => null) };
+  if (entries.length === 0) {
+    return {
+      ballonDOr: [],
+      worldTeamOfYear: TOTS_SLOTS.map(() => null),
+      goalkeeperOfYear: [],
+      defenderOfYear: [],
+    };
+  }
 
   const offsets = leagueStrengthOffsets(entries);
   for (const e of entries) e.strength = offsets.get(e.compId) ?? 0;
+
+  const scoring: Scoring = { season, ctx, roundsFromFinal, domesticChampions, domesticLines };
 
   // Ballon d'Or: a full season's worth of appearances is the bar, but if a world
   // is small or short enough that nobody clears it, everyone who played is
@@ -392,10 +511,7 @@ export function computeWorldAwards(
   const qualified = entries.filter((e) => e.stats.appearances >= AWARD_MIN_APPEARANCES);
   const pool = qualified.length > 0 ? qualified : entries;
   const ranked = pool
-    .map((e) => ({
-      entry: e,
-      parts: ballonDOrParts(e, season, ctx, roundsFromFinal, domesticChampions, domesticLines),
-    }))
+    .map((e) => ({ entry: e, parts: ballonDOrParts(e, scoring) }))
     // Ties break on end product, then pid — the same order the per-competition
     // Player of the Season uses, so both awards resolve a dead heat identically.
     .sort((a, b) => {
@@ -407,13 +523,16 @@ export function computeWorldAwards(
     .slice(0, BALLON_DOR_SHORTLIST)
     .map((x) => x.parts);
 
-  const totyScores = new Map<number, number>();
-  for (const e of entries) {
-    totyScores.set(
-      e.player.pid,
-      worldTotsScore(e, season, ctx, roundsFromFinal, domesticChampions, domesticLines),
-    );
-  }
+  // One defensive-aware pass over the world, feeding three awards: the World
+  // XI's eleven slots and the two position trophies. Scoring them off the same
+  // map is what guarantees the Goalkeeper of the Year is the XI's keeper.
+  const totsParts = new Map<number, WorldAwardEntry>();
+  for (const e of entries) totsParts.set(e.player.pid, worldTotsParts(e, scoring));
 
-  return { ballonDOr: ranked, worldTeamOfYear: pickWorldTeam(entries, totyScores) };
+  return {
+    ballonDOr: ranked,
+    worldTeamOfYear: pickWorldTeam(entries, totsParts),
+    goalkeeperOfYear: positionAward(entries, "GK", totsParts),
+    defenderOfYear: positionAward(entries, "DEF", totsParts),
+  };
 }

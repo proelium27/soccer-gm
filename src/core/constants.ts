@@ -2046,6 +2046,62 @@ export const TOTS_GOALS_AGAINST_PENALTY: Record<"GK" | "DEF" | "MID" | "FWD", nu
 export const BALLON_DOR_SHORTLIST = 10;
 
 /**
+ * How many players the Goalkeeper of the Year and Defender of the Year
+ * rankings keep — the winner plus the rest of his shortlist.
+ *
+ * Shorter than the Ballon d'Or's ten because each is drawn from one position
+ * group rather than the whole world: `TOTS_SLOTS` fields one keeper and four
+ * defenders, so a ten-deep keeper shortlist would be reaching well past the
+ * players anyone would call the best in the world that season.
+ */
+export const WORLD_POSITION_AWARD_SHORTLIST = 5;
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Goalkeeper of the Year and Defender of the Year (core/worldAwards.ts)
+ *
+ * Why these exist at all: the Ballon d'Or is built on `potyScore`, which
+ * carries **no defensive statistics whatsoever** — no tackles, no
+ * interceptions, no saves, no goals conceded. A centre-back's entire case is
+ * his match rating plus the two ovr terms, and the higher per-goal weights
+ * defenders get (0.14 against a striker's 0.08) cannot compensate, because
+ * they multiply a stat defenders barely accumulate: a striker's 26 goals are
+ * worth 2.08 points while average match ratings across the whole winner pool
+ * span about 6.75 to 7.49. Measured over eight seasons of a 240-club world,
+ * the Ballon d'Or top ten was 45% ST / 30% AM / 20% W / 5% FB, with no
+ * centre-back, holding midfielder or goalkeeper ever reaching it.
+ *
+ * That is a property of the formula, not a tuning accident, and it is also how
+ * the real award behaves — one defender has won it in sixty-odd years, which
+ * is why the real ceremony hands out a separate keeper's trophy instead of
+ * trying to make the main one positionally fair.
+ *
+ * So these two awards are scored on `totsScore` — the *defensive-aware*
+ * formula, which does credit tackles, interceptions, saves and goals conceded
+ * — carrying the same worldwide adjustments the Ballon d'Or uses (league
+ * strength, the extra ovr weight, the Continental Cup, the international
+ * campaign, a league title, a domestic cup). That is deliberately the exact
+ * number the World Team of the Year already picks its slots with, so the
+ * Goalkeeper of the Year and the World XI's keeper agree by construction
+ * rather than by coincidence, and a player never has to explain why he was the
+ * best keeper alive but not the best keeper in the XI.
+ *
+ * The known limitation, inherited from `totsScore` and documented on
+ * `TOTS_SLOTS`: it is a *within-position* statistic. Comparing a centre-back
+ * against a winger with it is meaningless, which is exactly why these awards
+ * only ever compare a group against itself. The Defender of the Year does
+ * compare centre-backs against full-backs, who at least read the same weight
+ * column — watch the CB/FB split on `scripts/positionAwardAudit.ts` if that
+ * ever looks lopsided.
+ *
+ * A refinement deliberately NOT taken: `SeasonStats` carries `xga` as well as
+ * `goalsAgainst`, so a keeper's shot-stopping could be scored as goals
+ * prevented against expectation rather than as raw saves minus concessions.
+ * It is the better keeper metric and it is left for later on purpose — it
+ * needs its own tuning pass, and it would split the Goalkeeper of the Year
+ * away from the World XI keeper, losing the agreement described above.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
  * Rating points added per point of ovr that a player's competition sits above the
  * world average (negative below it) — the correction described above.
  *
@@ -2981,14 +3037,21 @@ export const CONFEDERATION_CUP_MIN_NATIONS = 4;
  * - **Production (goals/assists) is weighted deliberately low.** It's the main
  *   source of positional bias and it double-counts with the awards it wins.
  *
- * **Known bias, not yet solved:** the Ballon d'Or and POTY are structurally
+ * **Known bias, partly addressed:** the Ballon d'Or and POTY are structurally
  * striker awards (see the world-awards notes above — `potyScore` carries no
  * defensive stats at all), so a GOAT list built on them tilts toward attackers.
  * The position-fair counterweights are the Team of the Season and World Team of
  * the Year terms, which are selected into fixed positional slots, which is why
  * they're weighted more generously per selection than their rarity alone
- * justifies. Fixing this properly means giving those awards defensive terms —
- * a design change, not a retune.
+ * justifies — and, since 2026-08-24, the Goalkeeper of the Year and Defender of
+ * the Year weights below, which are the first honours on this board a keeper or
+ * a centre-back can win outright rather than take a slot in.
+ *
+ * What that does NOT do is make the board positionally *equal*, and it should
+ * not: a forward can still win the Ballon d'Or on top of everything a defender
+ * can win, so the ceiling stays higher for attackers. The claim is only that a
+ * great keeper now has a case at all, where before he had a maximum annual
+ * haul of a World XI slot plus a Team of the Season slot.
  */
 export const GOAT_OVR_BASELINE = 70;
 export const GOAT_PEAK_WEIGHT = 6;
@@ -3002,6 +3065,30 @@ export const GOAT_WORLD_XI_WEIGHT = 22;
 export const GOAT_POTY_WEIGHT = 25;
 export const GOAT_GOLDEN_BOOT_WEIGHT = 15;
 export const GOAT_TOTS_WEIGHT = 10;
+/**
+ * Goalkeeper of the Year / Defender of the Year — one worldwide winner each per
+ * season, scored on the defensive-aware formula (see the block above).
+ *
+ * Priced between the Player of the Season (25) and the Ballon d'Or (60), and
+ * the reasoning for landing there rather than either side of it:
+ *
+ * - **Above POTY and the World XI**, because it is a *worldwide* honour with
+ *   exactly one winner a season, where a Player of the Season is handed out
+ *   once per competition (sixteen a season) and a World XI place is one of
+ *   eleven.
+ * - **Below the Ballon d'Or**, because that award is open to the entire world
+ *   and these are drawn from one position group. Winning the field is a bigger
+ *   claim than winning your corner of it, and pricing them level would say a
+ *   dominant keeper had the same season as the best player alive.
+ *
+ * Note these overlap heavily with the World XI term by construction: both are
+ * scored on the same number, so the Goalkeeper of the Year is nearly always
+ * also the XI's keeper and collects both. That double-count is intentional —
+ * it is the same double-count a Ballon d'Or winner already gets for taking a
+ * World XI slot on top of the main award.
+ */
+export const GOAT_GOALKEEPER_AWARD_WEIGHT = 40;
+export const GOAT_DEFENDER_AWARD_WEIGHT = 40;
 export const GOAT_LEAGUE_TITLE_WEIGHT = 12;
 export const GOAT_CUP_TITLE_WEIGHT = 25;
 /**
