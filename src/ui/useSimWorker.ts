@@ -5,6 +5,8 @@ import type { PlayedMatch } from "../core/standings.js";
 import type { CupTie } from "../core/cup/types.js";
 import type { DomesticTieResult } from "../core/simThrough.js";
 import type { SimThrough, IntlMode, WorkerResponse } from "../worker/protocol.js";
+import type { LeagueArchive } from "../core/simArchive.js";
+import { detachArchive, reattachArchive } from "../core/simArchive.js";
 
 export type SimProgress = {
   matchday: number;
@@ -25,6 +27,11 @@ export type JumpProgressUpdate = {
 type Pending = {
   resolve: (league: LeagueStore) => void;
   reject: (err: Error) => void;
+  /**
+   * The append-only history held back from this command (core/simArchive.ts),
+   * folded back onto whatever the worker returns.
+   */
+  archive: LeagueArchive;
 };
 
 export function useSimWorker() {
@@ -61,7 +68,10 @@ export function useSimWorker() {
         e.data.type === "jumpResult"
       ) {
         setSimming(false);
-        pendingRef.current?.resolve(e.data.league);
+        const pending = pendingRef.current;
+        pending?.resolve(
+          pending.archive ? reattachArchive(e.data.league, pending.archive) : e.data.league,
+        );
         pendingRef.current = null;
         progressRef.current = null;
         jumpProgressRef.current = null;
@@ -100,10 +110,14 @@ export function useSimWorker() {
           return;
         }
         setSimming(true);
-        pendingRef.current = { resolve, reject };
+        // Hold the append-only history back rather than structured-cloning it
+        // to the worker and straight back again — that round trip is what runs
+        // a long save out of memory on mobile. See core/simArchive.ts.
+        const { payload, archive } = detachArchive(command.league);
+        pendingRef.current = { resolve, reject, archive };
         progressRef.current = handlers.onProgress ?? null;
         jumpProgressRef.current = handlers.onJumpProgress ?? null;
-        workerRef.current?.postMessage(command);
+        workerRef.current?.postMessage({ ...command, league: payload });
       });
     },
     [],

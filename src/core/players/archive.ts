@@ -237,9 +237,28 @@ export function extendRetireeArchive(
   limit = RETIREE_ARCHIVE_LIMIT,
 ): ArchivedPlayer[] {
   const added = retirees.filter(isArchiveWorthy).map((p) => archivePlayer(p, season));
-  const all = [...archive, ...added];
-  if (all.length <= limit) return all;
-  return all
+  return pruneRetireeArchive([...archive, ...added], limit);
+}
+
+/**
+ * Cut a merged archive back to the cap, weakest career first.
+ *
+ * Split out of `extendRetireeArchive` so the merge can happen somewhere other
+ * than where the rows are built — the sim worker builds this offseason's rows
+ * without ever being handed the existing archive, and the main thread merges
+ * (see core/simArchive.ts). Pruning once at the end is equivalent to pruning
+ * every season on the way: `careerScore` is a pure function of a row, and a row
+ * never changes after it is created, so iterated top-N eviction and a single
+ * final top-N select the same set.
+ *
+ * Pure, rng-free and order-stable — pid breaks ties.
+ */
+export function pruneRetireeArchive(
+  rows: ArchivedPlayer[],
+  limit = RETIREE_ARCHIVE_LIMIT,
+): ArchivedPlayer[] {
+  if (rows.length <= limit) return rows;
+  return rows
     .slice()
     .sort((a, b) => careerScore(b) - careerScore(a) || a.pid - b.pid)
     .slice(0, limit);

@@ -261,14 +261,14 @@ describe("simThrough", () => {
     }
   });
 
-  it("powerRankingHistory: a full season stores snapshots every 5 matchdays plus the finale", () => {
+  it("powerRankingHistory: a full season stores snapshots every 10 matchdays plus the finale", () => {
     const store = makeLeagueStore(42);
     const rng = mulberry32(1000);
     const result = simThrough(store, "season", rng);
 
-    expect(result.powerRankingHistory.map((s) => s.matchday)).toEqual([
-      5, 10, 15, 20, 25, 30, 35, 38,
-    ]);
+    // Four a season, per POWER_SNAPSHOT_INTERVAL — a save-size constant, since
+    // each snapshot is a row per club for the whole world and none are pruned.
+    expect(result.powerRankingHistory.map((s) => s.matchday)).toEqual([10, 20, 30, 38]);
     for (const snapshot of result.powerRankingHistory) {
       expect(snapshot.season).toBe(store.season);
       expect(snapshot.rows).toHaveLength(store.teams.length);
@@ -279,15 +279,13 @@ describe("simThrough", () => {
     }
   });
 
-  it("powerRankingHistory: no snapshot before matchday 5, and batching sims doesn't duplicate any", () => {
+  it("powerRankingHistory: no snapshot before matchday 10, and batching sims doesn't duplicate any", () => {
     const store = makeLeagueStore(42);
-    const afterOneMonth = simThrough(store, { matchday: 4 }, mulberry32(1100)); // matchdays 1-4
+    const afterOneMonth = simThrough(store, { matchday: 9 }, mulberry32(1100)); // matchdays 1-9
     expect(afterOneMonth.powerRankingHistory).toEqual([]);
 
     const afterFullSeason = simThrough(afterOneMonth, "season", mulberry32(1101));
-    expect(afterFullSeason.powerRankingHistory.map((s) => s.matchday)).toEqual([
-      5, 10, 15, 20, 25, 30, 35, 38,
-    ]);
+    expect(afterFullSeason.powerRankingHistory.map((s) => s.matchday)).toEqual([10, 20, 30, 38]);
   });
 
   it("never simulates a match between teams in different divisions", () => {

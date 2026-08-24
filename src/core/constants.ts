@@ -423,12 +423,22 @@ export const POWER_PERFORMANCE_WEIGHT = 4;
 
 /**
  * Power-rankings history: a full snapshot of the rankings is persisted after
- * every POWER_SNAPSHOT_INTERVAL-th matchday (5, 10, ..., 35) plus the season's
+ * every POWER_SNAPSHOT_INTERVAL-th matchday (10, 20, 30) plus the season's
  * final matchday, so past rankings stay browsable — they can't be rebuilt
  * retroactively, since rosters change mid-season and `played` is wiped every
  * offseason. See LeagueStore.powerRankingHistory.
+ *
+ * **This is a save-size constant as much as a UI one.** A snapshot is a row per
+ * club for the whole world (320 rows), and the history is never pruned, so the
+ * cadence sets a permanent per-season tax on every save. It was 5 (8 snapshots
+ * a season, counting the finale); measured on a simmed season-56 save that had
+ * grown to 448 snapshots / 143,360 club-rows / 18.2 MB — the largest single
+ * non-player field, and 18% of a 101 MB save. At 10 a season stores 4, which
+ * still reads as a quarterly progression through the season on the Power
+ * Rankings dropdown. Raising the snapshot count again is not free; price it in
+ * MB per 50 seasons before changing it.
  */
-export const POWER_SNAPSHOT_INTERVAL = 5;
+export const POWER_SNAPSHOT_INTERVAL = 10;
 
 /**
  * Hard squad-size limit enforced on player-adding actions (free-agent
