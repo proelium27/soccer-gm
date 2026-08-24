@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import {
@@ -22,6 +22,16 @@ function makeLeague() {
   base ??= createLeagueState(3, mulberry32(42));
   return structuredClone(base);
 }
+
+// Pay for the world up front, with a timeout that reflects what it actually
+// costs. Generation is ~4.3s (scripts/managerCostProbe.ts) against vitest's 5s
+// default, so leaving it to be paid lazily inside whichever test ran first left
+// a ~600ms margin: fine in isolation, but under a full parallel run that test
+// timed out, and because it timed out mid-flight it skipped the cleanup below,
+// cascading into "expected 1 league, got 2" failures in every test after it.
+beforeAll(() => {
+  makeLeague();
+}, 60_000);
 
 // Clear all leagues between tests so each test starts with an empty store.
 beforeEach(async () => {

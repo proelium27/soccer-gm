@@ -1,0 +1,174 @@
+/**
+ * Handing over one club and taking charge of another.
+ *
+ * Reassigning `meta.userTid` is the easy half: every consumer in the sim reads
+ * it live, so the AI immediately starts managing the club you left and stops
+ * managing the one you joined. The hard half is the handover — several fields on
+ * `StoredTeam` are *user-only* by convention, and an AI club that inherits them
+ * populated is a club in a state nothing in the game knows how to unwind.
+ *
+ * Pure and rng-free: contract terms are deterministic from ovr/pid/season, so a
+ * switch cannot perturb the shared rng stream.
+ */
+import type { LeagueStore } from "../leagueState.js";
+import type { StoredTeam } from "../teams/clubs.js";
+import type { Player } from "../players/types.js";
+import { contractTerms } from "../contracts.js";
+import { chooseBestFormation } from "../lineup/formations.js";
+import { reconcileScoutingObserved } from "../scouting/potentialFog.js";
+import { ensureUserRosterSafety } from "../freeAgency.js";
+import { MANAGER_START_CONFIDENCE } from "../constants.js";
+import { newStint, type ManagerState } from "./types.js";
+
+/**
+ * Empty the departing club's youth academy onto its senior roster.
+ *
+ * **Not optional tidying.** `academyRoster` is a user-only holding pool: AI
+ * clubs never promote from it, never field those players and never release
+ * them, yet the players in it still draw wages (the offseason's season-start
+ * charge sums roster *and* academy) and still count as rostered for the
+ * free-agent cull. Left behind, they are permanent zombies — paid, uncullable,
+ * and unable to ever play a match again.
+ *
+ * They graduate rather than being released, on ordinary senior terms: they were
+ * the club's players and the squad they join is the one the AI now manages, so
+ * the next offseason's `trimRosterSurplus` sorts out any surplus on its own
+ * terms.
+ */
+function dissolveAcademy(
+  team: StoredTeam,
+  players: Player[],
+  season: number,
+): { team: StoredTeam; players: Player[] } {
+  if (team.academyRoster.length === 0) return { team, players };
+
+  const graduating = new Set(team.academyRoster);
+  const updated = players.map((p) => {
+    if (!graduating.has(p.pid)) return p;
+    const terms = contractTerms(p, season);
+    return { ...p, contract: { salary: terms.salary, expiresSeason: terms.expiresSeason } };
+  });
+
+  return {
+    team: { ...team, roster: [...team.roster, ...team.academyRoster], academyRoster: [] },
+    players: updated,
+  };
+}
+
+/**
+ * Strip every user-only field from a club being handed to the AI, and give it a
+ * proper AI formation immediately rather than leaving it in whatever shape the
+ * departing manager last picked (AI formations are otherwise only refreshed at a
+ * transfer-window boundary, which could be a long way off).
+ *
+ * Only this one club's formation is touched. Re-running `assignAIFormations`
+ * over the world would re-pick every AI club's shape at a moment nothing else in
+ * the sim does, changing match results for 300-odd clubs as a side effect of the
+ * user changing jobs.
+ */
+function handToAI(team: StoredTeam, players: Player[]): StoredTeam {
+  const byPid = new Map(players.map((p) => [p.pid, p]));
+  const roster = team.roster.map((pid) => byPid.get(pid)).filter((p): p is Player => p != null);
+  return {
+    ...team,
+    starters: null,
+    transferListed: [],
+    moreMinutes: [],
+    scoutingObserved: {},
+    nextScoutingSpend: team.scoutingSpend,
+    formation: roster.length > 0 ? chooseBestFormation(roster) : team.formation,
+  };
+}
+
+/**
+ * Take charge of a club: its squad is fogged as of now, so you arrive knowing
+ * these players' ratings but not their ceilings, exactly as if you'd just signed
+ * every one of them. That falls out of the existing scouting model rather than
+ * being special-cased for switching.
+ */
+function takeCharge(team: StoredTeam, season: number): StoredTeam {
+  return {
+    ...team,
+    starters: null,
+    transferListed: [],
+    moreMinutes: [],
+    scoutingObserved: reconcileScoutingObserved({}, team.roster, season),
+    nextScoutingSpend: team.scoutingSpend,
+  };
+}
+
+/**
+ * Move the user from their current club to `newTid`, closing the current stint
+ * and opening a new one.
+ *
+ * The club keeps its own money: you inherit the new club's budget, hype and
+ * locked-in scouting spend, and nothing is pro-rated or refunded. Wages for the
+ * season in progress were already charged to both clubs at season start, so a
+ * switch at the offseason boundary settles cleanly with no double charge.
+ */
+export function switchClub(
+  league: LeagueStore,
+  newTid: number,
+  ending: "sacked" | "left",
+): LeagueStore {
+  const oldTid = league.meta.userTid;
+  if (newTid === oldTid) return league;
+  if (!league.teams.some((t) => t.tid === newTid)) return league;
+
+  // Backstop the club being handed over: `ensureUserRosterSafety` only ever
+  // protects `userTid`, so a squad left thin (or without a keeper) would have
+  // nothing rebuilding it until the next offseason's AI free agency.
+  const safe = ensureUserRosterSafety(
+    league.teams,
+    league.players,
+    oldTid,
+    league.season,
+    league.activeLoans,
+  );
+  let players = safe.players;
+
+  let teams = safe.teams;
+  const old = teams.find((t) => t.tid === oldTid);
+  if (old) {
+    const dissolved = dissolveAcademy(old, players, league.season);
+    players = dissolved.players;
+    teams = teams.map((t) => (t.tid === oldTid ? handToAI(dissolved.team, players) : t));
+  }
+  teams = teams.map((t) => (t.tid === newTid ? takeCharge(t, league.season) : t));
+
+  const stints = league.manager.stints.map((s, i) =>
+    i === league.manager.stints.length - 1 && s.endSeason === null
+      ? { ...s, endSeason: league.season, ending }
+      : s,
+  );
+
+  const manager: ManagerState = {
+    ...league.manager,
+    confidence: MANAGER_START_CONFIDENCE,
+    // A new job starts the season after the one just finished — the switch
+    // happens at the offseason boundary, so your first season here is the next.
+    stints: [...stints, newStint(newTid, league.season + 1)],
+    offers: [],
+    sacked: false,
+    // Belongs to the club just left. Kept, it renders beside the new club's
+    // fresh bar as "confidence went 12 -> 0" with no club named, which reads as
+    // the new board's verdict on a season it never saw.
+    lastVerdict: null,
+  };
+
+  return {
+    ...league,
+    meta: { ...league.meta, userTid: newTid },
+    teams,
+    players,
+    manager,
+    // Every one of these is implicitly "the user's": talks the old club was
+    // holding, bids for the old club's players, and loan business the old club
+    // had open. Carried over they'd read as the new club's, and acting on one
+    // would move a player between two clubs the user no longer connects.
+    negotiations: [],
+    inboundOffers: [],
+    loanListings: [],
+    loanRejections: [],
+  };
+}

@@ -19,6 +19,7 @@ import { applyInjuries, carryIntlInjuries } from "../../src/core/injuries.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
 import type { PlayedMatch } from "../../src/core/standings.js";
 import { englandCompetitions } from "../../src/core/competitions.js";
+import { emptyManagerState } from "../../src/core/manager/types.js";
 
 function makeLeagueStore(seed: number): LeagueStore {
   const rng = mulberry32(seed);
@@ -87,6 +88,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     powerRankingHistory: [],
     godMode: false,
     difficulty: "normal",
+    manager: emptyManagerState(0, 1),
   };
 }
 

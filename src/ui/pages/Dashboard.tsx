@@ -14,8 +14,18 @@ import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
 import { domesticFinalists } from "../../core/domesticCup/cup.js";
 import { isIntlStagePending, roundsRemaining } from "../../core/international/index.js";
+import { confidenceMood, confidenceLabel } from "../../core/manager/confidence.js";
+import { cachedExpectations } from "../../core/manager/expectation.js";
 import type { IntlConfederationCup, IntlTournament } from "../../core/international/index.js";
 import { INTL_TOURNAMENT_NAME, INTL_QUAL_LEGS, qualifyingLeg } from "../../core/constants.js";
+
+/** Bootstrap bar colour per board mood — kept beside the Manager page's copy of the same map. */
+const BOARD_MOOD_CLASS: Record<string, string> = {
+  secure: "bg-success",
+  settled: "bg-info",
+  uneasy: "bg-warning",
+  danger: "bg-danger",
+};
 import type { IntlStage } from "../../core/international/index.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { unpackPositionChange } from "../../core/newsEvents.js";
@@ -394,6 +404,13 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
   }, [league.players, userTeam.roster]);
 
   const disableSim = simming || league.phase === "offseason";
+  const boardMood = confidenceMood(league.manager.confidence, league.manager.sackingEnabled);
+  // Memoized on the league object (fresh per commit), since the expectation pass
+  // walks every club in the world.
+  const boardExpectation = useMemo(
+    () => cachedExpectations(league).get(league.meta.userTid) ?? null,
+    [league],
+  );
   // The matchday the club is standing on, and the last one left this season —
   // the bounds the "sim to matchday" box accepts.
   const nextMd = nextMatchday(league);
@@ -552,11 +569,54 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
       )}
 
       {/* Offseason */}
+      {/*
+        Board confidence, always on screen rather than tucked away on the Manager
+        page: the whole point of a visible meter is that trouble is something you
+        can see building and act on, not a verdict that arrives out of nowhere.
+      */}
+      <div className="card mb-3">
+        <div className="card-body">
+          <div className="d-flex justify-content-between align-items-baseline mb-2">
+            <h5 className="card-title mb-0">Board confidence</h5>
+            <button
+              className="btn btn-link btn-sm p-0"
+              onClick={() => navigate("/manager")}
+            >
+              {league.manager.offers.length > 0
+                ? `${league.manager.offers.length} club${league.manager.offers.length === 1 ? "" : "s"} want you`
+                : "Manager"}
+            </button>
+          </div>
+          <div className="progress" style={{ height: 8 }}>
+            <div
+              className={`progress-bar ${BOARD_MOOD_CLASS[boardMood] ?? "bg-secondary"}`}
+              style={{ width: `${Math.round(league.manager.confidence)}%` }}
+            />
+          </div>
+          <div className="text-muted small mt-1">
+            {confidenceLabel(boardMood)}
+            {boardExpectation && (
+              <> · they expect around {ordinal(boardExpectation.expectedRank)} of {boardExpectation.clubs}</>
+            )}
+          </div>
+        </div>
+      </div>
+
       {league.phase === "offseason" && (
         <div className="card mb-3">
           <div className="card-body">
             <h5 className="card-title">Offseason</h5>
-            {isIntlStagePending(league.international) ? (
+            {league.manager.sacked ? (
+              <>
+                <p className="card-text">
+                  The board has seen enough. You're out of a job, and the season
+                  can't move on until you've found a new one.
+                </p>
+                <button className="btn btn-danger" onClick={() => navigate("/manager")}>
+                  See who'll have you
+                </button>
+              </>
+            ) : isIntlStagePending(league.international) ? (
               <>
                 <p className="card-text">
                   {intlStageHeadline(

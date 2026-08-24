@@ -15,6 +15,8 @@ import { englandCompetitions } from "../core/competitions.js";
 import { cullOnLoad } from "../core/players/freeAgentCull.js";
 import { archiveCup } from "../core/cup/archive.js";
 import { archiveDomesticCup } from "../core/domesticCup/archive.js";
+import { cupRunSummary } from "../core/cup/cup.js";
+import type { ManagerState } from "../core/manager/types.js";
 import type { IntlStage } from "../core/international/index.js";
 
 /**
@@ -77,8 +79,8 @@ function fallbackAcademyBase(tid: number): number {
 
 /** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking / cards. */
 type SeasonStatsAnyVersion =
@@ -545,5 +547,63 @@ function migrateFields(league: LeagueStore): LeagueStore {
     // Nothing to reconstruct: a save that predates the jump-forward feature was
     // managed by hand every season it played.
     aiManagedSeasons: anyVersion.aiManagedSeasons ?? [],
+    manager: anyVersion.manager ?? backfillManager(anyVersion),
+  };
+}
+
+/**
+ * Reconstruct a manager career for a save written before the board existed.
+ *
+ * Two deliberate choices. Confidence starts at the **maximum**, not the usual
+ * appointment level: the board never watched any of these seasons, and a save
+ * that upgrades mid-dynasty must not be one bad year away from a sacking for
+ * results nobody was judging at the time. And the honours *are* reconstructed
+ * from `seasonHistory` rather than zeroed, because a fifteen-season dynasty
+ * arriving with a blank reputation would be offered nothing but minnow jobs.
+ *
+ * `overperformance` is the one thing left at 0 — it needs each past season's
+ * squad rating, which no save stores. That understates an old career's
+ * reputation slightly, which is the safe direction to be wrong in.
+ */
+function backfillManager(anyVersion: LeagueStoreAnyVersion): ManagerState {
+  const userTid = anyVersion.meta.userTid;
+  const history = anyVersion.seasonHistory ?? [];
+
+  let titles = 0;
+  for (const entry of history) {
+    const compId = entry.compsByTid?.[userTid];
+    if (compId === undefined) continue;
+    const table = entry.table.filter((row) => entry.compsByTid[row.tid] === compId);
+    if (table[0]?.tid === userTid) titles++;
+  }
+
+  const cupTitles = (anyVersion.cupHistory ?? []).filter(
+    (c) => cupRunSummary(c, userTid)?.isChampion,
+  ).length;
+  const shieldTitles = (anyVersion.shieldHistory ?? []).filter(
+    (c) => cupRunSummary(c, userTid)?.isChampion,
+  ).length;
+  const domesticTitles = (anyVersion.domesticCupHistory ?? []).filter(
+    (c) => c.championTid === userTid,
+  ).length;
+
+  return {
+    confidence: 100,
+    stints: [{
+      tid: userTid,
+      startSeason: history[0]?.season ?? 1,
+      endSeason: null,
+      seasons: history.length,
+      titles,
+      trophies: cupTitles + shieldTitles + domesticTitles,
+      overperformance: 0,
+      ending: null,
+    }],
+    offers: [],
+    sacked: false,
+    sackingEnabled: true,
+    // Nothing to reconstruct: the board never judged any of these seasons, so
+    // there is no verdict to explain. Fills in from the next season on.
+    lastVerdict: null,
   };
 }

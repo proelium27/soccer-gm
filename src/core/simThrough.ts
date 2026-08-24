@@ -35,6 +35,7 @@ import { leaguePhaseDue } from "./cup/leaguePhase.js";
 import { playKnockoutLeg, playPlayIn, playLeaguePhaseRound, playPlayoff } from "./cup/simCup.js";
 import { clampBudget, financeScaleFor } from "./finance/budget.js";
 import { initInternationalCampaign } from "./international/index.js";
+import { reviewSeason } from "./manager/index.js";
 import { POWER_SNAPSHOT_INTERVAL } from "./constants.js";
 
 /**
@@ -592,6 +593,22 @@ export function simThrough(
     ? initInternationalCampaign(league.international, currentPlayers, league.season, league.lid)
     : league.international;
 
+  // Same boundary, same reasoning: the board reviews the season the moment it
+  // ends, so a sacking or a job offer is answered *before* the offseason runs
+  // and a manager who moves manages his new club's summer, not his old one's.
+  // Pure state — no player is touched and no shared-stream rng is drawn.
+  const manager = enteringOffseason
+    ? reviewSeason({
+      league,
+      teams: currentTeams,
+      players: currentPlayers,
+      played: [...league.played, ...newResults],
+      cup,
+      shield,
+      domesticCups,
+    }).manager
+    : league.manager;
+
   return {
     ...league,
     teams: currentTeams,
@@ -599,6 +616,7 @@ export function simThrough(
     phase: enteringOffseason ? "offseason" : "regular",
     international,
     schedule: finalRemaining,
+    manager,
     played: [...league.played, ...newResults],
     transfers,
     activeLoans,
