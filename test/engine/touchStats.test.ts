@@ -63,8 +63,17 @@ const SEASON = simSeason(mulberry32(12345));
  * path. Measured, scoring barely moves (goals/game 3.021 -> 3.029, top scorer
  * 24 -> 26) while every stat gets more specific to its own skill — see the
  * constant for the full per-axis table.
+ *
+ * And again for the position-OVR balance work (POSITION_OVR_CALIBRATION and
+ * POSITION_RATING_SPREAD), which is a different class from all of the above and
+ * worth being clear about: this one changes the PLAYERS, not the sim. Rating
+ * draws are still one gaussian per rating, so the stream order and draw count
+ * are untouched, but each draw is scaled by its position and the resulting OVR
+ * is shifted, so the world generates different squads. Different squads play
+ * different football. Nothing about attribution moved, and the invariant this
+ * test exists for — attribution not perturbing the match stream — is unchanged.
  */
-const BASELINE_SCORELINE_HASH = 2889758683;
+const BASELINE_SCORELINE_HASH = 1127113885;
 
 function scorelineHash(matches: typeof SEASON.matches): number {
   const s = matches.map((m) => `${m.home}:${m.homeGoals}-${m.awayGoals}:${m.away}`).join("|");

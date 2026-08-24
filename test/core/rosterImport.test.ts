@@ -383,7 +383,25 @@ describe("applyRosterFileToNewLeague", () => {
 
   it("re-picks AI formations against the imported squad", () => {
     const aiTid = league.teams.find((t) => t.tid !== league.meta.userTid)!.tid;
-    const file = fileForTid(aiTid, squad);
+    // Deliberately LOPSIDED, and not the shared `squad` above. The chooser
+    // maximizes the XI's total rating, so a squad that is equally good
+    // everywhere prefers no shape at all and every formation ties — which lands
+    // on whichever the chooser starts from, and if the club was already there
+    // this test proves nothing while still passing. (That is exactly what
+    // happened once positions were calibrated to a common mean: a uniform
+    // import and a generated squad both came out on 4-3-3.) Stacking the
+    // quality on the flanks and up front makes the imported squad want a
+    // genuinely different shape, so the precondition below is a statement about
+    // the chooser rather than about this seed.
+    const lopsided = POSITIONS.flatMap((pos) =>
+      Array.from({ length: 2 }, (_, i) => ({
+        name: `${pos} Import ${i}`,
+        pos,
+        age: 24,
+        overall: pos === "W" || pos === "ST" ? 82 : 58,
+      })),
+    );
+    const file = fileForTid(aiTid, lopsided);
 
     // A plain import leaves the club on the shape chosen for the squad it just
     // deleted. Asserted so this test can't quietly go vacuous if the chooser

@@ -83,13 +83,16 @@ describe("estimatePotential", () => {
   });
 
   it("still lets a ceiling-ovr player read 99 (potential is never below ovr)", () => {
-    // A 99-ovr player is already at the rating ceiling (height maxed too, so
-    // ovr itself hits 99), so every simulated trajectory's peak is 99 too.
+    // Every rating at the ceiling, at a position carrying a POSITIVE OVR
+    // calibration, so the weighted mean lands above 99 and the clamp inside
+    // computeOvr is what brings it back. Nothing in play gets here (a fresh
+    // world tops out around 81) but God Mode and roster imports can, and an
+    // unclamped 102 would leak straight into wages and valuation.
     const ratings = flatRatings(99);
-    const ovr = computeOvr("ST", ratings, 200);
+    const ovr = computeOvr("FB", ratings, 178);
     expect(ovr).toBe(99);
     for (let i = 0; i < 50; i++) {
-      expect(estimatePotential(mulberry32(i), ratings, ovr, 20, "ST", 200, i)).toBe(99);
+      expect(estimatePotential(mulberry32(i), ratings, ovr, 20, "FB", 178, i)).toBe(99);
     }
   });
 });

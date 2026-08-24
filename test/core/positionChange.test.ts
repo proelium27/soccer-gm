@@ -32,6 +32,22 @@ const FULLBACK_TILT: PlayerRatings = {
   dribbling: 34, finishing: 34, longShot: 34,
 };
 
+/**
+ * A winger shaped like one: what W weights and FB does not is up, the
+ * defensive ratings FB leans on are down. This is the "nothing to see here"
+ * fixture, and it has to be a real winger rather than FLAT ratings — flat
+ * ratings are not neutral. Every position's OVR carries a level correction
+ * (POSITION_OVR_CALIBRATION), so a player with no shape at all still rates a
+ * few points better at the positions that carry a positive one, which is
+ * correct (a winger with a defender's balance of skills *is* better placed at
+ * full-back) but makes him a terrible stand-in for "unremarkable".
+ */
+const WINGER_SHAPE: PlayerRatings = {
+  ...FLAT,
+  speed: 64, dribbling: 64, crosses: 62,
+  tackling: 38, interceptions: 38,
+};
+
 function player(over: Partial<Player> = {}): Player {
   const pos = over.pos ?? "W";
   const ratings = over.ratings ?? FLAT;
@@ -85,8 +101,12 @@ describe("changedPosition — the gates", () => {
     // change their best position every season are mostly this.
     const p = player({
       ratings: FULLBACK_TILT,
-      hist: history(FLAT, "W", POSITION_CHANGE_SEASONS - 1),
+      hist: history(WINGER_SHAPE, "W", POSITION_CHANGE_SEASONS - 1),
     });
+    // Precondition: those recorded seasons really do show a settled winger.
+    const past = computeOvr("FB", WINGER_SHAPE, 178) - computeOvr("W", WINGER_SHAPE, 178);
+    expect(past).toBeLessThan(POSITION_CHANGE_MARGIN);
+
     expect(changedPosition(p, FULLBACK_TILT)).toBeNull();
   });
 
@@ -103,7 +123,7 @@ describe("changedPosition — the gates", () => {
   it("leaves a player alone when the gap is real but under the margin", () => {
     // Scaled back until it sits just below the bar. Everyone has *some*
     // position they rate a little higher at; that is not a career change.
-    const mild: PlayerRatings = { ...FLAT, tackling: 60, interceptions: 60 };
+    const mild: PlayerRatings = { ...WINGER_SHAPE, tackling: 52, interceptions: 52 };
     const gap = computeOvr("FB", mild, 178) - computeOvr("W", mild, 178);
     expect(gap).toBeGreaterThan(0);
     expect(gap).toBeLessThan(POSITION_CHANGE_MARGIN);
@@ -333,8 +353,8 @@ describe("progressPlayer integration", () => {
       hist: history(FULLBACK_TILT, "W", POSITION_CHANGE_SEASONS - 1),
     });
     const settles = player({
-      ratings: FLAT,
-      hist: history(FLAT, "W", POSITION_CHANGE_SEASONS - 1),
+      ratings: WINGER_SHAPE,
+      hist: history(WINGER_SHAPE, "W", POSITION_CHANGE_SEASONS - 1),
     });
     // Guard that the two fixtures really do differ in outcome.
     expect(changedPosition(converts, converts.ratings)).toBe("FB");

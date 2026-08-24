@@ -16,13 +16,29 @@ export const GEN_OFFSETS: Record<Position, Record<SkillKey, Tier>> = {
 };
 
 /**
- * Table B — OVR weights (%). Keys may include "height". Outfield rows sum to 100.
- * GK deliberately sums below 100 (92): a keeper's ratings are all high-tier
- * (goalkeeping "star", positioning/jumping/longPass "H"), so a full-100 weighting
- * left keepers reading several OVR points above every outfield position; the
- * sub-100 sum scales the whole GK OVR down proportionally so keepers land in the
- * pack instead of on top. See computeOvr — OVR = Σ(w/100)·value, so a 92 total is
- * a flat 0.92× on the goalkeeping composite.
+ * Table B — OVR weights (%). Keys may include "height".
+ *
+ * **These are relative importances, not a budget.** `computeOvr` normalizes the
+ * skill weights and centres height, so a row states only how much each skill
+ * matters at that position *against the others in the row*; the row's total is
+ * meaningless and a row that sums to 92 rates identically to the same row
+ * doubled. Levels are set by POSITION_OVR_CALIBRATION and spread by
+ * POSITION_RATING_SPREAD, both in constants.ts, both derived by measurement.
+ *
+ * That split is newer than the table. GK's row sums to 92 because it used to be
+ * a budget: a keeper's rated skills are all high-tier (goalkeeping "star",
+ * positioning/jumping/longPass "H"), which put keepers several points above
+ * every outfield position, and shaving the total was the correction. It worked
+ * on the level and quietly did two other things — it also compressed how much
+ * keepers spread between a strong club and a weak one, and it hid half of the
+ * real problem, which was that no OVR row can be compared to another until both
+ * are measured. The 92 is left as it is because the row is only read relatively
+ * now, and rescaling it to 100 would change nothing.
+ *
+ * EDITING A ROW MOVES MORE THAN THAT POSITION. Both constants above are
+ * measured against these weights, and POSITION_RATING_SPREAD is derived from
+ * them at module load. Re-run `scripts/positionOvrCalibrate.ts` after any change
+ * here; `test/core/positionOvrBalance.test.ts` is what catches you if you don't.
  */
 export type OvrKey = SkillKey | "height";
 export const OVR_WEIGHTS: Record<Position, Partial<Record<OvrKey, number>>> = {

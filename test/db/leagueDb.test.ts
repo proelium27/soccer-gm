@@ -125,16 +125,19 @@ describe("leagueDb", () => {
 
     // A second save of an almost-identical league writes only the changed
     // player. Mirrors the core's style: unchanged players keep their identity.
+    // The edit has to be one the load path preserves: `ovr` is re-derived from
+    // ratings on load (migrate.ts), so hand-setting it to a sentinel proves
+    // nothing about whether the write happened.
     const pid = league.players[5].pid;
     const edited = {
       ...league,
       lid,
-      players: league.players.map((p) => (p.pid === pid ? { ...p, ovr: 99 } : p)),
+      players: league.players.map((p) => (p.pid === pid ? { ...p, name: "Edited Player" } : p)),
     };
     await saveLeague(edited);
 
     const loaded = await loadLeague(lid);
-    expect(loaded!.players.find((p) => p.pid === pid)!.ovr).toBe(99);
+    expect(loaded!.players.find((p) => p.pid === pid)!.name).toBe("Edited Player");
     expect(loaded!.players).toHaveLength(league.players.length);
   });
 
