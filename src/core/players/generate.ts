@@ -79,5 +79,13 @@ export function generatePlayer(
     // youth-intake player routed to the user's academy has his real academy
     // seasons recorded by progressPlayer each offseason from here on.
     hist: [{ season: season - 1, ratings, ovr, potential, academy: false, pos }],
+    // Seeded here, not left to the first progression, so *every* player carries
+    // a career peak from the moment he exists. `progressPlayer` maintains it
+    // afterwards. Without this a youth-intake player has a `hist` entry but no
+    // peak until his first offseason, and the readers' fallback scan would be
+    // the only thing answering for him — which stops working the moment careers
+    // are no longer resident (`docs/lazy-career-plan.md`).
+    peakOvr: ovr,
+    peakOvrSeason: season - 1,
   };
 }

@@ -141,6 +141,33 @@ function migrateLine(line: PlayerMatchLineAnyVersion): PlayerMatchLine {
 }
 
 /**
+ * Career peak ovr, from the ratings history the readers used to scan.
+ *
+ * Exact, not a guess: this is the same walk `careerPeakOvr` and `peakOf` did
+ * inline, so migrating is the last time it has to happen. Seeded from current
+ * ovr and replaced only on strictly greater, matching what both readers did —
+ * which is why `peakOvrSeason` stays absent when the current rating is already
+ * the best: `peakOf` credits its own `fallbackSeason` in that case, and storing
+ * a season here would be inventing one.
+ */
+function peakFromHist(p: Player): { peakOvr: number; peakOvrSeason?: number } {
+  if (p.peakOvr != null) {
+    return p.peakOvrSeason == null
+      ? { peakOvr: p.peakOvr }
+      : { peakOvr: p.peakOvr, peakOvrSeason: p.peakOvrSeason };
+  }
+  let peakOvr = p.ovr;
+  let peakOvrSeason: number | undefined;
+  for (const h of p.hist ?? []) {
+    if (h.ovr > peakOvr) {
+      peakOvr = h.ovr;
+      peakOvrSeason = h.season;
+    }
+  }
+  return peakOvrSeason == null ? { peakOvr } : { peakOvr, peakOvrSeason };
+}
+
+/**
  * `fallbackTid` is the player's *current* club — the best guess available for
  * a save old enough to predate per-season team tracking, since no historical
  * roster-membership data survives to reconstruct which club he was actually
@@ -202,6 +229,12 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
           confederationCupTitles: p.intl.confederationCupTitles ?? 0,
         }
       : p.intl,
+    // Career peak ovr, backfilled by the scan the readers used to do inline.
+    // Exact rather than a guess: `hist` is the same data `careerPeakOvr` and
+    // `peakOf` were walking, so this is the last time it ever has to be walked.
+    // Seeded from current ovr, and ties keep the *earlier* season, matching the
+    // strictly-greater comparison both readers used.
+    ...peakFromHist(p),
     // faSignedSeason (the free-agent transfer hold) is intentionally left
     // absent on pre-feature saves: there's no way to know which past free-agent
     // signings would still be inside their hold, and "absent" is the correct

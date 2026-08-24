@@ -110,6 +110,26 @@ export interface Player {
   stats: SeasonStats[];
   hist: RatingsSnapshot[];
   /**
+   * Best ovr this player has ever reached, and the season he reached it.
+   *
+   * Stored rather than derived, and that is the point: both readers —
+   * `careerPeakOvr` (the free-agent cull's quality gate) and `peakOf` (the
+   * retiree archive) — used to walk the player's entire `hist` to get one
+   * number, once per player per offseason. Maintained by `progressPlayer`,
+   * which is already appending the snapshot these were scanning.
+   *
+   * The reason it matters beyond the saved work: it is what lets the career
+   * arrays stop being resident at all (`docs/lazy-career-plan.md`). A cull or
+   * an archive-worthiness check that needs `hist` in memory can never be run
+   * against a player whose history lives on disk.
+   *
+   * Optional so old saves load; `migrate.ts` backfills from `hist` and every
+   * reader falls back to scanning when it is absent, so a save that has not
+   * been migrated yet still gets the right answer.
+   */
+  peakOvr?: number;
+  peakOvrSeason?: number;
+  /**
    * The season a free-agent signing by the user's club takes effect (set by
    * signFreeAgent). While `league.season <= faSignedSeason` the player can't be
    * sold — a one-season hold that kills the "sign a free agent, flip him for a

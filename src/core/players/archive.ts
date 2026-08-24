@@ -127,6 +127,17 @@ function careerAppearances(player: Player): number {
  */
 function peakOf(player: Player, fallbackSeason: number): { ovr: number; season: number } {
   let best = { ovr: player.ovr, season: fallbackSeason };
+  // `progressPlayer` keeps this as a running maximum, so the scan below is only
+  // for a save that has not been migrated yet. Current ovr still leads: god mode
+  // can raise a rating without going through progression, and a snapshot that
+  // merely *equals* it must not steal the season, which is what the old scan
+  // did by only replacing on strictly greater.
+  if (player.peakOvr != null) {
+    if (player.peakOvr > best.ovr) {
+      best = { ovr: player.peakOvr, season: player.peakOvrSeason ?? fallbackSeason };
+    }
+    return best;
+  }
   for (const h of player.hist) {
     if (h.ovr > best.ovr) best = { ovr: h.ovr, season: h.season };
   }

@@ -29,6 +29,10 @@ import {
 
 /** Best ovr a player ever reached, from his ratings history (current ovr included). */
 export function careerPeakOvr(player: Player): number {
+  // Maintained by `progressPlayer`; the scan is the path for a save that has not
+  // been migrated yet. Current ovr still leads it, since god mode can raise a
+  // rating without progression ever seeing it.
+  if (player.peakOvr != null) return Math.max(player.ovr, player.peakOvr);
   let peak = player.ovr;
   for (const h of player.hist ?? []) {
     if (h.ovr > peak) peak = h.ovr;
