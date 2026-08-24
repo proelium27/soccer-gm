@@ -713,9 +713,20 @@ export function Manual() {
             extra time go to a shootout, exactly like the Continental Cup.
           </p>
           <p>
+            How many go through from any one qualifying group isn't fixed. Every group winner
+            qualifies, and then the runners-up from all of that confederation's groups are ranked
+            against each other for whatever places are left, so a strong runner-up can go through
+            while a weaker one in the next group misses out. Both the confederation's share of the
+            32 places and the groups it plays in are settled the moment the campaign is drawn, three
+            offseasons before the last round is played, so the Qualifying page tells you what each
+            confederation is playing for from the start. In the tables, a solid bar down the left
+            marks a place that qualifies outright and a fainter one marks a place that's in the
+            running for whatever's left.
+          </p>
+          <p>
             A 32-nation field is most of the nations that can field a squad at all, so several
-            confederations now send everyone they have and play no qualifying matches — you'll see
-            that on the Qualifying page, where South America, Asia and North America have no groups.
+            confederations now send everyone they have and play no qualifying matches. They're still
+            listed on the Qualifying page, with a line saying everyone's through instead of a table.
             The contest is in Europe and Africa, where there are more nations than places. If you'd
             rather qualifying meant more everywhere, the fix is a deeper world: more countries with
             leagues means more nations with enough players to enter.

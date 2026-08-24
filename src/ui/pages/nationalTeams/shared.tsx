@@ -79,19 +79,48 @@ export function liveGroupRows(group: IntlGroup, nations: string[]): StandingRow[
 }
 
 /**
- * One group's standings table. `highlight` marks the rows that advanced
- * (qualifiers / top finishers) with the app's `.row-selected` treatment — a
- * green wash and a leading edge bar, the same language the club standings use
- * for a qualification zone. `compact` drops the W/D/L columns for the denser
- * qualifying view.
+ * A settled qualifier gets the full `.row-selected` treatment, wash and all: it
+ * is a fact about that nation. A zone gets a leading bar and no wash, the same
+ * call the club standings make and for the same reason — a zone can span most
+ * of a short table (three rows of five, in a confederation with a big
+ * allocation), and washing that much of it turns the table into a green block
+ * instead of marking anything.
+ */
+function rowClass(highlighted: boolean | undefined, zone: RowMark | undefined): string | undefined {
+  if (highlighted) return "row-selected";
+  if (zone === "through") return "row-through";
+  if (zone === "contending") return "row-contending";
+  return undefined;
+}
+
+/** How a group row is marked: settled fact, or a zone that is still being played for. */
+export type RowMark = "through" | "contending" | null;
+
+/**
+ * One group's standings table.
+ *
+ * Two ways to mark rows, and they answer different questions. `highlight` marks
+ * nations by name, for a campaign that has finished and whose qualifiers are
+ * known. `zoneAt` marks *finishing positions*, for one still being played: a
+ * position whose occupant is certain to go through is "through", and one
+ * competing with the other groups' for a shared pool of places is
+ * "contending". Pass one or the other, never both.
+ *
+ * The distinction is the point. A group winner always qualifies, but a
+ * runner-up is ranked against every other runner-up in his confederation, so
+ * mid-campaign the truthful statement is about the place, not the nation.
+ *
+ * `compact` drops the W/D/L columns for the denser qualifying view.
  */
 export function GroupStandings({
   rows,
   highlight,
+  zoneAt,
   compact,
 }: {
   rows: StandingRow[];
   highlight?: (nation: string) => boolean;
+  zoneAt?: (position: number) => RowMark;
   compact?: boolean;
 }) {
   return (
@@ -112,8 +141,8 @@ export function GroupStandings({
         </tr>
       </thead>
       <tbody>
-        {rows.map((r) => (
-          <tr key={r.nation} className={highlight?.(r.nation) ? "row-selected" : undefined}>
+        {rows.map((r, position) => (
+          <tr key={r.nation} className={rowClass(highlight?.(r.nation), zoneAt?.(position))}>
             <td><NationName nation={r.nation} /></td>
             <td className="text-end">{r.played}</td>
             {!compact && (

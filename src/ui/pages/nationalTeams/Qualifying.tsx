@@ -1,16 +1,98 @@
 import { useMemo, useState } from "react";
 import { useLeague } from "../../context/LeagueContext.js";
 import { seasonYear } from "../../format.js";
-import { INTL_TOURNAMENT_NAME } from "../../../core/constants.js";
+import { INTL_TOURNAMENT_NAME, INTL_FIELD_SIZE } from "../../../core/constants.js";
+import {
+  qualifyingPlan, type ConfederationQualifyingPlan,
+} from "../../../core/international/index.js";
 import {
   NationalTeamsLayout, NationName, GroupStandings, liveGroupRows, SeasonSelect,
-  useHasInternational, IntlEmpty, type StandingRow,
+  useHasInternational, IntlEmpty, type StandingRow, type RowMark,
 } from "./shared.js";
 
 /** A confederation's groups, already normalized to nation-keyed standings. */
 interface ConfGroups {
   confederation: string;
   groups: StandingRow[][];
+  /** Its allocation, when the campaign is live enough to derive one. */
+  plan?: ConfederationQualifyingPlan;
+}
+
+/** What to call the nations finishing in a given group position, index 0 = first. */
+const PLACE_NAMES = [
+  "group winners", "runners-up", "third-placed nations", "fourth-placed nations",
+  "fifth-placed nations", "sixth-placed nations",
+];
+
+function placeName(position: number): string {
+  return PLACE_NAMES[position] ?? `nations finishing ${position + 1}${nth(position + 1)}`;
+}
+
+/**
+ * The confederation's allocation in words, e.g. "13 of the 32 places, from 7
+ * groups: every group winner, plus the 6 best runners-up." All of it is settled
+ * at the draw, three offseasons before the last leg is played, which is the
+ * whole reason it is worth printing before a ball is kicked.
+ *
+ * A position that takes every group's place is stated as a guarantee rather
+ * than a count. One that takes only some is stated as "the N best", because
+ * those are ranked against each other across the confederation's groups and no
+ * single group can be read on its own.
+ */
+function planSentence(plan: ConfederationQualifyingPlan): string {
+  const places = `${plan.slots} of the ${INTL_FIELD_SIZE} places`;
+
+  if (plan.groups === 0) {
+    return plan.nations === 1
+      ? `${places} for its one nation, which is through without playing a qualifier.`
+      : `${places} for ${count(plan.nations)} nations, so all of them are through without `
+        + "playing a qualifier.";
+  }
+
+  // The quota is always some run of positions that take every group's place,
+  // then at most one that takes only part of the next (placesByPosition stops
+  // the moment the places run out). Saying the run as a run reads far better
+  // than listing it: "every group's top three" over "every group's winner,
+  // every group's runner-up, every group's third-placed nation".
+  const full = plan.byPosition.filter((take) => take === plan.groups).length;
+  const partial = plan.byPosition.length > full ? plan.byPosition[full] : 0;
+  const each = plan.groups === 1 ? "the" : "every group's";
+
+  const parts: string[] = [];
+  if (full === 1) parts.push(plan.groups === 1 ? "the group winner" : "every group winner");
+  else if (full > 1) parts.push(`${each} top ${count(full)}`);
+  if (partial > 0) parts.push(`the ${count(partial)} best ${placeName(full)}`);
+
+  const groups = `${count(plan.groups)} ${plan.groups === 1 ? "group" : "groups"}`;
+  return `${places}, from ${groups}: ${parts.join(", plus ")}.`;
+}
+
+/** Small counts read better as words in prose; anything larger stays a numeral. */
+const COUNT_WORDS = [
+  "", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+];
+
+function count(n: number): string {
+  return COUNT_WORDS[n] ?? String(n);
+}
+
+function nth(n: number): string {
+  if (n % 100 >= 11 && n % 100 <= 13) return "th";
+  return n % 10 === 1 ? "st" : n % 10 === 2 ? "nd" : n % 10 === 3 ? "rd" : "th";
+}
+
+/**
+ * Which finishing places are marked while a campaign is still being played. A
+ * position that takes every group's place is settled, so it is marked as
+ * qualifying; one that takes only some is a contest across the confederation's
+ * groups, so it can only be marked as contended.
+ */
+function zonesOf(plan: ConfederationQualifyingPlan): (position: number) => RowMark {
+  return (position) => {
+    const take = plan.byPosition[position];
+    if (take === undefined) return null;
+    return take === plan.groups ? "through" : "contending";
+  };
 }
 
 function QualifyingView({
@@ -23,6 +105,10 @@ function QualifyingView({
   byConfederation: ConfGroups[];
 }) {
   const qualifiedSet = new Set(qualified);
+  // `qualified` fills only when the last of the three legs is played, so an
+  // empty list means the campaign is still running rather than that nobody got
+  // in. Until then there is no nation to mark, only a place.
+  const stillPlaying = qualified.length === 0;
   return (
     <>
       <h6>Qualified for the {INTL_TOURNAMENT_NAME}</h6>
@@ -36,18 +122,41 @@ function QualifyingView({
 
       <p className="text-muted small">
         {entered} nations entered. Groups are played home and away, and how many places each
-        confederation gets depends on how many genuinely competitive nations it has.
+        confederation gets depends on how many genuinely competitive nations it has. That split,
+        and the groups it's played in, are settled when the campaign is drawn, so what each
+        confederation is playing for is known before the first match.
       </p>
 
-      {byConfederation.map(({ confederation, groups }) => (
+      {stillPlaying && (
+        <div className="qual-key text-muted small mb-3">
+          <span className="qual-key-item">
+            <span className="qual-bar qual-key-swatch qual-bar-through" /> qualifies
+          </span>
+          <span className="qual-key-item">
+            <span className="qual-bar qual-key-swatch qual-bar-contending" /> in the running for
+            the places left
+          </span>
+        </div>
+      )}
+
+      {byConfederation.map(({ confederation, groups, plan }) => (
         <div className="mb-3" key={confederation}>
-          <h6>{confederation}</h6>
+          <h6 className="mb-1">{confederation}</h6>
+          {plan && <p className="text-muted small mb-2">{planSentence(plan)}</p>}
           <div className="row g-3">
             {groups.map((rows, i) => (
               <div className="col-12 col-lg-6" key={i}>
                 <div className="card">
                   <div className="card-header py-1 small fw-bold">Group {i + 1}</div>
-                  <GroupStandings rows={rows} highlight={(n) => qualifiedSet.has(n)} compact />
+                  <GroupStandings
+                    rows={rows}
+                    // Once the qualifiers are known they are the truth and the
+                    // zones are noise: a runner-up who missed out must not keep
+                    // a mark that says he's in the running.
+                    highlight={stillPlaying ? undefined : (n) => qualifiedSet.has(n)}
+                    zoneAt={stillPlaying && plan ? zonesOf(plan) : undefined}
+                    compact
+                  />
                 </div>
               </div>
             ))}
@@ -58,18 +167,34 @@ function QualifyingView({
   );
 }
 
-/** Bucket a flat list of {confederation, rows} groups into per-confederation columns. */
+/**
+ * Bucket a flat list of {confederation, rows} groups into per-confederation
+ * columns, attaching each one's allocation when `plans` is supplied.
+ *
+ * Plans lead, groups follow. A confederation with no more nations than places
+ * plays no qualifying at all and so contributes no groups, which used to leave
+ * it off this page entirely: its nations appeared among the qualifiers having
+ * apparently come from nowhere. Ordering by the plan lists it with its own
+ * one-line explanation and no table.
+ */
 function bucketByConfederation(
   groups: { confederation: string | null; rows: StandingRow[] }[],
+  plans: ConfederationQualifyingPlan[] = [],
 ): ConfGroups[] {
   const map = new Map<string, StandingRow[][]>();
+  for (const plan of plans) map.set(plan.confederation, []);
   for (const g of groups) {
     const key = g.confederation ?? "Other";
     const list = map.get(key);
     if (list) list.push(g.rows);
     else map.set(key, [g.rows]);
   }
-  return [...map.entries()].map(([confederation, groups]) => ({ confederation, groups }));
+  const planOf = new Map(plans.map((p) => [p.confederation, p]));
+  return [...map.entries()].map(([confederation, groups]) => ({
+    confederation,
+    groups,
+    plan: planOf.get(confederation),
+  }));
 }
 
 export function NTQualifying() {
@@ -101,6 +226,11 @@ export function NTQualifying() {
         qualified={current.qualified}
         byConfederation={bucketByConfederation(
           current.groups.map((g) => ({ confederation: g.confederation, rows: liveGroupRows(g, current.nations) })),
+          // Only the live campaign can carry a plan: an archived summary keeps
+          // results, not the nation list the allocation is derived from. It
+          // shows the qualifiers themselves instead, which is the better answer
+          // once they're known anyway.
+          qualifyingPlan(current),
         )}
       />
     );

@@ -33,18 +33,43 @@ function groupCountFor(nations: number, slots: number): number {
 function fillPlaces(groups: IntlGroup[], slots: number): number[] {
   const tables = groups.map((g) => groupTable(g));
   const qualified: number[] = [];
-  const maxPositions = Math.max(0, ...tables.map((t) => t.length));
 
-  for (let position = 0; position < maxPositions && qualified.length < slots; position++) {
+  placesByPosition(tables.map((t) => t.length), slots).forEach((take, position) => {
     const atPosition: GroupRow[] = tables
       .map((table) => table[position])
       .filter((row): row is GroupRow => row !== undefined);
-    for (const row of rankAcrossGroups(atPosition)) {
-      if (qualified.length >= slots) break;
-      qualified.push(row.nid);
-    }
-  }
+    for (const row of rankAcrossGroups(atPosition).slice(0, take)) qualified.push(row.nid);
+  });
   return qualified;
+}
+
+/**
+ * How many of a confederation's places each finishing position takes, index 0
+ * being the group winners: every group's winner, then as many runners-up as
+ * there are places left, and so on down. Group sizes can differ by one, so the
+ * count available at a position is the number of groups deep enough to have it.
+ *
+ * This is the quota `fillPlaces` fills, which is the whole point of it being a
+ * separate function: it is also what the Qualifying page draws its "the 7 group
+ * winners, plus the 6 best runners-up" line and its zone bars from, and a UI
+ * that described a different rule from the one being played would be worse than
+ * no UI at all. Deriving both from one function is what stops that.
+ *
+ * It depends only on the draw (group sizes and the allocation), never on
+ * results, so it is fully determined the moment the campaign is drawn — three
+ * offseasons before the last leg is played.
+ */
+export function placesByPosition(groupSizes: number[], slots: number): number[] {
+  const deepest = Math.max(0, ...groupSizes);
+  const out: number[] = [];
+  let left = slots;
+  for (let position = 0; position < deepest && left > 0; position++) {
+    const available = groupSizes.filter((size) => size > position).length;
+    const take = Math.min(available, left);
+    out.push(take);
+    left -= take;
+  }
+  return out;
 }
 
 /**
@@ -66,6 +91,60 @@ function planQualifying(nations: string[]): {
   const contenders = new Set(nations.slice(0, INTL_FIELD_SIZE));
   const slotsByConfederation = allocateSlots(byConfederation, INTL_FIELD_SIZE, contenders);
   return { nidOf, byConfederation, slotsByConfederation };
+}
+
+/** What one confederation is playing for, all of it fixed at the draw. */
+export interface ConfederationQualifyingPlan {
+  confederation: string;
+  /** Places allocated out of INTL_FIELD_SIZE. */
+  slots: number;
+  /** Nations entered from this confederation. */
+  nations: number;
+  /** Groups it was drawn into. 0 when it had no more nations than places. */
+  groups: number;
+  /**
+   * Places taken by each finishing position, index 0 = group winners (see
+   * placesByPosition). Empty for a confederation that plays no qualifying,
+   * whose nations are all through by entering.
+   */
+  byPosition: number[];
+}
+
+/**
+ * What every confederation in a campaign is playing for, in the order the draw
+ * allocated the places. Pure, and derived from the campaign's own nation list
+ * and drawn groups rather than from anything stored, exactly as computeQualified
+ * derives the allocation, so the two can never disagree.
+ *
+ * Note what this is NOT: a per-group qualifying count. A group's winner always
+ * goes through, but whether its runner-up does depends on the other groups in
+ * the same confederation, because runners-up are ranked against each other for
+ * whatever places are left. So the honest statement is per confederation, and
+ * per group it can only ever be a zone.
+ */
+export function qualifyingPlan(campaign: IntlQualifyingCampaign): ConfederationQualifyingPlan[] {
+  const { byConfederation, slotsByConfederation } = planQualifying(campaign.nations);
+
+  // Read the group sizes off the drawn groups instead of recomputing them, so
+  // the plan describes the campaign in front of the user and not a fresh draw.
+  const sizes = new Map<string, number[]>();
+  for (const group of campaign.groups) {
+    if (group.confederation == null) continue;
+    const list = sizes.get(group.confederation) ?? [];
+    list.push(group.nids.length);
+    sizes.set(group.confederation, list);
+  }
+
+  return [...slotsByConfederation].map(([confederation, slots]) => {
+    const groupSizes = sizes.get(confederation) ?? [];
+    return {
+      confederation,
+      slots,
+      nations: (byConfederation.get(confederation) ?? []).length,
+      groups: groupSizes.length,
+      byPosition: placesByPosition(groupSizes, slots),
+    };
+  });
 }
 
 /**
