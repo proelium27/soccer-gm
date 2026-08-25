@@ -162,14 +162,24 @@ and well under the 17% that motivated the original rework. Everything else is
 flat: paid moves vary by 2%, star mobility by 2 points, and no club's budget goes
 anywhere near zero.
 
-**Runtime cost is real and was initially reported wrong here.** The deleted line
-was also the only early-out ahead of the O(teams) buyer loop, and only ~15.6% of
-rostered players passed it, so removing it makes the loop ~7× more expensive: one
-market run goes **~52ms → ~357ms** on a 320-club world (`scripts/marketTiming.ts`,
-best of 5, same world both sides). That is roughly 0.7s per simulated season
-across two windows, in the sim worker rather than on the main thread. An earlier
-draft of this doc claimed "no measurable runtime cost" — that was inferred from
-audit wall-clock rather than measured, and it was false.
+**Runtime cost is real and was initially reported wrong here — twice.** The
+deleted line was also the only early-out ahead of the O(teams) buyer loop, and
+only ~15.6% of rostered players passed it, so removing it makes the loop ~7× more
+expensive: one market run goes **~52ms → ~357ms** (`scripts/marketTiming.ts`, best
+of 5, same world both sides). That is roughly 0.7s per simulated season across two
+windows, in the sim worker rather than on the main thread. An earlier draft of
+this doc claimed "no measurable runtime cost" — that was inferred from audit
+wall-clock rather than measured, and it was false.
+
+**That measurement was taken on a 240-club world** (six countries), which an
+earlier draft mislabelled "320-club". The distinction matters because the cost
+**scales worse than linearly with world size** — the pre-filter was the only
+early-out ahead of the buyer loop, so cost grows with candidates × clubs. Once
+Belgium and Turkey landed (2026-08-12, 16 competitions / 320 clubs), a re-measure
+gave **~1611ms per run and 560 deals** — 4.5× the cost for 1.33× the clubs. At two
+windows a season that is ~3.2s against a ~34s season cycle, roughly **9% of sim
+time**, versus well under 1% when the filter existed. **Re-measure after adding a
+country rather than reusing either number.**
 
 A replacement prune is worth having, but it must bound the **best possible buyer
 valuation** against the reservation. Anything that compares the reservation to

@@ -1,7 +1,20 @@
 # Save performance: split `players` into its own IndexedDB store
 
-Status: **phases 0–2 implemented.** Phase 3 is measured and recommended *against*;
-phase 4 is untouched. See "Results" below for what shipped and what it bought.
+Status: **phases 0–2 implemented, and phase 3b has since begun.** Phase 3 is
+measured and recommended *against*; phase 4 is untouched. See "Results" below
+for what shipped and what it bought.
+
+**Written 2026-08-10, against schema v2. The database is at v3 now** — schema v3
+(2026-08-22) split `retiredPlayers` into its own `retirees` store, on the same
+out-of-line `[lid, pid]` key, the same identity diff and the same transaction as
+the players split described here. That is the first slice of phase 3b, and it
+confirmed the diagnosis: the archive was being re-serialised on every lineup
+change, costing 11ms per save at 2,000 rows and 91ms at 20,000, so
+`RETIREE_ARCHIVE_LIMIT` turned out to be bounding **write latency, not disk** —
+which is why it could go 2,000 → 20,000 the moment it moved out. The remaining
+append-only logs (`powerRankingHistory`, `transfers`, `newsEvents`,
+`seasonHistory`, `cupHistory`) are still in the league record. See CLAUDE.md's
+"Split player storage" entry for the current state.
 
 This changes the on-disk format of existing saves (see "Migration").
 
@@ -33,7 +46,7 @@ the save buys a constant factor. Splitting the store changes the exponent.
 
 ## Measured baseline
 
-`scripts/leagueSizeTiming.ts`, 320-club world, single run:
+`scripts/leagueSizeTiming.ts`, 240-club world (the six-country world of the time), single run:
 
 | season | players | MB (json) | structuredClone | saveLeague |
 |--------|---------|-----------|-----------------|------------|
@@ -43,6 +56,11 @@ the save buys a constant factor. Splitting the store changes the exponent.
 | 14 | 10,714 | 64.2 | 1,518 ms | 1,071 ms |
 
 Growth is ~2.9 MB/season and only slowly decelerating. Mobile is 5–10× slower.
+
+**Every number in this document was measured before Belgium and Turkey landed
+(2026-08-12), i.e. on 240 clubs rather than today's 320.** Treat them as a floor,
+not a current reading — the save is bigger now, so both the problem and the win
+are larger. The conclusions are unaffected; the absolute milliseconds are not.
 
 ## Scope: this plan fixes one of the two costs
 
@@ -163,7 +181,7 @@ Ordered so the risky part lands last, on top of something already proven.
 | **1** | Schema v2, two stores, one transaction, lazy migration, reassembly in `loadLeague`. **Still writes every player on every save.** | Proves split + migration with zero correctness risk. Fixes `listLeagues` outright. Little else. | ~2 days |
 | **2** | Reference-identity dirty set + deletions + the verification test from phase 0. | **The actual win.** Non-sim actions drop from ~64 MB to a few KB. | ~2 days |
 | **3** | ~~Lazy copy in `simThrough`~~ **Dropped.** Measured ceiling is 26%, on the one action users already accept as a pause, for a change to the hot path. | — | — |
-| **3b** | *New, replaces 3.* Split the append-only logs (`powerRankingHistory`, `transfers`, `newsEvents`, `seasonHistory`, `cupHistory`) into their own stores, appending rather than rewriting. | Small actions go flat; removes the remaining 7.8 MB floor | ~2–3 days |
+| **3b** | *New, replaces 3.* Split the append-only logs (`powerRankingHistory`, `transfers`, `newsEvents`, `seasonHistory`, `cupHistory`) into their own stores, appending rather than rewriting. **Started:** `retiredPlayers` moved out in schema v3 (2026-08-22); the logs above have not. | Small actions go flat; removes the remaining 7.8 MB floor | ~2–3 days |
 | **4** | *Separate piece of work.* Keep the league resident in the sim worker; pass commands and deltas instead of the world. | Kills cost (2), the sim bottleneck | ~1–2 weeks |
 
 Phase 1 on its own delivers almost nothing user-visible — it exists purely to
@@ -171,7 +189,7 @@ de-risk phase 2. Worth knowing before it is judged on its own merits.
 
 ## Results
 
-Measured with `scripts/savePerfProbe.ts` (320-club world, seed 7). `dirty` is what
+Measured with `scripts/savePerfProbe.ts` (240-club world, seed 7). `dirty` is what
 a save writes; `changed` is what genuinely differs by content.
 
 **The reference-identity assumption holds.** At both 3 and 8 seasons, across every
