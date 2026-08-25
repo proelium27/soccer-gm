@@ -185,6 +185,26 @@ export function summaryOf(
  * it, i.e. his first; callers pass his peak rather than `born`, which is a
  * season number too and would render as a real-looking but wrong year.
  */
+/**
+ * A player's career summary, computing it from his seasons if he has none yet.
+ *
+ * The fallback is for a save that has not been migrated; every construction site
+ * seeds the field and the offseason maintains it, so in practice the stored one
+ * is always there. It exists so a reader never has to ask, and it is the last
+ * thing to go when the seasons stop being resident: at that point an unmigrated
+ * save simply cannot reach here, because `loadLeague` migrates before anything
+ * else sees the league.
+ */
+export function careerOf(player: {
+  career?: CareerSummary;
+  stats: readonly SeasonStats[];
+  hist: readonly { season: number; ovr: number }[];
+  ovr: number;
+  peakOvr?: number;
+}): CareerSummary {
+  return player.career ?? summaryOf(player.stats, ovrLookup(player.hist, player.peakOvr ?? player.ovr));
+}
+
 export function ovrLookup(
   hist: readonly { season: number; ovr: number }[],
   fallback: number,

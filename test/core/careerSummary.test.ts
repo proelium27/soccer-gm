@@ -9,6 +9,7 @@ import {
 } from "../../src/core/players/careerSummary.js";
 import { totalsOf, bestSeasonsOf } from "../../src/core/frivolities/stats.js";
 import { migrateLeague } from "../../src/db/migrate.js";
+import { archivePlayer, isArchiveWorthy } from "../../src/core/players/archive.js";
 import type { Player } from "../../src/core/players/types.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 
@@ -112,6 +113,46 @@ describe("career summary", () => {
     for (const p of migrated.players) {
       expect(p.career!.totals).toEqual(before.get(p.pid)!.totals);
       expect(p.career!.best).toEqual(before.get(p.pid)!.best);
+    }
+  });
+});
+
+/**
+ * The gate that settles open question 1 in docs/lazy-career-plan.md.
+ *
+ * `archivePlayer` was the only place in the sim that needed a whole career, and
+ * therefore the only reason careers had to reach the worker at all. It now
+ * builds from the stored summary — so what has to hold is that the row it
+ * produces is identical to the one it produced while walking the seasons.
+ */
+describe("archivePlayer from the stored summary", () => {
+  let aged: LeagueStore;
+  beforeAll(() => {
+    const rng = mulberry32(64);
+    aged = createLeagueState(0, rng, 0, "normal", englandCompetitions());
+    for (let i = 0; i < 5; i++) {
+      aged = simThrough(aged, "season", rng);
+      aged = simOffseason(aged, rng);
+    }
+  }, 600_000);
+
+  it("matches archiving the same player with no summary to fall back on", () => {
+    const worthy = aged.players.filter(isArchiveWorthy);
+    expect(worthy.length).toBeGreaterThan(10);
+
+    for (const p of worthy.slice(0, 200)) {
+      const fromSummary = archivePlayer(p, aged.season);
+      // The old path: with no stored summary, careerOf folds his seasons.
+      const { career: _dropped, ...noSummary } = p;
+      const fromSeasons = archivePlayer(noSummary as Player, aged.season);
+      expect(fromSummary).toEqual(fromSeasons);
+    }
+  });
+
+  it("decides worthiness the same way either way", () => {
+    for (const p of aged.players.slice(0, 500)) {
+      const { career: _dropped, ...noSummary } = p;
+      expect(isArchiveWorthy(p)).toBe(isArchiveWorthy(noSummary as Player));
     }
   });
 });

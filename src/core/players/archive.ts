@@ -1,13 +1,12 @@
 import type { Player, Position } from "./types.js";
 import type { ArchivedSeason } from "./careerSummary.js";
+import { careerOf } from "./careerSummary.js";
 import { ageOf } from "./progression.js";
 import { ovrDuringSeason } from "../awards.js";
 import {
   RETIREE_ARCHIVE_MIN_PEAK_OVR, RETIREE_ARCHIVE_MIN_APPEARANCES, RETIREE_ARCHIVE_LIMIT,
 } from "../constants.js";
-import {
-  totalsOf, bestSeasonsOf, type StatTotals, type BestSeasons,
-} from "../frivolities/stats.js";
+import type { StatTotals, BestSeasons } from "./careerSummary.js";
 
 /**
  * One season a player was on a senior roster, reduced to what the all-time
@@ -110,9 +109,16 @@ export interface ArchivedPlayer {
   intlTitles: number;
 }
 
-/** Career league appearances across every season on the stat line. */
+/**
+ * Career league appearances, off the stored summary.
+ *
+ * Read rather than summed for the same reason `archivePlayer` is: this feeds
+ * `isArchiveWorthy`, which decides whether a retiring player gets a permanent
+ * record, and a gate that has to walk a career cannot run once careers are on
+ * disk (docs/lazy-career-plan.md).
+ */
 function careerAppearances(player: Player): number {
-  return player.stats.reduce((sum, s) => sum + s.appearances, 0);
+  return careerOf(player).totals.appearances;
 }
 
 /**
@@ -174,7 +180,16 @@ export function isArchiveWorthy(player: Player): boolean {
  * would have carried into a season he never plays.
  */
 export function archivePlayer(player: Player, season: number): ArchivedPlayer {
-  const played = player.stats.filter((s) => s.appearances > 0);
+  // Built from his stored summary rather than by walking his seasons, and that
+  // is what settles the last question in docs/lazy-career-plan.md: this was the
+  // only place in the sim that needed a whole career, so it was the only reason
+  // careers had to reach the worker at all. Every field it used to dig out is in
+  // the summary — `seasons` is literally the same type, `totals` and `best` are
+  // folded there, and the peak is its own stored field. The fold runs during
+  // progression (step 2), which is before retirement (step 3), so the season he
+  // has just finished is already in it.
+  const career = careerOf(player);
+  const played = career.seasons.filter((s) => s.apps > 0);
   const peak = peakOf(player, season);
 
   // Distinct clubs in the order he played for them. SeasonStats.tid is the club
@@ -201,17 +216,12 @@ export function archivePlayer(player: Player, season: number): ArchivedPlayer {
     peakSeason: peak.season,
     finalOvr: ovrDuringSeason(player, season),
     clubs,
-    // Every stats row, not just the ones with appearances — see ArchivedSeason.
-    seasons: player.stats.map((st) => ({
-      season: st.season,
-      tid: st.tid,
-      // The rating he carried into that season; falls back to his peak when no
-      // snapshot exists (a career that predates ratings history).
-      ovr: player.hist.find((h) => h.season === st.season - 1)?.ovr ?? peak.ovr,
-      apps: st.appearances,
-    })),
-    totals: totalsOf(played),
-    best: bestSeasonsOf(played),
+    // Every season he was on a roster, not just the ones with appearances — see
+    // ArchivedSeason. The rating on each is the one he carried into it, which
+    // `ovrLookup` resolved when the line was folded.
+    seasons: career.seasons,
+    totals: career.totals,
+    best: career.best,
     caps: player.intl?.caps ?? 0,
     intlGoals: player.intl?.goals ?? 0,
     intlTitles: player.intl?.titles ?? 0,

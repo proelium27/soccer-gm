@@ -175,17 +175,26 @@ Each phase ships on its own and is useful without the next.
 
 ## Open questions
 
-1. **`archivePlayer` needs a full career for retirees, and the worker cannot know
-   in advance who retires.** Measured: filtering to "could retire and could be
-   archived" still leaves 1,150 players / 12.1 MB. The alternative is to have the
-   worker hand back each retiree's final ratings snapshot and rebuild the archive
-   row on the main thread, which has the full career — exactly equivalent, but
-   more protocol. Decide before phase 3.
-2. **Does Frivolities stay whole-pool?** If loading every career for one page is
-   too slow, the all-time boards may need precomputed aggregates instead. Measure
-   before designing.
-3. **How wide is the window?** Awards want season-1; the position-spell walk
-   wants `need` entries. Pick from the code, not by feel, and pin it with a test.
+1. ~~**`archivePlayer` needs a full career for retirees.**~~ **Dissolved, not
+   solved.** The plan was to have the worker hand back each retiree's final
+   ratings snapshot and rebuild the row on the main thread — real protocol, and a
+   delicate reconstruction. Once the summary carried `seasons` as well as totals
+   and best, it turned out `archivePlayer` needed nothing else: `seasons` is the
+   same type it was already emitting, `totals`/`best` are folded, and the peak is
+   its own field. It now builds from the summary, and the fold runs at offseason
+   step 2 — before retirement at step 3 — so the season he just finished is
+   already in it. **This was the only place in the sim that wanted a whole
+   career, so it was the only reason careers had to reach the worker at all.**
+   Pinned by an equality test between the two paths.
+2. ~~**Does Frivolities stay whole-pool?**~~ **Yes, and it loads nothing.** The
+   original plan (store a few scalars, pre-filter, load the top few hundred) was
+   unnecessary: totals + best + seasons fit in 13.5 MB against the 45.2 MB they
+   stand in for, so every board ranks the whole pool with no career reads. No
+   feature loss — ranking, filtering and sorting work the same on a summary.
+3. **How wide is the window?** Still open, and now the *only* open question.
+   Awards want season − 1; the position-spell walk wants `need` entries;
+   `ovrDuringSeason` (via `archivePlayer`'s `finalOvr`) wants season − 1. Pick
+   from the code, not by feel, and pin it with a test.
 
 ## Not in scope
 
