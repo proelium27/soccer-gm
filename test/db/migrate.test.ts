@@ -5,7 +5,9 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { buildCompetitionSchedule, type LeagueStore } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
-import { HYPE_INITIAL, SCOUTING_SPEND_DEFAULT } from "../../src/core/constants.js";
+import {
+  HYPE_INITIAL, SCOUTING_SPEND_DEFAULT, PROMOTION_RELEGATION_COUNT,
+} from "../../src/core/constants.js";
 import { generateTwoDivisionLeague } from "../../src/core/league/generate.js";
 import { englandCompetitions } from "../../src/core/competitions.js";
 import { assignIdentities } from "../../src/core/teams/clubs.js";
@@ -52,6 +54,7 @@ function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed =
     powerRankingHistory: [],
     godMode: false,
     difficulty: "normal",
+    promotionRelegationCount: PROMOTION_RELEGATION_COUNT,
     manager: emptyManagerState(userTid, 1),
   };
 }
@@ -129,6 +132,23 @@ describe("migrateLeague", () => {
     const league = makeLeague(0, 1);
     const migrated = migrateLeague({ ...league, difficulty: "brutal" });
     expect(migrated.difficulty).toBe("brutal");
+  });
+
+  it("backfills promotionRelegationCount for a save that predates the setting", () => {
+    // Every such save played 3 up, 3 down, so the shipped constant is what it
+    // was already doing.
+    const league = makeLeague(0, 1);
+    const { promotionRelegationCount: _n, ...without } = league;
+    const migrated = migrateLeague(without as unknown as LeagueStore);
+    expect(migrated.promotionRelegationCount).toBe(PROMOTION_RELEGATION_COUNT);
+  });
+
+  it("leaves a chosen promotionRelegationCount untouched, including 0", () => {
+    const league = makeLeague(0, 1);
+    expect(migrateLeague({ ...league, promotionRelegationCount: 0 })
+      .promotionRelegationCount).toBe(0);
+    expect(migrateLeague({ ...league, promotionRelegationCount: 5 })
+      .promotionRelegationCount).toBe(5);
   });
 
   it("leaves an existing powerRankingHistory untouched", () => {

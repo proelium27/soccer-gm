@@ -7,6 +7,7 @@ import { simThrough } from "../../src/core/simThrough.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import { transferWindowState } from "../../src/core/transfers/window.js";
 import { TRANSFER_DEADLINE_MATCHDAY } from "../../src/core/calendar.js";
+import { PROMOTION_RELEGATION_COUNT } from "../../src/core/constants.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { ScheduleGame } from "../../src/core/schedule.js";
 import type { StoredTeam } from "../../src/core/teams/clubs.js";
@@ -83,6 +84,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     powerRankingHistory: [],
     godMode: false,
     difficulty: "normal",
+    promotionRelegationCount: PROMOTION_RELEGATION_COUNT,
     manager: emptyManagerState(0, 1),
   };
 }

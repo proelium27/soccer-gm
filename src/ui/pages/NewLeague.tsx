@@ -7,11 +7,13 @@ import { mulberry32 } from "../../engine/rng.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { readLeagueFileText } from "../../db/exportImport.js";
 import {
-  DIFFICULTIES, DIFFICULTY_ORDER, DEFAULT_DIFFICULTY, type Difficulty,
+  DIFFICULTIES, DIFFICULTY_ORDER, DEFAULT_DIFFICULTY, PROMOTION_RELEGATION_COUNT,
+  MAX_PROMOTION_SPOTS, type Difficulty,
 } from "../../core/constants.js";
 import {
   buildCompetitions,
   competitionAbbrev,
+  competitionTeamCount,
   countryClubRanges,
   countriesOf,
   worldTeamSlots,
@@ -128,6 +130,10 @@ export function NewLeague() {
   // Fixed for the save's lifetime once it's created, so it is chosen here and
   // nowhere else (see the DIFFICULTIES block in core/constants.ts).
   const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
+  // How many clubs go up and down each season. Fixed at creation for the same
+  // reason difficulty is: every season already played was worth what the
+  // pyramid said it was worth at the time.
+  const [promoCount, setPromoCount] = useState(PROMOTION_RELEGATION_COUNT);
   // Which year season 1 gets labelled as. Purely cosmetic (the sim counts
   // seasons from 1 either way), so it's held as raw text and only turned into a
   // number once it reads as a usable year, letting the field go empty mid-edit.
@@ -179,6 +185,21 @@ export function NewLeague() {
 
   const parsedStartYear = normalizeStartYear(startYear);
 
+  // A world only has promotion and relegation if some country actually fields a
+  // second division — one-division countries have nothing to go down into.
+  const hasPyramid = world.competitions.some((c) => c.tier === 2);
+  // Half the smallest division in the world, capped: whatever the count is, it
+  // has to be a promotion race rather than the two divisions trading places, and
+  // divisions can be as small as MIN_DIVISION_TEAMS.
+  const maxPromoSpots = Math.min(
+    MAX_PROMOTION_SPOTS,
+    Math.floor(Math.min(...world.competitions.map(competitionTeamCount)) / 2),
+  );
+  // Clamped rather than reset: shrinking the divisions after picking 6 up and
+  // down should quietly take what still fits, not silently keep a number the
+  // world can no longer honour.
+  const promoSpots = Math.min(promoCount, maxPromoSpots);
+
   /** The country's code, for the flag stand-in on its tab. */
   function abbrevForCountry(countryName: string): string {
     const comp = world.competitions.find((c) => c.country === countryName);
@@ -196,7 +217,9 @@ export function NewLeague() {
   function buildLeague(tid: number): LeagueStore {
     const seed = Date.now();
     const rng = mulberry32(seed);
-    const generated = createLeagueState(tid, rng, seed, difficulty, world.competitions);
+    const generated = createLeagueState(
+      tid, rng, seed, difficulty, world.competitions, promoSpots,
+    );
     const league = activeRoster
       ? applyRosterFileToNewLeague(generated, activeRoster.file, tid).league
       : generated;
@@ -231,7 +254,10 @@ export function NewLeague() {
           setPending(league);
           return;
         }
-        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster, difficulty });
+        trackEvent("league_created", {
+          country, tier: tierForTid(selectedTid), roster: !!roster, difficulty,
+          promotionRelegation: promoSpots,
+        });
         await setLeague(league);
         navigate("/dashboard");
       } finally {
@@ -245,7 +271,10 @@ export function NewLeague() {
     await gate.run(async () => {
       setSaving(true);
       try {
-        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster, difficulty });
+        trackEvent("league_created", {
+          country, tier: tierForTid(selectedTid), roster: !!roster, difficulty,
+          promotionRelegation: promoSpots,
+        });
         await setLeague(applyTeamIdentities(pending, teams));
         navigate("/dashboard");
       } finally {
@@ -587,6 +616,42 @@ export function NewLeague() {
           can't change it later, so pick one you'll want to live with.
         </p>
       </div>
+
+      {/* Only worth asking about in a world that has a second division to go
+          down into. A world of one-division countries has no swap to size. */}
+      {hasPyramid && (
+        <div className="mb-3">
+          <h6 className="text-muted text-uppercase small fw-semibold mb-2">
+            Promotion and relegation
+          </h6>
+          <div className="d-flex align-items-center gap-2">
+            <select
+              className="form-select"
+              style={{ maxWidth: 200 }}
+              value={promoSpots}
+              aria-label="Clubs promoted and relegated each season"
+              onChange={(e) => setPromoCount(Number(e.target.value))}
+            >
+              {Array.from({ length: maxPromoSpots + 1 }, (_, n) => (
+                <option key={n} value={n}>
+                  {n === 0 ? "None" : `${n} up, ${n} down`}
+                </option>
+              ))}
+            </select>
+            <span className="text-muted small">
+              {promoSpots === 0
+                ? "Every division is closed. Nobody goes up or down."
+                : `The bottom ${promoSpots} of each top flight swap with the top ${promoSpots} of the division below.`}
+            </span>
+          </div>
+          <p className="text-muted small mt-2 mb-0">
+            Applies to every country in your world, and can't be changed later. Three is
+            the normal number{maxPromoSpots < MAX_PROMOTION_SPOTS
+              ? ", and small divisions cap how high this can go"
+              : ""}.
+          </p>
+        </div>
+      )}
 
       <div className="mb-3">
         <h6 className="text-muted text-uppercase small fw-semibold mb-2">Start year</h6>

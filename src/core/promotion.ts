@@ -17,14 +17,34 @@ export interface CompetitionSwap {
 }
 
 /**
- * For every country, bottom PROMOTION_RELEGATION_COUNT of its tier-1 final
- * table swap with top PROMOTION_RELEGATION_COUNT of its tier-2 final table.
+ * How many clubs actually change division in one country this offseason: the
+ * save's chosen count, held to something both tables can supply.
+ *
+ * The clamp is not just defensiveness. A save picks one count for the whole
+ * world, but divisions can be different sizes (see Competition.teamCount), so a
+ * world with a 10-club second division and 6-up-6-down would otherwise promote
+ * more than half of it — and asking for more clubs than a table holds would
+ * swap the two divisions wholesale.
+ */
+export function promotionSpots(count: number, d1Size: number, d2Size: number): number {
+  // A non-finite count would survive the clamp as NaN, and `slice(-NaN)` is
+  // `slice(0)` — the whole table again. Treat anything that isn't a number as
+  // no swap rather than every swap.
+  if (!Number.isFinite(count)) return 0;
+  return Math.max(0, Math.min(Math.floor(count), d1Size, d2Size));
+}
+
+/**
+ * For every country, bottom N of its tier-1 final table swap with top N of its
+ * tier-2 final table, where N is the save's promotionRelegationCount (3 by
+ * default, chosen on the New League screen and fixed for the save's life).
  * Every table in `tablesByCompId` must already be sorted by computeStandings
  * (points, then GD, then GF, then tid).
  */
 export function computeCountrySwaps(
   competitions: Competition[],
   tablesByCompId: Map<number, StandingsRow[]>,
+  count: number = PROMOTION_RELEGATION_COUNT,
 ): CompetitionSwap[] {
   return tier1Pairs(competitions).flatMap(({ d1, d2 }) => {
     // Nothing to swap with: a one-division country has no tier 2 to send clubs
@@ -32,11 +52,17 @@ export function computeCountrySwaps(
     if (!d2) return [];
     const d1Table = tablesByCompId.get(d1.id)!;
     const d2Table = tablesByCompId.get(d2.id)!;
+    const n = promotionSpots(count, d1Table.length, d2Table.length);
+    // `slice(-0)` is `slice(0)` — the WHOLE table — so a save set to no
+    // promotion or relegation would relegate every club in the division. The
+    // early return is the only thing standing between that setting and a world
+    // that turns itself inside out every offseason.
+    if (n === 0) return [];
     return {
       d1CompId: d1.id,
       d2CompId: d2.id,
-      promoted: d2Table.slice(0, PROMOTION_RELEGATION_COUNT).map((r) => r.tid),
-      relegated: d1Table.slice(-PROMOTION_RELEGATION_COUNT).map((r) => r.tid),
+      promoted: d2Table.slice(0, n).map((r) => r.tid),
+      relegated: d1Table.slice(-n).map((r) => r.tid),
     };
   });
 }

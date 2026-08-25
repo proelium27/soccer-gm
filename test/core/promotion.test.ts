@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence,
+  computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence, promotionSpots,
 } from "../../src/core/promotion.js";
 import { englandCompetitions } from "../../src/core/competitions.js";
 import type { StandingsRow } from "../../src/core/standings.js";
@@ -31,6 +31,40 @@ describe("computeCountrySwaps", () => {
     expect(swaps).toHaveLength(1);
     expect(swaps[0].promoted).toEqual([20, 21, 22]);
     expect(swaps[0].relegated).toEqual([2, 3, 4]);
+  });
+
+  it("swaps as many clubs as the save asked for", () => {
+    const d1 = [row(0, 90), row(1, 80), row(2, 70), row(3, 60), row(4, 50)];
+    const d2 = [row(20, 95), row(21, 85), row(22, 75), row(23, 65), row(24, 55)];
+    const swaps = computeCountrySwaps(COMPS, new Map([[0, d1], [1, d2]]), 1);
+    expect(swaps[0].promoted).toEqual([20]);
+    expect(swaps[0].relegated).toEqual([4]);
+  });
+
+  // slice(-0) is slice(0) — the whole table — so a save with promotion turned
+  // off would otherwise relegate every club in the division.
+  it("swaps nobody at all when the count is 0", () => {
+    const d1 = [row(0, 90), row(1, 80), row(2, 70)];
+    const d2 = [row(20, 95), row(21, 85), row(22, 75)];
+    const swaps = computeCountrySwaps(COMPS, new Map([[0, d1], [1, d2]]), 0);
+    expect(swaps).toEqual([]);
+  });
+
+  it("never asks for more clubs than the smaller division holds", () => {
+    const d1 = [row(0, 90), row(1, 80), row(2, 70), row(3, 60)];
+    const d2 = [row(20, 95), row(21, 85)];
+    const swaps = computeCountrySwaps(COMPS, new Map([[0, d1], [1, d2]]), 4);
+    expect(swaps[0].promoted).toEqual([20, 21]);
+    expect(swaps[0].relegated).toEqual([2, 3]);
+  });
+});
+
+describe("promotionSpots", () => {
+  it("holds the count inside both divisions and never goes negative", () => {
+    expect(promotionSpots(3, 20, 20)).toBe(3);
+    expect(promotionSpots(9, 20, 4)).toBe(4);
+    expect(promotionSpots(-2, 20, 20)).toBe(0);
+    expect(promotionSpots(NaN, 20, 20)).toBe(0);
   });
 });
 

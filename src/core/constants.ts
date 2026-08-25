@@ -96,8 +96,22 @@ export const DIVISION_2_BUDGET_SCALE = 0.6;
  */
 export const DIVISION_2_REFUSAL_OVR_THRESHOLD = 70;
 
-/** Straight automatic swap each offseason: bottom N of D1 <-> top N of D2. */
+/**
+ * Straight automatic swap each offseason: bottom N of D1 <-> top N of D2.
+ *
+ * The default only. A save carries its own `promotionRelegationCount`, chosen
+ * on the New League screen, and this is both what that picker starts at and
+ * what every save made before the setting existed is migrated to.
+ */
 export const PROMOTION_RELEGATION_COUNT = 3;
+
+/**
+ * The most clubs a save can be set to promote and relegate. Held below half the
+ * smallest division in the world as well (see the New League screen), so the
+ * ceiling that actually applies is often lower — this is the point past which
+ * the number stops meaning much even in a big division.
+ */
+export const MAX_PROMOTION_SPOTS = 6;
 
 /**
  * A promoted/relegated club's academyBase (its generation-time strength
