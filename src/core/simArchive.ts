@@ -2,8 +2,9 @@ import type { LeagueStore } from "./leagueState.js";
 import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { ArchivedPlayer } from "./players/archive.js";
 import type { PlayedMatch } from "./standings.js";
+import type { CompletedTransfer } from "./transfers/negotiation.js";
 import type { SeasonStats, RatingsSnapshot } from "./players/types.js";
-import { POSITION_CHANGE_SEASONS } from "./constants.js";
+import { POSITION_CHANGE_SEASONS, PLAYER_SETTLED_SEASONS } from "./constants.js";
 import { pruneRetireeArchive } from "./players/archive.js";
 import { scrubHistoryForCull } from "./players/freeAgentCull.js";
 
@@ -34,9 +35,11 @@ import { scrubHistoryForCull } from "./players/freeAgentCull.js";
  *
  * `newsEvents` and the cup histories are held back too, but they needed more
  * than an empty array because two offseason steps read them — see `detachNews`.
- * **`transfers` and `seasonHistory` can never move here**: they are read for
- * real sim decisions (arrival seasons via `joinedSeasons`, loan returns,
- * `academyForm`, `protectedStars`), not merely accumulated.
+ * `transfers` goes as a *window* rather than an empty array, because the sim
+ * genuinely reads it and that read has a horizon — see `detachTransfers`.
+ * **`seasonHistory` can never move here**: it is read for real sim decisions
+ * (`academyForm`, `protectedStars`), not merely accumulated, and no bound on
+ * how far back those look is available.
  *
  * **The invariant, if you add a field:** it must be append-only across the
  * whole worker-side call graph. A single read of the retained data inside the
@@ -334,4 +337,67 @@ export function reattachPlayed(result: LeagueStore, played: PlayedMatch[]): Leag
   // Defensive: never invent matches we were not holding.
   const restored = played.slice(0, Math.min(stubs, played.length));
   return { ...result, played: [...restored, ...out.slice(stubs)] };
+}
+
+/**
+ * Hold back all but the last few seasons of the transfer log.
+ *
+ * 14.8 MB on the reported season-60 save, and the largest thing still crossing
+ * that could stop. Unlike the four above this one is not append-only — the sim
+ * genuinely reads it — but it reads it for exactly one thing, and that read has
+ * a horizon.
+ *
+ * `runAITransferMarket` calls `joinedSeasons` to find when each player last
+ * arrived, and feeds that to `settledMultiplier`, which **returns 1 for anyone
+ * who arrived `PLAYER_SETTLED_SEASONS` or more ago — the same answer it gives a
+ * player with no record at all.** So a row older than that window is not merely
+ * unlikely to matter, it is provably inert: dropping it and keeping it produce
+ * the same number. That is what makes a window sound here where it would not be
+ * for, say, `seasonHistory`.
+ *
+ * The window is cut at `season - PLAYER_SETTLED_SEASONS`, one season wider than
+ * the winter market needs and two wider than the summer one. That margin is
+ * also what would cover a multi-season jump, whose later seasons draw entirely
+ * on rows the jump itself wrote — but `jump` is exempt anyway, because each of
+ * its offseasons culls and only the last one's pids come back to scrub with.
+ *
+ * **If anything else ever reads the transfer log inside the sim, this stops
+ * being safe.** A truncated log reads as "he has always been here", which is a
+ * plausible-looking wrong answer rather than a crash. `cullFreeAgentPool` also
+ * scrubs it, so the retained rows take the same `culledPids` scrub the news
+ * history does.
+ */
+export function detachTransfers(league: LeagueStore): {
+  payload: LeagueStore;
+  transfers: CompletedTransfer[];
+} {
+  const all = league.transfers ?? [];
+  const cutoff = league.season - PLAYER_SETTLED_SEASONS;
+  // The log is written in season order, so the window is a suffix and the
+  // retained rows are the prefix ahead of it — which is what lets the two be
+  // concatenated back without a merge.
+  let start = all.length;
+  while (start > 0 && all[start - 1].season >= cutoff) start--;
+  return {
+    payload: { ...league, transfers: all.slice(start) },
+    transfers: all.slice(0, start),
+  };
+}
+
+/**
+ * Put the held-back rows back in front of whatever the worker returned.
+ *
+ * Same order and same scrub as `reattachNews`: the retained rows are older than
+ * every row the worker has, so they lead, and a player culled this run has his
+ * rows dropped here because the worker could not reach them.
+ */
+export function reattachTransfers(
+  result: LeagueStore,
+  transfers: CompletedTransfer[],
+  culledPids: Set<number>,
+): LeagueStore {
+  const kept = culledPids.size === 0
+    ? transfers
+    : transfers.filter((t) => !culledPids.has(t.pid));
+  return { ...result, transfers: [...kept, ...(result.transfers ?? [])] };
 }

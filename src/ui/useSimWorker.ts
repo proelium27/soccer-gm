@@ -9,6 +9,7 @@ import type { LeagueArchive } from "../core/simArchive.js";
 import {
   detachArchive, reattachArchive, detachPlayed, reattachPlayed,
   detachCareer, reattachCareer, detachNews, reattachNews,
+  detachTransfers, reattachTransfers,
 } from "../core/simArchive.js";
 import { referencedPids } from "../core/players/playerNames.js";
 import { computeTeamSeasonStats } from "../core/standings.js";
@@ -44,6 +45,8 @@ type Pending = {
   played: PlayedMatch[] | null;
   /** The part of each player's career the worker was not given. */
   careers: ReturnType<typeof detachCareer>["careers"] | null;
+  /** The older transfer rows the worker was not given. */
+  transfers: ReturnType<typeof detachTransfers>["transfers"] | null;
   /** The news feed and archived cups the worker was not given. */
   news: ReturnType<typeof detachNews>["news"] | null;
 };
@@ -85,11 +88,15 @@ export function useSimWorker() {
         const pending = pendingRef.current;
         if (pending) {
           let league = e.data.league;
-          if (pending.news) {
-            const culled = new Set(
-              e.data.type === "offseasonResult" ? e.data.culledPids ?? [] : [],
-            );
-            league = reattachNews(league, pending.news, culled);
+          // Whoever the free-agent cull deleted. The worker could only scrub
+          // its own copies, so every held-back list that carries a pid gets the
+          // same treatment here. Empty for anything but an offseason.
+          const culled = new Set(
+            e.data.type === "offseasonResult" ? e.data.culledPids ?? [] : [],
+          );
+          if (pending.news) league = reattachNews(league, pending.news, culled);
+          if (pending.transfers) {
+            league = reattachTransfers(league, pending.transfers, culled);
           }
           if (pending.careers) league = reattachCareer(league, pending.careers);
           if (pending.played) league = reattachPlayed(league, pending.played);
@@ -160,9 +167,19 @@ export function useSimWorker() {
         // The news feed and the archived cups, ~23 MB on a long save. Exempt
         // from `jump` with the rest: it crosses offseasons, so it would need a
         // culled pid set per season rather than one.
-        const { payload, news } = stripPlayed
+        const { payload: withoutNews, news } = stripPlayed
           ? detachNews(withoutCareers)
           : { payload: withoutCareers, news: null };
+
+        // All but the last few seasons of the transfer log, 14.8 MB on the
+        // reported save. The sim does read this one, but only through
+        // `joinedSeasons`, whose answer is fixed after PLAYER_SETTLED_SEASONS —
+        // so the window it is cut to is exactly as good as the whole log. Same
+        // exemption for `jump`: its offseasons each cull, and only the last
+        // one's pids come back.
+        const { payload, transfers } = stripPlayed
+          ? detachTransfers(withoutNews)
+          : { payload: withoutNews, transfers: null };
 
         // The offseason is the one place the sim reads a box score it did not
         // just play (computeTeamSeasonStats). Working it out here is what makes
@@ -183,7 +200,7 @@ export function useSimWorker() {
               }
             : { ...command, league: payload };
 
-        pendingRef.current = { resolve, reject, archive, played, careers, news };
+        pendingRef.current = { resolve, reject, archive, played, careers, news, transfers };
         progressRef.current = handlers.onProgress ?? null;
         jumpProgressRef.current = handlers.onJumpProgress ?? null;
         workerRef.current?.postMessage(outgoing);

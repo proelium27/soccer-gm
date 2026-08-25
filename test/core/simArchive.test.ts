@@ -5,7 +5,9 @@ import { simOffseason, simOffseasonReporting } from "../../src/core/offseason.js
 import {
   detachArchive, reattachArchive, detachPlayed, reattachPlayed,
   detachCareer, reattachCareer, detachNews, reattachNews,
+  detachTransfers, reattachTransfers,
 } from "../../src/core/simArchive.js";
+import { PLAYER_SETTLED_SEASONS } from "../../src/core/constants.js";
 import { referencedPids } from "../../src/core/players/playerNames.js";
 import { computeTeamSeasonStats } from "../../src/core/standings.js";
 import { pruneRetireeArchive } from "../../src/core/players/archive.js";
@@ -337,5 +339,68 @@ describe("simArchive news and cup histories", () => {
     ).length;
     expect(kept).toBe(0);
     expect(before).toBeGreaterThanOrEqual(kept);
+  });
+});
+
+/**
+ * The gate for detachTransfers/reattachTransfers.
+ *
+ * 14.8 MB on the reported season-60 save, and the only one of the five the sim
+ * actually reads. It is safe because that read — `joinedSeasons` feeding
+ * `settledMultiplier` — gives the same answer for a player who arrived
+ * PLAYER_SETTLED_SEASONS ago as for one with no record at all, so a row older
+ * than the window cannot change a decision. That is what these assert: the
+ * window is genuinely a suffix of the log, and a season and an offseason run on
+ * it land where a run on the whole thing does.
+ */
+describe("simArchive transfer window", () => {
+  let aged: LeagueStore;
+  beforeAll(() => {
+    const rng = mulberry32(96);
+    aged = createLeagueState(0, rng, 0, "normal", englandCompetitions());
+    // Long enough that the window really cuts something: PLAYER_SETTLED_SEASONS
+    // is 3, so a shorter dynasty would keep the whole log and assert nothing.
+    for (let i = 0; i < 5; i++) {
+      aged = simThrough(aged, "season", rng);
+      aged = simOffseason(aged, rng);
+    }
+  }, 900_000);
+
+  it("cuts a suffix, holds the prefix, and loses nothing in between", () => {
+    const { payload, transfers } = detachTransfers(aged);
+    expect(transfers.length).toBeGreaterThan(0); // the window is doing work
+    expect(payload.transfers.length).toBeGreaterThan(0);
+    expect([...transfers, ...payload.transfers]).toEqual(aged.transfers);
+    // Everything inert is held back, everything still live is sent.
+    const cutoff = aged.season - PLAYER_SETTLED_SEASONS;
+    expect(transfers.every((t) => t.season < cutoff)).toBe(true);
+    expect(payload.transfers.every((t) => t.season >= cutoff)).toBe(true);
+  });
+
+  it("a season on the window lands where a run on the whole log does", () => {
+    const whole = simThrough(aged, "season", mulberry32(41));
+    const { payload, transfers } = detachTransfers(aged);
+    const detached = reattachTransfers(
+      simThrough(payload, "season", mulberry32(41)), transfers, new Set(),
+    );
+    expect(detached).toEqual(whole);
+  });
+
+  it("an offseason does too, cull and all", () => {
+    const full = simThrough(aged, "season", mulberry32(42));
+    const whole = simOffseason(full, mulberry32(43));
+
+    const { payload, transfers } = detachTransfers(full);
+    const { league: result, report } = simOffseasonReporting(payload, mulberry32(43), {
+      referencedPids: referencedPids(full),
+    });
+    const detached = reattachTransfers(result, transfers, report.culledPids);
+
+    expect(detached).toEqual(whole);
+  });
+
+  it("holds back none of a save younger than the window", () => {
+    const young = createLeagueState(0, mulberry32(97), 0, "normal", englandCompetitions());
+    expect(detachTransfers(young).transfers).toEqual([]);
   });
 });
