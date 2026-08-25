@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
+import CostAwareSequencer from "./test/helpers/shardSequencer.js";
 
 /**
  * Build targets that are embedded in someone else's page rather than served
@@ -103,5 +104,12 @@ export default defineConfig(({ mode }) => ({
   build: { outDir: mode === "crazygames" ? "dist-crazygames" : "dist" },
   test: {
     exclude: [".claude/**", "node_modules/**"],
+    // CI fans the suite out over several runners with `--shard`. Vitest's own
+    // split is by file *count* and ignores what a file costs, which leaves one
+    // shard running for half an hour while another finishes in 40 seconds —
+    // see test/helpers/shardPartition.ts for the measurements. This weights
+    // the split instead. It changes which runner runs a file, never which
+    // files run.
+    sequence: { sequencer: CostAwareSequencer },
   },
 }));
