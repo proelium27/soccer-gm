@@ -11,7 +11,7 @@ import { cullFreeAgentPool } from "./players/freeAgentCull.js";
 import { summarizeRetirements } from "./players/retirements.js";
 import { clearSuspension } from "./suspensions.js";
 import { extendRetireeArchive } from "./players/archive.js";
-import { withSeason, summaryOf } from "./players/careerSummary.js";
+import { withSeason, summaryOf, ovrLookup } from "./players/careerSummary.js";
 import { extendPlayerNames } from "./players/playerNames.js";
 import { archiveCup } from "./cup/archive.js";
 import {
@@ -217,8 +217,9 @@ export function simOffseason(
     // player carrying the field is what lets readers drop the "or compute it
     // from his seasons" fallback, which stops being possible at all once the
     // seasons live on disk.
-    const base = p.career ?? summaryOf(p.stats.filter((s) => s.season !== endingSeason));
-    p = { ...p, career: finished ? withSeason(base, finished) : base };
+    const ovrFor = ovrLookup(p.hist, p.peakOvr ?? p.ovr);
+    const base = p.career ?? summaryOf(p.stats.filter((s) => s.season !== endingSeason), ovrFor);
+    p = { ...p, career: finished ? withSeason(base, finished, ovrFor(endingSeason)) : base };
     const progressed = progressPlayer(rng, p, endingSeason, academyPids.has(p.pid));
     const tid = tidLastSeason.get(p.pid);
     // Only rostered players, and away from the user's own club only the ones

@@ -4,7 +4,9 @@ import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import { englandCompetitions } from "../../src/core/competitions.js";
-import { summaryOf, withSeason, emptyCareerSummary } from "../../src/core/players/careerSummary.js";
+import {
+  summaryOf, withSeason, emptyCareerSummary, ovrLookup,
+} from "../../src/core/players/careerSummary.js";
 import { totalsOf, bestSeasonsOf } from "../../src/core/frivolities/stats.js";
 import { migrateLeague } from "../../src/db/migrate.js";
 import type { Player } from "../../src/core/players/types.js";
@@ -36,12 +38,15 @@ describe("career summary", () => {
     let checked = 0;
     for (const p of league.players) {
       const current = p.stats.find((s) => s.season === league.season);
+      const ovrFor = ovrLookup(p.hist, p.peakOvr ?? p.ovr);
       const live = current
-        ? withSeason(p.career ?? emptyCareerSummary(), current)
+        ? withSeason(p.career ?? emptyCareerSummary(), current, ovrFor(current.season))
         : (p.career ?? emptyCareerSummary());
+      const whole = summaryOf(p.stats, ovrFor);
 
-      expect(live.totals).toEqual(summaryOf(p.stats).totals);
-      expect(live.best).toEqual(summaryOf(p.stats).best);
+      expect(live.totals).toEqual(whole.totals);
+      expect(live.best).toEqual(whole.best);
+      expect(live.seasons).toEqual(whole.seasons);
       checked++;
     }
     expect(checked).toBeGreaterThan(500);
@@ -58,7 +63,7 @@ describe("career summary", () => {
 
     for (const p of active.slice(0, 100)) {
       const finished = p.stats.filter((s) => s.season !== league.season);
-      expect(p.career!.totals).toEqual(summaryOf(finished).totals);
+      expect(p.career!.totals).toEqual(summaryOf(finished, ovrLookup(p.hist, p.peakOvr ?? p.ovr)).totals);
     }
   });
 
@@ -70,7 +75,7 @@ describe("career summary", () => {
 
   it("agrees with the functions it stands in for", () => {
     for (const p of league.players.slice(0, 300)) {
-      const s = summaryOf(p.stats);
+      const s = summaryOf(p.stats, ovrLookup(p.hist, p.peakOvr ?? p.ovr));
       expect(s.totals).toEqual(totalsOf(p.stats));
       expect(s.best).toEqual(bestSeasonsOf(p.stats));
     }
@@ -80,14 +85,16 @@ describe("career summary", () => {
     const a = { ...emptyRow(3), appearances: 10, goals: 5, ratingSum: 60 };
     const b = { ...emptyRow(7), appearances: 10, goals: 5, ratingSum: 60 };
     // Walking in order replaces only on strictly greater, so season 3 holds it.
-    expect(summaryOf([a, b]).best.goals.season).toBe(3);
+    expect(summaryOf([a, b], () => 0).best.goals.season).toBe(3);
   });
 
   it("ignores a season with no appearances, so avgRating is not dragged down", () => {
     const played = { ...emptyRow(1), appearances: 10, goals: 4, ratingSum: 70 };
     const absent = emptyRow(2);
-    expect(summaryOf([played, absent]).totals).toEqual(summaryOf([played]).totals);
-    expect(summaryOf([played]).totals.avgRating).toBeCloseTo(7);
+    expect(summaryOf([played, absent], () => 0).totals).toEqual(summaryOf([played], () => 0).totals);
+    expect(summaryOf([played], () => 0).totals.avgRating).toBeCloseTo(7);
+    // ...but the absent season is still a season he was on a roster.
+    expect(summaryOf([played, absent], () => 0).seasons.map((x) => x.season)).toEqual([1, 2]);
   });
 
   it("migrate backfills it exactly, for a save that never had it", () => {

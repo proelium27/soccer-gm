@@ -1,4 +1,5 @@
 import type { Player, Position } from "./types.js";
+import type { ArchivedSeason } from "./careerSummary.js";
 import { ageOf } from "./progression.js";
 import { ovrDuringSeason } from "../awards.js";
 import {
@@ -24,15 +25,13 @@ import {
  * trophies won't match what his profile showed the season before he retired.
  * `apps` is carried so the rating-arc terms can still ignore a season he sat out.
  */
-export interface ArchivedSeason {
-  season: number;
-  /** Club he was at as of his most recent matchday that season (SeasonStats.tid). */
-  tid: number;
-  /** The rating he played that season at. */
-  ovr: number;
-  /** Appearances that season; 0 means he was in the squad but never played. */
-  apps: number;
-}
+/**
+ * Re-exported from `careerSummary.ts`, where it moved so that a living player's
+ * summary and an archived retiree carry the identical shape — the all-time
+ * boards fold both into one `CareerRow` and could not otherwise agree about what
+ * a season line is.
+ */
+export type { ArchivedSeason };
 
 /**
  * A retired player kept permanently, so the all-time frivolities leaderboards

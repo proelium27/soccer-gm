@@ -1,6 +1,29 @@
 import type { SeasonStats } from "./types.js";
 
 /**
+ * One season a player was on a senior roster: the club, the rating he played it
+ * at, and how many games he got.
+ *
+ * Lives here rather than in `archive.ts` because a living player's summary and
+ * an `ArchivedPlayer` both carry it and the two must be the same shape — the
+ * all-time boards fold them into one `CareerRow` and could not otherwise agree.
+ * `archive.ts` re-exports it.
+ *
+ * Deliberately includes a season with no appearance: a stats row is the game's
+ * only per-season squad-membership record, and a league title is credited on it.
+ * That is the opposite of the totals/best rule below, which skips them.
+ */
+export interface ArchivedSeason {
+  season: number;
+  /** Club he was at as of his most recent matchday that season (SeasonStats.tid). */
+  tid: number;
+  /** The rating he played that season at. */
+  ovr: number;
+  /** Appearances that season; 0 means he was in the squad but never played. */
+  apps: number;
+}
+
+/**
  * A player's career, reduced to what the all-time boards actually rank on.
  *
  * **Why this exists.** A save holds every player's whole per-season history from
@@ -69,6 +92,17 @@ export interface CareerSummary {
   totals: StatTotals;
   best: BestSeasons;
   ratingSum: number;
+  /**
+   * A line per season he was on a roster, in season order.
+   *
+   * Cheap for what it unlocks: measured on the reported season-60 save it is
+   * **2.7 MB** across 73,808 lines — four small numbers each, against the ~550
+   * bytes a `SeasonStats` row plus its `RatingsSnapshot` cost. Carrying it is
+   * what makes a whole `CareerRow` derivable without the seasons behind it, so
+   * the GOAT board's prime curve and the club-per-season a league title is
+   * attributed on keep working with the career itself on disk.
+   */
+  seasons: ArchivedSeason[];
 }
 
 export function emptyTotals(): StatTotals {
@@ -82,7 +116,7 @@ export function emptyBestSeasons(): BestSeasons {
 }
 
 export function emptyCareerSummary(): CareerSummary {
-  return { totals: emptyTotals(), best: emptyBestSeasons(), ratingSum: 0 };
+  return { totals: emptyTotals(), best: emptyBestSeasons(), ratingSum: 0, seasons: [] };
 }
 
 /** One season's value for a ranked stat. */
@@ -100,8 +134,12 @@ function valueOf(s: SeasonStats, key: AllTimeStatKey): number {
  * Pure — returns a new summary — so it composes and cannot corrupt the input if
  * it is called twice by mistake.
  */
-export function withSeason(summary: CareerSummary, s: SeasonStats): CareerSummary {
-  if (s.appearances <= 0) return summary;
+export function withSeason(summary: CareerSummary, s: SeasonStats, ovr: number): CareerSummary {
+  // The season line goes in either way — it is squad membership, and a title is
+  // credited on it whether or not he got a game. Only the ranked stats below
+  // skip a season with no appearance.
+  const seasons = [...summary.seasons, { season: s.season, tid: s.tid, ovr, apps: s.appearances }];
+  if (s.appearances <= 0) return { ...summary, seasons };
 
   const totals = { ...summary.totals };
   for (const k of ALL_TIME_STAT_KEYS) {
@@ -119,7 +157,7 @@ export function withSeason(summary: CareerSummary, s: SeasonStats): CareerSummar
     if (v > best[k].value) best[k] = { value: v, season: s.season, appearances: s.appearances };
   }
 
-  return { totals, best, ratingSum };
+  return { totals, best, ratingSum, seasons };
 }
 
 /**
@@ -129,8 +167,28 @@ export function withSeason(summary: CareerSummary, s: SeasonStats): CareerSummar
  * the migration backfill and the tests both use. Equivalent to the `totalsOf` /
  * `bestSeasonsOf` pair it replaces, which is pinned by test rather than assumed.
  */
-export function summaryOf(stats: readonly SeasonStats[]): CareerSummary {
+export function summaryOf(
+  stats: readonly SeasonStats[],
+  ovrForSeason: (season: number) => number,
+): CareerSummary {
   let summary = emptyCareerSummary();
-  for (const s of stats) summary = withSeason(summary, s);
+  for (const s of stats) summary = withSeason(summary, s, ovrForSeason(s.season));
   return summary;
+}
+
+/**
+ * The rating a player played a given season at, from his ratings history.
+ *
+ * A snapshot stamped N is what he carried through season N + 1 — the convention
+ * `progressPlayer` writes and `awards.ovrDuringSeason` reads — so season N asks
+ * for the one stamped N − 1. `fallback` covers a season with no snapshot behind
+ * it, i.e. his first; callers pass his peak rather than `born`, which is a
+ * season number too and would render as a real-looking but wrong year.
+ */
+export function ovrLookup(
+  hist: readonly { season: number; ovr: number }[],
+  fallback: number,
+): (season: number) => number {
+  const bySeason = new Map(hist.map((h) => [h.season, h.ovr]));
+  return (season) => bySeason.get(season - 1) ?? fallback;
 }

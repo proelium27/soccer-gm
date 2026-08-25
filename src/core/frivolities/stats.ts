@@ -30,10 +30,18 @@ export {
  * the stored summary must equal, and `test/core/careerSummary.test.ts` pins that.
  */
 export function totalsOf(stats: readonly SeasonStats[]): StatTotals {
-  return summaryOf(stats).totals;
+  return summaryOf(stats, NO_OVR).totals;
 }
 
 /** A player's best individual season in each ranked stat, and when it was. */
 export function bestSeasonsOf(stats: readonly SeasonStats[]): BestSeasons {
-  return summaryOf(stats).best;
+  return summaryOf(stats, NO_OVR).best;
 }
+
+/**
+ * Neither totals nor bests depend on the rating a season was played at — only
+ * `CareerSummary.seasons` does, and neither of these two returns it. So the
+ * lookup is stubbed rather than threading a ratings history through callers
+ * that have no use for one.
+ */
+const NO_OVR = () => 0;
