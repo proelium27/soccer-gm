@@ -2181,6 +2181,59 @@ export const WORLD_TOTS_TROPHY_MULTIPLIER = 3;
  * nothing stops a player building a league far above the world mean, and an
  * unbounded scale would let one league's title outweigh a World Cup.
  */
+/**
+ * What one standard deviation of season production is worth, in points, once
+ * the worldwide awards normalize it within position.
+ *
+ * **The problem.** `totsScore`'s counting-stat term is raw volume, and volume
+ * differs enormously between individuals at the same position: measured on
+ * Defender of the Year winners, seasons ranged from about 305 defensive
+ * actions to about 430, a 3.75-point spread at 0.03 a piece. Against that, the
+ * ovr terms give a strong league's defender roughly 2 points of advantage and
+ * match rating spans about 2 points across the whole winner pool. So *how much
+ * defending a player happened to do* outweighed both how good he was and how
+ * strong his league was, which is why the award produced winners ranked 138th,
+ * 68th and 37th among the world's defenders.
+ *
+ * **Why normalizing rather than reweighting.** Lowering the weights inside
+ * `totsScore` was measured (`scripts/totsWeightProbe.ts`) and rejected: that
+ * function also picks every league's Team of the Season, a TOTS place is how
+ * 62% of protected stars reach the list, and the change moved the protected
+ * count +15% — a difficulty shift. Normalizing here touches `worldAwards.ts`
+ * only, so the per-league award, the protected list and the rng stream are all
+ * untouched by construction.
+ *
+ * **Why within POSITION and not within group.** Centre-backs collect far more
+ * tackles than full-backs, so a shared DEF distribution leaves full-backs
+ * structurally behind — measured, CBs took 14-15 of 16 Defender of the Year
+ * awards. Normalizing per `pos` makes a good full-back's season and a good
+ * centre-back's season the same number of standard deviations, which is the
+ * only honest way to compare them. It also leaves the World XI's within-slot
+ * ordering intact where production is concerned, since a slot is a single
+ * position and a z-score is monotonic inside one.
+ *
+ * **Sized against the terms it competes with.** At 1.5, a one-sd season is
+ * worth 1.5 points, so the realistic +/-2sd span is about 6 points, against
+ * roughly 4.4 points of ovr spread among defenders and 2 points of rating.
+ * Production stays the largest single term but stops dwarfing the other two.
+ *
+ * Note the term is mean-zero by construction, which costs nothing: every award
+ * built on it compares within one position group, so a constant offset cannot
+ * change any ranking.
+ */
+export const WORLD_TOTS_PRODUCTION_WEIGHT = 1.5;
+
+/**
+ * Minimum spread before the normalization is applied at all.
+ *
+ * A position whose qualified players all produced nearly the same amount has a
+ * standard deviation near zero, and dividing by it turns rounding noise into
+ * enormous scores. Below this the production term is simply dropped to zero for
+ * that position, which is the honest reading: if everyone did the same, the
+ * stat separates nobody.
+ */
+export const WORLD_TOTS_PRODUCTION_MIN_SD = 0.01;
+
 export const WORLD_AWARD_TROPHY_STRENGTH_WEIGHT = 0.06;
 export const WORLD_AWARD_TROPHY_STRENGTH_FLOOR = 0.25;
 export const WORLD_AWARD_TROPHY_STRENGTH_CAP = 2;

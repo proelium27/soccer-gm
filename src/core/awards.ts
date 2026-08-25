@@ -147,6 +147,33 @@ export function potyScore(p: Player, s: SeasonStats, season: number): number {
     + ovrBonus(p, season);
 }
 
+/**
+ * The counting-stat portion of `totsScore` — everything that scales with how
+ * much a player did, as opposed to how good he is or how he rated.
+ *
+ * Exists so the worldwide awards can normalize this term within position
+ * without touching `totsScore` itself. **`totsScore` deliberately still does
+ * its own arithmetic rather than calling this**, even though the two duplicate
+ * a few lines: rewriting it as `avgRating + totsProduction(...) + ovrBonus(...)`
+ * changes the left-to-right association of the additions, and floating point is
+ * not associative. That would shift a few `totsScore` values in the last bits,
+ * which is enough to reorder a Team of the Season, which changes the protected
+ * star list, which changes the transfer market, which changes every random draw
+ * from that point on. A handful of duplicated lines is the cheaper trade.
+ * `totsProductionAgreesWithTotsScore` in the tests pins them together.
+ */
+export function totsProduction(p: Player, s: SeasonStats): number {
+  const group = positionGroup(p.pos);
+  let score = 0;
+  score += s.goals * TOTS_GOAL_WEIGHT[group];
+  score += s.assists * TOTS_ASSIST_WEIGHT[group];
+  score += s.tackles * TOTS_TACKLE_WEIGHT[group];
+  score += s.interceptions * TOTS_INTERCEPTION_WEIGHT[group];
+  if (group === "GK") score += s.saves * TOTS_SAVE_WEIGHT;
+  score -= s.goalsAgainst * TOTS_GOALS_AGAINST_PENALTY[group];
+  return score;
+}
+
 export function totsScore(p: Player, s: SeasonStats, season: number): number {
   const group = positionGroup(p.pos);
   let score = s.avgRating;

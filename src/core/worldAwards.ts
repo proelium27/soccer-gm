@@ -9,13 +9,14 @@ import { domesticStatsByPid } from "./domesticCup/stats.js";
 import { RATING_BASELINE } from "../engine/matchRating.js";
 import {
   type PositionGroup,
-  positionGroup, statsFor, ovrDuringSeason, potyScore, totsScore, TOTS_SLOTS,
+  positionGroup, statsFor, ovrDuringSeason, potyScore, totsScore, totsProduction, TOTS_SLOTS,
 } from "./awards.js";
 import {
   AWARD_MIN_APPEARANCES, AWARD_OVR_BASELINE, BALLON_DOR_SHORTLIST,
   WORLD_POSITION_AWARD_SHORTLIST, WORLD_TOTS_TROPHY_MULTIPLIER,
   WORLD_AWARD_TROPHY_STRENGTH_WEIGHT, WORLD_AWARD_TROPHY_STRENGTH_FLOOR,
   WORLD_AWARD_TROPHY_STRENGTH_CAP, WORLD_AWARD_OVR_WEIGHT,
+  WORLD_TOTS_PRODUCTION_WEIGHT, WORLD_TOTS_PRODUCTION_MIN_SD,
   POTY_GOAL_WEIGHT, POTY_ASSIST_WEIGHT, TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT,
   WORLD_AWARD_LEAGUE_STRENGTH_WEIGHT, WORLD_AWARD_CUP_MULTIPLIER,
   WORLD_AWARD_CUP_RATING_WEIGHT, WORLD_AWARD_CUP_FULL_INVOLVEMENT, WORLD_AWARD_CUP_RUN_BONUS,
@@ -132,6 +133,12 @@ interface Entry {
   cupLine: CupStatLine | undefined;
   /** Rating-unit correction for how strong his competition was — see leagueStrengthOffsets. */
   strength: number;
+  /**
+   * What to add to his `totsScore` to swap its raw production term for the
+   * within-position normalized one: `normalized - raw`. Zero for the Ballon
+   * d'Or path, which is built on `potyScore` and never sees this.
+   */
+  productionAdjust: number;
   /**
    * How far his competition's mean ovr sits above the world's, in raw ovr
    * points. `strength` is this times a rating-per-ovr slope; the trophy scale
@@ -332,6 +339,55 @@ function domesticCupComponent(
 }
 
 /**
+ * Replace each player's raw season production with how far it stands out among
+ * players at his own position, worldwide.
+ *
+ * Returns the *adjustment* rather than the value, so the caller can keep using
+ * `totsScore` unchanged and simply add this — which is what keeps the per-league
+ * Team of the Season, and therefore the protected-star list and the rng stream,
+ * completely untouched by this. See WORLD_TOTS_PRODUCTION_WEIGHT.
+ *
+ * Mean and spread are taken over players who cleared the appearance bar, not
+ * over everyone: production scales with playing time, so a pool including
+ * ten-appearance squad players has its centre dragged down and its spread
+ * inflated by availability rather than by performance. Everyone is then scored
+ * against that distribution, so a part-season simply lands low, which is the
+ * honest result.
+ */
+function productionAdjustments(entries: Entry[]): Map<number, number> {
+  const byPos = new Map<string, Entry[]>();
+  for (const e of entries) {
+    if (e.stats.appearances < AWARD_MIN_APPEARANCES) continue;
+    const list = byPos.get(e.player.pos);
+    if (list) list.push(e);
+    else byPos.set(e.player.pos, [e]);
+  }
+
+  // pos -> {mean, sd} over the qualified players at that position.
+  const dist = new Map<string, { mean: number; sd: number }>();
+  for (const [pos, list] of byPos) {
+    const raw = list.map((e) => totsProduction(e.player, e.stats));
+    const mean = raw.reduce((a, b) => a + b, 0) / raw.length;
+    const variance = raw.reduce((a, b) => a + (b - mean) * (b - mean), 0) / raw.length;
+    dist.set(pos, { mean, sd: Math.sqrt(variance) });
+  }
+
+  const out = new Map<number, number>();
+  for (const e of entries) {
+    const d = dist.get(e.player.pos);
+    const raw = totsProduction(e.player, e.stats);
+    if (!d || d.sd < WORLD_TOTS_PRODUCTION_MIN_SD) {
+      // Nothing to separate anyone by: drop the term rather than divide by ~0.
+      out.set(e.player.pid, -raw);
+      continue;
+    }
+    const normalized = ((raw - d.mean) / d.sd) * WORLD_TOTS_PRODUCTION_WEIGHT;
+    out.set(e.player.pid, normalized - raw);
+  }
+  return out;
+}
+
+/**
  * Everything a worldwide award needs beyond the player himself, gathered once
  * per season rather than threaded through every scoring function as six
  * separate parameters. Built at the top of computeWorldAwards; nothing in it
@@ -411,7 +467,11 @@ function ballonDOrParts(e: Entry, s: Scoring): WorldAwardEntry {
  */
 function worldTotsParts(e: Entry, s: Scoring): WorldAwardEntry {
   const base = worldAwardParts(
-    e, s, totsScore(e.player, e.stats, s.season), TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT,
+    e, s,
+    // totsScore unchanged, plus the swap of its raw production term for the
+    // within-position normalized one.
+    totsScore(e.player, e.stats, s.season) + e.productionAdjust,
+    TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT,
   );
   // Everything beyond his own league season counts for more here than it does
   // in the Ballon d'Or, because this base is inflated by season-long counting
@@ -548,6 +608,7 @@ export function computeWorldAwards(
       cupLine: cupLines.get(player.pid),
       strength: 0,
       ovrDelta: 0,
+      productionAdjust: 0,
     });
   }
   if (entries.length === 0) {
@@ -560,9 +621,11 @@ export function computeWorldAwards(
   }
 
   const deltas = leagueStrengthOffsets(entries);
+  const adjust = productionAdjustments(entries);
   for (const e of entries) {
     e.ovrDelta = deltas.get(e.compId) ?? 0;
     e.strength = e.ovrDelta * WORLD_AWARD_LEAGUE_STRENGTH_WEIGHT;
+    e.productionAdjust = adjust.get(e.player.pid) ?? 0;
   }
 
   const scoring: Scoring = { season, ctx, roundsFromFinal, domesticChampions, domesticLines };
