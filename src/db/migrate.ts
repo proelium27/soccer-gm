@@ -13,6 +13,7 @@ import {
 import { chargeSeasonStart, wageBill, financeScale } from "../core/finance/budget.js";
 import { englandCompetitions } from "../core/competitions.js";
 import { cullOnLoad } from "../core/players/freeAgentCull.js";
+import { summaryOf } from "../core/players/careerSummary.js";
 import { archiveCup } from "../core/cup/archive.js";
 import { archiveDomesticCup } from "../core/domesticCup/archive.js";
 import type { IntlStage } from "../core/international/index.js";
@@ -174,7 +175,7 @@ function peakFromHist(p: Player): { peakOvr: number; peakOvrSeason?: number } {
  * on in a past season (same irreconstructable-history situation as the
  * minutes/rating defaults below).
  */
-function migratePlayer(p: Player, fallbackTid: number): Player {
+function migratePlayer(p: Player, fallbackTid: number, currentSeason: number): Player {
   return {
     ...p,
     stats: (p.stats as SeasonStatsAnyVersion[]).map((s) => ({
@@ -229,6 +230,10 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
           confederationCupTitles: p.intl.confederationCupTitles ?? 0,
         }
       : p.intl,
+    // Career summary, backfilled by folding his seasons one last time. Covers
+    // finished seasons only, matching the contract — the season in progress is
+    // excluded, because a live reader adds the current row itself.
+    career: p.career ?? summaryOf((p.stats ?? []).filter((s) => s.season !== currentSeason)),
     // Career peak ovr, backfilled by the scan the readers used to do inline.
     // Exact rather than a guess: `hist` is the same data `careerPeakOvr` and
     // `peakOf` were walking, so this is the last time it ever has to be walked.
@@ -296,7 +301,7 @@ function migrateFields(league: LeagueStore): LeagueStore {
     for (const pid of t.roster) tidByPid.set(pid, t.tid);
     for (const pid of t.academyRoster ?? []) tidByPid.set(pid, t.tid);
   }
-  const migratedPlayers = league.players.map((p) => migratePlayer(p, tidByPid.get(p.pid) ?? -1));
+  const migratedPlayers = league.players.map((p) => migratePlayer(p, tidByPid.get(p.pid) ?? -1, league.season));
   return {
     ...league,
     competitions,

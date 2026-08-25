@@ -1,4 +1,8 @@
 import type { IntlCareer } from "../international/career.js";
+// Type-only, so the mutual reference with careerSummary.ts (which needs
+// SeasonStats from here) is erased at compile time and never a runtime cycle —
+// the same shape as international/career.ts.
+import type { CareerSummary } from "./careerSummary.js";
 
 export const POSITIONS = ["GK", "CB", "FB", "DM", "CM", "AM", "W", "ST"] as const;
 export type Position = (typeof POSITIONS)[number];
@@ -129,6 +133,23 @@ export interface Player {
    */
   peakOvr?: number;
   peakOvrSeason?: number;
+  /**
+   * His career reduced to what the all-time boards rank on, covering every
+   * season he has **finished** — the season in progress is not in it, because
+   * it is still moving. Fold the current row in with `withSeason` for a live
+   * number; that row is exactly what stays resident.
+   *
+   * Carried on the player so Frivolities can rank 10,864 careers without
+   * reading 10,864 careers once `stats[]` moves to disk
+   * (`docs/lazy-career-plan.md`). Measured on the reported season-60 save:
+   * 10.4 MB of summaries against the 45.2 MB of per-season history they stand
+   * in for, and no board loses anything, because ranking, filtering and sorting
+   * all work the same on a summary as on the seasons behind it.
+   *
+   * Optional so old saves load, and `migrate.ts` backfills it by folding the
+   * career one last time.
+   */
+  career?: CareerSummary;
   /**
    * The season a free-agent signing by the user's club takes effect (set by
    * signFreeAgent). While `league.season <= faSignedSeason` the player can't be

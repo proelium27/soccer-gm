@@ -11,6 +11,7 @@ import { cullFreeAgentPool } from "./players/freeAgentCull.js";
 import { summarizeRetirements } from "./players/retirements.js";
 import { clearSuspension } from "./suspensions.js";
 import { extendRetireeArchive } from "./players/archive.js";
+import { withSeason, summaryOf } from "./players/careerSummary.js";
 import { extendPlayerNames } from "./players/playerNames.js";
 import { archiveCup } from "./cup/archive.js";
 import {
@@ -206,6 +207,18 @@ export function simOffseason(
   const academyPids = new Set(teams.flatMap((t) => t.academyRoster));
   const positionChangeEvents: NewsEvent[] = [];
   let players: Player[] = renewals.players.map((p) => {
+    // Fold the season that just finished into his career summary, before
+    // progression replaces the object. This is the one place it happens: the
+    // summary covers finished seasons only, so exactly one fold per player per
+    // season, and anything wanting a live number adds the current row itself
+    // (see players/careerSummary.ts). Pure and rng-free.
+    const finished = p.stats.find((s) => s.season === endingSeason);
+    // Always set, even for a youth-intake player who has finished nothing: every
+    // player carrying the field is what lets readers drop the "or compute it
+    // from his seasons" fallback, which stops being possible at all once the
+    // seasons live on disk.
+    const base = p.career ?? summaryOf(p.stats.filter((s) => s.season !== endingSeason));
+    p = { ...p, career: finished ? withSeason(base, finished) : base };
     const progressed = progressPlayer(rng, p, endingSeason, academyPids.has(p.pid));
     const tid = tidLastSeason.get(p.pid);
     // Only rostered players, and away from the user's own club only the ones

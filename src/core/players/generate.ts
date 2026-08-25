@@ -11,6 +11,7 @@ import {
   RATING_MIN, RATING_MAX,
 } from "../constants.js";
 import { seasonSalaryForOvr } from "../contracts.js";
+import { emptyCareerSummary } from "./careerSummary.js";
 
 const clampRating = (x: number): number =>
   Math.round(Math.max(RATING_MIN, Math.min(RATING_MAX, x)));
@@ -87,5 +88,10 @@ export function generatePlayer(
     // are no longer resident (`docs/lazy-career-plan.md`).
     peakOvr: ovr,
     peakOvrSeason: season - 1,
+    // Seeded for the same reason as the peak: every player carries the field
+    // from the moment he exists, so no reader ever needs a "or compute it from
+    // his seasons" fallback — which stops being possible once the seasons live
+    // on disk. He has played nothing, so it is empty rather than absent.
+    career: emptyCareerSummary(),
   };
 }
