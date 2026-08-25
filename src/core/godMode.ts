@@ -2,6 +2,7 @@ import type { LeagueStore } from "./leagueState.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import { computeOvr } from "./players/ovr.js";
 import type { Player, PlayerRatings, Position } from "./players/types.js";
+import { emptyCareerSummary } from "./players/careerSummary.js";
 
 /**
  * God Mode sandbox helpers. Every function here is pure — it returns new
@@ -171,6 +172,14 @@ export function createCustomPlayer(
     hist: [
       { season: league.season - 1, ratings: spec.ratings, ovr, potential: spec.potential, academy: false, pos: spec.pos },
     ],
+    // Set alongside `hist` for the same reason as every other construction
+    // site: `peakOvr` is authoritative once present, so a player carrying a
+    // history and a stale peak would read as worse than he ever was, and the
+    // fallback that would catch it goes away when `hist` stops being resident
+    // (docs/lazy-career-plan.md).
+    peakOvr: ovr,
+    peakOvrSeason: league.season - 1,
+    career: emptyCareerSummary(),
   };
   // Advance the cursor so this pid can never be handed out again.
   const withPlayer: LeagueStore = {

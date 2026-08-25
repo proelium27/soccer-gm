@@ -32,6 +32,14 @@ export function careerPeakOvr(player: Player): number {
   // Maintained by `progressPlayer`; the scan is the path for a save that has not
   // been migrated yet. Current ovr still leads it, since god mode can raise a
   // rating without progression ever seeing it.
+  //
+  // **The invariant this depends on: `peakOvr` is authoritative once present.**
+  // Anything that builds a `Player` carrying a `hist` must set it to match —
+  // `generatePlayer`, `createCustomPlayer` and the roster importer all do. A
+  // stale one makes a player read as worse than he ever was, and the scan below
+  // will NOT save you: it is skipped precisely when the field is set. The
+  // fallback also disappears entirely once `hist` stops being resident
+  // (docs/lazy-career-plan.md), so the invariant is the only thing holding.
   if (player.peakOvr != null) return Math.max(player.ovr, player.peakOvr);
   let peak = player.ovr;
   for (const h of player.hist ?? []) {
