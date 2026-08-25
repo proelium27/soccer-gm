@@ -99,17 +99,18 @@ export const DIVISION_2_REFUSAL_OVR_THRESHOLD = 70;
 /**
  * Straight automatic swap each offseason: bottom N of D1 <-> top N of D2.
  *
- * The default only. A save carries its own `promotionRelegationCount`, chosen
- * on the New League screen, and this is both what that picker starts at and
- * what every save made before the setting existed is migrated to.
+ * The default only, and what every shipped country plays. A league added in
+ * World setup can carry its own `Competition.promotionSpots` instead; this is
+ * what that picker starts at and what every league without one falls back to,
+ * which is why no save ever needed migrating for it.
  */
 export const PROMOTION_RELEGATION_COUNT = 3;
 
 /**
- * The most clubs a save can be set to promote and relegate. Held below half the
- * smallest division in the world as well (see the New League screen), so the
- * ceiling that actually applies is often lower — this is the point past which
- * the number stops meaning much even in a big division.
+ * The most clubs an added league can be set to promote and relegate. Held below
+ * half that league's own division size as well (see WorldSetup), so the ceiling
+ * that actually applies is often lower — this is the point past which the number
+ * stops meaning much even in a big division.
  */
 export const MAX_PROMOTION_SPOTS = 6;
 

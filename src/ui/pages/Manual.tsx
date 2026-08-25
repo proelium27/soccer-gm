@@ -377,18 +377,6 @@ export function Manual() {
             it's still season 1. Saves you already have keep showing 2026.
           </p>
           <p>
-            <strong>How many go up and down.</strong> Three up and three down is the default, and
-            there's a box on the New League screen if you want a different pyramid. Anything from
-            none at all up to six, and it applies to every country in your world. Pick
-            <strong> None</strong> and the divisions are sealed off from each other: win your
-            second division and you stay in it, finish bottom of the top flight and you stay there
-            too. Bigger numbers churn the top flight harder every summer, which makes staying up a
-            real job and a promotion push much less of a slog. Small divisions cap how high you can
-            set it, since promoting six out of an eight-club division would just be the two
-            divisions trading places. Like difficulty, it's fixed once the save exists, and saves
-            you already have keep the three they've always had.
-          </p>
-          <p>
             <strong>Historic seasons.</strong> Every so often, a club's whole season just clicks.
             Or completely falls apart. A rare hidden form swing can carry a squad well above (or
             below) what its ratings say, for one season only. It's where the runaway record-points
@@ -507,10 +495,9 @@ export function Manual() {
             his own country.
           </p>
           <p>
-            Promotion and relegation runs on its own within each country at the end of every
-            season, so a rough season in Spain's top flight doesn't touch any other country's
-            tables. Three go up and three come down unless you said otherwise when you made the
-            save (see <strong>How many go up and down</strong> below). Standings, Awards, and Stat Leaders each have a competition dropdown,
+            Promotion and relegation (3 up, 3 down in every country the game ships) runs on its
+            own within each country at the end of every season, so a rough season in Spain's top
+            flight doesn't touch any other country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
             grouped by country, so you can browse any of the 16 leagues. It defaults to
             whichever one your own club is currently in.
           </p>
@@ -522,10 +509,13 @@ export function Manual() {
             the game ships no real clubs.
           </p>
           <p>
-            You also choose its <strong>shape</strong>: one division or two, and how many clubs are
-            in each. Two divisions is the default and works like every shipped country, promoting
-            and relegating however many clubs your world is set to. One division means exactly
-            that, and nothing is promoted or relegated there at all. Divisions run from 8 to 20 clubs, in even numbers, because the
+            You also choose its <strong>shape</strong>: one division or two, how many clubs are in
+            each, and how many go up and down between them. Two divisions is the default and works
+            like every shipped country, three up and three down, but that number is yours to set:
+            anything from none at all up to six, capped at half the division so promoting six out
+            of eight clubs isn't on offer. Pick <strong>None</strong> and the two divisions are
+            sealed off from each other, so winning the second one keeps you in it. One division
+            means exactly that, and nothing is promoted or relegated there at all. Divisions run from 8 to 20 clubs, in even numbers, because the
             fixture list pairs clubs off each round and the season is a fixed 38-matchday calendar
             that a 20-club double round robin already fills exactly. A smaller division plays fewer
             games, spread across the same season with blank matchdays in between, so its run-in
@@ -533,7 +523,7 @@ export function Manual() {
             for it. Three divisions isn't offered.
           </p>
           <p>
-            Each league you add carries three more settings. <strong>Strength</strong> runs 0 to
+            Each league you add carries more settings. <strong>Strength</strong> runs 0 to
             20 and higher is stronger, with <strong>20</strong> level with England, Spain, Italy
             and Germany. Each point below that costs a league about 1 OVR across its squads, so at{" "}
             <strong>15</strong> (where France sits) its champion is about as good as England's

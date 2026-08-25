@@ -8,7 +8,7 @@ import { computeWorldAwards, type WorldAwards } from "../core/worldAwards.js";
 import { backfillAwardWinners } from "../core/awardWinners.js";
 import {
   HYPE_INITIAL, SCOUTING_SPEND_DEFAULT,
-  NUM_TEAMS, DEFAULT_DIFFICULTY, PROMOTION_RELEGATION_COUNT,
+  NUM_TEAMS, DEFAULT_DIFFICULTY,
 } from "../core/constants.js";
 import { chargeSeasonStart, wageBill, financeScale } from "../core/finance/budget.js";
 import { englandCompetitions } from "../core/competitions.js";
@@ -80,8 +80,8 @@ function fallbackAcademyBase(tid: number): number {
 
 /** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "promotionRelegationCount" | "aiManagedSeasons" | "manager"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "promotionRelegationCount" | "aiManagedSeasons" | "manager">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking / cards. */
 type SeasonStatsAnyVersion =
@@ -565,10 +565,6 @@ function migrateFields(league: LeagueStore): LeagueStore {
     // lever in its profile is the identity value or the shipped constant). So
     // this backfill changes nothing about a dynasty in progress.
     difficulty: anyVersion.difficulty ?? DEFAULT_DIFFICULTY,
-    // Every save that predates the setting played 3 up, 3 down, so backfilling
-    // the shipped constant leaves a dynasty in progress exactly as it was.
-    promotionRelegationCount:
-      anyVersion.promotionRelegationCount ?? PROMOTION_RELEGATION_COUNT,
     // The pid allocator used to be derived as max(pid) + 1 at each use, so
     // seeding the stored cursor with exactly that value keeps every existing
     // save generating the same pids it would have anyway. From here it only

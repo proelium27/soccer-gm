@@ -1,15 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { makeLeague } from "../helpers/league.js";
-import { PROMOTION_RELEGATION_COUNT } from "../../src/core/constants.js";
 
 describe("createLeagueState", () => {
   const state = makeLeague(3, 42);
-
-  it("starts at the shipped promotion/relegation count unless told otherwise", () => {
-    // The New League screen is the only thing that passes another value, and
-    // migrate.ts backfills the same constant, so every save has one either way.
-    expect(state.promotionRelegationCount).toBe(PROMOTION_RELEGATION_COUNT);
-  });
 
   it("returns correct shape", () => {
     expect(state).toHaveProperty("lid");

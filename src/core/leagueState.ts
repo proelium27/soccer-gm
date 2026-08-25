@@ -23,9 +23,7 @@ import { generateSchedule } from "./schedule.js";
 import { SEASON_MATCHDAYS } from "./calendar.js";
 import { worldCompetitions } from "./competitions.js";
 import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
-import {
-  DEFAULT_DIFFICULTY, PROMOTION_RELEGATION_COUNT, type Difficulty,
-} from "./constants.js";
+import { DEFAULT_DIFFICULTY, type Difficulty } from "./constants.js";
 
 export type { StoredTeam } from "./teams/clubs.js";
 export type { ScheduleGame } from "./schedule.js";
@@ -210,19 +208,6 @@ export interface LeagueStore {
    */
   difficulty: Difficulty;
   /**
-   * How many clubs swap divisions in each country at the end of a season —
-   * bottom N of the top flight for the top N of the second tier (see
-   * core/promotion.ts). 3 unless the New League screen was told otherwise, and
-   * fixed for the save's lifetime: the world is generated, scheduled and tuned
-   * around one pyramid, and moving the count mid-dynasty would change what
-   * every season already played was worth.
-   *
-   * 0 is a legitimate setting — divisions that never mix — and is why
-   * computeCountrySwaps guards it explicitly. Migrated to
-   * PROMOTION_RELEGATION_COUNT for old saves, which is what they already played.
-   */
-  promotionRelegationCount: number;
-  /**
    * Monotonic pid allocator: the next pid a generated player will take.
    *
    * **Must never go backwards.** This used to be derived as
@@ -267,7 +252,6 @@ export function createLeagueState(
   seed = 0,
   difficulty: Difficulty = DEFAULT_DIFFICULTY,
   competitions: Competition[] = worldCompetitions(),
-  promotionRelegationCount: number = PROMOTION_RELEGATION_COUNT,
 ): LeagueStore {
   const league = generateWorld(rng, seed, competitions);
   // Each AI club lines up in the formation that fields its strongest XI; the
@@ -327,7 +311,6 @@ export function createLeagueState(
     godMode: false,
     manager: emptyManagerState(userTid, 1),
     difficulty,
-    promotionRelegationCount,
     // Same value the old derived `max(pid) + 1` produced at first use, so a
     // fresh world generates identically to before.
     nextPid: Math.max(0, ...league.players.map((p) => p.pid)) + 1,

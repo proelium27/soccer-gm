@@ -7,7 +7,6 @@ import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { buildCompetitionSchedule, type LeagueStore } from "../../src/core/leagueState.js";
 import { emptyManagerState } from "../../src/core/manager/types.js";
-import { PROMOTION_RELEGATION_COUNT } from "../../src/core/constants.js";
 
 function buildWorldLeague(seed: number): LeagueStore {
   const rng = mulberry32(seed);
@@ -49,7 +48,6 @@ function buildWorldLeague(seed: number): LeagueStore {
     powerRankingHistory: [],
     godMode: false,
     difficulty: "normal",
-    promotionRelegationCount: PROMOTION_RELEGATION_COUNT,
     manager: emptyManagerState(0, 1),
   };
 }

@@ -14,7 +14,6 @@ import {
   BASE_SEASON_BUDGET,
   HYPE_INITIAL,
   SCOUTING_SPEND_MIN,
-  PROMOTION_RELEGATION_COUNT,
 } from "../../src/core/constants.js";
 import { applyInjuries, carryIntlInjuries } from "../../src/core/injuries.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
@@ -89,7 +88,6 @@ function makeLeagueStore(seed: number): LeagueStore {
     powerRankingHistory: [],
     godMode: false,
     difficulty: "normal",
-    promotionRelegationCount: PROMOTION_RELEGATION_COUNT,
     manager: emptyManagerState(0, 1),
   };
 }

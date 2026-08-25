@@ -90,16 +90,20 @@ describe("simOffseason", () => {
     expect(d2After).toBe(20);
   });
 
-  it("swaps the number of clubs the save was created with, including none at all", () => {
+  it("swaps the number of clubs each league was set up for, including none at all", () => {
     const rng = mulberry32(6);
     const league = playFullSeason(rng);
 
     // The same played season, settled by two different pyramids. One up and one
-    // down moves exactly two clubs per country; a save set to none moves nobody,
-    // which is the case that would silently swap whole divisions if
-    // computeCountrySwaps ever went back to slicing by a negative count.
-    const one = simOffseason({ ...league, promotionRelegationCount: 1 }, rng);
-    const closed = simOffseason({ ...league, promotionRelegationCount: 0 }, rng);
+    // down moves exactly two clubs per country; a league set to none moves
+    // nobody, which is the case that would silently swap whole divisions if
+    // computeCountrySwaps ever went back to slicing by a zero count.
+    const withSpots = (promotionSpots: number) => ({
+      ...league,
+      competitions: league.competitions.map((c) => ({ ...c, promotionSpots })),
+    });
+    const one = simOffseason(withSpots(1), rng);
+    const closed = simOffseason(withSpots(0), rng);
 
     const moved = (next: typeof league) => {
       const before = new Map(league.teams.map((t) => [t.tid, t.compId]));

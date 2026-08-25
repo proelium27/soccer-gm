@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   englandCompetitions, competitionOf, tierOf, partnerOf, countriesOf, worldCompetitions, tier1Pairs,
-  countryClubRanges,
+  countryClubRanges, competitionPromotionSpots, buildCompetitions, type Competition,
 } from "../../src/core/competitions.js";
+import { PROMOTION_RELEGATION_COUNT } from "../../src/core/constants.js";
 
 describe("competitions", () => {
   const comps = englandCompetitions();
@@ -95,5 +96,43 @@ describe("countryClubRanges", () => {
     // CLUBS/tid regression test.
     const ranges = countryClubRanges(worldCompetitions());
     expect(ranges.reduce((sum, r) => sum + (r.end - r.start), 0)).toBe(320);
+  });
+});
+
+describe("competitionPromotionSpots", () => {
+  const d1: Competition = { id: 0, country: "Wakanda", tier: 1, name: "D1" };
+  const d2: Competition = { id: 1, country: "Wakanda", tier: 2, name: "D2" };
+
+  it("falls back to the shipped count when a league sets nothing", () => {
+    expect(competitionPromotionSpots(d1, d2)).toBe(PROMOTION_RELEGATION_COUNT);
+  });
+
+  it("takes the league's own count, zero included", () => {
+    expect(competitionPromotionSpots({ ...d1, promotionSpots: 5 }, d2)).toBe(5);
+    expect(competitionPromotionSpots({ ...d1, promotionSpots: 0 }, d2)).toBe(0);
+  });
+
+  it("holds the count inside the smaller division, and rejects nonsense", () => {
+    const small = { ...d2, teamCount: 8 };
+    expect(competitionPromotionSpots({ ...d1, promotionSpots: 12 }, small)).toBe(8);
+    expect(competitionPromotionSpots({ ...d1, promotionSpots: -3 }, d2)).toBe(0);
+    expect(competitionPromotionSpots({ ...d1, promotionSpots: NaN }, d2)).toBe(0);
+  });
+
+  it("is zero for a one-division country, which has nothing to swap with", () => {
+    expect(competitionPromotionSpots(d1, null)).toBe(0);
+  });
+});
+
+describe("buildCompetitions carries promotionSpots", () => {
+  it("writes an added league's count onto both of its divisions", () => {
+    const comps = buildCompetitions([{ country: "Wakanda", promotionSpots: 1 }]);
+    expect(comps.map((c) => c.promotionSpots)).toEqual([1, 1]);
+  });
+
+  it("leaves it absent when the league didn't set one, so the default applies", () => {
+    const comps = buildCompetitions([{ country: "Wakanda" }]);
+    expect(comps.every((c) => c.promotionSpots === undefined)).toBe(true);
+    expect(competitionPromotionSpots(comps[0], comps[1])).toBe(PROMOTION_RELEGATION_COUNT);
   });
 });

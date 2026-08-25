@@ -370,16 +370,13 @@ export function simOffseason(
   };
   for (const comp of league.competitions) settle(tablesByCompId.get(comp.id)!, comp.id);
 
-  // 3.6. Promotion/relegation: per country, the bottom N of its tier-1 table
-  //      swap with the top N of its tier-2 table, using the tables just
-  //      computed above (the season that actually just played out). N is the
-  //      save's own promotionRelegationCount, picked when the league was
-  //      created — 3 on every save that didn't say otherwise. Then every
-  //      mid-convergence team's academyBase moves one step closer to its
-  //      current competition's strength band.
-  const swaps = computeCountrySwaps(
-    league.competitions, tablesByCompId, league.promotionRelegationCount,
-  );
+  // 3.6. Promotion/relegation: per country, bottom PROMOTION_RELEGATION_COUNT
+  //      of its tier-1 table swap with top PROMOTION_RELEGATION_COUNT of its
+  //      tier-2 table, using the tables just computed above (the season that
+  //      actually just played out). Then every mid-convergence team's
+  //      academyBase moves one step closer to its current competition's
+  //      strength band.
+  const swaps = computeCountrySwaps(league.competitions, tablesByCompId);
   teams = applyCompetitionSwaps(teams, swaps);
   teams = stepAcademyBaseConvergence(teams, league.competitions);
 
