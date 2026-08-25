@@ -1085,14 +1085,13 @@ export function Manual() {
             assists rather than on defending, and it keeps its own trophy weighting.
           </p>
           <p>
-            One honest caveat about the defender's award. Tackles and interceptions are counts, not
-            rates, and they vary hugely from one defender to the next.
-            A defender who spends every week under siege racks up more of both than an equally good
-            one at a club that controls its games, so the award leans towards defenders with a lot
-            of defending to do, and a weaker league can produce a winner more often than its
-            standard alone would suggest. Centre-backs win it far more often than full-backs for
-            the same reason. This is how the World Team of the Year has always picked its back four,
-            so it isn't new &mdash; giving it a trophy just makes it visible.
+            One thing worth knowing about how the defender's award reads. Tackles and interceptions
+            are counted up raw over a season rather than as rates, and they vary a lot from one
+            defender to the next. A defender who spends every week under siege makes more of both
+            than an equally good one at a club that controls its games, so the award favours
+            defenders with plenty of defending to do, and centre-backs take it more often than
+            full-backs. It's the same measure the World Team of the Year has always picked its back
+            four with.
           </p>
           <p>
             Both awards show up as honours on a player's profile, in a club's history, and on the
