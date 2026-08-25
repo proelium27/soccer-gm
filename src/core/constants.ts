@@ -2147,6 +2147,44 @@ export const WORLD_POSITION_AWARD_SHORTLIST = 5;
  */
 export const WORLD_TOTS_TROPHY_MULTIPLIER = 3;
 
+/**
+ * How much a league title and a domestic cup are scaled by how strong the
+ * league that awarded them is.
+ *
+ * `scale = clamp(1 + (competition mean ovr - world mean ovr) * this, FLOOR, CAP)`
+ *
+ * **Why only these two trophies.** Every other term in a worldwide award is
+ * already comparable across leagues, or corrected to be. Match ratings get
+ * `leagueStrengthOffsets`. The Continental Cup and the international campaign
+ * are played *between* leagues, so their difficulty is inherent — winning the
+ * Continental Cup is exactly as hard whoever you are. A league title and a
+ * domestic cup are the only trophies that are **league-relative**: Belgium's
+ * champion wins Belgium as surely as England's wins England, and until now
+ * both were worth an identical 0.8. That is the one place the award said two
+ * plainly different achievements were the same.
+ *
+ * **Sized by taste, not by measurement**, like the trophy bonuses it scales.
+ * At 0.06, against the shipped world's tier-1 spread (England ~63.3 down to
+ * Turkey ~55.6, world mean ~55), an English title comes out about 1.5x and a
+ * Turkish one about 1.03x — so roughly a 1.45x gap between the strongest and
+ * weakest top flight. Deliberately not larger: a title is already pro-rated by
+ * appearances and multiplied by WORLD_TOTS_TROPHY_MULTIPLIER, so it compounds.
+ *
+ * **The floor is load-bearing, and not for tier 1.** A tier-2 league title
+ * scores nothing anyway (`championTidByCompId` holds tier-1 champions only),
+ * but a **tier-2 club really can win its domestic cup**, and a second division
+ * sits far enough below the world mean to drive this negative — which would
+ * turn winning a cup into a penalty. The floor keeps it a reduced reward
+ * instead of an inverted one.
+ *
+ * The cap exists for a custom world: the shipped one tops out around 1.5, but
+ * nothing stops a player building a league far above the world mean, and an
+ * unbounded scale would let one league's title outweigh a World Cup.
+ */
+export const WORLD_AWARD_TROPHY_STRENGTH_WEIGHT = 0.06;
+export const WORLD_AWARD_TROPHY_STRENGTH_FLOOR = 0.25;
+export const WORLD_AWARD_TROPHY_STRENGTH_CAP = 2;
+
 /* ────────────────────────────────────────────────────────────────────────
  * Goalkeeper of the Year and Defender of the Year (core/worldAwards.ts)
  *

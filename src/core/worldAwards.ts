@@ -14,7 +14,8 @@ import {
 import {
   AWARD_MIN_APPEARANCES, AWARD_OVR_BASELINE, BALLON_DOR_SHORTLIST,
   WORLD_POSITION_AWARD_SHORTLIST, WORLD_TOTS_TROPHY_MULTIPLIER,
-  WORLD_AWARD_OVR_WEIGHT,
+  WORLD_AWARD_TROPHY_STRENGTH_WEIGHT, WORLD_AWARD_TROPHY_STRENGTH_FLOOR,
+  WORLD_AWARD_TROPHY_STRENGTH_CAP, WORLD_AWARD_OVR_WEIGHT,
   POTY_GOAL_WEIGHT, POTY_ASSIST_WEIGHT, TOTS_GOAL_WEIGHT, TOTS_ASSIST_WEIGHT,
   WORLD_AWARD_LEAGUE_STRENGTH_WEIGHT, WORLD_AWARD_CUP_MULTIPLIER,
   WORLD_AWARD_CUP_RATING_WEIGHT, WORLD_AWARD_CUP_FULL_INVOLVEMENT, WORLD_AWARD_CUP_RUN_BONUS,
@@ -131,6 +132,13 @@ interface Entry {
   cupLine: CupStatLine | undefined;
   /** Rating-unit correction for how strong his competition was — see leagueStrengthOffsets. */
   strength: number;
+  /**
+   * How far his competition's mean ovr sits above the world's, in raw ovr
+   * points. `strength` is this times a rating-per-ovr slope; the trophy scale
+   * uses it on its own scale, so the delta is kept rather than recovered by
+   * dividing one back out.
+   */
+  ovrDelta: number;
 }
 
 /**
@@ -146,6 +154,11 @@ interface Entry {
  *
  * Ovr is the right yardstick here precisely because it is *not* normalized: it
  * is the one player number that means the same thing in every league.
+ *
+ * Returns the raw ovr delta per competition. The caller converts it to rating
+ * units for the match-rating correction, and uses it unconverted for the
+ * league-title and domestic-cup scale — two different scales off one measure of
+ * how strong a league is, rather than two independent notions of it.
  */
 function leagueStrengthOffsets(entries: Entry[]): Map<number, number> {
   const sums = new Map<number, { total: number; count: number }>();
@@ -160,11 +173,11 @@ function leagueStrengthOffsets(entries: Entry[]): Map<number, number> {
     worldCount++;
   }
   const worldMean = worldCount > 0 ? worldTotal / worldCount : 0;
-  const offsets = new Map<number, number>();
+  const deltas = new Map<number, number>();
   for (const [compId, bucket] of sums) {
-    offsets.set(compId, (bucket.total / bucket.count - worldMean) * WORLD_AWARD_LEAGUE_STRENGTH_WEIGHT);
+    deltas.set(compId, bucket.total / bucket.count - worldMean);
   }
-  return offsets;
+  return deltas;
 }
 
 /**
@@ -258,10 +271,32 @@ function worldOvrComponent(e: Entry): number {
   return (e.ovr - AWARD_OVR_BASELINE) * WORLD_AWARD_OVR_WEIGHT;
 }
 
-/** Winning your own league, pro-rated by how much of the season you played. Tier-2 titles aren't in championTidByCompId, so they score nothing. */
+/**
+ * How much a trophy won *inside one league* is worth, scaled by how strong that
+ * league is.
+ *
+ * Applies to the league title and the domestic cup and to nothing else, because
+ * they are the only two league-relative trophies: every league crowns a
+ * champion regardless of its standard, so without this an English title and a
+ * Belgian one score identically. The Continental Cup and the international
+ * campaign need no such scale — they are contested between leagues, so their
+ * difficulty is already priced in.
+ *
+ * Clamped at both ends. The floor is what stops a tier-2 club's domestic cup
+ * win, which is legitimate, from scoring negative and turning a trophy into a
+ * penalty. See WORLD_AWARD_TROPHY_STRENGTH_WEIGHT.
+ */
+function trophyStrengthScale(e: Entry): number {
+  const raw = 1 + e.ovrDelta * WORLD_AWARD_TROPHY_STRENGTH_WEIGHT;
+  return Math.min(WORLD_AWARD_TROPHY_STRENGTH_CAP, Math.max(WORLD_AWARD_TROPHY_STRENGTH_FLOOR, raw));
+}
+
+/** Winning your own league, pro-rated by how much of the season you played and scaled by the league's strength. Tier-2 titles aren't in championTidByCompId, so they score nothing. */
 function titleComponent(e: Entry, championTidByCompId: Record<number, number>): number {
   if (championTidByCompId[e.compId] !== e.stats.tid) return 0;
-  return WORLD_AWARD_LEAGUE_TITLE_BONUS * Math.min(1, e.stats.appearances / WORLD_AWARD_TITLE_FULL_SEASON);
+  return WORLD_AWARD_LEAGUE_TITLE_BONUS
+    * Math.min(1, e.stats.appearances / WORLD_AWARD_TITLE_FULL_SEASON)
+    * trophyStrengthScale(e);
 }
 
 /**
@@ -279,7 +314,10 @@ function titleComponent(e: Entry, championTidByCompId: Record<number, number>): 
  *
  * Second-tier winners count. A tier-2 club really can win the thing, and unlike
  * a tier-2 league title (which `championTidByCompId` excludes by construction)
- * there is no weaker version of this trophy to confuse it with.
+ * there is no weaker version of this trophy to confuse it with. It is scaled
+ * down hard by `trophyStrengthScale` — a second division sits far below the
+ * world mean — but the floor there keeps it a reduced reward rather than a
+ * penalty.
  */
 function domesticCupComponent(
   e: Entry,
@@ -289,7 +327,8 @@ function domesticCupComponent(
   if (!champions.has(e.stats.tid)) return 0;
   const appearances = lines.get(e.player.pid)?.appearances ?? 0;
   return WORLD_AWARD_DOMESTIC_CUP_BONUS
-    * Math.min(1, appearances / WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT);
+    * Math.min(1, appearances / WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT)
+    * trophyStrengthScale(e);
 }
 
 /**
@@ -508,6 +547,7 @@ export function computeWorldAwards(
       ovr: ovrDuringSeason(player, season),
       cupLine: cupLines.get(player.pid),
       strength: 0,
+      ovrDelta: 0,
     });
   }
   if (entries.length === 0) {
@@ -519,8 +559,11 @@ export function computeWorldAwards(
     };
   }
 
-  const offsets = leagueStrengthOffsets(entries);
-  for (const e of entries) e.strength = offsets.get(e.compId) ?? 0;
+  const deltas = leagueStrengthOffsets(entries);
+  for (const e of entries) {
+    e.ovrDelta = deltas.get(e.compId) ?? 0;
+    e.strength = e.ovrDelta * WORLD_AWARD_LEAGUE_STRENGTH_WEIGHT;
+  }
 
   const scoring: Scoring = { season, ctx, roundsFromFinal, domesticChampions, domesticLines };
 

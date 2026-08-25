@@ -1031,6 +1031,18 @@ export function Manual() {
             it carries the weight it does.
           </p>
           <p>
+            <strong>Your league title and your domestic cup are worth more if you win them in a
+            strong league.</strong> Every country crowns a champion regardless of how good its
+            football is, so a title in Belgium and a title in England used to be worth exactly the
+            same to a world award, which is plainly wrong. Both are now scaled by how far your
+            league sits above or below the world's average standard: in the shipped world that's
+            roughly a 1.45x gap between the strongest top flight and the weakest. Winning a weaker
+            league is still worth real points, never a penalty &mdash; and a second-division club
+            that wins its domestic cup still gets credit, just heavily reduced. The Continental Cup
+            and international football take no such scaling, because they're contested between
+            countries already, so winning them is equally hard whoever you are.
+          </p>
+          <p>
             <strong>Goalkeeper of the Year and Defender of the Year.</strong> Two more worldwide
             awards on the same World tab, each with a five-man shortlist. They exist because the
             Ballon d'Or can't really be won by a keeper or a defender, and that isn't a bug to be
@@ -1074,7 +1086,7 @@ export function Manual() {
           </p>
           <p>
             One honest caveat about the defender's award. Tackles and interceptions are counts, not
-            rates, and they aren't adjusted for how strong your league is the way match ratings are.
+            rates, and they vary hugely from one defender to the next.
             A defender who spends every week under siege racks up more of both than an equally good
             one at a club that controls its games, so the award leans towards defenders with a lot
             of defending to do, and a weaker league can produce a winner more often than its

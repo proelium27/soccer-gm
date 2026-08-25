@@ -677,7 +677,7 @@ describe("position awards", () => {
     expect(positionTitle / ballonTitle).toBeCloseTo(WORLD_TOTS_TROPHY_MULTIPLIER, 6);
   });
 
-  it("leaves the domestic league season unmultiplied, and the Ballon d'Or alone", () => {
+  it("leaves the domestic league season unmultiplied, and the Ballon d'Or on its own trophy weighting", () => {
     const players = [keeper(1, 1, 78), keeper(2, 2, 78), ...squad(100, 11, 55)];
     const champion = ctx({ championTidByCompId: { 0: 1 } });
     const { goalkeeperOfYear, worldTeamOfYear, ballonDOr } =
@@ -691,13 +691,13 @@ describe("position awards", () => {
 
     // The World XI shares the multiplied score (that is the point of putting
     // the multiplier on the shared base), so its keeper is the award winner.
-    // The Ballon d'Or is on the potyScore base and keeps its own weight, here
-    // pro-rated by appearances, hence the cap rather than an equality.
     expect(worldTeamOfYear[0]).toBe(goalkeeperOfYear![0].pid);
-    expect(ballonDOr.find((e) => e.pid === 1)!.title)
-      .toBeLessThanOrEqual(WORLD_AWARD_LEAGUE_TITLE_BONUS);
-    expect(goalkeeperOfYear![0].title)
-      .toBeGreaterThan(WORLD_AWARD_LEAGUE_TITLE_BONUS);
+    // The Ballon d'Or takes the league-strength scale on its trophies like
+    // everything else — that scale belongs to the trophy, not to one award —
+    // but NOT the tots trophy multiplier, so it stays strictly the smaller.
+    const ballonTitle = ballonDOr.find((e) => e.pid === 1)!.title;
+    expect(ballonTitle).toBeGreaterThan(0);
+    expect(goalkeeperOfYear![0].title).toBeGreaterThan(ballonTitle);
   });
 
   it("applies the multiplier to the World XI as well, not just the two awards", () => {
@@ -714,6 +714,44 @@ describe("position awards", () => {
     const champion = computeWorldAwards(players, SEASON, ctx({ championTidByCompId: { 0: 1 } }));
     expect(champion.goalkeeperOfYear![0].pid).toBe(2);
     expect(champion.worldTeamOfYear[0]).toBe(2);
+  });
+
+  it("pays more for a title in a strong league than the same title in a weak one", () => {
+    // Two champions, one in each competition. comp 0 is stacked with high-ovr
+    // players and comp 1 with low ones, so comp 0 sits well above the world
+    // mean ovr and comp 1 well below it.
+    const players = [
+      keeper(1, 1, 78, { appearances: WORLD_AWARD_TITLE_FULL_SEASON }),
+      keeper(2, 11, 78, { appearances: WORLD_AWARD_TITLE_FULL_SEASON }),
+      ...squad(100, 1, 82), ...squad(200, 2, 80),
+      ...squad(300, 11, 50), ...squad(400, 12, 48),
+    ];
+    const { goalkeeperOfYear } = computeWorldAwards(
+      players, SEASON, ctx({ championTidByCompId: { 0: 1, 1: 11 } }),
+    );
+    const strong = goalkeeperOfYear!.find((e) => e.pid === 1)!;
+    const weak = goalkeeperOfYear!.find((e) => e.pid === 2)!;
+
+    // Same trophy, same appearances, same ovr — only the league differs.
+    expect(strong.title).toBeGreaterThan(weak.title);
+    // And the weak league's title is still a reward, never a penalty: the
+    // floor is what guarantees that (a tier-2 domestic cup winner is the case
+    // that would otherwise go negative).
+    expect(weak.title).toBeGreaterThan(0);
+  });
+
+  it("never turns a trophy into a penalty, however far below the world a league sits", () => {
+    // One tiny, very weak competition against a huge strong one, so the weak
+    // side's ovr delta is far past where the raw scale would go negative.
+    const players = [
+      keeper(1, 11, 40, { appearances: WORLD_AWARD_TITLE_FULL_SEASON }),
+      ...squad(100, 1, 95), ...squad(200, 2, 95),
+      ...squad(300, 11, 20),
+    ];
+    const { goalkeeperOfYear } = computeWorldAwards(
+      players, SEASON, ctx({ championTidByCompId: { 1: 11 } }),
+    );
+    expect(goalkeeperOfYear!.find((e) => e.pid === 1)!.title).toBeGreaterThan(0);
   });
 
   it("lets a title overturn a league season the title bonus alone could not", () => {
