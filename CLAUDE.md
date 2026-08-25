@@ -2,7 +2,7 @@
 
 A client-side, BBGM-style soccer management sim (TypeScript, React, Vite, IndexedDB). All milestones M0-M6 are done and merged (see "Milestone status" below), and a great deal has shipped since.
 
-**This file is the current record.** The other documents in the repo are narrower, and two are deliberately historical:
+**This file is the current record.** The other documents in the repo are narrower, and one is deliberately historical:
 
 | Doc | What it is |
 | --- | --- |
@@ -15,7 +15,6 @@ A client-side, BBGM-style soccer management sim (TypeScript, React, Vite, Indexe
 | `docs/eafc-import.md` | The dev-only EA FC roster converter. Never ships. |
 | `docs/crazygames.md` | How to build and upload the CrazyGames bundle. |
 | `docs/analytics.md` | PostHog dashboards and pointers; `src/ui/analytics.ts` owns the event set. |
-| `docs/superpowers/**` | **Archive.** One-shot specs and implementation plans for work that shipped, 2026-07 to 2026-08, unrevised since. Kept for the "why", not the "what". See its README. |
 
 > **This file is a condensed ledger, not a changelog.** Blow-by-blow constant-retune history (dated before/after values, dynasty-audit numbers) lives in git history and the `docs/` design specs — don't re-add it here. Keep entries to *what a feature is, where it lives, and its non-obvious gotchas.*
 
