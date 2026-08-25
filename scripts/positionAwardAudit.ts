@@ -61,17 +61,14 @@ let defenderRepeat = 0;
 let lastKeeper: number | null = null;
 let lastDefender: number | null = null;
 /**
- * What the winner's raw counting stats WOULD have been worth at the unnormalized
- * `totsScore` weights, as a share of his score.
+ * How much of a winner's score came from raw counting stats.
  *
- * **No longer the share of his score that came from production**, and must not
- * be read as one: since the worldwide awards normalize production within
- * position (see WORLD_TOTS_PRODUCTION_WEIGHT), the score contains a z-scored
- * term instead, and the raw figure cannot be recovered from a WorldAwardEntry —
- * `league` bundles rating, production, ovr and the strength correction into one
- * number. It is kept only as a *comparison against history*: this is the
- * quantity that read 50% before the trophy multiplier and 37% after, so it says
- * how far the shipped weights have drifted from what the award now uses.
+ * The number that matters most here: tackles and interceptions are NOT
+ * z-normalized the way match ratings are, so a defender in a weak league or on
+ * a leaky team simply gets more defending to do and collects more of both. The
+ * league-strength correction only shifts the *rating* term, so it cannot undo
+ * this. A high share means the award is measuring volume of work rather than
+ * quality of it.
  */
 const volumeShare: number[] = [];
 /** Share of the winning score that came from outside his own league season. */
@@ -219,8 +216,7 @@ console.log(`  won back-to-back:  ${defenderRepeat}`);
 console.log(`  also in the World XI back four:  ${pct(defenderInXI, defenderSeasons)}  <- high means this award only names a pick the game already made`);
 
 const mean = (xs: number[]) => (xs.length === 0 ? NaN : xs.reduce((a, b) => a + b, 0) / xs.length);
-console.log(`\nRaw counting stats at unnormalized weights, vs the winning score`);
-console.log(`  (a HISTORICAL comparison only — the score now uses a z-scored production term)`);
+console.log(`\nHow much of the winning score is raw volume, not quality`);
 console.log(`  keeper, from saves:              ${(mean(keeperVolumeShare) * 100).toFixed(0)}%`);
 console.log(`  defender, from tackles + int:    ${(mean(volumeShare) * 100).toFixed(0)}%`);
 console.log(`

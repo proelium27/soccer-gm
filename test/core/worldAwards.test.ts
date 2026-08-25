@@ -4,7 +4,7 @@ import { emptySeasonStats, type Player, type Position } from "../../src/core/pla
 import type { CupState, CupTie } from "../../src/core/cup/types.js";
 import { archiveCup } from "../../src/core/cup/archive.js";
 import type { BoxScore, PlayerMatchLine } from "../../src/engine/attribution.js";
-import { TOTS_SLOTS, totsScore, totsProduction } from "../../src/core/awards.js";
+import { TOTS_SLOTS } from "../../src/core/awards.js";
 import {
   BALLON_DOR_SHORTLIST, AWARD_MIN_APPEARANCES, WORLD_POSITION_AWARD_SHORTLIST,
   WORLD_AWARD_DOMESTIC_CUP_BONUS, WORLD_AWARD_DOMESTIC_CUP_FULL_INVOLVEMENT,
@@ -779,103 +779,5 @@ describe("position awards", () => {
     const champion = computeWorldAwards(players, SEASON, ctx({ championTidByCompId: { 0: 1 } }));
     expect(champion.goalkeeperOfYear!.find((e) => e.pid === 2)!.title).toBeGreaterThan(gap);
     expect(champion.goalkeeperOfYear![0].pid).toBe(2);
-  });
-});
-
-/**
- * Within-position normalization of the production term.
- *
- * `totsScore`'s counting-stat term is raw volume, and volume varies far more
- * between individuals than quality does, so it used to decide these awards on
- * its own. The worldwide awards now score it as standard deviations from the
- * mean at that player's own position — inside worldAwards.ts only, so the
- * per-league Team of the Season and everything downstream of it are untouched.
- */
-describe("production normalization", () => {
-  function outfield(pid: number, tid: number, pos: Position, over: {
-    tackles?: number; interceptions?: number; goals?: number; assists?: number;
-    ovr?: number; avgRating?: number;
-  } = {}) {
-    return player({
-      pid, tid, pos,
-      ovr: over.ovr ?? 70,
-      avgRating: over.avgRating ?? 6.8,
-      tackles: over.tackles ?? 100,
-      interceptions: over.interceptions ?? 100,
-      goals: over.goals ?? 0,
-      assists: over.assists ?? 0,
-    });
-  }
-
-  /** A spread of players at one position, so the distribution has a real sd. */
-  function spread(startPid: number, tid: number, pos: Position, base: number, step: number) {
-    return Array.from({ length: 10 }, (_, i) =>
-      outfield(startPid + i, tid, pos, { tackles: base + i * step, interceptions: base + i * step }),
-    );
-  }
-
-  it("keeps totsProduction in step with totsScore", () => {
-    // The two duplicate a few lines on purpose (see totsProduction's note on
-    // float association). This is what stops them drifting apart.
-    const p = outfield(1, 1, "CB", { tackles: 173, interceptions: 141, goals: 3, assists: 2, ovr: 77 });
-    const stats = p.stats[0];
-    const ovrBonus = totsScore(p, stats, SEASON) - stats.avgRating - totsProduction(p, stats);
-    // Whatever is left over must be exactly the ovr term, which is linear.
-    expect(ovrBonus).toBeCloseTo((77 - 65) * 0.06, 9);
-  });
-
-  it("is scale-invariant: doubling every counting stat changes no award", () => {
-    // The sharpest statement of what normalization means. Doubling production
-    // for everyone doubles the mean and the spread together, so every z-score
-    // is unchanged and so is every winner. Under raw volume this would have
-    // reshuffled the entire board.
-    const build = (k: number) => [
-      ...spread(100, 1, "CB", 80 * k, 20 * k),
-      ...spread(200, 2, "FB", 40 * k, 10 * k),
-      ...spread(300, 11, "CB", 60 * k, 15 * k),
-      ...TOTS_SLOTS.map((pos, i) => player({ pid: 900 + i, tid: 1, ovr: 66, pos, avgRating: 6.4 })),
-    ];
-    const single = computeWorldAwards(build(1), SEASON, ctx());
-    const double = computeWorldAwards(build(2), SEASON, ctx());
-
-    expect(double.defenderOfYear!.map((e) => e.pid))
-      .toEqual(single.defenderOfYear!.map((e) => e.pid));
-    expect(double.worldTeamOfYear).toEqual(single.worldTeamOfYear);
-  });
-
-  it("lets an exceptional full-back beat a merely good centre-back", () => {
-    // Centre-backs collect far more tackles than full-backs, so on raw volume a
-    // mid-table CB outscores the best FB alive and the award went 14-15 of 16
-    // to centre-backs. Judged against his own position, a standout full-back
-    // now compares properly.
-    const players = [
-      ...spread(100, 1, "CB", 380, 10),   // CBs: high volume (380-470 each way)
-      ...spread(200, 2, "FB", 180, 10),   // FBs: much lower volume (180-270)
-      // A full-back far above every other full-back...
-      outfield(1, 1, "FB", { tackles: 400, interceptions: 400 }),
-      // ...against a centre-back only modestly above other centre-backs, whose
-      // RAW production is still much the larger of the two.
-      outfield(2, 1, "CB", { tackles: 420, interceptions: 420 }),
-      ...TOTS_SLOTS.map((pos, i) => player({ pid: 900 + i, tid: 11, ovr: 60, pos, avgRating: 6.2 })),
-    ];
-    const raw1 = totsProduction(players.find((p) => p.pid === 1)!, players.find((p) => p.pid === 1)!.stats[0]);
-    const raw2 = totsProduction(players.find((p) => p.pid === 2)!, players.find((p) => p.pid === 2)!.stats[0]);
-    expect(raw2).toBeGreaterThan(raw1); // the CB really does have more volume
-
-    const { defenderOfYear } = computeWorldAwards(players, SEASON, ctx());
-    expect(defenderOfYear![0].pid).toBe(1); // ...and the full-back wins anyway
-  });
-
-  it("does not let volume alone beat a much better player", () => {
-    const players = [
-      ...spread(100, 1, "CB", 200, 30),
-      // Huge volume, ordinary quality.
-      outfield(1, 1, "CB", { tackles: 400, interceptions: 400, ovr: 68, avgRating: 6.7 }),
-      // Modest volume, clearly the better defender.
-      outfield(2, 2, "CB", { tackles: 210, interceptions: 210, ovr: 86, avgRating: 7.4 }),
-      ...TOTS_SLOTS.map((pos, i) => player({ pid: 900 + i, tid: 11, ovr: 60, pos, avgRating: 6.2 })),
-    ];
-    const { defenderOfYear } = computeWorldAwards(players, SEASON, ctx());
-    expect(defenderOfYear![0].pid).toBe(2);
   });
 });
