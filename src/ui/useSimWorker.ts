@@ -8,8 +8,9 @@ import type { SimThrough, IntlMode, WorkerResponse } from "../worker/protocol.js
 import type { LeagueArchive } from "../core/simArchive.js";
 import {
   detachArchive, reattachArchive, detachPlayed, reattachPlayed,
-  detachCareer, reattachCareer,
+  detachCareer, reattachCareer, detachNews, reattachNews,
 } from "../core/simArchive.js";
+import { referencedPids } from "../core/players/playerNames.js";
 import { computeTeamSeasonStats } from "../core/standings.js";
 
 export type SimProgress = {
@@ -43,6 +44,8 @@ type Pending = {
   played: PlayedMatch[] | null;
   /** The part of each player's career the worker was not given. */
   careers: ReturnType<typeof detachCareer>["careers"] | null;
+  /** The news feed and archived cups the worker was not given. */
+  news: ReturnType<typeof detachNews>["news"] | null;
 };
 
 export function useSimWorker() {
@@ -82,6 +85,12 @@ export function useSimWorker() {
         const pending = pendingRef.current;
         if (pending) {
           let league = e.data.league;
+          if (pending.news) {
+            const culled = new Set(
+              e.data.type === "offseasonResult" ? e.data.culledPids ?? [] : [],
+            );
+            league = reattachNews(league, pending.news, culled);
+          }
           if (pending.careers) league = reattachCareer(league, pending.careers);
           if (pending.played) league = reattachPlayed(league, pending.played);
           if (pending.archive) league = reattachArchive(league, pending.archive);
@@ -144,9 +153,16 @@ export function useSimWorker() {
         // the above: it crosses offseasons, where players retire and youth
         // arrive, so the per-pid merge on the way back is not worth the risk on
         // an action already accepted as slow.
-        const { payload, careers } = stripPlayed
+        const { payload: withoutCareers, careers } = stripPlayed
           ? detachCareer(withoutPlayed)
           : { payload: withoutPlayed, careers: null };
+
+        // The news feed and the archived cups, ~23 MB on a long save. Exempt
+        // from `jump` with the rest: it crosses offseasons, so it would need a
+        // culled pid set per season rather than one.
+        const { payload, news } = stripPlayed
+          ? detachNews(withoutCareers)
+          : { payload: withoutCareers, news: null };
 
         // The offseason is the one place the sim reads a box score it did not
         // just play (computeTeamSeasonStats). Working it out here is what makes
@@ -161,10 +177,13 @@ export function useSimWorker() {
                   command.league.teams.map((t) => t.tid),
                   command.league.played,
                 ),
+                // extendPlayerNames walks the history we just held back, so the
+                // answer is worked out here instead. See detachNews.
+                referencedPids: [...referencedPids(command.league)],
               }
             : { ...command, league: payload };
 
-        pendingRef.current = { resolve, reject, archive, played, careers };
+        pendingRef.current = { resolve, reject, archive, played, careers, news };
         progressRef.current = handlers.onProgress ?? null;
         jumpProgressRef.current = handlers.onJumpProgress ?? null;
         workerRef.current?.postMessage(outgoing);

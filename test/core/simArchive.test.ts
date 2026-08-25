@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { simThrough } from "../../src/core/simThrough.js";
-import { simOffseason } from "../../src/core/offseason.js";
+import { simOffseason, simOffseasonReporting } from "../../src/core/offseason.js";
 import {
   detachArchive, reattachArchive, detachPlayed, reattachPlayed,
-  detachCareer, reattachCareer,
+  detachCareer, reattachCareer, detachNews, reattachNews,
 } from "../../src/core/simArchive.js";
+import { referencedPids } from "../../src/core/players/playerNames.js";
 import { computeTeamSeasonStats } from "../../src/core/standings.js";
 import { pruneRetireeArchive } from "../../src/core/players/archive.js";
 import type { ArchivedPlayer } from "../../src/core/players/archive.js";
@@ -185,7 +186,7 @@ describe("simArchive played box scores", () => {
       seasonDone.played,
     );
     const b = detachPlayed(seasonDone);
-    const stripped = reattachPlayed(simOffseason(b.payload, rngB, teamStats), b.played);
+    const stripped = reattachPlayed(simOffseason(b.payload, rngB, { teamStats }), b.played);
 
     expect(stripped).toEqual(whole);
   });
@@ -254,5 +255,87 @@ describe("simArchive career windows", () => {
     const windowed = reattachCareer(simOffseason(payload, mulberry32(23)), careers);
 
     expect(windowed).toEqual(whole);
+  });
+});
+
+/**
+ * The gate for detachNews/reattachNews.
+ *
+ * ~23 MB on the reported season-60 save, and the trickiest of the four, because
+ * these are not purely append-only: `cullFreeAgentPool` scrubs a culled
+ * player's rows out of them, and `extendPlayerNames` walks them to decide which
+ * retirees are still worth naming. So the round trip has to reproduce a scrub
+ * the worker could not perform and a decision it could not make.
+ */
+describe("simArchive news and cup histories", () => {
+  let aged: LeagueStore;
+  beforeAll(() => {
+    const rng = mulberry32(95);
+    aged = createLeagueState(0, rng, 0, "normal", englandCompetitions());
+    for (let i = 0; i < 3; i++) {
+      aged = simThrough(aged, "season", rng);
+      aged = simOffseason(aged, rng);
+    }
+  }, 600_000);
+
+  it("empties exactly those fields and leaves the rest alone", () => {
+    const { payload, news } = detachNews(aged);
+    expect(news.newsEvents.length).toBeGreaterThan(0);
+    expect(payload.newsEvents).toEqual([]);
+    expect(payload.cupHistory).toEqual([]);
+    expect(payload.shieldHistory).toEqual([]);
+    expect(payload.domesticCupHistory).toEqual([]);
+
+    const rest = (l: LeagueStore) => ({
+      ...l, newsEvents: [], cupHistory: [], shieldHistory: [], domesticCupHistory: [],
+    });
+    expect(rest(payload)).toEqual(rest(aged));
+  });
+
+  it("a season on a detached league lands where an undetached run does", () => {
+    const whole = simThrough(aged, "season", mulberry32(31));
+    const { payload, news } = detachNews(aged);
+    // No offseason, so nothing was culled.
+    const detached = reattachNews(
+      simThrough(payload, "season", mulberry32(31)), news, new Set(),
+    );
+    expect(detached).toEqual(whole);
+  });
+
+  it("an offseason lands where an undetached run does, cull and all", () => {
+    const full = simThrough(aged, "season", mulberry32(32));
+    const whole = simOffseason(full, mulberry32(33));
+
+    // Exactly what the worker boundary does: hold the history back, hand in the
+    // referenced set, then scrub with the pids the worker reports.
+    const { payload, news } = detachNews(full);
+    const { league: result, report } = simOffseasonReporting(payload, mulberry32(33), {
+      referencedPids: referencedPids(full),
+    });
+    const detached = reattachNews(result, news, report.culledPids);
+
+    expect(detached).toEqual(whole);
+  });
+
+  it("scrubs a culled player out of the history the worker never saw", () => {
+    // The failure this exists for: without the scrub a deleted player's rows
+    // survive and render as "Player 4821".
+    const full = simThrough(aged, "season", mulberry32(34));
+    const { payload, news } = detachNews(full);
+    const { report } = simOffseasonReporting(payload, mulberry32(35), {
+      referencedPids: referencedPids(full),
+    });
+
+    if (report.culledPids.size === 0) return; // nothing culled this run
+    const before = news.newsEvents.filter(
+      (e) => "pid" in e && typeof e.pid === "number" && report.culledPids.has(e.pid),
+    ).length;
+    const kept = reattachNews(
+      { ...payload, newsEvents: [] } as LeagueStore, news, report.culledPids,
+    ).newsEvents.filter(
+      (e) => "pid" in e && typeof e.pid === "number" && report.culledPids.has(e.pid),
+    ).length;
+    expect(kept).toBe(0);
+    expect(before).toBeGreaterThanOrEqual(kept);
   });
 });

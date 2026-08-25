@@ -5,6 +5,7 @@ import type { PlayedMatch } from "./standings.js";
 import type { SeasonStats, RatingsSnapshot } from "./players/types.js";
 import { POSITION_CHANGE_SEASONS } from "./constants.js";
 import { pruneRetireeArchive } from "./players/archive.js";
+import { scrubHistoryForCull } from "./players/freeAgentCull.js";
 
 /**
  * History the sim writes but never reads, held back from the worker.
@@ -31,18 +32,11 @@ import { pruneRetireeArchive } from "./players/archive.js";
  * 9.0 MB = **31.4 MB off both directions**, on top of what
  * `POWER_SNAPSHOT_INTERVAL` already saves.
  *
- * **What is deliberately NOT here, and why.** `newsEvents`, `cupHistory`,
- * `shieldHistory` and `domesticCupHistory` are another ~62 MB at season 56 and
- * look identical from the outside, but two offseason steps genuinely read them:
- * `cullFreeAgentPool` scrubs the culled players' rows out of them, and
- * `extendPlayerNames` walks the cup stat lines to decide which retirees are
- * still referenced. Holding them back needs the culled pid set threaded out of
- * `simOffseason` and an incremental `referencedPids` — a bigger change than
- * this one, and it must not be faked: dropping the scrub would leave deleted
- * players rendering as "Player 4821", which is the exact bug `playerNames`
- * exists to fix. `transfers` and `seasonHistory` are read for real sim
- * decisions (arrival seasons, loan returns, academy form, protected stars) and
- * can never move here.
+ * `newsEvents` and the cup histories are held back too, but they needed more
+ * than an empty array because two offseason steps read them — see `detachNews`.
+ * **`transfers` and `seasonHistory` can never move here**: they are read for
+ * real sim decisions (arrival seasons via `joinedSeasons`, loan returns,
+ * `academyForm`, `protectedStars`), not merely accumulated.
  *
  * **The invariant, if you add a field:** it must be append-only across the
  * whole worker-side call graph. A single read of the retained data inside the
@@ -252,6 +246,83 @@ export function reattachCareer(
         hist: cut.histCut === 0 ? p.hist : [...cut.hist.slice(0, cut.histCut), ...p.hist],
       };
     }),
+  };
+}
+
+/** The append-only history the sim only appends to and prunes. */
+export interface LeagueNews {
+  newsEvents: LeagueStore["newsEvents"];
+  cupHistory: LeagueStore["cupHistory"];
+  shieldHistory: LeagueStore["shieldHistory"];
+  domesticCupHistory: LeagueStore["domesticCupHistory"];
+}
+
+/**
+ * Hold back the news feed and the archived cups.
+ *
+ * Measured on the reported season-60 save: `newsEvents` 11.6 MB, `cupHistory`
+ * 4.5, `domesticCupHistory` 4.3, `shieldHistory` ~2.9 — **~23 MB**, all of it
+ * append-only from the sim's point of view. Like `powerRankingHistory` it goes
+ * out empty and comes back holding exactly this run's new entries.
+ *
+ * These took longer than the others because they were not *purely* append-only:
+ * two offseason steps read them, and both now take the answer as an input or
+ * report their side of it back.
+ *
+ * - `cullFreeAgentPool` scrubs a culled player's rows out of them. The worker
+ *   cannot do that to arrays it does not have, so it reports the pids it culled
+ *   and `reattachNews` applies the same scrub here, through the very same
+ *   function (`scrubHistoryForCull`) so the two cannot drift.
+ * - `extendPlayerNames` walks them to decide which retirees are still
+ *   referenced. That set is precomputed here and handed in — a few hundred
+ *   thousand numbers against ~23 MB of history.
+ *
+ * **Do not shortcut the scrub.** A culled player's surviving rows render as
+ * "Player 4821", which is the exact bug `playerNames` exists to fix.
+ */
+export function detachNews(league: LeagueStore): {
+  payload: LeagueStore;
+  news: LeagueNews;
+} {
+  const news: LeagueNews = {
+    newsEvents: league.newsEvents ?? [],
+    cupHistory: league.cupHistory ?? [],
+    shieldHistory: league.shieldHistory ?? [],
+    domesticCupHistory: league.domesticCupHistory ?? [],
+  };
+  return {
+    payload: {
+      ...league,
+      newsEvents: [],
+      cupHistory: [],
+      shieldHistory: [],
+      domesticCupHistory: [],
+    },
+    news,
+  };
+}
+
+/**
+ * Fold this run's new entries onto the retained history, scrubbing first.
+ *
+ * Order matters: the scrub runs against the retained rows *before* the new ones
+ * are appended, exactly as it would have inside the offseason — a player culled
+ * this run cannot appear in entries this run just created, so scrubbing after
+ * would be the same answer done more expensively, and scrubbing the appended
+ * rows as well would be wrong the day that stops being true.
+ */
+export function reattachNews(
+  result: LeagueStore,
+  news: LeagueNews,
+  culledPids: Set<number>,
+): LeagueStore {
+  const kept = scrubHistoryForCull(news, culledPids);
+  return {
+    ...result,
+    newsEvents: [...kept.newsEvents, ...(result.newsEvents ?? [])],
+    cupHistory: [...kept.cupHistory, ...(result.cupHistory ?? [])],
+    shieldHistory: [...kept.shieldHistory, ...(result.shieldHistory ?? [])],
+    domesticCupHistory: [...kept.domesticCupHistory, ...(result.domesticCupHistory ?? [])],
   };
 }
 

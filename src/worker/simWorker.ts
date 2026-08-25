@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 import { simThrough } from "../core/simThrough.js";
-import { simOffseason } from "../core/offseason.js";
+import { simOffseasonReporting } from "../core/offseason.js";
 import { jumpSeasons } from "../core/autopilot.js";
 import { playIntlStage, simThroughInternational } from "../core/international/index.js";
 import { mulberry32 } from "../engine/rng.js";
@@ -36,8 +36,17 @@ self.onmessage = (e: MessageEvent<WorkerCommand>) => {
   } else if (cmd.type === "offseason") {
     const seed = (cmd.league.lid * 1000 + cmd.league.season) >>> 0;
     const rng = mulberry32(seed);
-    const result = simOffseason(cmd.league, rng, cmd.teamStats);
-    const response: WorkerResponse = { type: "offseasonResult", league: result };
+    const { league: result, report } = simOffseasonReporting(cmd.league, rng, {
+      teamStats: cmd.teamStats,
+      referencedPids: cmd.referencedPids ? new Set(cmd.referencedPids) : undefined,
+    });
+    const response: WorkerResponse = {
+      type: "offseasonResult",
+      league: result,
+      // An array, not a Set: structuredClone handles Sets, but the protocol
+      // stays plainly serialisable so a future transport cannot be surprised.
+      culledPids: [...report.culledPids],
+    };
     self.postMessage(response);
   } else if (cmd.type === "jump") {
     // No rng is threaded in: a jump is many seasons, and each one seeds itself

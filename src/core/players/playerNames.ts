@@ -116,9 +116,19 @@ export function extendPlayerNames(
   names: PlayerName[],
   retirees: Player[],
   league: LeagueStore,
+  /**
+   * The referenced set, when the caller has already worked it out.
+   *
+   * Same reason `simOffseason` takes a precomputed `teamStats`: this walk is one
+   * of only two things in the offseason that reads the append-only history —
+   * `newsEvents` and the cup `statLines` — so supplying it is what lets that
+   * history stay off the worker (`detachNews` in core/simArchive.ts). Optional
+   * and defaulted, so every other caller is unaffected.
+   */
+  precomputedReferenced?: Set<number>,
 ): PlayerName[] {
   if (retirees.length === 0) return names;
-  const referenced = referencedPids(league);
+  const referenced = precomputedReferenced ?? referencedPids(league);
   const known = new Set(names.map((n) => n.pid));
   const added = retirees
     .filter((p) => referenced.has(p.pid) && !known.has(p.pid))
