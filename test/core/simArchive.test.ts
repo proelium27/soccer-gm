@@ -4,6 +4,7 @@ import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import {
   detachArchive, reattachArchive, detachPlayed, reattachPlayed,
+  detachCareer, reattachCareer,
 } from "../../src/core/simArchive.js";
 import { computeTeamSeasonStats } from "../../src/core/standings.js";
 import { pruneRetireeArchive } from "../../src/core/players/archive.js";
@@ -195,5 +196,63 @@ describe("simArchive played box scores", () => {
     const { played } = detachPlayed(mid);
     const rolled: LeagueStore = { ...mid, played: [] };
     expect(reattachPlayed(rolled, played).played).toEqual([]);
+  });
+});
+
+/**
+ * The gate for detachCareer/reattachCareer.
+ *
+ * `stats[]` + `hist[]` are 45.2 MB of the reported season-60 save and, unlike
+ * the box scores, are there whatever the matchday. Nothing in the sim reads a
+ * whole career now that `archivePlayer` builds from the stored summary, so the
+ * worker gets a window instead.
+ *
+ * The window is sized from the code — the position-change spell walk is the
+ * widest consumer — but reading the constants cannot prove it is wide enough.
+ * Running a whole season and offseason on the window and requiring the same
+ * league out is what proves it, because the offseason is where a career is
+ * actually read: the spell walk, the awards' ovrDuringSeason, the career fold
+ * and the retiree archive all happen there.
+ */
+describe("simArchive career windows", () => {
+  let aged: LeagueStore;
+  beforeAll(() => {
+    const rng = mulberry32(88);
+    aged = createLeagueState(0, rng, 0, "normal", englandCompetitions());
+    for (let i = 0; i < 3; i++) {
+      aged = simThrough(aged, "season", rng);
+      aged = simOffseason(aged, rng);
+    }
+  }, 600_000);
+
+  it("hands the worker a fraction of the career data", () => {
+    const { payload, careers } = detachCareer(aged);
+    expect(careers.size).toBeGreaterThan(100);
+
+    const bytes = (l: LeagueStore) =>
+      l.players.reduce(
+        (n, p) => n + JSON.stringify(p.stats).length + JSON.stringify(p.hist).length,
+        0,
+      );
+    expect(bytes(payload)).toBeLessThan(bytes(aged));
+  });
+
+  it("a season on windowed careers lands where a full-career run does", () => {
+    const whole = simThrough(aged, "season", mulberry32(21));
+
+    const { payload, careers } = detachCareer(aged);
+    const windowed = reattachCareer(simThrough(payload, "season", mulberry32(21)), careers);
+
+    expect(windowed).toEqual(whole);
+  });
+
+  it("an offseason on windowed careers lands where a full-career run does", () => {
+    const full = simThrough(aged, "season", mulberry32(22));
+    const whole = simOffseason(full, mulberry32(23));
+
+    const { payload, careers } = detachCareer(full);
+    const windowed = reattachCareer(simOffseason(payload, mulberry32(23)), careers);
+
+    expect(windowed).toEqual(whole);
   });
 });

@@ -2,6 +2,8 @@ import type { LeagueStore } from "./leagueState.js";
 import type { PowerRankingSnapshot } from "./teams/powerRanking.js";
 import type { ArchivedPlayer } from "./players/archive.js";
 import type { PlayedMatch } from "./standings.js";
+import type { SeasonStats, RatingsSnapshot } from "./players/types.js";
+import { POSITION_CHANGE_SEASONS } from "./constants.js";
 import { pruneRetireeArchive } from "./players/archive.js";
 
 /**
@@ -167,6 +169,92 @@ export function detachPlayed(league: LeagueStore): {
  * A result with no stubs at the front means the offseason wiped the array, so
  * everything in it is the worker's own and is kept verbatim.
  */
+/**
+ * How much of a player's career the worker is handed, and why exactly this much.
+ *
+ * Sized from the code rather than picked: the widest consumer is the
+ * position-change spell walk, which reads the last `POSITION_CHANGE_SEASONS - 1`
+ * ratings snapshots (with their full `ratings`, so they cannot be thinned), and
+ * `ovrDuringSeason` — used by the awards and by `archivePlayer`'s `finalOvr` —
+ * wants the one stamped season − 1, which sits one further back once progression
+ * has appended. `POSITION_CHANGE_SEASONS` covers both with a season to spare.
+ *
+ * Stats need less still: `accumulateStats` finds-or-creates the current season's
+ * row and the awards read that same row, so one would do. Two, for the same
+ * reason as above — the margin is a few hundred bytes a player and the failure
+ * mode is silent.
+ *
+ * `test/core/simArchive.test.ts` pins that these are enough by running a whole
+ * season and offseason on the window and requiring the same league out.
+ */
+const RECENT_HIST_SEASONS = POSITION_CHANGE_SEASONS;
+const RECENT_STATS_SEASONS = 2;
+
+/**
+ * What was cut from one player's career, so it can be put back.
+ *
+ * The counts are what make the merge exact rather than positional: the worker is
+ * handed a **suffix**, and it both appends to it (a new stats row, a new
+ * snapshot) and edits inside it (`accumulateStats` updates the current season's
+ * row in place on its own copy). So the answer is the retained prefix plus
+ * everything the worker now has — never a diff of the two.
+ */
+interface CutCareer {
+  stats: SeasonStats[];
+  hist: RatingsSnapshot[];
+  statsCut: number;
+  histCut: number;
+}
+
+/**
+ * Hand the worker a window of each career instead of the whole thing.
+ *
+ * Measured on the reported season-60 save, `stats[]` + `hist[]` are 45.2 MB of a
+ * 181.6 MB league — the biggest thing in it after the box scores, and unlike
+ * those it is there whatever the matchday. Nothing in the sim reads a whole
+ * career any more: `archivePlayer` was the last one and now builds from the
+ * stored summary, so what is left wants only the seasons at the end.
+ */
+export function detachCareer(league: LeagueStore): {
+  payload: LeagueStore;
+  careers: Map<number, CutCareer>;
+} {
+  const careers = new Map<number, CutCareer>();
+  const players = league.players.map((p) => {
+    const statsCut = Math.max(0, p.stats.length - RECENT_STATS_SEASONS);
+    const histCut = Math.max(0, p.hist.length - RECENT_HIST_SEASONS);
+    if (statsCut === 0 && histCut === 0) return p;
+    careers.set(p.pid, { stats: p.stats, hist: p.hist, statsCut, histCut });
+    return { ...p, stats: p.stats.slice(statsCut), hist: p.hist.slice(histCut) };
+  });
+  return { payload: { ...league, players }, careers };
+}
+
+/**
+ * Put the rest of each career back in front of what the worker returned.
+ *
+ * A player the worker invented (youth intake) has no entry and is kept as-is; a
+ * player it deleted (retirement, the cull) simply never comes up.
+ */
+export function reattachCareer(
+  result: LeagueStore,
+  careers: Map<number, CutCareer>,
+): LeagueStore {
+  if (careers.size === 0) return result;
+  return {
+    ...result,
+    players: result.players.map((p) => {
+      const cut = careers.get(p.pid);
+      if (!cut) return p;
+      return {
+        ...p,
+        stats: cut.statsCut === 0 ? p.stats : [...cut.stats.slice(0, cut.statsCut), ...p.stats],
+        hist: cut.histCut === 0 ? p.hist : [...cut.hist.slice(0, cut.histCut), ...p.hist],
+      };
+    }),
+  };
+}
+
 export function reattachPlayed(result: LeagueStore, played: PlayedMatch[]): LeagueStore {
   const out = result.played ?? [];
   let stubs = 0;

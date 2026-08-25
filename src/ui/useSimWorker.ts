@@ -6,7 +6,10 @@ import type { CupTie } from "../core/cup/types.js";
 import type { DomesticTieResult } from "../core/simThrough.js";
 import type { SimThrough, IntlMode, WorkerResponse } from "../worker/protocol.js";
 import type { LeagueArchive } from "../core/simArchive.js";
-import { detachArchive, reattachArchive, detachPlayed, reattachPlayed } from "../core/simArchive.js";
+import {
+  detachArchive, reattachArchive, detachPlayed, reattachPlayed,
+  detachCareer, reattachCareer,
+} from "../core/simArchive.js";
 import { computeTeamSeasonStats } from "../core/standings.js";
 
 export type SimProgress = {
@@ -38,6 +41,8 @@ type Pending = {
    * `null` when this command was sent with them intact (see `post`).
    */
   played: PlayedMatch[] | null;
+  /** The part of each player's career the worker was not given. */
+  careers: ReturnType<typeof detachCareer>["careers"] | null;
 };
 
 export function useSimWorker() {
@@ -77,6 +82,7 @@ export function useSimWorker() {
         const pending = pendingRef.current;
         if (pending) {
           let league = e.data.league;
+          if (pending.careers) league = reattachCareer(league, pending.careers);
           if (pending.played) league = reattachPlayed(league, pending.played);
           if (pending.archive) league = reattachArchive(league, pending.archive);
           pending.resolve(league);
@@ -130,9 +136,17 @@ export function useSimWorker() {
         // Jump therefore carries real box scores. It is one deliberate,
         // already-slow action, against every matchday advance in a season.
         const stripPlayed = command.type !== "jump";
-        const { payload, played } = stripPlayed
+        const { payload: withoutPlayed, played } = stripPlayed
           ? detachPlayed(base)
           : { payload: base, played: null };
+
+        // Careers go the same way, and for the same reason `jump` is exempt from
+        // the above: it crosses offseasons, where players retire and youth
+        // arrive, so the per-pid merge on the way back is not worth the risk on
+        // an action already accepted as slow.
+        const { payload, careers } = stripPlayed
+          ? detachCareer(withoutPlayed)
+          : { payload: withoutPlayed, careers: null };
 
         // The offseason is the one place the sim reads a box score it did not
         // just play (computeTeamSeasonStats). Working it out here is what makes
@@ -150,7 +164,7 @@ export function useSimWorker() {
               }
             : { ...command, league: payload };
 
-        pendingRef.current = { resolve, reject, archive, played };
+        pendingRef.current = { resolve, reject, archive, played, careers };
         progressRef.current = handlers.onProgress ?? null;
         jumpProgressRef.current = handlers.onJumpProgress ?? null;
         workerRef.current?.postMessage(outgoing);
