@@ -50,7 +50,14 @@ export interface AwardWinner {
   born: number;
 }
 
-/** Every pid a season's awards point at, individual and slot-keyed, world and domestic. */
+/**
+ * Every pid a season's awards point at, individual and slot-keyed, world and
+ * domestic.
+ *
+ * Every worldwide shortlist is walked, not just its winner: a runner-up is
+ * shown by name on the awards page and on the Frivolities boards, so a season
+ * that could name its winner and not the man he beat would read as broken.
+ */
 export function awardWinnerPids(entry: {
   awards?: Record<number, SeasonAwards>;
   world?: WorldAwards;
@@ -61,6 +68,8 @@ export function awardWinnerPids(entry: {
   };
   for (const e of entry.world?.ballonDOr ?? []) note(e.pid);
   for (const pid of entry.world?.worldTeamOfYear ?? []) note(pid);
+  for (const e of entry.world?.goalkeeperOfYear ?? []) note(e.pid);
+  for (const e of entry.world?.defenderOfYear ?? []) note(e.pid);
   for (const a of Object.values(entry.awards ?? {})) {
     note(a.playerOfSeasonPid);
     note(a.goldenBootPid);

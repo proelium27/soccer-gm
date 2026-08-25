@@ -5,9 +5,9 @@ import { useLeague } from "../context/LeagueContext.js";
 import { ClubLink } from "../components/ClubLink.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import { HelpHint } from "../components/HelpHint.js";
-import type { BallonDOrEntry } from "../../core/worldAwards.js";
+import type { WorldAwardEntry } from "../../core/worldAwards.js";
 import type { AwardWinner } from "../../core/awardWinners.js";
-import type { Player, Position } from "../../core/players/types.js";
+import type { Player, Position, SeasonStats } from "../../core/players/types.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import { farewellIndex } from "../../core/players/retirements.js";
 import { playerNameIndex } from "../../core/players/playerNames.js";
@@ -246,20 +246,61 @@ function TeamOfSeasonField({
 }
 
 /**
- * The Ballon d'Or shortlist: the world's best player and the nine behind him,
- * with the score broken into the parts that made it up — so a win off the back
- * of a cup run or a World Cup reads differently from a pure league season.
+ * The three season stats a shortlist shows beside the score.
+ *
+ * They differ by award because the awards are decided on different numbers:
+ * printing goals and assists next to a Goalkeeper of the Year would suggest the
+ * thing he was judged on, and it isn't. Each set is the end product the award's
+ * own formula actually weighs.
  */
-function BallonDOrTable({
-  ballonDOr,
+interface StatColumn {
+  label: string;
+  value: (s: SeasonStats) => string | number;
+}
+
+const RATING_COLUMN: StatColumn = { label: "Rating", value: (s) => s.avgRating.toFixed(2) };
+
+/** The Ballon d'Or's columns: `potyScore` is goals, assists and rating. */
+const OUTFIELD_COLUMNS: StatColumn[] = [
+  { label: "G", value: (s) => s.goals },
+  { label: "A", value: (s) => s.assists },
+  RATING_COLUMN,
+];
+
+/** `totsScore` pays a keeper for saves and charges him for goals conceded. */
+const KEEPER_COLUMNS: StatColumn[] = [
+  { label: "Saves", value: (s) => s.saves },
+  { label: "Conceded", value: (s) => s.goalsAgainst },
+  RATING_COLUMN,
+];
+
+/** And pays a defender for tackles and interceptions. */
+const DEFENDER_COLUMNS: StatColumn[] = [
+  { label: "Tackles", value: (s) => s.tackles },
+  { label: "Int", value: (s) => s.interceptions },
+  RATING_COLUMN,
+];
+
+/**
+ * A worldwide award's shortlist: the winner and the players behind him, with
+ * the score broken into the parts that made it up — so a win off the back of a
+ * cup run or a World Cup reads differently from a pure league season.
+ *
+ * Shared by all three worldwide awards, which differ here only in which season
+ * stats are worth showing.
+ */
+function WorldAwardTable({
+  entries,
   subjectOf,
   leagueName,
   season,
+  columns = OUTFIELD_COLUMNS,
 }: {
-  ballonDOr: BallonDOrEntry[];
+  entries: WorldAwardEntry[];
   subjectOf: (pid: number) => AwardSubject | undefined;
   leagueName: (tid: number) => string;
   season: number;
+  columns?: StatColumn[];
 }) {
   return (
     <div className="table-responsive">
@@ -270,9 +311,7 @@ function BallonDOrTable({
             <th>Player</th>
             <th>Club</th>
             <th className="d-none d-md-table-cell">League</th>
-            <th className="text-end">G</th>
-            <th className="text-end">A</th>
-            <th className="text-end">Rating</th>
+            {columns.map((c) => <th key={c.label} className="text-end">{c.label}</th>)}
             <th className="text-end">Points</th>
             {/* The same total, split into where it came from. */}
             <th className="text-end d-none d-lg-table-cell">From league</th>
@@ -281,7 +320,7 @@ function BallonDOrTable({
           </tr>
         </thead>
         <tbody>
-          {ballonDOr.map((e, i) => {
+          {entries.map((e, i) => {
             const subject = subjectOf(e.pid);
             // Only a live player keeps the season's own stat line; a retiree's
             // per-season rows are dropped when he's archived, so those columns
@@ -300,9 +339,9 @@ function BallonDOrTable({
                 </td>
                 <td><ClubLink tid={e.tid} season={season} /></td>
                 <td className="d-none d-md-table-cell text-muted">{leagueName(e.tid)}</td>
-                <td className="text-end">{stats?.goals ?? "—"}</td>
-                <td className="text-end">{stats?.assists ?? "—"}</td>
-                <td className="text-end">{stats ? stats.avgRating.toFixed(2) : "—"}</td>
+                {columns.map((c) => (
+                  <td key={c.label} className="text-end">{stats ? c.value(stats) : "—"}</td>
+                ))}
                 <td className="text-end fw-semibold">{e.score.toFixed(2)}</td>
                 <td className="text-end d-none d-lg-table-cell text-muted">{(e.league + e.title).toFixed(2)}</td>
                 <td className="text-end d-none d-lg-table-cell text-muted">{(e.cup + (e.domesticCup ?? 0)).toFixed(2)}</td>
@@ -313,6 +352,70 @@ function BallonDOrTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * One of the two position awards: its winner and the rest of his shortlist.
+ *
+ * Renders nothing at all when the season has no such award, rather than an
+ * empty panel saying so — every season already played on an existing save is in
+ * exactly that position, and a permanent "no winner" block on all of them would
+ * read as something being broken.
+ */
+function PositionAward({
+  title,
+  blurb,
+  entries,
+  columns,
+  subjectOf,
+  leagueName,
+  season,
+  statLine,
+}: {
+  title: string;
+  blurb: string;
+  entries: WorldAwardEntry[];
+  columns: StatColumn[];
+  subjectOf: (pid: number) => AwardSubject | undefined;
+  leagueName: (tid: number) => string;
+  season: number;
+  statLine: (s: SeasonStats) => string;
+}) {
+  if (entries.length === 0) return null;
+  const winner = entries[0];
+  const subject = subjectOf(winner.pid);
+  const stats = subject?.player?.stats.find((s) => s.season === season);
+  return (
+    <>
+      <h5 className="mt-4">
+        {title}
+        <HelpHint>{blurb}</HelpHint>
+      </h5>
+      <div className="row g-3">
+        <div className="col-lg-4">
+          <AwardCard
+            title={title}
+            subject={subject}
+            subtitle={
+              <>
+                <ClubLink tid={winner.tid} season={season} />
+                {stats ? ` · ${statLine(stats)} · ${stats.avgRating.toFixed(2)} avg rating` : ""}
+              </>
+            }
+          />
+        </div>
+        <div className="col-lg-8">
+          <WorldAwardTable
+            entries={entries}
+            subjectOf={subjectOf}
+            leagueName={leagueName}
+            season={season}
+            columns={columns}
+          />
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -369,6 +472,11 @@ export function Awards() {
   const winner = world.ballonDOr[0];
   const winnerSubject = winner ? subjectOf(winner.pid) : undefined;
   const winnerStats = winnerSubject?.player?.stats.find((s) => s.season === activeSeason);
+  // Both empty on a season played before these awards existed, which is every
+  // season already on an existing save — they are never backfilled, so those
+  // seasons show the Ballon d'Or and the World XI alone (see WorldAwards).
+  const bestKeepers = world.goalkeeperOfYear ?? [];
+  const bestDefenders = world.defenderOfYear ?? [];
 
   return (
     <div className="container-fluid p-3">
@@ -376,9 +484,9 @@ export function Awards() {
         Awards
         <HelpHint>
           End-of-season honours. The world awards judge every league at once — the Ballon d'Or for
-          the best player alive and a World Team of the Year — while the league awards pick a Player
-          of the Season, a Golden Boot and a Team of the Season inside one competition. Use the
-          dropdown to look back at past seasons.
+          the best player alive, a Goalkeeper and a Defender of the Year, and a World Team of the
+          Year — while the league awards pick a Player of the Season, a Golden Boot and a Team of
+          the Season inside one competition. Use the dropdown to look back at past seasons.
         </HelpHint>
       </h4>
       <div className="mb-3 d-flex gap-2 align-items-center flex-wrap">
@@ -483,11 +591,33 @@ export function Awards() {
                 leagues actually meet.
               </HelpHint>
             </h5>
-            <BallonDOrTable
-              ballonDOr={world.ballonDOr}
+            <WorldAwardTable
+              entries={world.ballonDOr}
               subjectOf={subjectOf}
               leagueName={leagueName}
               season={activeSeason}
+            />
+
+            <PositionAward
+              title="Goalkeeper of the Year"
+              blurb="The Ballon d'Or is scored on goals, assists and rating, so no goalkeeper has ever come close to winning one. This is the award that is actually his: same worldwide scale, but judged on the things a keeper does — saves, goals kept out, and how he rated week to week."
+              entries={bestKeepers}
+              columns={KEEPER_COLUMNS}
+              subjectOf={subjectOf}
+              leagueName={leagueName}
+              season={activeSeason}
+              statLine={(st) => `${st.saves} saves · ${st.goalsAgainst} conceded`}
+            />
+
+            <PositionAward
+              title="Defender of the Year"
+              blurb="Centre-backs and full-backs, judged on the work they actually do: tackles, interceptions, goals kept out and their rating, on the same worldwide scale as the Ballon d'Or."
+              entries={bestDefenders}
+              columns={DEFENDER_COLUMNS}
+              subjectOf={subjectOf}
+              leagueName={leagueName}
+              season={activeSeason}
+              statLine={(st) => `${st.tackles} tackles · ${st.interceptions} interceptions`}
             />
 
             <h5 className="mt-4">World Team of the Year</h5>
