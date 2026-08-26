@@ -58,8 +58,20 @@ export function playerGoalTotals(
 ): Map<number, { season: number; career: number }> {
   const map = new Map<number, { season: number; career: number }>();
   for (const p of players) {
-    const career = p.stats.reduce((sum, s) => sum + s.goals, 0);
     const seasonGoals = p.stats.find((s) => s.season === season)?.goals ?? 0;
+    // Finished seasons come off the stored summary rather than by summing his
+    // stat lines, and the current season is added on top — the summary covers
+    // finished seasons only (see players/careerSummary.ts).
+    //
+    // This is the goal-milestone detector, and it was the last thing in the sim
+    // that walked a whole career. Windowing careers at the worker boundary left
+    // it silently under-counting, so a player crossed 100 career goals twice:
+    // once for real, and again years later once the window had moved past the
+    // first hundred. Caught by the deep-equality gate in
+    // test/core/simArchive.test.ts, not by reading the code.
+    const career = p.career
+      ? p.career.totals.goals + seasonGoals
+      : p.stats.reduce((sum, s) => sum + s.goals, 0);
     map.set(p.pid, { season: seasonGoals, career });
   }
   return map;

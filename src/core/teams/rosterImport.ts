@@ -13,6 +13,7 @@ import { competitionOf } from "../competitions.js";
 import { reconcileScoutingObserved } from "../scouting/potentialFog.js";
 import { computeTeamRating } from "./teamRating.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
+import { emptyCareerSummary } from "../players/careerSummary.js";
 import {
   LEAGUE_BASE, RATING_MIN, RATING_MAX, ROSTER_COMPOSITION,
   INITIAL_AGE_MIN, INITIAL_AGE_MAX, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
@@ -103,6 +104,14 @@ function materializePlayer(spec: RosterFilePlayer, ctx: MaterializeCtx): Player 
     injury: null,
     stats: [],
     hist: [{ season: ctx.season - 1, ratings, ovr, potential, academy: false, pos: spec.pos }],
+    // Set alongside `hist`, never left to the first progression. `peakOvr` is
+    // authoritative once present, so a player carrying a history and a stale
+    // peak would read as worse than he ever was — and the fallback that would
+    // have caught it disappears when `hist` stops being resident
+    // (docs/lazy-career-plan.md).
+    peakOvr: ovr,
+    peakOvrSeason: ctx.season - 1,
+    career: emptyCareerSummary(),
   };
 }
 

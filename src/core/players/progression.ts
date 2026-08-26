@@ -250,12 +250,20 @@ export function progressPlayer(
   const ovr = computeOvr(pos, ratings, player.heightCm);
   const potential = estimatePotential(rng, ratings, ovr, age, pos, player.heightCm, player.pid);
 
+  // Career peak, kept as a running maximum rather than re-derived from `hist`
+  // by everyone who wants it. Compared against the snapshot being appended
+  // here, which is the only place a player's ovr ever changes.
+  const priorPeak = player.peakOvr ?? player.ovr;
+  const beatsPeak = ovr > priorPeak;
+
   return {
     ...player,
     pos,
     ratings,
     ovr,
     potential,
+    peakOvr: beatsPeak ? ovr : priorPeak,
+    peakOvrSeason: beatsPeak ? season : (player.peakOvrSeason ?? season),
     hist: [...player.hist, { season, ratings, ovr, potential, academy: inAcademy, pos }],
   };
 }

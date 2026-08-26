@@ -13,6 +13,7 @@ import {
 import { chargeSeasonStart, wageBill, financeScale } from "../core/finance/budget.js";
 import { englandCompetitions } from "../core/competitions.js";
 import { cullOnLoad } from "../core/players/freeAgentCull.js";
+import { summaryOf, ovrLookup } from "../core/players/careerSummary.js";
 import { computeOvr } from "../core/players/ovr.js";
 import { archiveCup } from "../core/cup/archive.js";
 import { archiveDomesticCup } from "../core/domesticCup/archive.js";
@@ -144,13 +145,40 @@ function migrateLine(line: PlayerMatchLineAnyVersion): PlayerMatchLine {
 }
 
 /**
+ * Career peak ovr, from the ratings history the readers used to scan.
+ *
+ * Exact, not a guess: this is the same walk `careerPeakOvr` and `peakOf` did
+ * inline, so migrating is the last time it has to happen. Seeded from current
+ * ovr and replaced only on strictly greater, matching what both readers did —
+ * which is why `peakOvrSeason` stays absent when the current rating is already
+ * the best: `peakOf` credits its own `fallbackSeason` in that case, and storing
+ * a season here would be inventing one.
+ */
+function peakFromHist(p: Player): { peakOvr: number; peakOvrSeason?: number } {
+  if (p.peakOvr != null) {
+    return p.peakOvrSeason == null
+      ? { peakOvr: p.peakOvr }
+      : { peakOvr: p.peakOvr, peakOvrSeason: p.peakOvrSeason };
+  }
+  let peakOvr = p.ovr;
+  let peakOvrSeason: number | undefined;
+  for (const h of p.hist ?? []) {
+    if (h.ovr > peakOvr) {
+      peakOvr = h.ovr;
+      peakOvrSeason = h.season;
+    }
+  }
+  return peakOvrSeason == null ? { peakOvr } : { peakOvr, peakOvrSeason };
+}
+
+/**
  * `fallbackTid` is the player's *current* club — the best guess available for
  * a save old enough to predate per-season team tracking, since no historical
  * roster-membership data survives to reconstruct which club he was actually
  * on in a past season (same irreconstructable-history situation as the
  * minutes/rating defaults below).
  */
-function migratePlayer(p: Player, fallbackTid: number): Player {
+function migratePlayer(p: Player, fallbackTid: number, currentSeason: number): Player {
   // OVR is re-derived from stored ratings, not carried over (position-OVR
   // balance, 2026-08-23). It has to be: progression recomputes `ovr` from
   // scratch each offseason, so an old save left alone would show its full backs
@@ -167,6 +195,38 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
   // (POSITION_RATING_SPREAD applies at generation), so an old save keeps its
   // original spread and only new leagues get that half.
   const ovr = computeOvr(p.pos, p.ratings, p.heightCm);
+  const hist = (p.hist as (RatingsSnapshot & { academy?: boolean; pos?: Position })[]).map((h) => {
+    const pos = h.pos ?? p.pos;
+    const histOvr = computeOvr(pos, h.ratings, p.heightCm);
+    return {
+      ...h,
+      // Pre-academy-tracking saves have no per-season academy flag on their
+      // rating snapshots; there's no way to reconstruct which past seasons a
+      // player spent in the academy, so they default to senior (false) and only
+      // future seasons record the real value.
+      academy: h.academy ?? false,
+      // Pre-position-change saves stamp no position on a rating snapshot. The
+      // backfill is exact rather than a guess: nothing could change a player's
+      // position before that feature existed, so every past snapshot was taken
+      // at the position he still holds. (Contrast the academy flag above, which
+      // genuinely can't be reconstructed.)
+      pos,
+      // Re-derived on the same rule as the live rating above, so a career OVR
+      // chart reads as one continuous scale instead of stepping at the season
+      // this shipped.
+      ovr: histOvr,
+      potential: Math.max(h.potential, histOvr),
+    };
+  });
+
+  // Peak and the career summary are derived from the RE-DERIVED ratings above,
+  // never from the stored ones. Both are stored from here on and are then
+  // treated as authoritative (`careerPeakOvr`, `peakOf`, every all-time board),
+  // so seeding them from numbers this same function has just replaced would
+  // freeze a stale peak into the save permanently.
+  const rederived: Player = { ...p, ovr, hist };
+  const peak = peakFromHist(rederived);
+
   return {
     ...p,
     ovr,
@@ -193,29 +253,7 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
       yellowCards: s.yellowCards ?? 0,
       redCards: s.redCards ?? 0,
     })),
-    // Pre-academy-tracking saves have no per-season academy flag on their
-    // rating snapshots; there's no way to reconstruct which past seasons a
-    // player spent in the academy, so they default to senior (false) and only
-    // future seasons record the real value.
-    // Pre-position-change saves stamp no position on a rating snapshot. The
-    // backfill is exact rather than a guess: nothing could change a player's
-    // position before that feature existed, so every past snapshot was taken at
-    // the position he still holds. (Contrast the academy flag above, which
-    // genuinely can't be reconstructed.)
-    hist: (p.hist as (RatingsSnapshot & { academy?: boolean; pos?: Position })[]).map((h) => {
-      const pos = h.pos ?? p.pos;
-      const histOvr = computeOvr(pos, h.ratings, p.heightCm);
-      return {
-        ...h,
-        academy: h.academy ?? false,
-        pos,
-        // Re-derived on the same rule as the live rating above, so a career OVR
-        // chart reads as one continuous scale instead of stepping at the season
-        // this shipped.
-        ovr: histOvr,
-        potential: Math.max(h.potential, histOvr),
-      };
-    }),
+    hist,
     // Per-campaign international lines (added 2026-07-25). Saves from before
     // them keep their career totals, which stay the authoritative record; the
     // breakdown can't be reconstructed (archived campaigns hold no box scores),
@@ -232,6 +270,21 @@ function migratePlayer(p: Player, fallbackTid: number): Player {
           confederationCupTitles: p.intl.confederationCupTitles ?? 0,
         }
       : p.intl,
+    // Career summary, backfilled by folding his seasons one last time. Covers
+    // finished seasons only, matching the contract — the season in progress is
+    // excluded, because a live reader adds the current row itself.
+    career: p.career ?? summaryOf(
+      (p.stats ?? []).filter((s) => s.season !== currentSeason),
+      // Peak as the fallback rating, matching what the boards did inline; `born`
+      // is a season number too and would read as a real-looking wrong year.
+      ovrLookup(hist, peak.peakOvr),
+    ),
+    // Career peak ovr, backfilled by the scan the readers used to do inline.
+    // Exact rather than a guess: `hist` is the same data `careerPeakOvr` and
+    // `peakOf` were walking, so this is the last time it ever has to be walked.
+    // Seeded from current ovr, and ties keep the *earlier* season, matching the
+    // strictly-greater comparison both readers used.
+    ...peak,
     // faSignedSeason (the free-agent transfer hold) is intentionally left
     // absent on pre-feature saves: there's no way to know which past free-agent
     // signings would still be inside their hold, and "absent" is the correct
@@ -293,7 +346,7 @@ function migrateFields(league: LeagueStore): LeagueStore {
     for (const pid of t.roster) tidByPid.set(pid, t.tid);
     for (const pid of t.academyRoster ?? []) tidByPid.set(pid, t.tid);
   }
-  const migratedPlayers = league.players.map((p) => migratePlayer(p, tidByPid.get(p.pid) ?? -1));
+  const migratedPlayers = league.players.map((p) => migratePlayer(p, tidByPid.get(p.pid) ?? -1, league.season));
   return {
     ...league,
     competitions,

@@ -40,6 +40,15 @@ function addFreeAgent(
           academy: false,
           pos: league.players[0].pos,
         }],
+    // Kept in step with the history above, because `peakOvr` is authoritative
+    // wherever it is set (see careerPeakOvr) — the clone at the top of this
+    // helper would otherwise carry the generated player's peak while `hist` and
+    // `ovr` describe someone else entirely, which is a player the game cannot
+    // produce. Absent when there is no history, so the fallback path is
+    // exercised too.
+    ...(over.peakOvr === undefined
+      ? { peakOvr: undefined, peakOvrSeason: undefined }
+      : { peakOvr: over.peakOvr, peakOvrSeason: league.season - 1 }),
   };
   league.players.push(p);
   return p;
