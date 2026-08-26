@@ -25,24 +25,35 @@
  * take. What balancing actually bought is the other five shards getting
  * lighter — spare runner capacity, not a faster build.
  *
- * What it does do is make the floor mechanical and visible: shard 1 is now
- * provably one file, so the next move is unambiguous. Split the giants —
- * `offseason.test.ts` (~1933s on CI) and `international.test.ts` (~1082s) —
- * and this packing is what spreads the pieces. Without it, two halves of a
- * split file can land straight back on the same shard.
- * `test/validation/m4-multiseason-integrity.test.ts` is the precedent: it was
- * split out of its sibling for exactly this reason.
+ * What it did do is make the floor mechanical and visible: shard 1 was provably
+ * one file, which made the next move unambiguous. That move has since been
+ * taken — `offseason.test.ts` (23 tests, ~1933s on CI) and
+ * `international.test.ts` (25 tests, ~1082s) were each split into several
+ * files, and this packing is what spreads the pieces across shards. Without it
+ * two halves of a split file can land straight back on the same shard.
+ * `test/validation/m4-multiseason-integrity.test.ts` was the precedent.
+ *
+ * With those split, no single file dominates any more and the binding
+ * constraint becomes the *total*: work / shard count. If CI needs to go faster
+ * still, the lever is the shard count in `.github/workflows/ci.yml`, not
+ * further splitting.
  *
  * Note CI runners are ~1.5x slower than a dev machine here
- * (`offseason.test.ts` is ~1276s locally against ~1933s on CI). The weights
- * below are local seconds, which is fine: uniform scaling doesn't change how
- * the packing sorts.
+ * (`offseason.test.ts` was ~1276s locally against ~1933s on CI), so the weights
+ * below are local seconds. That is fine: uniform scaling doesn't change how the
+ * packing sorts.
  */
 
 /**
- * Measured wall-clock seconds per test file, for the files where the number is
- * big enough to matter. Everything absent is assumed to cost
+ * Approximate wall-clock seconds per test file, for the files where the number
+ * is big enough to matter. Everything absent is assumed to cost
  * `DEFAULT_WEIGHT_SECONDS`.
+ *
+ * Treat these as an ordering, not as measurements. They were timed on a dev
+ * machine, and a machine running full-world sims back to back thermally
+ * throttles — the same file measured 234s and 557s an hour apart. That is fine
+ * for the purpose (relative size is what packs the shards) but it means you
+ * should not read them as CI seconds, and should not chase a small discrepancy.
  *
  * These drive load balancing only. Being wrong costs balance, never
  * correctness: every file still runs exactly once across the shards whatever
@@ -55,11 +66,18 @@
  * and add an entry whenever a new file runs longer than ~30s.
  */
 export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
-  "test/core/offseason.test.ts": 1276,
-  "test/core/international.test.ts": 721,
+  "test/core/offseasonFinance.test.ts": 490,
+  "test/core/internationalPlayerRecord.test.ts": 450,
+  "test/core/internationalCampaign.test.ts": 443,
+  "test/core/internationalEquivalence.test.ts": 245,
+  "test/core/internationalConfederationCups.test.ts": 240,
+  "test/core/offseasonRetirement.test.ts": 237,
   "test/validation/m4-multiseason.test.ts": 220,
   "test/validation/m4-multiseason-integrity.test.ts": 199,
+  "test/core/offseasonSquads.test.ts": 196,
+  "test/core/offseason.test.ts": 176,
   "test/validation/m3-top-scorer.test.ts": 173,
+  "test/core/offseasonSolvency.test.ts": 128,
   "test/core/simThrough.test.ts": 81,
   "test/ui/transfersRender.test.tsx": 65,
   "test/helpers/fixtureFidelity.test.ts": 31,

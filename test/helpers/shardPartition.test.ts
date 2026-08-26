@@ -82,16 +82,22 @@ describe("cost-aware shard partition", () => {
     }
   });
 
-  it("splits the heavy files across shards instead of stacking them", () => {
+  it("packs close to the best any partition could do", () => {
     const bins = partitionByCost(files, 6);
     const totals = bins.map((b) => b.reduce((s, f) => s + weightFor(f), 0));
     const heaviest = Math.max(...totals);
     const lightest = Math.min(...totals);
+    const total = totals.reduce((a, b) => a + b, 0);
 
-    // The real floor is the single slowest file: no split can beat it, so the
-    // bar is that the heaviest shard is near it rather than a multiple of it.
-    const slowestFile = Math.max(...files.map(weightFor));
-    expect(heaviest).toBeLessThan(slowestFile * 1.5);
+    // Two hard bounds no partition can beat: a shard holds whole files, so it
+    // is at least as big as the slowest one; and the work has to go somewhere,
+    // so some shard carries at least an even share. Whichever binds, the
+    // packing should land near it. Asserting against the bound rather than a
+    // fixed number is what keeps this honest as the suite changes — it held
+    // when one file was 2.2x an even share, and it holds now that the giants
+    // are split and the even share is what binds.
+    const bound = Math.max(...files.map(weightFor), total / bins.length);
+    expect(heaviest).toBeLessThan(bound * 1.25);
 
     // Vitest's own hash split leaves the lightest shard at ~2% of the heaviest
     // (measured 40s against 1749s in CI). Anything in that region means the
