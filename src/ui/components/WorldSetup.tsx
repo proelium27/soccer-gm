@@ -15,6 +15,8 @@ import { MIN_DIVISION_TEAMS, MAX_DIVISION_TEAMS } from "../../core/calendar.js";
 import {
   parseRosterFile, retargetRosterFile, type NamedRosterFile,
 } from "../../core/teams/rosterFile.js";
+import { NationalityEditor, DEFAULT_ADDED_LEAGUE_NATIONALITIES } from "./NationalityEditor.js";
+import type { NationalityWeights } from "../../core/players/nationalities.js";
 
 /**
  * One row of the world editor. Kept as its own shape rather than a bare
@@ -160,6 +162,12 @@ function newLeagueEntry(index: number): WorldEntry {
       budgetScale: suggestedBudgetScale(strengthOffset),
       cupSlots: 2,
       shieldSlots: 2,
+      // Set explicitly rather than left absent, so the editor below shows the
+      // table the world will actually be built with. Absent would fall back to
+      // England's distribution while the editor displayed the rest-of-world
+      // bucket — close, but not the same numbers, and a preview that quietly
+      // disagrees with the result is worse than no preview.
+      nationalities: DEFAULT_ADDED_LEAGUE_NATIONALITIES,
     },
     included: true,
     shipped: false,
@@ -415,9 +423,21 @@ export function WorldSetup({ entries, onChange }: Props) {
                     </p>
                   </div>
 
+                  <NationalityEditor
+                    value={entry.spec.nationalities}
+                    onChange={(nationalities) => updateSpec(i, { nationalities })}
+                  />
+
                   <RosterPicker
                     entry={entry}
-                    onChange={(rosterSources) => update(i, { rosterSources })}
+                    onChange={(rosterSources, nationalities) => {
+                      // A file that declares a mix pre-fills the editor rather
+                      // than overriding it out of sight, so there is one visible
+                      // source of truth and no precedence rule to remember. The
+                      // player can then adjust what the file gave them.
+                      update(i, { rosterSources });
+                      if (nationalities) updateSpec(i, { nationalities });
+                    }}
                   />
                 </div>
               )}
@@ -456,7 +476,10 @@ function RosterPicker({
   onChange,
 }: {
   entry: WorldEntry;
-  onChange: (sources: NamedRosterFile[] | undefined) => void;
+  onChange: (
+    sources: NamedRosterFile[] | undefined,
+    nationalities?: NationalityWeights,
+  ) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -479,7 +502,11 @@ function RosterPicker({
       }
     }
     setError(failed.length > 0 ? `Couldn't read ${failed.join(", ")}` : null);
-    if (loaded.length > 0) onChange([...sources, ...loaded]);
+    if (loaded.length === 0) return;
+    // The last file that names a mix wins, matching how a later file already
+    // wins for a competition both files claim.
+    const declared = loaded.map((l) => l.file.nationalities).filter(Boolean).pop();
+    onChange([...sources, ...loaded], declared ?? undefined);
   }
 
   const clubs = sources.reduce(

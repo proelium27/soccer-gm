@@ -6,8 +6,9 @@ import { hashInts } from "../../engine/rng.js";
 import type { Competition } from "../competitions.js";
 import {
   worldCompetitions, tier1Pairs, competitionStrengthOffset, competitionAcademyOffset,
-  competitionTeamCount,
+  competitionTeamCount, competitionNationalities,
 } from "../competitions.js";
+import type { NationalityWeights } from "../players/nationalities.js";
 import {
   NUM_TEAMS, NUM_TEAMS_D2, LEAGUE_BASE, TEAM_STRENGTH_SPREAD, DIVISION_2_OFFSET,
   ROSTER_COMPOSITION, INITIAL_AGE_MIN, INITIAL_AGE_MAX,
@@ -88,6 +89,7 @@ function generateDivisionTeams(
   genSeed: number,
   pidStart: number,
   country: string,
+  nationalities: NationalityWeights | null = null,
 ): { teams: LeagueTeam[]; players: Player[]; nextPid: number } {
   const teams: LeagueTeam[] = [];
   const players: Player[] = [];
@@ -120,7 +122,9 @@ function generateDivisionTeams(
       for (let j = 0; j < ROSTER_COMPOSITION[pos]; j++) {
         const age = INITIAL_AGE_MIN
           + Math.floor(rng() * (INITIAL_AGE_MAX - INITIAL_AGE_MIN + 1));
-        const p = generatePlayer(rng, pos, base, pid++, age, STARTING_SEASON, genSeed, country);
+        const p = generatePlayer(
+          rng, pos, base, pid++, age, STARTING_SEASON, genSeed, country, nationalities,
+        );
         const length = CONTRACT_LENGTH_MIN
           + Math.floor(rng() * (CONTRACT_LENGTH_MAX - CONTRACT_LENGTH_MIN + 1));
         p.contract.expiresSeason = STARTING_SEASON + length;
@@ -204,7 +208,7 @@ export function generateWorld(
     const d1Result = generateDivisionTeams(
       rng, tidCursor, competitionTeamCount(d1),
       competitionStrengthOffset(d1), competitionAcademyOffset(d1),
-      d1.id, genSeed, pid, d1.country,
+      d1.id, genSeed, pid, d1.country, competitionNationalities(d1),
     );
     pid = d1Result.nextPid;
     tidCursor += competitionTeamCount(d1);
@@ -219,7 +223,7 @@ export function generateWorld(
       rng, tidCursor, competitionTeamCount(d2),
       DIVISION_2_OFFSET + competitionStrengthOffset(d2),
       DIVISION_2_OFFSET + competitionAcademyOffset(d2),
-      d2.id, genSeed, pid, d2.country,
+      d2.id, genSeed, pid, d2.country, competitionNationalities(d2),
     );
     pid = d2Result.nextPid;
     tidCursor += competitionTeamCount(d2);

@@ -1520,75 +1520,191 @@ const TAIL_BASE: Record<string, number> = (() => {
   return base;
 })();
 
-// Per-league memoized derivations of the weight table, so the thousands of
-// draws a world generation makes don't re-walk/rebuild these every call.
-const leagueTotalCache = new Map<string, number>();
-const namedSetCache = new Map<string, Set<string>>();
-const restPoolCache = new Map<string, { entries: [string, number][]; total: number }>();
+/**
+ * A nationality distribution as relative weights: nation name -> weight, plus
+ * the optional REST_OF_WORLD sentinel for the combined "rest of the world"
+ * share. Shipped leagues use the calibrated tables above; a league the player
+ * adds can carry one it authored itself.
+ */
+export type NationalityWeights = Record<string, number>;
 
-function leagueTotalFor(key: string, table: Record<string, number>): number {
-  const cached = leagueTotalCache.get(key);
-  if (cached !== undefined) return cached;
+/**
+ * The key standing for the combined "rest of the world" share in a weight
+ * table. Exported so a hand-authored table (world editor, roster file) can name
+ * the same bucket the shipped tables use, rather than inventing a second
+ * spelling the draw wouldn't recognize.
+ */
+export const REST_OF_WORLD = REST;
+
+interface DerivedTable {
+  total: number;
+  rest: { entries: [string, number][]; total: number };
+}
+
+/**
+ * Per-table memoized derivations, so the thousands of draws a world generation
+ * makes don't re-walk these every call.
+ *
+ * Keyed on the table OBJECT rather than the league name, because a league the
+ * player added carries its own table and has no stable name to key on — the
+ * country name is free text they can still be editing. Each shipped league's
+ * table is likewise a distinct, stable object, so this covers both with one
+ * cache and cannot collide.
+ */
+const derivedCache = new WeakMap<NationalityWeights, DerivedTable>();
+
+function derivedFor(table: NationalityWeights): DerivedTable {
+  const cached = derivedCache.get(table);
+  if (cached) return cached;
+
   let total = 0;
-  for (const w of Object.values(table)) total += w;
-  leagueTotalCache.set(key, total);
-  return total;
-}
+  const named = new Set<string>();
+  for (const [country, w] of Object.entries(table)) {
+    total += w;
+    if (country !== REST) named.add(country);
+  }
 
-function namedSetFor(key: string, table: Record<string, number>): Set<string> {
-  const cached = namedSetCache.get(key);
-  if (cached) return cached;
-  const set = new Set(Object.keys(table).filter((c) => c !== REST));
-  namedSetCache.set(key, set);
-  return set;
-}
-
-// The tail pool for a league: every name-pool-bearing nation NOT already
-// named in that league's table, weighted by its TAIL_BASE frequency.
-function restPoolFor(key: string, named: Set<string>) {
-  const cached = restPoolCache.get(key);
-  if (cached) return cached;
+  // The tail pool: every name-pool-bearing nation NOT already named in this
+  // table, weighted by its TAIL_BASE frequency.
   const entries: [string, number][] = [];
-  let total = 0;
+  let restTotal = 0;
   for (const [country, w] of Object.entries(TAIL_BASE)) {
     if (named.has(country)) continue;
     entries.push([country, w]);
-    total += w;
+    restTotal += w;
   }
-  const built = { entries, total };
-  restPoolCache.set(key, built);
+
+  // A hand-authored table can name every nation the game has and still carry a
+  // rest-of-world row, leaving that row nothing to draw from. Its weight comes
+  // back out of the total, so the roll simply never lands there and the named
+  // nations normalize among themselves — which is what an empty "everyone else"
+  // means. The shipped tables can't reach this (each names a dozen of 78), so
+  // it only became possible once tables were player-authored.
+  if (entries.length === 0) total -= table[REST] ?? 0;
+
+  const built: DerivedTable = { total, rest: { entries, total: restTotal } };
+  derivedCache.set(table, built);
   return built;
 }
 
 /**
- * Weighted-random nationality draw for a league. `homeCountry` selects that
- * country's real-calibrated distribution (see LEAGUE_NATIONALITY_WEIGHTS);
- * a missing or unrecognized country falls back to England's table — the
- * England-flavored default the global free-agency / no-country pool has
- * always used. When the roll lands in the combined "Rest of the World" slot,
- * a second weighted roll picks from that league's tail of all other nations.
+ * The realized share of each nation in a table, as percentages summing to 100,
+ * with the REST_OF_WORLD bucket left as its own entry.
+ *
+ * Exists for the world editor, and it is not cosmetic: a table's weights are
+ * normalized to whatever they happen to total, so a breakdown copied from a
+ * real source (which routinely over-sums — the published Belgian list came to
+ * 116.5%, the Turkish to 130.7%) silently produces a *smaller* domestic share
+ * than it states. Showing the realized share next to the typed number is what
+ * makes that visible instead of a surprise 20 seasons later.
  */
-export function pickNationality(rng: () => number, homeCountry?: string): string {
-  const key = homeCountry && LEAGUE_NATIONALITY_WEIGHTS[homeCountry] ? homeCountry : "England";
-  const table = LEAGUE_NATIONALITY_WEIGHTS[key];
-  const total = leagueTotalFor(key, table);
+export function nationalityShares(table: NationalityWeights): [string, number][] {
+  const { total, rest } = derivedFor(table);
+  if (total <= 0) return [];
+  return Object.entries(table).map(([country, w]) => {
+    // A rest-of-world row with nobody left in it draws nothing (see derivedFor),
+    // so it reads 0 rather than a share it will never actually deliver.
+    if (country === REST && rest.entries.length === 0) return [country, 0];
+    return [country, (100 * w) / total];
+  });
+}
+
+/**
+ * What the REST_OF_WORLD bucket in a given table actually expands to, richest
+ * first. The tail is weighted by TAIL_BASE, which is built from the shipped
+ * NATIONALITIES weights — i.e. calibrated from the *Premier League's* foreign
+ * makeup, not a neutral global prior — so it leans English (~40% of the bucket
+ * when nothing is named). That is right for an English league's tail and
+ * surprising anywhere else, which is why the editor shows it.
+ */
+export function restOfWorldPreview(table: NationalityWeights, limit = 6): [string, number][] {
+  const { rest } = derivedFor(table);
+  if (rest.total <= 0) return [];
+  return rest.entries
+    .map(([c, w]) => [c, (100 * w) / rest.total] as [string, number])
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit);
+}
+
+/**
+ * Drop everything a hand-authored table can't express, so a bad table degrades
+ * to a usable one rather than to gibberish players.
+ *
+ * A nation with no name pool is dropped outright: generateName falls back to
+ * synthesized nonsense words for an unknown nationality, so keeping it would
+ * fill a league with players called "Zek Vopar" and no flag. Non-finite and
+ * non-positive weights go too (a zero-weight row is just an unnamed nation, and
+ * a negative one would corrupt the roll). Returns null if nothing usable is
+ * left, which callers read as "fall back to the shipped behaviour".
+ */
+export function sanitizeNationalityWeights(
+  table: NationalityWeights | undefined,
+): NationalityWeights | null {
+  if (!table) return null;
+  const out: NationalityWeights = {};
+  let total = 0;
+  for (const [country, weight] of Object.entries(table)) {
+    if (typeof weight !== "number" || !Number.isFinite(weight) || weight <= 0) continue;
+    if (country !== REST && !namePoolFor(country)) continue;
+    out[country] = weight;
+    total += weight;
+  }
+  return total > 0 ? out : null;
+}
+
+/**
+ * Weighted-random nationality draw from a resolved weight table. When the roll
+ * lands in the combined "Rest of the World" slot, a second weighted roll picks
+ * from that table's tail of all other nations.
+ */
+function drawFrom(rng: () => number, table: NationalityWeights): string {
+  const { total, rest } = derivedFor(table);
 
   let roll = rng() * total;
   for (const [country, w] of Object.entries(table)) {
     if (roll < w) {
       if (country !== REST) return country;
-      const { entries, total: restTotal } = restPoolFor(key, namedSetFor(key, table));
-      let restRoll = rng() * restTotal;
-      for (const [tailCountry, tw] of entries) {
+      // derivedFor removes an empty rest-of-world row's weight from the total,
+      // so the roll can't land here with nothing to draw. Belt and braces
+      // against a float edge, since the alternative is indexing entries[-1].
+      if (rest.entries.length === 0) break;
+      let restRoll = rng() * rest.total;
+      for (const [tailCountry, tw] of rest.entries) {
         if (restRoll < tw) return tailCountry;
         restRoll -= tw;
       }
-      return entries[entries.length - 1][0];
+      return rest.entries[rest.entries.length - 1][0];
     }
     roll -= w;
   }
-  // Roll should always be consumed above; fall back to the home nation.
-  return key;
+  // Roll should always be consumed above; fall back to the last named nation.
+  const named = Object.keys(table).filter((c) => c !== REST);
+  return named[named.length - 1] ?? "England";
+}
+
+/**
+ * Weighted-random nationality draw for a league.
+ *
+ * `custom` is a league's own hand-authored table (a league the player added in
+ * the world editor, or one a roster file declared) and wins outright when
+ * present. Otherwise `homeCountry` selects that country's real-calibrated
+ * distribution (see LEAGUE_NATIONALITY_WEIGHTS), and a missing or unrecognized
+ * country falls back to England's table — the England-flavored default the
+ * global free-agency / no-country pool has always used.
+ *
+ * Note the draw consumes ONE rng value, or TWO when it lands in the rest-of-
+ * world bucket. That is unchanged by this parameter, and it is only ever called
+ * on a player's own identity sub-stream (see generatePlayer), so which table a
+ * league uses cannot shift the shared rng sequence for any other player.
+ */
+export function pickNationality(
+  rng: () => number,
+  homeCountry?: string,
+  custom?: NationalityWeights | null,
+): string {
+  if (custom) return drawFrom(rng, custom);
+  const key = homeCountry && LEAGUE_NATIONALITY_WEIGHTS[homeCountry] ? homeCountry : "England";
+  return drawFrom(rng, LEAGUE_NATIONALITY_WEIGHTS[key]);
 }
 
 export function namePoolFor(nationality: string): { first: string[]; last: string[] } | undefined {

@@ -2,6 +2,7 @@ import type { LeagueStore } from "../leagueState.js";
 import type { TeamIdentityEdit } from "./customize.js";
 import type { PlayerRatings, Position } from "../players/types.js";
 import { POSITIONS, SKILL_KEYS } from "../players/types.js";
+import { sanitizeNationalityWeights, type NationalityWeights } from "../players/nationalities.js";
 
 /**
  * A compact, human/AI-authorable file describing clubs to overlay onto an
@@ -61,6 +62,22 @@ export interface RosterFile {
   format: RosterFileFormat;
   formatVersion: 1;
   competitions: RosterFileCompetition[];
+  /**
+   * The nationality mix the league this file describes should generate, as
+   * relative weights (nation name -> number, plus "__REST__" for the combined
+   * rest of the world). Optional; absent leaves the league on whatever it
+   * already had.
+   *
+   * Top level rather than per competition, because a mix belongs to a league as
+   * a whole: `competitions` entries are its individual DIVISIONS, and letting a
+   * country's two tiers declare different nationalities would be meaningless.
+   *
+   * Note this does not touch the players the file itself lists — those carry
+   * their own `nationality`. It sets what the league generates *around* them:
+   * the filler that tops a short squad up to a legal shape, any listed player
+   * who omitted a nationality, and every youth intake from then on.
+   */
+  nationalities?: NationalityWeights;
 }
 
 /** What newly written roster files declare. */
@@ -284,7 +301,41 @@ export function parseRosterFile(text: string): RosterFile {
     return { match: comp.match, clubs };
   });
 
-  return { format: ROSTER_FILE_FORMAT, formatVersion: ROSTER_FILE_VERSION, competitions };
+  const nationalities = parseNationalities(obj.nationalities);
+
+  return {
+    format: ROSTER_FILE_FORMAT,
+    formatVersion: ROSTER_FILE_VERSION,
+    competitions,
+    ...(nationalities ? { nationalities } : {}),
+  };
+}
+
+/**
+ * Read the optional top-level nationality block.
+ *
+ * Deliberately strict about SHAPE (a wrong type is an authoring mistake worth
+ * reporting) and lenient about CONTENT: an unknown nation name is dropped
+ * rather than thrown, because these files are usually AI-written and one
+ * hallucinated country shouldn't cost the author the other forty that were
+ * right. What survives is whatever sanitizeNationalityWeights accepts — every
+ * nation the game has names and a flag for.
+ */
+function parseNationalities(raw: unknown): NationalityWeights | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`Invalid roster file: "nationalities" must be an object of nation -> number.`);
+  }
+  const out: NationalityWeights = {};
+  for (const [nation, weight] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof weight !== "number" || !Number.isFinite(weight)) {
+      throw new Error(
+        `Invalid roster file: nationalities["${nation}"] must be a number (got ${JSON.stringify(weight)}).`,
+      );
+    }
+    out[nation] = weight;
+  }
+  return sanitizeNationalityWeights(out) ?? undefined;
 }
 
 /** A parsed roster file with the name the user picked it by. */
@@ -334,6 +385,9 @@ export function retargetRosterFile(
     competitions.push({ ...comp, match });
   });
 
+  // `...file` carries the top-level nationality block through unchanged:
+  // retargeting renames which divisions the file points at, not what the
+  // league it describes should generate.
   return { file: { ...file, competitions }, warnings };
 }
 

@@ -39,7 +39,7 @@ import { updateHype } from "./finance/hype.js";
 import { settleSeasonEnd, chargeSeasonStart, wageBill, financeScaleFor } from "./finance/budget.js";
 import { academyContractTerms } from "./contracts.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
-import { competitionOf, competitionTeamCount } from "./competitions.js";
+import { competitionOf, competitionTeamCount, competitionNationalities } from "./competitions.js";
 import { simThroughInternational, confederationCupChampions } from "./international/index.js";
 import { carryIntlInjuries } from "./injuries.js";
 import { hashInts, mulberry32 } from "../engine/rng.js";
@@ -502,7 +502,12 @@ export function simOffseasonReporting(
   );
   teams = teams.map((t) => {
     const genSeed = hashInts(league.lid, nextSeason, t.tid, 2);
-    const homeCountry = competitionOf(league.competitions, t.compId).country;
+    const comp = competitionOf(league.competitions, t.compId);
+    const homeCountry = comp.country;
+    // The league's own nationality mix, so a league the player added keeps
+    // producing its own kind of prospect for the life of the save rather than
+    // drifting to England's distribution one intake at a time.
+    const nationalities = competitionNationalities(comp);
     const { players: youth, nextPid: updatedNextPid } = generateYouthIntake(
       rng,
       t.academyBase
@@ -514,7 +519,7 @@ export function simOffseasonReporting(
         // realignment (which permutes anchors between clubs), so storing it
         // would leak difficulty into two unrelated systems.
         + (t.tid === league.meta.userTid ? academyOffset : 0),
-      nextSeason, nextPid, genSeed, homeCountry,
+      nextSeason, nextPid, genSeed, homeCountry, nationalities,
     );
     nextPid = updatedNextPid;
     // Note: a generational talent's arrival is deliberately NOT announced.

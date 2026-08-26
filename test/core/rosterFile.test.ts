@@ -8,6 +8,7 @@ import {
   isRosterFileFormat,
   combineRosterFiles,
   resolveRosterSlots,
+  retargetRosterFile,
   ROSTER_FILE_FORMAT,
 } from "../../src/core/teams/rosterFile.js";
 
@@ -270,5 +271,54 @@ describe("combineRosterFiles", () => {
     expect(slots).toHaveLength(2);
     expect(new Set(slots.map((s) => s.tid)).size).toBe(2);
     expect(slots.map((s) => s.club.name)).toEqual(["Eng One", "Eng Two"]);
+  });
+});
+
+describe("the top-level nationalities block", () => {
+  const withNats = (nationalities: unknown) => JSON.stringify({
+    format: ROSTER_FILE_FORMAT,
+    formatVersion: 1,
+    competitions: [],
+    nationalities,
+  });
+
+  it("is read when present", () => {
+    const file = parseRosterFile(withNats({ Netherlands: 60, Belgium: 40 }));
+    expect(file.nationalities).toEqual({ Netherlands: 60, Belgium: 40 });
+  });
+
+  it("is absent, not empty, when the file omits it", () => {
+    const file = parseRosterFile(JSON.stringify({
+      format: ROSTER_FILE_FORMAT, formatVersion: 1, competitions: [],
+    }));
+    expect(file.nationalities).toBeUndefined();
+  });
+
+  it("drops a nation the game has no names for rather than failing the file", () => {
+    // These files are usually AI-written; one invented country shouldn't cost
+    // the author the forty that were right.
+    const file = parseRosterFile(withNats({ Netherlands: 60, Wakanda: 40 }));
+    expect(file.nationalities).toEqual({ Netherlands: 60 });
+  });
+
+  it("goes absent when nothing in it was usable", () => {
+    expect(parseRosterFile(withNats({ Wakanda: 40 })).nationalities).toBeUndefined();
+  });
+
+  it("rejects a wrong shape, which is an authoring mistake worth reporting", () => {
+    expect(() => parseRosterFile(withNats(["Netherlands"]))).toThrow(/nationalities/);
+    expect(() => parseRosterFile(withNats({ Netherlands: "lots" }))).toThrow(/Netherlands/);
+  });
+
+  it("survives retargeting onto a league invented after the file was written", () => {
+    const file = parseRosterFile(JSON.stringify({
+      format: ROSTER_FILE_FORMAT,
+      formatVersion: 1,
+      competitions: [{ match: "Whatever League", clubs: [] }],
+      nationalities: { Japan: 100 },
+    }));
+    const { file: retargeted } = retargetRosterFile(file, ["Atlantis Division 1"]);
+    expect(retargeted.competitions[0].match).toBe("Atlantis Division 1");
+    expect(retargeted.nationalities).toEqual({ Japan: 100 });
   });
 });

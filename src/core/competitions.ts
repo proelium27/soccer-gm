@@ -15,6 +15,7 @@ import {
   SHIELD_STRONG_LEAGUE_SLOTS, SHIELD_WEAK_LEAGUE_SLOTS, largestValidCupField,
   NUM_TEAMS, NUM_TEAMS_D2, PROMOTION_RELEGATION_COUNT,
 } from "./constants.js";
+import { sanitizeNationalityWeights, type NationalityWeights } from "./players/nationalities.js";
 
 export interface Competition {
   id: number;
@@ -99,6 +100,24 @@ export interface Competition {
    * grey swatch. Absent → derived from the country name.
    */
   abbrev?: string;
+  /**
+   * This league's own nationality distribution, as relative weights (see
+   * NationalityWeights). Absent → the shipped per-country table, or England's
+   * for a country that has none.
+   *
+   * That fallback is the reason this exists. A league the player adds has an
+   * invented country name, which matches no shipped table, so every player it
+   * generated — and every youth prospect it generates *forever*, since intake
+   * draws from the same table each offseason — came out of England's
+   * distribution. Naming a league "Netherlands" produced a squad that was 38%
+   * English, with English names to match, and nothing said so.
+   *
+   * Held per COMPETITION rather than per country because that is what every
+   * generation path already has in hand, and a country's two divisions always
+   * receive the same table from buildCompetitions, so the duplication cannot
+   * disagree with itself.
+   */
+  nationalities?: NationalityWeights;
 }
 
 /* ── Per-league tuning accessors ─────────────────────────────────────────────
@@ -162,6 +181,19 @@ export function competitionPromotionSpots(comp: Competition, partner: Competitio
 /** This league's money multiplier, before the tier scale. See Competition.budgetScale. */
 export function competitionBudgetScale(comp: Competition): number {
   return comp.budgetScale ?? COUNTRY_BUDGET_SCALE[comp.country] ?? 1;
+}
+
+/**
+ * This league's nationality distribution, or null to mean "use the shipped
+ * behaviour" (the country's own table, else England's).
+ *
+ * Sanitized on the way out rather than at the boundary, because a table can
+ * reach a save from a hand-edited roster file or a hand-edited save as well as
+ * from the world editor, and a nation with no name pool would otherwise
+ * generate players with synthesized nonsense names and no flag.
+ */
+export function competitionNationalities(comp: Competition): NationalityWeights | null {
+  return sanitizeNationalityWeights(comp.nationalities);
 }
 
 /**
@@ -255,6 +287,12 @@ export interface LeagueSpec {
    * Ignored by a one-division league, which has nothing to swap with.
    */
   promotionSpots?: number;
+  /**
+   * The league's nationality mix, as relative weights. Absent → the shipped
+   * country table, or England's for an invented country. Both of a country's
+   * divisions get the same one.
+   */
+  nationalities?: NationalityWeights;
 }
 
 /** Drop keys whose value is undefined, so an untouched knob stays *absent*. */
@@ -278,6 +316,7 @@ export function buildCompetitions(specs: LeagueSpec[]): Competition[] {
       academyOffset: spec.academyOffset,
       budgetScale: spec.budgetScale,
       promotionSpots: spec.promotionSpots,
+      nationalities: spec.nationalities,
       continentalSlots: Object.keys(slots).length > 0 ? slots : undefined,
     });
     out.push({
