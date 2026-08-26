@@ -1,8 +1,37 @@
 # Soccer GM — Design Spec & Build Brief
 
+> ## ⚠️ Historical document — read this box first
+>
+> **This is the original build brief, written 2026-07-08, and it has not been
+> revised since.** Every milestone it lays out (M0–M6) shipped, and the game
+> then kept going well past the end of this document. It is preserved because
+> the engine spec in §4–§5 is still the definitive statement of *why* the match
+> sim works the way it does, and because §8's validation gates are still the
+> contract. **It is not a description of the game as it stands.**
+>
+> **For current state, read `CLAUDE.md`** — its "Architecture", "Core
+> invariants" and "Feature ledger" sections are the maintained record.
+>
+> Where this document is now wrong, in the places most likely to mislead:
+>
+> | §  | Says | Actually |
+> |----|------|----------|
+> | Status | A proof-of-concept `soccer-ticksim.mjs` lives in this repo | Deleted once M0 ported it. The aggregates it validated are still the targets in §8. |
+> | §3 | One division, 20 teams; promotion/relegation is v2 | 16 competitions / 320 clubs across 8 countries, two tiers each, 3-up/3-down every offseason — plus user-defined leagues and a world editor |
+> | §3, §4 | A `tactics: { mentality }` dial, ±0.02 per step | **Never built.** Formations are the tactical lever instead, and composites bucket by formation *slot* |
+> | §2 | Vercel for deploy | Cloudflare since 2026-08-15 (`wrangler.jsonc`, assets-only), plus itch and CrazyGames build targets. The host move is what took production analytics-dark for five days — see CLAUDE.md, "Analytics & deploy config". |
+> | §3 | The `Player` shape shown | Long outgrown — international career, scouting stamps, transfer-hold and more. Read `src/core/players/types.ts`. |
+> | §6 | Sim day / week / end of season | Sim to a matchday you pick, jump N seasons on autopilot, or watch a match play out minute by minute |
+> | §6 | Transfers: free agents first, fees in v1.5 | A full market: AI↔AI trading, negotiation, inbound offers, loans, player will, protected stars |
+> | §6 | You manage one club forever | You can be sacked. `meta.userTid` moves — board confidence, job offers and sackings live in `core/manager/`. |
+> | §7 | M6 is "depth, pick by fun" | All of it shipped, and then some: a Continental Cup **and** Shield, domestic cups (so a treble is possible), a 32-nation World Cup plus confederation cups (Euro / Copa América / AFCON), awards and GOAT boards, God Mode, scouting fog, a retiree archive |
+> | §8 | `scripts/validate.ts` runs the gates in CI | The gates live in `test/validation/*.test.ts`; CI shards `vitest run` across 6 runners |
+> | §8 | Top scorer 18–32 goals | 18–36, and measured as the **mean tier-1 top scorer** — a world-wide max is not a league statistic (see CLAUDE.md's `test/` note) |
+> | §1 | No real-roster import | A dev-only EA FC converter exists (`docs/eafc-import.md`). The shipped game is still fictional-only. |
+
 A single-player soccer management sim in the spirit of Basketball GM: browser-based, client-side, sim-heavy, minimal micromanagement. This document is the implementation brief. Read it fully before scaffolding.
 
-**Status:** The core match-engine approach is already proven. A standalone proof-of-concept (`soccer-ticksim.mjs`, in this repo) validates that a hockey-style tick loop produces realistic soccer aggregates over 20k-game Monte Carlo runs: 2.79 goals/game, 25.8 shots, 8.7 on target, 25.3% draws, 6.2% 0-0s, with 1-1 / 1-0 / 2-1 as the most common scorelines. Do not redesign the engine core; extend it.
+**Status (as written, 2026-07-08):** The core match-engine approach is already proven. A standalone proof-of-concept (`soccer-ticksim.mjs`, since deleted — see the box above) validates that a hockey-style tick loop produces realistic soccer aggregates over 20k-game Monte Carlo runs: 2.79 goals/game, 25.8 shots, 8.7 on target, 25.3% draws, 6.2% 0-0s, with 1-1 / 1-0 / 2-1 as the most common scorelines. Do not redesign the engine core; extend it.
 
 ---
 
@@ -239,7 +268,16 @@ Any engine or composite change must pass these before merge. When adding texture
 
 ## 9. Open questions (decide during build, don't block on them)
 
-- League identity: fictional country? City names generated how? (Cosmetic, M2.)
-- One mentality dial vs. a second "pressing" dial that trades `control` for turnover rate. (M6.)
-- Should possession% be derived from tick counts and shown? (Free to compute; probably yes, M3.)
-- Real-roster JSON import format. (Post-M6.)
+**All four were settled. Kept for the record, with what was decided:**
+
+- ~~League identity: fictional country? City names generated how?~~ → Eight real
+  countries, entirely fictional clubs (`CLUBS`, 320 of them) — trademark caution.
+  Player names are drawn per-league from real top-flight nationality breakdowns.
+- ~~One mentality dial vs. a second "pressing" dial.~~ → **Neither.** No mentality
+  dial was ever built. Formation is the tactical lever, and it is a real one:
+  composites roll up by formation slot.
+- ~~Should possession% be derived from tick counts and shown?~~ → Yes; it's on the
+  box score (`match.possessionHome`).
+- ~~Real-roster JSON import format.~~ → Exists as a dev-only EA FC converter and a
+  roster-import flow at league creation (`docs/eafc-import.md`). The shipped game
+  is still fictional-only.
