@@ -80,6 +80,17 @@ const crazyGames = import.meta.env.VITE_BUILD_TARGET === "crazygames";
 const embedded = import.meta.env.VITE_BUILD_TARGET === "itch" || crazyGames;
 const Router = embedded ? HashRouter : BrowserRouter;
 
+// Where the app is mounted on its host. "/" for our own domain, "/soccer-gm/"
+// on a GitHub Pages project page — BASE_URL is whatever `base` the build used,
+// so this tracks vite.config.ts automatically and needs no target flag of its
+// own. Without it every route under a subpath falls through to no match: React
+// Router would read the browser's "/soccer-gm/manual" and look for a
+// "/soccer-gm/manual" route, which does not exist.
+//
+// Undefined for the hash builds: their base is the relative "./", which is not
+// a URL path, and a hash router has no path prefix to strip in the first place.
+const basename = embedded ? undefined : import.meta.env.BASE_URL;
+
 // The CrazyGames build strips the SEO block from index.html, so it must not run
 // the runtime half either — useRouteSeo would recreate the canonical tag, which
 // points at worldsoccersim.org, a playable copy of this same game. Their rules
@@ -97,7 +108,7 @@ const announcementEnabled = !crazyGames;
 
 export function App() {
   return (
-    <Router>
+    <Router basename={basename}>
       <SportNameProvider>
       {seoEnabled && <RouteSeo />}
       <LeagueProvider>
