@@ -406,23 +406,6 @@ export function WorldSetup({ entries, onChange }: Props) {
                       />
                     </div>
                   </div>
-                  {/*
-                    The only explanation the controls need. The division and
-                    continental rows say what they do in their own labels and
-                    options, so a paragraph restating them was just noise.
-                  */}
-                  <div className="text-muted mt-2" style={{ fontSize: "0.75rem" }}>
-                    <p className="mb-0">
-                      <strong>Strength</strong> is how good its squads are: higher is stronger, and
-                      20 is level with England, Spain, Italy and Germany. <strong>Money</strong> is
-                      what its clubs earn and can bank, against 1 for the richest leagues.{" "}
-                      <strong>Up and down</strong> is how many clubs swap between its two divisions
-                      each season, three being what every shipped country plays and None sealing the
-                      divisions off from each other. The three-letter code beside the name stands in
-                      for a flag, since the game has no flag art for a country you invented.
-                    </p>
-                  </div>
-
                   <NationalityEditor
                     value={entry.spec.nationalities}
                     onChange={(nationalities) => updateSpec(i, { nationalities })}
