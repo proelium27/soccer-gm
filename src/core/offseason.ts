@@ -7,10 +7,11 @@ import { progressPlayer, rollRetirement } from "./players/progression.js";
 import { packPositionChange, type NewsEvent } from "./newsEvents.js";
 import { generateYouthIntake } from "./players/youth.js";
 import { computeAcademyFormModifiers } from "./players/academyForm.js";
-import { cullFreeAgentPool } from "./players/freeAgentCull.js";
+import { cullFreeAgentPoolReporting } from "./players/freeAgentCull.js";
 import { summarizeRetirements } from "./players/retirements.js";
 import { clearSuspension } from "./suspensions.js";
 import { extendRetireeArchive } from "./players/archive.js";
+import { withSeason, summaryOf, ovrLookup } from "./players/careerSummary.js";
 import { extendPlayerNames } from "./players/playerNames.js";
 import { archiveCup } from "./cup/archive.js";
 import {
@@ -71,24 +72,68 @@ function awardsByCompetition(
  * actions later; youth intake still applies to every club per spec (no
  * draft mechanic).
  */
+/**
+ * What the caller has already worked out on the offseason's behalf.
+ *
+ * Both entries exist for the same reason and are the same trade: the offseason
+ * reads exactly two things it did not itself produce this run — the season's box
+ * scores, and the append-only history — and both are enormous. Handing the
+ * answers in is what lets `core/simArchive.ts` keep the inputs off the worker.
+ * Every field is optional and defaulted, so the ~60 callers across tests and
+ * scripts are unaffected.
+ */
+export interface OffseasonInputs {
+  /**
+   * This season's team stat totals. `computeTeamSeasonStats` is the **only**
+   * place the sim reads a box score belonging to a matchday it did not just
+   * play, and box scores are the heaviest thing in a save. See `detachPlayed`.
+   */
+  teamStats?: TeamSeasonStats[];
+  /**
+   * Every pid the save's surviving history still points at, for
+   * `extendPlayerNames`. That walk covers `newsEvents` and the cup `statLines`,
+   * which is the only reason those have to reach the worker. See `detachNews`.
+   */
+  referencedPids?: Set<number>;
+}
+
+/** What the offseason did that the caller cannot work out from the league alone. */
+export interface OffseasonReport {
+  /**
+   * Players the free-agent cull deleted.
+   *
+   * The cull scrubs their rows out of `newsEvents` and the cup histories so a
+   * deleted nobody leaves nothing dangling. Once those arrays stay on the main
+   * thread, the worker can no longer do that scrub — so it reports who went and
+   * the main thread applies it. **Retirees are deliberately not here:** unlike a
+   * culled nobody, a retiree had a real career and his rows are kept on purpose.
+   */
+  culledPids: Set<number>;
+}
+
 export function simOffseason(
   league: LeagueStore,
   rng: () => number,
-  /**
-   * This season's team stat totals, when the caller has already worked them
-   * out. Optional and defaulted, so every existing caller is unaffected.
-   *
-   * It exists for one reason: this is the **only** place the sim reads a box
-   * score belonging to a matchday it did not just play, and box scores are by
-   * far the heaviest thing in a save (204.7 MB of a 232.8 MB save by matchday
-   * 38 on a 32-competition world). Letting the caller supply the aggregate is
-   * what allows `core/simArchive.ts` to keep them off the worker entirely.
-   * See `detachPlayed`.
-   */
-  precomputedTeamStats?: TeamSeasonStats[],
+  inputs?: OffseasonInputs,
 ): LeagueStore {
+  return simOffseasonReporting(league, rng, inputs).league;
+}
+
+/**
+ * `simOffseason`, plus what it did that the caller has to know about.
+ *
+ * A separate entry point rather than a changed return type, because
+ * `simOffseason` has ~60 call sites across tests and scripts and none of them
+ * should have to care. Only the worker uses this one.
+ */
+export function simOffseasonReporting(
+  league: LeagueStore,
+  rng: () => number,
+  inputs: OffseasonInputs = {},
+): { league: LeagueStore; report: OffseasonReport } {
+  const { teamStats: precomputedTeamStats, referencedPids: precomputedReferenced } = inputs;
   if (league.phase !== "offseason") {
-    return league;
+    return { league, report: { culledPids: new Set<number>() } };
   }
 
   // International football (drawn the instant the season ended, see simThrough)
@@ -206,6 +251,19 @@ export function simOffseason(
   const academyPids = new Set(teams.flatMap((t) => t.academyRoster));
   const positionChangeEvents: NewsEvent[] = [];
   let players: Player[] = renewals.players.map((p) => {
+    // Fold the season that just finished into his career summary, before
+    // progression replaces the object. This is the one place it happens: the
+    // summary covers finished seasons only, so exactly one fold per player per
+    // season, and anything wanting a live number adds the current row itself
+    // (see players/careerSummary.ts). Pure and rng-free.
+    const finished = p.stats.find((s) => s.season === endingSeason);
+    // Always set, even for a youth-intake player who has finished nothing: every
+    // player carrying the field is what lets readers drop the "or compute it
+    // from his seasons" fallback, which stops being possible at all once the
+    // seasons live on disk.
+    const ovrFor = ovrLookup(p.hist, p.peakOvr ?? p.ovr);
+    const base = p.career ?? summaryOf(p.stats.filter((s) => s.season !== endingSeason), ovrFor);
+    p = { ...p, career: finished ? withSeason(base, finished, ovrFor(endingSeason)) : base };
     const progressed = progressPlayer(rng, p, endingSeason, academyPids.has(p.pid));
     const tid = tidLastSeason.get(p.pid);
     // Only rostered players, and away from the user's own club only the ones
@@ -667,7 +725,8 @@ export function simOffseason(
   // from `players`, and any rng draw that iterated the pool after this point
   // would shift — breaking the seeded-stream invariant. Ages are judged against
   // the new season, which is what `rolled` already carries.
-  const culled = cullFreeAgentPool(rolled);
+  const cullResult = cullFreeAgentPoolReporting(rolled);
+  const culled = cullResult.league;
 
   // Keep the name of every retiree the save still points at. This runs *after*
   // the cull for two reasons: the cull deletes its own victims' transfers and
@@ -677,7 +736,12 @@ export function simOffseason(
   // is judged against the finished history rather than a half-written one.
   // Pure and rng-free — nothing below draws.
   return {
-    ...culled,
-    playerNames: extendPlayerNames(culled.playerNames ?? [], retirees, culled),
+    league: {
+      ...culled,
+      playerNames: extendPlayerNames(
+        culled.playerNames ?? [], retirees, culled, precomputedReferenced,
+      ),
+    },
+    report: { culledPids: cullResult.culled },
   };
 }

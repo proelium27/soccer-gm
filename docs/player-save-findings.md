@@ -282,6 +282,25 @@ guarantee above.
 
 **Severity: medium, player-visible · scales with dynasty length · needs a design call**
 
+> **FIXED 2026-08-21 to 08-23.** The design call was made, and it went to the middle option
+> below — a name table for award winners only. Three changes close it together:
+> (1) `core/awardWinners.ts` / `SeasonHistoryEntry.awardWinners` snapshots
+> name / nationality / pos / `ovrDuringSeason` / club / born for every pid a season's awards
+> name, at offseason step 3.65, off the pre-progression pool both award passes scored — pure,
+> no rng draw, ~18.5 KB per season. `migrate.ts` backfills past seasons from the live pool then
+> the archive, and `loadLeague` **persists** that backfill, since it is the one migration that
+> cannot be recomputed later. (2) The farewell lists are read back so long saves recover some
+> deleted names anyway (#263). (3) `RETIREE_ARCHIVE_LIMIT` is **20,000**, not the 2,000 the
+> root cause below assumes — the schema-v3 split into its own store paid for it (#266).
+> Read-order everywhere is career → archive → snapshot; a snapshot-only winner renders
+> unlinked, since he has no profile page. Full detail: CLAUDE.md, "Award winners carry their
+> own names".
+>
+> **Still open from this item:** the wider `Player <pid>` problem outside honours boards.
+> The snapshot covers award winners, so Transfers / News Feed / Club History can still print a
+> bare pid for a rank-and-file player the archive dropped. The "name-table-for-everyone" option
+> below was measured (1.42 MB on the worst save) and not taken.
+
 ### Evidence
 
 | Save | Season | Award pids | Resolve to nothing | Distinct unnameable players |

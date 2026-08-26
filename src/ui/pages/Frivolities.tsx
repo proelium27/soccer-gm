@@ -213,6 +213,8 @@ const TERM_LABELS: Record<string, string> = {
   ballonDOr: "Ballon d'Or",
   playerOfSeason: "Player of the Season",
   worldXI: "World Team of the Year",
+  goalkeeperOfYear: "Goalkeeper of the Year",
+  defenderOfYear: "Defender of the Year",
   goldenBoot: "Golden Boot",
   teamOfSeason: "Team of the Season",
   worldCups: "World Cup",
@@ -392,25 +394,41 @@ function GoatTab() {
 
 // --- Awards ----------------------------------------------------------------
 
-/** Column wording for the five individual awards, plus the total that sums them. */
+/** Column wording for each individual award, plus the total that sums them. */
 const AWARD_LABELS: Record<AwardKey, string> = {
   total: "Total",
   ballonDOr: "Ballon d'Or",
   worldXI: "World XI",
+  goalkeeperOfYear: "Goalkeeper of the Year",
+  defenderOfYear: "Defender of the Year",
   playerOfSeason: "Player of the Season",
   goldenBoot: "Golden Boot",
   teamOfSeason: "Team of the Season",
 };
 
-/** Short forms, for boards that need all six columns at once. */
+/** Short forms, for the board that needs every column at once. */
 const AWARD_SHORT: Record<AwardKey, string> = {
   total: "Total",
   ballonDOr: "BdO",
   worldXI: "World XI",
+  goalkeeperOfYear: "Keeper",
+  defenderOfYear: "Defender",
   playerOfSeason: "POTS",
   goldenBoot: "Boot",
   teamOfSeason: "TOTS",
 };
+
+/**
+ * The tally columns, in display order, with the total last.
+ *
+ * One list rather than one per render site: the headers and the cells are built
+ * separately and a column added to only one of them silently shifts every
+ * number one place along.
+ */
+const TALLY_COLUMNS: AwardKey[] = [
+  "ballonDOr", "worldXI", "goalkeeperOfYear", "defenderOfYear",
+  "playerOfSeason", "goldenBoot", "teamOfSeason", "total",
+];
 
 /** The parts of a Ballon d'Or score, in the order the entry stores them. */
 const BDO_PARTS: { key: "league" | "cup" | "intl" | "title"; label: string; help: string }[] = [
@@ -420,9 +438,9 @@ const BDO_PARTS: { key: "league" | "cup" | "intl" | "title"; label: string; help
   { key: "title", label: "League title", help: "winning his own league, scaled by how much of it he played" },
 ];
 
-/** A tally row's six numbers, with the ranked one picked out. */
+/** A tally row's numbers, with the ranked one picked out. */
 function tallyCells(t: AwardTally, ranked: AwardKey): ReactNode[] {
-  return (["ballonDOr", "worldXI", "playerOfSeason", "goldenBoot", "teamOfSeason", "total"] as AwardKey[])
+  return TALLY_COLUMNS
     .map((k) => (
       <span key={k} className={k === ranked ? "fw-bold" : undefined}>
         {t[k] || <span className="text-muted">&ndash;</span>}
@@ -635,7 +653,7 @@ export function AwardsTab() {
         <Col wide>
           <Panel
             title="Most decorated careers"
-            note="Pick an award to rank by. The Ballon d'Or and the World XI are worldwide; Player of the Season, the Golden Boot and the Team of the Season are won league by league."
+            note="Pick an award to rank by. The Ballon d'Or, the World XI and the Goalkeeper and Defender of the Year are worldwide; Player of the Season, the Golden Boot and the Team of the Season are won league by league."
           >
             <div className="mb-3">
               <select
@@ -656,8 +674,7 @@ export function AwardsTab() {
               rows={ranked}
               headers={[
                 "Player", "Club",
-                ...(["ballonDOr", "worldXI", "playerOfSeason", "goldenBoot", "teamOfSeason", "total"] as AwardKey[])
-                  .map((k) => AWARD_SHORT[k]),
+                ...TALLY_COLUMNS.map((k) => AWARD_SHORT[k]),
               ]}
               render={(r: AwardCareerRow) => [
                 <PlayerCell

@@ -75,7 +75,7 @@ export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
   "test/validation/m4-multiseason.test.ts": 220,
   "test/validation/m4-multiseason-integrity.test.ts": 199,
   "test/core/offseasonSquads.test.ts": 196,
-  "test/core/offseason.test.ts": 176,
+  "test/core/offseason.test.ts": 208,
   "test/validation/m3-top-scorer.test.ts": 173,
   "test/core/offseasonSolvency.test.ts": 128,
   "test/core/simThrough.test.ts": 81,

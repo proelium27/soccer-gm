@@ -28,6 +28,10 @@ export interface ClubSeasonRecord {
   teamOfSeasonPids: number[];
   /** This club's Ballon d'Or winner that season, if any — the whole world's best player, not just this league's. */
   ballonDOrPid: number | null;
+  /** This club's Goalkeeper of the Year that season, if any — again worldwide, not league by league. */
+  goalkeeperOfYearPid: number | null;
+  /** This club's Defender of the Year that season, if any. */
+  defenderOfYearPid: number | null;
   /** This club's players selected in the season's World Team of the Year. */
   worldTeamOfYearPids: number[];
   /**
@@ -85,6 +89,10 @@ export interface ClubHistory {
   teamOfSeasonSelections: ClubIndividualHonour[];
   /** Seasons one of the club's players won the Ballon d'Or, newest first. */
   ballonDOrWinners: ClubIndividualHonour[];
+  /** Seasons one of the club's players was the world's best goalkeeper, newest first. */
+  goalkeeperOfYearWinners: ClubIndividualHonour[];
+  /** Seasons one of the club's players was the world's best defender, newest first. */
+  defenderOfYearWinners: ClubIndividualHonour[];
   /** World Team of the Year places won by the club's players, newest first. */
   worldTeamOfYearSelections: ClubIndividualHonour[];
   /** All-time aggregate record across every completed season. */
@@ -168,6 +176,12 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
     // they're filtered to this club the same way: by who was here that season.
     const world = entry.world;
     const ballonDOrPid = world && belongs(world.ballonDOr[0]?.pid ?? null) ? world.ballonDOr[0].pid : null;
+    // Optional on top of `world` itself being optional: a season played before
+    // these two awards existed simply has no winner to credit (see WorldAwards).
+    const bestKeeper = world?.goalkeeperOfYear?.[0]?.pid ?? null;
+    const goalkeeperOfYearPid = belongs(bestKeeper) ? bestKeeper : null;
+    const bestDefender = world?.defenderOfYear?.[0]?.pid ?? null;
+    const defenderOfYearPid = belongs(bestDefender) ? bestDefender : null;
     const worldTeamOfYearPids = world
       ? world.worldTeamOfYear.filter((pid): pid is number => belongs(pid))
       : [];
@@ -204,6 +218,8 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
       goldenBootPid,
       teamOfSeasonPids,
       ballonDOrPid,
+      goalkeeperOfYearPid,
+      defenderOfYearPid,
       worldTeamOfYearPids,
       cupRun,
       shieldRun,
@@ -284,6 +300,12 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
     ballonDOrWinners: newest
       .filter((r) => r.ballonDOrPid !== null)
       .map((r) => ({ season: r.season, compId: r.compId, pid: r.ballonDOrPid! })),
+    goalkeeperOfYearWinners: newest
+      .filter((r) => r.goalkeeperOfYearPid !== null)
+      .map((r) => ({ season: r.season, compId: r.compId, pid: r.goalkeeperOfYearPid! })),
+    defenderOfYearWinners: newest
+      .filter((r) => r.defenderOfYearPid !== null)
+      .map((r) => ({ season: r.season, compId: r.compId, pid: r.defenderOfYearPid! })),
     worldTeamOfYearSelections: newest.flatMap((r) =>
       r.worldTeamOfYearPids.map((pid) => ({ season: r.season, compId: r.compId, pid })),
     ),

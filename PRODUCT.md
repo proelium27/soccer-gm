@@ -14,13 +14,13 @@ A browser-based, client-side, BBGM-style soccer management sim. It exists to del
 
 ## Brand Personality
 
-Authoritative and expert-grade: a serious front-office tool, not a toy. Sharp and confident: modern, precise, a bit stylish without being flashy. The current implementation (plain Bootstrap 5 defaults) already lands somewhat authoritative/functional by virtue of dense tables and no-nonsense layout, but reads as generic rather than sharp or confident. That gap, sharp/confident, is the primary thing the visual redesign needs to close.
+Authoritative and expert-grade: a serious front-office tool, not a toy. Sharp and confident: modern, precise, a bit stylish without being flashy. The app originally shipped on plain Bootstrap 5 defaults, which landed somewhat authoritative and functional on the strength of dense tables and no-nonsense layout but read as generic. Closing that sharp/confident gap was the job of the "Front Office Terminal" design system, which is now implemented — see `DESIGN.md` for the tokens and `src/ui/styles.css` for the source of truth.
 
 ## Anti-references
 
 - Generic AI/SaaS look: purple gradients, glassmorphism, hero-metric cards, cream-and-black "AI startup" templates.
 - Mobile game / gacha UI: loud gradients, badges, gamified stat-boost visuals.
-- Bootstrap-default look: today's out-of-the-box Bootstrap blue/gray palette and componentry, since that's what's there by default rather than by choice.
+- Bootstrap-default look: the out-of-the-box Bootstrap blue/gray palette and componentry the app started on, since that was a default rather than a choice. Bootstrap is still the component layer, but every token it draws from is ours.
 
 ## Design Principles
 

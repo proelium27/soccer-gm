@@ -11,6 +11,7 @@ import {
   RATING_MIN, RATING_MAX, POSITION_RATING_SPREAD,
 } from "../constants.js";
 import { seasonSalaryForOvr } from "../contracts.js";
+import { emptyCareerSummary } from "./careerSummary.js";
 
 const clampRating = (x: number): number =>
   Math.round(Math.max(RATING_MIN, Math.min(RATING_MAX, x)));
@@ -90,5 +91,18 @@ export function generatePlayer(
     // youth-intake player routed to the user's academy has his real academy
     // seasons recorded by progressPlayer each offseason from here on.
     hist: [{ season: season - 1, ratings, ovr, potential, academy: false, pos }],
+    // Seeded here, not left to the first progression, so *every* player carries
+    // a career peak from the moment he exists. `progressPlayer` maintains it
+    // afterwards. Without this a youth-intake player has a `hist` entry but no
+    // peak until his first offseason, and the readers' fallback scan would be
+    // the only thing answering for him — which stops working the moment careers
+    // are no longer resident (`docs/lazy-career-plan.md`).
+    peakOvr: ovr,
+    peakOvrSeason: season - 1,
+    // Seeded for the same reason as the peak: every player carries the field
+    // from the moment he exists, so no reader ever needs a "or compute it from
+    // his seasons" fallback — which stops being possible once the seasons live
+    // on disk. He has played nothing, so it is empty rather than absent.
+    career: emptyCareerSummary(),
   };
 }

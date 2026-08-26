@@ -21,7 +21,17 @@ export type WorkerCommand =
    * strip them (see core/simArchive.ts). Optional: without it the offseason
    * derives its own, which is right for any caller that sent real box scores.
    */
-  | { type: "offseason"; league: LeagueStore; teamStats?: TeamSeasonStats[] }
+  | {
+      type: "offseason";
+      league: LeagueStore;
+      teamStats?: TeamSeasonStats[];
+      /**
+       * Every pid the surviving history points at, for `extendPlayerNames`.
+       * An array rather than a Set so the protocol stays plainly serialisable.
+       * Supplying it is what lets `detachNews` keep that history off the worker.
+       */
+      referencedPids?: number[];
+    }
   | { type: "intl"; mode: IntlMode; league: LeagueStore }
   /** Play `seasons` whole seasons with the AI running the user's club (core/autopilot.ts). */
   | { type: "jump"; seasons: number; league: LeagueStore };
@@ -29,7 +39,16 @@ export type WorkerCommand =
 // Worker -> UI
 export type WorkerResponse =
   | { type: "simResult"; league: LeagueStore }
-  | { type: "offseasonResult"; league: LeagueStore }
+  | {
+      type: "offseasonResult";
+      league: LeagueStore;
+      /**
+       * Who the free-agent cull deleted. The main thread scrubs their rows out
+       * of the history it held back, which the worker could not do to arrays it
+       * never had. See `reattachNews`.
+       */
+      culledPids?: number[];
+    }
   | { type: "intlResult"; league: LeagueStore }
   | { type: "jumpResult"; league: LeagueStore }
   /**

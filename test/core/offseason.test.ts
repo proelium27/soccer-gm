@@ -93,6 +93,32 @@ describe("simOffseason", () => {
     expect(d2After).toBe(20);
   });
 
+  it("swaps the number of clubs each league was set up for, including none at all", () => {
+    const rng = mulberry32(6);
+    const league = playFullSeason(rng);
+
+    // The same played season, settled by two different pyramids. One up and one
+    // down moves exactly two clubs per country; a league set to none moves
+    // nobody, which is the case that would silently swap whole divisions if
+    // computeCountrySwaps ever went back to slicing by a zero count.
+    const withSpots = (promotionSpots: number) => ({
+      ...league,
+      competitions: league.competitions.map((c) => ({ ...c, promotionSpots })),
+    });
+    const one = simOffseason(withSpots(1), rng);
+    const closed = simOffseason(withSpots(0), rng);
+
+    const moved = (next: typeof league) => {
+      const before = new Map(league.teams.map((t) => [t.tid, t.compId]));
+      return next.teams.filter((t) => before.get(t.tid) !== t.compId).length;
+    };
+    expect(moved(one)).toBe(2 * 8); // two clubs each, eight countries
+    expect(moved(closed)).toBe(0);
+    // Division sizes hold either way.
+    expect(closed.teams.filter((t) => t.compId === 0)).toHaveLength(NUM_TEAMS);
+    expect(one.teams.filter((t) => t.compId === 0)).toHaveLength(NUM_TEAMS);
+  });
+
   it("every roster keeps at least one GK after the offseason", () => {
     const rng = mulberry32(4);
     const league = playFullSeason(rng);

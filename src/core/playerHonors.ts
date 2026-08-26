@@ -19,6 +19,10 @@ export interface HonorCups {
 export interface PlayerHonors {
   ballonDOr: number[];
   worldTeamOfYear: number[];
+  /** Seasons he was named the best goalkeeper in the world. */
+  goalkeeperOfYear: number[];
+  /** Seasons he was named the best defender in the world. */
+  defenderOfYear: number[];
   playerOfSeason: number[];
   goldenBoot: number[];
   teamOfSeason: number[];
@@ -107,6 +111,8 @@ function honorsOf(
 ): PlayerHonors {
   const ballonDOr: number[] = [];
   const worldTeamOfYear: number[] = [];
+  const goalkeeperOfYear: number[] = [];
+  const defenderOfYear: number[] = [];
   const playerOfSeason: number[] = [];
   const goldenBoot: number[] = [];
   const teamOfSeason: number[] = [];
@@ -145,6 +151,12 @@ function honorsOf(
     // `world` once migrateLeague has run over it.
     if (entry.world?.ballonDOr[0]?.pid === pid) ballonDOr.push(entry.season);
     if (entry.world?.worldTeamOfYear.includes(pid)) worldTeamOfYear.push(entry.season);
+    // Only the winner of each, never the rest of the shortlist: these are pills
+    // that say what he won. Both lists are optional on top of `world` already
+    // being optional, because a season played before these awards existed has
+    // no record of them and is never rescored (see WorldAwards).
+    if (entry.world?.goalkeeperOfYear?.[0]?.pid === pid) goalkeeperOfYear.push(entry.season);
+    if (entry.world?.defenderOfYear?.[0]?.pid === pid) defenderOfYear.push(entry.season);
 
     const tid = squadTid(entry.season);
     if (tid !== undefined && Object.values(entry.championTidByCompId).includes(tid)) {
@@ -155,6 +167,8 @@ function honorsOf(
   return {
     ballonDOr,
     worldTeamOfYear,
+    goalkeeperOfYear,
+    defenderOfYear,
     playerOfSeason,
     goldenBoot,
     teamOfSeason,
@@ -165,6 +179,8 @@ function honorsOf(
     hasAny:
       ballonDOr.length > 0 ||
       worldTeamOfYear.length > 0 ||
+      goalkeeperOfYear.length > 0 ||
+      defenderOfYear.length > 0 ||
       playerOfSeason.length > 0 ||
       goldenBoot.length > 0 ||
       teamOfSeason.length > 0 ||

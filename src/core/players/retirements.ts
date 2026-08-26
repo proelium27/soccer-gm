@@ -2,6 +2,7 @@ import type { Player, Position } from "./types.js";
 import { ageOf } from "./progression.js";
 import { ovrDuringSeason } from "../awards.js";
 import { RETIREMENT_NOTABLE_LIMIT } from "../constants.js";
+import { careerOf } from "./careerSummary.js";
 
 /**
  * One retiree, snapshotted at the moment he retires.
@@ -60,7 +61,15 @@ function byOvr(a: RetiredPlayer, b: RetiredPlayer): number {
 }
 
 function snapshot(player: Player, season: number, tid: number | null): RetiredPlayer {
-  const played = player.stats.filter((s) => s.appearances > 0);
+  // Off the stored summary, which by retirement (offseason step 3) already has
+  // the season he just finished folded in at step 2. Summing his stat lines
+  // instead would under-count once careers are windowed at the worker boundary,
+  // and the farewell notice is a permanent record — it is written into
+  // seasonHistory and the player is deleted moments later, so a wrong number
+  // here is wrong forever. `careerOf` falls back to the seasons for a save that
+  // predates the summary.
+  const career = careerOf(player);
+  const played = career.seasons.filter((s) => s.apps > 0);
   return {
     pid: player.pid,
     name: player.name,
@@ -75,9 +84,9 @@ function snapshot(player: Player, season: number, tid: number | null): RetiredPl
     ovr: ovrDuringSeason(player, season),
     tid,
     seasonsPlayed: played.length,
-    appearances: played.reduce((sum, s) => sum + s.appearances, 0),
-    goals: played.reduce((sum, s) => sum + s.goals, 0),
-    assists: played.reduce((sum, s) => sum + s.assists, 0),
+    appearances: career.totals.appearances,
+    goals: career.totals.goals,
+    assists: career.totals.assists,
     caps: player.intl?.caps ?? 0,
   };
 }
