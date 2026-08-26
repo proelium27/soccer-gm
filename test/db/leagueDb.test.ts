@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach, beforeAll } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll, vi } from "vitest";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import {
@@ -23,6 +23,18 @@ function makeLeague() {
   base ??= createLeagueState(3, mulberry32(42));
   return structuredClone(base);
 }
+
+// Same problem as the `beforeAll` below, one level down: several tests here do
+// enough IDB work on a 6000-player world to land near vitest's 5s default, and
+// a test that is *near* a timeout is a test that fails when the machine is
+// busy. Measured on CI, "splits a v3 row that still carries its career inline"
+// took 5347ms and "falls back to a full rewrite when another writer touched the
+// record" 5286ms — both against a 5000ms limit, so both failed, on main as well
+// as on branches (main run 32961751301 failed the first of them at 5348ms while
+// a second run of the identical commit passed). They are legitimately slow, not
+// hung, so the fix is to let them take the time rather than to make them do
+// less work.
+vi.setConfig({ testTimeout: 30_000 });
 
 // Pay for the world up front, with a timeout that reflects what it actually
 // costs. Generation is ~4.3s (scripts/managerCostProbe.ts) against vitest's 5s
