@@ -10,16 +10,33 @@
  * the same draw every run, because the hash of a path doesn't change. Measured
  * over three consecutive CI runs on six shards, the slowest shard took 1749s,
  * 1765s and 1863s while the fastest took 40s, 41s and 47s, against ~75 minutes
- * of total work — so wall-clock was roughly 2.4x what an even split would cost.
+ * of total work.
  *
  * So: weight each file, then greedily pack the shards. Nothing here changes
  * which tests run, only which runner runs them.
  *
- * **The floor is the slowest single file, not the average.** No split can beat
- * it, so once the shards are balanced the only way further down is to break up
- * the biggest files (`test/core/offseason.test.ts` is ~21 minutes on its own).
- * `test/validation/m4-multiseason-integrity.test.ts` is the precedent — it was
+ * **This does not by itself reduce CI wall-clock, and why not is worth knowing
+ * before trusting any estimate of what balancing buys.** The floor is the
+ * slowest single *file*, which no split can beat, and here that floor is very
+ * nearly the whole budget: on the first packed run, shard 1 ran
+ * `test/core/offseason.test.ts` **alone** and took 1933s, against a
+ * pre-balancing worst shard of 1749-1863s. So the old worst shard was already
+ * almost exactly that one file, and there was never a large wall-clock win to
+ * take. What balancing actually bought is the other five shards getting
+ * lighter — spare runner capacity, not a faster build.
+ *
+ * What it does do is make the floor mechanical and visible: shard 1 is now
+ * provably one file, so the next move is unambiguous. Split the giants —
+ * `offseason.test.ts` (~1933s on CI) and `international.test.ts` (~1082s) —
+ * and this packing is what spreads the pieces. Without it, two halves of a
+ * split file can land straight back on the same shard.
+ * `test/validation/m4-multiseason-integrity.test.ts` is the precedent: it was
  * split out of its sibling for exactly this reason.
+ *
+ * Note CI runners are ~1.5x slower than a dev machine here
+ * (`offseason.test.ts` is ~1276s locally against ~1933s on CI). The weights
+ * below are local seconds, which is fine: uniform scaling doesn't change how
+ * the packing sorts.
  */
 
 /**
