@@ -15,6 +15,7 @@ import { useSportName } from "../sportName.js";
 const SECTIONS: [id: string, title: string][] = [
   ["overview", "Overview"],
   ["difficulty", "Difficulty"],
+  ["manager", "Your Job: Confidence, Offers & Sackings"],
   ["pages", "The Pages"],
   ["season", "The Season & Simming"],
   ["world", "The World"],
@@ -240,9 +241,97 @@ export function Manual() {
           </p>
         </Section>
 
+        <Section id="manager" title="Your Job: Confidence, Offers & Sackings">
+          <p>
+            You're a manager, not an owner. The club you start at is a job you can lose, and other
+            clubs can offer you a better one. All of it happens at the end of a season, never
+            mid-season.
+          </p>
+          <h6>Board confidence</h6>
+          <p>
+            Your board keeps a running confidence in you, shown as a bar on the Dashboard and on the
+            Manager page. It moves once a season, and what moves it is <strong>where you finished
+            against where a club like yours is expected to finish</strong> &mdash; not where you
+            finished on its own. Finish 6th when they expected 12th and they're delighted. Finish
+            6th when they expected 2nd and you're in trouble, even though 6th is the same 6th. The
+            Manager page always tells you the number you're being measured against.
+          </p>
+          <p>
+            That expectation comes from <strong>what the club is</strong>, not what your squad is:
+            where you've finished over the last few seasons, and how well known the club is.
+            Nothing you do in the transfer market feeds into it. If it did, you could sell every
+            good player, finish next to last, and have the board congratulate you for beating a bar
+            you'd just lowered yourself. Building the squad is your job, so it can't also be your
+            grade. Your bank balance is left out for the same reason &mdash; otherwise spending
+            your budget, which is simply doing the job, would quietly make the target easier.
+          </p>
+          <p>
+            One consequence worth planning around: keep succeeding and the bar rises with you, so a
+            club you dragged up from mid-table will eventually expect to be there. Sustained decline
+            lowers it too, but slowly, over seasons rather than in one summer. Early in a save there
+            aren't enough recorded seasons to read yet, so the expectation starts from the squad
+            at the club and shifts onto results as they accumulate.
+          </p>
+          <p>
+            Trophies are counted on top, and so are promotion and relegation. Winning your division
+            is worth a lot. Going down is worth a lot in the other direction, but it isn't an
+            automatic sacking: if you'd spent years overachieving before it happened, the goodwill
+            you banked can carry you through. That's the point of a running balance rather than a
+            "two bad seasons and you're out" rule.
+          </p>
+          <h6>Not every board is as patient</h6>
+          <p>
+            Two things make a board harder to please. The first is <strong>how big a job it
+            is</strong>: a superclub's board treats winning as the baseline, so it gives you less
+            credit for a good season and charges you more for a bad one. The same finish that keeps
+            you comfortable at a small club can start costing you at a giant, and being the biggest
+            club in a strong league is the most demanding job of all.
+          </p>
+          <p>
+            The second is your save's <strong>difficulty</strong>. Easy boards are forgiving, Brutal
+            boards are not, with Normal and Hard in between. It's the one difficulty knob that has no
+            effect at all on the world around you &mdash; it changes how long you keep your job,
+            nothing else.
+          </p>
+          <p>
+            You always get a full season's grace at a new club before the board can sack you, so
+            inheriting a mess can't end your job before you've had a transfer window of your own.
+          </p>
+          <h6>Job offers</h6>
+          <p>
+            Beat expectations and clubs come calling in the offseason. Which clubs depends on your
+            reputation, which is built from the titles and cups you've won, how consistently you've
+            beaten what your squads were worth, and how long you've been at it &mdash; with a
+            sacking counting against you. While you're employed you'll only ever be offered jobs at
+            least as big as your current one, so the list is worth reading rather than noise.
+          </p>
+          <p>
+            Taking a job has real costs, and they're worth knowing before you click. Your current
+            squad goes straight to the AI. Your youth academy graduates onto that club's senior
+            roster on the way out, so those prospects are gone. Any transfer talks, incoming bids and
+            loan listings you had open are dropped. And you arrive at the new club knowing its
+            players' ratings but <em>not</em> their potential &mdash; scouting starts from scratch,
+            exactly as if you'd just signed all of them. The club keeps its own money, so you inherit
+            its budget and its wage bill, not your old club's.
+          </p>
+          <h6>Getting sacked</h6>
+          <p>
+            If confidence hits zero, you're out. You'll be shown a list of clubs still willing to
+            take you on, generally a rung below the one that just let you go, and you have to pick
+            one &mdash; there's no sitting a season out. The save carries on from there with your
+            record intact, sacking and all.
+          </p>
+          <p>
+            <strong>If you'd rather not play this way</strong>, there's a "Never sack me" switch on
+            the Manager page. Job offers still arrive, so you keep the ability to move clubs when you
+            want to; the board just can't move you.
+          </p>
+        </Section>
+
         <Section id="pages" title="The Pages">
           <p>Every screen in the game and what it's for:</p>
           <ul>
+            <li><strong>Manager</strong>. Your job: how the board feels about you, any clubs that want to hire you, and the record of every club you've managed. Also where the "never sack me" switch lives.</li>
             <li><strong>Dashboard</strong>. Your current W/D/L record and next fixture front and center, with your division's standings on the left and the latest news headlines on the right. Below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim controls.</li>
             <li><strong>Standings</strong>. The league table, plus each club's current OVR/POT. A season dropdown lets you pull up any past season&apos;s final table next to the current one. The champion&apos;s row is highlighted, and the <a href="#cup">Continental Cup</a> and <a href="#shield">Continental Shield</a> qualification places are shaded.</li>
             <li><strong>Continental Cup</strong>. The live league-phase table and knockout bracket for the current season, plus past winners via a season dropdown. More in <a href="#cup">The Continental Cup</a>.</li>
@@ -252,7 +341,7 @@ export function Manual() {
             <li><strong>Power Rankings</strong>. Every club in the world ranked by a blended Power score: squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column) plus a current-season form bonus or penalty. Form isn't just your record. Beating a strong side counts for more than beating a weak one (and losing to a weak side hurts more than losing to a strong one), and goal difference factors in too, so a club can rank above or below its raw OVR depending on how it's actually playing. Record, goal difference, OVR, and the blended Power score all sit side by side, with a badge showing each club's competition and its rank within it. Click a team to expand its full roster in place. The rankings also get snapshotted every 10 matchdays (plus once after the final matchday), so four times a season, and a dropdown lets you browse any past snapshot from any season, with arrows showing how far each club rose or fell since the last one. Snapshots taken before this cadence changed are kept, so an older save has a denser dropdown for its early seasons. Historical views can't expand rosters, since past squads aren't stored, and snapshots only start piling up from the point this feature shipped.</li>
             <li><strong>Schedule</strong>. Every matchday's fixtures and results. Click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong>. A Players tab (league-wide leaderboards for one season at a time: goals, assists, shots, shots on target, xG, tackles, interceptions, passes, crosses, fouls, yellow cards, red cards, saves, minutes, and average match rating, with a season dropdown covering the current season and every completed one) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown). Match rating is an average rather than a running total, so to keep a one-off cameo from topping the chart a player needs to have appeared in at least half of the games played so far before he shows up on the match-rating board (a threshold that scales as the season goes, so it works ten games in as well as at the end). A <strong>Totals / Per 90</strong> switch sits next to the stat dropdown: Per 90 divides each stat by the number of full matches the player's minutes add up to, which is how you find the squad player outproducing a starter rather than just the one who played most. Per-90 mode has a playing-time floor of its own &mdash; 30% of the minutes available so far, quoted above the table &mdash; because a rate is far easier to fluke than a total: score in a twelve-minute cameo and you've "scored" 7.5 per 90. It's counted in minutes rather than appearances, since twenty run-outs off the bench is exactly the case an appearance count would wave through. Appearances, minutes and match rating stay as totals either way (the first two are what the rate divides by, and a match rating is already an average). For career totals and all-time bests across every season at once, see <a href="#frivolities">Frivolities</a>' All-Time Leaders.</li>
-            <li><strong>Awards</strong>. Two tabs. World gives the Ballon d'Or for the best player in the world that season (with a top-10 shortlist and a breakdown of where his points came from) and a World Team of the Year pitch view. By league gives Player of the Season, the Golden Boot, and a Team of the Season pitch view for one competition. Both have a dropdown to browse past years.</li>
+            <li><strong>Awards</strong>. Two tabs. World gives the Ballon d'Or for the best player in the world that season (with a top-10 shortlist and a breakdown of where his points came from), a Goalkeeper and a Defender of the Year judged on the defensive work the Ballon d'Or can't see, and a World Team of the Year pitch view. By league gives Player of the Season, the Golden Boot, and a Team of the Season pitch view for one competition. Both have a dropdown to browse past years.</li>
             <li><strong>Club History</strong>. A per-club honours page (yours by default, with a dropdown for any club in the world): a trophy case (league titles, second-tier titles, Continental Cups, domestic cups, any trebles, promotions and relegations), individual honours won by the club's players (Player of the Season, Golden Boot, Team of the Season selections), franchise records (best finish, most points and wins in a season, all-time record), and a season-by-season table of every completed season (each season's note also shows how far the club got in that year's Continental Cup and domestic cup).</li>
             <li><strong>A club in one season</strong>. Click any club anywhere in the game &mdash; a table, a transfer, the club beside a season on a player's profile &mdash; and you land on what that club did that year: the squad, where it finished and its record, how far it got in the domestic cup, the Continental Cup and the Continental Shield, and where the Power Rankings had it at the end. A dropdown walks you through the club's other seasons. Two things to know about an old squad. It's who <em>finished</em> the season there, so a player sold in January shows up at his new club and not his old one. And players who retired long ago may be missing altogether, because the game only keeps a permanent career record for the ones worth remembering &mdash; the rest are gone for good. Retirees who are still on record show their appearances and the rating they played at, but not their goals and assists for that year, which aren't kept.</li>
             <li><strong>Frivolities</strong>. All-time lists that don't affect play: GOAT rankings for players and clubs, an awards record book (most Ballon d'Ors, World Team of the Year places, Players of the Season, Golden Boots and Team of the Season places, the highest-scoring individual seasons ever, and awards by club and country), all-time records (most dominant and worst team seasons, highest rating ever reached, longest careers, biggest transfer fees), All-Time Leaders (the top 10 in every stat at a glance, click through for the full board, career totals or best single seasons, world-wide and including retired players), an international record book (most caps, international goals and World Cups won, laid out the same way and filterable by country), player bios (oldest, youngest, where players come from, one-club men, name oddities), and club records (trophy cabinet, longest title droughts, biggest spenders and best traders). More in <a href="#frivolities">Frivolities</a>.</li>
@@ -268,7 +357,7 @@ export function Manual() {
             <li><strong>Academy</strong>. Your club's youth-academy holding pool: extend, release, or promote to the senior team.</li>
             <li><strong>Box Score</strong>. Per-match detail, in three parts. The scoreboard at the top names the competition and matchday and starts the Man of the Match, the highest-rated player among those who actually played. Under it, a head-to-head strip compares the two sides on possession, shots, shots on target, xG, corners and fouls. Then a full-width stat table per club (xG, passes completed/attempted, crosses and fouls, goals against and xG against on the goalkeeper's row, and a 0&ndash;10 match rating for everyone who appeared), grouped into attacking, keeping, defending, passing and discipline blocks. The play-by-play at the bottom runs down a timeline with one club on each side, showing goals, cards, substitutions, penalties and injuries by default; switch it to "Every event" to add every shot and corner too.</li>
             <li><strong>Leagues</strong>. Your saved leagues. Create, enter, or delete saves. Each one is fully independent. Every save is named after the club you took over, so the row also shows the season it's reached and when you started it, which is how you tell two saves of the same club apart.</li>
-            <li><strong>Player Profile</strong>. Click any player's name anywhere in the game (Roster, Stat Leaders, Awards, Transfers, News Feed) to open his full career page: every attribute rating, individual and team honors (Ballon d'Or, World Team of the Year, Player of the Season, Golden Boot, Team of the Season, league titles), the fullest season-by-season stat line in the game (goals, assists, goals+assists, shots, shots on target, shot accuracy, conversion rate, xG, goals over or under xG, passes, pass completion, crosses, tackles, interceptions, fouls, yellow and red cards, and average match rating), with a <strong>Career</strong> row underneath totaling the lot. Keepers get their own set instead &mdash; saves, save percentage, goals against, xG against, and goals prevented &mdash; and the shooting columns disappear for them, so nobody carries a row of columns that will only ever read zero (a keeper who has actually scored keeps them). Two of those columns are worth knowing what to do with. <strong>Goals over xG</strong> is the finishing read: xG doesn't care who's taking the shot, so a striker sitting well above his xG season after season really is finishing better than the chances he's getting, and one below it is missing chances an average forward would take. <strong>Goals prevented</strong> is the same idea for keepers, the other way round: xG against minus what he actually let in, so positive means he's saving shots that usually go in. The table carries the same Totals / Per 90 switch as Stat Leaders &mdash; on the Cup tab as well, but not on national-team stats, where caps are recorded without minutes and so have no per-90 reading. Percentages and match ratings stay put in Per 90 mode, since they're already rates. The Career row is worked out from the underlying totals rather than by averaging the seasons above it, so a big season counts for more than a six-game one in his career pass completion or match rating &mdash; full transfer history, a transfer-value-over-time chart, and a season-by-season OVR/POT/attribute history. The value chart plots what he's worth on the market against the seasons he's played, with the line colored by whichever club he was at and club crests marking transfers. Hover any season for a card with his value that year, his age, his OVR and POT, his goals and assists, his appearances, his average match rating, and the club he was at, where a youth-academy year reads as "Club (Academy)". A Value/OVR switch in the corner of the panel flips the same chart to his rating over time, which is worth a look on an older player: a veteran's OVR can sit flat for years while his value falls away underneath it, because the market is paying for the seasons he has left as much as for how good he is. His ratings only move in the offseason, so there's one real value per season and the line between them is just a smooth join, not extra readings. The value is worked out from the same numbers the market uses, which includes his potential &mdash; so if your scouts still only have a range on his POT, the chart is priced off that range rather than the real number, and it sharpens as they do.</li>
+            <li><strong>Player Profile</strong>. Click any player's name anywhere in the game (Roster, Stat Leaders, Awards, Transfers, News Feed) to open his full career page: every attribute rating, individual and team honors (Ballon d'Or, World Team of the Year, Goalkeeper of the Year, Defender of the Year, Player of the Season, Golden Boot, Team of the Season, league titles), the fullest season-by-season stat line in the game (goals, assists, goals+assists, shots, shots on target, shot accuracy, conversion rate, xG, goals over or under xG, passes, pass completion, crosses, tackles, interceptions, fouls, yellow and red cards, and average match rating), with a <strong>Career</strong> row underneath totaling the lot. Keepers get their own set instead &mdash; saves, save percentage, goals against, xG against, and goals prevented &mdash; and the shooting columns disappear for them, so nobody carries a row of columns that will only ever read zero (a keeper who has actually scored keeps them). Two of those columns are worth knowing what to do with. <strong>Goals over xG</strong> is the finishing read: xG doesn't care who's taking the shot, so a striker sitting well above his xG season after season really is finishing better than the chances he's getting, and one below it is missing chances an average forward would take. <strong>Goals prevented</strong> is the same idea for keepers, the other way round: xG against minus what he actually let in, so positive means he's saving shots that usually go in. The table carries the same Totals / Per 90 switch as Stat Leaders &mdash; on the Cup tab as well, but not on national-team stats, where caps are recorded without minutes and so have no per-90 reading. Percentages and match ratings stay put in Per 90 mode, since they're already rates. The Career row is worked out from the underlying totals rather than by averaging the seasons above it, so a big season counts for more than a six-game one in his career pass completion or match rating &mdash; full transfer history, a transfer-value-over-time chart, and a season-by-season OVR/POT/attribute history. The value chart plots what he's worth on the market against the seasons he's played, with the line colored by whichever club he was at and club crests marking transfers. Hover any season for a card with his value that year, his age, his OVR and POT, his goals and assists, his appearances, his average match rating, and the club he was at, where a youth-academy year reads as "Club (Academy)". A Value/OVR switch in the corner of the panel flips the same chart to his rating over time, which is worth a look on an older player: a veteran's OVR can sit flat for years while his value falls away underneath it, because the market is paying for the seasons he has left as much as for how good he is. His ratings only move in the offseason, so there's one real value per season and the line between them is just a smooth join, not extra readings. The value is worked out from the same numbers the market uses, which includes his potential &mdash; so if your scouts still only have a range on his POT, the chart is priced off that range rather than the real number, and it sharpens as they do.</li>
           </ul>
         </Section>
 
@@ -406,9 +495,9 @@ export function Manual() {
             his own country.
           </p>
           <p>
-            Promotion and relegation (3 up, 3 down) runs on its own within each country at the end
-            of every season, so a rough season in Spain's top flight doesn't touch any other
-            country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
+            Promotion and relegation (3 up, 3 down in every country the game ships) runs on its
+            own within each country at the end of every season, so a rough season in Spain's top
+            flight doesn't touch any other country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
             grouped by country, so you can browse any of the 16 leagues. It defaults to
             whichever one your own club is currently in.
           </p>
@@ -420,10 +509,13 @@ export function Manual() {
             the game ships no real clubs.
           </p>
           <p>
-            You also choose its <strong>shape</strong>: one division or two, and how many clubs are
-            in each. Two divisions is the default and works like every shipped country, with 3 up
-            and 3 down between them. One division means exactly that, and nothing is promoted or
-            relegated there at all. Divisions run from 8 to 20 clubs, in even numbers, because the
+            You also choose its <strong>shape</strong>: one division or two, how many clubs are in
+            each, and how many go up and down between them. Two divisions is the default and works
+            like every shipped country, three up and three down, but that number is yours to set:
+            anything from none at all up to six, capped at half the division so promoting six out
+            of eight clubs isn't on offer. Pick <strong>None</strong> and the two divisions are
+            sealed off from each other, so winning the second one keeps you in it. One division
+            means exactly that, and nothing is promoted or relegated there at all. Divisions run from 8 to 20 clubs, in even numbers, because the
             fixture list pairs clubs off each round and the season is a fixed 38-matchday calendar
             that a 20-club double round robin already fills exactly. A smaller division plays fewer
             games, spread across the same season with blank matchdays in between, so its run-in
@@ -431,7 +523,7 @@ export function Manual() {
             for it. Three divisions isn't offered.
           </p>
           <p>
-            Each league you add carries three more settings. <strong>Strength</strong> runs 0 to
+            Each league you add carries more settings. <strong>Strength</strong> runs 0 to
             20 and higher is stronger, with <strong>20</strong> level with England, Spain, Italy
             and Germany. Each point below that costs a league about 1 OVR across its squads, so at{" "}
             <strong>15</strong> (where France sits) its champion is about as good as England's
@@ -713,9 +805,20 @@ export function Manual() {
             extra time go to a shootout, exactly like the Continental Cup.
           </p>
           <p>
+            How many go through from any one qualifying group isn't fixed. Every group winner
+            qualifies, and then the runners-up from all of that confederation's groups are ranked
+            against each other for whatever places are left, so a strong runner-up can go through
+            while a weaker one in the next group misses out. Both the confederation's share of the
+            32 places and the groups it plays in are settled the moment the campaign is drawn, three
+            offseasons before the last round is played, so the Qualifying page tells you what each
+            confederation is playing for from the start. In the tables, a solid bar down the left
+            marks a place that qualifies outright and a fainter one marks a place that's in the
+            running for whatever's left.
+          </p>
+          <p>
             A 32-nation field is most of the nations that can field a squad at all, so several
-            confederations now send everyone they have and play no qualifying matches — you'll see
-            that on the Qualifying page, where South America, Asia and North America have no groups.
+            confederations now send everyone they have and play no qualifying matches. They're still
+            listed on the Qualifying page, with a line saying everyone's through instead of a table.
             The contest is in Europe and Africa, where there are more nations than places. If you'd
             rather qualifying meant more everywhere, the fix is a deeper world: more countries with
             leagues means more nations with enough players to enter.
@@ -797,6 +900,15 @@ export function Manual() {
             <li><strong>80&ndash;85</strong>. A league-wide elite player.</li>
             <li><strong>90+</strong>. A rare, generational outlier.</li>
           </ul>
+          <p>
+            <strong>An OVR means the same thing wherever a player plays.</strong> The weights are
+            different for every position, but the scale they land on isn't: a 78 full back is exactly
+            as rare as a 78 striker, and every position has the same shot at producing your club's
+            best player. That's worth saying out loud because it used to be false. A position whose
+            rating leaned hardest on the handful of skills it's generated best at read several points
+            high, so strikers and keepers filled the top of every list and full backs and central
+            midfielders almost never did.
+          </p>
           <p>
             <strong>Potential is a scout's guess, not a promise.</strong> The game simulates a
             player's future career a bunch of times and reports the 75th percentile of those peaks,
@@ -1029,6 +1141,75 @@ export function Manual() {
             out by rule, only by the correction. The Continental Cup is the exception that needs no
             correcting &mdash; everyone in it is measured against the same pooled field, which is why
             it carries the weight it does.
+          </p>
+          <p>
+            <strong>Your league title and your domestic cup are worth more if you win them in a
+            strong league.</strong> Every country crowns a champion regardless of how good its
+            football is, so a title in Belgium and a title in England used to be worth exactly the
+            same to a world award, which is plainly wrong. Both are now scaled by how far your
+            league sits above or below the world's average standard: in the shipped world that's
+            roughly a 1.45x gap between the strongest top flight and the weakest. Winning a weaker
+            league is still worth real points, never a penalty &mdash; and a second-division club
+            that wins its domestic cup still gets credit, just heavily reduced. The Continental Cup
+            and international football take no such scaling, because they're contested between
+            countries already, so winning them is equally hard whoever you are.
+          </p>
+          <p>
+            <strong>Goalkeeper of the Year and Defender of the Year.</strong> Two more worldwide
+            awards on the same World tab, each with a five-man shortlist. They exist because the
+            Ballon d'Or can't really be won by a keeper or a defender, and that isn't a bug to be
+            fixed so much as what that award is: it's scored on goals, assists and match rating, and
+            no amount of clean sheets shows up in any of those. The real one has gone to one
+            defender in sixty years, which is why the actual ceremony hands out a separate keeper's
+            trophy instead of pretending otherwise.
+          </p>
+          <p>
+            So these two are judged on the things the Ballon d'Or ignores. The keeper's award counts
+            saves and holds goals conceded against him; the defender's counts tackles and
+            interceptions and goals conceded, and is open to centre-backs and full-backs. On top of
+            that come the same worldwide extras the Ballon d'Or uses: the league-strength
+            correction, your Continental Cup run, your summer with your country, your league title,
+            your domestic cup.
+          </p>
+          <p>
+            Those extras count for three times as much here as they do in the Ballon d'Or, and
+            there's a reason for the difference. Tackles, interceptions and saves are counted up
+            over a season and they get big, so a defender's raw defensive work can reach half his
+            score and leave everything else as rounding. A league title was worth under 4% of a
+            defender's total. Tripling the rest puts trophies back roughly where they sit in the
+            Ballon d'Or: about a fifth of a defender's winning score now comes from outside his
+            league, against a sixth for a Ballon d'Or winner.
+          </p>
+          <p>
+            It has a second effect that's worth knowing about, because it's the reason the defender
+            award stopped drifting to weak leagues. Two of those extras &mdash; the Continental Cup
+            and your summer with your country &mdash; are the only parts of the whole calculation
+            that put players from different leagues against each other directly, and a club from a
+            weak league rarely goes deep in the cup. Turning them up pulls the award towards the
+            stronger leagues on its own. Your league title and your domestic cup don't help with
+            that at all, since every league crowns a champion regardless of how good it is.
+          </p>
+          <p>
+            The World Team of the Year is scored the same way, trophies and all, because it's built
+            on the same numbers and had the same problem. So the three agree with each other: the
+            Goalkeeper of the Year is the keeper in that XI, and the Defender of the Year is in its
+            back four. The Ballon d'Or is the one that stands apart, since it's scored on goals and
+            assists rather than on defending, and it keeps its own trophy weighting.
+          </p>
+          <p>
+            One thing worth knowing about how the defender's award reads. Tackles and interceptions
+            are counted up raw over a season rather than as rates, and they vary a lot from one
+            defender to the next. A defender who spends every week under siege makes more of both
+            than an equally good one at a club that controls its games, so the award favours
+            defenders with plenty of defending to do, and centre-backs take it more often than
+            full-backs. It's the same measure the World Team of the Year has always picked its back
+            four with.
+          </p>
+          <p>
+            Both awards show up as honours on a player's profile, in a club's history, and on the
+            Frivolities award boards, and they count towards the GOAT ranking. Seasons you played
+            before this update don't have them: awards are written down when they're won and never
+            recalculated, so an old save picks these up from its next completed season onward.
           </p>
           <p>
             <strong>xG (expected goals).</strong> Every shot's chance of going in before you know
@@ -1577,17 +1758,21 @@ export function Manual() {
             of, so winning all three in one season counts for much more than winning them in
             different years. Selecting a row expands it into the full calculation: every award,
             trophy and stat that contributed, how many of each, and what one is worth. Retired
-            players are ranked alongside active ones. Known limitation: the player ranking favours
-            attackers, because it builds on the Ballon d'Or and Player of the Season scores, which
-            are based on scoring and contain no defensive stats. The Team of the Season and World
-            Team of the Year terms partly offset this, since those awards fill specific positions,
-            but they do not correct it fully. The formula is a first draft.
+            players are ranked alongside active ones. Known limitation: the player ranking still
+            favours attackers, because it builds on the Ballon d'Or and Player of the Season scores,
+            which are based on scoring and contain no defensive stats. Three things offset it &mdash;
+            the Team of the Season and World Team of the Year terms, which fill specific positions,
+            and the Goalkeeper and Defender of the Year awards, which are the first honours on this
+            board a keeper or a centre-back can win outright rather than take a slot in. It's not a
+            full correction and isn't meant to be: a forward can win the Ballon d'Or on top of
+            everything a defender can win, so the ceiling is still higher for attackers. The formula
+            is a first draft.
           </p>
           <p>
             <strong>Awards</strong> collects every individual honour the game has handed out. The
-            career board counts Ballon d'Ors, World Team of the Year places, Players of the Season,
-            Golden Boots and Team of the Season places, and you can rank it by any one of them or
-            by the lot. Below it, single seasons are ranked by the Ballon d'Or score they earned,
+            career board counts Ballon d'Ors, World Team of the Year places, Goalkeeper and
+            Defender of the Year awards, Players of the Season, Golden Boots and Team of the Season
+            places, and you can rank it by any one of them or by the lot. Below it, single seasons are ranked by the Ballon d'Or score they earned,
             which answers which individual season your save has ever seen was the best one;
             selecting a row breaks that score into what he did in his league, in the Continental
             Cup, with his country, and whether he won his title. The Ballon d'Or record board goes

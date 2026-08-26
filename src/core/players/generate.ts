@@ -8,7 +8,7 @@ import { estimatePotential } from "./progression.js";
 import { gaussian, hashInts, mulberry32 } from "../../engine/rng.js";
 import {
   TIER_OFFSET, RATING_NOISE_SD, ABS_LOW_MIN, ABS_LOW_MAX,
-  RATING_MIN, RATING_MAX,
+  RATING_MIN, RATING_MAX, POSITION_RATING_SPREAD,
 } from "../constants.js";
 import { seasonSalaryForOvr } from "../contracts.js";
 import { emptyCareerSummary } from "./careerSummary.js";
@@ -16,12 +16,22 @@ import { emptyCareerSummary } from "./careerSummary.js";
 const clampRating = (x: number): number =>
   Math.round(Math.max(RATING_MIN, Math.min(RATING_MAX, x)));
 
-function rollRating(rng: () => number, tier: Tier, base: number): number {
+/**
+ * One rating draw. `spread` is the position's RATING_NOISE_SD multiplier
+ * (POSITION_RATING_SPREAD), which equalizes how much OVR varies within a
+ * position — see that constant. It scales the draw, never the draw COUNT, so
+ * the shared rng stream advances identically either way.
+ *
+ * Position-exclusive stats are exempt: an ABS draw is a flat low roll that
+ * carries no weight in any OVR row, so scaling it would move nothing but the
+ * cosmetic value of a striker's goalkeeping.
+ */
+function rollRating(rng: () => number, tier: Tier, base: number, spread: number): number {
   if (tier === "ABS") {
     return clampRating(ABS_LOW_MIN + rng() * (ABS_LOW_MAX - ABS_LOW_MIN));
   }
   const offset = TIER_OFFSET[tier];
-  return clampRating(base + offset + gaussian(rng) * RATING_NOISE_SD);
+  return clampRating(base + offset + gaussian(rng) * RATING_NOISE_SD * spread);
 }
 
 export function generatePlayer(
@@ -35,9 +45,10 @@ export function generatePlayer(
   homeCountry?: string,
 ): Player {
   const tiers = GEN_OFFSETS[pos];
+  const spread = POSITION_RATING_SPREAD[pos];
   const ratings = {} as PlayerRatings;
   for (const key of SKILL_KEYS as readonly SkillKey[]) {
-    ratings[key] = rollRating(rng, tiers[key], base);
+    ratings[key] = rollRating(rng, tiers[key], base, spread);
   }
 
   const [loH, hiH] = HEIGHT_RANGES[pos];

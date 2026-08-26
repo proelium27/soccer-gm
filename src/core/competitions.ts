@@ -13,7 +13,7 @@ import {
   COUNTRY_STRENGTH_OFFSET, COUNTRY_BUDGET_SCALE, LEAGUE_BASE, DIVISION_2_OFFSET,
   CUP_STRONG_LEAGUE_SLOTS, CUP_WEAK_LEAGUE_SLOTS, CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS,
   SHIELD_STRONG_LEAGUE_SLOTS, SHIELD_WEAK_LEAGUE_SLOTS, largestValidCupField,
-  NUM_TEAMS, NUM_TEAMS_D2,
+  NUM_TEAMS, NUM_TEAMS_D2, PROMOTION_RELEGATION_COUNT,
 } from "./constants.js";
 
 export interface Competition {
@@ -79,6 +79,20 @@ export interface Competition {
    */
   teamCount?: number;
   /**
+   * How many clubs swap with the division below (or above) at the end of each
+   * season. Absent → PROMOTION_RELEGATION_COUNT, which is what every shipped
+   * country plays and what a save made before the knob existed keeps.
+   *
+   * Written to BOTH divisions of a country, because buildCompetitions builds
+   * the pair from one spec and they cannot drift; either one answers the
+   * question. Meaningless on a one-division country, which has no partner to
+   * swap with — tier1Pairs drops it before this is ever read.
+   *
+   * Resolve through competitionPromotionSpots, never the field: it also holds
+   * the number inside what the divisions can supply.
+   */
+  promotionSpots?: number;
+  /**
    * Three-letter code for the country, used wherever a flag would go and there
    * is no flag to draw. The game ships flag art keyed by country name, so a
    * country the player invented has none and would otherwise render an empty
@@ -122,6 +136,27 @@ export function competitionAbbrev(comp: Competition): string {
 /** How many clubs play in this division. See Competition.teamCount. */
 export function competitionTeamCount(comp: Competition): number {
   return comp.teamCount ?? (comp.tier === 1 ? NUM_TEAMS : NUM_TEAMS_D2);
+}
+
+/**
+ * How many clubs this league promotes and relegates each season, held to
+ * something both divisions can supply.
+ *
+ * The clamp is load-bearing rather than defensive: divisions can be different
+ * sizes (see teamCount), so a 6-up-6-down setting on a league whose second tier
+ * holds 8 clubs would swap most of it, and asking for more clubs than a division
+ * holds would trade the two divisions wholesale. Takes the partner's size
+ * because the swap needs both ends of it.
+ */
+export function competitionPromotionSpots(comp: Competition, partner: Competition | null): number {
+  if (!partner) return 0;
+  const want = comp.promotionSpots ?? partner.promotionSpots ?? PROMOTION_RELEGATION_COUNT;
+  // A non-finite value would survive the clamp as NaN, which `slice(-NaN)` then
+  // reads as slicing the whole table. Treat it as no swap rather than every swap.
+  if (!Number.isFinite(want)) return 0;
+  return Math.max(0, Math.min(
+    Math.floor(want), competitionTeamCount(comp), competitionTeamCount(partner),
+  ));
 }
 
 /** This league's money multiplier, before the tier scale. See Competition.budgetScale. */
@@ -214,6 +249,12 @@ export interface LeagueSpec {
   /** Places sent to the Continental Cup / Shield. Absent → the format default. */
   cupSlots?: number;
   shieldSlots?: number;
+  /**
+   * Clubs promoted and relegated between the two divisions each season. Absent
+   * → PROMOTION_RELEGATION_COUNT, which is what the shipped countries play.
+   * Ignored by a one-division league, which has nothing to swap with.
+   */
+  promotionSpots?: number;
 }
 
 /** Drop keys whose value is undefined, so an untouched knob stays *absent*. */
@@ -236,6 +277,7 @@ export function buildCompetitions(specs: LeagueSpec[]): Competition[] {
       strengthOffset: spec.strengthOffset,
       academyOffset: spec.academyOffset,
       budgetScale: spec.budgetScale,
+      promotionSpots: spec.promotionSpots,
       continentalSlots: Object.keys(slots).length > 0 ? slots : undefined,
     });
     out.push({

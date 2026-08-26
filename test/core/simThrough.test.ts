@@ -11,6 +11,7 @@ import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { ScheduleGame } from "../../src/core/schedule.js";
 import type { StoredTeam } from "../../src/core/teams/clubs.js";
 import { englandCompetitions } from "../../src/core/competitions.js";
+import { emptyManagerState } from "../../src/core/manager/types.js";
 
 /** Build a LeagueStore fixture from a generated league + double round robin. */
 function makeLeagueStore(seed: number): LeagueStore {
@@ -82,6 +83,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     powerRankingHistory: [],
     godMode: false,
     difficulty: "normal",
+    manager: emptyManagerState(0, 1),
   };
 }
 

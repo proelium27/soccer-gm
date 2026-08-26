@@ -8,6 +8,7 @@ import {
 import {
   buildCompetitions, countriesOf, worldCompetitions, competitionStrengthOffset,
 } from "../../src/core/competitions.js";
+import { PROMOTION_RELEGATION_COUNT } from "../../src/core/constants.js";
 import type { RosterFile } from "../../src/core/teams/rosterFile.js";
 import { ROSTER_FILE_FORMAT } from "../../src/core/teams/rosterFile.js";
 
@@ -80,6 +81,44 @@ describe("WorldSetup renders", () => {
     expect(html).toContain("Continental Cup places");
     expect(html).toContain("Continental Shield places");
     expect(html).toContain("9 leagues, 360 clubs");
+  });
+
+  it("offers the up-and-down picker on an added league only", () => {
+    const html = render(withAddedLeague());
+    // One picker, on the one added league: the shipped countries aren't
+    // editable, so they don't get one.
+    expect(html.match(/Clubs promoted and relegated each season/g)).toHaveLength(1);
+    expect(render(defaultWorldEntries()))
+      .not.toContain("Clubs promoted and relegated each season");
+  });
+
+  it("starts the picker at the count every shipped country plays", () => {
+    const html = render(withAddedLeague());
+    expect(html).toContain(`<option value="${PROMOTION_RELEGATION_COUNT}" selected="">`);
+    expect(html).toContain("3 up, 3 down");
+    expect(html).toContain("None");
+  });
+
+  it("caps the picker at half the league's own divisions", () => {
+    const entries = withAddedLeague();
+    const last = entries.length - 1;
+    entries[last] = {
+      ...entries[last],
+      spec: { ...entries[last].spec, d1Teams: 8, d2Teams: 8, promotionSpots: 6 },
+    };
+    const html = render(entries);
+    expect(html).toContain("4 up, 4 down");
+    expect(html).not.toContain("5 up, 5 down");
+    // A count the divisions can no longer carry shows as the one they can, so
+    // the picker never reads back a number the world wouldn't build.
+    expect(html).toContain('<option value="4" selected="">');
+  });
+
+  it("hides the picker on a one-division league, which has nothing to swap with", () => {
+    const entries = withAddedLeague();
+    const last = entries.length - 1;
+    entries[last] = { ...entries[last], spec: { ...entries[last].spec, divisions: 1 } };
+    expect(render(entries)).not.toContain("Clubs promoted and relegated each season");
   });
 
   it("renders the warning when money and strength disagree", () => {

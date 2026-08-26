@@ -43,6 +43,13 @@
   --sg-green-deep: oklch(0.335 0.055 155);   /* top bar band */
   --sg-green-deep-2: oklch(0.275 0.05 155);  /* sidebar surface */
   --sg-green-wash: oklch(0.68 0.14 152 / 0.14);
+  /* The same green at reduced strength, for a qualification place that is
+     contested rather than settled. 0.6 is the lowest alpha that still clears
+     3:1 against the page (measured: 3.23), the WCAG floor for a graphic that
+     carries meaning; 0.45 looked right and came in at 2.29. It stays a clear
+     step below the solid bar (2.19 between the two), which is the distinction
+     it exists to draw. */
+  --sg-green-faint: oklch(0.68 0.14 152 / 0.6);
   /* Ink laid over bright green fills (buttons) for AA contrast. */
   --sg-on-green: oklch(0.18 0.03 155);
 
@@ -397,6 +404,18 @@ a:hover {
 .qual-bar-shield {
   background: var(--sg-shield);
 }
+/* Qualifying zones on the National Teams pages. A place whose occupant is
+   certain to go through takes the same green as .row-selected; a place
+   competing with the other groups' for a shared pool takes the same green
+   faded, because it means the same thing less certainly. A second hue would
+   have said "a different competition" instead, which is what --sg-cup and
+   --sg-shield above are for. */
+.qual-bar-through {
+  background: var(--sg-green);
+}
+.qual-bar-contending {
+  background: var(--sg-green-faint);
+}
 /* In the legend the same bar has no row to hang off, so it needs its own box. */
 .qual-key-swatch {
   position: static;
@@ -438,6 +457,63 @@ a:hover {
   box-shadow: inset 0 0 0 9999px var(--sg-loss-wash);
 }
 
+/* Rows that are "in": a nation through from its group, a player in the eleven
+   his country would field. Same inset box-shadow as the highlights above (a
+   per-cell background-color leaves a seam at every column boundary) plus the
+   leading edge bar the standings already use for a qualification zone, so
+   "this row goes through" reads the same everywhere in the app.
+
+   This exists because Bootstrap's .table-success does not survive the theme.
+   It compiles to a fixed light-mode mint (#d1e7dd) with #000 text and ignores
+   the tokens entirely, so on these dark pages it painted a glaring pale-lime
+   block and dropped every link inside it to roughly 2:1 contrast. Don't reach
+   for the contextual .table-* classes here; none of them are themed.
+
+   The edge bar carries the meaning without color (it survives grayscale and
+   color-vision deficiency), which the wash on its own would not. */
+.row-selected > td {
+  box-shadow: inset 0 0 0 9999px var(--sg-green-wash);
+}
+/* Qualifying zones: a finishing place that goes through, and one still being
+   contested across a confederation's groups. The bar alone, no wash, which is
+   the same call the standings' .qual-bar makes and for the same reason: a zone
+   can be three rows of five, and washing that much of a table marks nothing.
+   The wash stays on .row-selected, where it says "this nation is in" about a
+   settled qualifier rather than about a place. */
+.row-through > td:first-child {
+  box-shadow: inset 2px 0 0 var(--sg-green);
+}
+.row-contending > td:first-child {
+  box-shadow: inset 2px 0 0 var(--sg-green-faint);
+}
+.row-selected > td:first-child {
+  /* No padding bump, unlike .team-highlight above. That rule buys room for a
+     club colour swatch and can afford to, because the standings table it runs
+     in has one marked row. Here a third of the rows are marked, so shifting
+     only those indents them out of line with their neighbours and the table
+     reads as broken. The bar lives inside the cell's existing left padding
+     instead, the same place .qual-bar sits. */
+  box-shadow: inset 0 0 0 9999px var(--sg-green-wash), inset 2px 0 0 var(--sg-green);
+}
+
+/* =========================================================================
+   List-group pickers — the nation list on National Teams > Rosters, the club
+   picker on New League.
+   ========================================================================= */
+/* Bootstrap's stock .active fill is #0d6efd, the Bootstrap-default blue this
+   system exists to get away from, and a hue the app otherwise reserves for
+   "your club". A picked row is an active state, so it takes the same pitch
+   green and leading edge marker as the sidebar's active nav link. */
+.list-group-item.active {
+  background-color: var(--sg-green-wash);
+  border-color: var(--sg-border);
+  color: var(--sg-green-bright);
+  font-weight: var(--sg-weight-semibold);
+  /* An inset shadow rather than a border-left: a real border would widen the
+     row and shift its text by 2px on selection. */
+  box-shadow: inset 2px 0 0 var(--sg-green);
+}
+
 /* =========================================================================
    Cards & surfaces — flat, tonal, no drop shadow by default.
    ========================================================================= */
@@ -470,6 +546,20 @@ a:hover {
   --bs-btn-disabled-border-color: var(--sg-green);
   --bs-btn-disabled-color: var(--sg-on-green);
   font-weight: var(--sg-weight-semibold);
+}
+/* Segmented toggles (National Teams > Stat Leaders) are the only user of this,
+   and untouched it renders in stock Bootstrap #0d6efd — both the resting
+   outline and the .active fill. Themed to match .btn-outline-success below,
+   so a picked segment reads as the app's active green. */
+.btn-outline-primary {
+  --bs-btn-color: var(--sg-green-bright);
+  --bs-btn-border-color: oklch(0.68 0.14 152 / 0.55);
+  --bs-btn-hover-bg: var(--sg-green-wash);
+  --bs-btn-hover-border-color: var(--sg-green);
+  --bs-btn-hover-color: var(--sg-green-bright);
+  --bs-btn-active-bg: var(--sg-green);
+  --bs-btn-active-border-color: var(--sg-green);
+  --bs-btn-active-color: var(--sg-on-green);
 }
 .btn-success {
   --bs-btn-bg: var(--sg-win);
@@ -879,6 +969,27 @@ a:hover {
   height: 1.3em;
   width: auto;
   vertical-align: middle;
+}
+
+/* Nations already through to the tournament, on the Qualifying page. Same pill
+   shape as the honours above, one size down because these render in bulk, and
+   tinted with the pitch green so "qualified" reads as a result rather than a
+   label. Not Bootstrap's .text-bg-success: that paints from --bs-success-rgb,
+   which the theme never redefines, so it ships stock Bootstrap green whatever
+   the tokens say. */
+.qualified-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: var(--sg-green-wash);
+  border: 1px solid var(--sg-green);
+  color: var(--sg-text);
+  font-size: var(--sg-text-sm);
+  font-weight: var(--sg-weight-medium);
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
 /* =========================================================================

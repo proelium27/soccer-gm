@@ -5,7 +5,7 @@ season with real clubs and real players instead of the generated fictional
 world.
 
 Nothing here ships. The converter is a dev script, the CSV and the roster file
-it produces are gitignored, and the game continues to ship its own 240
+it produces are gitignored, and the game continues to ship its own 320
 fictional clubs — real names and ratings are a local overlay you bring
 yourself, loaded through the roster import that already exists on the Leagues
 page.

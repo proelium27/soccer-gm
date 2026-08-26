@@ -15,8 +15,14 @@ npm run dev -- --port 5199 --strictPort   # pick an uncommon port; background it
 curl -s -o /dev/null -w "%{http_code}" http://localhost:5199/   # 200 = up
 ```
 
-Drive it with the claude-in-chrome tools. No login, no backend. A fresh port =
-a blank IndexedDB origin with no leagues (useful for clean-state runs).
+No login, no backend. A fresh port = a blank IndexedDB origin with no leagues
+(useful for clean-state runs).
+
+**Browser tooling:** prefer the **Chrome DevTools MCP** tools (per the user's
+2026-08-19 call; never the Playwright MCP ones). The gotchas below were written
+against claude-in-chrome and its tool names — the *behaviours* they describe are
+real either way, so read `javascript_tool` as "evaluate a script in the page"
+and `left_click_drag` as "the built-in drag helper".
 
 ## Gotchas
 
@@ -33,9 +39,10 @@ a blank IndexedDB origin with no leagues (useful for clean-state runs).
 - Element-ref clicks sometimes report success without dispatching (button state
   never changes). If nothing happened, re-click by coordinate or call
   `button.click()` from `javascript_tool`, then confirm via a DOM read.
-- League creation takes a few seconds (generates ~500 players synchronously);
-  the sim overlay auto-closes when its animation ends — wait ~5-8s after "Sim
-  One Game" before asserting. Sim-to-end-of-season takes ~15-20s; afterwards
+- League creation takes several seconds — it generates the **whole world**
+  synchronously (16 competitions / 320 clubs / thousands of players), not just
+  your league. The sim overlay auto-closes when its animation ends — wait ~5-8s
+  after "Sim One Game" before asserting. Sim-to-end-of-season takes ~15-20s; afterwards
   the Dashboard shows an "Advance to Season N+1" button (offseason phase).
 - The roster fills to 30/30 after the first offseason (youth intake), which
   disables transfer Offer buttons until you Release someone on the Roster page.
@@ -50,8 +57,9 @@ a blank IndexedDB origin with no leagues (useful for clean-state runs).
 `/dashboard` (sim buttons, budget, wage bill, scouting slider), `/roster`
 (release/extend/drag-swap; header shows "x/30"), `/transfers`, `/finance`
 (offseason cash flow, wage table, transfer history, league finances),
-`/incoming-talent` (free agents), `/schedule` → played rows link to
-`/box-score/<i>`, `/leagues`.
+`/incoming-talent` (youth prospects) and `/free-agents` (older free agents —
+two different pages), `/schedule` → played rows link to `/box-score/<i>`,
+`/leagues`.
 
 ## Fast assertions
 

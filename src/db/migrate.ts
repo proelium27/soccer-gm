@@ -14,8 +14,11 @@ import { chargeSeasonStart, wageBill, financeScale } from "../core/finance/budge
 import { englandCompetitions } from "../core/competitions.js";
 import { cullOnLoad } from "../core/players/freeAgentCull.js";
 import { summaryOf, ovrLookup } from "../core/players/careerSummary.js";
+import { computeOvr } from "../core/players/ovr.js";
 import { archiveCup } from "../core/cup/archive.js";
 import { archiveDomesticCup } from "../core/domesticCup/archive.js";
+import { cupRunSummary } from "../core/cup/cup.js";
+import type { ManagerState } from "../core/manager/types.js";
 import type { IntlStage } from "../core/international/index.js";
 
 /**
@@ -78,8 +81,8 @@ function fallbackAcademyBase(tid: number): number {
 
 /** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking / cards. */
 type SeasonStatsAnyVersion =
@@ -176,8 +179,58 @@ function peakFromHist(p: Player): { peakOvr: number; peakOvrSeason?: number } {
  * minutes/rating defaults below).
  */
 function migratePlayer(p: Player, fallbackTid: number, currentSeason: number): Player {
+  // OVR is re-derived from stored ratings, not carried over (position-OVR
+  // balance, 2026-08-23). It has to be: progression recomputes `ovr` from
+  // scratch each offseason, so an old save left alone would show its full backs
+  // and central midfielders jump a few points at the next rollover with no
+  // explanation. Doing it at load makes the change arrive with the change.
+  //
+  // Exact, not a guess — the ratings the number is computed from are all stored,
+  // and every past snapshot carries its own. Potential is clamped up to it
+  // because potential is a scout's estimate of a PEAK and so can never sit below
+  // the rating a player already holds; a position whose OVR rose could otherwise
+  // land above its own stored estimate.
+  //
+  // What this can NOT do is re-roll how much a position's players vary
+  // (POSITION_RATING_SPREAD applies at generation), so an old save keeps its
+  // original spread and only new leagues get that half.
+  const ovr = computeOvr(p.pos, p.ratings, p.heightCm);
+  const hist = (p.hist as (RatingsSnapshot & { academy?: boolean; pos?: Position })[]).map((h) => {
+    const pos = h.pos ?? p.pos;
+    const histOvr = computeOvr(pos, h.ratings, p.heightCm);
+    return {
+      ...h,
+      // Pre-academy-tracking saves have no per-season academy flag on their
+      // rating snapshots; there's no way to reconstruct which past seasons a
+      // player spent in the academy, so they default to senior (false) and only
+      // future seasons record the real value.
+      academy: h.academy ?? false,
+      // Pre-position-change saves stamp no position on a rating snapshot. The
+      // backfill is exact rather than a guess: nothing could change a player's
+      // position before that feature existed, so every past snapshot was taken
+      // at the position he still holds. (Contrast the academy flag above, which
+      // genuinely can't be reconstructed.)
+      pos,
+      // Re-derived on the same rule as the live rating above, so a career OVR
+      // chart reads as one continuous scale instead of stepping at the season
+      // this shipped.
+      ovr: histOvr,
+      potential: Math.max(h.potential, histOvr),
+    };
+  });
+
+  // Peak and the career summary are derived from the RE-DERIVED ratings above,
+  // never from the stored ones. Both are stored from here on and are then
+  // treated as authoritative (`careerPeakOvr`, `peakOf`, every all-time board),
+  // so seeding them from numbers this same function has just replaced would
+  // freeze a stale peak into the save permanently.
+  const rederived: Player = { ...p, ovr, hist };
+  const peak = peakFromHist(rederived);
+
   return {
     ...p,
+    ovr,
+    potential: Math.max(p.potential, ovr),
     stats: (p.stats as SeasonStatsAnyVersion[]).map((s) => ({
       ...s,
       tid: s.tid ?? fallbackTid,
@@ -200,20 +253,7 @@ function migratePlayer(p: Player, fallbackTid: number, currentSeason: number): P
       yellowCards: s.yellowCards ?? 0,
       redCards: s.redCards ?? 0,
     })),
-    // Pre-academy-tracking saves have no per-season academy flag on their
-    // rating snapshots; there's no way to reconstruct which past seasons a
-    // player spent in the academy, so they default to senior (false) and only
-    // future seasons record the real value.
-    // Pre-position-change saves stamp no position on a rating snapshot. The
-    // backfill is exact rather than a guess: nothing could change a player's
-    // position before that feature existed, so every past snapshot was taken at
-    // the position he still holds. (Contrast the academy flag above, which
-    // genuinely can't be reconstructed.)
-    hist: (p.hist as (RatingsSnapshot & { academy?: boolean; pos?: Position })[]).map((h) => ({
-      ...h,
-      academy: h.academy ?? false,
-      pos: h.pos ?? p.pos,
-    })),
+    hist,
     // Per-campaign international lines (added 2026-07-25). Saves from before
     // them keep their career totals, which stay the authoritative record; the
     // breakdown can't be reconstructed (archived campaigns hold no box scores),
@@ -237,14 +277,14 @@ function migratePlayer(p: Player, fallbackTid: number, currentSeason: number): P
       (p.stats ?? []).filter((s) => s.season !== currentSeason),
       // Peak as the fallback rating, matching what the boards did inline; `born`
       // is a season number too and would read as a real-looking wrong year.
-      ovrLookup(p.hist ?? [], peakFromHist(p).peakOvr),
+      ovrLookup(hist, peak.peakOvr),
     ),
     // Career peak ovr, backfilled by the scan the readers used to do inline.
     // Exact rather than a guess: `hist` is the same data `careerPeakOvr` and
     // `peakOf` were walking, so this is the last time it ever has to be walked.
     // Seeded from current ovr, and ties keep the *earlier* season, matching the
     // strictly-greater comparison both readers used.
-    ...peakFromHist(p),
+    ...peak,
     // faSignedSeason (the free-agent transfer hold) is intentionally left
     // absent on pre-feature saves: there's no way to know which past free-agent
     // signings would still be inside their hold, and "absent" is the correct
@@ -588,5 +628,63 @@ function migrateFields(league: LeagueStore): LeagueStore {
     // Nothing to reconstruct: a save that predates the jump-forward feature was
     // managed by hand every season it played.
     aiManagedSeasons: anyVersion.aiManagedSeasons ?? [],
+    manager: anyVersion.manager ?? backfillManager(anyVersion),
+  };
+}
+
+/**
+ * Reconstruct a manager career for a save written before the board existed.
+ *
+ * Two deliberate choices. Confidence starts at the **maximum**, not the usual
+ * appointment level: the board never watched any of these seasons, and a save
+ * that upgrades mid-dynasty must not be one bad year away from a sacking for
+ * results nobody was judging at the time. And the honours *are* reconstructed
+ * from `seasonHistory` rather than zeroed, because a fifteen-season dynasty
+ * arriving with a blank reputation would be offered nothing but minnow jobs.
+ *
+ * `overperformance` is the one thing left at 0 — it needs each past season's
+ * squad rating, which no save stores. That understates an old career's
+ * reputation slightly, which is the safe direction to be wrong in.
+ */
+function backfillManager(anyVersion: LeagueStoreAnyVersion): ManagerState {
+  const userTid = anyVersion.meta.userTid;
+  const history = anyVersion.seasonHistory ?? [];
+
+  let titles = 0;
+  for (const entry of history) {
+    const compId = entry.compsByTid?.[userTid];
+    if (compId === undefined) continue;
+    const table = entry.table.filter((row) => entry.compsByTid[row.tid] === compId);
+    if (table[0]?.tid === userTid) titles++;
+  }
+
+  const cupTitles = (anyVersion.cupHistory ?? []).filter(
+    (c) => cupRunSummary(c, userTid)?.isChampion,
+  ).length;
+  const shieldTitles = (anyVersion.shieldHistory ?? []).filter(
+    (c) => cupRunSummary(c, userTid)?.isChampion,
+  ).length;
+  const domesticTitles = (anyVersion.domesticCupHistory ?? []).filter(
+    (c) => c.championTid === userTid,
+  ).length;
+
+  return {
+    confidence: 100,
+    stints: [{
+      tid: userTid,
+      startSeason: history[0]?.season ?? 1,
+      endSeason: null,
+      seasons: history.length,
+      titles,
+      trophies: cupTitles + shieldTitles + domesticTitles,
+      overperformance: 0,
+      ending: null,
+    }],
+    offers: [],
+    sacked: false,
+    sackingEnabled: true,
+    // Nothing to reconstruct: the board never judged any of these seasons, so
+    // there is no verdict to explain. Fills in from the next season on.
+    lastVerdict: null,
   };
 }
