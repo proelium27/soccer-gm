@@ -13,10 +13,18 @@ is nothing to configure: no repository secrets, no variables. Analytics come
 from the committed `.env.pages`, and the base path comes from the Pages API via
 `configure-pages`, falling back to the repo name.
 
-The first run also turns Pages on via the API (`configure-pages` with
-`enablement: true`). If an org policy blocks that, the run fails with a
-permissions error — set **Settings → Pages → Source** to **GitHub Actions** by
-hand and re-run. That is a one-time step.
+**One-time step: the source has to be "GitHub Actions".** This repo published
+from a *branch* before this workflow existed, which is why the site did not
+work: a branch source serves the repo as-is, and the repo's `index.html` loads
+`/src/ui/main.tsx` — a path that only exists in the dev server. Visitors got the
+pre-React placeholder and the app never booted. The tell is a
+`pages-build-deployment` run (GitHub's own, not in this repo) on each push to
+main; those stop once the source is switched.
+
+`configure-pages` with `enablement: true` creates the site when there isn't one,
+but do not rely on it to *change* an existing source. Set **Settings → Pages →
+Source** to **GitHub Actions** once. Until that is done `deploy-pages` fails,
+and it fails loudly rather than publishing something stale.
 
 To build it locally:
 
