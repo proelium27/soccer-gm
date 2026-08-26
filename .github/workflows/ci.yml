@@ -16,11 +16,17 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
 
-  # The suite is dominated by a few full-world multi-season sim tests
-  # (test/validation/*), so wall-clock is bounded by the slowest single file,
-  # not the total. GitHub runners are only 2 cores, so one machine can't
-  # overlap those heavy files. Sharding fans the files out across several
-  # runners that each work a slice in parallel via `vitest --shard`.
+  # The suite is dominated by a few full-world multi-season sim files, so
+  # wall-clock is bounded by the slowest single file, not the total. GitHub
+  # runners are only 2 cores, so one machine can't overlap those heavy files.
+  # Sharding fans them out across several runners via `vitest --shard`.
+  #
+  # How the slice is chosen matters as much as the fan-out. Vitest's own split
+  # is by file *count* and ignores cost, which reliably dumped the heavy files
+  # on one runner: measured over three runs, the slowest shard took ~29 minutes
+  # while the fastest took ~40 seconds. A cost-aware sequencer weights the
+  # split instead — see test/helpers/shardPartition.ts, which also carries the
+  # weights table to update when a slow test file is added.
   test:
     runs-on: ubuntu-latest
     strategy:
