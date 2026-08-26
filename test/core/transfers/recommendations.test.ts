@@ -47,6 +47,44 @@ describe("recommendedTransfers", () => {
     }
   });
 
+  it("narrows the shortlist by nationality", () => {
+    const league = windowLeague(2);
+    // The most common nationality in the world, so the shortlist has something
+    // to find once the filter is on.
+    const counts = new Map<string, number>();
+    for (const p of league.players) {
+      counts.set(p.nationality, (counts.get(p.nationality) ?? 0) + 1);
+    }
+    const nationality = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+
+    const targets = recommendedTransfers(league, 0, { nationality });
+    expect(targets.length).toBeGreaterThan(0);
+    for (const t of targets) expect(t.player.nationality).toBe(nationality);
+  });
+
+  it("honours the upper end of the ovr and age ranges", () => {
+    const league = windowLeague(3);
+    const targets = recommendedTransfers(league, 0, { maxOvr: 65, maxAge: 25, minAge: 20 });
+    expect(targets.length).toBeGreaterThan(0);
+    for (const t of targets) {
+      expect(t.player.ovr).toBeLessThanOrEqual(65);
+      const age = league.season - t.player.born;
+      expect(age).toBeGreaterThanOrEqual(20);
+      expect(age).toBeLessThanOrEqual(25);
+    }
+  });
+
+  it("restricts the shortlist to one competition", () => {
+    const league = windowLeague(4);
+    const compId = league.teams.find((t) => t.tid !== 0)!.compId;
+    const tidsInComp = new Set(
+      league.teams.filter((t) => t.compId === compId).map((t) => t.tid),
+    );
+    const targets = recommendedTransfers(league, 0, { compId });
+    expect(targets.length).toBeGreaterThan(0);
+    for (const t of targets) expect(tidsInComp.has(t.sellerTid)).toBe(true);
+  });
+
   it("keeps the list varied: at most a couple of targets per position", () => {
     for (const seed of [2, 3, 4, 5]) {
       const counts = new Map<string, number>();
