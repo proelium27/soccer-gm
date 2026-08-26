@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { copyFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import CostAwareSequencer from "./test/helpers/shardSequencer.js";
 
@@ -90,9 +91,67 @@ function crazyGamesHtml(): Plugin {
   };
 }
 
+/**
+ * GitHub Pages base path.
+ *
+ * A project page is served from `https://<user>.github.io/<repo>/`, so every
+ * asset URL has to carry that prefix — a bundle built with the default "/" base
+ * asks github.io for /assets/index-xxx.js and gets the user's *other* sites'
+ * 404 page. The workflow passes the repo name in, so a fork or a rename needs
+ * no edit here; the fallback is what a local `npm run build:pages` uses.
+ *
+ * Set PAGES_BASE=/ if the deploy ever gets a custom domain (a CNAME file puts
+ * the site at the domain root, where a repo-name prefix would 404 instead).
+ */
+const pagesBase = () => {
+  const raw = process.env.PAGES_BASE ?? "/soccer-gm/";
+  // Vite resolves asset URLs by string concatenation, so a missing trailing
+  // slash silently yields /soccer-gmassets/index.js.
+  return raw.endsWith("/") ? raw : `${raw}/`;
+};
+
+/**
+ * GitHub Pages surgery: an SPA fallback and the pre-React links.
+ *
+ * Pages is a static file host with no rewrite rules, so a deep link like
+ * /soccer-gm/manual has no file behind it. The one hook it does offer is
+ * 404.html: it serves that document for any path it can't resolve, and the
+ * browser renders it with the requested URL still in the address bar — so a
+ * byte-identical copy of index.html boots the app on the right route. (The
+ * response carries a 404 status. That is invisible to a player, and search
+ * engines are pointed at worldsoccersim.org by the canonical tag anyway.)
+ *
+ * The links in the pre-React placeholder are the other half. They are absolute
+ * ("/leagues"), which resolves against the *domain* root rather than the repo
+ * subpath — the identical bug the CrazyGames build hits with its iframe, and
+ * the same one publicAsset() exists to prevent for files in public/. A click in
+ * the window before React mounts would land on github.io/leagues.
+ */
+function githubPagesHtml(base: string): Plugin {
+  return {
+    name: "github-pages",
+    transformIndexHtml(html) {
+      return html.replace(
+        /href="\/(leagues|manual|changelog)"/g,
+        (_m, path: string) => `href="${base}${path}"`,
+      );
+    },
+    // writeBundle rather than generateBundle: index.html is emitted by Vite's
+    // own html plugin, so it only exists on disk once the write is done.
+    writeBundle(options) {
+      const dir = options.dir ?? "dist";
+      copyFileSync(`${dir}/index.html`, `${dir}/404.html`);
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
-  base: EMBEDDED.has(mode) ? "./" : "/",
-  plugins: [react(), ...(mode === "crazygames" ? [crazyGamesHtml()] : [])],
+  base: EMBEDDED.has(mode) ? "./" : mode === "pages" ? pagesBase() : "/",
+  plugins: [
+    react(),
+    ...(mode === "crazygames" ? [crazyGamesHtml()] : []),
+    ...(mode === "pages" ? [githubPagesHtml(pagesBase())] : []),
+  ],
   resolve: {
     alias:
       mode === "crazygames"

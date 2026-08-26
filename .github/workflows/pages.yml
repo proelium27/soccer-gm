@@ -1,0 +1,79 @@
+# Publishes the game to GitHub Pages on every push to main.
+#
+# The site is a static bundle, so this is a plain build-and-upload: no server,
+# no Worker, nothing to configure beyond the Pages source itself.
+#
+# That source must be "GitHub Actions" (Settings -> Pages). This repo published
+# from a *branch* before, which serves the repo as-is — and the repo's
+# index.html loads /src/ui/main.tsx, a dev-server-only path, so the deployed
+# site never booted. `enablement: true` creates the site when there isn't one
+# (a fresh fork needs no visit to Settings), but it is not relied on to change
+# an existing source: deploy-pages fails loudly if the source is still a branch,
+# which is better than quietly publishing nothing.
+#
+# Analytics come from the committed .env.pages, and the base path from
+# PAGES_BASE below, so there are no repository secrets or variables to set.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # So a failed deploy can be retried, and a fork can publish without waiting
+  # for its first push.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race. Queue rather than cancel: an in-flight deploy that
+# is cancelled halfway can leave the live site on a half-uploaded artifact.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - id: pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - run: npm ci
+      - run: npm run build:pages
+        env:
+          # A project page lives at /<repo>/, so the bundle's asset URLs need
+          # that prefix, and getting it wrong 404s every asset.
+          #
+          # configure-pages reads the real value off the Pages API, which is the
+          # only source that knows about a custom domain — that serves the site
+          # from the domain root, where a repo-name prefix would be wrong. The
+          # fallback is the repo name, which is right for any project page and
+          # keeps a fork or a rename working with no edit here. vite.config.ts
+          # adds the trailing slash either way.
+          PAGES_BASE: ${{ steps.pages.outputs.base_path || format('/{0}/', github.event.repository.name) }}
+      # Guards the one failure that is invisible until a player hits it: a deep
+      # link like /soccer-gm/manual is served by 404.html, and without that file
+      # every route but the entry point is a GitHub 404 page.
+      - name: Check the SPA fallback was written
+        run: test -f dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
