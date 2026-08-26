@@ -495,9 +495,9 @@ export function Manual() {
             his own country.
           </p>
           <p>
-            Promotion and relegation (3 up, 3 down) runs on its own within each country at the end
-            of every season, so a rough season in Spain's top flight doesn't touch any other
-            country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
+            Promotion and relegation (3 up, 3 down in every country the game ships) runs on its
+            own within each country at the end of every season, so a rough season in Spain's top
+            flight doesn't touch any other country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
             grouped by country, so you can browse any of the 16 leagues. It defaults to
             whichever one your own club is currently in.
           </p>
@@ -509,10 +509,13 @@ export function Manual() {
             the game ships no real clubs.
           </p>
           <p>
-            You also choose its <strong>shape</strong>: one division or two, and how many clubs are
-            in each. Two divisions is the default and works like every shipped country, with 3 up
-            and 3 down between them. One division means exactly that, and nothing is promoted or
-            relegated there at all. Divisions run from 8 to 20 clubs, in even numbers, because the
+            You also choose its <strong>shape</strong>: one division or two, how many clubs are in
+            each, and how many go up and down between them. Two divisions is the default and works
+            like every shipped country, three up and three down, but that number is yours to set:
+            anything from none at all up to six, capped at half the division so promoting six out
+            of eight clubs isn't on offer. Pick <strong>None</strong> and the two divisions are
+            sealed off from each other, so winning the second one keeps you in it. One division
+            means exactly that, and nothing is promoted or relegated there at all. Divisions run from 8 to 20 clubs, in even numbers, because the
             fixture list pairs clubs off each round and the season is a fixed 38-matchday calendar
             that a 20-club double round robin already fills exactly. A smaller division plays fewer
             games, spread across the same season with blank matchdays in between, so its run-in
@@ -520,7 +523,7 @@ export function Manual() {
             for it. Three divisions isn't offered.
           </p>
           <p>
-            Each league you add carries three more settings. <strong>Strength</strong> runs 0 to
+            Each league you add carries more settings. <strong>Strength</strong> runs 0 to
             20 and higher is stronger, with <strong>20</strong> level with England, Spain, Italy
             and Germany. Each point below that costs a league about 1 OVR across its squads, so at{" "}
             <strong>15</strong> (where France sits) its champion is about as good as England's

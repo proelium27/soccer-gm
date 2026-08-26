@@ -1,10 +1,10 @@
 import type { StandingsRow } from "./standings.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import type { Competition } from "./competitions.js";
-import { tier1Pairs, competitionOf, academyBaseCenterOf } from "./competitions.js";
 import {
-  PROMOTION_RELEGATION_COUNT, ACADEMY_BASE_CONVERGENCE_SEASONS,
-} from "./constants.js";
+  tier1Pairs, competitionOf, academyBaseCenterOf, competitionPromotionSpots,
+} from "./competitions.js";
+import { ACADEMY_BASE_CONVERGENCE_SEASONS } from "./constants.js";
 
 /** One country's promotion/relegation swap between its tier-1 and tier-2 competitions. */
 export interface CompetitionSwap {
@@ -17,10 +17,11 @@ export interface CompetitionSwap {
 }
 
 /**
- * For every country, bottom PROMOTION_RELEGATION_COUNT of its tier-1 final
- * table swap with top PROMOTION_RELEGATION_COUNT of its tier-2 final table.
- * Every table in `tablesByCompId` must already be sorted by computeStandings
- * (points, then GD, then GF, then tid).
+ * For every country, the bottom N of its tier-1 final table swap with the top N
+ * of its tier-2 final table, where N is that country's own
+ * `competitionPromotionSpots` (3 unless the league was added with a different
+ * number on the New League screen). Every table in `tablesByCompId` must
+ * already be sorted by computeStandings (points, then GD, then GF, then tid).
  */
 export function computeCountrySwaps(
   competitions: Competition[],
@@ -32,11 +33,19 @@ export function computeCountrySwaps(
     if (!d2) return [];
     const d1Table = tablesByCompId.get(d1.id)!;
     const d2Table = tablesByCompId.get(d2.id)!;
+    const n = Math.min(
+      competitionPromotionSpots(d1, d2), d1Table.length, d2Table.length,
+    );
+    // `slice(-0)` is `slice(0)` — the WHOLE table — so a league set to no
+    // promotion or relegation would relegate every club in its division. The
+    // early return is the only thing standing between that setting and a world
+    // that turns itself inside out every offseason.
+    if (n <= 0) return [];
     return {
       d1CompId: d1.id,
       d2CompId: d2.id,
-      promoted: d2Table.slice(0, PROMOTION_RELEGATION_COUNT).map((r) => r.tid),
-      relegated: d1Table.slice(-PROMOTION_RELEGATION_COUNT).map((r) => r.tid),
+      promoted: d2Table.slice(0, n).map((r) => r.tid),
+      relegated: d1Table.slice(-n).map((r) => r.tid),
     };
   });
 }
