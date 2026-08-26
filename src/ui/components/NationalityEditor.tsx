@@ -88,9 +88,11 @@ export function NationalityEditor({
     <div className="mt-3 pt-2 border-top">
       <label className="form-label small mb-1">Nationalities</label>
       <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
-        Who this league produces — its starting squads, and every youth intake for the
+        Who this league produces: its starting squads, and every youth intake for the
         rest of the save. The numbers are relative, so use percentages, squad counts or
-        anything else you like; the share beside each one is what you'll actually get.
+        anything else you like, and the share beside each one is what you'll actually
+        get. A roster file can carry a mix of its own, and loading one below fills this
+        in for you.
       </p>
 
       <table className="table table-sm align-middle mb-1">
