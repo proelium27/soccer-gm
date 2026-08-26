@@ -36,7 +36,16 @@ export interface PlayerRef {
  */
 const cache = new WeakMap<LeagueStore, Map<number, PlayerRef>>();
 
-function refsFor(league: LeagueStore): Map<number, PlayerRef> {
+/**
+ * pid -> ref for every player the save can still name, built once per league.
+ *
+ * Exported for the sake of `playerRefLink.test.tsx`, which asserts the two
+ * things about this that nothing else can catch: the resolution *order* of the
+ * five fallbacks below, and that repeat calls hand back the same map rather
+ * than rebuilding it. Both fail silently — a wrong order gives a stale name,
+ * and losing the cache gives a correct page that is merely slow.
+ */
+export function playerRefIndex(league: LeagueStore): Map<number, PlayerRef> {
   const hit = cache.get(league);
   if (hit) return hit;
 
@@ -118,7 +127,7 @@ function refsFor(league: LeagueStore): Map<number, PlayerRef> {
  */
 export function usePlayerRefs(): (pid: number) => PlayerRef | undefined {
   const { league } = useLeague();
-  return (pid: number) => (league ? refsFor(league).get(pid) : undefined);
+  return (pid: number) => (league ? playerRefIndex(league).get(pid) : undefined);
 }
 
 /**

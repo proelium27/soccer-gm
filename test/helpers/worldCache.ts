@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
@@ -16,7 +16,14 @@ import { fileURLToPath } from "node:url";
  * would mean tests silently validating against an outdated sim.
  */
 
-const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
+// Deliberately NOT `fileURLToPath(new URL("../../", import.meta.url))`. Vite
+// treats `new URL(..., import.meta.url)` as an asset reference and rewrites it,
+// which under a DOM test environment yields a non-file URL and makes
+// `fileURLToPath` throw "The URL must be of scheme file". Splitting the two
+// steps keeps this helper usable from a test that needs a browser environment
+// (see test/ui/transfersInteraction.test.tsx). Trailing separator so the
+// `slice(REPO_ROOT.length)` below still yields a repo-relative path.
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..") + sep;
 
 /** Sources whose contents can change what a generated world looks like. */
 const HASHED_PATHS = ["src/core", "src/engine/rng.ts"];
