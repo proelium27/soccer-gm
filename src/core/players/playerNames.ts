@@ -116,9 +116,31 @@ export function extendPlayerNames(
   names: PlayerName[],
   retirees: Player[],
   league: LeagueStore,
+  /**
+   * References the caller has already worked out, for the history it kept.
+   *
+   * Same reason `simOffseason` takes a precomputed `teamStats`: this walk is one
+   * of only two things in the offseason that reads the append-only history —
+   * `newsEvents` and the cup `statLines` — so supplying it is what lets that
+   * history stay off the worker (`detachNews` in core/simArchive.ts). Optional
+   * and defaulted, so every other caller is unaffected.
+   *
+   * **It is unioned with the live walk, never substituted for it.** The caller
+   * measures the league *before* the offseason runs, and the offseason then
+   * adds references of its own: this season's cup is archived into `cupHistory`
+   * right above, so a one-club retiree whose only surviving mention is a cup
+   * line from his final season is referenced by the finished league and not by
+   * the one the caller measured. The union cannot over-name either — the extra
+   * pids it may carry are ones the cull has since deleted, and a retiree is
+   * never one of those (retirement runs at step 3, the cull at the very end).
+   */
+  precomputedReferenced?: Set<number>,
 ): PlayerName[] {
   if (retirees.length === 0) return names;
-  const referenced = referencedPids(league);
+  const live = referencedPids(league);
+  const referenced = precomputedReferenced
+    ? new Set([...precomputedReferenced, ...live])
+    : live;
   const known = new Set(names.map((n) => n.pid));
   const added = retirees
     .filter((p) => referenced.has(p.pid) && !known.has(p.pid))

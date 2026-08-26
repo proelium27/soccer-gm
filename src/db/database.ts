@@ -15,8 +15,19 @@ const DB_NAME = "soccer-gm";
  * 2,204 bytes a row that is 11ms per save at the old 2,000-row cap and 91ms at
  * 20,000, before mobile's 5-10x. The cap exists to bound *that*, not disk, so
  * splitting the store is what lets it rise (RETIREE_ARCHIVE_LIMIT).
+ *
+ * 4 split each player's `stats`/`hist` into `careers`. Different goal from 2
+ * and 3, and worth being clear about: those two were about **write** cost,
+ * and both deliberately left `loadLeague` reassembling one ordinary
+ * `LeagueStore` so nothing above the db layer had to change. That is exactly
+ * why the pool is still fully resident. Measured on the reported season-60
+ * save: a player's identity is 4.5 MB across the whole world while the career
+ * records are 45.2 MB, ten to one, and the ratio worsens every season. This
+ * version is the storage half; `docs/lazy-career-plan.md` phase 3 is what
+ * stops loading them. It buys one thing immediately — a contract change or a
+ * transfer rewrites identity without re-serialising a career.
  */
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 /**
  * A league as it sits on disk.
@@ -26,6 +37,24 @@ const DB_VERSION = 3;
  * inline until `loadLeague` next rewrites them. Nothing above the db layer sees
  * this — `loadLeague` reassembles a normal `LeagueStore` either way.
  */
+/**
+ * A player as he sits in the `players` store: everything except his career.
+ *
+ * `stats`/`hist` are optional rather than gone because both shapes exist on
+ * disk — a v2/v3 row still carries them inline until `loadLeague` splits it, in
+ * the same lazy way v1's inline pool was handled.
+ */
+export type StoredPlayer = Omit<Player, "stats" | "hist"> & {
+  stats?: Player["stats"];
+  hist?: Player["hist"];
+};
+
+/** The half of a player that grows without bound: one row in `careers`. */
+export interface PlayerCareer {
+  stats: Player["stats"];
+  hist: Player["hist"];
+}
+
 export type StoredLeague = Omit<LeagueStore, "players" | "retiredPlayers"> & {
   players?: Player[];
   /**
@@ -51,10 +80,28 @@ export interface SoccerGMDB extends DBSchema {
   /**
    * One record per player, keyed `[lid, pid]`. The compound key is what makes a
    * league's pool a single range query, so no secondary index is needed.
+   *
+   * Since v4 this is identity only — `stats`/`hist` live in `careers`. They stay
+   * optional on the type because v2/v3 rows still carry them inline until
+   * `loadLeague` next rewrites them.
    */
   players: {
     key: [number, number];
-    value: Player;
+    value: StoredPlayer;
+  };
+  /**
+   * One player's career record, keyed `[lid, pid]` like the other two.
+   *
+   * Split from `players` rather than left on it because the two have completely
+   * different read patterns and completely different sizes: identity is wanted
+   * on every load and is 4.5 MB across a whole world, while the career is wanted
+   * by a handful of cold surfaces and is 45.2 MB. Keeping them in one record
+   * means a league's pool query drags ten times its own weight along with it,
+   * which is what `docs/lazy-career-plan.md` phase 3 exists to stop.
+   */
+  careers: {
+    key: [number, number];
+    value: PlayerCareer;
   };
   /**
    * One record per archived retiree, keyed `[lid, pid]` exactly like `players`.
@@ -94,6 +141,13 @@ export function getDb(): Promise<IDBPDatabase<SoccerGMDB>> {
           // Same out-of-line `[lid, pid]` key as `players`, and split from the
           // league record lazily in loadLeague for the same reasons.
           db.createObjectStore("retirees");
+        }
+        if (!db.objectStoreNames.contains("careers")) {
+          // Same out-of-line `[lid, pid]` key again, and split out of the
+          // existing player rows lazily in loadLeague — a season-60 save has
+          // ~11k careers to move and a versionchange transaction is the worst
+          // possible place to discover that.
+          db.createObjectStore("careers");
         }
       },
     });

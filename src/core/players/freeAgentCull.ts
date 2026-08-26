@@ -29,6 +29,18 @@ import {
 
 /** Best ovr a player ever reached, from his ratings history (current ovr included). */
 export function careerPeakOvr(player: Player): number {
+  // Maintained by `progressPlayer`; the scan is the path for a save that has not
+  // been migrated yet. Current ovr still leads it, since god mode can raise a
+  // rating without progression ever seeing it.
+  //
+  // **The invariant this depends on: `peakOvr` is authoritative once present.**
+  // Anything that builds a `Player` carrying a `hist` must set it to match —
+  // `generatePlayer`, `createCustomPlayer` and the roster importer all do. A
+  // stale one makes a player read as worse than he ever was, and the scan below
+  // will NOT save you: it is skipped precisely when the field is set. The
+  // fallback also disappears entirely once `hist` stops being resident
+  // (docs/lazy-career-plan.md), so the invariant is the only thing holding.
+  if (player.peakOvr != null) return Math.max(player.ovr, player.peakOvr);
   let peak = player.ovr;
   for (const h of player.hist ?? []) {
     if (h.ovr > peak) peak = h.ovr;
@@ -145,10 +157,25 @@ export function cullOnLoad(league: LeagueStore): LeagueStore {
  * renders as "Player 4821" in transfer history, so the rows go with the player.
  */
 export function cullFreeAgentPool(league: LeagueStore): LeagueStore {
-  const cull = cullablePids(league, awardedPids(league));
-  if (cull.size === 0) return league;
+  return cullFreeAgentPoolReporting(league).league;
+}
 
-  return {
+/**
+ * The cull, plus who it removed.
+ *
+ * A separate entry point rather than a changed return type: `cullFreeAgentPool`
+ * has callers that only want the league. The pid set exists because the scrub
+ * below cannot run on the worker once `newsEvents` and the cup histories stay on
+ * the main thread — it reports who went, and the main thread scrubs its own
+ * copies (see `detachNews` in core/simArchive.ts).
+ */
+export function cullFreeAgentPoolReporting(
+  league: LeagueStore,
+): { league: LeagueStore; culled: Set<number> } {
+  const cull = cullablePids(league, awardedPids(league));
+  if (cull.size === 0) return { league, culled: cull };
+
+  return { culled: cull, league: {
     ...league,
     players: league.players.filter((p) => !cull.has(p.pid)),
     transfers: league.transfers.filter((t) => !cull.has(t.pid)),
@@ -179,6 +206,34 @@ export function cullFreeAgentPool(league: LeagueStore): LeagueStore {
     domesticCups: (league.domesticCups ?? []).map((c) => scrubDomesticCupLines(c, cull)),
     domesticCupHistory: (league.domesticCupHistory ?? []).map((c) => scrubDomesticCupLines(c, cull)),
     international: scrubInternational(league.international, cull),
+  } };
+}
+
+/**
+ * The same scrub, applied to the append-only history the worker never saw.
+ *
+ * `cullFreeAgentPoolReporting` above scrubs the copies it holds; when those
+ * arrays stay on the main thread (`detachNews`), the worker's copies are empty
+ * and this is what does the real work, against the retained ones. Exported so
+ * the two can never drift into two different ideas of what a scrub is.
+ */
+export function scrubHistoryForCull(
+  history: {
+    newsEvents: LeagueStore["newsEvents"];
+    cupHistory: LeagueStore["cupHistory"];
+    shieldHistory: LeagueStore["shieldHistory"];
+    domesticCupHistory: LeagueStore["domesticCupHistory"];
+  },
+  cull: Set<number>,
+): typeof history {
+  if (cull.size === 0) return history;
+  return {
+    newsEvents: history.newsEvents.filter(
+      (e) => !("pid" in e && typeof e.pid === "number" && cull.has(e.pid)),
+    ),
+    cupHistory: (history.cupHistory ?? []).map((cup) => scrubCupLines(cup, cull)),
+    shieldHistory: (history.shieldHistory ?? []).map((cup) => scrubCupLines(cup, cull)),
+    domesticCupHistory: (history.domesticCupHistory ?? []).map((c) => scrubDomesticCupLines(c, cull)),
   };
 }
 

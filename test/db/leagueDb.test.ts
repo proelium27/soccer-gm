@@ -11,6 +11,7 @@ import {
   resetDb,
   resetWriteCache,
   storedPlayerRows,
+  storedCareerRows,
   storedRetireeRows,
 } from "../../src/db/index.js";
 import type { ArchivedPlayer } from "../../src/core/players/archive.js";
@@ -38,6 +39,7 @@ beforeEach(async () => {
   const db = await getDb();
   await db.clear("leagues");
   await db.clear("players");
+  await db.clear("careers");
   await db.clear("retirees");
   // Otherwise this tab still believes the pool it wrote in the previous test is
   // on disk, and would write only a diff against a store that was just wiped.
@@ -336,5 +338,154 @@ describe("leagueDb retiree store", () => {
     const loaded = await loadLeague(lid);
     expect(loaded!.retiredPlayers).toEqual([]);
     expect(await storedRetireeRows(lid)).toHaveLength(0);
+  });
+});
+
+describe("leagueDb career store", () => {
+  it("writes careers to their own store, not onto the player rows", async () => {
+    const league = makeLeague();
+    const lid = await saveLeague(league);
+
+    const rows = await storedPlayerRows(lid);
+    const careers = await storedCareerRows(lid);
+
+    expect(rows.length).toBe(league.players.length);
+    expect(careers.length).toBe(league.players.length);
+    // The whole point: a player row no longer carries the half that grows.
+    expect(rows.every((r) => r.stats === undefined && r.hist === undefined)).toBe(true);
+    expect(careers.every((c) => Array.isArray(c.stats) && Array.isArray(c.hist))).toBe(true);
+  });
+
+  it("reassembles whole players on load", async () => {
+    const league = makeLeague();
+    const lid = await saveLeague(league);
+    const loaded = await loadLeague(lid);
+
+    expect(loaded!.players.length).toBe(league.players.length);
+    const before = new Map(league.players.map((p) => [p.pid, p]));
+    for (const p of loaded!.players) {
+      const orig = before.get(p.pid)!;
+      expect(p.stats).toEqual(orig.stats);
+      expect(p.hist).toEqual(orig.hist);
+      expect(p.ovr).toBe(orig.ovr);
+    }
+  });
+
+  it("splits a v3 row that still carries its career inline", async () => {
+    const league = makeLeague();
+    const lid = await saveLeague(league);
+
+    // Put the pre-v4 shape back on disk: career inline on the player row and the
+    // career store empty, which is exactly what a save written by the previous
+    // build looks like.
+    const db = await getDb();
+    await db.clear("careers");
+    for (const p of league.players) {
+      await db.put("players", p as never, [lid, p.pid]);
+    }
+    resetWriteCache();
+
+    const loaded = await loadLeague(lid);
+    expect(loaded!.players.length).toBe(league.players.length);
+    expect(loaded!.players[0].hist.length).toBeGreaterThan(0);
+
+    // And it must have been written back in the new shape, or every startup
+    // redoes the split before first paint.
+    const rows = await storedPlayerRows(lid);
+    const careers = await storedCareerRows(lid);
+    expect(rows.every((r) => r.stats === undefined)).toBe(true);
+    expect(careers.length).toBe(league.players.length);
+  });
+
+  it("does not rewrite a career when only the player's identity changed", async () => {
+    const league = makeLeague();
+    const lid = await saveLeague(league);
+
+    // A contract extension: new player object, same career arrays. This is the
+    // case the narrower diff exists for.
+    const target = league.players[0];
+    const bumped = {
+      ...target,
+      contract: { ...target.contract, salary: target.contract.salary + 1 },
+    };
+
+    const careersBefore = await storedCareerRows(lid);
+    await saveLeague({
+      ...league,
+      lid,
+      players: league.players.map((p) => (p.pid === target.pid ? bumped : p)),
+    });
+    const careersAfter = await storedCareerRows(lid);
+
+    expect(careersAfter).toEqual(careersBefore);
+    // The identity row did change, so that one must have been rewritten.
+    const rows = await storedPlayerRows(lid);
+    expect(rows.find((r) => r.pid === target.pid)!.contract.salary).toBe(bumped.contract.salary);
+  });
+
+  /**
+   * The mirror of the test above, and the one that keeps a matchday cheap.
+   *
+   * `accumulateStats` hands back a new player object for everyone who played
+   * while leaving ratings, contract and ovr untouched, so a reference-only diff
+   * would rewrite the whole identity store with rows byte-for-byte identical to
+   * what is already on disk. Measured, that doubled the puts and took a matchday
+   * save from 622ms to 1459ms.
+   */
+  it("does not rewrite identity rows when only the career moved", async () => {
+    const league = makeLeague();
+    const lid = await saveLeague(league);
+    const rowsBefore = await storedPlayerRows(lid);
+
+    // Every player gets a new object carrying a new stats array, exactly as a
+    // simmed matchday produces, with nothing else changed.
+    await saveLeague({
+      ...league,
+      lid,
+      players: league.players.map((p) => ({ ...p, stats: [...p.stats] })),
+    });
+
+    expect(await storedPlayerRows(lid)).toEqual(rowsBefore);
+    // ...but the careers must all have been rewritten.
+    const careers = await storedCareerRows(lid);
+    expect(careers.length).toBe(league.players.length);
+  });
+
+  it("writes a career when the career itself moved", async () => {
+    const league = makeLeague();
+    const lid = await saveLeague(league);
+
+    const target = league.players[0];
+    const played = { ...target, hist: [...target.hist, { ...target.hist[0], season: 99 }] };
+    await saveLeague({
+      ...league,
+      lid,
+      players: league.players.map((p) => (p.pid === target.pid ? played : p)),
+    });
+
+    const loaded = await loadLeague(lid);
+    expect(loaded!.players.find((p) => p.pid === target.pid)!.hist.at(-1)!.season).toBe(99);
+  });
+
+  it("deletes careers along with the league", async () => {
+    const league = makeLeague();
+    const lid = await saveLeague(league);
+    expect((await storedCareerRows(lid)).length).toBeGreaterThan(0);
+
+    await deleteLeague(lid);
+    expect(await storedCareerRows(lid)).toEqual([]);
+  });
+
+  it("drops the career of a player who left the save", async () => {
+    const league = makeLeague();
+    const lid = await saveLeague(league);
+    const gone = league.players[0].pid;
+
+    await saveLeague({ ...league, lid, players: league.players.filter((p) => p.pid !== gone) });
+
+    const careers = await storedCareerRows(lid);
+    expect(careers.length).toBe(league.players.length - 1);
+    const rows = await storedPlayerRows(lid);
+    expect(rows.some((r) => r.pid === gone)).toBe(false);
   });
 });

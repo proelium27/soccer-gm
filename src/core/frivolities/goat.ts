@@ -3,6 +3,7 @@ import { RATING_BASELINE } from "../../engine/matchRating.js";
 import {
   GOAT_OVR_BASELINE, GOAT_PEAK_WEIGHT, GOAT_PRIME_WEIGHT, GOAT_LONGEVITY_WEIGHT,
   GOAT_RATING_WEIGHT, GOAT_RATING_FULL_SAMPLE, GOAT_BALLON_DOR_WEIGHT, GOAT_WORLD_XI_WEIGHT,
+  GOAT_GOALKEEPER_AWARD_WEIGHT, GOAT_DEFENDER_AWARD_WEIGHT,
   GOAT_POTY_WEIGHT, GOAT_GOLDEN_BOOT_WEIGHT, GOAT_TOTS_WEIGHT, GOAT_LEAGUE_TITLE_WEIGHT,
   GOAT_CUP_TITLE_WEIGHT, GOAT_SHIELD_TITLE_WEIGHT, GOAT_DOMESTIC_CUP_TITLE_WEIGHT,
   GOAT_WORLD_CUP_WEIGHT, GOAT_CAP_WEIGHT, GOAT_GOAL_WEIGHT, GOAT_ASSIST_WEIGHT,
@@ -22,6 +23,10 @@ export const GOAT_LIST_LIMIT = 50;
 export interface PlayerHonours {
   ballonDOr: number;
   worldXI: number;
+  /** Goalkeeper of the Year wins — the keeper's route onto this board. */
+  goalkeeperOfYear: number;
+  /** Defender of the Year wins. */
+  defenderOfYear: number;
   playerOfSeason: number;
   goldenBoot: number;
   teamOfSeason: number;
@@ -33,9 +38,15 @@ export interface PlayerHonours {
   worldCups: number;
 }
 
-function emptyHonours(): PlayerHonours {
+/**
+ * A career with nothing on it. Exported because `honours.ts` needs the same
+ * zero row for a decorated player it could only stand up from award snapshots,
+ * and an inline copy there silently went stale every time this interface grew.
+ */
+export function emptyHonours(): PlayerHonours {
   return {
-    ballonDOr: 0, worldXI: 0, playerOfSeason: 0, goldenBoot: 0,
+    ballonDOr: 0, worldXI: 0, goalkeeperOfYear: 0, defenderOfYear: 0,
+    playerOfSeason: 0, goldenBoot: 0,
     teamOfSeason: 0, leagueTitles: 0, cupTitles: 0, shieldTitles: 0, domesticCupTitles: 0,
     worldCups: 0,
   };
@@ -70,6 +81,12 @@ export function computeHonours(
     for (const pid of h.world?.worldTeamOfYear ?? []) {
       if (pid != null) honoursFor(pid).worldXI += 1;
     }
+    // Winners only, matching how the Ballon d'Or is counted just above: a
+    // shortlist place is a near-miss and the awards component counts trophies.
+    const bestKeeper = h.world?.goalkeeperOfYear?.[0]?.pid;
+    if (bestKeeper != null) honoursFor(bestKeeper).goalkeeperOfYear += 1;
+    const bestDefender = h.world?.defenderOfYear?.[0]?.pid;
+    if (bestDefender != null) honoursFor(bestDefender).defenderOfYear += 1;
     for (const awards of Object.values(h.awards ?? {})) {
       if (awards.playerOfSeasonPid != null) honoursFor(awards.playerOfSeasonPid).playerOfSeason += 1;
       if (awards.goldenBootPid != null) honoursFor(awards.goldenBootPid).goldenBoot += 1;
@@ -228,6 +245,16 @@ export function scorePlayer(career: CareerRow, honours: PlayerHonours): PlayerGo
       { key: "ballonDOr", count: honours.ballonDOr, weight: GOAT_BALLON_DOR_WEIGHT },
       { key: "playerOfSeason", count: honours.playerOfSeason, weight: GOAT_POTY_WEIGHT },
       { key: "worldXI", count: honours.worldXI, weight: GOAT_WORLD_XI_WEIGHT },
+      {
+        key: "goalkeeperOfYear",
+        count: honours.goalkeeperOfYear,
+        weight: GOAT_GOALKEEPER_AWARD_WEIGHT,
+      },
+      {
+        key: "defenderOfYear",
+        count: honours.defenderOfYear,
+        weight: GOAT_DEFENDER_AWARD_WEIGHT,
+      },
       { key: "goldenBoot", count: honours.goldenBoot, weight: GOAT_GOLDEN_BOOT_WEIGHT },
       { key: "teamOfSeason", count: honours.teamOfSeason, weight: GOAT_TOTS_WEIGHT },
     ]),

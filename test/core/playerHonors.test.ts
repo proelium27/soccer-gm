@@ -111,3 +111,53 @@ describe("computePlayerHonors", () => {
     expect(computePlayerHonors(player(9, { 1: 10 }), history).hasAny).toBe(true);
   });
 });
+
+/**
+ * The two position awards on a career.
+ *
+ * Both are optional fields on an optional `world`, because they postdate every
+ * season already played on an existing save — so the case that matters most
+ * here is the one where they are simply absent.
+ */
+describe("goalkeeper and defender of the year honours", () => {
+  const won = (pid: number): WorldAwards => ({
+    ballonDOr: [],
+    worldTeamOfYear: [],
+    goalkeeperOfYear: [{ pid, tid: 10, score: 12, league: 12, cup: 0, intl: 0, title: 0 }],
+    defenderOfYear: [{ pid: 99, tid: 10, score: 9, league: 9, cup: 0, intl: 0, title: 0 }],
+  });
+
+  it("credits the winner of each, and nobody else on the shortlist", () => {
+    const history = [entry(1, 10, { 0: noAwards }, won(7))];
+    const keeper = computePlayerHonors(player(7, { 1: 10 }), history);
+    expect(keeper.goalkeeperOfYear).toEqual([1]);
+    expect(keeper.defenderOfYear).toEqual([]);
+    expect(keeper.hasAny).toBe(true);
+
+    const back = computePlayerHonors(player(99, { 1: 10 }), history);
+    expect(back.defenderOfYear).toEqual([1]);
+    expect(back.goalkeeperOfYear).toEqual([]);
+  });
+
+  it("credits a runner-up with nothing", () => {
+    const world: WorldAwards = {
+      ballonDOr: [],
+      worldTeamOfYear: [],
+      goalkeeperOfYear: [
+        { pid: 7, tid: 10, score: 12, league: 12, cup: 0, intl: 0, title: 0 },
+        { pid: 8, tid: 10, score: 11, league: 11, cup: 0, intl: 0, title: 0 },
+      ],
+    };
+    const history = [entry(1, 10, { 0: noAwards }, world)];
+    expect(computePlayerHonors(player(8, { 1: 10 }), history).goalkeeperOfYear).toEqual([]);
+  });
+
+  it("reads a season played before the awards existed as no award, not a crash", () => {
+    // `world` present but without the two new lists — exactly the shape every
+    // season already stored on an existing save has.
+    const history = [entry(1, 10, { 0: noAwards }, noWorldAwards)];
+    const honors = computePlayerHonors(player(7, { 1: 10 }), history);
+    expect(honors.goalkeeperOfYear).toEqual([]);
+    expect(honors.defenderOfYear).toEqual([]);
+  });
+});

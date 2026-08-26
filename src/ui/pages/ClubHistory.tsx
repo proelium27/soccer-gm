@@ -261,6 +261,20 @@ export function ClubHistory() {
               />
             </div>
             <div className="col-md-4">
+              <HonourList
+                title="Goalkeeper of the Year"
+                honours={history.goalkeeperOfYearWinners}
+                playersByPid={playersByPid}
+              />
+            </div>
+            <div className="col-md-4">
+              <HonourList
+                title="Defender of the Year"
+                honours={history.defenderOfYearWinners}
+                playersByPid={playersByPid}
+              />
+            </div>
+            <div className="col-md-4">
               <HonourList title="Player of the Season" honours={history.playerOfSeason} playersByPid={playersByPid} />
             </div>
             <div className="col-md-4">

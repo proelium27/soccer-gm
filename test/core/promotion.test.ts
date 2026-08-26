@@ -32,6 +32,49 @@ describe("computeCountrySwaps", () => {
     expect(swaps[0].promoted).toEqual([20, 21, 22]);
     expect(swaps[0].relegated).toEqual([2, 3, 4]);
   });
+
+  it("swaps as many clubs as the league was set up to swap", () => {
+    const d1 = [row(0, 90), row(1, 80), row(2, 70), row(3, 60), row(4, 50)];
+    const d2 = [row(20, 95), row(21, 85), row(22, 75), row(23, 65), row(24, 55)];
+    const comps = COMPS.map((c) => ({ ...c, promotionSpots: 1 }));
+    const swaps = computeCountrySwaps(comps, new Map([[0, d1], [1, d2]]));
+    expect(swaps[0].promoted).toEqual([20]);
+    expect(swaps[0].relegated).toEqual([4]);
+  });
+
+  // slice(-0) is slice(0) — the whole table — so a league with promotion turned
+  // off would otherwise relegate every club in the division.
+  it("swaps nobody at all when a league is set to none", () => {
+    const d1 = [row(0, 90), row(1, 80), row(2, 70)];
+    const d2 = [row(20, 95), row(21, 85), row(22, 75)];
+    const comps = COMPS.map((c) => ({ ...c, promotionSpots: 0 }));
+    expect(computeCountrySwaps(comps, new Map([[0, d1], [1, d2]]))).toEqual([]);
+  });
+
+  it("never asks for more clubs than the smaller table holds", () => {
+    const d1 = [row(0, 90), row(1, 80), row(2, 70), row(3, 60)];
+    const d2 = [row(20, 95), row(21, 85)];
+    const comps = COMPS.map((c) => ({ ...c, promotionSpots: 4 }));
+    const swaps = computeCountrySwaps(comps, new Map([[0, d1], [1, d2]]));
+    expect(swaps[0].promoted).toEqual([20, 21]);
+    expect(swaps[0].relegated).toEqual([2, 3]);
+  });
+
+  it("leaves each country on its own count", () => {
+    // One world, two pyramids: an added league set to 1 must not drag England
+    // off the 3 every shipped country plays.
+    const comps = [
+      ...COMPS,
+      { id: 2, country: "Wakanda", tier: 1 as const, name: "Wakandan D1", promotionSpots: 1 },
+      { id: 3, country: "Wakanda", tier: 2 as const, name: "Wakandan D2", promotionSpots: 1 },
+    ];
+    const table = (base: number) => [0, 1, 2, 3, 4].map((i) => row(base + i, 90 - i * 10));
+    const swaps = computeCountrySwaps(comps, new Map([
+      [0, table(0)], [1, table(20)], [2, table(40)], [3, table(60)],
+    ]));
+    expect(swaps.find((s) => s.d1CompId === 0)!.promoted).toHaveLength(3);
+    expect(swaps.find((s) => s.d1CompId === 2)!.promoted).toHaveLength(1);
+  });
 });
 
 describe("applyCompetitionSwaps", () => {

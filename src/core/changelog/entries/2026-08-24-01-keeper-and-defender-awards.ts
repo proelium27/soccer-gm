@@ -1,0 +1,25 @@
+import type { ChangelogEntry } from "../types.js";
+
+const entry: ChangelogEntry = {
+  date: "2026-08-24",
+  title: "Goalkeepers and defenders get their own awards",
+  items: [
+    "No goalkeeper has ever won a Ballon d'Or in this game and none ever would have. It's scored on goals, assists and match rating, and a save doesn't appear in any of those. Over eight test seasons its top ten came out 45% strikers, 30% attacking midfielders, 20% wingers and one full-back. No centre-back, no holding midfielder, no keeper, ever.",
+    "I'd rather leave the Ballon d'Or alone than rig it into something it isn't. The real one has gone to a defender once in about sixty years, and the actual ceremony gets around that by handing out a separate keeper's trophy. So I've done the same: **Goalkeeper of the Year** and **Defender of the Year**, both on the World tab of the Awards page, each with a five-man shortlist and the winner's season broken down the way the Ballon d'Or's is.",
+    "They're judged on the work the Ballon d'Or can't see:",
+    [
+      "- Keepers on saves, with goals conceded held against them.",
+      "- Defenders on tackles, interceptions and goals conceded. Centre-backs and full-backs both, competing for the one award.",
+      "- Then the same worldwide extras the Ballon d'Or uses: the league-strength correction, your Continental Cup run, your summer with your country, your league title, your domestic cup.",
+    ].join("\n"),
+    "**Trophies count for three times as much in these two as they do in the Ballon d'Or**, and that isn't favouritism. Tackles, interceptions and saves are counted up across a season and they get big, so a defender's raw defensive work was reaching half his score and everything else had become rounding. A league title was worth under 4% of a defender's total. Tripling the rest puts trophies back where they sit in the Ballon d'Or.",
+    "It fixed something I wasn't expecting it to. Two of those extras, the Continental Cup and your summer with your country, are the only parts of the whole calculation that put players from different leagues up against each other directly, and a club from a weak league rarely goes deep in the cup. So turning them up pulls the award towards the stronger leagues by itself, which is what the first version of the defender award badly needed. Over twelve test seasons, defender winners from Belgium or Turkey went from 5 in 16 down to 1 in 12, and keepers now win from the strongest leagues about as often as Ballon d'Or winners do. Your league title and domestic cup do nothing for that, since every league has a champion no matter how good it is.",
+    "The World Team of the Year is scored the same way now, trophies and all, because it is built on the same numbers and had the same problem: its back four was being picked on tackle counts too. So the three agree with each other. The Goalkeeper of the Year is the keeper in that XI and the Defender of the Year is in its back four, rather than the page showing you two different answers to the same question. The Ballon d'Or stands apart and keeps its own weighting, since it is scored on goals and assists rather than on defending.",
+    "Both count as honours everywhere honours are counted: a player's profile, a club's history, the Frivolities award boards, and the GOAT ranking. That last one is the real change. A great keeper's whole all-time case used to be a World XI slot and a Team of the Season slot, which is a lot of why the GOAT board reads like a list of forwards. It still leans that way and it should, since a striker can win the Ballon d'Or on top of everything a defender can win, but a keeper has a case now where he had almost none.",
+    "Centre-backs take the defender award more often than full-backs. Tackles and interceptions are counted up raw over a season and they swing a lot between players, from about 300 defensive actions to about 430 among the winners I looked at, and centre-backs simply make more of them. It's the same measure the World Team of the Year has always picked its back four with, so the shortlist tends to have that shape.",
+    "One more thing on trophies, and it applies to the Ballon d'Or too. Every country crowns a champion no matter how good its football is, so winning Belgium and winning England were worth exactly the same, which is nonsense. Your league title and your domestic cup are now scaled by how strong your league is, about a 1.45x gap between the best top flight and the weakest. Winning a weak league still counts for something, and a second-division club winning its domestic cup still gets credit. The Continental Cup and international football aren't scaled, because those are played between countries already.",
+    "Seasons you've already played don't get these. Awards are written down when they're won and never recalculated, partly because rescoring an old season would judge it on whoever hasn't retired yet and could hand its Ballon d'Or to someone else. So an existing save picks these up from its next completed season onward.",
+  ],
+};
+
+export default entry;

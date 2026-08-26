@@ -8,6 +8,7 @@ export {
   deleteLeague,
   resetWriteCache,
   storedPlayerRows,
+  storedCareerRows,
   storedRetireeRows,
 } from "./leagueDb.js";
 

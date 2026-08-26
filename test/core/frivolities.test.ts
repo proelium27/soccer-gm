@@ -18,7 +18,7 @@ import {
 import { computeAwardTrivia, sortAwardRows, awardXIForClub } from "../../src/core/frivolities/honours.js";
 import { computePlayerHonors } from "../../src/core/playerHonors.js";
 import { computeClubHistory } from "../../src/core/clubHistory.js";
-import type { BallonDOrEntry } from "../../src/core/worldAwards.js";
+import type { WorldAwardEntry } from "../../src/core/worldAwards.js";
 import { FREE_AGENT_TID } from "../../src/core/transfers/negotiation.js";
 import { GOAT_TEAM_TREBLE_WEIGHT } from "../../src/core/constants.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
@@ -836,13 +836,13 @@ describe("GOAT rankings", () => {
 
 describe("awards trivia", () => {
   /** A Ballon d'Or shortlist entry, defaulting every part into the league component. */
-  function bdo(pid: number, tid: number, score: number, parts: Partial<BallonDOrEntry> = {}): BallonDOrEntry {
+  function bdo(pid: number, tid: number, score: number, parts: Partial<WorldAwardEntry> = {}): WorldAwardEntry {
     return { pid, tid, score, league: score, cup: 0, intl: 0, title: 0, ...parts };
   }
 
   /** A season-history entry carrying only the award records these boards read. */
   function awardHistory(season: number, o: {
-    ballonDOr?: BallonDOrEntry[];
+    ballonDOr?: WorldAwardEntry[];
     worldXI?: (number | null)[];
     poty?: number;
     goldenBoot?: number;

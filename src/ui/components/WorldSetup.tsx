@@ -5,7 +5,7 @@ import {
   buildCompetitions, competitionTeamCount, worldCompetitions,
   competitionStrengthOffset, competitionBudgetScale,
 } from "../../core/competitions.js";
-import { NUM_TEAMS } from "../../core/constants.js";
+import { NUM_TEAMS, MAX_PROMOTION_SPOTS, PROMOTION_RELEGATION_COUNT } from "../../core/constants.js";
 
 /** What the code box suggests when left empty — the same rule competitionAbbrev uses. */
 function defaultAbbrev(country: string): string {
@@ -124,6 +124,26 @@ const DIVISION_SIZES = Array.from(
   (_, i) => MIN_DIVISION_TEAMS + i * 2,
 );
 
+/**
+ * How many clubs this league can sensibly promote and relegate: half its
+ * smallest division, capped. Above half, the two divisions are trading places
+ * rather than running a promotion race, and a count above a division's size
+ * would swap them outright.
+ */
+function maxPromoSpots(spec: LeagueSpec): number {
+  const smallest = Math.min(spec.d1Teams ?? NUM_TEAMS, spec.d2Teams ?? NUM_TEAMS);
+  return Math.min(MAX_PROMOTION_SPOTS, Math.floor(smallest / 2));
+}
+
+/**
+ * The value the picker shows. Clamped rather than reset, so shrinking the
+ * divisions after choosing 6 up and down quietly takes what still fits instead
+ * of keeping a number the league can no longer honour.
+ */
+function promoSpotsOf(spec: LeagueSpec): number {
+  return Math.min(spec.promotionSpots ?? PROMOTION_RELEGATION_COUNT, maxPromoSpots(spec));
+}
+
 function newLeagueEntry(index: number): WorldEntry {
   const strengthOffset = 8;
   return {
@@ -168,6 +188,13 @@ export function WorldSetup({ entries, onChange }: Props) {
     // the pairing is what keeps the ladder from inverting over a long save.
     if (entry.linkMoney && next.strengthOffset !== undefined) {
       spec.budgetScale = suggestedBudgetScale(next.strengthOffset);
+    }
+    // Shrinking the divisions lowers the swap ceiling, so the stored number has
+    // to come down with it. Clamping only the displayed value would leave the
+    // picker reading 4 while the world was still built with the 6 chosen before
+    // the divisions got smaller.
+    if (spec.promotionSpots !== undefined) {
+      spec.promotionSpots = Math.min(spec.promotionSpots, maxPromoSpots(spec));
     }
     update(index, { spec });
   }
@@ -322,6 +349,30 @@ export function WorldSetup({ entries, onChange }: Props) {
                         ))}
                       </select>
                     </div>
+                    {/* Nothing to size in a one-division league: it has no
+                        second tier to swap with. */}
+                    {(entry.spec.divisions ?? 2) === 2 && (
+                      <div className="col">
+                        <label className="form-label small mb-1">Up and down</label>
+                        <select
+                          className="form-select form-select-sm"
+                          value={promoSpotsOf(entry.spec)}
+                          aria-label="Clubs promoted and relegated each season"
+                          onChange={(e) => updateSpec(i, {
+                            promotionSpots: Number(e.target.value),
+                          })}
+                        >
+                          {Array.from(
+                            { length: maxPromoSpots(entry.spec) + 1 },
+                            (_, n) => (
+                              <option key={n} value={n}>
+                                {n === 0 ? "None" : `${n} up, ${n} down`}
+                              </option>
+                            ),
+                          )}
+                        </select>
+                      </div>
+                    )}
                   </div>
                   <div className="row g-2">
                     <div className="col">
@@ -356,9 +407,11 @@ export function WorldSetup({ entries, onChange }: Props) {
                     <p className="mb-0">
                       <strong>Strength</strong> is how good its squads are: higher is stronger, and
                       20 is level with England, Spain, Italy and Germany. <strong>Money</strong> is
-                      what its clubs earn and can bank, against 1 for the richest leagues. The
-                      three-letter code beside the name stands in for a flag, since the game has
-                      no flag art for a country you invented.
+                      what its clubs earn and can bank, against 1 for the richest leagues.{" "}
+                      <strong>Up and down</strong> is how many clubs swap between its two divisions
+                      each season, three being what every shipped country plays and None sealing the
+                      divisions off from each other. The three-letter code beside the name stands in
+                      for a flag, since the game has no flag art for a country you invented.
                     </p>
                   </div>
 
