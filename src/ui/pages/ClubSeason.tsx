@@ -7,6 +7,7 @@ import { competitionOf } from "../../core/competitions.js";
 import { POSITIONS } from "../../core/players/types.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { Flag } from "../components/Flag.js";
+import { BackLink } from "../components/BackLink.js";
 import { seasonYear, ordinal } from "../format.js";
 
 /** Squad order: by position down the pitch, then by the rating he played that season at. */
@@ -88,7 +89,8 @@ export function ClubSeason() {
   if (!clubSeason) {
     return (
       <div className="container-fluid p-3">
-        <h4 className="mb-2">{team?.name ?? `Team ${tid}`}</h4>
+        <BackLink fallback={`/history?tid=${tid}`} />
+        <h4 className="mb-2 mt-2">{team?.name ?? `Team ${tid}`}</h4>
         <p className="text-muted">
           No record of {team?.name ?? `this club`} in {seasonYear(season)}.
         </p>
@@ -127,7 +129,9 @@ export function ClubSeason() {
 
   return (
     <div className="container-fluid p-3">
-      <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
+      <BackLink fallback={`/history?tid=${tid}`} />
+
+      <div className="d-flex align-items-center gap-2 mb-1 mt-2 flex-wrap">
         <ClubCrest tid={tid} colors={team?.colors ?? ["#888888", "#888888"]} size={32} />
         <h4 className="mb-0">{team?.name ?? `Team ${tid}`}</h4>
         <span className="fs-4 text-muted">{seasonYear(clubSeason.season)}</span>

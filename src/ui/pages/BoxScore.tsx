@@ -7,6 +7,7 @@ import type { PlayedMatch } from "../../core/standings.js";
 import type { PlayerMatchLine } from "../../engine/attribution.js";
 import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
+import { BackLink } from "../components/BackLink.js";
 import { KEY_EVENTS, TimelineRow } from "../components/matchEvents.js";
 import { LiveMatchOverlay } from "../components/LiveMatchOverlay.js";
 import { liveTableRows, toLiveMatch } from "../live/liveMatch.js";
@@ -257,7 +258,7 @@ export function BoxScore() {
     return (
       <div className="container-fluid p-3">
         <p>Match not found.</p>
-        <Link to="/schedule">Back to Schedule</Link>
+        <BackLink fallback="/schedule" />
       </div>
     );
   }
@@ -306,9 +307,7 @@ export function BoxScore() {
   return (
     <div className="container-fluid p-3 bs-page">
       <div className="bs-topbar">
-        <Link to="/schedule" className="bs-back">
-          &larr; Schedule
-        </Link>
+        <BackLink fallback="/schedule" className="bs-back" />
         <button
           type="button"
           className="btn btn-sm btn-outline-secondary"

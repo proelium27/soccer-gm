@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { SKILL_KEYS } from "../../core/players/types.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
@@ -13,6 +13,7 @@ import { careerValueHistory } from "../../core/finance/valueHistory.js";
 import { potentialFog } from "../../core/scouting/potentialFog.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { Flag } from "../components/Flag.js";
+import { BackLink } from "../components/BackLink.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { competitionOf } from "../../core/competitions.js";
 import { worldHasCup } from "../../core/cup/cup.js";
@@ -107,7 +108,7 @@ export function PlayerProfile() {
     return (
       <div className="container-fluid p-3">
         <p>Player not found.</p>
-        <Link to="/roster">Back to Roster</Link>
+        <BackLink fallback="/roster" />
       </div>
     );
   }
@@ -239,9 +240,7 @@ export function PlayerProfile() {
 
   return (
     <div className="container-fluid p-3">
-      <Link to={team && team.tid === league.meta.userTid ? "/roster" : "/leaders"} className="text-decoration-none">
-        &larr; Back
-      </Link>
+      <BackLink fallback={team && team.tid === league.meta.userTid ? "/roster" : "/leaders"} />
 
       <h4 className="mt-2">
         {player.name} <Flag nationality={player.nationality} />{" "}
