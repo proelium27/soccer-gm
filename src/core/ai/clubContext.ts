@@ -1,6 +1,7 @@
 import type { Player, Position } from "../players/types.js";
 import { POSITIONS } from "../players/types.js";
 import type { StoredTeam } from "../teams/clubs.js";
+import { teamSlots } from "../lineup/formations.js";
 import type { PlayedMatch } from "../standings.js";
 import type { Competition } from "../competitions.js";
 import { computeStandings } from "../standings.js";
@@ -50,6 +51,26 @@ export interface ClubContext {
    * is what made clubs undervalue their own stars.
    */
   posSecondBestOvr: Record<Position, number>;
+  /**
+   * The ovr of the weakest man who'd actually START at each position, given the
+   * shape the club plays: its 2nd-best centre-back in a back four, its 3rd-best
+   * midfielder in a midfield three, its best keeper. 0 when it hasn't the bodies
+   * to fill the slots; the club's best when its shape fields none there.
+   *
+   * Read by BUY-side valuation, and it is the counterpart to posSecondBestOvr on
+   * the keep side. Both exist because "how good are they here" is the wrong
+   * question in both directions and needs a counterfactual instead: keep-side
+   * asks who'd step up if he left, buy-side asks who he'd displace.
+   *
+   * Measuring a signing against posBestOvr assumed one starter per position, so
+   * a club with one excellent centre-back and three poor ones read as stocked —
+   * a 60-rated centre-back "downgraded" a 73-rated best and the club neither
+   * registered the hole nor valued the man who'd fill it. Formations field two
+   * centre-backs and full-backs and two or three midfielders, so that was wrong
+   * for most of the pitch: measured, first-division clubs sat on nine-figure
+   * budgets starting 16-year-olds at centre-back.
+   */
+  posWeakestStarterOvr: Record<Position, number>;
   /** Fame/popularity, 0-100, straight off the club. */
   hype: number;
   /**
@@ -99,16 +120,20 @@ function squadStrength(roster: Player[]): number {
 
 function positionalDepthAndBest(
   roster: Player[],
+  slots: readonly Position[],
 ): {
   depth: Record<Position, number>;
   best: Record<Position, number>;
   secondBest: Record<Position, number>;
+  weakestStarter: Record<Position, number>;
 } {
   const depth = Object.fromEntries(POSITIONS.map((p) => [p, 0])) as Record<Position, number>;
   const best = Object.fromEntries(POSITIONS.map((p) => [p, 0])) as Record<Position, number>;
   const secondBest = Object.fromEntries(POSITIONS.map((p) => [p, 0])) as Record<Position, number>;
+  const byPos = Object.fromEntries(POSITIONS.map((p) => [p, [] as number[]])) as Record<Position, number[]>;
   for (const p of roster) {
     depth[p.pos]++;
+    byPos[p.pos].push(p.ovr);
     if (p.ovr > best[p.pos]) {
       secondBest[p.pos] = best[p.pos];
       best[p.pos] = p.ovr;
@@ -116,7 +141,28 @@ function positionalDepthAndBest(
       secondBest[p.pos] = p.ovr;
     }
   }
-  return { depth, best, secondBest };
+
+  // How many of each position the club's shape actually fields. A formation is
+  // a multiset of slots, so this is just a tally of it.
+  const fielded = Object.fromEntries(POSITIONS.map((p) => [p, 0])) as Record<Position, number>;
+  for (const slot of slots) fielded[slot]++;
+
+  const weakestStarter = Object.fromEntries(POSITIONS.map((p) => [p, 0])) as Record<Position, number>;
+  for (const pos of POSITIONS) {
+    const n = fielded[pos];
+    // A position the shape doesn't field has no starting slot to be weak in, so
+    // it keeps the old reading (the club's best) rather than inventing a hole.
+    if (n === 0) {
+      weakestStarter[pos] = best[pos];
+      continue;
+    }
+    const ranked = [...byPos[pos]].sort((a, b) => b - a);
+    // Short of bodies for the slots on offer: one of them is literally empty,
+    // which reads as 0 and is the strongest possible signal of a hole.
+    weakestStarter[pos] = ranked.length >= n ? ranked[n - 1] : 0;
+  }
+
+  return { depth, best, secondBest, weakestStarter };
 }
 
 /**
@@ -212,7 +258,8 @@ export function deriveLeagueContexts(league: LeagueSnapshot): Map<number, ClubCo
 
   const raw = league.teams.map((t) => {
     const roster = rosterOf(t);
-    const { depth, best, secondBest } = positionalDepthAndBest(roster);
+    const { depth, best, secondBest, weakestStarter } =
+      positionalDepthAndBest(roster, teamSlots(t));
     return {
       tid: t.tid,
       compId: t.compId,
@@ -223,6 +270,7 @@ export function deriveLeagueContexts(league: LeagueSnapshot): Map<number, ClubCo
       depth,
       best,
       secondBest,
+      weakestStarter,
     };
   });
 
@@ -286,6 +334,7 @@ export function deriveLeagueContexts(league: LeagueSnapshot): Map<number, ClubCo
         posDepth: r.depth,
         posBestOvr: r.best,
         posSecondBestOvr: r.secondBest,
+        posWeakestStarterOvr: r.weakestStarter,
         hype: r.hype,
         stature: statureOf(r.strength, r.hype),
         ambition,

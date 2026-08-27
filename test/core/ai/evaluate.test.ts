@@ -33,6 +33,10 @@ function ctx(overrides: Partial<ClubContext> = {}): ClubContext {
   const posDepth = { ...ROSTER_COMPOSITION } as Record<Position, number>;
   const posBestOvr = Object.fromEntries(POSITIONS.map((p) => [p, 65])) as Record<Position, number>;
   const posSecondBestOvr = Object.fromEntries(POSITIONS.map((p) => [p, 60])) as Record<Position, number>;
+  // Same value as posBestOvr, so a club with no explicit hole reads exactly as
+  // it did when buy-side valuation measured against the best player: these cases
+  // are about the other multipliers, not about depth behind the starters.
+  const posWeakestStarterOvr = Object.fromEntries(POSITIONS.map((p) => [p, 65])) as Record<Position, number>;
   return {
     tid: 0,
     season: SEASON,
@@ -42,6 +46,7 @@ function ctx(overrides: Partial<ClubContext> = {}): ClubContext {
     posDepth,
     posBestOvr,
     posSecondBestOvr,
+    posWeakestStarterOvr,
     hype: 50,
     stature: 0.5,
     ambition: 0.5,
@@ -140,11 +145,25 @@ describe("scoutNoiseFraction / perceivedValueToClub", () => {
 });
 
 describe("hasPositionalGap", () => {
-  // A club that is at target depth everywhere and strong at every position.
+  const everywhere = (v: number) =>
+    Object.fromEntries(POSITIONS.map((p) => [p, v])) as Record<Position, number>;
+
+  // At target depth everywhere, and strong in every slot it actually fields —
+  // not merely strong in its best man at each position, which is the thing this
+  // predicate used to confuse for the same fact.
   const noGap = ctx({
     squadStrength: 72,
-    posBestOvr: Object.fromEntries(POSITIONS.map((p) => [p, 74])) as Record<Position, number>,
+    posBestOvr: everywhere(74),
+    posWeakestStarterOvr: everywhere(74),
   });
+
+  /** A club whose weakest starter at `pos` sits clearly below its own level. */
+  const softAt = (pos: Position, ovr: number) =>
+    ctx({
+      squadStrength: 72,
+      posBestOvr: everywhere(74),
+      posWeakestStarterOvr: { ...everywhere(74), [pos]: ovr },
+    });
 
   it("is false when the club is at target depth and has a solid incumbent", () => {
     expect(hasPositionalGap(samplePlayer({ pos: "ST", ovr: 80 }), noGap)).toBe(false);
@@ -160,21 +179,36 @@ describe("hasPositionalGap", () => {
   });
 
   it("is true for a weak startable hole the player would upgrade", () => {
-    const weak = ctx({
-      squadStrength: 72,
-      posBestOvr: { ...noGap.posBestOvr, ST: 72 - AI_NEED_BUY_WEAK_STARTER_GAP - 2 },
-    });
+    const weak = softAt("ST", 72 - AI_NEED_BUY_WEAK_STARTER_GAP - 2);
     // Player beats the weak incumbent → a real upgrade to a soft spot.
     expect(hasPositionalGap(samplePlayer({ pos: "ST", ovr: 74 }), weak)).toBe(true);
   });
 
   it("is false at a weak spot when the player would not upgrade the incumbent", () => {
-    const weak = ctx({
-      squadStrength: 72,
-      posBestOvr: { ...noGap.posBestOvr, ST: 72 - AI_NEED_BUY_WEAK_STARTER_GAP - 2 },
-    });
-    const incumbent = weak.posBestOvr.ST;
+    const weak = softAt("ST", 72 - AI_NEED_BUY_WEAK_STARTER_GAP - 2);
+    const incumbent = weak.posWeakestStarterOvr.ST;
     expect(hasPositionalGap(samplePlayer({ pos: "ST", ovr: incumbent - 1 }), weak)).toBe(false);
+  });
+
+  it("sees a hole BEHIND an excellent player, which is the reported bug", () => {
+    // Regensburg Steinerne, season 8: centre-backs {73, 32, 29, 29}, four bodies
+    // for the four ROSTER_COMPOSITION wants, £125M in the bank, and a 16-year-old
+    // starting alongside the 73. Reading the club's *best* centre-back said "no
+    // need here" and the market never offered them one. A back four fields two.
+    const oneGoodCentreBack = ctx({
+      squadStrength: 69,
+      posBestOvr: { ...everywhere(70), CB: 73 },
+      posWeakestStarterOvr: { ...everywhere(70), CB: 32 },
+    });
+    expect(hasPositionalGap(samplePlayer({ pos: "CB", ovr: 60 }), oneGoodCentreBack)).toBe(true);
+    // And the valuation has to agree, or the club registers the need and still
+    // refuses to pay: measured against the 73 he read as a downgrade.
+    const upgrade = evaluatePlayerForClub(samplePlayer({ pos: "CB", ovr: 60 }), oneGoodCentreBack).needMult;
+    const stocked = evaluatePlayerForClub(
+      samplePlayer({ pos: "CB", ovr: 60 }),
+      ctx({ squadStrength: 69, posBestOvr: { ...everywhere(70), CB: 73 }, posWeakestStarterOvr: { ...everywhere(70), CB: 73 } }),
+    ).needMult;
+    expect(upgrade).toBeGreaterThan(stocked);
   });
 });
 

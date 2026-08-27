@@ -91,13 +91,21 @@ function needMultiplier(player: Player, ctx: ClubContext, side: ValuationSide): 
       ? 1 + AI_NEED_SCARCITY * (1 - depthRatio)
       : 1 / (1 + AI_NEED_SURPLUS * (depthRatio - 1));
 
-  // Who he's measured against: on the buy side, the best they currently have
-  // (0 if the slot is empty, which makes an incumbent-less signing read as a
-  // big upgrade — as it should). On the keep side, whoever would step up if he
-  // left: the second best, unless he isn't their best anyway.
-  const incumbent = keep && player.ovr >= ctx.posBestOvr[pos]
-    ? ctx.posSecondBestOvr[pos]
-    : ctx.posBestOvr[pos];
+  // Who he's measured against, and it is a counterfactual on both sides.
+  //
+  // Buy side: the man he'd DISPLACE — the weakest of the starters the club's
+  // shape fields at that position (0 if a slot is empty, which makes an
+  // incumbent-less signing read as a big upgrade, as it should). Using the
+  // club's *best* instead assumed one starter per position, which is true only
+  // of the keeper: a back four fields two centre-backs, so a club with one
+  // excellent centre-back and three poor ones was reading a real signing as a
+  // downgrade and pricing him accordingly.
+  //
+  // Keep side: whoever would step up if he left — the second best, unless he
+  // isn't their best anyway.
+  const incumbent = keep
+    ? (player.ovr >= ctx.posBestOvr[pos] ? ctx.posSecondBestOvr[pos] : ctx.posBestOvr[pos])
+    : ctx.posWeakestStarterOvr[pos];
   const upgrade = player.ovr - incumbent;
   const upgradeMult = clamp(
     1 + AI_NEED_UPGRADE_SLOPE * upgrade,
@@ -196,19 +204,28 @@ export function keepValueToClub(player: Player, ctx: ClubContext): number {
 /**
  * Does this club have a genuine gap at the player's position? Either it's
  * understaffed there (fewer bodies than ROSTER_COMPOSITION wants) or it has a
- * weak startable hole this player would upgrade (its best at the position sits
- * AI_NEED_BUY_WEAK_STARTER_GAP+ ovr below the club's own squad strength, and the
- * player beats that incumbent). Drives the AI "need buy" path: a cash-rich club
- * with a real hole pays a fair price to fill it instead of holding out for a
- * bargain. Position quality/affordability are judged elsewhere — this only asks
- * "is there a hole here?".
+ * weak startable hole this player would upgrade — one of the men its shape
+ * actually fields there sits AI_NEED_BUY_WEAK_STARTER_GAP+ ovr below the club's
+ * own squad strength, and the player beats him. Drives the AI "need buy" path: a
+ * cash-rich club with a real hole pays a fair price to fill it instead of
+ * holding out for a bargain. Position quality/affordability are judged elsewhere
+ * — this only asks "is there a hole here?".
+ *
+ * The hole is measured at the WEAKEST starter, not the best player. Reading the
+ * best assumed one starter per position, which is only true of the keeper:
+ * formations field two centre-backs and full-backs and two or three midfielders,
+ * so a club with one excellent centre-back and three awful ones registered no
+ * need at all and the market never offered it one. Measured, that left
+ * first-division clubs sitting on nine-figure budgets starting 16-year-olds, and
+ * free agency could not rescue them because the pool holds almost nobody worth
+ * starting. See scripts/xiFitProbe.ts for the symptom.
  */
 export function hasPositionalGap(player: Player, ctx: ClubContext): boolean {
   const pos = player.pos;
   const understaffed = ctx.posDepth[pos] < ROSTER_COMPOSITION[pos];
   const weakStarter =
-    ctx.posBestOvr[pos] < ctx.squadStrength - AI_NEED_BUY_WEAK_STARTER_GAP &&
-    player.ovr > ctx.posBestOvr[pos];
+    ctx.posWeakestStarterOvr[pos] < ctx.squadStrength - AI_NEED_BUY_WEAK_STARTER_GAP &&
+    player.ovr > ctx.posWeakestStarterOvr[pos];
   return understaffed || weakStarter;
 }
 
