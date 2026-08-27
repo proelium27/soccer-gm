@@ -1372,9 +1372,12 @@ export function Manual() {
           <p>
             <strong>Buying.</strong> The Transfers page recommends 5&ndash;10 for-sale players near
             your level and within your budget, and how accurately they're ranked comes down to your
-            scouting spend (<a href="#finance">Finance</a>). The filters (position, min OVR, min
-            potential, max age, max value) actually re-run the search rather than just hiding rows,
-            so pinning a position pulls up a fresh, fuller list of players there. Negotiation goes
+            scouting spend (<a href="#finance">Finance</a>). The filter bar actually re-runs the
+            search rather than just hiding rows, so pinning a position pulls up a fresh, fuller list
+            of players there. You can filter on position, nationality, which league he plays in, a
+            range of overall, potential, age and scout value, a weekly wage ceiling, and how much
+            contract he has left &mdash; and every column heading sorts the table. Money boxes take
+            shorthand, so "50m" and "800k" work as well as typing the zeros. Negotiation goes
             like this: the selling club has a hidden asking price, rolled once per window, so you
             can't reopen talks hoping they're in a better mood. Offer way below it and they hang up
             for the rest of the window. Offer low-but-believable and they counter above their true
@@ -1385,12 +1388,14 @@ export function Manual() {
           <p>
             <strong>Search all players.</strong> Under the recommended list is a search panel that
             reaches every club in the world, not just targets near your level. Type a name, or set
-            any of the same filters (position, min OVR, min potential, max age, max value), and it
-            lists matching players from every league with an Offer control right on the row &mdash;
-            negotiation works exactly as above. Two things it won't let you buy: a player his club
-            needs for squad depth, and the very best players at clubs coming off a big season, who
-            aren't for sale at any price. In those cases the row says why instead of taking an offer
-            that would go nowhere.
+            any of the same filters, and it lists matching players from every league with an Offer
+            control right on the row &mdash; negotiation works exactly as above. Two things it won't
+            let you buy: a player his club needs for squad depth, and the very best players at clubs
+            coming off a big season, who aren't for sale at any price. In those cases the row says
+            why instead of taking an offer that would go nowhere &mdash; or tick "only show players I
+            can actually bid on" and they drop out of the list entirely. The search shows the best 60
+            matches by overall, so if you're hunting something specific, narrow the filters rather
+            than scrolling.
           </p>
           <p>
             <strong>The player has to want it.</strong> Money isn't the whole story, and this is the

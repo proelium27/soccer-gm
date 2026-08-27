@@ -25,41 +25,22 @@ import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PlayerRefLink, usePlayerRefs } from "../components/PlayerRefLink.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
+import {
+  PlayerFilterBar,
+  EMPTY_PLAYER_FILTERS,
+  hasAnyFilter,
+  toSearchFilters,
+  type PlayerFilterState,
+} from "../components/PlayerFilterBar.js";
 import { ROSTER_CAP, WINDOW_TRANSFER_LIMIT } from "../../core/constants.js";
-import { POSITIONS } from "../../core/players/types.js";
 
-// "recommended" is the initial, unsorted order (best-fit targets first); the
-// other keys map to clickable columns.
-type TargetSortKey = "recommended" | "name" | "pos" | "age" | "ovr" | "pot" | "club" | "wage" | "value";
-
-interface TransferFilters {
-  position: string;
-  minOvr: string;
-  minPot: string;
-  maxAge: string;
-  maxValue: string;
-}
-
-const EMPTY_FILTERS: TransferFilters = {
-  position: "",
-  minOvr: "",
-  minPot: "",
-  maxAge: "",
-  maxValue: "",
-};
-
-interface SearchFilters extends TransferFilters {
-  name: string;
-}
-
-const EMPTY_SEARCH: SearchFilters = { ...EMPTY_FILTERS, name: "" };
-
-/** Parse a text field into a numeric filter value (""/invalid → no constraint). */
-function numFilter(s: string): number | null {
-  if (s === "") return null;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
-}
+// The column sort keys the two tables share, plus each one's "as ranked"
+// sentinel: "recommended" is the shortlist's best-fit order and "rank" the
+// search's own ovr ranking. Neither has an accessor, so sortRows leaves that
+// order alone until the user actually clicks a header.
+type ColumnSortKey = "name" | "pos" | "age" | "ovr" | "pot" | "club" | "wage" | "value";
+type TargetSortKey = ColumnSortKey | "recommended";
+type SearchSortKey = ColumnSortKey | "rank";
 
 /** One recommended-transfer row (player + who's selling + scout value). */
 type TargetRow = ReturnType<typeof recommendedTransfers>[number];
@@ -170,17 +151,26 @@ function NegotiationControls({
 export function Transfers() {
   const { league, makeOfferAction, acceptCounterAction, simming } = useLeague();
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const [filters, setFilters] = useState<TransferFilters>(EMPTY_FILTERS);
-  const [search, setSearch] = useState<SearchFilters>(EMPTY_SEARCH);
+  const [filters, setFilters] = useState<PlayerFilterState>(EMPTY_PLAYER_FILTERS);
+  const [search, setSearch] = useState<PlayerFilterState>(EMPTY_PLAYER_FILTERS);
+  // The search's own two controls, which the shared bar doesn't carry: a name
+  // box (only this panel looks players up by name) and the for-sale toggle
+  // (the shortlist never shows an unbuyable player in the first place).
+  const [searchName, setSearchName] = useState("");
+  const [forSaleOnly, setForSaleOnly] = useState(false);
   const { sort, toggle } = useTableSort<TargetSortKey>("recommended", "desc");
+  const searchSort = useTableSort<SearchSortKey>("rank", "desc");
 
-  const hasFilters =
-    filters.position !== "" || filters.minOvr !== "" || filters.minPot !== ""
-    || filters.maxAge !== "" || filters.maxValue !== "";
+  const hasFilters = hasAnyFilter(filters);
+  // "For sale only" isn't a search on its own — by itself it still describes
+  // most of the world, so the core treats it as a narrowing, not a query.
+  const hasSearch = searchName.trim() !== "" || hasAnyFilter(search);
 
-  const hasSearch =
-    search.name.trim() !== "" || search.position !== "" || search.minOvr !== ""
-    || search.minPot !== "" || search.maxAge !== "" || search.maxValue !== "";
+  const clearSearch = () => {
+    setSearch(EMPTY_PLAYER_FILTERS);
+    setSearchName("");
+    setForSaleOnly(false);
+  };
 
   // Both scans below walk every club's roster, so they run off *debounced*
   // copies of the filter state: the inputs stay bound to the raw state (typing
@@ -189,6 +179,7 @@ export function Transfers() {
   // is what pushed this page's INP into the seconds on mobile.
   const debouncedFilters = useDebounced(filters);
   const debouncedSearch = useDebounced(search);
+  const debouncedName = useDebounced(searchName);
 
   // Filters feed into the search itself (not a post-hoc row filter), so
   // changing one re-runs the candidate scan and surfaces genuinely new
@@ -197,13 +188,7 @@ export function Transfers() {
   // redo it; it re-runs only when the league, refresh, or a filter changes.
   const targets = useMemo(() => {
     if (!league) return [];
-    return recommendedTransfers(league, refreshNonce, {
-      position: debouncedFilters.position || undefined,
-      minOvr: numFilter(debouncedFilters.minOvr),
-      minPot: numFilter(debouncedFilters.minPot),
-      maxAge: numFilter(debouncedFilters.maxAge),
-      maxValue: numFilter(debouncedFilters.maxValue),
-    });
+    return recommendedTransfers(league, refreshNonce, toSearchFilters(debouncedFilters));
   }, [league, refreshNonce, debouncedFilters]);
 
   // Free-form world search: scans every club, so it's memoized to stay off the
@@ -212,14 +197,11 @@ export function Transfers() {
   const searchResults = useMemo(() => {
     if (!league) return [];
     return searchWorldPlayers(league, {
-      name: debouncedSearch.name,
-      position: debouncedSearch.position || undefined,
-      minOvr: numFilter(debouncedSearch.minOvr),
-      minPot: numFilter(debouncedSearch.minPot),
-      maxAge: numFilter(debouncedSearch.maxAge),
-      maxValue: numFilter(debouncedSearch.maxValue),
+      ...toSearchFilters(debouncedSearch),
+      name: debouncedName,
+      forSaleOnly,
     });
-  }, [league, debouncedSearch]);
+  }, [league, debouncedSearch, debouncedName, forSaleOnly]);
 
   // Players bought earlier *this visit*. A completed buy moves the player onto
   // your roster, so he drops out of the recommended scan and his row would just
@@ -267,6 +249,18 @@ export function Transfers() {
     [league],
   );
 
+  // The nationality dropdown is built from the world rather than from the
+  // static nationality tables: a save only ever contains the countries its
+  // leagues draw from, and offering the other fifty as options that match
+  // nobody is worse than offering none. One pass over the pool, memoized —
+  // it runs on the same 8000-player array as the maps above.
+  const nationalities = useMemo(() => {
+    const seen = new Set<string>();
+    for (const p of league?.players ?? []) seen.add(p.nationality);
+    return [...seen].sort((a, b) => a.localeCompare(b));
+  }, [league?.players]);
+  const competitions = useMemo(() => league?.competitions ?? [], [league?.competitions]);
+
   // Splice players bought this visit back into the list at their original row,
   // so the row appears to stay put and flip to "Transferred" rather than jump
   // to the top or disappear. (See `pinnedBuys` above for the once-per-visit
@@ -292,6 +286,24 @@ export function Transfers() {
       value: (r) => r.scoutedValue,
     });
   }, [targets, pinnedBuys, sort, league?.season, teamName]);
+
+  // Same column sort for the search table. Its default "rank" key has no
+  // accessor either, so until a header is clicked the rows stay in the order
+  // the core ranked them (ovr descending, which is also what the row cap slices
+  // on — see PLAYER_SEARCH_LIMIT).
+  const displaySearchResults = useMemo(() => {
+    const season = league?.season ?? 0;
+    return sortRows(searchResults, searchSort.sort, {
+      name: (r) => r.player.name,
+      pos: (r) => r.player.pos,
+      age: (r) => season - r.player.born,
+      ovr: (r) => r.player.ovr,
+      pot: (r) => r.player.potential,
+      club: (r) => teamName(r.sellerTid),
+      wage: (r) => r.player.contract.salary,
+      value: (r) => r.scoutedValue,
+    });
+  }, [searchResults, searchSort.sort, league?.season, teamName]);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -385,73 +397,14 @@ export function Transfers() {
                 on top of the fee.</>
               )}
             </p>
-            <div className="d-flex flex-wrap gap-2 align-items-end mb-3">
-              <div>
-                <label className="form-label small mb-0" htmlFor="rt-filter-pos">Position</label>
-                <select
-                  id="rt-filter-pos"
-                  className="form-select form-select-sm"
-                  value={filters.position}
-                  onChange={(e) => setFilters((f) => ({ ...f, position: e.target.value }))}
-                >
-                  <option value="">All</option>
-                  {POSITIONS.map((pos) => (
-                    <option key={pos} value={pos}>{pos}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="form-label small mb-0" htmlFor="rt-filter-min-ovr">Min Ovr</label>
-                <input
-                  id="rt-filter-min-ovr"
-                  type="number"
-                  className="form-control form-control-sm"
-                  style={{ width: "5.5rem" }}
-                  value={filters.minOvr}
-                  onChange={(e) => setFilters((f) => ({ ...f, minOvr: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="form-label small mb-0" htmlFor="rt-filter-min-pot">Min Pot</label>
-                <input
-                  id="rt-filter-min-pot"
-                  type="number"
-                  className="form-control form-control-sm"
-                  style={{ width: "5.5rem" }}
-                  value={filters.minPot}
-                  onChange={(e) => setFilters((f) => ({ ...f, minPot: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="form-label small mb-0" htmlFor="rt-filter-max-age">Max Age</label>
-                <input
-                  id="rt-filter-max-age"
-                  type="number"
-                  className="form-control form-control-sm"
-                  style={{ width: "5.5rem" }}
-                  value={filters.maxAge}
-                  onChange={(e) => setFilters((f) => ({ ...f, maxAge: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="form-label small mb-0" htmlFor="rt-filter-max-value">Max Value</label>
-                <input
-                  id="rt-filter-max-value"
-                  type="number"
-                  className="form-control form-control-sm"
-                  style={{ width: "8rem" }}
-                  value={filters.maxValue}
-                  onChange={(e) => setFilters((f) => ({ ...f, maxValue: e.target.value }))}
-                />
-              </div>
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-secondary"
-                onClick={() => setFilters(EMPTY_FILTERS)}
-              >
-                Clear filters
-              </button>
-            </div>
+            <PlayerFilterBar
+              idPrefix="rt"
+              value={filters}
+              onChange={setFilters}
+              onClear={() => setFilters(EMPTY_PLAYER_FILTERS)}
+              nationalities={nationalities}
+              competitions={competitions}
+            />
             {displayTargets.length === 0 ? (
               <p className="mb-0">
                 {hasFilters
@@ -527,7 +480,14 @@ export function Transfers() {
               with a player it needs for depth, and the very best players at
               successful clubs simply aren&apos;t for sale at any price.
             </p>
-            <div className="d-flex flex-wrap gap-2 align-items-end mb-3">
+            <PlayerFilterBar
+              idPrefix="ps"
+              value={search}
+              onChange={setSearch}
+              onClear={clearSearch}
+              nationalities={nationalities}
+              competitions={competitions}
+            >
               <div>
                 <label className="form-label small mb-0" htmlFor="ps-name">Name</label>
                 <input
@@ -536,75 +496,22 @@ export function Transfers() {
                   className="form-control form-control-sm"
                   style={{ width: "12rem" }}
                   placeholder="Search by name"
-                  value={search.name}
-                  onChange={(e) => setSearch((s) => ({ ...s, name: e.target.value }))}
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
                 />
               </div>
-              <div>
-                <label className="form-label small mb-0" htmlFor="ps-pos">Position</label>
-                <select
-                  id="ps-pos"
-                  className="form-select form-select-sm"
-                  value={search.position}
-                  onChange={(e) => setSearch((s) => ({ ...s, position: e.target.value }))}
-                >
-                  <option value="">All</option>
-                  {POSITIONS.map((pos) => (
-                    <option key={pos} value={pos}>{pos}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="form-label small mb-0" htmlFor="ps-min-ovr">Min Ovr</label>
-                <input
-                  id="ps-min-ovr"
-                  type="number"
-                  className="form-control form-control-sm"
-                  style={{ width: "5.5rem" }}
-                  value={search.minOvr}
-                  onChange={(e) => setSearch((s) => ({ ...s, minOvr: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="form-label small mb-0" htmlFor="ps-min-pot">Min Pot</label>
-                <input
-                  id="ps-min-pot"
-                  type="number"
-                  className="form-control form-control-sm"
-                  style={{ width: "5.5rem" }}
-                  value={search.minPot}
-                  onChange={(e) => setSearch((s) => ({ ...s, minPot: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="form-label small mb-0" htmlFor="ps-max-age">Max Age</label>
-                <input
-                  id="ps-max-age"
-                  type="number"
-                  className="form-control form-control-sm"
-                  style={{ width: "5.5rem" }}
-                  value={search.maxAge}
-                  onChange={(e) => setSearch((s) => ({ ...s, maxAge: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="form-label small mb-0" htmlFor="ps-max-value">Max Value</label>
-                <input
-                  id="ps-max-value"
-                  type="number"
-                  className="form-control form-control-sm"
-                  style={{ width: "8rem" }}
-                  value={search.maxValue}
-                  onChange={(e) => setSearch((s) => ({ ...s, maxValue: e.target.value }))}
-                />
-              </div>
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-secondary"
-                onClick={() => setSearch(EMPTY_SEARCH)}
-              >
-                Clear
-              </button>
+            </PlayerFilterBar>
+            <div className="form-check mb-3">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="ps-for-sale"
+                checked={forSaleOnly}
+                onChange={(e) => setForSaleOnly(e.target.checked)}
+              />
+              <label className="form-check-label small" htmlFor="ps-for-sale">
+                Only show players I can actually bid on
+              </label>
             </div>
             {!hasSearch ? (
               <p className="mb-0 text-muted">
@@ -616,19 +523,19 @@ export function Transfers() {
               <table className="table table-striped table-sm align-middle">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Pos</th>
-                    <th className="text-end">Age</th>
-                    <th className="text-end">Ovr</th>
-                    <th className="text-end">Pot <PotHelp /></th>
-                    <th>Club</th>
-                    <th className="text-end">Wage</th>
-                    <th className="text-end">Scout value</th>
+                    <SortableTh sortKey="name" sort={searchSort.sort} onSort={searchSort.toggle} defaultDir="asc">Name</SortableTh>
+                    <SortableTh sortKey="pos" sort={searchSort.sort} onSort={searchSort.toggle} defaultDir="asc">Pos</SortableTh>
+                    <SortableTh sortKey="age" sort={searchSort.sort} onSort={searchSort.toggle} className="text-end" defaultDir="asc">Age</SortableTh>
+                    <SortableTh sortKey="ovr" sort={searchSort.sort} onSort={searchSort.toggle} className="text-end">Ovr</SortableTh>
+                    <SortableTh sortKey="pot" sort={searchSort.sort} onSort={searchSort.toggle} className="text-end">Pot <PotHelp /></SortableTh>
+                    <SortableTh sortKey="club" sort={searchSort.sort} onSort={searchSort.toggle} defaultDir="asc">Club</SortableTh>
+                    <SortableTh sortKey="wage" sort={searchSort.sort} onSort={searchSort.toggle} className="text-end">Wage</SortableTh>
+                    <SortableTh sortKey="value" sort={searchSort.sort} onSort={searchSort.toggle} className="text-end">Scout value</SortableTh>
                     <th>Offer</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {searchResults.map(({ player: p, sellerTid, scoutedValue, forSale, notForSaleReason }) => (
+                  {displaySearchResults.map(({ player: p, sellerTid, scoutedValue, forSale, notForSaleReason }) => (
                     <tr key={p.pid}>
                       <td>
                         <PlayerRatingsTooltip player={p}>

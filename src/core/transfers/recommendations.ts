@@ -4,6 +4,7 @@ import type { LeagueStore } from "../leagueState.js";
 import { transferWindowState } from "./window.js";
 import { departsAtRollover, isForSale, isForSaleOrRefusing, scoutedValue, windowSeed } from "./negotiation.js";
 import { scoutingNoiseSd } from "../finance/scouting.js";
+import { weeklyWage } from "../contracts.js";
 import { resolveXI } from "../lineup/resolveXI.js";
 import { teamSlots } from "../lineup/formations.js";
 import { mulberry32, gaussian } from "../../engine/rng.js";
@@ -45,20 +46,100 @@ export interface TransferTarget {
 }
 
 /**
- * User-supplied scouting criteria. These are *hard* constraints applied to
- * the candidate pool before ranking — they change which players the search
- * considers, not just which of a fixed list are shown. A null/undefined/""
- * field is "no constraint". A pinned `position` also lifts the usual
- * per-position variety cap, so asking for "FB" returns a full list of FBs
- * rather than the two that would fit in the mixed-position list.
+ * The per-player field constraints both transfer searches share. Every field
+ * is optional and a null/undefined/"" value means "no constraint".
+ *
+ * These are *hard* constraints applied to the candidate pool before ranking —
+ * they change which players the search considers, not just which of a fixed
+ * list are shown. Everything in here is a plain field comparison, deliberately:
+ * both searches walk every roster in the world on the user's keystroke path, so
+ * this first pass has to stay cheap. Anything that needs a valuation or a sale
+ * gate (min/max value, for-sale-only) belongs in each search's second pass
+ * instead — see the two-pass note in `searchWorldPlayers`.
  */
-export interface RecommendationFilters {
+export interface PlayerFieldFilters {
   position?: string;
+  /** Exact match on Player.nationality (a country name, e.g. "Portugal"). */
+  nationality?: string;
+  /** Restrict to clubs currently playing in this competition (see core/competitions.ts). */
+  compId?: number | null;
   minOvr?: number | null;
+  maxOvr?: number | null;
   minPot?: number | null;
+  maxPot?: number | null;
+  minAge?: number | null;
   maxAge?: number | null;
+  /**
+   * Weekly wage ceiling — weekly rather than per-season because that is the
+   * figure the wage column shows, so the filter reads in the same units as the
+   * number the user is looking at.
+   */
+  maxWeeklyWage?: number | null;
+  /**
+   * Seasons left on the contract, at most: 0 keeps only players whose deal
+   * expires at the end of this season, 1 adds next season's expiries, and so on.
+   */
+  maxContractYears?: number | null;
+}
+
+/** Value constraints, split out because they cost a `scoutedValue` call to test. */
+export interface PlayerValueFilters {
+  minValue?: number | null;
   maxValue?: number | null;
 }
+
+/** True when at least one field constraint is set. */
+export function hasFieldConstraint(f: PlayerFieldFilters): boolean {
+  return (
+    !!f.position || !!f.nationality
+    || f.compId != null
+    || f.minOvr != null || f.maxOvr != null
+    || f.minPot != null || f.maxPot != null
+    || f.minAge != null || f.maxAge != null
+    || f.maxWeeklyWage != null || f.maxContractYears != null
+  );
+}
+
+/**
+ * Club-level half of the field filters. Checked once per club rather than once
+ * per player so a competition filter skips 20-odd rosters whole.
+ */
+function teamMatchesFilters(team: StoredTeam, f: PlayerFieldFilters): boolean {
+  return f.compId == null || team.compId === f.compId;
+}
+
+/** Player-level half of the field filters. `season` dates ages and contracts. */
+function playerMatchesFilters(player: Player, f: PlayerFieldFilters, season: number): boolean {
+  if (f.position && player.pos !== f.position) return false;
+  if (f.nationality && player.nationality !== f.nationality) return false;
+  if (f.minOvr != null && player.ovr < f.minOvr) return false;
+  if (f.maxOvr != null && player.ovr > f.maxOvr) return false;
+  if (f.minPot != null && player.potential < f.minPot) return false;
+  if (f.maxPot != null && player.potential > f.maxPot) return false;
+  const age = season - player.born;
+  if (f.minAge != null && age < f.minAge) return false;
+  if (f.maxAge != null && age > f.maxAge) return false;
+  if (f.maxWeeklyWage != null && weeklyWage(player.contract.salary) > f.maxWeeklyWage) return false;
+  if (f.maxContractYears != null && player.contract.expiresSeason - season > f.maxContractYears) {
+    return false;
+  }
+  return true;
+}
+
+/** True when a scouted valuation clears both money constraints. */
+function valueMatchesFilters(value: number, f: PlayerValueFilters): boolean {
+  if (f.minValue != null && value < f.minValue) return false;
+  if (f.maxValue != null && value > f.maxValue) return false;
+  return true;
+}
+
+/**
+ * User-supplied scouting criteria for the recommended list. A pinned `position`
+ * also lifts the usual per-position variety cap, so asking for "FB" returns a
+ * full list of full-backs rather than the two that would fit in the
+ * mixed-position list.
+ */
+export interface RecommendationFilters extends PlayerFieldFilters, PlayerValueFilters {}
 
 /**
  * The Recommended Transfers list: 5-10 for-sale players of similar overall
@@ -88,10 +169,6 @@ export function recommendedTransfers(
   if (!user) return [];
 
   const posFilter = filters.position || null;
-  const minOvr = filters.minOvr ?? null;
-  const minPot = filters.minPot ?? null;
-  const maxAge = filters.maxAge ?? null;
-  const maxValue = filters.maxValue ?? null;
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
   const rosterPlayers = user.roster
@@ -118,27 +195,27 @@ export function recommendedTransfers(
   const candidates: TransferTarget[] = [];
   for (const team of league.teams) {
     if (team.tid === user.tid) continue;
+    // Club-level constraint first, so a league filter skips a whole roster.
+    if (!teamMatchesFilters(team, filters)) continue;
     for (const pid of team.roster) {
       const player = playerMap.get(pid);
       if (!player) continue;
+      // Hard user constraints — these narrow *which* players the search
+      // considers, so changing a filter surfaces a genuinely new list. Checked
+      // before the gates below because they're plain field comparisons.
+      if (!playerMatchesFilters(player, filters, ws.season)) continue;
       if (protectedPids.has(pid)) continue;
       // Nor does anyone who'd simply turn this club down (see playerWill.ts) —
       // recommending a target the offer engine will refuse is just a dead end.
       if (refusesMove(player.ovr, statures.get(team.tid) ?? 0, userStature)) continue;
       if (!isForSale(team, playerMap, pid) && !wouldRefuseExtension(player, team, league.competitions)) continue;
       if (departsAtRollover(league, player)) continue;
-      // Hard user constraints — these narrow *which* players the search
-      // considers, so changing a filter surfaces a genuinely new list.
-      if (posFilter && player.pos !== posFilter) continue;
-      if (minOvr !== null && player.ovr < minOvr) continue;
-      if (minPot !== null && player.potential < minPot) continue;
-      if (maxAge !== null && ws.season - player.born > maxAge) continue;
       const value = scoutedValue(
       league.lid, ws.season, ws.window, player, user.scoutingSpend,
       difficultyProfile(league.difficulty).buyPriceScale,
     );
       if (value > user.budget) continue;
-      if (maxValue !== null && value > maxValue) continue;
+      if (!valueMatchesFilters(value, filters)) continue;
       candidates.push({ player, sellerTid: team.tid, scoutedValue: value });
     }
   }
@@ -201,14 +278,17 @@ export function recommendedTransfers(
 }
 
 /** Filters for the free-form world player search (all null/""/undefined = "no constraint"). */
-export interface PlayerSearchFilters {
+export interface PlayerSearchFilters extends PlayerFieldFilters, PlayerValueFilters {
   /** Case-insensitive substring match on the player's name. */
   name?: string;
-  position?: string;
-  minOvr?: number | null;
-  minPot?: number | null;
-  maxAge?: number | null;
-  maxValue?: number | null;
+  /**
+   * Drop players their club won't part with, instead of listing them with a
+   * reason. Applied in the second pass (it needs the sale gates), so it thins
+   * the rows *before* the render cap: a for-sale-only search fills all
+   * PLAYER_SEARCH_LIMIT rows with players you can actually bid on rather than
+   * spending most of them on the untouchable names at the top of the ovr sort.
+   */
+  forSaleOnly?: boolean;
 }
 
 export interface PlayerSearchResult extends TransferTarget {
@@ -247,17 +327,14 @@ export function searchWorldPlayers(
   if (!user) return [];
 
   const nameQuery = (filters.name ?? "").trim().toLowerCase();
-  const posFilter = filters.position || null;
-  const minOvr = filters.minOvr ?? null;
-  const minPot = filters.minPot ?? null;
-  const maxAge = filters.maxAge ?? null;
-  const maxValue = filters.maxValue ?? null;
 
   // Require at least one constraint — an unfiltered search would just list the
-  // 60 highest-rated (and mostly unbuyable) players in the world.
+  // 60 highest-rated (and mostly unbuyable) players in the world. "For sale
+  // only" is deliberately not a constraint on its own: by itself it still
+  // describes most of the world.
   const hasConstraint =
-    nameQuery !== "" || posFilter !== null || minOvr !== null
-    || minPot !== null || maxAge !== null || maxValue !== null;
+    nameQuery !== "" || hasFieldConstraint(filters)
+    || filters.minValue != null || filters.maxValue != null;
   if (!hasConstraint) return [];
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
@@ -274,14 +351,13 @@ export function searchWorldPlayers(
   const candidates: { player: Player; team: StoredTeam }[] = [];
   for (const team of league.teams) {
     if (team.tid === user.tid) continue;
+    // Club-level constraint first, so a league filter skips a whole roster.
+    if (!teamMatchesFilters(team, filters)) continue;
     for (const pid of team.roster) {
       const player = playerMap.get(pid);
       if (!player) continue;
       if (nameQuery && !player.name.toLowerCase().includes(nameQuery)) continue;
-      if (posFilter && player.pos !== posFilter) continue;
-      if (minOvr !== null && player.ovr < minOvr) continue;
-      if (minPot !== null && player.potential < minPot) continue;
-      if (maxAge !== null && ws.season - player.born > maxAge) continue;
+      if (!playerMatchesFilters(player, filters, ws.season)) continue;
       candidates.push({ player, team });
     }
   }
@@ -309,7 +385,7 @@ export function searchWorldPlayers(
       league.lid, ws.season, ws.window, player, user.scoutingSpend,
       difficultyProfile(league.difficulty).buyPriceScale,
     );
-    if (maxValue !== null && value > maxValue) continue;
+    if (!valueMatchesFilters(value, filters)) continue;
 
     // Mirror makeTransferOffer's sale gates so the UI can explain, not no-op.
     let notForSaleReason: string | null = null;
@@ -325,6 +401,8 @@ export function searchWorldPlayers(
       // move down says so instead of silently swallowing the offer.
       notForSaleReason = "Wouldn't drop to a club this size";
     }
+
+    if (filters.forSaleOnly && notForSaleReason !== null) continue;
 
     results.push({
       player,
