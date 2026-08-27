@@ -1700,6 +1700,14 @@ export function Manual() {
             looking at the same player genuinely value him differently.
           </p>
           <p>
+            "Would he be an upgrade" means against the man he'd actually take the shirt off, not
+            against the club's best player in that position. A back four starts two centre-backs, so
+            a club with one excellent one and three poor ones is measured on the poor one it has to
+            field alongside him. That's the difference between a club seeing a hole and thinking
+            itself well stocked, and it's why a side with money will now go and buy a second
+            centre-back instead of sitting on the cash and starting a teenager.
+          </p>
+          <p>
             Pricing its <em>own</em> players is a different question, and the club asks it
             differently: not "how much would he improve us" (he's already here) but "how far would we
             fall back without him". A star with no ready deputy behind him is priced brutally
