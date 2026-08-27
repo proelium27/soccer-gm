@@ -1,7 +1,7 @@
 # Publishing to GitHub Pages
 
 The game deployed straight from this repo, at
-`https://proelium27.github.io/soccer-gm/`. It is a full, playable copy —
+`https://proelium27.github.io/world-soccer-sim/`. It is a full, playable copy —
 same bundle as worldsoccersim.org, built from the same source with two things
 changed: the base path and an SPA fallback file.
 
@@ -29,7 +29,7 @@ and it fails loudly rather than publishing something stale.
 To build it locally:
 
 ```bash
-npm run build:pages           # writes dist/ with base "/soccer-gm/"
+npm run build:pages           # writes dist/ with base "/world-soccer-sim/"
 PAGES_BASE=/other-name/ npm run build:pages
 ```
 
@@ -42,14 +42,14 @@ the workflow fills it from `configure-pages`' reported base path (the only
 source that knows about a custom domain) and falls back to the repo name (right
 for any project page, so a fork or a rename needs no edit), and the app reads it
 back through `import.meta.env.BASE_URL` as the router's `basename`. Without the basename every route falls through to no match: the
-browser is at `/soccer-gm/manual` and React Router would be looking for a
-`/soccer-gm/manual` route, which does not exist.
+browser is at `/world-soccer-sim/manual` and React Router would be looking for a
+`/world-soccer-sim/manual` route, which does not exist.
 
 That single value also covers `public/` files, via the existing
 `publicAsset()` — the reason the top-bar logo is not a bare `/favicon.png`.
 
 **An SPA fallback.** Pages is a static host with no rewrite rules, so a deep
-link like `/soccer-gm/manual` has no file behind it. The one hook it offers is
+link like `/world-soccer-sim/manual` has no file behind it. The one hook it offers is
 `404.html`: it serves that document for any path it cannot resolve, and the
 browser renders it with the requested URL still in the address bar — so a copy
 of `index.html` boots the app on the right route. `vite.config.ts` writes it
@@ -61,6 +61,25 @@ loads and the route renders), and it costs nothing in search, because every page
 canonicalizes to worldsoccersim.org — see `src/ui/seo.ts`, whose `SITE_ORIGIN`
 is absolute for exactly this reason. This mirror is not meant to be indexed in
 its own right.
+
+## Renaming the repo breaks the live site until you redeploy
+
+The base path is baked into the bundle at build time — every asset URL in the
+deployed `index.html` starts with it — so it describes where the site was *when
+it was built*, not where it is now. Rename the repo and the site moves to
+`/<new-name>/` while the deployed HTML still asks for `/<old-name>/assets/…`:
+the page loads, every asset 404s, and you get a blank screen. This is exactly
+what happened on 2026-08-26, when `soccer-gm` became `world-soccer-sim` a few
+hours after the first successful deploy.
+
+Nothing can detect this without rebuilding — a static file cannot know its own
+URL changed. The fix is to **re-run the deploy** (Actions → *Deploy to GitHub
+Pages* → Run workflow), which is also all that is needed: the workflow reads the
+base from the Pages API and the repo name at build time, so it picks the new
+name up on its own. Any push to `main` does the same thing.
+
+So: after renaming the repo, redeploy. The same applies to adding or removing a
+custom domain, for the same reason.
 
 ## Custom domain
 
@@ -79,13 +98,13 @@ the real deploy:
 
 ```bash
 # assets carry the prefix
-curl -s https://proelium27.github.io/soccer-gm/ | grep -o '/soccer-gm/assets/[^"]*'
+curl -s https://proelium27.github.io/world-soccer-sim/ | grep -o '/world-soccer-sim/assets/[^"]*'
 # the fallback is there (a 404 status serving the app's HTML is the pass)
-curl -s https://proelium27.github.io/soccer-gm/manual | grep -c "World Soccer Simulator"
+curl -s https://proelium27.github.io/world-soccer-sim/manual | grep -c "World Soccer Simulator"
 # analytics survived the build — the same check as worldsoccersim.org, but
 # following the real asset URL, since a shell glob means nothing over HTTP
-SITE=https://proelium27.github.io/soccer-gm
-curl -s "$SITE$(curl -s $SITE/ | grep -o '/soccer-gm/assets/index-[^"]*\.js')" | grep -c phc_
+SITE=https://proelium27.github.io/world-soccer-sim
+curl -s "$SITE$(curl -s $SITE/ | grep -o '/world-soccer-sim/assets/index-[^"]*\.js')" | grep -c phc_
 ```
 
 To check a local build the way the host serves it, the base path has to be
@@ -95,8 +114,8 @@ serves the bundle under the subpath with the 404 fallback in place:
 
 ```bash
 npm run build:pages
-npx tsx scripts/servePages.ts     # http://localhost:4174/soccer-gm/
+npx tsx scripts/servePages.ts     # http://localhost:4174/world-soccer-sim/
 ```
 
-Then open a deep link (`/soccer-gm/manual`), not just the entry page — the
+Then open a deep link (`/world-soccer-sim/manual`), not just the entry page — the
 entry page is the one URL that still works when the fallback is missing.

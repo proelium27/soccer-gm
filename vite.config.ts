@@ -102,11 +102,19 @@ function crazyGamesHtml(): Plugin {
  *
  * Set PAGES_BASE=/ if the deploy ever gets a custom domain (a CNAME file puts
  * the site at the domain root, where a repo-name prefix would 404 instead).
+ *
+ * The fallback has to track the repo's *current* name, and it is worth knowing
+ * why that matters beyond local builds: this value is baked into every asset
+ * URL, so a deployed bundle describes where the site was when it was built.
+ * Renaming the repo therefore breaks the live site until it is rebuilt — the
+ * page loads and every asset 404s. It happened: soccer-gm became
+ * world-soccer-sim hours after the first deploy. The workflow reads the name at
+ * build time, so a redeploy is the whole fix; see docs/github-pages.md.
  */
 const pagesBase = () => {
-  const raw = process.env.PAGES_BASE ?? "/soccer-gm/";
+  const raw = process.env.PAGES_BASE ?? "/world-soccer-sim/";
   // Vite resolves asset URLs by string concatenation, so a missing trailing
-  // slash silently yields /soccer-gmassets/index.js.
+  // slash silently yields /world-soccer-simassets/index.js.
   return raw.endsWith("/") ? raw : `${raw}/`;
 };
 
@@ -114,7 +122,7 @@ const pagesBase = () => {
  * GitHub Pages surgery: an SPA fallback and the pre-React links.
  *
  * Pages is a static file host with no rewrite rules, so a deep link like
- * /soccer-gm/manual has no file behind it. The one hook it does offer is
+ * /world-soccer-sim/manual has no file behind it. The one hook it does offer is
  * 404.html: it serves that document for any path it can't resolve, and the
  * browser renders it with the requested URL still in the address bar — so a
  * byte-identical copy of index.html boots the app on the right route. (The
