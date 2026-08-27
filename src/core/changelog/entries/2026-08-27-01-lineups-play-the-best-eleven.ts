@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from "../types.js";
 
 const entry: ChangelogEntry = {
-  date: "2026-08-26",
+  date: "2026-08-27",
   title: "Lineups stop starting a bad specialist ahead of much better cover",
   items: [
     "When the game picked a lineup it sorted by position label first and rating second, so any recognised full-back beat anyone who wasn't one, however far behind he was. First-division clubs were starting **39-rated full-backs with 67-rated midfielders on the bench**. That was **16.9% of every starting slot** in the top divisions, at **77% of clubs**.",
