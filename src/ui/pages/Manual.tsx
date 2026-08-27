@@ -606,6 +606,13 @@ export function Manual() {
             used to be before this panel existed.
           </p>
           <p>
+            There are 108 nations to choose from, covering every confederation, so a league can be
+            Gulf, east African, south-east Asian or Oceanian rather than only European. Fifteen of
+            the newer ones have no flag art and show a plain swatch next to the name instead, which
+            is deliberate: their flags are Arabic script or a coat of arms, and a wrong flag reads
+            worse than none.
+          </p>
+          <p>
             A roster file can carry the mix too, as a <code>nationalities</code> block. Loading one
             fills the panel in for you, and you can still change it afterwards. The shipped
             countries aren't editable — they keep the real breakdowns they were built from.

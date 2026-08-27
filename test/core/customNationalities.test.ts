@@ -88,6 +88,39 @@ describe("hand-authored league nationalities", () => {
   });
 });
 
+describe("the added nations stay out of the shipped world", () => {
+  // The load-bearing invariant behind putting them in UNLISTED_NATIONALITIES
+  // rather than OTHER_NATIONS. TAIL_BASE is built from NATIONALITIES +
+  // OTHER_NATIONS, so a nation added there is drawn by the "rest of the world"
+  // bucket of EVERY league in EVERY existing save. Here they are reachable only
+  // by a table that names them, so an existing dynasty generates identically.
+  //
+  // If this fails, someone moved an UNLISTED nation into one of the other two
+  // tables and silently changed what every shipped league produces.
+  it("reach a shipped league only when its own table names them", () => {
+    // Turkey's table names Gambia, Bosnia-Herzegovina and Albania outright —
+    // that is what UNLISTED is for, and those must still be drawn. What must
+    // never happen is an UNLISTED nation arriving through the rest-of-world
+    // tail of a league that never asked for it.
+    const unlisted = new Set(Object.keys(UNLISTED_NATIONALITIES));
+    for (const [home, table] of Object.entries(LEAGUE_NATIONALITY_WEIGHTS)) {
+      const named = new Set(Object.keys(table));
+      const rng = mulberry32(17);
+      for (let i = 0; i < 6000; i++) {
+        const nat = pickNationality(rng, home);
+        if (unlisted.has(nat)) {
+          expect(named.has(nat), `${nat} reached ${home} without being named`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("are reachable when a league names them", () => {
+    const d = distribution({ "Saudi Arabia": 80, [REST_OF_WORLD]: 20 });
+    expect(d.get("Saudi Arabia") ?? 0).toBeCloseTo(0.8, 1);
+  });
+});
+
 describe("sanitizeNationalityWeights", () => {
   it("drops nations with no name pool, which would generate nonsense names", () => {
     expect(sanitizeNationalityWeights({ Netherlands: 50, Wakanda: 50 }))

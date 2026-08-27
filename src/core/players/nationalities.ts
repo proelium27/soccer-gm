@@ -1106,6 +1106,412 @@ export const UNLISTED_NATIONALITIES: Record<string, NationalityDef> = {
       "Muca", "Nika", "Rama", "Vata",
     ],
   },
+
+  /* ── Reachable only by a league that names them (2026-08-26) ──────────────
+   * Everything below exists so a league the player builds can be somewhere in
+   * particular: a Gulf league, an east African one, an Oceanian one. They are
+   * here rather than in OTHER_NATIONS for the reason this table exists at all
+   * — TAIL_BASE is built from NATIONALITIES + OTHER_NATIONS, so adding thirty
+   * nations there would re-weight the "Rest of the World" tail of every league
+   * in every existing save. Here they are drawn only by a table that names
+   * them explicitly, so the shipped world is untouched.
+   *
+   * `weight` is unused for UNLISTED entries (nothing reads it for a flat draw);
+   * it records where they would sit if one were ever graduated.
+   *
+   * Names are common civilian ones, never national-team squads, so a generated
+   * player can't read as a real professional. Several have no flag art yet and
+   * render the neutral swatch <Flag> already falls back to. */
+  "Saudi Arabia": {
+    weight: 2,
+    first: [
+      "Abdullah", "Mohammed", "Faisal", "Khalid", "Saud", "Turki", "Nasser", "Bandar",
+      "Majed", "Sultan", "Fahad", "Yousef", "Omar", "Ibrahim", "Salman", "Rayan",
+      "Ziyad", "Hatim", "Anas", "Marwan", "Talal", "Waleed", "Rakan", "Badr",
+    ],
+    last: [
+      "Alharbi", "Alotaibi", "Alqahtani", "Alghamdi", "Alzahrani", "Alshehri", "Aldosari", "Almutairi",
+      "Alanazi", "Alsubaie", "Alamri", "Albalawi", "Alrashidi", "Aljuhani", "Alshammari", "Alfaifi",
+      "Alyami", "Alkhaldi", "Alsulami", "Alhazmi", "Almalki", "Asiri", "Bahammam", "Nahdi",
+    ],
+  },
+  Qatar: {
+    weight: 2,
+    first: [
+      "Hassan", "Ali", "Ahmad", "Jassim", "Nasser", "Khalid", "Saad", "Hamad",
+      "Tamim", "Rashid", "Mubarak", "Fahad", "Yousef", "Mansour", "Salem", "Ismail",
+      "Zayed", "Ghanim", "Talal", "Bilal", "Karim", "Adel", "Waleed", "Sultan",
+    ],
+    last: [
+      "Almarri", "Alsulaiti", "Alnaimi", "Albinali", "Alyazidi", "Alhajri", "Alemadi", "Almeer",
+      "Alrumaihi", "Alshahwani", "Almansoori", "Alobaidly", "Alkubaisi", "Aljabri", "Alsada", "Alnuaimi",
+      "Almohammed", "Alsalem", "Alkhater", "Almadadi", "Alkaabi", "Alboainin", "Aldarwish", "Alfardan",
+    ],
+  },
+  "United Arab Emirates": {
+    weight: 2,
+    first: [
+      "Khalifa", "Zayed", "Saeed", "Ahmed", "Mohammed", "Rashid", "Obaid", "Sultan",
+      "Hamdan", "Majid", "Saif", "Ali", "Abdulrahman", "Hazza", "Tariq", "Yaqoub",
+      "Ismail", "Salem", "Nasser", "Fares", "Adel", "Marwan", "Omar", "Jassem",
+    ],
+    last: [
+      "Almarzooqi", "Alhammadi", "Alshamsi", "Almenhali", "Alblooshi", "Alnaqbi", "Alzaabi", "Alketbi",
+      "Alraisi", "Almazrouei", "Alsuwaidi", "Alqubaisi", "Alhosani", "Aldhaheri", "Alameri", "Alyammahi",
+      "Alnuaimi", "Alsaadi", "Alfalasi", "Alrahoumi", "Almulla", "Alderei", "Albreiki", "Alhefeiti",
+    ],
+  },
+  Iraq: {
+    weight: 2,
+    first: [
+      "Ali", "Hussein", "Mustafa", "Ahmed", "Karrar", "Bashar", "Hayder", "Mahmoud",
+      "Saif", "Kadhim", "Rebin", "Amjad", "Alaa", "Ammar", "Ibrahim", "Zaid",
+      "Sajjad", "Wissam", "Younis", "Firas", "Rashid", "Osama", "Muntadher", "Salam",
+    ],
+    last: [
+      "Alhasan", "Almousawi", "Alkhafaji", "Aljanabi", "Altamimi", "Alobaidi", "Alsaadi", "Alrubaie",
+      "Alzubaidi", "Aldulaimi", "Alkaabi", "Alshammari", "Almaliki", "Alhamdani", "Alazzawi", "Alnasiri",
+      "Barzani", "Rasheed", "Jassim", "Sabri", "Hameed", "Fadhil", "Yaseen", "Shakir",
+    ],
+  },
+  Uzbekistan: {
+    weight: 2,
+    first: [
+      "Jasur", "Otabek", "Sardor", "Bekzod", "Azizbek", "Timur", "Rustam", "Doston",
+      "Javohir", "Shohruh", "Bobur", "Alisher", "Farrukh", "Islom", "Sanjar", "Ulugbek",
+      "Dilshod", "Aziz", "Nodir", "Eldor", "Kamron", "Anvar", "Muhammadali", "Sherzod",
+    ],
+    last: [
+      "Karimov", "Yusupov", "Rakhimov", "Ergashev", "Nazarov", "Tursunov", "Ibragimov", "Sharipov",
+      "Juraev", "Umarov", "Saidov", "Alimov", "Kholmatov", "Rashidov", "Sultanov", "Mirzaev",
+      "Abdullaev", "Toshmatov", "Qodirov", "Bekmurodov", "Nurmatov", "Hakimov", "Sobirov", "Ochilov",
+    ],
+  },
+  Jordan: {
+    weight: 2,
+    first: [
+      "Yazan", "Mahmoud", "Anas", "Ehsan", "Musa", "Bahaa", "Nizar", "Odai",
+      "Hamza", "Feras", "Saeed", "Ahmad", "Tareq", "Laith", "Zaid", "Amer",
+      "Sami", "Khalil", "Rami", "Bilal", "Mutaz", "Ismail", "Karam", "Ayman",
+    ],
+    last: [
+      "Alrawabdeh", "Almardi", "Alsaify", "Alfaqeeh", "Haddad", "Zreiqat", "Khattab", "Obeidat",
+      "Shalabi", "Masalha", "Qatanani", "Tarawneh", "Sharaiha", "Hattab", "Barghouti", "Salameh",
+      "Ghanem", "Nsour", "Rifai", "Dabbas", "Zawahreh", "Mansour", "Adwan", "Btoush",
+    ],
+  },
+  Thailand: {
+    weight: 2,
+    first: [
+      "Somchai", "Anuwat", "Pornthep", "Wichai", "Kittipong", "Nattawut", "Peerapat", "Worachit",
+      "Jakkaphan", "Chaowat", "Thanawat", "Sarawut", "Nopporn", "Pichai", "Weerapong", "Krit",
+      "Surachai", "Panupong", "Thanakrit", "Watcharin", "Sittichai", "Narong", "Prasert", "Chalermchai",
+    ],
+    last: [
+      "Sangkaew", "Chaiyaphum", "Boonmathan", "Wongchai", "Srisuk", "Phromphao", "Kaewkla", "Thongchai",
+      "Ratchanon", "Suksawat", "Prathum", "Charoensuk", "Meesap", "Ngamsom", "Panyapha", "Rungrueang",
+      "Sitthichok", "Chindawong", "Bunlue", "Kanchana", "Somboon", "Wattana", "Yaemyuean", "Pholsawat",
+    ],
+  },
+  Vietnam: {
+    weight: 2,
+    first: [
+      "Quang", "Cong", "Duy", "Tien", "Hoang", "Minh", "Tuan", "Van",
+      "Thanh", "Hung", "Trong", "Duc", "Anh", "Bao", "Khanh", "Nam",
+      "Phuc", "Long", "Kien", "Truong", "Dat", "Hieu", "Vinh", "Son",
+    ],
+    last: [
+      "Nguyen", "Tran", "Le", "Pham", "Hoang", "Phan", "Vu", "Dang",
+      "Bui", "Do", "Ho", "Ngo", "Duong", "Ly", "Dinh", "Truong",
+      "Cao", "Mai", "Ta", "Trinh", "Luong", "Doan", "Quach", "Chu",
+    ],
+  },
+  Indonesia: {
+    weight: 2,
+    first: [
+      "Bagus", "Rizky", "Andik", "Yanto", "Bambang", "Irfan", "Dedi", "Rachmat",
+      "Ilham", "Dimas", "Kadek", "Wahyu", "Gian", "Yakob", "Ricky", "Agung",
+      "Budi", "Hendra", "Joko", "Rudi", "Slamet", "Teguh", "Wawan", "Yudi",
+    ],
+    last: [
+      "Setiawan", "Wibowo", "Kurniawan", "Nugroho", "Santoso", "Hidayat", "Saputra", "Prasetyo",
+      "Wijaya", "Susanto", "Utomo", "Hartono", "Firmansyah", "Ramadhan", "Maulana", "Permana",
+      "Anggara", "Sihombing", "Simanjuntak", "Purnama", "Aditya", "Gunawan", "Harahap", "Sinaga",
+    ],
+  },
+  Malaysia: {
+    weight: 2,
+    first: [
+      "Syafiq", "Faisal", "Aidil", "Hafiz", "Azam", "Nazmi", "Farid", "Shahrul",
+      "Amri", "Khairul", "Rizal", "Adam", "Harith", "Zafuan", "Nasir", "Akhyar",
+      "Danial", "Haziq", "Izzat", "Luqman", "Naim", "Redzuan", "Shukri", "Zulhilmi",
+    ],
+    last: [
+      "Rasid", "Ahmad", "Halim", "Ismail", "Yusof", "Rahman", "Hashim", "Aziz",
+      "Salleh", "Osman", "Jantan", "Nasir", "Mokhtar", "Ramli", "Zainal", "Kadir",
+      "Mansor", "Sulaiman", "Idris", "Bakar", "Talib", "Wahab", "Zulkifli", "Latif",
+    ],
+  },
+  Hungary: {
+    weight: 2,
+    first: [
+      "Bence", "Adam", "Daniel", "Roland", "Zsolt", "Attila", "Gergo", "Balazs",
+      "Marton", "Norbert", "Peter", "Laszlo", "Tamas", "Istvan", "Krisztian", "Andras",
+      "Gabor", "Mate", "Levente", "Csaba", "Zoltan", "Akos", "Botond", "Kristof",
+    ],
+    last: [
+      "Nagy", "Kovacs", "Toth", "Szabo", "Horvath", "Varga", "Kiss", "Molnar",
+      "Nemeth", "Farkas", "Balogh", "Papp", "Takacs", "Juhasz", "Lakatos", "Meszaros",
+      "Olah", "Simon", "Racz", "Fekete", "Torok", "Gulyas", "Fabian", "Veres",
+    ],
+  },
+  Bulgaria: {
+    weight: 2,
+    first: [
+      "Georgi", "Ivan", "Dimitar", "Nikola", "Petar", "Stefan", "Todor", "Martin",
+      "Kiril", "Aleksandar", "Vasil", "Boris", "Emil", "Radoslav", "Plamen", "Krasimir",
+      "Yordan", "Zdravko", "Lyubomir", "Simeon", "Valeri", "Rumen", "Milen", "Ognyan",
+    ],
+    last: [
+      "Ivanov", "Petrov", "Dimitrov", "Georgiev", "Nikolov", "Todorov", "Stoyanov", "Angelov",
+      "Iliev", "Kolev", "Marinov", "Vasilev", "Popov", "Hristov", "Atanasov", "Borisov",
+      "Yanev", "Zlatev", "Delchev", "Kirilov", "Manolov", "Rusev", "Tsvetkov", "Slavov",
+    ],
+  },
+  Russia: {
+    weight: 2,
+    first: [
+      "Aleksandr", "Dmitri", "Sergei", "Andrei", "Ivan", "Maksim", "Nikolai", "Roman",
+      "Artem", "Denis", "Kirill", "Egor", "Vladimir", "Pavel", "Anton", "Yuri",
+      "Mikhail", "Aleksei", "Ilya", "Danila", "Gleb", "Timur", "Fedor", "Vadim",
+    ],
+    last: [
+      "Ivanov", "Smirnov", "Kuznetsov", "Popov", "Sokolov", "Lebedev", "Kozlov", "Novikov",
+      "Morozov", "Petrov", "Volkov", "Solovyov", "Vasilyev", "Zaytsev", "Pavlov", "Semenov",
+      "Golubev", "Vinogradov", "Bogdanov", "Vorobyov", "Fedorov", "Mikhailov", "Belyaev", "Tarasov",
+    ],
+  },
+  Georgia: {
+    weight: 2,
+    first: [
+      "Giorgi", "Levan", "Nika", "Irakli", "Zurab", "Davit", "Otar", "Guram",
+      "Vakhtang", "Saba", "Luka", "Beka", "Tornike", "Aleksandre", "Shota", "Merab",
+      "Lasha", "Gela", "Temur", "Ilia", "Zaza", "Rati", "Nodar", "Sandro",
+    ],
+    last: [
+      "Beridze", "Lomidze", "Gogia", "Chkheidze", "Maisuradze", "Tsiklauri", "Kapanadze", "Javakhishvili",
+      "Mikeladze", "Nozadze", "Gelashvili", "Kobakhidze", "Tabatadze", "Baramidze", "Dzneladze", "Kharaishvili",
+      "Papava", "Sturua", "Tsereteli", "Gurgenidze", "Kutateladze", "Chikovani", "Meladze", "Tsulaia",
+    ],
+  },
+  "North Macedonia": {
+    weight: 2,
+    first: [
+      "Goran", "Stefan", "Aleksandar", "Darko", "Ilija", "Bojan", "Nikola", "Marjan",
+      "Vlatko", "Filip", "Kire", "Dejan", "Zoran", "Mite", "Trajko", "Blagoja",
+      "Ognen", "Risto", "Slave", "Vanco", "Igor", "Petar", "Mario", "Boban",
+    ],
+    last: [
+      "Stojanovski", "Ristovski", "Trajkovski", "Nikolovski", "Petrovski", "Georgievski", "Dimitrievski", "Angelovski",
+      "Ivanovski", "Mitrevski", "Jovanovski", "Velkovski", "Spasovski", "Todorovski", "Kostovski", "Bogdanovski",
+      "Naumovski", "Zdravkovski", "Manevski", "Cvetkovski", "Lazarevski", "Simonovski", "Panev", "Gjorgjev",
+    ],
+  },
+  Montenegro: {
+    weight: 2,
+    first: [
+      "Stefan", "Marko", "Nikola", "Milos", "Vladimir", "Luka", "Filip", "Aleksandar",
+      "Dejan", "Igor", "Bojan", "Danilo", "Petar", "Risto", "Zarko", "Vukan",
+      "Balsa", "Nemanja", "Andrija", "Milan", "Uros", "Savo", "Drasko", "Mirko",
+    ],
+    last: [
+      "Vukcevic", "Jovanovic", "Popovic", "Radovic", "Perovic", "Boskovic", "Djukic", "Scepanovic",
+      "Vujosevic", "Kaludjerovic", "Lekic", "Ivanovic", "Nikolic", "Milic", "Backovic", "Raicevic",
+      "Djurovic", "Tomasevic", "Knezevic", "Bulatovic", "Markovic", "Adzic", "Kalezic", "Zecevic",
+    ],
+  },
+  "Northern Ireland": {
+    weight: 2,
+    first: [
+      "Steven", "Jonny", "Craig", "Niall", "Conor", "Paddy", "Shane", "Gareth",
+      "Stuart", "Ciaron", "Daniel", "Ryan", "Michael", "Liam", "Trai", "Bailey",
+      "Isaac", "Jordan", "Aaron", "Kyle", "Ross", "Dale", "Rory", "Barry",
+    ],
+    last: [
+      "Ferguson", "Hughes", "Bradley", "Donnelly", "McCann", "Reilly", "Devine", "Kearns",
+      "Charles", "Toal", "Peacock", "Hume", "Brown", "McKenna", "Doherty", "Campbell",
+      "Gallagher", "Hamilton", "Kennedy", "Maguire", "Nolan", "Quinn", "Sloan", "Thompson",
+    ],
+  },
+  Belarus: {
+    weight: 2,
+    first: [
+      "Maksim", "Ihar", "Siarhei", "Dzmitry", "Yauheni", "Aliaksandr", "Vitaly", "Anton",
+      "Pavel", "Uladzimir", "Mikita", "Kiryl", "Raman", "Artsiom", "Yury", "Andrei",
+      "Stanislau", "Valery", "Denis", "Ivan", "Hleb", "Nikolai", "Ruslan", "Vadzim",
+    ],
+    last: [
+      "Ivanou", "Kavalenka", "Novik", "Sauchanka", "Yarmolenka", "Bandarenka", "Karpovich", "Shestakou",
+      "Zhuk", "Kazlou", "Marozau", "Dubrouka", "Hancharou", "Sidarenka", "Vasilieu", "Klimovich",
+      "Rybak", "Astapenka", "Miatliuk", "Pashkevich", "Sakalou", "Zaitsau", "Belski", "Hrytsuk",
+    ],
+  },
+  Ethiopia: {
+    weight: 2,
+    first: [
+      "Abebe", "Tesfaye", "Getachew", "Bekele", "Dawit", "Yohannes", "Solomon", "Mulugeta",
+      "Girma", "Alemayehu", "Fikru", "Henok", "Samson", "Biruk", "Tewodros", "Kalab",
+      "Addis", "Berhanu", "Eyasu", "Nahom", "Robel", "Sisay", "Yared", "Zewdu",
+    ],
+    last: [
+      "Tadesse", "Haile", "Kebede", "Assefa", "Wolde", "Mekonnen", "Desta", "Gebre",
+      "Tekle", "Alemu", "Belay", "Negash", "Abera", "Demissie", "Gizaw", "Lemma",
+      "Mengistu", "Shiferaw", "Teshome", "Worku", "Yimer", "Zerihun", "Habte", "Ayele",
+    ],
+  },
+  Uganda: {
+    weight: 2,
+    first: [
+      "Emmanuel", "Farouk", "Allan", "Khalid", "Milton", "Ibrahim", "Moses", "Joseph",
+      "Ronald", "Isaac", "Tadeo", "Halid", "Steven", "Fahad", "Patrick", "Derrick",
+      "Timothy", "Kenneth", "Aziz", "Yunus", "Gavin", "Simon", "Robert", "Julius",
+    ],
+    last: [
+      "Ssekiganda", "Lwanga", "Kaddu", "Mutyaba", "Nsibambi", "Walusimbi", "Ssenkumba", "Katongole",
+      "Mugume", "Sserunkuma", "Wasswa", "Tumusiime", "Okello", "Kagimu", "Lubega", "Mukasa",
+      "Nabende", "Ochieng", "Opio", "Ssembatya", "Tugume", "Wanyama", "Kizza", "Namara",
+    ],
+  },
+  Zimbabwe: {
+    weight: 2,
+    first: [
+      "Knowledge", "Marvelous", "Tendai", "Marshall", "Talent", "Tinotenda", "Blessing", "Terrence",
+      "Divine", "Prince", "Kudakwashe", "Munashe", "Farai", "Tafadzwa", "Simba", "Panashe",
+      "Brighton", "Takudzwa", "Never", "Wellington", "Admiral", "Costa", "Tapiwa", "Nyasha",
+    ],
+    last: [
+      "Moyo", "Ndlovu", "Sibanda", "Dube", "Mpofu", "Chirwa", "Mavhunga", "Mudimu",
+      "Marufu", "Gwekwerere", "Rusike", "Mangwiro", "Chikwature", "Gumbo", "Madzivanyika", "Nyoni",
+      "Shumba", "Tsvangirai", "Zhou", "Mutasa", "Chigumba", "Makoni", "Nhema", "Zvobgo",
+    ],
+  },
+  Sudan: {
+    weight: 2,
+    first: [
+      "Mohamed", "Ahmed", "Abdelrahman", "Musab", "Salah", "Waleed", "Bakri", "Yasir",
+      "Tayseer", "Sharaf", "Mustafa", "Osman", "Hisham", "Kamal", "Idris", "Ammar",
+      "Mazin", "Rayan", "Sabir", "Hatim", "Omar", "Zuhair", "Nasr", "Tarig",
+    ],
+    last: [
+      "Abdalla", "Elsheikh", "Hassan", "Ibrahim", "Osman", "Ahmed", "Mahmoud", "Bakhit",
+      "Hamid", "Yousif", "Suleiman", "Adam", "Elamin", "Gasim", "Nour", "Tia",
+      "Karrar", "Fadl", "Mukhtar", "Rahma", "Salih", "Tambal", "Wadi", "Zakaria",
+    ],
+  },
+  Libya: {
+    weight: 2,
+    first: [
+      "Muaid", "Ahmed", "Sand", "Mohamed", "Faisal", "Anis", "Ali", "Omar",
+      "Salem", "Tareq", "Motasem", "Abdullah", "Sofiane", "Nader", "Rabie", "Marwan",
+      "Ayoub", "Khaled", "Bilal", "Mansour", "Younes", "Hussein", "Adel", "Fathi",
+    ],
+    last: [
+      "Alsaghir", "Bengargeb", "Zubya", "Alfitouri", "Almeriami", "Elshaykhi", "Abdelrahman", "Alghazal",
+      "Elmabrouk", "Ashour", "Krewi", "Almuntasir", "Bendarwish", "Elhadi", "Ferjani", "Gwaider",
+      "Hamad", "Kadiki", "Nashnoush", "Salem", "Tarhouni", "Zubi", "Misrati", "Werfalli",
+    ],
+  },
+  Togo: {
+    weight: 2,
+    first: [
+      "Kodjo", "Kossi", "Yao", "Komlan", "Serge", "Mathieu", "Floyd", "Peniel",
+      "Roger", "Kevin", "Sadat", "Thibault", "Samuel", "Fo", "Gnama", "Dove",
+      "Atakora", "Bassah", "Kwame", "Etse", "Afi", "Elom", "Mawuli", "Sena",
+    ],
+    last: [
+      "Akakpo", "Amewou", "Segbefia", "Tchakei", "Lawson", "Aholou", "Bessan", "Djiwa",
+      "Fambo", "Kossi", "Mensah", "Nyavor", "Ouro", "Tchagnirou", "Adjei", "Akoto",
+      "Attiogbe", "Bawa", "Djato", "Folly", "Gnandi", "Kponton", "Sowu", "Tetteh",
+    ],
+  },
+  Benin: {
+    weight: 2,
+    first: [
+      "Steve", "Jodel", "Cebio", "Olivier", "Mickael", "Jordan", "David", "Marcellin",
+      "Rodrigue", "Yohan", "Desire", "Khaled", "Junior", "Tidjani", "Seibou", "Imourane",
+      "Moise", "Cedric", "Farid", "Andreas", "Emmanuel", "Rachad", "Bruno", "Landry",
+    ],
+    last: [
+      "Dossou", "Kiki", "Ahouanou", "Assogba", "Hountondji", "Agbegniadan", "Bokpe", "Djidonou",
+      "Gbaguidi", "Hodonou", "Koukpo", "Lokonon", "Migan", "Nouwatin", "Olou", "Sagbo",
+      "Tchomogo", "Zohoun", "Adjovi", "Dakpogan", "Houngbedji", "Kponou", "Sohou", "Zinsou",
+    ],
+  },
+  Guatemala: {
+    weight: 2,
+    first: [
+      "Carlos", "Jose", "Luis", "Rodrigo", "Marco", "Nicolas", "Oscar", "Jorge",
+      "Antonio", "Rafael", "Jesus", "Fredy", "Kevin", "Alejandro", "Elias", "Gerardo",
+      "Juan", "Pedro", "Erick", "Manuel", "Diego", "Cristian", "Aaron", "Byron",
+    ],
+    last: [
+      "Morales", "Lopez", "Ruiz", "Hernandez", "Perez", "Garcia", "Rodriguez", "Castillo",
+      "Mendez", "Ramirez", "Santis", "Estrada", "Contreras", "Oliva", "Marroquin", "Cardona",
+      "Alvarez", "Palencia", "Cabrera", "Barrios", "Chinchilla", "Figueroa", "Monterroso", "Quinonez",
+    ],
+  },
+  "El Salvador": {
+    weight: 2,
+    first: [
+      "Nelson", "Darwin", "Jairo", "Marvin", "Enrico", "Kevin", "Christian", "Ronald",
+      "Bryan", "Mario", "Herbert", "Gerson", "Narciso", "Amando", "Denis", "Roberto",
+      "Diego", "Ivan", "Joaquin", "Rodolfo", "Walter", "Oscar", "Salvador", "Nahun",
+    ],
+    last: [
+      "Cerritos", "Henriquez", "Ceren", "Zelaya", "Bonilla", "Portillo", "Menjivar", "Escobar",
+      "Alas", "Rugamas", "Turcios", "Cruz", "Landaverde", "Sanchez", "Melgar", "Quintanilla",
+      "Aguilar", "Chavez", "Duran", "Guevara", "Mejia", "Rivas", "Interiano", "Ventura",
+    ],
+  },
+  "Trinidad and Tobago": {
+    weight: 2,
+    first: [
+      "Kevin", "Levi", "Alvin", "Khaleem", "Joevin", "Sheldon", "Aubrey", "Nathan",
+      "Reon", "Daniel", "Marvin", "Neveal", "Justin", "Ryan", "Andre", "Trevin",
+      "Duane", "Curtis", "Jesse", "Malcolm", "Shannon", "Tyrone", "Willis", "Kern",
+    ],
+    last: [
+      "Garcia", "Jones", "Hyland", "Bateau", "Phillip", "Fenlon", "Hackshaw", "Toussaint",
+      "Gonzales", "Charles", "Lewis", "Andrews", "Baptiste", "Boucaud", "Chase", "Dyer",
+      "Edwards", "Guerra", "John", "Marcelle", "Peltier", "Williams", "Alexander", "Superville",
+    ],
+  },
+  Fiji: {
+    weight: 2,
+    first: [
+      "Setareki", "Iosefo", "Napolioni", "Sairusi", "Antonio", "Scott", "Praneel", "Ratu",
+      "Meli", "Kolinio", "Epeli", "Waisake", "Simione", "Jale", "Tevita", "Alvin",
+      "Beniamino", "Christopher", "Dave", "Filipe", "Josaia", "Manasa", "Peni", "Semi",
+    ],
+    last: [
+      "Verma", "Naidu", "Baleinamau", "Tuivuna", "Tuisawau", "Rasova", "Dunadamu", "Ravonokula",
+      "Waqanidrola", "Nawatu", "Ratudradra", "Bolatagane", "Cavubati", "Delana", "Koroi", "Lomani",
+      "Matai", "Naicker", "Prasad", "Rokovada", "Singh", "Vosarogo", "Naiqama", "Tabua",
+    ],
+  },
+  "Papua New Guinea": {
+    weight: 2,
+    first: [
+      "Raymond", "Tommy", "Nigel", "David", "Michael", "Alwin", "Emmanuel", "Ronald",
+      "Kolu", "Yagi", "Gimo", "Nicholas", "Felix", "Jacob", "Koriak", "Daniel",
+      "Obert", "Philip", "Samuel", "Timothy", "Valentine", "Wesley", "Andrew", "Bill",
+    ],
+    last: [
+      "Semmy", "Dabinyaba", "Muta", "Foster", "Simon", "Warup", "Kaipu", "Aisa",
+      "Bakani", "Daera", "Gerard", "Hebou", "Joseph", "Kepo", "Lepani", "Molean",
+      "Nawi", "Pagan", "Reu", "Tovi", "Waine", "Yakasa", "Kimai", "Talusa",
+    ],
+  },
 };
 
 // "Other Nations (combined)" bucket — a country is picked uniformly among
