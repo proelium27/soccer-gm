@@ -60,7 +60,7 @@ jobs:
           # adds the trailing slash either way.
           PAGES_BASE: ${{ steps.pages.outputs.base_path || format('/{0}/', github.event.repository.name) }}
       # Guards the one failure that is invisible until a player hits it: a deep
-      # link like /soccer-gm/manual is served by 404.html, and without that file
+      # link like /world-soccer-sim/manual is served by 404.html, and without that file
       # every route but the entry point is a GitHub 404 page.
       - name: Check the SPA fallback was written
         run: test -f dist/404.html

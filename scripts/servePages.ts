@@ -3,7 +3,7 @@
  * subpath bugs are visible locally.
  *
  *   npm run build:pages
- *   npx tsx scripts/servePages.ts        # http://localhost:4174/soccer-gm/
+ *   npx tsx scripts/servePages.ts        # http://localhost:4174/world-soccer-sim/
  *
  * The two behaviours it reproduces are the two that a plain `python3 -m
  * http.server dist` hides, and they are the whole reason this exists — the same
@@ -13,7 +13,7 @@
  *   1. **Everything lives under /<repo>/.** A bundle built with the wrong base
  *      still loads at the root, so serving `dist/` directly proves nothing.
  *   2. **Unknown paths fall back to 404.html, with a 404 status.** That is how
- *      a deep link like /soccer-gm/manual boots the app on Pages, and how it
+ *      a deep link like /world-soccer-sim/manual boots the app on Pages, and how it
  *      breaks if the fallback file is ever missing.
  */
 import { createServer } from "node:http";
@@ -23,7 +23,7 @@ import { extname, join } from "node:path";
 const dir = process.env.PAGES_DIR ?? "dist";
 const port = Number(process.env.PORT ?? 4174);
 // Matches the workflow's default. Keep in step with PAGES_BASE in vite.config.ts.
-const base = (process.env.PAGES_BASE ?? "/soccer-gm/").replace(/\/*$/, "/");
+const base = (process.env.PAGES_BASE ?? "/world-soccer-sim/").replace(/\/*$/, "/");
 
 const TYPES: Record<string, string> = {
   ".html": "text/html",
