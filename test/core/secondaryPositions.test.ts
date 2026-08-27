@@ -7,6 +7,8 @@ import {
   positionRatings,
   positionLabel,
   secondaryPositions,
+  ovrAtSlot,
+  slotValue,
 } from "../../src/core/players/positions.js";
 import { ADJACENCY, COVERABLE, familiarityPenalty, fitTier } from "../../src/engine/positionFit.js";
 import { selectXI } from "../../src/core/lineup/selectXI.js";
@@ -172,13 +174,29 @@ describe("selection", () => {
     const picked = selectXI([versatile!, specialist!], ["FB"])[0];
     expect(picked.pid).toBe(versatile!.pid);
 
-    // And the converse still holds: a winger who does NOT double at full-back
-    // loses the slot to the same weaker specialist, however good he is.
+    // What a secondary position is actually worth: exactly the familiarity
+    // penalty, no more. The versatile winger plays full-back at his own
+    // full-back rating; a winger who does not double there is docked for it.
     const rigid = league.players.find(
       (p) => p.pos === "W" && !secondaryPositions(p).includes("FB") && p.ovr > specialist!.ovr + 5,
     );
     expect(rigid).toBeDefined();
-    expect(selectXI([rigid!, specialist!], ["FB"])[0].pid).toBe(specialist!.pid);
+    expect(slotValue(versatile!, "FB")).toBe(ovrAtSlot(versatile!, "FB"));
+    expect(slotValue(rigid!, "FB")).toBe(ovrAtSlot(rigid!, "FB") - POSITION_ADJACENT_PENALTY);
+
+    // So the penalty decides the slot rather than the position label doing it:
+    // a specialist good enough to beat the stand-in's *full-back* value keeps
+    // his place, where the weaker one above does not. (Selection used to go
+    // strictly by listed position, which handed the slot to any natural
+    // full-back however far behind he was — that is how a first-division club
+    // came to start a 39-rated full-back with a 67-rated midfielder benched.)
+    const bar = slotValue(rigid!, "FB");
+    const betterSpecialist = league.players.find(
+      (p) => p.pos === "FB" && secondaryPositions(p).length === 0 && p.ovr > bar,
+    );
+    expect(betterSpecialist, "no specialist full-back rated above the stand-in").toBeDefined();
+    expect(selectXI([rigid!, betterSpecialist!], ["FB"])[0].pid).toBe(betterSpecialist!.pid);
+    expect(selectXI([rigid!, specialist!], ["FB"])[0].pid).toBe(rigid!.pid);
   });
 
   it("still fills every slot", () => {

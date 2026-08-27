@@ -1,7 +1,7 @@
 import type { Player, PlayerRatings, Position } from "./types.js";
 import { POSITIONS } from "./types.js";
 import { computeOvr } from "./ovr.js";
-import { COVERABLE } from "../../engine/positionFit.js";
+import { COVERABLE, familiarityPenalty } from "../../engine/positionFit.js";
 import {
   MAX_SECONDARY_POSITIONS, SECONDARY_POSITION_CUTOFF,
   POSITION_CHANGE_MARGIN, POSITION_CHANGE_SEASONS,
@@ -140,6 +140,30 @@ export function ovrAtSlot(p: Player, slot: Position): number {
   if (slot === p.pos) return p.ovr;
   const known = positionRatings(p).find((r) => r.pos === slot);
   return known ? known.ovr : computeOvr(slot, p.ratings, p.heightCm);
+}
+
+/**
+ * What he is actually worth to a side playing THIS slot: his rating at the job
+ * (`ovrAtSlot`) less the familiarity penalty the match sim charges him for
+ * filling in there.
+ *
+ * The number to *choose* by whenever a slot is being filled, and deliberately
+ * the same one `benchValueAt` maximizes when the sim picks a substitute. Those
+ * two must agree or the game contradicts itself — a picker that ranks fit
+ * strictly ahead of rating fields a man the sim then rates below someone on the
+ * bench, which is exactly how a first-division club ended up starting a
+ * 39-rated full-back with a 67-rated midfielder sat behind him (measured; see
+ * scripts/xiFitProbe.ts).
+ *
+ * Both halves are load-bearing. `ovrAtSlot` asks how good he'd be at the job,
+ * so a striker can't claim a full-back slot on a striker's rating; the penalty
+ * then charges him for not knowing it, so a specialist still beats an
+ * equally-rated stand-in. A secondary position waives the penalty but not the
+ * re-rating, which keeps a utility man genuinely first-choice at the slot he
+ * doubles at without making him a free upgrade everywhere he can reach.
+ */
+export function slotValue(p: Player, slot: Position): number {
+  return ovrAtSlot(p, slot) - familiarityPenalty(slot, p.pos, secondaryPositions(p));
 }
 
 /** "ST" or "ST / W" — his position as the UI should name it. */

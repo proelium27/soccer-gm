@@ -72,8 +72,19 @@ const SEASON = simSeason(mulberry32(12345));
  * is shifted, so the world generates different squads. Different squads play
  * different football. Nothing about attribution moved, and the invariant this
  * test exists for — attribution not perturbing the match stream — is unchanged.
+ *
+ * And again when selectXI began choosing on `slotValue` — a player's rating at
+ * the slot less the familiarity penalty — instead of ranking fit tier strictly
+ * above rating. Same class as the composite changes above: the picker is pure
+ * and draws nothing, so stream order and draw count are untouched; what moves is
+ * WHO starts, and therefore every composite rolled up from the XI. It is a large
+ * move for the same reason it was worth making — measured on a season-8 world,
+ * 16.9% of first-division starting slots held a man the sim rated below someone
+ * on that club's bench, and the picker had been refusing a 6-point penalty at a
+ * cost of up to 35 rating points. Formation choice moved with it, since
+ * chooseBestFormation scores the same number.
  */
-const BASELINE_SCORELINE_HASH = 1127113885;
+const BASELINE_SCORELINE_HASH = 3838391028;
 
 function scorelineHash(matches: typeof SEASON.matches): number {
   const s = matches.map((m) => `${m.home}:${m.homeGoals}-${m.awayGoals}:${m.away}`).join("|");

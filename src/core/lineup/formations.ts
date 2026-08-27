@@ -1,5 +1,6 @@
 import type { Player, Position } from "../players/types.js";
 import { selectXI } from "./selectXI.js";
+import { slotValue } from "../players/positions.js";
 
 export const FORMATION_IDS = [
   "4-3-3",
@@ -68,21 +69,28 @@ export function teamSlots(team: { formation?: FormationId | null }): Position[] 
 }
 
 /**
- * The formation whose auto-picked XI (via selectXI) has the highest combined
- * OVR for this roster — i.e. the shape that lets a club field its strongest
- * eleven. Used to pick every AI club's formation from its current squad. When
- * a roster has 11 or fewer players every formation fields the same set, so all
- * tie and the first (4-3-3) wins; the choice only bites once a roster is deep
- * enough that different shapes start different players (e.g. a squad rich in
- * strikers scores higher in a two-striker shape). Deterministic: ties break by
- * FORMATION_IDS order.
+ * The formation whose auto-picked XI is worth most for this roster — i.e. the
+ * shape that lets a club field its strongest eleven. Used to pick every AI
+ * club's formation from its current squad. A deep roster scores a shape by which
+ * players it gets on the pitch (a squad rich in strikers does better in a
+ * two-striker shape), and an eleven-man roster — which fields the same *set*
+ * whatever the shape — still scores them differently, by how well that set fits
+ * the jobs on offer. Deterministic: ties break by FORMATION_IDS order.
+ *
+ * Scores on `slotValue`, the same number `selectXI` picks the XI by, not on the
+ * players' own-position OVR. Summing raw OVR asked "which shape gets my
+ * highest-rated names on the pitch" and ignored whether they could play the jobs
+ * it created — so a shape could win by fielding an extra man badly out of
+ * position, and the chooser and the picker disagreed about the very XI they
+ * shared. A shape is now preferred exactly when the sim will reward it.
  */
 export function chooseBestFormation(roster: Player[]): FormationId {
   let best: FormationId = "4-3-3";
   let bestScore = -Infinity;
   for (const id of FORMATION_IDS) {
-    const xi = selectXI(roster, FORMATIONS[id]);
-    const score = xi.reduce((sum, p) => sum + p.ovr, 0);
+    const slots = FORMATIONS[id];
+    const score = selectXI(roster, slots)
+      .reduce((sum, p, i) => sum + slotValue(p, slots[i]), 0);
     if (score > bestScore) {
       bestScore = score;
       best = id;

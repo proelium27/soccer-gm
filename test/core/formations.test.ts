@@ -110,12 +110,26 @@ describe("formations", () => {
       expect(a).toBe(b);
     });
 
-    it("ties to 4-3-3 when the roster is exactly eleven (every shape fields the same set)", () => {
-      const roster: Player[] = [
+    it("picks the shape the squad actually is, even at exactly eleven players", () => {
+      // Eleven players field the same *set* whatever the shape, but not the same
+      // XI: the chooser scores on what each man is worth in the job the shape
+      // hands him, so a shape that asks nobody to play out of position wins.
+      // These three CMs and no DM are a 4-5-1; a 4-3-3 would dock one of them
+      // for filling in at DM. (Scoring on raw OVR, as this used to, made every
+      // shape tie here and the club played 4-3-3 with a midfielder misplaced.)
+      const asFourFiveOne: Player[] = [
         mk("GK", 60), mk("CB", 60), mk("CB", 60), mk("FB", 60), mk("FB", 60),
         mk("CM", 60), mk("CM", 60), mk("CM", 60), mk("W", 60), mk("W", 60), mk("ST", 60),
       ];
-      expect(chooseBestFormation(roster)).toBe("4-3-3");
+      expect(chooseBestFormation(asFourFiveOne)).toBe("4-5-1");
+
+      // Swap one of those midfielders for a holder and the same squad is a
+      // 4-3-3 — the default still wins when it is genuinely the right shape.
+      const asFourThreeThree: Player[] = [
+        mk("GK", 60), mk("CB", 60), mk("CB", 60), mk("FB", 60), mk("FB", 60),
+        mk("DM", 60), mk("CM", 60), mk("CM", 60), mk("W", 60), mk("W", 60), mk("ST", 60),
+      ];
+      expect(chooseBestFormation(asFourThreeThree)).toBe("4-3-3");
     });
   });
 });

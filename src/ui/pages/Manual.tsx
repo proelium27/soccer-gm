@@ -1291,6 +1291,17 @@ export function Manual() {
             the slot you've put him in, so you're never paying that cost without knowing.
           </p>
           <p>
+            <strong>That cost is a price, though, not a ban.</strong> Any time the game picks an XI
+            for you (Best XI, the reset after a formation change, the fallback when your saved XI
+            goes invalid, and every AI club's lineup) it weighs what each player would be rated in
+            the job he'd be doing against what covering it costs him, and starts the eleven worth
+            most. So if the only recognised full-back left on your books is miles off the standard of
+            the rest of your squad, a centre-back or a winger who's far better will take the slot and
+            eat the penalty, because that genuinely leaves you stronger. A specialist still keeps his
+            place whenever the gap is smaller than the cost of moving someone across, and a player
+            with a real second position pays nothing to fill it, so he wins those slots outright.
+          </p>
+          <p>
             <strong>Some players have more than one position.</strong> Look at a player profile and
             you'll see what he'd be rated at each spot he can cover, with his listed position
             highlighted. If he's genuinely good enough at a nearby position for his kind of player,
