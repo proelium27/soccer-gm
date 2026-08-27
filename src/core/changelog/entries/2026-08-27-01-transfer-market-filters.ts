@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from "../types.js";
 
 const entry: ChangelogEntry = {
-  date: "2026-08-26",
+  date: "2026-08-27",
   title: "More ways to search the transfer market",
   items: [
     "The transfer market had five filters: position, min overall, min potential, max age and max value. That's enough to browse with, not enough to look for something specific. Both panels on the Transfers page have a proper filter bar now.",
