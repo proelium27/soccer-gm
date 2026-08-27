@@ -3,7 +3,7 @@ import { SKILL_KEYS } from "./types.js";
 import { GEN_OFFSETS, HEIGHT_RANGES, type Tier } from "./templates.js";
 import { computeOvr } from "./ovr.js";
 import { generateName } from "./names.js";
-import { pickNationality } from "./nationalities.js";
+import { pickNationality, type NationalityWeights } from "./nationalities.js";
 import { estimatePotential } from "./progression.js";
 import { gaussian, hashInts, mulberry32 } from "../../engine/rng.js";
 import {
@@ -43,6 +43,7 @@ export function generatePlayer(
   season: number,
   genSeed = 0,
   homeCountry?: string,
+  nationalities?: NationalityWeights | null,
 ): Player {
   const tiers = GEN_OFFSETS[pos];
   const spread = POSITION_RATING_SPREAD[pos];
@@ -63,7 +64,7 @@ export function generatePlayer(
   // rng sequence consumed by ratings/potential for other players, while still
   // varying across different games/seeds via genSeed.
   const identityRng = mulberry32(hashInts(genSeed, pid));
-  const nationality = pickNationality(identityRng, homeCountry);
+  const nationality = pickNationality(identityRng, homeCountry, nationalities);
 
   return {
     pid,

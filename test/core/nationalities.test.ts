@@ -90,11 +90,19 @@ describe("name pools", () => {
   // A name is one first x one last draw, so pool size squared is the whole
   // namespace. The floors below are what keeps a generated world from handing
   // a dozen players the same name (scripts/namePoolProbe.ts measures the rate).
-  it("every pool clears the 20x20 floor", () => {
+  //
+  // Raised 20 -> 50 on 2026-08-26, when a league the player builds could first
+  // choose its own nationalities. Before that a small pool only ever supplied a
+  // handful of players through some league's rest-of-world tail; now ANY nation
+  // can be a league's home nation and supply ~1000 of them. Measured at 24x24
+  // (576 names) against 1000 players: 82% shared a name with someone and one
+  // name landed six times. At the floor below the same draw is ~24% and no name
+  // appears more than three times, against England's 8%.
+  it("every pool clears the 50x50 floor", () => {
     for (const nation of ALL_NATIONS) {
       const pool = namePoolFor(nation)!;
-      expect(pool.first.length, `${nation} first names`).toBeGreaterThanOrEqual(20);
-      expect(pool.last.length, `${nation} last names`).toBeGreaterThanOrEqual(20);
+      expect(pool.first.length, `${nation} first names`).toBeGreaterThanOrEqual(50);
+      expect(pool.last.length, `${nation} last names`).toBeGreaterThanOrEqual(50);
     }
   });
 

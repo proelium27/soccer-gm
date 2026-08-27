@@ -1,6 +1,7 @@
 import type { Player, Position } from "./types.js";
 import { POSITIONS } from "./types.js";
 import { generatePlayer } from "./generate.js";
+import type { NationalityWeights } from "./nationalities.js";
 import {
   YOUTH_AGE, YOUTH_INTAKE_MIN, YOUTH_INTAKE_MAX, YOUTH_BASE_OFFSET,
   YOUTH_CONTRACT_LENGTH, ROSTER_COMPOSITION,
@@ -72,6 +73,7 @@ export function generateYouthIntake(
   nextPid: number,
   genSeed = 0,
   homeCountry?: string,
+  nationalities?: NationalityWeights | null,
 ): { players: Player[]; nextPid: number } {
   const count = YOUTH_INTAKE_MIN
     + Math.floor(rng() * (YOUTH_INTAKE_MAX - YOUTH_INTAKE_MIN + 1));
@@ -81,7 +83,9 @@ export function generateYouthIntake(
   let pid = nextPid;
   for (let i = 0; i < count; i++) {
     const pos = weightedPosition(rng());
-    const p = generatePlayer(rng, pos, base, pid++, YOUTH_AGE, season, genSeed, homeCountry);
+    const p = generatePlayer(
+      rng, pos, base, pid++, YOUTH_AGE, season, genSeed, homeCountry, nationalities,
+    );
     p.contract.expiresSeason = season + YOUTH_CONTRACT_LENGTH;
     players.push(p);
   }

@@ -9,7 +9,8 @@ import { generatePlayer } from "../players/generate.js";
 import { computeOvr } from "../players/ovr.js";
 import { estimatePotential } from "../players/progression.js";
 import { seasonSalaryForOvr } from "../contracts.js";
-import { competitionOf } from "../competitions.js";
+import { competitionOf, competitionNationalities } from "../competitions.js";
+import type { NationalityWeights } from "../players/nationalities.js";
 import { reconcileScoutingObserved } from "../scouting/potentialFog.js";
 import { computeTeamRating } from "./teamRating.js";
 import { mulberry32, hashInts } from "../../engine/rng.js";
@@ -69,6 +70,13 @@ interface MaterializeCtx {
   rng: () => number;
   genSeed: number;
   country: string;
+  /**
+   * The target league's own nationality mix, used for the players the file
+   * did NOT name a nationality for and for auto-generated filler. Imported
+   * players who carry one keep it, so a file with real nationalities is
+   * unaffected either way.
+   */
+  nationalities: NationalityWeights | null;
 }
 
 /** Turn one authored player spec into a full engine Player. */
@@ -76,7 +84,10 @@ function materializePlayer(spec: RosterFilePlayer, ctx: MaterializeCtx): Player 
   const age = clampInt(spec.age, INITIAL_AGE_MIN - 3, INITIAL_AGE_MAX + 6);
   // Archetype provides a position-appropriate rating shape, a default height,
   // and a country-appropriate default nationality — all overridable below.
-  const archetype = generatePlayer(ctx.rng, spec.pos, LEAGUE_BASE, ctx.pid, age, ctx.season, ctx.genSeed, ctx.country);
+  const archetype = generatePlayer(
+    ctx.rng, spec.pos, LEAGUE_BASE, ctx.pid, age, ctx.season, ctx.genSeed,
+    ctx.country, ctx.nationalities,
+  );
   const heightCm = spec.heightCm != null ? clampInt(spec.heightCm, 150, 220) : archetype.heightCm;
 
   const ratings = spec.ratings
@@ -118,7 +129,9 @@ function materializePlayer(spec: RosterFilePlayer, ctx: MaterializeCtx): Player 
 /** Auto-generated reserve cover to fill a hole the imported squad left. */
 function makeFiller(pos: Position, base: number, ctx: MaterializeCtx): Player {
   const age = INITIAL_AGE_MIN + Math.floor(ctx.rng() * (INITIAL_AGE_MAX - INITIAL_AGE_MIN + 1));
-  const p = generatePlayer(ctx.rng, pos, base, ctx.pid, age, ctx.season, ctx.genSeed, ctx.country);
+  const p = generatePlayer(
+    ctx.rng, pos, base, ctx.pid, age, ctx.season, ctx.genSeed, ctx.country, ctx.nationalities,
+  );
   const length = CONTRACT_LENGTH_MIN + Math.floor(ctx.rng() * (CONTRACT_LENGTH_MAX - CONTRACT_LENGTH_MIN + 1));
   p.contract.expiresSeason = ctx.season + length;
   return p;
@@ -136,11 +149,14 @@ function materializeSquad(
   season: number,
   startPid: number,
   competitionCountry: string,
+  competitionNats: NationalityWeights | null,
 ): { players: Player[]; nextPid: number } {
   const rng = mulberry32(hashInts(team.tid, season, startPid, 0x5c0));
   const genSeed = hashInts(team.tid, season, 0xf1);
   let pid = startPid;
-  const mkCtx = (): MaterializeCtx => ({ pid, season, rng, genSeed, country: competitionCountry });
+  const mkCtx = (): MaterializeCtx => ({
+    pid, season, rng, genSeed, country: competitionCountry, nationalities: competitionNats,
+  });
 
   const real = specs.map((spec) => {
     const p = materializePlayer(spec, mkCtx());
@@ -289,9 +305,11 @@ export function applyRosterFile(league: LeagueStore, file: RosterFile): RosterFi
     if (!club.players || club.players.length === 0) continue;
     const team = teamByTid.get(tid);
     if (!team) continue;
-    const country = competitionOf(withIdentities.competitions, team.compId).country;
+    const comp = competitionOf(withIdentities.competitions, team.compId);
 
-    const built = materializeSquad(club.players, team, season, nextPid, country);
+    const built = materializeSquad(
+      club.players, team, season, nextPid, comp.country, competitionNationalities(comp),
+    );
     nextPid = built.nextPid;
 
     for (const pid of team.roster) removedPids.add(pid);

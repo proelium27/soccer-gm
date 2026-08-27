@@ -183,12 +183,18 @@ describe("WorldSetup renders", () => {
     const html = render(withAddedLeague());
     const money = html.indexOf('aria-label="Money"');
     const cupPlaces = html.indexOf("Continental Cup places");
-    const strengthProse = html.indexOf("is how good its squads are");
+    // The paragraph explaining strength, money and up-and-down used to be the
+    // thing sampled here. It was removed (2026-08-26, user call): the controls
+    // say what they do in their own labels and options, and the Manual carries
+    // the full explanation, so a paragraph restating them was noise in the most
+    // cramped part of the panel. The layout guarantee it was pinning is still
+    // real, so this now samples prose that exists — the sections that DO explain
+    // themselves sit below every numeric control rather than in between them.
+    const nationalityProse = html.indexOf("Who this league produces");
     expect(money).toBeGreaterThan(-1);
     expect(cupPlaces).toBeGreaterThan(-1);
-    // The prose explaining strength sits after the last control, not after its slider.
-    expect(strengthProse).toBeGreaterThan(cupPlaces);
     expect(cupPlaces).toBeGreaterThan(money);
+    expect(nationalityProse).toBeGreaterThan(cupPlaces);
   });
 
   it("names the loaded files and counts their clubs", () => {

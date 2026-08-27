@@ -85,6 +85,25 @@ const FLAG_CODES: Record<string, string> = {
   Greece: "gr",
   "Cape Verde": "cv",
   "Guinea-Bissau": "gw",
+  // Added 2026-08-26 with the expanded nationality set. Nations in that set
+  // whose flag needs Arabic calligraphy or a coat of arms are deliberately
+  // absent rather than approximated: <Flag> already falls back to a neutral
+  // swatch, and a wrong flag reads worse than none.
+  "United Arab Emirates": "ae",
+  Bulgaria: "bg",
+  Benin: "bj",
+  Ethiopia: "et",
+  Georgia: "ge",
+  Hungary: "hu",
+  Indonesia: "id",
+  "North Macedonia": "mk",
+  Qatar: "qa",
+  Russia: "ru",
+  Sudan: "sd",
+  Togo: "tg",
+  Thailand: "th",
+  "Trinidad and Tobago": "tt",
+  Vietnam: "vn",
 };
 
 /** ISO country code (flag-art filename) for a nationality, or null if unknown. */

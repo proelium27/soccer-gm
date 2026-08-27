@@ -582,6 +582,42 @@ export function Manual() {
             about each competition separately and tells you how many clubs a bad total would cost.
           </p>
           <p>
+            <strong>Where its players come from.</strong> A league you add has its own
+            nationalities panel: name the nations you want and give each one a number. The numbers
+            are relative, so you can type percentages, squad counts, or anything else you find
+            easier — the share shown beside each row is what you'll actually get, which matters
+            because a real league's published breakdown usually adds up to more than 100 and would
+            otherwise quietly hand you a smaller home share than it says.
+          </p>
+          <p>
+            This isn't only about the squads you start with. Every youth intake the league produces
+            for the rest of the save is drawn from the same mix, so a league you set up as Dutch
+            keeps bringing through Dutch teenagers in season forty. Nationality also picks a
+            player's name, so it's what makes an invented league read as somewhere in particular
+            rather than as a pile of random surnames.
+          </p>
+          <p>
+            <strong>Rest of the world</strong> is a single row standing for everyone you didn't
+            name, and it's worth knowing that it leans English — it's built from how often each
+            nation turns up in English football, which is where those numbers came from. The panel
+            shows you the countries it'll mostly produce. If you want a league that genuinely isn't
+            English, name the nations you want rather than leaning on that row. Leave the panel
+            alone entirely and the league is all rest-of-the-world, which is what leagues you added
+            used to be before this panel existed.
+          </p>
+          <p>
+            There are 108 nations to choose from, covering every confederation, so a league can be
+            Gulf, east African, south-east Asian or Oceanian rather than only European. Fifteen of
+            the newer ones have no flag art and show a plain swatch next to the name instead, which
+            is deliberate: their flags are Arabic script or a coat of arms, and a wrong flag reads
+            worse than none.
+          </p>
+          <p>
+            A roster file can carry the mix too, as a <code>nationalities</code> block. Loading one
+            fills the panel in for you, and you can still change it afterwards. The shipped
+            countries aren't editable — they keep the real breakdowns they were built from.
+          </p>
+          <p>
             <strong>Naming the clubs.</strong> Tick <strong>Name the clubs yourself</strong> before
             you start and you get an editor once the world is built, listing every club in every
             competition with its name, its three-letter abbreviation and both of its colours. It
