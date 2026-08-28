@@ -659,11 +659,12 @@ export function simOffseasonReporting(
       : t,
   );
 
-  // The non-league routes into next season's continental competitions, read off
-  // the season that just finished. Both are taken from `league` rather than the
-  // rolled-over state because these are the cups that have just been decided —
-  // `rolled` replaces them with next season's empty ones. A cup still holding a
-  // null champion (abandoned mid-save) simply closes its route.
+  // Everything next season's continental competitions need that isn't a league
+  // table: who holds each trophy, who won each domestic cup, and how many
+  // places each country has earned. All of it reads off `league` rather than
+  // the rolled-over state, because these are the cups that have just been
+  // decided and `rolled` replaces them with next season's empty ones. A cup
+  // still holding a null champion (abandoned mid-save) simply closes its route.
   const cupRoutes: QualificationContext = {
     domesticCupWinners: domesticCupWinners(league.domesticCups ?? []),
     holders: {
