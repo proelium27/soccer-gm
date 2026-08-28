@@ -98,10 +98,24 @@ if ! ssh -o ConnectTimeout=2 -o BatchMode=yes "$REMOTE_HOST" true 2>/dev/null; t
 fi
 echo "==> $REMOTE_HOST is up."
 
+# Run a remote command in a LOGIN shell.
+#
+# `ssh host cmd` gets a non-login, non-interactive shell, which on macOS never
+# sources /etc/zprofile and so never runs path_helper. The result is a bare
+# PATH of /usr/bin:/bin:/usr/sbin:/sbin -- without /usr/local/bin, where the
+# Node installer puts node. So `npm ci` fails with "command not found" on a
+# machine where node works perfectly when you sit at it. Measured on this very
+# setup, which is how it was found.
+#
+# A login shell restores the real PATH, and doing it here means neither machine
+# needs its dotfiles edited for this script to work. The command arrives on
+# stdin so nesting quotes stays sane, and the remote exit code propagates.
+rsh() { ssh "$REMOTE_HOST" 'zsh -ls' <<< "$1"; }
+
 # ------------------------------------------------------------------ sync ----
 
 echo "==> Syncing working tree to $REMOTE_HOST:$REMOTE_DIR"
-ssh "$REMOTE_HOST" "mkdir -p $REMOTE_DIR" || exit 1
+rsh "mkdir -p $REMOTE_DIR" || exit 1
 
 # --delete so a file deleted locally is deleted there too; without it a test
 # you just removed keeps running on the remote and keeps reporting green.
@@ -121,7 +135,7 @@ rsync -a --delete \
 # mismatch, rather than trusting the copy.
 hash_cmd='find src test scripts vite.config.ts package.json tsconfig.json -type f 2>/dev/null | LC_ALL=C sort | xargs shasum | shasum | cut -d" " -f1'
 LOCAL_HASH=$(cd "$ROOT" && eval "$hash_cmd")
-REMOTE_HASH=$(ssh "$REMOTE_HOST" "cd $REMOTE_DIR && $hash_cmd")
+REMOTE_HASH=$(rsh "cd $REMOTE_DIR && $hash_cmd")
 
 if [ "$LOCAL_HASH" != "$REMOTE_HASH" ]; then
   echo "ERROR: tree hash mismatch after sync."
@@ -133,13 +147,18 @@ fi
 echo "==> Trees match ($LOCAL_HASH)."
 
 echo "==> Ensuring remote dependencies"
-ssh "$REMOTE_HOST" "cd $REMOTE_DIR && (npm ci --silent 2>&1 | tail -2)" || exit 1
+rsh "cd $REMOTE_DIR && npm ci --silent 2>&1 | tail -2" || exit 1
 
 # ------------------------------------------------------------------- run ----
 
-rm -rf "$ROOT/.vitest-reports"
-mkdir -p "$ROOT/.vitest-reports"
-ssh "$REMOTE_HOST" "rm -rf $REMOTE_DIR/.vitest-reports"
+# `vitest run --merge-reports` reads EVERY file in .vitest-reports as a blob and
+# dies on anything that isn't one ("$parse(...).map is not a function"). So the
+# per-machine logs and exit codes go in their own directory; .vitest-reports
+# holds blobs and nothing else.
+RUNDIR="$ROOT/.test-cluster-run"
+rm -rf "$ROOT/.vitest-reports" "$RUNDIR"
+mkdir -p "$ROOT/.vitest-reports" "$RUNDIR"
+rsh "rm -rf $REMOTE_DIR/.vitest-reports"
 
 CAPS="$CAP_LOCAL,$CAP_REMOTE"
 echo "==> Splitting 1/2 here, 2/2 on $REMOTE_HOST (capacities $CAPS)"
@@ -152,24 +171,24 @@ remote_flag=""
 START=$(date +%s)
 
 ( VITEST_SHARD_CAPACITIES="$CAPS" npx vitest run --shard=1/2 --reporter=blob \
-    ${local_args[@]+"${local_args[@]}"} ${VITEST_ARGS[@]+"${VITEST_ARGS[@]}"} > "$ROOT/.vitest-reports/local.log" 2>&1
-  echo $? > "$ROOT/.vitest-reports/local.exit"
-  date +%s > "$ROOT/.vitest-reports/local.done" ) &
+    ${local_args[@]+"${local_args[@]}"} ${VITEST_ARGS[@]+"${VITEST_ARGS[@]}"} > "$RUNDIR/local.log" 2>&1
+  echo $? > "$RUNDIR/local.exit"
+  date +%s > "$RUNDIR/local.done" ) &
 LOCAL_PID=$!
 
-( ssh "$REMOTE_HOST" "cd $REMOTE_DIR && VITEST_SHARD_CAPACITIES='$CAPS' npx vitest run --shard=2/2 --reporter=blob $remote_flag ${VITEST_ARGS[*]+${VITEST_ARGS[*]}}" \
-    > "$ROOT/.vitest-reports/remote.log" 2>&1
-  echo $? > "$ROOT/.vitest-reports/remote.exit"
-  date +%s > "$ROOT/.vitest-reports/remote.done" ) &
+( rsh "cd $REMOTE_DIR && VITEST_SHARD_CAPACITIES='$CAPS' npx vitest run --shard=2/2 --reporter=blob $remote_flag ${VITEST_ARGS[*]+${VITEST_ARGS[*]}}" \
+    > "$RUNDIR/remote.log" 2>&1
+  echo $? > "$RUNDIR/remote.exit"
+  date +%s > "$RUNDIR/remote.done" ) &
 REMOTE_PID=$!
 
 wait $LOCAL_PID
 wait $REMOTE_PID
 
-LOCAL_RC=$(cat "$ROOT/.vitest-reports/local.exit" 2>/dev/null || echo 1)
-REMOTE_RC=$(cat "$ROOT/.vitest-reports/remote.exit" 2>/dev/null || echo 1)
-LOCAL_SECS=$(( $(cat "$ROOT/.vitest-reports/local.done" 2>/dev/null || date +%s) - START ))
-REMOTE_SECS=$(( $(cat "$ROOT/.vitest-reports/remote.done" 2>/dev/null || date +%s) - START ))
+LOCAL_RC=$(cat "$RUNDIR/local.exit" 2>/dev/null || echo 1)
+REMOTE_RC=$(cat "$RUNDIR/remote.exit" 2>/dev/null || echo 1)
+LOCAL_SECS=$(( $(cat "$RUNDIR/local.done" 2>/dev/null || date +%s) - START ))
+REMOTE_SECS=$(( $(cat "$RUNDIR/remote.done" 2>/dev/null || date +%s) - START ))
 TOTAL_SECS=$(( $(date +%s) - START ))
 
 # --------------------------------------------------------------- results ----
@@ -177,7 +196,7 @@ TOTAL_SECS=$(( $(date +%s) - START ))
 scp -q "$REMOTE_HOST:$REMOTE_DIR/.vitest-reports/blob-2-2.json" \
   "$ROOT/.vitest-reports/" 2>/dev/null || {
     echo "WARNING: could not fetch the remote blob report; showing raw logs."
-    cat "$ROOT/.vitest-reports/remote.log"
+    cat "$RUNDIR/remote.log"
   }
 
 echo
@@ -188,32 +207,61 @@ echo " wall clock   : ${TOTAL_SECS}s"
 echo "======================================================================"
 echo
 
-npx vitest --merge-reports 2>/dev/null || {
+# `run` is required: without it vitest defaults to watch mode, and merging is
+# rejected outright ("Cannot merge reports with --watch enabled").
+npx vitest run --merge-reports 2>/dev/null || {
   echo "(merge failed; per-machine logs below)"
-  tail -30 "$ROOT/.vitest-reports/local.log"
-  tail -30 "$ROOT/.vitest-reports/remote.log"
+  tail -30 "$RUNDIR/local.log"
+  tail -30 "$RUNDIR/remote.log"
 }
 
-# Rebalance for next time. Throughput is work-done over time-taken, and each
-# machine was given work in proportion to its capacity, so the corrected
-# capacity is proportional to capacity/elapsed. Normalised to keep the smaller
-# side at 1. Only meaningful when both sides actually ran, so a failed or
-# skipped run leaves the numbers alone.
+# Rebalance for next time. Throughput is work over time, and each machine got
+# work in proportion to its capacity, so the corrected capacity goes as
+# capacity/elapsed.
+#
+# Three things keep that from chasing noise, all of which it did before they
+# were added -- a filtered `test/ui` run moved the remote from 2.0 to 8.86,
+# which is not a real 8.9x machine:
+#
+#  1. Only on a FULL run. A filtered run measures a handful of files whose
+#     weights barely matter, so its ratio says nothing about the whole suite.
+#  2. Only when both sides ran long enough that fixed overhead (rsync, npm ci,
+#     vitest startup) isn't most of the elapsed time.
+#  3. Damped, and clamped to at most 4:1. Bins hold whole files, so the split is
+#     never exactly proportional and a single run always over- or undershoots.
+#     Moving halfway converges over a few runs without oscillating.
 if [ "$AUTOTUNE" = "True" ] || [ "$AUTOTUNE" = "true" ]; then
-  if [ "$LOCAL_SECS" -gt 10 ] && [ "$REMOTE_SECS" -gt 10 ]; then
+  if [ ${#VITEST_ARGS[@]} -ne 0 ]; then
+    echo "==> Filtered run; leaving capacities alone (they describe a full suite)."
+  elif [ "$LOCAL_SECS" -lt 120 ] || [ "$REMOTE_SECS" -lt 120 ]; then
+    echo "==> Run too short to retune capacities reliably; left unchanged."
+  else
     python3 - "$CONFIG" "$CAP_LOCAL" "$CAP_REMOTE" "$LOCAL_SECS" "$REMOTE_SECS" <<'PY'
 import json, sys
-path, cl, cr, tl, tr = sys.argv[1], *map(float, sys.argv[2:6])
-nl, nr = cl / tl, cr / tr
-lo = min(nl, nr)
-nl, nr = round(nl / lo, 2), round(nr / lo, 2)
+
+DAMP, MAX_RATIO = 0.5, 4.0
+path = sys.argv[1]
+cl, cr, tl, tr = map(float, sys.argv[2:6])
+
+est = [cl / tl, cr / tr]
+lo = min(est)
+est = [e / lo for e in est]                       # normalise: smaller side = 1
+new = [c + (e - c) * DAMP for c, e in zip((cl, cr), est)]
+lo = min(new)
+new = [round(min(n / lo, MAX_RATIO), 2) for n in new]
+nl, nr = new
+
 try:
-    with open(path) as fh: cfg = json.load(fh)
+    with open(path) as fh:
+        cfg = json.load(fh)
 except Exception:
     cfg = {}
+
 if abs(nl - cl) > 0.05 or abs(nr - cr) > 0.05:
     cfg["capacityLocal"], cfg["capacityRemote"] = nl, nr
-    with open(path, "w") as fh: json.dump(cfg, fh, indent=2); fh.write("\n")
+    with open(path, "w") as fh:
+        json.dump(cfg, fh, indent=2)
+        fh.write("\n")
     print(f"==> Rebalanced for next run: local {cl}->{nl}, remote {cr}->{nr}")
 else:
     print("==> Split was balanced; capacities unchanged.")

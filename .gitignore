@@ -28,3 +28,4 @@ soccer-gm-league-*.json
 # Mac and holds its measured throughput, so it's yours and not the repo's.
 .test-cluster.json
 .vitest-reports/
+.test-cluster-run/
