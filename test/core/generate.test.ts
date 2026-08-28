@@ -67,15 +67,15 @@ describe("generateTwoDivisionLeague", () => {
 });
 
 describe("generateWorld", () => {
-  it("produces 320 teams across 16 competitions, 20 per competition", () => {
+  it("produces 480 teams across 24 competitions, 20 per competition", () => {
     const world = generateWorld(mulberry32(42));
-    expect(world.teams).toHaveLength(320);
+    expect(world.teams).toHaveLength(480);
     for (const comp of worldCompetitions()) {
       expect(world.teams.filter((t) => t.compId === comp.id)).toHaveLength(20);
     }
   });
 
-  it("assigns tid blocks in country order: England 0-39 ... Belgium 240-279, Turkey 280-319", () => {
+  it("assigns tid blocks in country order: England 0-39 ... Greece 400-439, Serbia 440-479", () => {
     const world = generateWorld(mulberry32(42));
     const tidsFor = (compId: number) => world.teams.filter((t) => t.compId === compId).map((t) => t.tid);
     expect(Math.min(...tidsFor(0), ...tidsFor(1))).toBe(0);
@@ -94,21 +94,32 @@ describe("generateWorld", () => {
     expect(Math.max(...tidsFor(12), ...tidsFor(13))).toBe(279);
     expect(Math.min(...tidsFor(14), ...tidsFor(15))).toBe(280);
     expect(Math.max(...tidsFor(14), ...tidsFor(15))).toBe(319);
+    expect(Math.min(...tidsFor(16), ...tidsFor(17))).toBe(320);
+    expect(Math.max(...tidsFor(16), ...tidsFor(17))).toBe(359);
+    expect(Math.min(...tidsFor(18), ...tidsFor(19))).toBe(360);
+    expect(Math.max(...tidsFor(18), ...tidsFor(19))).toBe(399);
+    expect(Math.min(...tidsFor(20), ...tidsFor(21))).toBe(400);
+    expect(Math.max(...tidsFor(20), ...tidsFor(21))).toBe(439);
+    expect(Math.min(...tidsFor(22), ...tidsFor(23))).toBe(440);
+    expect(Math.max(...tidsFor(22), ...tidsFor(23))).toBe(479);
   });
 
-  it("has 8000 players (320 teams x 25)", () => {
+  it("has 12000 players (480 teams x 25)", () => {
     const world = generateWorld(mulberry32(42));
-    expect(world.players).toHaveLength(8000);
+    expect(world.players).toHaveLength(12000);
   });
 
-  it("generates the weak leagues in coefficient order: England > France > Portugal > Belgium > Turkey", () => {
+  it("generates the weak leagues in coefficient order: England > France > Netherlands > Portugal > Belgium > Turkey > Greece > Scotland > Serbia", () => {
     const world = generateWorld(mulberry32(42));
     const d1Avg = (country: string) => {
       const comp = worldCompetitions().find((c) => c.country === country && c.tier === 1)!;
       const teams = world.teams.filter((t) => t.compId === comp.id);
       return teams.reduce((s, t) => s + t.avgOvr, 0) / teams.length;
     };
-    const ladder = ["England", "France", "Portugal", "Belgium", "Turkey"].map(d1Avg);
+    const ladder = [
+      "England", "France", "Netherlands", "Portugal", "Belgium", "Turkey", "Greece",
+      "Scotland", "Serbia",
+    ].map(d1Avg);
     for (let i = 1; i < ladder.length; i++) {
       expect(ladder[i]).toBeLessThan(ladder[i - 1]);
     }

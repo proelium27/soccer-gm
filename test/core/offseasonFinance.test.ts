@@ -29,7 +29,7 @@ describe("simOffseason — finance and renewals", () => {
     const budgetsBefore = new Map(league.teams.map((t) => [t.tid, t.budget]));
     const next = simOffseason(league, rng);
 
-    expect(next.teams).toHaveLength(8 * (NUM_TEAMS + NUM_TEAMS_D2));
+    expect(next.teams).toHaveLength(12 * (NUM_TEAMS + NUM_TEAMS_D2));
     for (const team of next.teams) {
       // Budget moved (performance money in at season end, base in and wages
       // out at the new season's start).

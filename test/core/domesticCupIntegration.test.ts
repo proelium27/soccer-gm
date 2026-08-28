@@ -39,7 +39,7 @@ describe("domestic cups through simThrough", () => {
     let league = makeLeague(0, 1);
     const rng = mulberry32(4242);
 
-    expect(league.domesticCups).toHaveLength(8); // one per country
+    expect(league.domesticCups).toHaveLength(12); // one per country
     expect(pendingRound(league.domesticCups[0])!.matchday).toBe(DOMESTIC_CUP_MATCHDAYS[0]);
 
     // Matchdays 1-4: nothing is due yet.

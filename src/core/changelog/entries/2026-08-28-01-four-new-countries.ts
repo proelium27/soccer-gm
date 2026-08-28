@@ -1,0 +1,17 @@
+import type { ChangelogEntry } from "../types.js";
+
+const entry: ChangelogEntry = {
+  date: "2026-08-28",
+  title: "Four new countries: the Netherlands, Greece, Scotland and Serbia",
+  items: [
+    "New saves now span **twelve countries** instead of eight. The Netherlands, Greece, Scotland and Serbia each arrive with a full two-division pyramid, 20 clubs per division, taking the world to **24 leagues and 480 clubs**. All four are pickable at the start like any other country. Existing saves keep the country set they were created with, so nothing expands mid-save.",
+    "The Netherlands slots in between France and Portugal, which is roughly where the real UEFA coefficient puts it. The other three go in below Turkey, in the order Greece, Scotland, Serbia, with Serbia the weakest league in the game and the poorest.",
+    "One thing I'd rather say than pretend otherwise: the bottom of the ladder converges over a long save. I gave Scotland a deliberately wide step down from Turkey to try to make it stick, ran 20 seasons across four different saves to check, and it doesn't — Scotland starts a clear 1.8 OVR below Turkey and finishes level with it. Weaker leagues develop players faster than the big four do, so the further down a gap sits the quicker it closes, no matter how wide I open it. The order is real when you start a save, and by season 20 the bottom few leagues are bunched. The Netherlands, higher up, holds its gap on every save I tested.",
+    "Money follows strength, the same as everywhere else on the ladder, right down to Serbia at the bottom. I keep those two things in the same order for a reason: a richer league climbs over a long save, so if a weaker league out-earns a stronger one, the two just swap places inside twenty seasons and the ladder stops meaning anything.",
+    "Squad nationalities come from each league's real breakdown, and the four new ones are genuinely different from each other. Dutch squads run a bit over half Dutch with the rest spread very wide, which is what a league that develops and sells players looks like. Greek squads are the opposite, under half domestic, with a big South American intake sitting next to the Balkan neighbourhood. Scottish squads are about 55% Scottish and England alone supplies more of the rest than any other country by a wide margin. Serbian squads are roughly **72% domestic**, the most domestic league in the game, because Serbia is a production league that exports rather than imports.",
+    "The Continental Cup grows from 24 clubs to **32**, and the Continental Shield from 16 to **24**. The big four still send their top four each and every weaker league sends its top two, so 4x4 + 8x2 = 32. The format is otherwise unchanged: one league phase of six games, top four straight into the quarter-finals, 5th through 12th into the playoff round. Bigger field and the same knockout stage, so 13th through 32nd now go out at the league phase.",
+    "Both continental fields have to be a multiple of four, which is a real constraint rather than a detail: the league-phase draw splits the field into two halves and pairs everyone inside them, so an odd half can't be drawn. Since the Cup works out to twice the number of countries plus eight and the Shield to exactly twice, **the world needs an even number of countries** or clubs that qualified on league position get cut. That's why four countries went in rather than three.",
+  ],
+};
+
+export default entry;

@@ -127,10 +127,13 @@ export const ACADEMY_BASE_CONVERGENCE_SEASONS = 3;
  * Per-country strength handicap, subtracted from every team's generation-time
  * strength target (on top of any tier offset) so some countries field weaker
  * leagues than others. The big-four leagues (England/Spain/Italy/Germany) are
- * equal siblings at 0; France, Portugal, Belgium and Turkey are deliberately
- * weaker, with Turkey weakest — anchored on the real UEFA five-year country
- * coefficient ordering (England ≫ the pack ≫ France > Portugal > Belgium >
- * Turkey; measured Aug 2026 at 101.9 / 67.7 / 63.7 / 57.9 / 47.6). The real
+ * equal siblings at 0; France, the Netherlands, Portugal, Belgium, Turkey,
+ * Greece, Scotland and Serbia are deliberately weaker, with Serbia weakest —
+ * anchored on the real UEFA five-year country coefficient ordering (England ≫
+ * the pack ≫ France > Netherlands > Portugal > Belgium > Turkey ≫ Greece >
+ * Scotland > Serbia; measured Aug 2026 at 101.9 / 67.7 / 64.9 / 63.7 / 57.9 /
+ * 47.6, with Greece, Scotland and Serbia several rungs further back around
+ * 37.6 / 35.5 / 28.1). The real
  * gaps below France are only a few coefficient points each, so the ladder is
  * deliberately *compressed* rather than mapped literally — a literal mapping
  * puts Belgium near 17 and Turkey near 30, which generates unplayable squads.
@@ -148,9 +151,23 @@ export const ACADEMY_BASE_CONVERGENCE_SEASONS = 3;
  */
 export const COUNTRY_STRENGTH_OFFSET: Record<string, number> = {
   France: 5,
+  Netherlands: 8,
   Portugal: 10,
   Belgium: 11,
   Turkey: 12,
+  // The bottom four rungs sit one point apart and are NOT separately resolvable
+  // across a dynasty — they converge to within a few tenths by season 20 and
+  // their mutual order coin-flips on seed noise. Widening the step does not fix
+  // that down here: Scotland shipped at a deliberate TWO-point step below Turkey
+  // and still ends level with it (+0.02/+0.37/−1.26/+1.94 over four seeds),
+  // because erosion grows with depth. The same two-point step higher up
+  // (Netherlands→Portugal) survives on every seed. So these are ordered at
+  // generation and converged by season 20, and weakLeaguesAudit.ts gates them
+  // that way rather than per-rung. Don't chase the bottom with bigger offsets —
+  // it costs squad playability and buys nothing.
+  Greece: 13,
+  Scotland: 14,
+  Serbia: 15,
 };
 export function countryStrengthOffset(country: string): number {
   return COUNTRY_STRENGTH_OFFSET[country] ?? 0;
@@ -187,9 +204,21 @@ export function countryStrengthOffset(country: string): number {
  */
 export const COUNTRY_BUDGET_SCALE: Record<string, number> = {
   France: 0.7,
+  Netherlands: 0.6,
   Portugal: 0.5,
   Belgium: 0.45,
   Turkey: 0.4,
+  // The bottom three were raised (Greece .38, Scotland .35→.37, Serbia .32→.35)
+  // on 2026-08-28 after the 12-country audit put 2 of 4 seeds into deficit where
+  // the 10-country one had none (seed 3 Scotland −£5.2M at s20, seed 2 Serbia
+  // −£0.2M). The mechanism is the documented one: weak leagues run on transfer
+  // receipts, and going from 6 selling leagues to 8 splits the same big-four
+  // demand more ways, so each poor league's receipts thin out. Base income has
+  // to make up the difference. Still strictly monotonic with the offsets, which
+  // is the invariant that actually matters.
+  Greece: 0.39,
+  Scotland: 0.37,
+  Serbia: 0.35,
 };
 export function countryBudgetScale(country: string): number {
   return COUNTRY_BUDGET_SCALE[country] ?? 1;
@@ -2656,8 +2685,9 @@ export const CUP_NAME = "Continental Cup";
 /**
  * Cup slots per tier-1 league, by league strength. A "strong" league (a big-
  * four league — countryStrengthOffset 0) sends its top CUP_STRONG_LEAGUE_SLOTS;
- * a "weak" league (France/Portugal/Belgium/Turkey — offset > 0) sends its top
- * CUP_WEAK_LEAGUE_SLOTS. With 4 strong × 4 + 4 weak × 2 = 24 qualifiers, the
+ * a "weak" league (everything with a countryStrengthOffset — France, the
+ * Netherlands, Portugal, Belgium, Turkey, Greece, Scotland, Serbia) sends its
+ * top CUP_WEAK_LEAGUE_SLOTS. With 4 strong × 4 + 8 weak × 2 = 32 qualifiers, the
  * cup opens with a Swiss-style league phase (see CUP_LEAGUE_PHASE_* below)
  * rather than a straight bracket. CUP_TEAMS_PER_LEAGUE is kept as the strong
  * default for any code/tests that predate the weak-league split.
@@ -2675,23 +2705,27 @@ export const CUP_TEAMS_PER_LEAGUE = CUP_STRONG_LEAGUE_SLOTS;
  * the other QF places, and the rest are eliminated. */
 /**
  * Field size, derived from the world: 4 strong leagues × CUP_STRONG_LEAGUE_SLOTS
- * + 4 weak × CUP_WEAK_LEAGUE_SLOTS = 24. Nothing in src/ reads this (the draw
+ * + 8 weak × CUP_WEAK_LEAGUE_SLOTS = 32. Nothing in src/ reads this (the draw
  * and the split both work off the actual field length, so both are field-size
  * agnostic) — it documents the expected size and anchors the cup tests. Raised
- * 20 → 24 when Belgium and Turkey joined the world. Must stay even, and must
- * split into CUP_LEAGUE_PHASE_POTS pots of even size that each exceed
- * CUP_LEAGUE_PHASE_GAMES / CUP_LEAGUE_PHASE_POTS — 24 → two pots of 12 ✓.
- * (A 22-team field is NOT valid: pots of 11 are odd and the perfect-matching
- * draw can't pair them, which is why weak leagues all send 2 rather than some
- * sending 1.)
+ * 20 → 24 when Belgium and Turkey joined, 24 → 28 for the Netherlands and
+ * Scotland, 28 → 32 for Greece and Serbia.
+ *
+ * **A valid field is a multiple of 4**, because it must be even AND split into
+ * CUP_LEAGUE_PHASE_POTS pots that are themselves even (the draw builds each
+ * round as a perfect matching within a pot). 32 → two pots of 16 ✓. A 22- or
+ * 30-team field is NOT valid: pots of 11/15 are odd and cannot be paired.
+ * Since this size is 2 × countries + 8, **the world's country count must stay
+ * even** or the field is trimmed and clubs that qualified on league position
+ * get cut. See the note in competitions.ts.
  */
-export const CUP_LEAGUE_PHASE_SIZE = 24;
+export const CUP_LEAGUE_PHASE_SIZE = 32;
 export const CUP_LEAGUE_PHASE_GAMES = 6;
 /**
  * Number of strength pots the league-phase field is split into for the draw.
  * Each club plays CUP_LEAGUE_PHASE_GAMES / CUP_LEAGUE_PHASE_POTS opponents from
  * each pot, guaranteeing a balanced spread of tough and winnable games. Must
- * divide the field evenly (24 / 2 = 12 per pot) and divide the game count
+ * divide the field evenly (32 / 2 = 16 per pot) and divide the game count
  * evenly (6 / 2 = 3 per pot). Note a 22-club field would be invalid: pots of 11
  * are odd, and the draw builds each round as a perfect matching within pots.
  */
@@ -2885,13 +2919,19 @@ export interface CupFormat {
 /* ── Continental Shield (the second-tier continental competition) ────────────
  * Same structure and the same matchdays as the Continental Cup, one rung down
  * the league tables: a strong league's 5th and 6th, a weak league's 3rd and
- * 4th — 8 leagues × 2 = 16 clubs. Sharing the calendar is safe *because* the
+ * 4th — 12 leagues × 2 = 24 clubs. Sharing the calendar is safe *because* the
  * fields are disjoint, and it is what the real midweek schedule does anyway.
  *
- * A 16-club field is already legal in the shared draw and split: two pots of 8
- * (each larger than the 3 games per pot), and the split takes 4 straight to the
- * quarter-finals, 8 into the playoff and leaves 4 out. So the Shield needs no
- * change to leaguePhase.ts at all.
+ * Unlike the Cup, the Shield takes the SAME number from every tier-1 league, so
+ * its field is simply `countries × 2` and grows with every country added — 16
+ * on the 8-country world, 20 on the 10-country one, 24 on the 12-country one.
+ * That doubles the reason the country count must stay even: `2 × countries` is
+ * only a multiple of 4 when it is.
+ *
+ * A 24-club field is legal in the shared draw and split: two pots of 12 (even,
+ * and each larger than the 3 games per pot), and the split takes 4 straight to
+ * the quarter-finals, 8 into the playoff and leaves 12 out. So the Shield needs
+ * no change to leaguePhase.ts at all.
  * ──────────────────────────────────────────────────────────────────────── */
 
 export const SHIELD_NAME = "Continental Shield";
@@ -2900,8 +2940,8 @@ export const SHIELD_NAME = "Continental Shield";
 export const SHIELD_STRONG_LEAGUE_SLOTS = 2;
 export const SHIELD_WEAK_LEAGUE_SLOTS = 2;
 
-/** Field size on the shipped 8-country world: 8 tier-1 leagues × 2 = 16. See CupFormat.fieldSize. */
-export const SHIELD_LEAGUE_PHASE_SIZE = 16;
+/** Field size on the shipped 12-country world: 12 tier-1 leagues × 2 = 24. See CupFormat.fieldSize. */
+export const SHIELD_LEAGUE_PHASE_SIZE = 24;
 
 /* Prize money (£). Sized at roughly 40% of the Continental Cup's, so a Shield
  * run is worth chasing without rivalling the Cup: a champion nets ~£19.5M

@@ -71,7 +71,7 @@ describe("world integration (generateWorld through the real season/offseason pip
     league = simThrough(league, "season", rng);
     const beforeCompByTid = new Map(league.teams.map((t) => [t.tid, t.compId]));
     league = simOffseason(league, rng);
-    expect(league.teams).toHaveLength(320);
+    expect(league.teams).toHaveLength(480);
     // Every competition still has exactly 20 teams after the swap.
     for (const comp of league.competitions) {
       expect(league.teams.filter((t) => t.compId === comp.id)).toHaveLength(20);

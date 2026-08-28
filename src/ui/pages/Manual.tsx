@@ -462,21 +462,28 @@ export function Manual() {
 
         <Section id="world" title="The World">
           <p>
-            A new save drops you into one shared world: eight countries (<strong>England</strong>,{" "}
+            A new save drops you into one shared world: twelve countries (<strong>England</strong>,{" "}
             <strong>Spain</strong>, <strong>Italy</strong>, <strong>Germany</strong>,{" "}
-            <strong>France</strong>, <strong>Portugal</strong>, <strong>Belgium</strong> and{" "}
-            <strong>Turkey</strong>), each with its own two-division
-            pyramid (Division 1 and Division 2, 20 clubs apiece), for 16 leagues and 320 clubs total.
-            You pick any club in any country and division when you start.
+            <strong>France</strong>, the <strong>Netherlands</strong>, <strong>Portugal</strong>,{" "}
+            <strong>Belgium</strong>, <strong>Turkey</strong>, <strong>Greece</strong>,{" "}
+            <strong>Scotland</strong> and <strong>Serbia</strong>), each with its own two-division
+            pyramid (Division 1 and Division 2, 20 clubs apiece), for 24 leagues and 480 clubs
+            total. You pick any club in any country and division when you start.
           </p>
           <p>
             The big four (England, Spain, Italy and Germany) are all built to the same strength and
-            budget bands, so none of them is a flagship league above the others. The other four are
+            budget bands, so none of them is a flagship league above the others. The other eight are
             deliberately weaker and poorer: their clubs generate at lower OVR, and they earn and can
             bank less money. They step down in that order —{" "}
-            <strong>France</strong>, then <strong>Portugal</strong>, then <strong>Belgium</strong>,
-            then <strong>Turkey</strong> weakest of all, and their budgets step down in that same
-            order. All four are selling leagues, and Turkey is the poorest as well as the weakest. You
+            <strong>France</strong>, then the <strong>Netherlands</strong>, then{" "}
+            <strong>Portugal</strong>, then <strong>Belgium</strong>, then <strong>Turkey</strong>,
+            then <strong>Greece</strong>, then <strong>Scotland</strong>, then{" "}
+            <strong>Serbia</strong> weakest of all, and their budgets step down in that same order.
+            All eight are selling leagues, and Serbia is the poorest as well as the weakest. Worth
+            knowing that these gaps close as a save gets long: weaker leagues develop players faster
+            than the big four do, so by season 20 or so the bottom few leagues are bunched much
+            closer together than they started. The order is real when you begin, and it softens from
+            there. You
             won't feel it inside their own matches (someone still wins Ligue 1), but it shows up
             wherever leagues meet. Their players are cheaper, so the big four steadily buy up their
             best talent, and they go into every Continental Cup tie at a real disadvantage. Division 2
@@ -498,11 +505,11 @@ export function Manual() {
             Promotion and relegation (3 up, 3 down in every country the game ships) runs on its
             own within each country at the end of every season, so a rough season in Spain's top
             flight doesn't touch any other country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
-            grouped by country, so you can browse any of the 16 leagues. It defaults to
+            grouped by country, so you can browse any of the 24 leagues. It defaults to
             whichever one your own club is currently in.
           </p>
           <p>
-            <strong>Shaping your own world.</strong> The eight countries above are the default, not
+            <strong>Shaping your own world.</strong> The twelve countries above are the default, not
             the only option. The <strong>World setup</strong> panel on the New League screen lets you
             switch any of them off and add leagues of your own. An added league is always a
             two-division pyramid like the rest, and its clubs get generated names and colours, since
@@ -636,17 +643,16 @@ export function Manual() {
 
         <Section id="cup" title="The Continental Cup">
           <p>
-            The Continental Cup is a 24-club competition played alongside the league season.
+            The Continental Cup is a 32-club competition played alongside the league season.
             Qualification is purely about <strong>league position</strong>, not squad quality. The
             top four clubs in each of the four strongest top-flight leagues (England, Spain, Italy and
-            Germany) get in, plus the top two from each of the four weaker leagues,{" "}
-            <strong>France</strong>, <strong>Portugal</strong>, <strong>Belgium</strong> and{" "}
-            <strong>Turkey</strong>. That's 4×4 + 4×2 = 24 clubs. On
+            Germany) get in, plus the top two from each of the eight weaker leagues. That's
+            4×4 + 8×2 = 32 clubs. On
             the <a href="#pages">Standings</a> page the qualifying places are shaded as the
             qualification zone (top four in a strong league, top two in a weak one).
           </p>
           <p>
-            It opens with a <strong>league phase</strong>: all 24 clubs sit in one combined table and
+            It opens with a <strong>league phase</strong>: all 32 clubs sit in one combined table and
             each plays <strong>six games</strong> against six different opponents. The draw isn't
             random. The field is split into a stronger half and a weaker half, and everyone plays
             three from each half, so no club draws six giants or six minnows. You never play a club
@@ -657,7 +663,7 @@ export function Manual() {
             When the six rounds are done, the table splits three ways. The <strong>top four</strong>{" "}
             go straight to the quarter-finals. Clubs ranked <strong>5th to 12th</strong> drop into a
             single-leg <strong>playoff round</strong> (matchday 27) and the four winners take the last
-            four quarter-final places. Clubs finishing <strong>13th to 24th</strong> are knocked out.
+            four quarter-final places. Clubs finishing <strong>13th to 32nd</strong> are knocked out.
             From there it's a straight knockout: quarter-finals, semi-finals and final.
           </p>
           <p>
@@ -720,13 +726,13 @@ export function Manual() {
           <p>
             The Continental Shield is the second competition, for the clubs that just miss out on the
             Continental Cup. It takes the places directly below the Cup's: <strong>5th and 6th</strong>{" "}
-            in each of the four strongest leagues, and <strong>3rd and 4th</strong> in each of the four
-            weaker ones. That's 8 × 2 = <strong>16 clubs</strong>, and because it starts exactly where
+            in each of the four strongest leagues, and <strong>3rd and 4th</strong> in each of the eight
+            weaker ones. That's 12 × 2 = <strong>24 clubs</strong>, and because it starts exactly where
             the Cup stops, no club is ever in both. On the <a href="#pages">Standings</a> page the
             Shield places get their own shaded band directly under the Cup's.
           </p>
           <p>
-            It runs exactly like the Cup: a 16-club league phase of six games, then the top four go
+            It runs exactly like the Cup: a 24-club league phase of six games, then the top four go
             straight to the quarter-finals, 5th to 12th fight through a single-leg playoff, and the
             rest go out. Quarter-finals and semi-finals are two-legged, the final is one match.
             It uses the <strong>same matchdays</strong> as the Cup, which is fine because no club
@@ -868,7 +874,7 @@ export function Manual() {
             a single group and sends its top two straight to the final. A confederation that can't
             field even four nations doesn't hold one at all, which is why you'll usually see the
             Euro, Copa América and AFCON and not the others: nearly every player in the world is
-            born into one of the eight countries whose leagues you play in, so the rest of the world
+            born into one of the twelve countries whose leagues you play in, so the rest of the world
             is thin. Fill it out — with an imported roster, say — and those cups start
             being played on their own.
           </p>

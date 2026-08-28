@@ -328,6 +328,13 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
       "Sorley", "Tavish", "Alistair", "Donald", "Hugh", "Kyle", "Magnus", "Norman",
       "Owen", "Roderick", "Somhairle", "Wilson", "Archibald", "Colin", "Dougal", "Kerr",
       "Rankin",
+      // Scotland became a home league (see LEAGUE_NATIONALITY_WEIGHTS) and a
+      // home league generates ~500 players a world rather than the handful a
+      // foreign nationality contributes, so both pools were deepened to match
+      // the other home countries. nationalities.test.ts enforces the 80 floor.
+      "Andrew", "Barry", "Charlie", "Christopher", "Connor", "Darren", "Dean", "Declan",
+      "Garry", "Greig", "Jack", "Jordan", "Kevin", "Michael", "Paul", "Peter",
+      "Robert", "Shaun", "Stephen", "Tommy",
     ],
     last: [
       "Campbell", "Stewart", "MacDonald", "Murray", "Ross", "Reid", "Gray", "Duncan",
@@ -340,6 +347,10 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
       "Miller", "Mcdonald", "Cameron", "Kennedy", "Mackay", "Allan", "Gibson", "Docherty",
       "Forbes", "Gillespie", "Hendry", "Irvine", "Jardine", "Lamont", "Mcgregor", "Nicolson",
       "Ogilvie",
+      "Aitken", "Baxter", "Blackwood", "Buchanan", "Cunningham", "Dalgleish", "Elliot", "Fleming",
+      "Galloway", "Guthrie", "Hastie", "Inglis", "Kinnear", "Laing", "Lennox", "Lindsay",
+      "MacFarlane", "MacIntyre", "MacNeil", "Maxwell", "McCall", "McInnes", "Menzies", "Moffat",
+      "Napier", "Rennie", "Ritchie", "Sturrock", "Tait", "Urquhart", "Weir", "Whyte",
     ],
   },
   Wales: {
@@ -651,6 +662,15 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
       "Djordje", "Danilo", "Ilija", "Kosta", "Relja", "Sava", "Aleksa", "Janko",
       "Konstantin", "Novak", "Radovan", "Vukasin", "Zeljko", "Bratislav", "Gavrilo", "Jaksa",
       "Kristijan", "Mladen", "Nebojsa", "Rastko",
+      // Serbia became a home league (see LEAGUE_NATIONALITY_WEIGHTS), which
+      // generates ~500 players a world against the handful a foreign
+      // nationality contributes, so both pools were deepened to match the other
+      // home countries. nationalities.test.ts enforces the 80 floor.
+      "Arsenije", "Bogoljub", "Borislav", "Bozidar", "Cedomir", "Dalibor", "Darko", "Davor",
+      "Desimir", "Dimitrije", "Dragoljub", "Dragoslav", "Dusko", "Gordan", "Grujica", "Jovica",
+      "Ljubomir", "Milenko", "Miljan", "Milutin", "Mirko", "Momcilo", "Nedeljko", "Nikodije",
+      "Ostoja", "Radisa", "Radoslav", "Ranko", "Sinisa", "Slavko", "Slavisa", "Spasoje",
+      "Stanislav", "Svetozar", "Tadija", "Tihomir", "Vidoje", "Zivko",
     ],
     last: [
       "Jovanovic", "Petrovic", "Nikolic", "Markovic", "Djordjevic", "Stojanovic", "Stankovic", "Todorovic",
@@ -661,6 +681,12 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
       "Milosevic", "Blagojevic", "Filipovic", "Gajic", "Hadzic", "Kovacevic", "Lazarevic", "Mladenovic",
       "Rakic", "Savic", "Curcic", "Damjanovic", "Erakovic", "Gavrilovic", "Novakovic", "Perisic",
       "Radic", "Trifunovic", "Veselinovic", "Zoric", "Djukic", "Grujic", "Katic", "Maric",
+      "Adamovic", "Andric", "Arsic", "Bajic", "Bakic", "Brankovic", "Cirkovic", "Despotovic",
+      "Dragicevic", "Drakulic", "Glisic", "Ivanovic", "Jakovljevic", "Jelic", "Kecman", "Kljajic",
+      "Knezevic", "Kuzmanovic", "Lalic", "Lekic", "Ljubicic", "Manojlovic", "Matic", "Micic",
+      "Mihajlovic", "Mirkovic", "Nesic", "Nikodijevic", "Ostojic", "Pantic", "Paunovic",
+      "Radenkovic", "Radulovic", "Sekulic", "Simonovic", "Stamenkovic", "Tanaskovic", "Vidic",
+      "Zivanovic",
     ],
   },
   Cameroon: {
@@ -2860,6 +2886,17 @@ export const OTHER_NATIONS: Record<string, { first: string[]; last: string[] }> 
       "Tasos", "Vangelis", "Zisis", "Achilleas", "Ektoras", "Filippos", "Gerasimos", "Kimon",
       "Lambros", "Menelaos", "Nikiforos", "Orestis", "Periklis", "Themis", "Vaggelis", "Xenofon",
       "Diomidis", "Efthymios", "Iakovos", "Leonidas",
+      // Greece became a home league too — same reason as Serbia above. It stays
+      // in OTHER_NATIONS rather than moving to NATIONALITIES on purpose:
+      // TAIL_BASE is built from NATIONALITIES + OTHER_NATIONS, so moving it
+      // would re-weight the "Rest of the World" tail for every league in every
+      // existing save. Only the pools grew.
+      "Akis", "Alkis", "Anargyros", "Angelos", "Argyris", "Aristidis", "Chrisovalantis",
+      "Damianos", "Dinos", "Efstratios", "Emmanouil", "Epaminondas", "Evripidis", "Fanis",
+      "Gregorios", "Harilaos", "Isidoros", "Kleanthis", "Konstantinos", "Kosmas", "Lazaros",
+      "Loukas", "Markos", "Miltiadis", "Nikolaos", "Notis", "Panos", "Paraskevas",
+      "Polychronis", "Prodromos", "Savvas", "Simos", "Socratis", "Takis", "Telemachos",
+      "Thomas", "Vasileios", "Zacharias",
     ],
     last: [
       "Papadopoulos", "Nikolaou", "Georgiou", "Vlachos", "Karatzas", "Samaras", "Antoniou", "Christodoulou",
@@ -2871,6 +2908,12 @@ export const OTHER_NATIONS: Record<string, { first: string[]; last: string[] }> 
       "Xenakis", "Zafiris", "Angelopoulos", "Bakogiannis", "Diamantis", "Fragkos", "Galanis", "Kyriakidis",
       "Leventis", "Manolas", "Nikas", "Petrou", "Roussos", "Vergos", "Zervas", "Adamidis",
       "Boutaris", "Drosos", "Filippidis", "Kondylis",
+      "Avramidis", "Chatzigiannis", "Dendias", "Emmanouilidis", "Fountoulis", "Gianniotis",
+      "Grigoriadis", "Kalaitzidis", "Kanellopoulos", "Karalis", "Kefalas", "Kokkinos",
+      "Kolokotronis", "Kourtis", "Ladas", "Lekkas", "Liakos", "Malamas", "Mavridis",
+      "Mitropoulos", "Moraitis", "Notaras", "Panagopoulos", "Papaioannou", "Paschalidis",
+      "Politis", "Sakellariou", "Sarris", "Sofianos", "Stamatiadis", "Terzis", "Tsakiris",
+      "Vlahakis", "Zoumboulis",
     ],
   },
   "Cape Verde": {
@@ -2941,9 +2984,14 @@ const REST = "__REST__";
  * same "England-flavored" default the flat pool always was, just recalibrated
  * to the real EPL breakdown.
  *
- * Every named nation here has a name pool in NATIONALITIES or OTHER_NATIONS.
- * Türkiye maps to the existing "Turkey" entry; Kosovo's pool lives in
- * OTHER_NATIONS.
+ * Every named nation here has a name pool in NATIONALITIES, OTHER_NATIONS or
+ * UNLISTED_NATIONALITIES. Türkiye maps to the existing "Turkey" entry;
+ * Kosovo's, Greece's and Israel's pools live in OTHER_NATIONS, and Northern
+ * Ireland's in UNLISTED_NATIONALITIES.
+ *
+ * A country playing in the world MUST have an entry here. There is no error
+ * for a missing one — drawNationality falls back to England's table, so the
+ * new league quietly fills up with English players and nothing fails.
  */
 export const LEAGUE_NATIONALITY_WEIGHTS: Record<string, Record<string, number>> = {
   England: {
@@ -3011,6 +3059,53 @@ export const LEAGUE_NATIONALITY_WEIGHTS: Record<string, Record<string, number>> 
     Netherlands: 9, Albania: 9, Cameroon: 9, Scotland: 9, Denmark: 9, England: 9, Belgium: 9,
     Tunisia: 9,
     [REST]: 65,
+  },
+  // Eredivisie: a shade over half domestic, and the foreign half is shaped by
+  // the league's role as Europe's best-known development market rather than by
+  // one colonial pipeline — Scandinavia, Japan and South Korea, a broad West
+  // African intake, and the Belgian/German neighbours it trades with most.
+  Netherlands: {
+    Netherlands: 560, Belgium: 34, Germany: 28, Denmark: 21, Japan: 20, Nigeria: 20,
+    Spain: 18, Brazil: 18, Ghana: 16, Morocco: 16, Sweden: 15, Norway: 15,
+    "United States": 15, England: 13, Argentina: 12, Serbia: 11, "South Korea": 11,
+    Poland: 10, Austria: 10, "Cape Verde": 10, "Ivory Coast": 10, Senegal: 9, Croatia: 9,
+    Portugal: 9,
+    [REST]: 90,
+  },
+  // Scottish Premiership: the most lopsided foreign block in the world — one
+  // neighbour supplies more than a fifth of the imports on its own, which no
+  // other league here does. Then the Irish/Northern Irish traffic that comes
+  // with a shared border, and the Anglophone tail (Australia, Canada) plus
+  // Japan and Israel that the bigger clubs have leaned on recently.
+  Scotland: {
+    Scotland: 550, England: 78, "Republic of Ireland": 30, Japan: 22, Australia: 20,
+    "Northern Ireland": 18, Nigeria: 16, Poland: 15, Croatia: 14, Israel: 13, Canada: 13,
+    Portugal: 12, Denmark: 12, France: 12, Spain: 11, Belgium: 11, Greece: 10,
+    Netherlands: 10, Sweden: 9, Norway: 9, Brazil: 9, Wales: 9,
+    [REST]: 97,
+  },
+  // Greek Super League: the most foreign-heavy table here after Belgium's, a
+  // little under half domestic. The distinctive part is the Balkan
+  // neighbourhood (Serbia, Croatia, Albania, Bosnia, Romania) sitting next to a
+  // South American intake no other league in this band has at that scale.
+  Greece: {
+    Greece: 440, Brazil: 52, Argentina: 34, Portugal: 30, Spain: 26, France: 24,
+    Nigeria: 22, Serbia: 22, Croatia: 20, Morocco: 18, Poland: 16, Netherlands: 16,
+    Denmark: 15, Sweden: 15, Belgium: 14, Ghana: 14, "Ivory Coast": 13, Senegal: 12,
+    Romania: 12, Albania: 12, "Bosnia-Herzegovina": 11, Cameroon: 11, Uruguay: 9,
+    Colombia: 9, Germany: 9, England: 9, Italy: 9, Austria: 8, Switzerland: 8,
+    [REST]: 90,
+  },
+  // Serbian SuperLiga: by far the most domestic table in the game at ~72%, which
+  // is the point of it — a production league that exports rather than imports.
+  // What foreign intake there is comes almost entirely from the former Yugoslav
+  // republics next door, plus a small West African contingent.
+  Serbia: {
+    Serbia: 720, "Bosnia-Herzegovina": 26, Montenegro: 22, "North Macedonia": 18,
+    Croatia: 16, Brazil: 16, Nigeria: 14, Ghana: 12, Slovenia: 12, Bulgaria: 10,
+    Romania: 10, Cameroon: 8, Senegal: 8, "Ivory Coast": 8, Greece: 6, Albania: 6,
+    Ukraine: 4, Hungary: 4,
+    [REST]: 80,
   },
 };
 

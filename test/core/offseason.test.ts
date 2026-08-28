@@ -40,7 +40,7 @@ describe("simOffseason", () => {
     expect(next.season).toBe(league.season + 1);
     expect(next.phase).toBe("regular");
     expect(next.played).toEqual([]);
-    expect(next.schedule).toHaveLength(6080);
+    expect(next.schedule).toHaveLength(9120);
   });
 
   it("every team stays at or above the roster safety floor after progression/retirement/FA/youth", () => {
@@ -54,11 +54,11 @@ describe("simOffseason", () => {
     // own academy emergency call-up targets) is the real floor, not a fixed
     // squad size.
     //
-    // Checked as a DISTRIBUTION, not as a minimum over all 320 clubs, because
+    // Checked as a DISTRIBUTION, not as a minimum over all 480 clubs, because
     // nothing in the game actually enforces the floor against ordinary attrition
     // (retirement and contract expiry are not sales, and `ensureUserRosterSafety`
     // can only promote academy players the club has). The floor is a target, and
-    // a min over 320 clubs in a chaotic sim is not the statistic that measures
+    // a min over 480 clubs in a chaotic sim is not the statistic that measures
     // it — the same lesson as the M3 top-scorer gate, where a world-wide max was
     // standing in for a league statistic.
     //
@@ -72,7 +72,7 @@ describe("simOffseason", () => {
     const sizes = next.teams.map((t) => t.roster.length).sort((a, b) => a - b);
     expect(sizes[0]).toBeGreaterThanOrEqual(11);
     expect(sizes[Math.floor(sizes.length * 0.05)]).toBeGreaterThanOrEqual(ROSTER_SAFETY_FLOOR);
-    expect(next.teams).toHaveLength(8 * (NUM_TEAMS + NUM_TEAMS_D2));
+    expect(next.teams).toHaveLength(12 * (NUM_TEAMS + NUM_TEAMS_D2));
   });
 
   it("swaps 3 up / 3 down between divisions and records pre-swap compsByTid", () => {
@@ -112,7 +112,7 @@ describe("simOffseason", () => {
       const before = new Map(league.teams.map((t) => [t.tid, t.compId]));
       return next.teams.filter((t) => before.get(t.tid) !== t.compId).length;
     };
-    expect(moved(one)).toBe(2 * 8); // two clubs each, eight countries
+    expect(moved(one)).toBe(2 * 12); // two clubs each, twelve countries
     expect(moved(closed)).toBe(0);
     // Division sizes hold either way.
     expect(closed.teams.filter((t) => t.compId === 0)).toHaveLength(NUM_TEAMS);

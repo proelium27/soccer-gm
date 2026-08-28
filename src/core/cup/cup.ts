@@ -80,7 +80,9 @@ export function koFinalRound(cup: CupState): number {
 
 /* ── Qualification ───────────────────────────────────────────────────────────
  * Strong (big-four) leagues send `format.strongSlots` clubs; weak
- * (France/Portugal/Belgium/Turkey) leagues send `format.weakSlots`. Each
+ * (every league with a countryStrengthOffset — France, the Netherlands,
+ * Portugal, Belgium, Turkey, Greece, Scotland, Serbia) send `format.weakSlots`.
+ * Each
  * competition starts `format.rankOffset` places down its leagues' final tables,
  * which is what keeps the fields disjoint — the Continental Cup takes from the
  * top, the Shield takes the places directly below it. The combined field opens
