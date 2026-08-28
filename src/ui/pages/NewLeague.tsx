@@ -97,23 +97,15 @@ function describeRoster(
 }
 
 export function NewLeague() {
-  // The shape of the world, chosen before it is generated. Roster mode and the
-  // customize flow keep the shipped world: a roster file maps clubs positionally
-  // onto slots, so letting the two move at once would silently relabel squads.
+  // The shape of the world, chosen before it is generated — in every mode,
+  // roster import included. A roster file names the competitions it fills and
+  // its clubs are mapped onto them again from scratch whenever the world moves
+  // (see activeRoster below), so reshaping the world under a loaded file re-aims
+  // it rather than misaiming it. Adding the league your file was written for is
+  // the whole point: without it, the file's competition is simply "not in this
+  // world" and everything in it is skipped.
   const [worldEntries, setWorldEntries] = useState<WorldEntry[]>(defaultWorldEntries);
   const world = useMemo(() => describeWorld(includedSpecs(worldEntries)), [worldEntries]);
-
-  /**
-   * Roster files loaded per added league, folded into the one file the importer
-   * applies. Shares every downstream path with the world-wide import — slot
-   * resolution, the picker preview, crest suppression — so the two can't drift.
-   */
-  const leagueRoster = useMemo((): LoadedRoster | null => {
-    const { files, warnings } = leagueRosterFiles(worldEntries, world.competitions);
-    if (files.length === 0) return null;
-    const described = describeRoster(files, world.slotWorld);
-    return { ...described, warnings: [...warnings, ...described.warnings] };
-  }, [worldEntries, world]);
 
   /** Competition name for a country's given tier (e.g. "English Division 1"). */
   function divisionName(countryName: string, tier: 1 | 2): string {
@@ -149,10 +141,14 @@ export function NewLeague() {
   // first render, so arriving here skips straight to the club picker. useState's
   // initializer (not an effect) because takePendingRoster clears as it reads,
   // and an effect would run twice under StrictMode and lose it.
-  const [roster, setRoster] = useState<LoadedRoster | null>(() => {
-    const handed = takePendingRoster();
-    return handed ? describeRoster(handed.files, describeWorld(includedSpecs(defaultWorldEntries())).slotWorld) : null;
-  });
+  //
+  // Only the FILES are kept, never the slots they resolved to. The world can be
+  // reshaped after they are loaded, and a stored resolution would go stale the
+  // moment it was — which is precisely why the world editor used to be hidden
+  // on this path.
+  const [rosterSources, setRosterSources] = useState<NamedRosterFile[]>(
+    () => takePendingRoster()?.files ?? [],
+  );
   const [rosterError, setRosterError] = useState<string | null>(null);
   // Failures from "Import League" (a whole exported save), kept separate from
   // rosterError: they surface on different screens and mean different things.
@@ -170,12 +166,47 @@ export function NewLeague() {
   const rosterInputRef = useRef<HTMLInputElement>(null);
 
   /**
-   * The roster being applied, whichever way it was loaded: the world-wide
-   * Import Custom League flow, or files attached to individual added leagues.
-   * The two are mutually exclusive in the UI (World setup is hidden once a
-   * world-wide file is loaded), so this never has to merge them.
+   * The world-wide files on their own, resolved against the world as it stands.
+   * Drives the "Loaded x, y, z" panel, which speaks about those files and must
+   * not fold in per-league ones the world editor already lists beside their own
+   * league.
    */
-  const activeRoster = roster ?? leagueRoster;
+  const worldRoster = useMemo(
+    () => (rosterSources.length > 0 ? describeRoster(rosterSources, world.slotWorld) : null),
+    [rosterSources, world],
+  );
+
+  /**
+   * The roster actually applied: the world-wide files plus the ones attached to
+   * individual added leagues, folded together and resolved as one. Both kinds
+   * used to be mutually exclusive because the world editor vanished as soon as a
+   * world-wide file was loaded; now that it doesn't, they are combined. Per-league
+   * files come last, so a league carrying its own file wins the competition it
+   * names — it is the more specific of the two.
+   */
+  const activeRoster = useMemo((): LoadedRoster | null => {
+    const { files, warnings } = leagueRosterFiles(worldEntries, world.competitions);
+    const sources = [...rosterSources, ...files];
+    if (sources.length === 0) return null;
+    const described = describeRoster(sources, world.slotWorld);
+    return { ...described, warnings: [...warnings, ...described.warnings] };
+  }, [rosterSources, worldEntries, world]);
+
+  /**
+   * Reshaping the world can move, remove or re-letter the slot the chosen club
+   * sits in, so a selection only survives a change that leaves the slot layout
+   * alone — renaming a country, or retuning one, rather than adding or dropping
+   * clubs. Without this you could pick a club in the picker and start a save as
+   * a different one.
+   */
+  function changeWorld(next: WorldEntry[]) {
+    const after = worldTeamSlots(buildCompetitions(includedSpecs(next)));
+    const before = world.slotWorld.teams;
+    const sameLayout =
+      before.length === after.length && before.every((t, i) => t.compId === after[i].compId);
+    setWorldEntries(next);
+    if (!sameLayout) setSelectedTid(null);
+  }
 
   const parsedStartYear = normalizeStartYear(startYear);
 
@@ -231,7 +262,7 @@ export function NewLeague() {
           setPending(league);
           return;
         }
-        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster, difficulty });
+        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!activeRoster, difficulty });
         await setLeague(league);
         navigate("/dashboard");
       } finally {
@@ -245,7 +276,7 @@ export function NewLeague() {
     await gate.run(async () => {
       setSaving(true);
       try {
-        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!roster, difficulty });
+        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!activeRoster, difficulty });
         await setLeague(applyTeamIdentities(pending, teams));
         navigate("/dashboard");
       } finally {
@@ -290,7 +321,7 @@ export function NewLeague() {
     }
 
     if (loaded.length > 0) {
-      setRoster((prev) => describeRoster([...(prev?.sources ?? []), ...loaded], world.slotWorld));
+      setRosterSources((prev) => [...prev, ...loaded]);
       setSelectedTid(null);
     }
     setRosterError(errors.length > 0 ? errors.join(" ") : null);
@@ -346,7 +377,7 @@ export function NewLeague() {
     );
   }
 
-  if (rosterMode && !roster) {
+  if (rosterMode && !worldRoster) {
     return (
       <div className="container py-4" style={{ maxWidth: 600 }}>
         <h2 className="mb-3">Import Custom League</h2>
@@ -388,9 +419,14 @@ export function NewLeague() {
           once.
         </p>
         <p className="text-muted">
-          This is the only place a roster file can be loaded. Bringing real squads into a
-          save already in progress would wipe out the careers and stats of everyone they
-          replaced, so imports happen at creation and nowhere else.
+          Roster files can only be loaded while a league is being created, here or on the
+          New League screen. Bringing real squads into a save already in progress would
+          wipe out the careers and stats of everyone they replaced.
+        </p>
+        <p className="text-muted">
+          On the next step you can also reshape the world itself: rename a league, add one
+          of your own, or switch one off. If your file names a league this world hasn't
+          got, adding it there is what makes the file apply.
         </p>
 
         {rosterError && (
@@ -459,23 +495,23 @@ export function NewLeague() {
     // here and a colour swatch the moment the save opens.
     <CrestArtProvider tids={activeRoster ? [...activeRoster.byTid.keys()] : []}>
     <div className="container py-4" style={{ maxWidth: 600 }}>
-      <h2 className="mb-3">{roster ? "Import Custom League" : "New League"}</h2>
+      <h2 className="mb-3">{rosterMode ? "Import Custom League" : "New League"}</h2>
       <p className="text-muted">
-        {roster
+        {worldRoster
           ? `Flip through each league to browse its clubs, then choose your ${activeCountry} club to get started. Every club the file didn't cover keeps its original name and squad.`
           : customize
             ? `Flip through each league to browse its clubs, then choose your ${activeCountry} club to customize every club before starting.`
             : `Flip through each league to browse its clubs, then choose your ${activeCountry} club to get started.`}
       </p>
 
-      {roster && (
+      {worldRoster && (
         <div className="alert alert-secondary py-2">
           <div>
-            Loaded <strong>{roster.sources.map((s) => s.name).join(", ")}</strong> —{" "}
-            {roster.clubs} {roster.clubs === 1 ? "club" : "clubs"}, {roster.squads} with a
-            full squad.
+            Loaded <strong>{worldRoster.sources.map((s) => s.name).join(", ")}</strong> —{" "}
+            {worldRoster.clubs} {worldRoster.clubs === 1 ? "club" : "clubs"},{" "}
+            {worldRoster.squads} with a full squad.
           </div>
-          {roster.warnings.map((w) => (
+          {worldRoster.warnings.map((w) => (
             <div key={w} className="small text-muted mt-1">
               {w}
             </div>
@@ -483,6 +519,13 @@ export function NewLeague() {
           {rosterError && (
             <div className="small text-danger mt-1">{rosterError}</div>
           )}
+          {/* The commonest reason a file lands nowhere is that the world hasn't
+              got the league it was written for, which the editor below can fix —
+              so say so here, next to the warning that reports it. */}
+          <div className="small text-muted mt-1">
+            A league your file names that this world hasn't got is skipped. Rename a
+            league to match it, or add one, in World setup below.
+          </div>
           <div className="d-flex gap-3 mt-1">
             <button
               type="button"
@@ -495,7 +538,7 @@ export function NewLeague() {
               type="button"
               className="btn btn-link btn-sm p-0"
               onClick={() => {
-                setRoster(null);
+                setRosterSources([]);
                 setRosterError(null);
                 setSelectedTid(null);
               }}
@@ -503,25 +546,46 @@ export function NewLeague() {
               Start over
             </button>
           </div>
-          <input
-            ref={rosterInputRef}
-            type="file"
-            accept=".json,application/json"
-            multiple
-            className="d-none"
-            onChange={handleRosterFiles}
-          />
         </div>
       )}
 
-      {/*
-        Hidden in roster mode on purpose: a roster file maps its clubs
-        positionally onto the world's slots, so reshaping the world underneath a
-        loaded file would hand its squads to the wrong clubs.
-      */}
-      {!roster && !rosterMode && (
-        <WorldSetup entries={worldEntries} onChange={setWorldEntries} />
+      {/* Loading roster files is offered on the ordinary New League screen too,
+          so the two ways in differ only in where they start you: the world
+          editor and the file loader are the same on both. */}
+      {!worldRoster && !rosterMode && (
+        <div className="mb-3">
+          <button
+            type="button"
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => rosterInputRef.current?.click()}
+          >
+            Load roster files
+          </button>
+          <p className="text-muted small mt-2 mb-0">
+            Optional. Roster files put real (or invented) clubs and squads into the
+            leagues they name, in place of the fictional ones.
+          </p>
+          {rosterError && <div className="small text-danger mt-1">{rosterError}</div>}
+        </div>
       )}
+
+      {/* One input for both entry points above. */}
+      <input
+        ref={rosterInputRef}
+        type="file"
+        accept=".json,application/json"
+        multiple
+        className="d-none"
+        onChange={handleRosterFiles}
+      />
+
+      {/*
+        Shown in roster mode too. Slots are resolved from the loaded files
+        against the world as it currently stands (see activeRoster), so a file
+        follows the world when it moves — and adding the league a file was
+        written for is the only way to make that file apply at all.
+      */}
+      <WorldSetup entries={worldEntries} onChange={changeWorld} />
 
       <div className="btn-group mb-3 flex-wrap" role="group" aria-label="Choose a league">
         {world.countries.map((c) => (
@@ -657,9 +721,9 @@ export function NewLeague() {
         </button>
 
         {/* Loading a previously exported save, which has nothing to do with the
-            roster file already loaded — hidden in roster mode to keep the two
+            roster file already loaded — hidden once one is, to keep the two
             kinds of "import" from sitting side by side. */}
-        {!roster && (
+        {!worldRoster && (
           <button
             className="btn btn-outline-secondary"
             onClick={handleImportClick}

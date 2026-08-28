@@ -208,6 +208,49 @@ describe("WorldSetup renders", () => {
     expect(html).toContain("3 clubs");
     expect(html).toContain("Add another file");
   });
+
+  it("offers to rename each shipped league", () => {
+    // Divisions used to be named after their country and nothing else, so a
+    // roster file written for "Premier League" could never find one — the game
+    // had no league by that name and no way to give it one.
+    const html = render(defaultWorldEntries());
+    expect(html.match(/>Rename</g)).toHaveLength(8);
+  });
+
+  it("doesn't offer to rename a league that's switched off", () => {
+    const entries = defaultWorldEntries().map((e, i) => ({ ...e, included: i === 0 }));
+    expect(render(entries).match(/>Rename</g)).toHaveLength(1);
+  });
+
+  it("gives an added league its division-name boxes, defaults as placeholders", () => {
+    const html = render(withAddedLeague());
+    expect(html).toContain('aria-label="Top division name"');
+    expect(html).toContain('aria-label="Second division name"');
+    // Absent rather than pre-filled, so a name keeps following the country
+    // while it's untouched.
+    expect(html).toContain('placeholder="Neverland Division 1"');
+    expect(html).toContain('placeholder="Neverland Division 2"');
+  });
+
+  it("shows a name the player set", () => {
+    const entries = withAddedLeague();
+    entries[entries.length - 1] = {
+      ...entries[entries.length - 1],
+      spec: { ...entries[entries.length - 1].spec, d1Name: "Eredivisie" },
+    };
+    expect(render(entries)).toContain('value="Eredivisie"');
+  });
+
+  it("asks for one name on a one-division league", () => {
+    const entries = withAddedLeague();
+    entries[entries.length - 1] = {
+      ...entries[entries.length - 1],
+      spec: { ...entries[entries.length - 1].spec, divisions: 1 },
+    };
+    const html = render(entries);
+    expect(html).toContain('aria-label="League name"');
+    expect(html).not.toContain('aria-label="Second division name"');
+  });
 });
 
 describe("the strength dial reads the way a player expects", () => {
