@@ -77,7 +77,11 @@ run_local_only() {
   # variable error under `set -u`. Hence the ${arr[@]+...} guard on every array
   # expansion in this script.
   local args=()
-  [ -n "$LOCAL_WORKERS" ] && args+=("--maxWorkers=$LOCAL_WORKERS")
+  # --minWorkers too: vitest's default minWorkers sits at the core count, so
+  # capping only maxWorkers below it is a contradiction and vitest aborts the
+  # whole run with "options.minThreads and options.maxThreads must not conflict"
+  # -- zero tests, exit 1.
+  [ -n "$LOCAL_WORKERS" ] && args+=("--minWorkers=1" "--maxWorkers=$LOCAL_WORKERS")
   exec npx vitest run ${args[@]+"${args[@]}"} ${VITEST_ARGS[@]+"${VITEST_ARGS[@]}"}
 }
 
@@ -163,10 +167,11 @@ rsh "rm -rf $REMOTE_DIR/.vitest-reports"
 CAPS="$CAP_LOCAL,$CAP_REMOTE"
 echo "==> Splitting 1/2 here, 2/2 on $REMOTE_HOST (capacities $CAPS)"
 
+# See run_local_only for why --minWorkers has to move with --maxWorkers.
 local_args=()
-[ -n "$LOCAL_WORKERS" ] && local_args+=("--maxWorkers=$LOCAL_WORKERS")
+[ -n "$LOCAL_WORKERS" ] && local_args+=("--minWorkers=1" "--maxWorkers=$LOCAL_WORKERS")
 remote_flag=""
-[ -n "$REMOTE_WORKERS" ] && remote_flag="--maxWorkers=$REMOTE_WORKERS"
+[ -n "$REMOTE_WORKERS" ] && remote_flag="--minWorkers=1 --maxWorkers=$REMOTE_WORKERS"
 
 START=$(date +%s)
 
