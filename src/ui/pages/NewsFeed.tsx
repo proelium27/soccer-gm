@@ -11,13 +11,13 @@ import { PlayerRefLink, usePlayerRefs } from "../components/PlayerRefLink.js";
 
 type ClubFilter = "all" | "user";
 
+// No emoji: the project rule is that the UI carries none (real icons are
+// hand-written inline SVG). The first four used to and no longer do.
 const EVENT_LABEL: Record<NewsEventType, string> = {
-  hattrick: "⚽ Hat-trick",
-  standoutRating: "⭐ Standout performance",
-  goalMilestoneSeason: "🎯 Season milestone",
-  goalMilestoneCareer: "🎯 Career milestone",
-  // Deliberately no emoji: the project rule is that the UI carries none (real
-  // icons are hand-written inline SVG). The four above predate that rule.
+  hattrick: "Hat-trick",
+  standoutRating: "Standout performance",
+  goalMilestoneSeason: "Season milestone",
+  goalMilestoneCareer: "Career milestone",
   positionChange: "Position change",
 };
 
@@ -74,16 +74,35 @@ export function NewsFeed() {
       else eventsBySeason.set(e.season, [e]);
     }
     const userTid = league?.meta.userTid ?? -1;
+
+    // Which competition a club was in is asked per season, not of the club
+    // today: promotion and relegation move clubs (the user's included), so a
+    // live lookup would re-file every past season under the division everyone
+    // happens to be in now. Each completed season carries its own snapshot;
+    // the season in progress has none yet, so it uses the live teams.
+    const historyBySeason = new Map(
+      (league?.seasonHistory ?? []).map((h) => [h.season, h.compsByTid]),
+    );
+    const liveComps: Record<number, number> = {};
+    for (const t of league?.teams ?? []) liveComps[t.tid] = t.compId;
+
     const out = new Map<number, FeedItem[]>();
     for (const season of new Set([...transfersBySeason.keys(), ...eventsBySeason.keys()])) {
+      const comps = historyBySeason.get(season) ?? liveComps;
       out.set(season, buildSeasonTimeline(
         transfersBySeason.get(season) ?? [],
         eventsBySeason.get(season) ?? [],
-        userTid,
+        { userTid, userCompId: comps[userTid], compOf: (tid) => comps[tid] },
       ));
     }
     return out;
-  }, [league?.transfers, league?.newsEvents, league?.meta.userTid]);
+  }, [
+    league?.transfers,
+    league?.newsEvents,
+    league?.meta.userTid,
+    league?.seasonHistory,
+    league?.teams,
+  ]);
 
   if (!league) {
     return <p className="p-3">Loading...</p>;
@@ -147,8 +166,8 @@ export function NewsFeed() {
     <div className="container-fluid p-3">
       <h4>News Feed</h4>
       <p className="text-muted">
-        The news feed covers every completed transfer across the league, plus player milestones
-        and standout performances.
+        Everything your club does, everything that happens in your league, and only the big
+        stories from the rest of the world.
       </p>
 
       <div className="d-flex flex-wrap gap-2 mb-3">

@@ -290,9 +290,18 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
   const newsHeadlines = useMemo(() => {
     const currentSeasonTransfers = league.transfers.filter((t) => t.season === league.season);
     const currentSeasonEvents = league.newsEvents.filter((e) => e.season === league.season);
-    const newsTimeline = buildSeasonTimeline(currentSeasonTransfers, currentSeasonEvents, league.meta.userTid);
+    // The season in progress has no seasonHistory snapshot yet, so the live
+    // teams are its competition map (see NewsFeed.tsx for the general case).
+    const comps: Record<number, number> = {};
+    for (const t of league.teams) comps[t.tid] = t.compId;
+    const userTid = league.meta.userTid;
+    const newsTimeline = buildSeasonTimeline(currentSeasonTransfers, currentSeasonEvents, {
+      userTid,
+      userCompId: comps[userTid],
+      compOf: (tid) => comps[tid],
+    });
     return [...newsTimeline].slice(-NEWS_TOP_N).reverse();
-  }, [league.transfers, league.newsEvents, league.season, league.meta.userTid]);
+  }, [league.transfers, league.newsEvents, league.season, league.meta.userTid, league.teams]);
 
   const teamByTid = useMemo(() => new Map(league.teams.map((t) => [t.tid, t])), [league.teams]);
   const playerByPid = useMemo(() => new Map(league.players.map((p) => [p.pid, p])), [league.players]);

@@ -2623,11 +2623,59 @@ export const WORLD_AWARD_CONFEDERATION_CUP_BONUS = 0.7;
  * News Feed accomplishments
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Minimum single-match rating (see engine/matchRating.ts) to qualify as a matchday's "standout performance" news item. At most one per matchday, league-wide. */
+/** Minimum single-match rating (see engine/matchRating.ts) to qualify as a matchday's "standout performance" news item. At most one per matchday, world-wide. */
 export const NEWS_STANDOUT_RATING_FLOOR = 8.0;
 
-/** Goal-milestone news items fire every time a player's season or career goal total crosses a multiple of this. */
-export const NEWS_GOAL_MILESTONE_STEP = 10;
+/*
+ * Goal milestones — the ladder a total has to climb to be worth a headline.
+ *
+ * These are ABSOLUTE bars, applied at detection time, and they are the reason
+ * the feed is affordable: a news event is persisted forever (LeagueStore
+ * .newsEvents is append-only), so anything the bar lets through is paid for in
+ * every save from then on. Measured on a 16-competition world before this
+ * existed, a single flat step of 10 fired 1,661 career-milestone events a
+ * season by season 4 and rising — one for every journeyman crossing 60 — which
+ * is both the bulk of the feed's rows and a permanent save cost.
+ *
+ * FIRST must be a whole multiple of STEP; `goalMilestoneReached` relies on it.
+ */
+/** A career total is news at 50, then every 50 (100, 150, 200...). */
+export const NEWS_CAREER_GOAL_FIRST = 50;
+export const NEWS_CAREER_GOAL_STEP = 50;
+/**
+ * A season total is news at 25, then every 5. The mean tier-1 Golden Boot sits
+ * at ~28 (see test/validation/m3-top-scorer.test.ts), so 25 is roughly "having
+ * a Golden Boot season" and the rungs above it are genuinely rare.
+ */
+export const NEWS_SEASON_GOAL_FIRST = 25;
+export const NEWS_SEASON_GOAL_STEP = 5;
+
+/*
+ * Relevance tiers — the bars an event has to clear to be worth reading about
+ * when it happened somewhere you don't play.
+ *
+ * The world is 16 competitions and 320 clubs, so ~90% of everything detected
+ * happens in a country the user has no stake in. `newsEventScope` sorts an
+ * event into "league" (interesting inside its own competition) or "world"
+ * (interesting anywhere), and the feed shows foreign "league" events to nobody.
+ *
+ * Deliberately derived from the event's own type and detail rather than stored
+ * on it: no new persisted field, no migration, and the tiers apply to events
+ * that were already written by older builds.
+ */
+/** Career goals that make a milestone world news rather than league news. */
+export const NEWS_WORLD_CAREER_GOALS = 100;
+/** Season goals that make a milestone world news rather than league news. */
+export const NEWS_WORLD_SEASON_GOALS = 35;
+/** Goals in one match that make a haul world news rather than league news. */
+export const NEWS_WORLD_HATTRICK_GOALS = 4;
+/**
+ * Fee that makes a transfer between two clubs you have no stake in worth a
+ * headline. Against the shipped value curve (80 ovr ~ $86M, 83 ~ $134M) this
+ * is a genuine first-team signing rather than squad filler; measured, it keeps
+ * the top ~5% of the world's paid deals.
+ */
+export const NEWS_WORLD_TRANSFER_FEE = 40_000_000;
 
 /**
  * Minimum OVR for a career position change at an AI club to reach the News
