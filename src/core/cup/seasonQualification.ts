@@ -2,8 +2,9 @@ import type { LeagueStore } from "../leagueState.js";
 import type { StandingsRow } from "../standings.js";
 import { computeStandings } from "../standings.js";
 import type { CupCompetitionId } from "../constants.js";
-import type { QualificationRoute, QualificationRoutes } from "./qualification.js";
+import type { QualificationRoute, QualificationContext } from "./qualification.js";
 import { qualificationByTid, domesticCupWinners } from "./qualification.js";
+import { coefficientSlots } from "./coefficients.js";
 
 /**
  * Who qualified for what, off one season's league tables — the answer the
@@ -67,19 +68,37 @@ function tablesForPastSeason(league: LeagueStore, season: number): Map<number, S
   return tables;
 }
 
-/** The season's finished cups, as qualification routes into the season after it. */
-function routesFor(league: LeagueStore, season: number, current: boolean): QualificationRoutes {
+/**
+ * The season's finished cups, as qualification routes into the season after it,
+ * plus that season's coefficient-based slot allocation.
+ *
+ * The coefficient window ends with `season`, because the places being worked
+ * out here are the ones for `season + 1`. A competition counts toward it only
+ * once it has a champion: a half-played cup would have the shading drift every
+ * few matchdays on partial results, where waiting means it moves once, when the
+ * final is played, exactly like the domestic cup route beside it.
+ */
+function routesFor(league: LeagueStore, season: number, current: boolean): QualificationContext {
   const cup = current ? league.cup : league.cupHistory.find((c) => c.season === season);
   const shield = current ? league.shield : (league.shieldHistory ?? []).find((c) => c.season === season);
   const domestic = current
     ? (league.domesticCups ?? [])
     : (league.domesticCupHistory ?? []).filter((c) => c.season === season);
+  const live = [league.cup, league.shield].filter(
+    (c): c is NonNullable<typeof c> => !!c && c.championTid !== null,
+  );
   return {
     domesticCupWinners: domesticCupWinners(domestic),
     holders: {
       continental: cup?.championTid ?? undefined,
       shield: shield?.championTid ?? undefined,
     },
+    slots: coefficientSlots(
+      league.competitions,
+      league.teams,
+      [league.cupHistory ?? [], league.shieldHistory ?? [], live],
+      season + 1,
+    ) ?? undefined,
   };
 }
 
