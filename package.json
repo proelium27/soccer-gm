@@ -13,6 +13,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:cluster": "bash scripts/testCluster.sh",
     "cli": "tsx scripts/cli.ts",
     "typecheck": "tsc --noEmit"
   },

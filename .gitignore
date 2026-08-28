@@ -23,3 +23,8 @@ roster-identities.json
 # large, and not ours to publish.
 leaguesaves/
 soccer-gm-league-*.json
+
+# Two-machine test runner (scripts/testCluster.sh). The config names your other
+# Mac and holds its measured throughput, so it's yours and not the repo's.
+.test-cluster.json
+.vitest-reports/

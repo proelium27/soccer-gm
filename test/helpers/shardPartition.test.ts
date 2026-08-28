@@ -69,6 +69,44 @@ describe("cost-aware shard partition", () => {
     expect(() => partitionByCost(files, 0)).toThrow();
   });
 
+  describe("unequal capacities (the two-machine local runner)", () => {
+    it("changes nothing when the capacities are uniform", () => {
+      // CI passes no capacities at all. This pins that adding the parameter did
+      // not quietly re-shuffle which runner gets which file.
+      expect(partitionByCost(files, 6, [1, 1, 1, 1, 1, 1])).toEqual(partitionByCost(files, 6));
+      expect(partitionByCost(files, 2, [3, 3])).toEqual(partitionByCost(files, 2));
+    });
+
+    it("still covers every file exactly once when the split is uneven", () => {
+      // The property that actually matters: a partition bug drops a file from
+      // every shard and the run still reports green.
+      const bins = partitionByCost(files, 2, [1, 2.5]);
+      expect(bins.flat().slice().sort()).toEqual(files);
+      expect(new Set(bins.flat()).size).toBe(files.length);
+    });
+
+    it("gives the higher-capacity shard proportionally more work", () => {
+      const [light, heavy] = partitionByCost(files, 2, [1, 3]);
+      const cost = (b: string[]) => b.reduce((s, f) => s + weightFor(f), 0);
+      // Not asserting an exact 1:3 — bins hold whole files, so the ratio is
+      // only ever approximate. Direction and rough magnitude is the contract.
+      expect(cost(heavy)).toBeGreaterThan(cost(light) * 2);
+    });
+
+    it("refuses a capacity list that doesn't match the shard count", () => {
+      // Silently padding or truncating would make two machines compute
+      // different partitions from the same file list.
+      expect(() => partitionByCost(files, 2, [1])).toThrow();
+      expect(() => partitionByCost(files, 2, [1, 1, 1])).toThrow();
+    });
+
+    it("refuses a non-positive or non-finite capacity", () => {
+      expect(() => partitionByCost(files, 2, [1, 0])).toThrow();
+      expect(() => partitionByCost(files, 2, [1, -2])).toThrow();
+      expect(() => partitionByCost(files, 2, [1, Number.NaN])).toThrow();
+    });
+  });
+
   it("weights known-heavy files above the default and unknown files at it", () => {
     expect(weightFor("test/core/offseason.test.ts")).toBeGreaterThan(DEFAULT_WEIGHT_SECONDS);
     expect(weightFor("test/does/not/exist.test.ts")).toBe(DEFAULT_WEIGHT_SECONDS);

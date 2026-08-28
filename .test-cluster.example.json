@@ -1,0 +1,16 @@
+{
+  "_comment": "Copy to .test-cluster.json (gitignored) and set remoteHost. See scripts/testCluster.sh.",
+
+  "remoteHost": "",
+  "remoteDir": "~/soccer-gm-testcluster",
+
+  "_capacities": "Relative throughput. Left at 1/1 the work splits evenly; the runner re-measures and rewrites these after each run when autotune is on. A 16GB machine typically earns well above 1 against an 8GB one, because this suite is limited by memory and thermals rather than cores.",
+  "capacityLocal": 1,
+  "capacityRemote": 1,
+
+  "_workers": "Empty means vitest's default (cores - 1). On a memory-limited machine that default oversubscribes: measured on 8GB, four concurrent heavy files already cost 1.57x their solo time. Lowering this can make the run faster, not slower.",
+  "localMaxWorkers": "",
+  "remoteMaxWorkers": "",
+
+  "autotune": true
+}
