@@ -8,6 +8,7 @@ import { SKILL_LABELS } from "../components/PlayerRatingsTooltip.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 import type { NewPlayerSpec } from "../../core/godMode.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
+import { BackLink } from "../components/BackLink.js";
 
 const NATION_NAMES = Object.keys(NATIONALITIES);
 const flatRatings = (v: number): PlayerRatings =>
@@ -24,7 +25,7 @@ export function GodMode() {
     <div className="container-fluid py-3" style={{ maxWidth: 900 }}>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h1 className="h4 m-0">God Mode</h1>
-        <Link to="/roster" className="small">Back to Roster</Link>
+        <BackLink fallback="/roster" className="small" />
       </div>
       <p className="text-secondary small">
         Sandbox tools — edits ignore fees, budgets, roster caps, and depth floors.

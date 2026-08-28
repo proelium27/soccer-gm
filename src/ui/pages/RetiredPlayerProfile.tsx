@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 import type { ArchivedPlayer } from "../../core/players/archive.js";
 import type { LeagueStore } from "../../core/leagueState.js";
@@ -7,6 +6,7 @@ import { ALL_TIME_STAT_KEYS } from "../../core/frivolities/stats.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { OvrHistoryChart } from "../components/OvrHistoryChart.js";
 import { Flag } from "../components/Flag.js";
+import { BackLink } from "../components/BackLink.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { seasonYear, transferFeeLabel } from "../format.js";
@@ -74,7 +74,7 @@ export function RetiredPlayerProfile({
 
   return (
     <div className="container-fluid p-3">
-      <Link to="/frivolities" className="text-decoration-none">&larr; Back</Link>
+      <BackLink fallback="/frivolities" />
 
       <h4 className="mt-2">
         {archived.name} <Flag nationality={archived.nationality} />{" "}
