@@ -9,7 +9,7 @@ import { useState } from "react";
  * makes the banner reappear for everyone (even people who dismissed the last
  * one), since the "dismissed" flag is stored per-id in localStorage.
  */
-const ANNOUNCEMENT_ID = "2026-07-22-discord";
+const ANNOUNCEMENT_ID = "2026-08-28-discord-link";
 const STORAGE_KEY = `soccer-gm:announce:${ANNOUNCEMENT_ID}`;
 
 function wasDismissed(): boolean {
@@ -38,9 +38,9 @@ export function AnnouncementBanner() {
   return (
     <div className="announcement-banner" role="status">
       <span className="announcement-banner-text">
-        <strong>New:</strong> the game has a Discord now. Come report bugs and tell me what to build next.{" "}
+        The old Discord link wasn't working but there is a new one now!{" "}
         <a
-          href="https://discord.gg/hMbrX2Yg6"
+          href="https://discord.gg/6nHkCZn3Mp"
           className="announcement-banner-link"
           target="_blank"
           rel="noopener noreferrer"
