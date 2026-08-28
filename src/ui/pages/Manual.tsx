@@ -134,6 +134,14 @@ export function Manual() {
             otherwise.
           </p>
           <p>
+            The same screen carries the <strong>World setup</strong> panel, so an import isn't stuck
+            with the eight countries the game ships. If your file covers a league this world hasn't
+            got, add it there and name it what the file calls it, and the file fills it. See{" "}
+            <a href="#world">the world</a> for the whole panel. Roster files can also be loaded
+            straight from the plain New League screen, so both ways in do the same things. They
+            just start you in a different place.
+          </p>
+          <p>
             If you don't have a roster file, the "Download Real Rosters" button next to Import gets
             you one covering every league in the game. It's a separate download rather than part of
             the game, which is why it's a button that fetches it instead of something already built
@@ -506,7 +514,23 @@ export function Manual() {
             the only option. The <strong>World setup</strong> panel on the New League screen lets you
             switch any of them off and add leagues of your own. An added league is always a
             two-division pyramid like the rest, and its clubs get generated names and colours, since
-            the game ships no real clubs.
+            the game ships no real clubs. The panel is on both ways in, whether you started a plain
+            new league or came through Import Custom League.
+          </p>
+          <p>
+            <strong>Naming the leagues.</strong> Every league has a name of its own, and you can
+            change it. Hit <strong>Rename</strong> beside any shipped country to call its divisions
+            what you like, and a league you add has the same two boxes. Leave one empty and it goes
+            back to following the country's name.
+          </p>
+          <p>
+            This matters for more than flavour: a world-wide roster file names the competition it
+            fills, and it finds it <em>by that name</em>. So a file written for the Eredivisie fills
+            nothing until this world has a league called the Eredivisie, which you get by renaming
+            one, or by adding one and naming it. The Import Custom League screen tells you which of
+            your file's leagues it couldn't place, and World setup sits directly underneath so you
+            can fix it and watch the count of matched clubs change. If two divisions end up with the
+            same name the panel warns you, because a file aimed at that name can only fill one.
           </p>
           <p>
             You also choose its <strong>shape</strong>: one division or two, how many clubs are in
@@ -628,9 +652,7 @@ export function Manual() {
           </p>
           <p className="text-muted small">
             World setup only applies when you create a save. There's no mid-save world expansion, and
-            saves created before it shipped keep whatever countries they were made with. It's also
-            hidden when you're importing a roster file, because a roster file maps its clubs onto the
-            world's slots by position and moving both at once would hand squads to the wrong clubs.
+            saves created before it shipped keep whatever countries they were made with.
           </p>
         </Section>
 

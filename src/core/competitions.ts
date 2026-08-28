@@ -323,7 +323,10 @@ export function buildCompetitions(specs: LeagueSpec[]): Competition[] {
       id: out.length,
       country: spec.country,
       tier: 1,
-      name: spec.d1Name ?? `${spec.country} Division 1`,
+      // Trimmed, and an all-whitespace name counts as none: the name box is a
+      // free-text field the player can empty, and a blank league name reads as
+      // a broken game rather than as a choice.
+      name: spec.d1Name?.trim() || `${spec.country} Division 1`,
       ...shared,
       ...withDefined({ teamCount: spec.d1Teams }),
     });
@@ -335,7 +338,7 @@ export function buildCompetitions(specs: LeagueSpec[]): Competition[] {
         id: out.length,
         country: spec.country,
         tier: 2,
-        name: spec.d2Name ?? `${spec.country} Division 2`,
+        name: spec.d2Name?.trim() || `${spec.country} Division 2`,
         ...shared,
         ...withDefined({ teamCount: spec.d2Teams }),
       });
@@ -393,6 +396,28 @@ export function worldTuningWarnings(specs: LeagueSpec[]): string[] {
     .filter((c, i, all) => all.indexOf(c) !== i);
   for (const dupe of new Set(duplicates)) {
     out.push(`Two leagues are both called "${dupe}". Give them different countries.`);
+  }
+
+  // Division names are the player's to set, and a roster file finds the
+  // competition it fills BY NAME — so two divisions sharing one name means a
+  // file aimed at that name silently fills only one of them. Checked across the
+  // whole world rather than within a country, since a rename can collide with
+  // any other league's name, not just its own partner's.
+  // Reported as the player typed it, not folded to the key used to compare —
+  // a warning that quotes a name back in different letters reads like it is
+  // talking about something else.
+  const seenNames = new Map<string, string>();
+  const dupeNames = new Map<string, string>();
+  for (const comp of buildCompetitions(specs)) {
+    const key = comp.name.trim().toLowerCase();
+    if (seenNames.has(key)) dupeNames.set(key, seenNames.get(key)!);
+    else seenNames.set(key, comp.name.trim());
+  }
+  for (const dupe of dupeNames.values()) {
+    out.push(
+      `Two divisions are both called "${dupe}". A roster file aimed at that name can`
+      + ` only fill one of them, so give them different names.`,
+    );
   }
 
   // Each continental competition needs a field it can actually build (see
