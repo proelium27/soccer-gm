@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { HelpHint } from "../components/HelpHint.js";
@@ -11,8 +11,13 @@ import {
   isSwissCup, koRoundsOf,
 } from "../../core/cup/cup.js";
 import { leaguePhaseTable } from "../../core/cup/leaguePhase.js";
+import { countryCoefficients, reallocateCupSlots } from "../../core/cup/coefficients.js";
+import { cupSlotsForCompetition } from "../../core/cup/qualification.js";
+import type { LeagueStore } from "../../core/leagueState.js";
 import type { CupCompetitionId } from "../../core/constants.js";
-import { CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS, CUP_FORMATS } from "../../core/constants.js";
+import {
+  CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS, CUP_FORMATS, CONTINENTAL_CUP_FORMAT,
+} from "../../core/constants.js";
 
 /** One slot in a bracket column: a finished tie, a two-legged tie with only its first leg played, a known-but-unplayed pairing, or a yet-undecided placeholder. */
 type Slot =
@@ -51,6 +56,75 @@ function prelimSlots(round: { teams: number[]; ties: CupTie[] }): Slot[] {
  * they share this component too, and differ only by which state they read and
  * the numbers on their format (see CUP_FORMATS).
  */
+/**
+ * How many Cup places each country currently has, and the record that earned
+ * them. Shown only on the Continental Cup's page, because only the Cup's places
+ * move — the Shield gives every league the same two.
+ *
+ * Worth showing at all because a country quietly gaining or losing a place is
+ * otherwise invisible: the player sees a different number of shaded rows on the
+ * Standings table one season and has nothing to attribute it to.
+ */
+function CoefficientTable({ league }: { league: LeagueStore }) {
+  const rows = useMemo(() => {
+    const live = [league.cup, league.shield].filter(
+      (c): c is NonNullable<typeof c> => !!c && c.championTid !== null,
+    );
+    const coeffs = countryCoefficients(
+      league.competitions,
+      league.teams,
+      [league.cupHistory ?? [], league.shieldHistory ?? [], live],
+      league.season + 1,
+    );
+    const byComp = reallocateCupSlots(league.competitions, coeffs);
+    const compOfCountry = new Map(
+      league.competitions.filter((c) => c.tier === 1).map((c) => [c.country, c]),
+    );
+    return coeffs.map((c) => {
+      const comp = compOfCountry.get(c.country);
+      return {
+        ...c,
+        slots: comp
+          ? byComp?.get(comp.id) ?? cupSlotsForCompetition(comp, CONTINENTAL_CUP_FORMAT)
+          : 0,
+      };
+    });
+  }, [league]);
+
+  if (rows.every((r) => r.clubsEntered === 0)) return null;
+
+  return (
+    <div className="mb-4">
+      <div className="cup-round-title">Country coefficients</div>
+      <p className="text-muted small mb-2">
+        How your country&apos;s clubs have done in Europe over the last few seasons decides how many
+        places it gets next season. Win things and your league sends more clubs; go out early for
+        years and it sends fewer.
+      </p>
+      <table className="table table-sm table-striped" style={{ maxWidth: 460 }}>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Country</th>
+            <th className="text-end">Coefficient</th>
+            <th className="text-end">Places</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.country}>
+              <td className="text-muted">{i + 1}</td>
+              <td>{r.country}</td>
+              <td className="text-end">{r.coefficient.toFixed(2)}</td>
+              <td className="text-end">{r.slots}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function Cup({ competition = "continental" }: { competition?: CupCompetitionId }) {
   const { league } = useLeague();
   const [seasonSel, setSeasonSel] = useState<number | "current">("current");
@@ -230,6 +304,8 @@ export function Cup({ competition = "continental" }: { competition?: CupCompetit
           ) : userInCup ? (
             <p className="text-muted small mb-3">Your club is in this season&apos;s {format.name}.</p>
           ) : null}
+
+          {!isShield && seasonSel === "current" && <CoefficientTable league={league} />}
 
           {swiss && cup.leaguePhase && (
             <LeaguePhaseSection cup={cup} teamCell={teamCell} userTid={userTid} />

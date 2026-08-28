@@ -203,3 +203,56 @@ describe("Standings qualification bars — the routes that aren't a league finis
     expect(html).toContain("as domestic cup winners");
   });
 });
+
+describe("Country coefficients on the Cup page", () => {
+  /** A finished Continental Cup in history, so there is a record to rank on. */
+  function withCupHistory(league: LeagueStore): LeagueStore {
+    const tier1 = league.competitions.filter((c) => c.tier === 1);
+    const one = (comp: { id: number }) =>
+      league.teams.find((t) => t.compId === comp.id)!.tid;
+    const entrants = tier1.map(one);
+    return {
+      ...league,
+      cupHistory: [{
+        competition: "continental" as const,
+        season: league.season - 1,
+        name: "Continental Cup",
+        teams: [],
+        seeds: {},
+        leaguePhase: {
+          teams: entrants,
+          matches: [{
+            round: 0, matchday: 3, home: entrants[0], away: entrants[1],
+            played: true, homeGoals: 2, awayGoals: 0, boxScore: null,
+          }],
+        },
+        playoff: null,
+        playIn: null,
+        ties: [],
+        championTid: entrants[0],
+        twoLegged: true,
+        koLegs: null,
+        statLines: null,
+      }],
+    };
+  }
+
+  it("says nothing at all before there is a continental record to rank on", () => {
+    const html = render(withCompetitions(), Cup);
+    expect(html).not.toContain("Country coefficients");
+  });
+
+  it("shows each country's coefficient and how many places it earned", () => {
+    const league = withCupHistory(withCompetitions());
+    const html = render(league, Cup);
+    expect(html).toContain("Country coefficients");
+    for (const comp of league.competitions.filter((c) => c.tier === 1)) {
+      expect(html).toContain(comp.country);
+    }
+  });
+
+  it("stays off the Shield's page, whose places don't move", () => {
+    const html = render(withCupHistory(withCompetitions()), Shield);
+    expect(html).not.toContain("Country coefficients");
+  });
+});
