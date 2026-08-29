@@ -328,6 +328,13 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
       "Sorley", "Tavish", "Alistair", "Donald", "Hugh", "Kyle", "Magnus", "Norman",
       "Owen", "Roderick", "Somhairle", "Wilson", "Archibald", "Colin", "Dougal", "Kerr",
       "Rankin",
+      // Scotland became a home league (see LEAGUE_NATIONALITY_WEIGHTS) and a
+      // home league generates ~500 players a world rather than the handful a
+      // foreign nationality contributes, so both pools were deepened to match
+      // the other home countries. nationalities.test.ts enforces the 80 floor.
+      "Andrew", "Barry", "Charlie", "Christopher", "Connor", "Darren", "Dean", "Declan",
+      "Garry", "Greig", "Jack", "Jordan", "Kevin", "Michael", "Paul", "Peter",
+      "Robert", "Shaun", "Stephen", "Tommy",
     ],
     last: [
       "Campbell", "Stewart", "MacDonald", "Murray", "Ross", "Reid", "Gray", "Duncan",
@@ -340,6 +347,10 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
       "Miller", "Mcdonald", "Cameron", "Kennedy", "Mackay", "Allan", "Gibson", "Docherty",
       "Forbes", "Gillespie", "Hendry", "Irvine", "Jardine", "Lamont", "Mcgregor", "Nicolson",
       "Ogilvie",
+      "Aitken", "Baxter", "Blackwood", "Buchanan", "Cunningham", "Dalgleish", "Elliot", "Fleming",
+      "Galloway", "Guthrie", "Hastie", "Inglis", "Kinnear", "Laing", "Lennox", "Lindsay",
+      "MacFarlane", "MacIntyre", "MacNeil", "Maxwell", "McCall", "McInnes", "Menzies", "Moffat",
+      "Napier", "Rennie", "Ritchie", "Sturrock", "Tait", "Urquhart", "Weir", "Whyte",
     ],
   },
   Wales: {
@@ -651,6 +662,15 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
       "Djordje", "Danilo", "Ilija", "Kosta", "Relja", "Sava", "Aleksa", "Janko",
       "Konstantin", "Novak", "Radovan", "Vukasin", "Zeljko", "Bratislav", "Gavrilo", "Jaksa",
       "Kristijan", "Mladen", "Nebojsa", "Rastko",
+      // Serbia became a home league (see LEAGUE_NATIONALITY_WEIGHTS), which
+      // generates ~500 players a world against the handful a foreign
+      // nationality contributes, so both pools were deepened to match the other
+      // home countries. nationalities.test.ts enforces the 80 floor.
+      "Arsenije", "Bogoljub", "Borislav", "Bozidar", "Cedomir", "Dalibor", "Darko", "Davor",
+      "Desimir", "Dimitrije", "Dragoljub", "Dragoslav", "Dusko", "Gordan", "Grujica", "Jovica",
+      "Ljubomir", "Milenko", "Miljan", "Milutin", "Mirko", "Momcilo", "Nedeljko", "Nikodije",
+      "Ostoja", "Radisa", "Radoslav", "Ranko", "Sinisa", "Slavko", "Slavisa", "Spasoje",
+      "Stanislav", "Svetozar", "Tadija", "Tihomir", "Vidoje", "Zivko",
     ],
     last: [
       "Jovanovic", "Petrovic", "Nikolic", "Markovic", "Djordjevic", "Stojanovic", "Stankovic", "Todorovic",
@@ -661,6 +681,12 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
       "Milosevic", "Blagojevic", "Filipovic", "Gajic", "Hadzic", "Kovacevic", "Lazarevic", "Mladenovic",
       "Rakic", "Savic", "Curcic", "Damjanovic", "Erakovic", "Gavrilovic", "Novakovic", "Perisic",
       "Radic", "Trifunovic", "Veselinovic", "Zoric", "Djukic", "Grujic", "Katic", "Maric",
+      "Adamovic", "Andric", "Arsic", "Bajic", "Bakic", "Brankovic", "Cirkovic", "Despotovic",
+      "Dragicevic", "Drakulic", "Glisic", "Ivanovic", "Jakovljevic", "Jelic", "Kecman", "Kljajic",
+      "Knezevic", "Kuzmanovic", "Lalic", "Lekic", "Ljubicic", "Manojlovic", "Matic", "Micic",
+      "Mihajlovic", "Mirkovic", "Nesic", "Nikodijevic", "Ostojic", "Pantic", "Paunovic",
+      "Radenkovic", "Radulovic", "Sekulic", "Simonovic", "Stamenkovic", "Tanaskovic", "Vidic",
+      "Zivanovic",
     ],
   },
   Cameroon: {
@@ -1454,6 +1480,58 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
  * they were ever graduated.
  */
 export const UNLISTED_NATIONALITIES: Record<string, NationalityDef> = {
+  // Curacao and Suriname are here for the Eredivisie, where the real breakdown
+  // puts them at 1.4% each. Spelled ASCII ("Curacao", not "Curaçao") because
+  // every other nationality key is, and the same anglicizing that makes Côte
+  // d'Ivoire "Ivory Coast" here. Neither has flag art, so both render the
+  // neutral swatch — the same call the other 15 artless nations took, and
+  // better than a wrong flag.
+  Curacao: {
+    weight: 3,
+    first: [
+      "Ryan", "Kevin", "Angelo", "Roberto", "Jurgen", "Miguel", "Randy", "Shurendy",
+      "Gino", "Delano", "Emilio", "Rodney", "Sherwin", "Ivan", "Rachid", "Orlando",
+      "Damian", "Elton", "Ramon", "Julio", "Franklin", "Kenneth", "Marvin", "Rudolf",
+      "Anthony", "Sergio", "Wendell", "Alberto", "Hendrik", "Nelson", "Vincent", "Osvaldo",
+      "Kelvin", "Fernando", "Jeffrey", "Ricardo", "Armando", "Leonardo", "Mauricio", "Edwin",
+      "Gerald", "Raymond", "Alfonso", "Cornelis", "Dwight", "Ernesto", "Gilbert", "Humberto",
+      "Ignacio", "Joel", "Lorenzo", "Manuel", "Norman", "Patrick", "Quincy", "Rolando",
+    ],
+    last: [
+      "Statia", "Cijntje", "Isenia", "Girigori", "Anthonia", "Nicolaas", "Wawoe", "Leito",
+      "Pieternella", "Hato", "Marchena", "Palm", "Croes", "Semeleer", "Kool", "Franciscus",
+      "Damascus", "Bakhuis", "Sambo", "Doran", "Rosalia", "Gumbs", "Lourens", "Willems",
+      "Jansen", "Bernabela", "Cornelia", "Angela", "Constansia", "Everts", "Frans", "Godett",
+      "Henriquez", "Ignacio", "Jacobs", "Koeiman", "Lopez", "Maduro", "Narvaez", "Osepa",
+      "Pietersz", "Rosaria", "Sluis", "Tromp", "Ursula", "Valpoort", "Wiels", "Zimmerman",
+      "Jesurun", "Pourier", "Refos", "Thode", "Vrolijk", "Felida", "Hooi", "Lasten",
+    ],
+  },
+  // Suriname's population is Dutch, Hindustani, Javanese, Creole and Maroon,
+  // and the pool spans all of them rather than picking one — a Surinamese squad
+  // drawn only from Dutch surnames would read wrong.
+  Suriname: {
+    weight: 3,
+    first: [
+      "Ricardo", "Dennis", "Humphrey", "Roy", "Steven", "Marlon", "Ramon", "Glenn",
+      "Clifton", "Errol", "Wensley", "Sergio", "Randy", "Gregory", "Farid", "Anand",
+      "Vikash", "Rakesh", "Soerin", "Djoemadi", "Hendrik", "Wilfred", "Rudy", "Cornelis",
+      "Marciano", "Delroy", "Nigel", "Ashwin", "Ravi", "Suresh", "Bhoendra", "Iwan",
+      "Johan", "Ludwig", "Melvin", "Norbert", "Oscar", "Percy", "Quintin", "Robby",
+      "Stanley", "Theo", "Urwin", "Vincent", "Winston", "Xavier", "Yvon", "Zachary",
+      "Armand", "Benito", "Cedric", "Dwight", "Edgar", "Freddy", "Gerard", "Harold",
+    ],
+    last: [
+      "Vriesde", "Kaersenhout", "Ramdin", "Bhagwandin", "Jharap", "Sardjoe", "Sariman",
+      "Wongsodikromo", "Amoksi", "Pinas", "Sanches", "Abrahams", "Alberga", "Fernandes",
+      "Gefferie", "Ilahibaks", "Jubitana", "Kartodikromo", "Leeflang", "Landveld", "Nanan",
+      "Oosterling", "Pengel", "Raghoebier", "Simson", "Soekhlal", "Uiterloo", "Vlijter",
+      "Wijdenbosch", "Zamuel", "Aroepa", "Codrington", "Esajas", "Findlay", "Grunberg",
+      "Hindori", "Kromodimedjo", "Lieuw", "Moesetiko", "Nurmohamed", "Pawironadi", "Sitaldin",
+      "Tjon", "Waterberg", "Adhin", "Alimoenadi", "Baldew", "Chotkan", "Doerga", "Elstak",
+      "Ferrier", "Goedschalk", "Hiwat", "Jagernath", "Lachmon", "Panday",
+    ],
+  },
   "Bosnia-Herzegovina": {
     weight: 3,
     first: [
@@ -2860,6 +2938,17 @@ export const OTHER_NATIONS: Record<string, { first: string[]; last: string[] }> 
       "Tasos", "Vangelis", "Zisis", "Achilleas", "Ektoras", "Filippos", "Gerasimos", "Kimon",
       "Lambros", "Menelaos", "Nikiforos", "Orestis", "Periklis", "Themis", "Vaggelis", "Xenofon",
       "Diomidis", "Efthymios", "Iakovos", "Leonidas",
+      // Greece became a home league too — same reason as Serbia above. It stays
+      // in OTHER_NATIONS rather than moving to NATIONALITIES on purpose:
+      // TAIL_BASE is built from NATIONALITIES + OTHER_NATIONS, so moving it
+      // would re-weight the "Rest of the World" tail for every league in every
+      // existing save. Only the pools grew.
+      "Akis", "Alkis", "Anargyros", "Angelos", "Argyris", "Aristidis", "Chrisovalantis",
+      "Damianos", "Dinos", "Efstratios", "Emmanouil", "Epaminondas", "Evripidis", "Fanis",
+      "Gregorios", "Harilaos", "Isidoros", "Kleanthis", "Konstantinos", "Kosmas", "Lazaros",
+      "Loukas", "Markos", "Miltiadis", "Nikolaos", "Notis", "Panos", "Paraskevas",
+      "Polychronis", "Prodromos", "Savvas", "Simos", "Socratis", "Takis", "Telemachos",
+      "Thomas", "Vasileios", "Zacharias",
     ],
     last: [
       "Papadopoulos", "Nikolaou", "Georgiou", "Vlachos", "Karatzas", "Samaras", "Antoniou", "Christodoulou",
@@ -2871,6 +2960,12 @@ export const OTHER_NATIONS: Record<string, { first: string[]; last: string[] }> 
       "Xenakis", "Zafiris", "Angelopoulos", "Bakogiannis", "Diamantis", "Fragkos", "Galanis", "Kyriakidis",
       "Leventis", "Manolas", "Nikas", "Petrou", "Roussos", "Vergos", "Zervas", "Adamidis",
       "Boutaris", "Drosos", "Filippidis", "Kondylis",
+      "Avramidis", "Chatzigiannis", "Dendias", "Emmanouilidis", "Fountoulis", "Gianniotis",
+      "Grigoriadis", "Kalaitzidis", "Kanellopoulos", "Karalis", "Kefalas", "Kokkinos",
+      "Kolokotronis", "Kourtis", "Ladas", "Lekkas", "Liakos", "Malamas", "Mavridis",
+      "Mitropoulos", "Moraitis", "Notaras", "Panagopoulos", "Papaioannou", "Paschalidis",
+      "Politis", "Sakellariou", "Sarris", "Sofianos", "Stamatiadis", "Terzis", "Tsakiris",
+      "Vlahakis", "Zoumboulis",
     ],
   },
   "Cape Verde": {
@@ -2941,9 +3036,14 @@ const REST = "__REST__";
  * same "England-flavored" default the flat pool always was, just recalibrated
  * to the real EPL breakdown.
  *
- * Every named nation here has a name pool in NATIONALITIES or OTHER_NATIONS.
- * Türkiye maps to the existing "Turkey" entry; Kosovo's pool lives in
- * OTHER_NATIONS.
+ * Every named nation here has a name pool in NATIONALITIES, OTHER_NATIONS or
+ * UNLISTED_NATIONALITIES. Türkiye maps to the existing "Turkey" entry;
+ * Kosovo's, Greece's and Israel's pools live in OTHER_NATIONS, and Northern
+ * Ireland's in UNLISTED_NATIONALITIES.
+ *
+ * A country playing in the world MUST have an entry here. There is no error
+ * for a missing one — drawNationality falls back to England's table, so the
+ * new league quietly fills up with English players and nothing fails.
  */
 export const LEAGUE_NATIONALITY_WEIGHTS: Record<string, Record<string, number>> = {
   England: {
@@ -3011,6 +3111,95 @@ export const LEAGUE_NATIONALITY_WEIGHTS: Record<string, Record<string, number>> 
     Netherlands: 9, Albania: 9, Cameroon: 9, Scotland: 9, Denmark: 9, England: 9, Belgium: 9,
     Tunisia: 9,
     [REST]: 65,
+  },
+  // Eredivisie, taken from a real published breakdown (485 players). Half
+  // domestic, and the foreign half is two things at once: the Belgian and
+  // German neighbours it trades with, a genuine Scandinavian intake (Denmark,
+  // Norway, Sweden and Iceland together outweigh any single nation but the
+  // Belgians), and then the colonial pipeline — Curacao, Suriname and Indonesia
+  // at 1.4% each, alongside Morocco at 3.1%. That last part is the thing an
+  // outsider gets wrong: this table's first draft assumed the Eredivisie's
+  // foreign half was development-market signings from Japan and South Korea and
+  // a broad West African intake, and the real list has no Ghana or Nigeria in
+  // it at all, one Japanese player for every two Moroccans, and three former
+  // colonies in the top thirteen.
+  Netherlands: {
+    Netherlands: 503, Belgium: 41, Germany: 37, Denmark: 33, Morocco: 31, France: 31,
+    Norway: 29, Sweden: 23, Spain: 19, Curacao: 14, Iceland: 14, Indonesia: 14,
+    Suriname: 14, Brazil: 12, Japan: 12, Portugal: 10, Croatia: 10, Austria: 10,
+    Poland: 8, Turkey: 8, "Czech Republic": 8, "United States": 8,
+    // Below the source's cut-off, which lists 89% of the league. Named for the
+    // reason Scotland's tail is: REST is ~40% English, and England does not
+    // appear in the real top twenty-two at all.
+    England: 5, Nigeria: 8, Ghana: 8, Serbia: 7, Switzerland: 6, "South Korea": 6,
+    Argentina: 6, Italy: 6, Greece: 5, "Republic of Ireland": 5, Hungary: 5, Israel: 4,
+    Finland: 4, Slovakia: 4, Australia: 4, "Ivory Coast": 4, Senegal: 4, "Cape Verde": 4,
+    Colombia: 4, Egypt: 4,
+    [REST]: 8,
+  },
+  // Scottish Premiership, taken from a real published breakdown (324 players).
+  // The most lopsided foreign block in the game: England alone is 15.1%, close
+  // to a quarter of every import, which no other league here comes near. Then
+  // the Irish and Northern Irish traffic that comes with a shared border, and
+  // an Anglophone tail — Australia at 5.2% is the joint-second nationality,
+  // with Canada, the US and New Zealand behind it — that no mainland European
+  // league has at all.
+  Scotland: {
+    Scotland: 358, England: 151, "Republic of Ireland": 52, Australia: 52,
+    Wales: 25, "Northern Ireland": 22, Germany: 22, Netherlands: 19, France: 15,
+    Canada: 12, Nigeria: 12, Austria: 12, Croatia: 12, Belgium: 12, Norway: 12,
+    "United States": 9, Sweden: 9, "New Zealand": 9, Ghana: 9, Denmark: 9,
+    Portugal: 9,
+    // Below the source's cut-off, which lists 84% of the league. Named rather
+    // than left to REST because that bucket is ~40% English (it is weighted
+    // from the Premier League's own makeup), and England is already the largest
+    // import here — a tail-sized REST would quietly push it past 20%.
+    Japan: 8, Israel: 7, Poland: 7, Spain: 7, Greece: 6, Senegal: 6,
+    "Ivory Coast": 6, Italy: 5, Brazil: 5, Jamaica: 5, Iceland: 5, Slovakia: 5,
+    Finland: 5, Cameroon: 5, "South Africa": 5, Morocco: 4, Gambia: 4,
+    "DR Congo": 4, Switzerland: 4, "Czech Republic": 4, Serbia: 4, Slovenia: 4,
+    Zimbabwe: 4, Argentina: 4, Guinea: 3, Mali: 3, Ukraine: 3, Hungary: 3,
+    [REST]: 23,
+  },
+  // Greek Super League, taken from a real published breakdown (429 players). A
+  // little under half domestic, the most foreign-heavy table here after
+  // Belgium's. The distinctive part is that the single biggest import is Spain
+  // (6.3%) — not a neighbour and not Brazil. Greek clubs recruit the Iberian
+  // and South American markets harder than anything on their own border, with
+  // the Balkan neighbourhood (Serbia, Albania, Croatia, Bosnia) sitting
+  // underneath that rather than on top of it.
+  Greece: {
+    Greece: 452, Spain: 63, Argentina: 47, France: 35, Serbia: 30, Portugal: 28,
+    Brazil: 21, Sweden: 16, Albania: 16, Senegal: 16, Croatia: 14, Morocco: 14,
+    Italy: 12, Nigeria: 12, Netherlands: 9, Guinea: 9,
+    // Below the source's cut-off, which lists 79% of the league. Named for the
+    // same reason Scotland's tail is.
+    Ghana: 12, "Ivory Coast": 12, Cameroon: 10, "Bosnia-Herzegovina": 10,
+    Romania: 10, Poland: 9, Denmark: 9, Belgium: 8, Uruguay: 8, Colombia: 8,
+    Georgia: 8, Slovenia: 7, "Czech Republic": 7, Austria: 7, Switzerland: 7,
+    Germany: 7, England: 7, Israel: 6, "North Macedonia": 6, Montenegro: 6,
+    Egypt: 5, Ukraine: 5, Bulgaria: 5, Hungary: 5,
+    [REST]: 22,
+  },
+  // Serbian SuperLiga, taken from a real published breakdown (430 players). By
+  // far the most domestic table in the game at 66%, which is the point of it: a
+  // production league that exports rather than imports. The surprise in the real
+  // data is that the biggest import is not a neighbour but Ghana (4.2%) — the
+  // West African intake (Ghana, Ivory Coast, Nigeria, Senegal, Mali) outweighs
+  // the ex-Yugoslav one (Bosnia, Montenegro, North Macedonia, Slovenia).
+  Serbia: {
+    Serbia: 660, Ghana: 42, "Bosnia-Herzegovina": 35, Montenegro: 33,
+    "Ivory Coast": 23, Nigeria: 23, Brazil: 19, Senegal: 14, Austria: 12,
+    Spain: 9, France: 9, Mali: 7, Netherlands: 7, "North Macedonia": 7,
+    Slovenia: 7, Switzerland: 7, Cameroon: 7,
+    // Below the source's cut-off, which lists 92% of the league. The tail is
+    // kept small and explicit here above all: the source has no English players
+    // at all, and a REST bucket sized to the leftover 8% made England the
+    // league's second-largest nationality out of nothing.
+    Croatia: 7, Bulgaria: 6, Romania: 6, Guinea: 5, Albania: 5, Greece: 4,
+    Hungary: 4, Ukraine: 4, Gambia: 4, "Burkina Faso": 3, "DR Congo": 3,
+    Portugal: 3, Belgium: 3, Italy: 3, Slovakia: 3,
+    [REST]: 16,
   },
 };
 

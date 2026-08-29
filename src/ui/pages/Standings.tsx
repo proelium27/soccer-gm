@@ -55,7 +55,26 @@ export function Standings() {
   // Default "pos" ascending keeps the natural league-table order (1st on top).
   const { sort, toggle } = useTableSort<StandingsSortKey>("pos", "asc");
 
-  if (!league) {
+  // Who actually holds a continental place, rather than which finishing
+  // positions usually earn one — a domestic cup winner or a trophy holder can
+  // qualify from anywhere in the table, and neither shows up in a rank range.
+  // Memoised on the league object (the context hands out a fresh one per commit)
+  // because it rebuilds every competition's table.
+  //
+  // ABOVE the early returns, and null-guarded rather than moved down beside the
+  // code that reads it. React counts hooks per render, so a hook after a return
+  // runs a different number of times depending on which branch was taken: the
+  // page renders three hooks on a league with no matches, then four the moment
+  // one is played, and throws "Rendered more hooks than during the previous
+  // render" without ever having been wrong about the football. Open Standings on
+  // a fresh save and hit Sim and you were there.
+  const qualification = useMemo(
+    () => (league ? seasonQualification(league, season) : null),
+    [league, season],
+  );
+
+  // qualification is null exactly when league is, so one guard narrows both.
+  if (!league || !qualification) {
     return <p className="p-3">Loading...</p>;
   }
 
@@ -82,15 +101,6 @@ export function Standings() {
   // separately rather than assumed to come along with the Cup zone.
   const showShieldZone = isTier1 && !!comp && worldHasCup(league.competitions, SHIELD_FORMAT);
   const [shieldFrom, shieldTo] = comp ? cupSlotRange(comp, SHIELD_FORMAT) : [0, -1];
-  // Who actually holds a continental place, rather than which finishing
-  // positions usually earn one — a domestic cup winner or a trophy holder can
-  // qualify from anywhere in the table, and neither shows up in a rank range.
-  // Memoised on the league object (the context hands out a fresh one per
-  // commit) because it rebuilds every competition's table.
-  const qualification = useMemo(
-    () => seasonQualification(league, season),
-    [league, season],
-  );
 
   const seasonOptions = [...league.seasonHistory.map((h) => h.season)].sort((a, b) => b - a);
 

@@ -258,6 +258,22 @@ export interface LeagueStore {
    * means anyway.
    */
   aiManagedSeasons: number[];
+  /**
+   * Whether Continental Cup places are re-earned each season on a rolling
+   * country coefficient (see cup/coefficients.ts), or stay fixed at whatever
+   * allocation the world was built with.
+   *
+   * Chosen on the New League screen and fixed for the save's lifetime, like
+   * `difficulty`, because it changes how qualification is read: a player who
+   * turned it off should never see a shaded row move for a reason the game no
+   * longer models. Off, every one of the coefficient's consumers falls back to
+   * `Competition.continentalSlots` / the shipped strength-class allocation —
+   * which is exactly what the game did before coefficients existed.
+   *
+   * Migrated to `true` for old saves, which is the behaviour they already had,
+   * so no dynasty in progress changes.
+   */
+  rollingCoefficients: boolean;
 }
 
 export function createLeagueState(
@@ -266,6 +282,7 @@ export function createLeagueState(
   seed = 0,
   difficulty: Difficulty = DEFAULT_DIFFICULTY,
   competitions: Competition[] = worldCompetitions(),
+  rollingCoefficients = true,
   /**
    * The national team the user takes charge of, or null for club football only.
    * Takes no rng draw and touches nothing in generation — the world is built
@@ -339,5 +356,6 @@ export function createLeagueState(
     // fresh world generates identically to before.
     nextPid: Math.max(0, ...league.players.map((p) => p.pid)) + 1,
     aiManagedSeasons: [],
+    rollingCoefficients,
   };
 }

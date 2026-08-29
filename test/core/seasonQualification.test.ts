@@ -4,7 +4,10 @@ import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { DomesticCupState } from "../../src/core/domesticCup/types.js";
 import { computeStandings } from "../../src/core/standings.js";
 import { seasonQualification } from "../../src/core/cup/seasonQualification.js";
-import { CUP_LEAGUE_PHASE_SIZE, SHIELD_LEAGUE_PHASE_SIZE } from "../../src/core/constants.js";
+import type { CupState } from "../../src/core/cup/types.js";
+import {
+  CUP_LEAGUE_PHASE_SIZE, SHIELD_LEAGUE_PHASE_SIZE, COEFFICIENT_MIN_SEASONS,
+} from "../../src/core/constants.js";
 
 /**
  * The projection the Standings page shades with. It has two input paths — the
@@ -96,6 +99,50 @@ describe("seasonQualification", () => {
     };
     const past = seasonQualification(archived, league.season);
     expect([...past.byTid.keys()].sort()).toEqual([...live.byTid.keys()].sort());
+  });
+
+  it("honours the save's setting for whether Cup places move", () => {
+    // The whole chain from LeagueStore.rollingCoefficients down to the shaded
+    // rows: this is the surface a player reads the allocation off, so a
+    // pass-through that dropped the flag would show places moving on a save
+    // that turned the feature off.
+    const base = withOneMatch(makeLeague(0, 1));
+    const weak = base.competitions.filter((c) => c.tier === 1).at(-1)!;
+    const strong = base.competitions.find((c) => c.tier === 1)!;
+    const clubOf = (compId: number): number =>
+      base.teams.find((t) => t.compId === compId)!.tid;
+
+    // One weak-league club beating one big-four club, every season of the
+    // window, which is enough to move a place (see cupCoefficients.test.ts).
+    const cupHistory: CupState[] = [];
+    for (let season = 1; season <= COEFFICIENT_MIN_SEASONS; season++) {
+      cupHistory.push({
+        competition: "continental", season, name: "Continental Cup", teams: [], seeds: {},
+        leaguePhase: {
+          teams: [clubOf(weak.id), clubOf(strong.id)],
+          matches: [{
+            round: 0, matchday: 3, home: clubOf(weak.id), away: clubOf(strong.id),
+            played: true, homeGoals: 3, awayGoals: 0, boxScore: null,
+          }],
+        },
+        playoff: null, playIn: null, ties: [], championTid: clubOf(weak.id),
+        twoLegged: true, koLegs: null, statLines: null,
+      });
+    }
+    const league = { ...base, season: COEFFICIENT_MIN_SEASONS, cupHistory };
+
+    const cupPlacesIn = (l: LeagueStore, compId: number): number => {
+      const q = seasonQualification(l, "current");
+      return base.teams.filter(
+        (t) => t.compId === compId && q.byTid.get(t.tid)?.competition === "continental",
+      ).length;
+    };
+
+    const earned = cupPlacesIn({ ...league, rollingCoefficients: true }, weak.id);
+    const fixed = cupPlacesIn({ ...league, rollingCoefficients: false }, weak.id);
+    expect(earned).toBeGreaterThan(fixed);
+    // Off, it is exactly the allocation the world was built with.
+    expect(fixed).toBe(cupPlacesIn({ ...base, rollingCoefficients: false }, weak.id));
   });
 
   it("returns nothing for a season the save has no record of", () => {

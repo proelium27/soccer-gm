@@ -82,8 +82,8 @@ function fallbackAcademyBase(tid: number): number {
 
 /** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "nationalManager"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "nationalManager">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "nationalManager"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "nationalManager">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking / cards. */
 type SeasonStatsAnyVersion =
@@ -638,6 +638,13 @@ function migrateFields(league: LeagueStore): LeagueStore {
     // Nothing to reconstruct: a save that predates the jump-forward feature was
     // managed by hand every season it played.
     aiManagedSeasons: anyVersion.aiManagedSeasons ?? [],
+    // Cup places have been re-earned on a rolling coefficient since the feature
+    // shipped, and every save that predates the SETTING was played that way, so
+    // `true` is the behaviour they already had rather than a default being
+    // imposed on them. (Saves older than the coefficient itself get it too —
+    // it is derived from their own archived cups, so it reads their history
+    // correctly from the moment they load.)
+    rollingCoefficients: anyVersion.rollingCoefficients ?? true,
     manager: anyVersion.manager ?? backfillManager(anyVersion),
   };
 }

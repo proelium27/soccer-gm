@@ -4,7 +4,7 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import {
   freeAgentPids, releaseExpiredContracts, runAIFreeAgency, signFreeAgent, releasePlayer,
   signToAcademy, promoteFromAcademy, releaseAcademyPlayer, ensureUserRosterSafety,
-  faTransferLocked,
+  faTransferLocked, freeAgencySigningOrder,
 } from "../../src/core/freeAgency.js";
 import {
   ROSTER_COMPOSITION, ROSTER_CAP, ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR,
@@ -512,5 +512,33 @@ describe("academy", () => {
       const safeUser = safeTeams.find((t) => t.tid === 0)!;
       expect(safeUser.roster.some((pid) => playerMap.get(pid)?.pos === "GK")).toBe(true);
     });
+  });
+});
+
+describe("freeAgencySigningOrder", () => {
+  // The queue is "worst club picks first", and the whole world is one queue. So
+  // "worst" has to be comparable ACROSS divisions, and raw points are not once
+  // divisions differ in size: a 12-club league plays 22 games, a 20-club one
+  // 38, so its clubs carry ~58% of the points at the same quality and pick
+  // first whatever they are worth. The pool drains by quality, so picking
+  // first is the whole prize. Measured on the controlled probe: a 12-club
+  // league's free-agent arrivals averaged 39 OVR against a 20-club league's
+  // 26, same count per club, and that gap alone was ~7 OVR of whole-roster
+  // drift over 15 seasons (scripts/divisionSizeProbe.ts).
+  const row = (tid: number, played: number, points: number) => ({
+    tid, played, points, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, gd: 0,
+  });
+
+  it("ranks a club by points per game, so a short season does not read as a bad one", () => {
+    // A 20-club league's bottom club (0.79 ppg) is worse than a 12-club
+    // league's mid-table club (1.18 ppg), and it has MORE raw points.
+    const bottomOf20 = row(1, 38, 30);
+    const midOf12 = row(2, 22, 26);
+    expect(freeAgencySigningOrder([midOf12, bottomOf20])).toEqual([1, 2]);
+  });
+
+  it("is the raw-points order within one division, so uniform worlds are untouched", () => {
+    const rows = [row(1, 38, 70), row(2, 38, 40), row(3, 38, 55), row(4, 38, 40)];
+    expect(freeAgencySigningOrder(rows)).toEqual([2, 4, 3, 1]);
   });
 });

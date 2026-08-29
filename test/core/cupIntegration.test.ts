@@ -9,8 +9,8 @@ import { isCupComplete } from "../../src/core/cup/cup.js";
 import { leaguePhaseComplete } from "../../src/core/cup/leaguePhase.js";
 import type { CupTie } from "../../src/core/cup/types.js";
 import {
-  CUP_KO_ROUND_MATCHDAYS, CUP_PLAYOFF_MATCHDAY,
-  CUP_LEAGUE_PHASE_SIZE, CUP_KO_SIZE, CUP_LP_PLAYOFF_TEAMS,
+  CUP_KO_ROUND_MATCHDAYS, CUP_PLAYOFF_MATCHDAY, DOMESTIC_CUP_MATCHDAYS,
+  CUP_LEAGUE_PHASE_SIZE, CUP_KO_SIZE, cupKnockoutPlan,
 } from "../../src/core/constants.js";
 
 /** Advance a fresh save to the start of season 2 (regular phase), by which point a cup is seeded. */
@@ -62,7 +62,7 @@ describe("Continental Cup — season lifecycle", () => {
     // three knockout rounds are recorded (QF 4 + SF 2 + F 1 = 7; playoff separate).
     expect(leaguePhaseComplete(played.cup!.leaguePhase!)).toBe(true);
     expect(played.cup!.teams.every((t) => t >= 0)).toBe(true);
-    expect(played.cup!.playoff!.ties).toHaveLength(CUP_LP_PLAYOFF_TEAMS / 2);
+    expect(played.cup!.playoff!.ties).toHaveLength(cupKnockoutPlan(CUP_LEAGUE_PHASE_SIZE).playoffTeams / 2);
     expect(played.cup!.ties).toHaveLength(4 + 2 + 1);
 
     // The champion won the final (the single round-2 tie).
@@ -106,12 +106,21 @@ describe("Continental Cup — season lifecycle", () => {
     statLines: null,
     };
 
-    const result = simThrough(league2, "season", mulberry32(8));
+    let result = simThrough(league2, "season", mulberry32(8));
+    // A club can be in two finals at once, and the sim halts before whichever
+    // comes first: the domestic final is matchday 36, the continental one 37.
+    // On this seed the user's club reaches both, so step past the domestic
+    // halt — that courtesy has its own test; the one under test here is the
+    // continental final's. A batch resumed ON a final's matchday plays it
+    // (simThrough's `matchday > currentMatchday`), so one resume does it.
+    const next = (l: LeagueStore) => Math.min(...l.schedule.map((g) => g.matchday));
+    if (next(result) === DOMESTIC_CUP_MATCHDAYS[DOMESTIC_CUP_MATCHDAYS.length - 1]) {
+      result = simThrough(result, "season", mulberry32(8));
+    }
     // Stopped before the final's matchday: still in regular play, final unplayed.
     expect(result.phase).toBe("regular");
     expect(result.cup!.championTid).toBeNull();
-    const nextMatchday = Math.min(...result.schedule.map((g) => g.matchday));
-    expect(nextMatchday).toBe(CUP_KO_ROUND_MATCHDAYS[2]); // the final's matchday, still to be played
+    expect(next(result)).toBe(CUP_KO_ROUND_MATCHDAYS[2]); // the final's matchday, still to be played
 
     // Resuming from exactly the final's matchday plays it through to the end.
     const resumed = simThrough(result, "season", mulberry32(9));

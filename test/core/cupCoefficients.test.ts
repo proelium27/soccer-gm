@@ -168,7 +168,7 @@ describe("slot reallocation", () => {
 
   it("declines to reallocate before there is any record to rank on", () => {
     expect(reallocateCupSlots(comps, countryCoefficients(comps, teams, [[]], 2))).toBeNull();
-    expect(coefficientSlots(comps, teams, [[]], 2)).toBeNull();
+    expect(coefficientSlots(comps, teams, [[]], 2, true)).toBeNull();
   });
 
   it("declines on one noisy season, however lopsided it was", () => {
@@ -176,11 +176,11 @@ describe("slot reallocation", () => {
     // single season and handed Belgium four places while dropping Germany to
     // two, then reverted. A world's first cups are its noisiest data.
     const history = [cup(2, tier1.map((_, i) => i), [lpMatch(7, 0, 9, 0), lpMatch(7, 1, 9, 0)])];
-    expect(coefficientSlots(comps, teams, [history], 3)).toBeNull();
+    expect(coefficientSlots(comps, teams, [history], 3, true)).toBeNull();
 
     // The same lopsided season, sustained, does move places.
     const sustained = overSeasons(tier1.map((_, i) => i), [lpMatch(7, 0, 9, 0), lpMatch(7, 1, 9, 0)]);
-    expect(coefficientSlots(comps, teams, [sustained.history], sustained.season)).not.toBeNull();
+    expect(coefficientSlots(comps, teams, [sustained.history], sustained.season, true)).not.toBeNull();
   });
 
   it("leaves a league its author gave no Cup place with no Cup place", () => {
@@ -204,9 +204,18 @@ describe("slot reallocation", () => {
     expect([...slots.values()].filter((n) => n === 0)).toHaveLength(1);
   });
 
+  it("reallocates nothing at all when the save turned the setting off", () => {
+    // The save-scoped switch (LeagueStore.rollingCoefficients). Same history
+    // that provably moves places above, so a null here is the setting and not
+    // an absence of record.
+    const { history, season } = overSeasons(tier1.map((_, i) => i), [lpMatch(7, 0, 3, 0)]);
+    expect(coefficientSlots(comps, teams, [history], season, true)).not.toBeNull();
+    expect(coefficientSlots(comps, teams, [history], season, false)).toBeNull();
+  });
+
   it("moves the Cup's places only, leaving the Shield's alone", () => {
     const { history, season } = overSeasons(tier1.map((_, i) => i), [lpMatch(7, 0, 3, 0)]);
-    const slots = coefficientSlots(comps, teams, [history], season)!;
+    const slots = coefficientSlots(comps, teams, [history], season, true)!;
     for (const entry of slots.values()) {
       expect(entry.continental).toBeGreaterThanOrEqual(1);
       expect(entry.shield).toBeUndefined();

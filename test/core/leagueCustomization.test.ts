@@ -5,7 +5,7 @@ import {
   competitionBudgetScale, isWeakLeague, academyBaseCenterOf,
   buildCompetitions, worldLeagueSpecs, tier1Pairs, countryClubRanges,
   worldTuningWarnings, suggestedBudgetScale, worldTeamSlots,
-  competitionTeamCount, partnerOrNull, competitionAbbrev,
+  competitionTeamCount, partnerOrNull, competitionAbbrev, resolveLeagueSpec,
 } from "../../src/core/competitions.js";
 import { computeCountrySwaps } from "../../src/core/promotion.js";
 import { buildCompetitionSchedule } from "../../src/core/leagueState.js";
@@ -34,6 +34,73 @@ import { generateClubIdentities, abbrevFor } from "../../src/core/teams/clubName
  * accessors as it did through the old country tables, so that is what most of
  * this file pins.
  */
+/**
+ * The other half of the same idea: absent is right for STORAGE and useless for a
+ * CONTROL, so the world editor needs a resolved reading of a spec — what each
+ * absent knob would actually build as — without writing any of it back.
+ */
+describe("resolveLeagueSpec reads a spec the way the world will build it", () => {
+  it("resolves a shipped country to its own table, not to a bare default", () => {
+    const france = resolveLeagueSpec(worldLeagueSpecs().find((s) => s.country === "France")!);
+    expect(france.strengthOffset).toBe(COUNTRY_STRENGTH_OFFSET.France);
+    expect(france.budgetScale).toBe(COUNTRY_BUDGET_SCALE.France);
+    // A weak league sends fewer clubs to both continental competitions, so a
+    // flat default here would misreport half the world.
+    expect(france.cupSlots).toBe(CONTINENTAL_CUP_FORMAT.weakSlots);
+    expect(france.shieldSlots).toBe(SHIELD_FORMAT.weakSlots);
+  });
+
+  it("gives a big-four league the strong league's places", () => {
+    const england = resolveLeagueSpec(worldLeagueSpecs().find((s) => s.country === "England")!);
+    expect(england.strengthOffset).toBe(0);
+    expect(england.budgetScale).toBe(1);
+    expect(england.cupSlots).toBe(CONTINENTAL_CUP_FORMAT.strongSlots);
+  });
+
+  it("agrees with the accessors the engine itself reads", () => {
+    // Two ways of answering the same question, and they have to match or the
+    // editor shows one thing and the world generates another.
+    for (const spec of worldLeagueSpecs()) {
+      const [d1] = buildCompetitions([spec]);
+      const r = resolveLeagueSpec(spec);
+      expect(r.strengthOffset).toBe(competitionStrengthOffset(d1));
+      expect(r.budgetScale).toBe(competitionBudgetScale(d1));
+      expect(r.d1Teams).toBe(competitionTeamCount(d1));
+      expect(r.cupSlots).toBe(cupSlotsForCompetition(d1, CONTINENTAL_CUP_FORMAT));
+      expect(r.shieldSlots).toBe(cupSlotsForCompetition(d1, SHIELD_FORMAT));
+    }
+  });
+
+  it("classifies by the resolved offset, so weakening a shipped league moves its places", () => {
+    // The player has dragged England down to Turkey's level. It is a weak league
+    // now whatever the country table says, and it should send a weak league's
+    // clubs to Europe.
+    const weakened = resolveLeagueSpec({ country: "England", strengthOffset: 12 });
+    expect(weakened.cupSlots).toBe(CONTINENTAL_CUP_FORMAT.weakSlots);
+  });
+
+  it("gives a country with no table England's mix, which is what it would draw", () => {
+    // Not a friendly-looking invented default: absent really does fall through
+    // to England's distribution in pickNationality, so saying anything else here
+    // would be a preview that disagrees with the world.
+    const invented = resolveLeagueSpec({ country: "Ruritania" });
+    expect(invented.strengthOffset).toBe(0);
+    expect(invented.nationalities.England).toBeGreaterThan(0);
+  });
+
+  it("prefers what the spec sets over every fallback", () => {
+    const tuned = resolveLeagueSpec({
+      country: "Spain", strengthOffset: 3, budgetScale: 0.9, d1Teams: 16, promotionSpots: 1,
+    });
+    expect(tuned.strengthOffset).toBe(3);
+    expect(tuned.budgetScale).toBe(0.9);
+    expect(tuned.d1Teams).toBe(16);
+    expect(tuned.promotionSpots).toBe(1);
+    // Untouched knobs still follow Spain.
+    expect(tuned.nationalities.Spain).toBeGreaterThan(0);
+  });
+});
+
 describe("per-league tuning falls back to the shipped country tables", () => {
   const comps = worldCompetitions();
 
@@ -46,7 +113,9 @@ describe("per-league tuning falls back to the shipped country tables", () => {
 
   it("classifies the big four as strong and the rest as weak, as before", () => {
     const weak = comps.filter((c) => c.tier === 1 && isWeakLeague(c)).map((c) => c.country);
-    expect(weak).toEqual(["France", "Portugal", "Belgium", "Turkey"]);
+    expect(weak).toEqual(
+      ["France", "Portugal", "Belgium", "Turkey", "Netherlands", "Scotland", "Greece", "Serbia"],
+    );
   });
 
   it("academy offset defaults to the strength offset — one number doing both jobs", () => {
@@ -191,15 +260,15 @@ describe("building a world's competitions table", () => {
   it("a table with a country left out still pairs every remaining country", () => {
     const table = buildCompetitions(worldLeagueSpecs().filter((s) => s.country !== "England"));
     const pairs = tier1Pairs(table);
-    expect(pairs).toHaveLength(7);
+    expect(pairs).toHaveLength(11);
     for (const { d1, d2 } of pairs) expect(d2?.country).toBe(d1.country);
   });
 });
 
 describe("continental field size is trimmed to something the draw can build", () => {
   it("accepts the shipped field sizes", () => {
-    expect(isValidCupFieldSize(24)).toBe(true);
-    expect(isValidCupFieldSize(16)).toBe(true);
+    expect(isValidCupFieldSize(32)).toBe(true); // Continental Cup
+    expect(isValidCupFieldSize(24)).toBe(true); // Continental Shield
   });
 
   it("rejects sizes the league-phase draw cannot pair", () => {
@@ -217,16 +286,21 @@ describe("continental field size is trimmed to something the draw can build", ()
 
   it("leaves the shipped world's fields exactly as they were", () => {
     const comps = worldCompetitions();
-    expect(cupPlan(comps, CONTINENTAL_CUP_FORMAT)!.total).toBe(24);
-    expect(cupPlan(comps, SHIELD_FORMAT)!.total).toBe(16);
+    // 4 strong x 4 + 8 weak x 2 = 32; the Shield takes 2 from all twelve = 24.
+    expect(cupPlan(comps, CONTINENTAL_CUP_FORMAT)!.total).toBe(32);
+    expect(cupPlan(comps, SHIELD_FORMAT)!.total).toBe(24);
   });
 
   it("gives an awkward world a smaller field instead of no competition", () => {
-    // 8 leagues x 3 = 24 for the Cup, but the Shield's 8 x 1 = 8 is unbuildable.
+    // Eleven leagues (England off) x 3 = 33 for the Cup, trimmed to 32; the
+    // Shield's 11 x 1 = 11 is odd and unbuildable at any size, so it gets no
+    // competition at all. An odd country count is what makes a world "awkward".
     const comps = buildCompetitions(
-      worldLeagueSpecs().map((s) => ({ ...s, cupSlots: 3, shieldSlots: 1 })),
+      worldLeagueSpecs()
+        .filter((s) => s.country !== "England")
+        .map((s) => ({ ...s, cupSlots: 3, shieldSlots: 1 })),
     );
-    expect(cupPlan(comps, CONTINENTAL_CUP_FORMAT)!.total).toBe(24);
+    expect(cupPlan(comps, CONTINENTAL_CUP_FORMAT)!.total).toBe(32);
     expect(cupPlan(comps, SHIELD_FORMAT)).toBeNull();
   });
 
@@ -235,8 +309,8 @@ describe("continental field size is trimmed to something the draw can build", ()
       ...worldLeagueSpecs(),
       { country: "Extra", cupSlots: 3, shieldSlots: 0 },
     ]);
-    // 24 + 3 = 27 qualifiers, trimmed to 24.
-    expect(cupPlan(comps, CONTINENTAL_CUP_FORMAT)!.total).toBe(24);
+    // 32 + 3 = 35 qualifiers, trimmed to 32.
+    expect(cupPlan(comps, CONTINENTAL_CUP_FORMAT)!.total).toBe(32);
   });
 });
 
@@ -277,18 +351,18 @@ describe("world tuning warnings", () => {
   });
 
   it("warns when a total would be trimmed, and names what it costs", () => {
-    // The trap: adding one league taking 2 asks for 26, which the Cup can't
+    // The trap: adding one league taking 2 asks for 34, which the Cup can't
     // draw, so two clubs are cut from leagues that had nothing to do with it.
     const specs = [...worldLeagueSpecs(), { country: "Neverland", cupSlots: 2, shieldSlots: 2 }];
     const warnings = worldTuningWarnings(specs);
     const cup = warnings.find((w) => w.includes("Continental Cup"))!;
-    expect(cup).toContain("26");
-    expect(cup).toContain("24");
+    expect(cup).toContain("34");
+    expect(cup).toContain("32");
     expect(cup).toContain("miss out");
   });
 
   it("warns about the Shield's own total separately from the Cup's", () => {
-    // 4 Cup places lands the Cup on 28 (fine) while the Shield still goes to 18.
+    // 4 Cup places lands the Cup on 36 (fine) while the Shield still goes to 26.
     const specs = [...worldLeagueSpecs(), { country: "Neverland", cupSlots: 4, shieldSlots: 2 }];
     const warnings = worldTuningWarnings(specs);
     expect(warnings.some((w) => w.includes("Continental Cup"))).toBe(false);
@@ -296,8 +370,8 @@ describe("world tuning warnings", () => {
   });
 
   it("says nothing when both totals land on a size the draw can build", () => {
-    // One country off and an added league taking 4 keeps the Cup at 24, and
-    // both leagues at 2 Shield places keeps the Shield at 16.
+    // One country off and an added league taking 4 keeps the Cup at 32, and
+    // both leagues at 2 Shield places keeps the Shield at 24.
     const specs = [
       ...worldLeagueSpecs().filter((s) => s.country !== "England"),
       { country: "Neverland", cupSlots: 4, shieldSlots: 2 },

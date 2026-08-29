@@ -14,7 +14,8 @@ import { makeLeague } from "../helpers/league.js";
 import { parseCsv, readCsvTable, normalizeHeader } from "../../scripts/eafc/csv.js";
 import { resolveColumns } from "../../scripts/eafc/schema.js";
 import { mapPosition } from "../../scripts/eafc/positions.js";
-import { mapLeague, buildLeagueResolver } from "../../scripts/eafc/leagues.js";
+import { mapLeague, buildLeagueResolver, COVERED_COMPETITIONS } from "../../scripts/eafc/leagues.js";
+import { worldCompetitions, competitionTeamCount } from "../../src/core/competitions.js";
 import { mapNation } from "../../scripts/eafc/nations.js";
 import { buildRescaler } from "../../scripts/eafc/scale.js";
 import { deriveAbbrev, uniquifyAbbrevs } from "../../scripts/eafc/identity.js";
@@ -189,7 +190,67 @@ describe("league mapping", () => {
 
   it("skips leagues the game does not model", () => {
     expect(mapLeague("Major League Soccer")).toBeNull();
-    expect(mapLeague("Eredivisie")).toBeNull();
+    expect(mapLeague("Liga MX")).toBeNull();
+  });
+
+  it("matches Greece and Serbia", () => {
+    expect(mapLeague("Super League Greece")).toBe("Greek Division 1");
+    expect(mapLeague("Super League 2")).toBe("Greek Division 2");
+    expect(mapLeague("Superliga Srbije")).toBe("Serbian Division 1");
+    expect(mapLeague("Mozzart Bet Superliga")).toBe("Serbian Division 1");
+    expect(mapLeague("Prva Liga Srbije")).toBe("Serbian Division 2");
+  });
+
+  it("never claims a bare 'Super League' — four federations share it", () => {
+    // This rule was written from the league's real name and asserted the bare
+    // form for Greece. Checked against the FC26 export it does not hold: that
+    // file carries "Super League" four times over — Greece (63), China (2012),
+    // Switzerland (189) and India (2149). The resolver's ambiguity guard kept
+    // Shanghai Port out of the Greek top flight, but only by dropping all four,
+    // so Greece imported nothing. Belgium's "Pro League" all over again, and it
+    // takes the same answer: qualified names, and an id for the real work.
+    expect(mapLeague("Super League")).toBeNull();
+  });
+
+  // Two more first-match ordering traps, same family as Scotland's below.
+  // "Super League 2" contains "super_league", so Greece's second tier has to be
+  // listed above its first. And two bare names are deliberately left unclaimed:
+  // "Prva Liga" is a *top* flight in Croatia, Slovenia, Bosnia and Montenegro
+  // while being Serbia's second tier, and an unqualified "Superliga" is also
+  // Denmark's.
+  it("does not claim a bare 'Prva Liga' or 'Superliga', which other countries share", () => {
+    expect(mapLeague("Super League 2")).toBe("Greek Division 2");
+    expect(mapLeague("Prva Liga")).toBeNull();
+    expect(mapLeague("Superliga")).toBeNull();
+  });
+
+  it("matches the Netherlands and Scotland", () => {
+    expect(mapLeague("Eredivisie")).toBe("Dutch Division 1");
+    expect(mapLeague("Eerste Divisie")).toBe("Dutch Division 2");
+    expect(mapLeague("Keuken Kampioen Divisie")).toBe("Dutch Division 2");
+    expect(mapLeague("Scottish Premiership")).toBe("Scottish Division 1");
+    expect(mapLeague("cinch Premiership")).toBe("Scottish Division 1");
+  });
+
+  // Ordering regression guard. "Scottish Championship" CONTAINS England's bare
+  // "championship" pattern and mapLeague returns on first match, so listing
+  // Scotland after England imports every Scottish second-tier club into the
+  // English Championship — silently, exactly like the 12 Austrian clubs that
+  // once landed in the Bundesliga. Bare "Premiership" must stay unclaimed for
+  // the same reason: Northern Ireland's top flight is the NIFL Premiership.
+  it("does not let Scotland's second tier fall into England's Championship", () => {
+    expect(mapLeague("Scottish Championship")).toBe("Scottish Division 2");
+    expect(mapLeague("cinch Championship")).toBe("Scottish Division 2");
+    expect(mapLeague("Championship")).toBe("English Division 2");
+    expect(mapLeague("EFL Championship")).toBe("English Division 2");
+    expect(mapLeague("NIFL Premiership")).toBeNull();
+  });
+
+  it("covers every competition in the shipped world", () => {
+    const uncovered = worldCompetitions()
+      .map((c) => c.name)
+      .filter((n) => !COVERED_COMPETITIONS.includes(n));
+    expect(uncovered).toEqual([]);
   });
 
   it("matches Belgium and Turkey by their qualified names", () => {
@@ -207,6 +268,25 @@ describe("league mapping", () => {
     // Saudi Arabia (350) and the UAE (2013). Belgium is reached by id, so the
     // name must stay unclaimed or Al Hilal ends up in the Belgian top flight.
     expect(mapLeague("Pro League")).toBeNull();
+  });
+
+  it("does not let Scotland's Championship take England's, or vice versa", () => {
+    // Both second tiers are called "Championship". The bare word has always
+    // meant England in every export; Scotland's needs the country on it.
+    expect(mapLeague("Championship")).toBe("English Division 2");
+    expect(mapLeague("EFL Championship")).toBe("English Division 2");
+    expect(mapLeague("Scottish Championship")).toBe("Scottish Division 2");
+  });
+
+  it("leaves a bare 'Premiership' and 'Superliga' to their other claimants", () => {
+    // Scotland's top flight is spelled bare "Premiership" in the FC26 export,
+    // and it still must not be a pattern — Northern Ireland's NIFL Premiership
+    // would take it. Id 50 is what makes that file importable; see the
+    // resolution-by-id tests. Bare "Superliga" is Denmark's league (id 1).
+    expect(mapLeague("Premiership")).toBeNull();
+    expect(mapLeague("Superliga")).toBeNull();
+    // Nor the bare Turkish spelling — a different league entirely.
+    expect(mapLeague("Super Lig")).toBe("Turkish Division 1");
   });
 
   it("leaves accented lookalikes to other countries", () => {
@@ -235,7 +315,33 @@ describe("league resolution by id", () => {
     { name: "Pro League", id: "350" },      // Saudi Arabia
     { name: "Pro League", id: "2013" },     // UAE
     { name: "Süper Lig", id: "68" },        // Turkey
+    { name: "Premiership", id: "50" },      // Scotland
+    { name: "Super League", id: "63" },     // Greece
+    { name: "Super League", id: "2012" },   // China
+    { name: "Super League", id: "189" },    // Switzerland
+    { name: "Super League", id: "2149" },   // India
+    { name: "Superliga", id: "1" },         // Denmark
+    { name: "Eredivisie", id: "10" },       // Netherlands
   ];
+
+  it("reaches Scotland and Greece by id, which is the only route FC26 offers", () => {
+    // Both leagues resolve to nothing on their names in that file — one is
+    // deliberately unclaimed, the other four-way ambiguous — so without these
+    // ids the converter silently imported zero Scottish and zero Greek clubs.
+    const r = buildLeagueResolver(rows);
+    expect(r.resolve("Premiership", "50")).toBe("Scottish Division 1");
+    expect(r.resolve("Super League", "63")).toBe("Greek Division 1");
+    expect(r.resolve("Eredivisie", "10")).toBe("Dutch Division 1");
+  });
+
+  it("separates Greece from the three other 'Super League's by id alone", () => {
+    const r = buildLeagueResolver(rows);
+    expect(r.resolve("Super League", "63")).toBe("Greek Division 1");
+    expect(r.resolve("Super League", "2012")).toBeNull();
+    expect(r.resolve("Super League", "189")).toBeNull();
+    expect(r.resolve("Super League", "2149")).toBeNull();
+    expect(r.resolve("Superliga", "1")).toBeNull();
+  });
 
   it("separates Belgium from the two other 'Pro League's by id alone", () => {
     const r = buildLeagueResolver(rows);
@@ -368,6 +474,52 @@ describe("convert (end to end)", () => {
       expect(comp.clubs).toHaveLength(20);
       for (const club of comp.clubs) expect(club.players).toHaveLength(25);
     }
+  });
+
+  it("gives each competition its own slot count, not a flat 20", () => {
+    // Divisions have real sizes now. A 20-club source for Scotland's 12-club
+    // top flight must be cut to 12 by STRENGTH here — left to the importer, the
+    // overflow is dropped by slot order instead, which discards whichever clubs
+    // happen to sit at the end of the list.
+    const file = convert(makeCsv(["Scottish Premiership"], 20)).file;
+    const scotland = file.competitions.find((c) => c.match === "Scottish Division 1")!;
+    expect(scotland.clubs).toHaveLength(12);
+    expect(scotland.clubs[0].name).toBe("Alpha, Scottish Premiership FC");
+    const teamCount = worldCompetitions().find((c) => c.name === "Scottish Division 1")!;
+    expect(scotland.clubs.length).toBe(competitionTeamCount(teamCount));
+  });
+
+  it("scales a partly-covered league against the world, not against its own band", () => {
+    // The FC26 export holds 4 of Greece's 14 clubs and they are the four best
+    // in the country. Rank-matching maps the source's WEAKEST player onto the
+    // reference league's weakest, so a per-competition curve here would state
+    // that Panathinaikos are Greece's relegation fodder. Measured on the real
+    // export, that is a 5.9-point suppression of their top-11 (62.6 -> 56.7).
+    // A companion league matters and is not padding: the pooled curve is only
+    // protective because the pool holds other leagues to rank against. Greece
+    // alone IS the pool, and rank-matching would spread those four clubs across
+    // the whole band again — measured while writing this test, min OVR 20.
+    const csv = makeCsv(["Premier League"], 20) + "\n" +
+      makeCsv(["Super League Greece"], 4).split("\n").slice(1).join("\n");
+    const { file, report } = convert(csv);
+    const greece = file.competitions.find((c) => c.match === "Greek Division 1")!;
+    expect(greece.clubs).toHaveLength(4);
+
+    const ovrs = greece.clubs.flatMap((c) =>
+      c.players!.map((pl) => computeOvr(pl.pos, pl.ratings!, pl.heightCm ?? 180)),
+    );
+    // Every one of these players is elite in EA terms, so none of them may come
+    // out at the bottom of the game's band — which is exactly where a
+    // per-competition curve would put the weakest of them.
+    expect(Math.min(...ovrs)).toBeGreaterThan(45);
+    expect(report.warnings.some((w) => w.includes("scaled") && w.includes("Greek Division 1"))).toBe(true);
+  });
+
+  it("still uses a league's own band when the source covers it", () => {
+    // The guard must not fire on an ordinary import: a complete league is
+    // rank-matched onto itself exactly as before.
+    const { report } = convert(makeCsv(["Premier League"], 20));
+    expect(report.warnings.some((w) => w.includes("scaled against the whole imported world"))).toBe(false);
   });
 
   it("emits a file the game's own parser accepts", () => {

@@ -5,6 +5,7 @@ import { unpackPositionChange, type NewsEvent, type NewsEventType } from "../../
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { seasonAwardNews, type AwardNews } from "../../core/awardNews.js";
 import { trophyNewsBySeason } from "../../core/trophyNews.js";
+import { seasonContinentalNews } from "../../core/continentalNews.js";
 import { TOTS_SLOTS } from "../../core/awards.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
@@ -137,12 +138,28 @@ export function NewsFeed() {
       international: league?.international ?? null,
     });
 
+    // Cup places changing hands, derived the same way the honours are and for
+    // the same reason (see core/continentalNews.ts): it is a function of the
+    // archived cups the save already keeps, so it costs nothing to store and an
+    // existing dynasty reports every place it ever won or lost.
+    const continentalHistories = [league?.cupHistory ?? [], league?.shieldHistory ?? []];
+    const continentalBySeason = new Map(
+      (league?.seasonHistory ?? []).map((h) => [
+        h.season,
+        seasonContinentalNews(
+          league?.competitions ?? [], league?.teams ?? [], continentalHistories, h.season,
+          league?.rollingCoefficients ?? true,
+        ),
+      ]),
+    );
+
     const out = new Map<number, FeedItem[]>();
     const seasons = new Set([
       ...transfersBySeason.keys(),
       ...eventsBySeason.keys(),
       ...awardsBySeason.keys(),
       ...trophiesBySeason.keys(),
+      ...continentalBySeason.keys(),
     ]);
     for (const season of seasons) {
       const comps = historyBySeason.get(season) ?? liveComps;
@@ -152,6 +169,7 @@ export function NewsFeed() {
         { userTid, userCompId: comps[userTid], compOf: (tid) => comps[tid] },
         awardsBySeason.get(season) ?? [],
         trophiesBySeason.get(season) ?? [],
+        continentalBySeason.get(season) ?? [],
       ));
     }
     return out;
@@ -166,6 +184,7 @@ export function NewsFeed() {
     league?.shield,
     league?.shieldHistory,
     league?.international,
+    league?.competitions,
   ]);
 
   if (!league) {
@@ -177,10 +196,15 @@ export function NewsFeed() {
 
   // A trophy has a tid only when a club won it; an international one never
   // involves the user's club, so `tid === userTid` reads false for it anyway.
-  const involvesUser = (item: FeedItem): boolean =>
-    item.kind === "transfer"
-      ? item.data.fromTid === userTid || item.data.toTid === userTid
-      : item.data.tid === userTid;
+  const involvesUser = (item: FeedItem): boolean => {
+    if (item.kind === "transfer") {
+      return item.data.fromTid === userTid || item.data.toTid === userTid;
+    }
+    // Nobody's club gains a Cup place — a country does. The nearest thing to
+    // "involves you" is that it was your league's allocation that moved.
+    if (item.kind === "continental") return item.data.compId === userTeam?.compId;
+    return item.data.tid === userTid;
+  };
 
   const compName = (compId: number | undefined): string | undefined =>
     league.competitions.find((c) => c.id === compId)?.name;
@@ -358,6 +382,25 @@ export function NewsFeed() {
                               <td>{playerCell(a.pid)}</td>
                               <td>{a.tid === undefined ? <span className="text-muted">—</span> : teamCell(a.tid, season)}</td>
                               <td className="text-end stat-num">{awardDetail(a)}</td>
+                            </tr>
+                          );
+                        }
+                        if (item.kind === "continental") {
+                          const c = item.data;
+                          const gained = c.to > c.from;
+                          return (
+                            <tr key={`c-${c.compId}-${season}-${i}`}
+                                className={highlighted ? "team-highlight" : undefined}>
+                              <td className="small">
+                                Continental places
+                                <span className="text-muted"> ({gained ? "earned" : "lost"})</span>
+                              </td>
+                              {/* A country is the subject, not a player, so it
+                                  takes the subject column and the club column
+                                  carries the league whose allocation moved. */}
+                              <td>{c.country}</td>
+                              <td>{compName(c.compId) ?? <span className="text-muted">—</span>}</td>
+                              <td className="text-end stat-num">{c.from} → {c.to}</td>
                             </tr>
                           );
                         }

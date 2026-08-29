@@ -31,7 +31,7 @@ import { POSITIONS } from "../../src/core/players/types.js";
 import { HEIGHT_RANGES } from "../../src/core/players/templates.js";
 import { computeOvr } from "../../src/core/players/ovr.js";
 import { ROSTER_COMPOSITION, NUM_TEAMS, RATING_MIN, RATING_MAX } from "../../src/core/constants.js";
-import { worldCompetitions } from "../../src/core/competitions.js";
+import { worldCompetitions, competitionTeamCount } from "../../src/core/competitions.js";
 import { generateWorld } from "../../src/core/league/generate.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import type {
@@ -54,8 +54,16 @@ export interface ConvertOptions {
   referenceSeed: number;
   /** Per-club abbrev/colors/name overrides, keyed by the club name in the CSV. */
   identityOverrides: IdentityOverrides;
-  /** Cap on clubs taken per competition (the game has NUM_TEAMS slots). */
-  clubsPerCompetition: number;
+  /**
+   * Cap on clubs taken per competition. Undefined means "ask the competition",
+   * which is the only correct answer since divisions gained real sizes: the
+   * game fields 20 in England, 18 in Germany, 16 in Belgium, 14 in Greece, 12
+   * in Scotland and 10 in Scotland's second tier. A flat cap either overfills
+   * a small league (the importer then ignores the extras, so the clubs it drops
+   * are chosen by slot order rather than by strength) or truncates a big one.
+   * Set it only to override every competition at once.
+   */
+  clubsPerCompetition?: number;
 }
 
 export const DEFAULT_OPTIONS: ConvertOptions = {
@@ -64,7 +72,7 @@ export const DEFAULT_OPTIONS: ConvertOptions = {
   scaleMode: "competition",
   referenceSeed: 12345,
   identityOverrides: {},
-  clubsPerCompetition: NUM_TEAMS,
+  clubsPerCompetition: undefined,
 };
 
 interface EaPlayer {
@@ -110,6 +118,15 @@ export interface ConvertReport {
   missingColumns: string[];
   warnings: string[];
 }
+
+/**
+ * Fraction of a competition's slots the source must fill before its players are
+ * rank-matched against that competition's own OVR band rather than the pooled
+ * world. See wellCovered — 0.75 clears every league FC26 actually carries
+ * (England's second tier is the thinnest at 20 of 24) and catches Greece, which
+ * it holds 4 of 14 of.
+ */
+export const PARTIAL_LEAGUE_COVERAGE = 0.75;
 
 const clampInt = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(x)));
 
@@ -339,28 +356,38 @@ export function convert(csvText: string, opts: Partial<ConvertOptions> = {}): {
     clubs.get(p.clubName)!.push(p);
   }
 
+  // How many slots each competition actually has. Read off the game rather than
+  // assumed, since divisions have real sizes (Scotland's second tier is 10).
+  const slotsByComp = new Map(worldCompetitions().map((c) => [c.name, competitionTeamCount(c)]));
+  const slotsFor = (comp: string): number =>
+    o.clubsPerCompetition ?? slotsByComp.get(comp) ?? NUM_TEAMS;
+
   interface ChosenClub { clubName: string; squad: EaPlayer[] }
   const chosen = new Map<string, ChosenClub[]>();
+  const coverage = new Map<string, { available: number; slots: number }>();
   for (const [comp, clubs] of byComp) {
+    const slots = slotsFor(comp);
     const ranked = [...clubs]
       .map(([clubName, roster]) => ({ clubName, roster, strength: clubStrength(roster) }))
       .sort((a, b) => b.strength - a.strength || a.clubName.localeCompare(b.clubName));
 
-    if (ranked.length > o.clubsPerCompetition) {
+    coverage.set(comp, { available: ranked.length, slots });
+
+    if (ranked.length > slots) {
       warnings.push(
-        `"${comp}" has ${ranked.length} clubs in the CSV but the game has ${o.clubsPerCompetition} slots — ` +
-          `kept the strongest ${o.clubsPerCompetition}, dropped ${ranked.length - o.clubsPerCompetition}.`,
+        `"${comp}" has ${ranked.length} clubs in the CSV but the game has ${slots} slots — ` +
+          `kept the strongest ${slots}, dropped ${ranked.length - slots}.`,
       );
-    } else if (ranked.length < o.clubsPerCompetition) {
+    } else if (ranked.length < slots) {
       warnings.push(
         `"${comp}" has only ${ranked.length} clubs in the CSV — the remaining ` +
-          `${o.clubsPerCompetition - ranked.length} slot(s) keep their existing fictional club and squad.`,
+          `${slots - ranked.length} slot(s) keep their existing fictional club and squad.`,
       );
     }
 
     chosen.set(
       comp,
-      ranked.slice(0, o.clubsPerCompetition).map((c) => ({
+      ranked.slice(0, slots).map((c) => ({
         clubName: c.clubName,
         squad: pickSquad(c.roster, o.squadSize),
       })),
@@ -376,9 +403,35 @@ export function convert(csvText: string, opts: Partial<ConvertOptions> = {}): {
     reference.allPotential,
   );
 
+  /**
+   * Is this league covered well enough to be rank-matched against its own
+   * reference band?
+   *
+   * Rank-matching maps the source's WEAKEST player onto the reference league's
+   * weakest, so a per-competition curve is only sound when the source spans
+   * that league. FC26 carries 4 of Greece's 14 clubs and they are the four best
+   * in the country — matched onto the full Greek band, Panathinaikos' squad
+   * players land near a relegation squad, because the curve has been told they
+   * are the bottom of their own league. The pooled curve makes no such claim:
+   * it places each player where his EA overall ranks against every imported
+   * league at once, which is a statement about football rather than about a
+   * league we only partly hold.
+   *
+   * The bar is deliberately generous. Every league the FC26 export actually
+   * covers is complete or nearly so (the worst is England's second tier at 20
+   * of 24 real clubs, and Belgium and the Netherlands land exactly on their
+   * slot counts), so this only ever catches the genuinely fragmentary case.
+   */
+  const wellCovered = (comp: string): boolean => {
+    const c = coverage.get(comp);
+    if (!c || c.slots === 0) return false;
+    return c.available / c.slots >= PARTIAL_LEAGUE_COVERAGE;
+  };
+
   /** The overall and potential curves for one competition. */
   const rescalersFor = (comp: string): { ovr: Rescaler; pot: Rescaler } => {
     if (o.scaleMode === "global") return { ovr: globalRescaler, pot: globalPotentialRescaler };
+    if (!wellCovered(comp)) return { ovr: globalRescaler, pot: globalPotentialRescaler };
     const squad = (chosen.get(comp) ?? []).flatMap((c) => c.squad);
 
     const refOvr = reference.byCompetition.get(comp);
@@ -405,9 +458,17 @@ export function convert(csvText: string, opts: Partial<ConvertOptions> = {}): {
     if (!clubs || clubs.length === 0) {
       // Worth saying out loud: the whole competition keeps its fictional clubs.
       warnings.push(
-        `"${comp.name}" has no clubs in the CSV — all ${o.clubsPerCompetition} slots keep their existing fictional club and squad.`,
+        `"${comp.name}" has no clubs in the CSV — all ${slotsFor(comp.name)} slots keep their existing fictional club and squad.`,
       );
       continue;
+    }
+    if (!wellCovered(comp.name)) {
+      const c = coverage.get(comp.name)!;
+      warnings.push(
+        `"${comp.name}" has only ${c.available} of its ${c.slots} clubs in the CSV, so its players are scaled ` +
+          `against the whole imported world rather than against this league — a partial league cannot be ` +
+          `rank-matched onto its own band without pretending its best clubs are its worst.`,
+      );
     }
     const { ovr: rescale, pot: rescalePotential } = rescalersFor(comp.name);
 
@@ -443,7 +504,7 @@ export function convert(csvText: string, opts: Partial<ConvertOptions> = {}): {
 
   if (competitionsOut.length === 0) {
     throw new Error(
-      "No rows in this CSV mapped onto any of the sixteen leagues this converter reads. " +
+      "No rows in this CSV mapped onto any of the leagues this converter reads. " +
         `Check the league column${cols.found.league ? ` ("${cols.found.league}")` : " (not found)"}` +
         `; the most common unmatched values were: ${readReport.unmappedLeagues.slice(0, 5).map((u) => u.league).join(", ") || "(none)"}.`,
     );

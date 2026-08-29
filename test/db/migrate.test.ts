@@ -28,6 +28,7 @@ function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed =
     // Same value the old derived allocator produced, so pids are unchanged.
     nextPid: Math.max(0, ...league.players.map((p) => p.pid)) + 1,
     aiManagedSeasons: [],
+    rollingCoefficients: true,
     season: 1,
     phase: "regular",
     schedule,
@@ -131,6 +132,21 @@ describe("migrateLeague", () => {
     const league = makeLeague(0, 1);
     const migrated = migrateLeague({ ...league, difficulty: "brutal" });
     expect(migrated.difficulty).toBe("brutal");
+  });
+
+  it("backfills rollingCoefficients to on for a save without it", () => {
+    // Cup places have been re-earned since the coefficient shipped, so a save
+    // that predates the SETTING was played with it on.
+    const league = makeLeague(0, 1);
+    const { rollingCoefficients: _r, ...without } = league;
+    const migrated = migrateLeague(without as unknown as LeagueStore);
+    expect(migrated.rollingCoefficients).toBe(true);
+  });
+
+  it("leaves rollingCoefficients off when the save turned it off", () => {
+    const league = makeLeague(0, 1);
+    const migrated = migrateLeague({ ...league, rollingCoefficients: false });
+    expect(migrated.rollingCoefficients).toBe(false);
   });
 
   it("leaves an existing powerRankingHistory untouched", () => {

@@ -91,10 +91,14 @@ for (let s = 0; s < SEASONS; s++) {
         userTid, userCompId: userComp, compOf: (tid) => compsByTid[tid],
       }, awards);
 
-  const touches = (item: FeedItem, tids: (tid: number) => boolean) =>
-    item.kind === "transfer"
-      ? tids(item.data.fromTid) || tids(item.data.toTid)
-      : item.data.tid !== undefined && tids(item.data.tid);
+  const touches = (item: FeedItem, tids: (tid: number) => boolean) => {
+    if (item.kind === "transfer") return tids(item.data.fromTid) || tids(item.data.toTid);
+    // Continental reallocation is about a country, so it touches no club at
+    // all. Counting it under neither tier is right for a probe measuring how
+    // much of the feed is about the reader's own clubs.
+    if (item.kind === "continental") return false;
+    return item.data.tid !== undefined && tids(item.data.tid);
+  };
   const club = items.filter((i) => touches(i, (tid) => tid === userTid)).length;
   const league_ = items.filter((i) => touches(i, (tid) => compsByTid[tid] === userComp)).length;
 

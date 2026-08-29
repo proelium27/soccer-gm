@@ -5,7 +5,7 @@ import {
 import type { CupLeaguePhase, LeaguePhaseMatch } from "../../src/core/cup/types.js";
 import {
   CUP_LEAGUE_PHASE_SIZE, CUP_LEAGUE_PHASE_GAMES, CUP_LEAGUE_PHASE_POTS,
-  CUP_LEAGUE_PHASE_MATCHDAYS, CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS,
+  CUP_LEAGUE_PHASE_MATCHDAYS, cupKnockoutPlan,
 } from "../../src/core/constants.js";
 
 /** 20 fake qualifiers, tids 0..19, four per "league" (compId 0..4) — like the real 4×4 + 2×2 field. */
@@ -116,9 +116,10 @@ describe("leaguePhaseTable + splitLeaguePhase", () => {
     const lp: CupLeaguePhase = { teams, matches };
     const table = leaguePhaseTable(lp, seeds); // all 0 pts → pure seed order
     const { directQF, playoff, out } = splitLeaguePhase(table);
-    expect(directQF.length).toBe(CUP_LP_DIRECT_QF);
-    expect(playoff.length).toBe(CUP_LP_PLAYOFF_TEAMS);
-    expect(out.length).toBe(CUP_LEAGUE_PHASE_SIZE - CUP_LP_DIRECT_QF - CUP_LP_PLAYOFF_TEAMS);
+    const plan = cupKnockoutPlan(CUP_LEAGUE_PHASE_SIZE);
+    expect(directQF.length).toBe(plan.directQF);
+    expect(playoff.length).toBe(plan.playoffTeams);
+    expect(out.length).toBe(CUP_LEAGUE_PHASE_SIZE - plan.directQF - plan.playoffTeams);
     expect(directQF).toEqual([0, 1, 2, 3]);
     expect(playoff).toEqual([4, 5, 6, 7, 8, 9, 10, 11]);
   });

@@ -3,24 +3,27 @@ import type { TeamMatchData } from "../../src/core/league/composites.js";
 import { makeLeague } from "../helpers/league.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { mulberry32 } from "../../src/engine/rng.js";
-import { worldCompetitions } from "../../src/core/competitions.js";
+import { worldCompetitions, competitionTeamCount } from "../../src/core/competitions.js";
 import {
   buildDomesticCup, pendingRound, domesticRoundName, domesticPrizeForRound,
 } from "../../src/core/domesticCup/cup.js";
 import { playDomesticRound } from "../../src/core/domesticCup/simCup.js";
 import {
-  DOMESTIC_CUP_MATCHDAYS, DOMESTIC_CUP_PRIZE_RUNNER_UP, NUM_TEAMS, NUM_TEAMS_D2,
+  DOMESTIC_CUP_MATCHDAYS, DOMESTIC_CUP_PRIZE_RUNNER_UP,
 } from "../../src/core/constants.js";
 
 const comps = worldCompetitions();
 
+// Sized from the table rather than a flat 20+20: divisions are different sizes
+// per country now, and a cup's whole shape (rounds, byes, which matchday it
+// starts on) falls out of how many clubs its country actually has.
 function worldTeams(): { tid: number; compId: number }[] {
   const teams: { tid: number; compId: number }[] = [];
   let tid = 0;
   for (const c of comps.filter((x) => x.tier === 1)) {
     const d2 = comps.find((x) => x.country === c.country && x.tier === 2)!;
-    for (let i = 0; i < NUM_TEAMS; i++) teams.push({ tid: tid++, compId: c.id });
-    for (let i = 0; i < NUM_TEAMS_D2; i++) teams.push({ tid: tid++, compId: d2.id });
+    for (let i = 0; i < competitionTeamCount(c); i++) teams.push({ tid: tid++, compId: c.id });
+    for (let i = 0; i < competitionTeamCount(d2); i++) teams.push({ tid: tid++, compId: d2.id });
   }
   return teams;
 }
@@ -39,37 +42,64 @@ describe("domestic cups through simThrough", () => {
     let league = makeLeague(0, 1);
     const rng = mulberry32(4242);
 
-    expect(league.domesticCups).toHaveLength(8); // one per country
-    expect(pendingRound(league.domesticCups[0])!.matchday).toBe(DOMESTIC_CUP_MATCHDAYS[0]);
+    expect(league.domesticCups).toHaveLength(12); // one per country
 
-    // Matchdays 1-4: nothing is due yet.
+    // Countries no longer all field 40 clubs, so their cups no longer all have
+    // the same number of rounds — and a shorter cup takes the LAST n matchdays
+    // rather than the first, so every country's final still lands on the same
+    // day. Belgium and Serbia (32 clubs) are the sharp case: an exact power of
+    // two needs no preliminary round at all, so their round 0 IS the round of
+    // 32 and it does not kick off until matchday 9.
+    for (const cup of league.domesticCups) {
+      // Rounds needed is ceil(log2(field)), and the cup takes that many
+      // matchdays off the END of the list — so a smaller country starts later
+      // and every final still lands on the same day.
+      expect(cup.totalRounds).toBe(Math.ceil(Math.log2(cup.teams.length)));
+      const firstMatchday = DOMESTIC_CUP_MATCHDAYS[DOMESTIC_CUP_MATCHDAYS.length - cup.totalRounds];
+      expect(pendingRound(cup)!.matchday).toBe(firstMatchday);
+    }
+
+    // Matchdays 1-4: nothing is due in any country yet.
     league = simThrough(league, { matchday: 4 }, rng);
-    expect(league.domesticCups[0].rounds).toHaveLength(1);
-    expect(league.domesticCups[0].rounds[0].ties).toHaveLength(0);
+    for (const cup of league.domesticCups) {
+      expect(cup.rounds).toHaveLength(1);
+      expect(cup.rounds[0].ties).toHaveLength(0);
+    }
 
-    // Matchdays 5-8: the preliminary round is played and the round of 32 drawn.
-    league = simThrough(league, { matchday: 8 }, rng);
+    // Through matchday 9 every cup has played at least its opening round — 9 is
+    // the latest any of them starts.
+    league = simThrough(league, { matchday: 9 }, rng);
 
     for (const cup of league.domesticCups) {
-      const prelim = cup.rounds[0];
-      expect(prelim.ties).toHaveLength(prelim.pairings.length);
-      for (const tie of prelim.ties) {
-        // Single-leg: somebody always goes through on the day.
-        expect([tie.home, tie.away]).toContain(tie.winner);
-        expect(tie.boxScore).not.toBeNull();
+      const played = cup.rounds.filter((r) => r.ties.length > 0);
+      expect(played.length).toBeGreaterThan(0);
+
+      for (const round of played) {
+        expect(round.ties).toHaveLength(round.pairings.length);
+        for (const tie of round.ties) {
+          // Single-leg: somebody always goes through on the day.
+          expect([tie.home, tie.away]).toContain(tie.winner);
+          expect(tie.boxScore).not.toBeNull();
+        }
       }
-      expect(cup.rounds).toHaveLength(2);
 
+      // The next round is drawn from exactly the clubs that came through the
+      // last one, and each round halves the field.
+      const last = played[played.length - 1];
       const next = pendingRound(cup)!;
-      expect(next.matchday).toBe(DOMESTIC_CUP_MATCHDAYS[1]);
-      expect(domesticRoundName(cup, next.round)).toBe("Round of 32");
-
       const survivors = next.pairings.flatMap((p) => [p.home, p.away]);
-      expect(survivors).toHaveLength(32);
-      expect(new Set(survivors).size).toBe(32); // nobody drawn twice
-      const throughFromPrelim = new Set([...prelim.byes, ...prelim.ties.map((t) => t.winner)]);
-      for (const tid of survivors) expect(throughFromPrelim.has(tid)).toBe(true);
+      expect(survivors).toHaveLength(next.pairings.length * 2);
+      expect(new Set(survivors).size).toBe(survivors.length); // nobody drawn twice
+      const through = new Set([...last.byes, ...last.ties.map((t) => t.winner)]);
+      for (const tid of survivors) expect(through.has(tid)).toBe(true);
     }
+
+    // The big countries still reach a round of 32 off a preliminary round; the
+    // 32-club ones start there.
+    const england = league.domesticCups.find((c) => c.country === "England")!;
+    expect(domesticRoundName(england, england.rounds[0].round)).toBe("Preliminary round");
+    const belgium = league.domesticCups.find((c) => c.country === "Belgium")!;
+    expect(domesticRoundName(belgium, belgium.rounds[0].round)).toBe("Round of 32");
   });
 });
 

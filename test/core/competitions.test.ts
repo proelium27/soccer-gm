@@ -34,7 +34,7 @@ describe("worldCompetitions", () => {
   const comps = worldCompetitions();
 
   it("has 16 entries: 8 countries x 2 tiers", () => {
-    expect(comps).toHaveLength(16);
+    expect(comps).toHaveLength(24);
   });
 
   it("starts with England, matching englandCompetitions() exactly", () => {
@@ -42,7 +42,10 @@ describe("worldCompetitions", () => {
   });
 
   it("has every non-England country with one tier-1 and one tier-2 competition", () => {
-    for (const country of ["Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey"]) {
+    for (const country of [
+      "Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey",
+      "Netherlands", "Scotland", "Greece", "Serbia",
+    ]) {
       const group = comps.filter((c) => c.country === country);
       expect(group).toHaveLength(2);
       expect(group.map((c) => c.tier).sort()).toEqual([1, 2]);
@@ -64,7 +67,10 @@ describe("worldCompetitions", () => {
 
   it("tier1Pairs returns one pair per country, in table order", () => {
     const pairs = tier1Pairs(comps);
-    expect(pairs.map((p) => p.d1.country)).toEqual(["England", "Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey"]);
+    expect(pairs.map((p) => p.d1.country)).toEqual([
+      "England", "Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey",
+      "Netherlands", "Scotland", "Greece", "Serbia",
+    ]);
     for (const pair of pairs) {
       expect(pair.d1.tier).toBe(1);
       // Every shipped country has both divisions; d2 is nullable only because a
@@ -80,14 +86,20 @@ describe("countryClubRanges", () => {
   it("splits the world into 8 contiguous 40-wide ranges, in table order", () => {
     const ranges = countryClubRanges(worldCompetitions());
     expect(ranges).toEqual([
+      // Blocks are sized by each country's real division sizes, so they are no
+      // longer a uniform 40 — see Competition.teamCount.
       { country: "England", start: 0, end: 40 },
       { country: "Spain", start: 40, end: 80 },
       { country: "Italy", start: 80, end: 120 },
-      { country: "Germany", start: 120, end: 160 },
-      { country: "France", start: 160, end: 200 },
-      { country: "Portugal", start: 200, end: 240 },
-      { country: "Belgium", start: 240, end: 280 },
-      { country: "Turkey", start: 280, end: 320 },
+      { country: "Germany", start: 120, end: 156 },
+      { country: "France", start: 156, end: 192 },
+      { country: "Portugal", start: 192, end: 228 },
+      { country: "Belgium", start: 228, end: 260 },
+      { country: "Turkey", start: 260, end: 298 },
+      { country: "Netherlands", start: 298, end: 336 },
+      { country: "Scotland", start: 336, end: 358 },
+      { country: "Greece", start: 358, end: 388 },
+      { country: "Serbia", start: 388, end: 420 },
     ]);
   });
 
@@ -96,7 +108,7 @@ describe("countryClubRanges", () => {
     // layout by hand — a regression guard, same spirit as clubs.test.ts's
     // CLUBS/tid regression test.
     const ranges = countryClubRanges(worldCompetitions());
-    expect(ranges.reduce((sum, r) => sum + (r.end - r.start), 0)).toBe(320);
+    expect(ranges.reduce((sum, r) => sum + (r.end - r.start), 0)).toBe(420);
   });
 });
 

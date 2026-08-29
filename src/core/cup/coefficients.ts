@@ -224,13 +224,26 @@ export function reallocateCupSlots(
   return out;
 }
 
-/** The per-competition slot overrides for a season, or null to use the defaults. */
+/**
+ * The per-competition slot overrides for a season, or null to use the defaults.
+ *
+ * `enabled` is `LeagueStore.rollingCoefficients` — the save-scoped setting for
+ * whether places are re-earned at all. It is a REQUIRED parameter rather than a
+ * defaulted one on purpose: this is the single choke point every consumer of
+ * the allocation goes through (the offseason, the Standings projection and the
+ * News Feed), and a default would let a new caller silently opt a save that
+ * turned the feature off back into it. Off, returning null puts every one of
+ * them back on `Competition.continentalSlots` / the shipped strength classes,
+ * which is the same fallback a save too young to have a coefficient takes.
+ */
 export function coefficientSlots(
   competitions: Competition[],
   teams: readonly { tid: number; compId: number }[],
   histories: readonly CupState[][],
   season: number,
+  enabled: boolean,
 ): Map<number, Partial<Record<CupCompetitionId, number>>> | null {
+  if (!enabled) return null;
   const coefficients = countryCoefficients(competitions, teams, histories, season);
   const cupSlots = reallocateCupSlots(competitions, coefficients);
   if (!cupSlots) return null;

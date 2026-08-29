@@ -354,7 +354,7 @@ export function Manual() {
             <li><strong>A club in one season</strong>. Click any club anywhere in the game &mdash; a table, a transfer, the club beside a season on a player's profile &mdash; and you land on what that club did that year: the squad, where it finished and its record, how far it got in the domestic cup, the Continental Cup and the Continental Shield, and where the Power Rankings had it at the end. A dropdown walks you through the club's other seasons. Two things to know about an old squad. It's who <em>finished</em> the season there, so a player sold in January shows up at his new club and not his old one. And players who retired long ago may be missing altogether, because the game only keeps a permanent career record for the ones worth remembering &mdash; the rest are gone for good. Retirees who are still on record show their appearances and the rating they played at, but not their goals and assists for that year, which aren't kept.</li>
             <li><strong>Frivolities</strong>. All-time lists that don't affect play: GOAT rankings for players and clubs, an awards record book (most Ballon d'Ors, World Team of the Year places, Players of the Season, Golden Boots and Team of the Season places, the highest-scoring individual seasons ever, and awards by club and country), all-time records (most dominant and worst team seasons, highest rating ever reached, longest careers, biggest transfer fees), All-Time Leaders (the top 10 in every stat at a glance, click through for the full board, career totals or best single seasons, world-wide and including retired players), an international record book (most caps, international goals and World Cups won, laid out the same way and filterable by country), player bios (oldest, youngest, where players come from, one-club men, name oddities), and club records (trophy cabinet, longest title droughts, biggest spenders and best traders). More in <a href="#frivolities">Frivolities</a>.</li>
             <li><strong>Season Preview</strong>. A snapshot of how the offseason shook out: the league's top 10 highest-rated players, top 10 highest-rated teams (both by OVR), the top 10 biggest transfers from the summer window ranked by fee, and who <a href="#development">retired</a>. It opens automatically the moment you advance past a season, with a link through to Awards.</li>
-            <li><strong>News Feed</strong>. Transfers and player accomplishments woven into one timeline per season, with club and season filters, and your club's items highlighted. It's filtered by how much the story has to do with you, because the world is sixteen leagues across eight countries and reporting all of them equally buries you in news about clubs you'll never play. Your own club is always in, whatever it did &mdash; every transfer, loan, loan return and free signing, and every accomplishment. Your league is next: every deal (loans included) and every accomplishment in it. From the rest of the world you only get the big stories &mdash; a four-goal haul, a 100th career goal, a 35-goal season, the standout performance of the matchday, the Ballon d'Or, the World Team of the Year, Goalkeeper and Defender of the Year, and transfers over $40M. Accomplishments themselves are hat-tricks, one standout performance a matchday, career goal milestones at 50 and then every 50, season goal milestones at 25 and then every 5, and position changes for established players. <strong>Trophies and end-of-season awards land in the feed too</strong>, at the bottom of the season they belong to. Trophies first: who won the Continental Cup and the Continental Shield, and who won the World Cup and each confederation cup, with the final score. Then the honours: anything one of your players wins, plus your league's Player of the Season, Golden Boot and Team of the Season. All of it comes straight off the same records the Awards and cup pages read, so old saves show every trophy and honour they ever handed out, right back to season 1. Trophies also reach your dashboard's news panel the moment they're won, and an honour won by one of your own players sits there until the new season kicks off.</li>
+            <li><strong>News Feed</strong>. Transfers and player accomplishments woven into one timeline per season, with club and season filters, and your club's items highlighted. It's filtered by how much the story has to do with you, because the world is sixteen leagues across eight countries and reporting all of them equally buries you in news about clubs you'll never play. Your own club is always in, whatever it did &mdash; every transfer, loan, loan return and free signing, and every accomplishment. Your league is next: every deal (loans included) and every accomplishment in it. From the rest of the world you only get the big stories &mdash; a four-goal haul, a 100th career goal, a 35-goal season, the standout performance of the matchday, the Ballon d'Or, the World Team of the Year, Goalkeeper and Defender of the Year, and transfers over $40M. Accomplishments themselves are hat-tricks, one standout performance a matchday, career goal milestones at 50 and then every 50, season goal milestones at 25 and then every 5, and position changes for established players. <strong>Trophies and end-of-season awards land in the feed too</strong>, at the bottom of the season they belong to. Trophies first: who won the Continental Cup and the Continental Shield, and who won the World Cup and each confederation cup, with the final score. Then the honours: anything one of your players wins, plus your league's Player of the Season, Golden Boot and Team of the Season. All of it comes straight off the same records the Awards and cup pages read, so old saves show every trophy and honour they ever handed out, right back to season 1. Last of all comes what it changed: <strong>countries winning and losing Continental Cup places</strong>, saying which way the places went and what the counts went from and to. Those are always reported, wherever they happen, because a place changes hands well under once a season across the whole world and when it does it reshapes the competition everyone plays in. They're worked out from the cups your save already has on record too, so an old dynasty shows every place it ever won or lost. Trophies also reach your dashboard's news panel the moment they're won, and an honour won by one of your own players sits there until the new season kicks off.</li>
             <li><strong>Roster</strong>. Your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay), a stats table for the XI, and a bench table (both with ratings, ages, contracts, and season stats, and goalkeepers also show goals against and xG against). Drag a bench player onto a pitch slot to swap him into the XI, drag one starter onto another to switch their positions, extend contracts, or release players.</li>
             <li><strong>Transfers</strong>. Recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
             <li><strong>Incoming Offers</strong>. AI clubs bidding for <em>your</em> players. Accept, reject, or counter to push the fee upward.</li>
@@ -470,21 +470,44 @@ export function Manual() {
 
         <Section id="world" title="The World">
           <p>
-            A new save drops you into one shared world: eight countries (<strong>England</strong>,{" "}
+            A new save drops you into one shared world: twelve countries (<strong>England</strong>,{" "}
             <strong>Spain</strong>, <strong>Italy</strong>, <strong>Germany</strong>,{" "}
-            <strong>France</strong>, <strong>Portugal</strong>, <strong>Belgium</strong> and{" "}
-            <strong>Turkey</strong>), each with its own two-division
-            pyramid (Division 1 and Division 2, 20 clubs apiece), for 16 leagues and 320 clubs total.
-            You pick any club in any country and division when you start.
+            <strong>France</strong>, the <strong>Netherlands</strong>, <strong>Portugal</strong>,{" "}
+            <strong>Belgium</strong>, <strong>Turkey</strong>, <strong>Greece</strong>,{" "}
+            <strong>Scotland</strong> and <strong>Serbia</strong>), each with its own two-division
+            pyramid, for 24 leagues and 420 clubs total. You pick any club in any country and
+            division when you start.
+          </p>
+          <p>
+            <strong>Leagues are the size they are in real life</strong>, not all the same. England,
+            Spain and Italy field 20 clubs; Germany, France, Portugal, Turkey and the Netherlands
+            18; Belgium and Serbia 16; Greece 14; and Scotland 12. Second divisions vary the same
+            way, down to Scotland's 10. Twenty is the ceiling, because a division of that size
+            already fills every matchday in the season, and a smaller league spreads its games
+            across the same calendar rather than finishing early — so the transfer windows and the
+            run-in still fall where you'd expect. A smaller league also plays fewer games, so its
+            points totals are lower; don't read a 12-club champion's tally against a 20-club one.
+          </p>
+          <p>
+            <strong>Promotion and relegation scale with that.</strong> Most countries swap three
+            clubs each way, but Portugal, Belgium, the Netherlands, Greece and Serbia swap two, and
+            Scotland only one — three up out of a 10-club second division would turn over a third
+            of it every season.
           </p>
           <p>
             The big four (England, Spain, Italy and Germany) are all built to the same strength and
-            budget bands, so none of them is a flagship league above the others. The other four are
+            budget bands, so none of them is a flagship league above the others. The other eight are
             deliberately weaker and poorer: their clubs generate at lower OVR, and they earn and can
             bank less money. They step down in that order —{" "}
-            <strong>France</strong>, then <strong>Portugal</strong>, then <strong>Belgium</strong>,
-            then <strong>Turkey</strong> weakest of all, and their budgets step down in that same
-            order. All four are selling leagues, and Turkey is the poorest as well as the weakest. You
+            <strong>France</strong>, then the <strong>Netherlands</strong>, then{" "}
+            <strong>Portugal</strong>, then <strong>Belgium</strong>, then <strong>Turkey</strong>,
+            then <strong>Greece</strong>, then <strong>Scotland</strong>, then{" "}
+            <strong>Serbia</strong> weakest of all, and their budgets step down in that same order.
+            All eight are selling leagues, and Serbia is the poorest as well as the weakest. Worth
+            knowing that these gaps close as a save gets long: weaker leagues develop players faster
+            than the big four do, so by season 20 or so the bottom few leagues are bunched much
+            closer together than they started. The order is real when you begin, and it softens from
+            there. You
             won't feel it inside their own matches (someone still wins Ligue 1), but it shows up
             wherever leagues meet. Their players are cheaper, so the big four steadily buy up their
             best talent, and they go into every Continental Cup tie at a real disadvantage. Division 2
@@ -503,25 +526,38 @@ export function Manual() {
             his own country.
           </p>
           <p>
-            Promotion and relegation (3 up, 3 down in every country the game ships) runs on its
+            Promotion and relegation (three clubs each way in most countries, fewer in the smaller ones) runs on its
             own within each country at the end of every season, so a rough season in Spain's top
             flight doesn't touch any other country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
-            grouped by country, so you can browse any of the 16 leagues. It defaults to
+            grouped by country, so you can browse any of the 24 leagues. It defaults to
             whichever one your own club is currently in.
           </p>
           <p>
-            <strong>Shaping your own world.</strong> The eight countries above are the default, not
+            <strong>Shaping your own world.</strong> The twelve countries above are the default, not
             the only option. The <strong>World setup</strong> panel on the New League screen lets you
-            switch any of them off and add leagues of your own. An added league is always a
-            two-division pyramid like the rest, and its clubs get generated names and colours, since
-            the game ships no real clubs. The panel is on both ways in, whether you started a plain
-            new league or came through Import Custom League.
+            switch any of them off and add leagues of your own. An added league's clubs get
+            generated names and colours, since the game ships no real clubs. The panel is on both
+            ways in, whether you started a plain new league or came through Import Custom League.
+          </p>
+          <p>
+            <strong>Every setting works on the countries the game ships, too.</strong> Hit{" "}
+            <strong>Customize</strong> beside England, Spain, Turkey or any of the others and you
+            get the same panel a league you added gets: names, strength, money, shape, promotion,
+            continental places, who it produces, and a roster import of its own. So you can make
+            Portugal a big-four league, shrink Belgium to twelve clubs, seal off Germany's second
+            division, or hand Turkey your own thirty-six clubs, without having to switch the
+            country off and rebuild it from scratch. Everything you leave alone keeps exactly the
+            values that country has always had.
+          </p>
+          <p>
+            The one thing you can't change on a shipped country is its <em>name</em>, because its
+            clubs, its flag and its player nationalities all hang off it. If you want a country the
+            game doesn't have, switch one off and add your own — that's what adding is for.
           </p>
           <p>
             <strong>Naming the leagues.</strong> Every league has a name of its own, and you can
-            change it. Hit <strong>Rename</strong> beside any shipped country to call its divisions
-            what you like, and a league you add has the same two boxes. Leave one empty and it goes
-            back to following the country's name.
+            change it. The two name boxes are the first thing in the panel, on shipped countries and
+            added ones alike. Leave one empty and it goes back to following the country's name.
           </p>
           <p>
             This matters for more than flavour: a world-wide roster file names the competition it
@@ -533,8 +569,8 @@ export function Manual() {
             same name the panel warns you, because a file aimed at that name can only fill one.
           </p>
           <p>
-            You also choose its <strong>shape</strong>: one division or two, how many clubs are in
-            each, and how many go up and down between them. Two divisions is the default and works
+            You also choose a league's <strong>shape</strong>: one division or two, how many clubs
+            are in each, and how many go up and down between them. Two divisions is the default and works
             like every shipped country, three up and three down, but that number is yours to set:
             anything from none at all up to six, capped at half the division so promoting six out
             of eight clubs isn't on offer. Pick <strong>None</strong> and the two divisions are
@@ -547,7 +583,7 @@ export function Manual() {
             for it. Three divisions isn't offered.
           </p>
           <p>
-            Each league you add carries more settings. <strong>Strength</strong> runs 0 to
+            Every league carries more settings. <strong>Strength</strong> runs 0 to
             20 and higher is stronger, with <strong>20</strong> level with England, Spain, Italy
             and Germany. Each point below that costs a league about 1 OVR across its squads, so at{" "}
             <strong>15</strong> (where France sits) its champion is about as good as England's
@@ -557,7 +593,10 @@ export function Manual() {
             <strong>Money</strong> is what its clubs earn and can bank, against 1 for the richest
             leagues. And you set how many places it sends to the{" "}
             <a href="#cup">Continental Cup</a> and the <a href="#shield">Continental Shield</a>.
-            Like the shipped countries, a league you add holds its level for the life of the save.
+            Every league holds its level for the life of the save, shipped or added. Note the
+            places move with the strength you set: drag a big-four league below 20 and it starts
+            sending a weak league's two clubs to the Cup rather than four, which changes the size
+            of the field. The panel warns you if the total stops adding up.
           </p>
           <p>
             Money is tied to strength by default and you should think twice before unlinking it. A
@@ -566,7 +605,7 @@ export function Manual() {
             panel warns you when your settings would do that.
           </p>
           <p>
-            <strong>Bringing your own clubs to an added league.</strong> Each added league has an
+            <strong>Bringing your own clubs to one league.</strong> Every league has an
             <strong> Import roster</strong> button of its own. It takes the same roster files the
             world-wide import takes, but it applies them to that one league, and it ignores what
             the file calls its competitions: the file's first competition fills the league's top
@@ -658,18 +697,17 @@ export function Manual() {
 
         <Section id="cup" title="The Continental Cup">
           <p>
-            The Continental Cup is a 24-club competition played alongside the league season.
+            The Continental Cup is a 32-club competition played alongside the league season.
             Qualification is purely about <strong>league position</strong>, not squad quality. The
             top four clubs in each of the four strongest top-flight leagues (England, Spain, Italy and
-            Germany) get in, plus the top two from each of the four weaker leagues,{" "}
-            <strong>France</strong>, <strong>Portugal</strong>, <strong>Belgium</strong> and{" "}
-            <strong>Turkey</strong>. That's 4×4 + 4×2 = 24 clubs. On
+            Germany) get in, plus the top two from each of the eight weaker leagues. That's
+            4×4 + 8×2 = 32 clubs. On
             the <a href="#pages">Standings</a> page the qualifying places are shaded as the
             qualification zone (top four in a strong league, top two in a weak one).
           </p>
           <p>
             <strong>How many places your country gets is earned, not fixed.</strong> Every season
-            the Cup&apos;s 24 places are handed out in order of a{" "}
+            the Cup&apos;s 32 places are handed out in order of a{" "}
             <strong>country coefficient</strong>: a rolling record, over the last five seasons, of
             how that country&apos;s clubs have actually done in Europe. Winning matches counts,
             going deep counts for more, and it&apos;s divided by how many clubs the country sent, so
@@ -680,11 +718,19 @@ export function Manual() {
           </p>
           <p>
             The places are only ever <strong>moved between countries, never created</strong>. The
-            competition always fields exactly 24 clubs, so for one country to gain a place another
+            competition always fields exactly 32 clubs, so for one country to gain a place another
             has to lose one. Nobody can be reduced below a single place, because a country with no
             clubs in Europe would have no way to earn its way back. Five seasons is a long window on
             purpose: a place should take years of results to move, not one bad year. You can see
             where every country stands on the <a href="#cup">Continental Cup</a> page.
+          </p>
+          <p>
+            If you'd rather the places never moved, there's a checkbox for it on the New League
+            screen: turn <strong>&quot;Cup places can move between countries&quot;</strong> off and
+            every country keeps the number it started with forever, however its clubs do in Europe.
+            It's fixed for the life of the save, same as difficulty, and with it off the coefficient
+            table doesn't appear on the Cup page at all. Saves made before the setting existed have
+            it on.
           </p>
           <p>
             League position is the usual way in, but not the only one.{" "}
@@ -693,11 +739,11 @@ export function Manual() {
             <a href="#shield">Continental Shield</a> and you're promoted into the Cup. If you'd have
             qualified through your league anyway, nothing changes and your league keeps all its
             places. If you wouldn't have, you take the lowest of your league's Cup places, and the
-            club who held it drops into the Shield rather than out of Europe. The field is always 24
+            club who held it drops into the Shield rather than out of Europe. The field is always 32
             clubs, so a place is never created, only moved.
           </p>
           <p>
-            It opens with a <strong>league phase</strong>: all 24 clubs sit in one combined table and
+            It opens with a <strong>league phase</strong>: all 32 clubs sit in one combined table and
             each plays <strong>six games</strong> against six different opponents. The draw isn't
             random. The field is split into a stronger half and a weaker half, and everyone plays
             three from each half, so no club draws six giants or six minnows. You never play a club
@@ -708,8 +754,17 @@ export function Manual() {
             When the six rounds are done, the table splits three ways. The <strong>top four</strong>{" "}
             go straight to the quarter-finals. Clubs ranked <strong>5th to 12th</strong> drop into a
             single-leg <strong>playoff round</strong> (matchday 27) and the four winners take the last
-            four quarter-final places. Clubs finishing <strong>13th to 24th</strong> are knocked out.
+            four quarter-final places. Clubs finishing <strong>13th to 32nd</strong> are knocked out.
             From there it's a straight knockout: quarter-finals, semi-finals and final.
+          </p>
+          <p>
+            Those cut lines move if the competition is smaller, because what goes through is{" "}
+            <strong>half the field</strong>, up to a maximum of twelve. Both competitions here are
+            big enough to hit that maximum, so both send twelve through and nothing about them has
+            changed. Shrink one below 24 clubs and it starts sending fewer: a 20-club competition
+            puts ten through, and a 16-club one puts eight through with no playoff round at all,
+            since eight is already a full quarter-final bracket. You'll only see this if you build
+            your own world. The key under the league-phase table always names the actual numbers.
           </p>
           <p>
             The <strong>quarter-finals and semi-finals are two-legged</strong>: each side hosts once,
@@ -771,8 +826,8 @@ export function Manual() {
           <p>
             The Continental Shield is the second competition, for the clubs that just miss out on the
             Continental Cup. It takes the places directly below the Cup's: <strong>5th and 6th</strong>{" "}
-            in each of the four strongest leagues, and <strong>3rd and 4th</strong> in each of the four
-            weaker ones. That's 8 × 2 = <strong>16 clubs</strong>, and because it starts exactly where
+            in each of the four strongest leagues, and <strong>3rd and 4th</strong> in each of the eight
+            weaker ones. That's 12 × 2 = <strong>24 clubs</strong>, and because it starts exactly where
             the Cup stops, no club is ever in both. On the <a href="#pages">Standings</a> page the
             Shield places get their own shaded band directly under the Cup's.
           </p>
@@ -781,7 +836,7 @@ export function Manual() {
             <strong>your country's domestic cup winner gets a Shield place</strong>. Win your{" "}
             <a href="#domestic-cup">domestic cup</a> and you're in Europe next season however badly
             your league campaign went. He takes the lowest of his league's Shield places, so the
-            field is still 16 and it's your league's 6th-placed club who makes way, not your 5th.
+            field is still 24 and it's your league's 6th-placed club who makes way, not your 5th.
             Most years this changes nothing, because the club who wins the cup has usually finished
             high enough to qualify anyway — and when that happens the place just passes back down
             the table.
@@ -800,7 +855,7 @@ export function Manual() {
             of these routes — hover the bar and it tells you which.
           </p>
           <p>
-            It runs exactly like the Cup: a 16-club league phase of six games, then the top four go
+            It runs exactly like the Cup: a 24-club league phase of six games, then the top four go
             straight to the quarter-finals, 5th to 12th fight through a single-leg playoff, and the
             rest go out. Quarter-finals and semi-finals are two-legged, the final is one match.
             It uses the <strong>same matchdays</strong> as the Cup, which is fine because no club
@@ -948,7 +1003,7 @@ export function Manual() {
             a single group and sends its top two straight to the final. A confederation that can't
             field even four nations doesn't hold one at all, which is why you'll usually see the
             Euro, Copa América and AFCON and not the others: nearly every player in the world is
-            born into one of the eight countries whose leagues you play in, so the rest of the world
+            born into one of the twelve countries whose leagues you play in, so the rest of the world
             is thin. Fill it out — with an imported roster, say — and those cups start
             being played on their own.
           </p>
@@ -1758,7 +1813,7 @@ export function Manual() {
           </p>
           <p>At season's end, the settlement adds and subtracts the rest:</p>
           <ul>
-            <li><strong>Prize money</strong>. $40M for winning the league, $20M for finishing 2nd&ndash;5th, $10M for 6th&ndash;10th, nothing below that.</li>
+            <li><strong>Prize money</strong>. $40M for winning the league, $20M for the rest of the top quarter, $10M for the rest of the top half, nothing below that. In a 20-club league that's 2nd&ndash;5th and 6th&ndash;10th; a smaller division pays the same share of its table, so half of it is paid whatever its size.</li>
             <li><strong>Hype revenue</strong>. Every club has a hype score (0&ndash;100) that drifts toward its recent results rather than snapping to them. Hype earns extra revenue (up to ~$30M at max hype), deliberately kept modest so fame stays a bonus and not an engine. Success payouts matter more.</li>
             <li><strong>Scouting spend</strong>. Whatever you set the slider to comes out here.</li>
           </ul>

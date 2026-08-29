@@ -144,6 +144,11 @@ export function NewLeague() {
   // offers the same step from the ordinary flow, which is where someone who has
   // just invented a league actually is.
   const [nameClubs, setNameClubs] = useState(false);
+  // Whether Continental Cup places are re-earned each season on a rolling
+  // country coefficient, or stay as the world was built. Fixed for the save's
+  // lifetime like the difficulty above, because turning it off mid-dynasty
+  // would freeze an allocation the league had already earned its way into.
+  const [rollingCoefficients, setRollingCoefficients] = useState(true);
   const [pending, setPending] = useState<LeagueStore | null>(null);
   const [saving, setSaving] = useState(false);
   // Every path on this page that writes a save goes through one gate. Building a
@@ -285,7 +290,9 @@ export function NewLeague() {
     // the same country could fail and then succeed.
     const seed = (seedRef.current ??= Date.now());
     const rng = mulberry32(seed);
-    const generated = createLeagueState(tid, rng, seed, difficulty, world.competitions, userNation);
+    const generated = createLeagueState(
+      tid, rng, seed, difficulty, world.competitions, rollingCoefficients, userNation,
+    );
     const league = activeRoster
       ? applyRosterFileToNewLeague(generated, activeRoster.file, tid).league
       : generated;
@@ -331,7 +338,7 @@ export function NewLeague() {
           setPending(league);
           return;
         }
-        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!activeRoster, difficulty });
+        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!activeRoster, difficulty, rollingCoefficients });
         await setLeague(league);
         navigate("/dashboard");
       } finally {
@@ -345,7 +352,7 @@ export function NewLeague() {
     await gate.run(async () => {
       setSaving(true);
       try {
-        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!activeRoster, difficulty });
+        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!activeRoster, difficulty, rollingCoefficients });
         await setLeague(applyTeamIdentities(pending, teams));
         navigate("/dashboard");
       } finally {
@@ -784,6 +791,28 @@ export function NewLeague() {
             with none and wait for an offer.
           </div>
         )}
+      </div>
+
+      <div className="mb-3">
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Continental Cup places</h6>
+        <div className="form-check">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            id="rolling-coefficients"
+            checked={rollingCoefficients}
+            onChange={(e) => setRollingCoefficients(e.target.checked)}
+          />
+          <label className="form-check-label" htmlFor="rolling-coefficients">
+            Cup places can move between countries
+          </label>
+        </div>
+        <p className="text-muted small mt-2 mb-0">
+          {rollingCoefficients
+            ? "How many clubs each country sends to the Continental Cup depends on how its clubs have done in Europe over the last few seasons. Do well and your league sends more; go out early for years and it sends fewer. The Shield gives every league the same two either way."
+            : "Every country keeps the same number of Cup places forever, however its clubs do in Europe."}{" "}
+          This is fixed once the save is created.
+        </p>
       </div>
 
       <div className="mb-3">

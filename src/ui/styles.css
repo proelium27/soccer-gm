@@ -322,6 +322,37 @@ a:hover {
   margin-top: 0.35rem;
 }
 
+/* Detached scrolling. Above the drawer breakpoint the nav column pins itself
+   under the top bar and scrolls its own overflow, so the page's scroll no
+   longer drags the nav out of view: the nav is ~1290px of links against a
+   780px viewport, and reaching the last section used to mean scrolling the
+   content away first. Below 768px the sidebar is already a fixed drawer with
+   its own scroll, so this only covers the case that was still coupled. */
+@media (min-width: 768px) {
+  .sidebar {
+    position: sticky;
+    /* The bar's measured height, published by TopBar; the stylesheet's 52px
+       fallback is the phone value the drawer already assumed. A wrong number
+       here shows as a strip of page background between bar and column. */
+    top: var(--sg-topbar-h);
+    /* Overrides the 100vh min-height above. A sticky item stretched to the
+       full height of the flex row has nowhere to travel, so the column is
+       exactly one viewport tall and scrolls whatever it can't show. */
+    min-height: 0;
+    height: calc(100vh - var(--sg-topbar-h));
+    align-self: flex-start;
+    overflow-y: auto;
+    /* Don't hand the wheel back to the page once the nav hits its end — that
+       chaining is the coupling this removes. */
+    overscroll-behavior: contain;
+  }
+  /* Without this the row is a full viewport tall *below* the bar, which leaves
+     the page scrollable by the bar's height with nothing in that strip. */
+  .app-layout {
+    min-height: calc(100vh - var(--sg-topbar-h));
+  }
+}
+
 /* =========================================================================
    Layout
    ========================================================================= */
