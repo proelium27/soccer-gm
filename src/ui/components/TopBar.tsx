@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { isIntlStagePending } from "../../core/international/index.js";
+import { qualifyingLeg } from "../../core/constants.js";
+import {
+  intlStageButton,
+  intlStageSkipLabel,
+  intlStageThroughLabel,
+  type PlayableStage,
+} from "../intlStageLabels.js";
 import { useSportName } from "../sportName.js";
 import { seasonYear } from "../format.js";
 import { buildImportPromptText } from "../../core/teams/rosterAiPrompt.js";
@@ -14,7 +22,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ onToggleNav }: TopBarProps) {
-  const { league, simAction, simLiveAction, simming, exportJSON, importJSON, switchLeagueAction, setGodModeAction } = useLeague();
+  const { league, simAction, simLiveAction, intlStageAction, simming, exportJSON, importJSON, switchLeagueAction, setGodModeAction } = useLeague();
   const { brand } = useSportName();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -73,7 +81,10 @@ export function TopBar({ onToggleNav }: TopBarProps) {
   }
 
   const isOffseason = league?.phase === "offseason";
-  const simDisabled = simming || isOffseason || !league;
+  // The menu is phase-aware (see the Dropdown below), so the offseason no
+  // longer disables it — only a sim already in flight does, and having no
+  // league at all.
+  const simDisabled = simming || !league;
 
   // Derive the matchday bounds from the remaining schedule: the one the club is
   // standing on, and the last one of the season (the "sim to matchday" range).
@@ -134,38 +145,110 @@ export function TopBar({ onToggleNav }: TopBarProps) {
 
       <div className="d-flex align-items-center gap-2">
         <Dropdown label={simming ? "Simming..." : "Sim"} alignEnd disabled={simDisabled}>
-          <li>
-            <button className="dropdown-item" onClick={() => simAction("game")} disabled={simDisabled}>
-              Sim One Game
-            </button>
-          </li>
-          {/*
-            Same matchday as "Sim One Game", watched rather than skipped. Sits
-            here as well as on the Dashboard because this dropdown is the sim
-            control that's reachable from every page.
-          */}
-          <li>
-            <button className="dropdown-item" onClick={() => simLiveAction()} disabled={simDisabled}>
-              Watch Next Game
-            </button>
-          </li>
-          <li>
-            <button className="dropdown-item" onClick={() => simAction("season")} disabled={simDisabled}>
-              Sim to End of Season
-            </button>
-          </li>
-          {currentMatchday !== null && lastMatchday !== null && (
+          {isOffseason && league ? (
             <>
-              <li><hr className="dropdown-divider" /></li>
+              {/*
+                The offseason half of the same menu. It carries the actions only —
+                the Dashboard's card carries the prose that explains them, and a
+                dropdown is the wrong place to repeat it. Same three branches, and
+                the same handlers, so a click here does exactly what the card does.
+              */}
+              {league.manager.sacked ? (
+                <li>
+                  <button className="dropdown-item" onClick={() => navigate("/manager")}>
+                    See who'll have you
+                  </button>
+                </li>
+              ) : isIntlStagePending(league.international) ? (
+                <>
+                  <li>
+                    <button
+                      className="dropdown-item"
+                      onClick={() => intlStageAction("stage")}
+                      disabled={simDisabled}
+                    >
+                      {intlStageButton(
+                        league.international.stage as PlayableStage,
+                        qualifyingLeg(league.season) + 1,
+                        league.international.confederationCups,
+                        league.international.tournament,
+                      )}
+                    </button>
+                  </li>
+                  {league.international.stage !== "qualifying" && (
+                    <li>
+                      <button
+                        className="dropdown-item"
+                        onClick={() => intlStageAction("through")}
+                        disabled={simDisabled}
+                      >
+                        {intlStageThroughLabel(league.international.stage as PlayableStage)}
+                      </button>
+                    </li>
+                  )}
+                  {/*
+                    Skipping plays the games out anyway — the advance itself runs
+                    every stage left unplayed, on the same seeded streams — so this
+                    only decides whether you watch, never what happens.
+                  */}
+                  <li>
+                    <button
+                      className="dropdown-item"
+                      onClick={() => navigate("/set-scouting")}
+                      disabled={simDisabled}
+                    >
+                      {intlStageSkipLabel(league.international.stage as PlayableStage)}
+                    </button>
+                  </li>
+                </>
+              ) : (
+                <li>
+                  <button
+                    className="dropdown-item"
+                    onClick={() => navigate("/set-scouting")}
+                    disabled={simDisabled}
+                  >
+                    Advance to {seasonYear(league.season + 1)}
+                  </button>
+                </li>
+              )}
+            </>
+          ) : (
+            <>
               <li>
-                <SimTargetForm
-                  compact
-                  current={currentMatchday}
-                  last={lastMatchday}
-                  disabled={simDisabled}
-                  onSim={(matchday) => simAction({ matchday })}
-                />
+                <button className="dropdown-item" onClick={() => simAction("game")} disabled={simDisabled}>
+                  Sim One Game
+                </button>
               </li>
+              {/*
+                Same matchday as "Sim One Game", watched rather than skipped. Sits
+                here as well as on the Dashboard because this dropdown is the sim
+                control that's reachable from every page.
+              */}
+              <li>
+                <button className="dropdown-item" onClick={() => simLiveAction()} disabled={simDisabled}>
+                  Watch Next Game
+                </button>
+              </li>
+              <li>
+                <button className="dropdown-item" onClick={() => simAction("season")} disabled={simDisabled}>
+                  Sim to End of Season
+                </button>
+              </li>
+              {currentMatchday !== null && lastMatchday !== null && (
+                <>
+                  <li><hr className="dropdown-divider" /></li>
+                  <li>
+                    <SimTargetForm
+                      compact
+                      current={currentMatchday}
+                      last={lastMatchday}
+                      disabled={simDisabled}
+                      onSim={(matchday) => simAction({ matchday })}
+                    />
+                  </li>
+                </>
+              )}
             </>
           )}
         </Dropdown>

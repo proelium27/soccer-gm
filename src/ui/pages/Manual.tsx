@@ -401,7 +401,10 @@ export function Manual() {
             that is, and what month it lands in, so you can stop anywhere: the game before a big
             cup tie, the last matchday of a month, or matchday 21 to land on{" "}
             <strong>deadline day</strong> with the winter transfer window still open. Matches
-            involving your club use your saved starting XI.
+            involving your club use your saved starting XI. Once the season's over, both the card
+            and the menu keep their place and swap their buttons for the offseason ones, so
+            whatever comes next &mdash; a round of World Cup qualifying, a tournament stage, or
+            advancing into the new season &mdash; is right where the sim controls always were.
           </p>
           <p>
             <strong>Watching a match.</strong> Next to Sim One Game there's <strong>Watch Next
