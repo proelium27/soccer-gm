@@ -243,12 +243,24 @@ export function NewLeague() {
 
   // Keep the chosen country on screen. The list is 108 rows in a 260px box, so
   // typing a filter and then clearing it leaves the selection scrolled far out
-  // of view and the list looks like nothing is picked. `block: "nearest"` is
-  // what makes this safe to run on every change: it does nothing at all when
-  // the row is already visible, so it can't fight the user mid-scroll.
+  // of view and the list looks like nothing is picked.
+  //
+  // Scrolls the list box itself rather than calling `scrollIntoView`, which
+  // scrolls EVERY scrollable ancestor including the window. This picker sits
+  // below the fold, so on mount the row genuinely is not visible in the page
+  // and "nearest" dutifully scrolled the whole screen down to it — the page
+  // opened at its own bottom. Moving `scrollTop` by hand cannot reach past the
+  // one element it is given, and it still leaves an already-visible row alone,
+  // so it can't fight a scroll the user is in the middle of either.
   const nationListRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    nationListRef.current?.querySelector(".active")?.scrollIntoView({ block: "nearest" });
+    const list = nationListRef.current;
+    const row = list?.querySelector<HTMLElement>(".active");
+    if (!list || !row) return;
+    const listBox = list.getBoundingClientRect();
+    const rowBox = row.getBoundingClientRect();
+    if (rowBox.top < listBox.top) list.scrollTop -= listBox.top - rowBox.top;
+    else if (rowBox.bottom > listBox.bottom) list.scrollTop += rowBox.bottom - listBox.bottom;
   }, [shownNations, userNation]);
 
   /** The country's code, for the flag stand-in on its tab. */
