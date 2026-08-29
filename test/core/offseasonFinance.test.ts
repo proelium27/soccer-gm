@@ -18,8 +18,9 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { computeStandings } from "../../src/core/standings.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { playFullSeason } from "../helpers/offseasonLeague.js";
+import { worldCompetitions, competitionTeamCount } from "../../src/core/competitions.js";
 import {
-  HYPE_MAX, HYPE_MIN, NUM_TEAMS_D2, NUM_TEAMS, SCOUTING_SPEND_DEFAULT,
+  HYPE_MAX, HYPE_MIN, SCOUTING_SPEND_DEFAULT,
 } from "../../src/core/constants.js";
 
 describe("simOffseason — finance and renewals", () => {
@@ -29,7 +30,13 @@ describe("simOffseason — finance and renewals", () => {
     const budgetsBefore = new Map(league.teams.map((t) => [t.tid, t.budget]));
     const next = simOffseason(league, rng);
 
-    expect(next.teams).toHaveLength(8 * (NUM_TEAMS + NUM_TEAMS_D2));
+    // Divisions have their real sizes now, so this is the sum of the table
+    // rather than 12 x (NUM_TEAMS + NUM_TEAMS_D2). Derived so it does not need
+    // touching again the next time a country or a size changes; the point of the
+    // assertion is that the offseason neither loses nor gains a club.
+    expect(next.teams).toHaveLength(
+      worldCompetitions().reduce((n, c) => n + competitionTeamCount(c), 0),
+    );
     for (const team of next.teams) {
       // Budget moved (performance money in at season end, base in and wages
       // out at the new season's start).

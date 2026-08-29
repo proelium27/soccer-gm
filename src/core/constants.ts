@@ -127,10 +127,13 @@ export const ACADEMY_BASE_CONVERGENCE_SEASONS = 3;
  * Per-country strength handicap, subtracted from every team's generation-time
  * strength target (on top of any tier offset) so some countries field weaker
  * leagues than others. The big-four leagues (England/Spain/Italy/Germany) are
- * equal siblings at 0; France, Portugal, Belgium and Turkey are deliberately
- * weaker, with Turkey weakest — anchored on the real UEFA five-year country
- * coefficient ordering (England ≫ the pack ≫ France > Portugal > Belgium >
- * Turkey; measured Aug 2026 at 101.9 / 67.7 / 63.7 / 57.9 / 47.6). The real
+ * equal siblings at 0; France, the Netherlands, Portugal, Belgium, Turkey,
+ * Greece, Scotland and Serbia are deliberately weaker, with Serbia weakest —
+ * anchored on the real UEFA five-year country coefficient ordering (England ≫
+ * the pack ≫ France > Netherlands > Portugal > Belgium > Turkey ≫ Greece >
+ * Scotland > Serbia; measured Aug 2026 at 101.9 / 67.7 / 64.9 / 63.7 / 57.9 /
+ * 47.6, with Greece, Scotland and Serbia several rungs further back around
+ * 37.6 / 35.5 / 28.1). The real
  * gaps below France are only a few coefficient points each, so the ladder is
  * deliberately *compressed* rather than mapped literally — a literal mapping
  * puts Belgium near 17 and Turkey near 30, which generates unplayable squads.
@@ -148,9 +151,23 @@ export const ACADEMY_BASE_CONVERGENCE_SEASONS = 3;
  */
 export const COUNTRY_STRENGTH_OFFSET: Record<string, number> = {
   France: 5,
+  Netherlands: 8,
   Portugal: 10,
   Belgium: 11,
   Turkey: 12,
+  // The bottom four rungs sit one point apart and are NOT separately resolvable
+  // across a dynasty — they converge to within a few tenths by season 20 and
+  // their mutual order coin-flips on seed noise. Widening the step does not fix
+  // that down here: Scotland shipped at a deliberate TWO-point step below Turkey
+  // and still ends level with it (+0.02/+0.37/−1.26/+1.94 over four seeds),
+  // because erosion grows with depth. The same two-point step higher up
+  // (Netherlands→Portugal) survives on every seed. So these are ordered at
+  // generation and converged by season 20, and weakLeaguesAudit.ts gates them
+  // that way rather than per-rung. Don't chase the bottom with bigger offsets —
+  // it costs squad playability and buys nothing.
+  Greece: 13,
+  Scotland: 14,
+  Serbia: 15,
 };
 export function countryStrengthOffset(country: string): number {
   return COUNTRY_STRENGTH_OFFSET[country] ?? 0;
@@ -187,9 +204,21 @@ export function countryStrengthOffset(country: string): number {
  */
 export const COUNTRY_BUDGET_SCALE: Record<string, number> = {
   France: 0.7,
+  Netherlands: 0.6,
   Portugal: 0.5,
   Belgium: 0.45,
   Turkey: 0.4,
+  // The bottom three were raised (Greece .38, Scotland .35→.37, Serbia .32→.35)
+  // on 2026-08-28 after the 12-country audit put 2 of 4 seeds into deficit where
+  // the 10-country one had none (seed 3 Scotland −£5.2M at s20, seed 2 Serbia
+  // −£0.2M). The mechanism is the documented one: weak leagues run on transfer
+  // receipts, and going from 6 selling leagues to 8 splits the same big-four
+  // demand more ways, so each poor league's receipts thin out. Base income has
+  // to make up the difference. Still strictly monotonic with the offsets, which
+  // is the invariant that actually matters.
+  Greece: 0.39,
+  Scotland: 0.37,
+  Serbia: 0.35,
 };
 export function countryBudgetScale(country: string): number {
   return COUNTRY_BUDGET_SCALE[country] ?? 1;
@@ -2714,8 +2743,9 @@ export const CUP_NAME = "Continental Cup";
 /**
  * Cup slots per tier-1 league, by league strength. A "strong" league (a big-
  * four league — countryStrengthOffset 0) sends its top CUP_STRONG_LEAGUE_SLOTS;
- * a "weak" league (France/Portugal/Belgium/Turkey — offset > 0) sends its top
- * CUP_WEAK_LEAGUE_SLOTS. With 4 strong × 4 + 4 weak × 2 = 24 qualifiers, the
+ * a "weak" league (everything with a countryStrengthOffset — France, the
+ * Netherlands, Portugal, Belgium, Turkey, Greece, Scotland, Serbia) sends its
+ * top CUP_WEAK_LEAGUE_SLOTS. With 4 strong × 4 + 8 weak × 2 = 32 qualifiers, the
  * cup opens with a Swiss-style league phase (see CUP_LEAGUE_PHASE_* below)
  * rather than a straight bracket. CUP_TEAMS_PER_LEAGUE is kept as the strong
  * default for any code/tests that predate the weak-league split.
@@ -2733,23 +2763,27 @@ export const CUP_TEAMS_PER_LEAGUE = CUP_STRONG_LEAGUE_SLOTS;
  * the bracket slots left over, and the rest are eliminated. */
 /**
  * Field size, derived from the world: 4 strong leagues × CUP_STRONG_LEAGUE_SLOTS
- * + 4 weak × CUP_WEAK_LEAGUE_SLOTS = 24. Nothing in src/ reads this (the draw
+ * + 8 weak × CUP_WEAK_LEAGUE_SLOTS = 32. Nothing in src/ reads this (the draw
  * and the split both work off the actual field length, so both are field-size
  * agnostic) — it documents the expected size and anchors the cup tests. Raised
- * 20 → 24 when Belgium and Turkey joined the world. Must stay even, and must
- * split into CUP_LEAGUE_PHASE_POTS pots of even size that each exceed
- * CUP_LEAGUE_PHASE_GAMES / CUP_LEAGUE_PHASE_POTS — 24 → two pots of 12 ✓.
- * (A 22-team field is NOT valid: pots of 11 are odd and the perfect-matching
- * draw can't pair them, which is why weak leagues all send 2 rather than some
- * sending 1.)
+ * 20 → 24 when Belgium and Turkey joined, 24 → 28 for the Netherlands and
+ * Scotland, 28 → 32 for Greece and Serbia.
+ *
+ * **A valid field is a multiple of 4**, because it must be even AND split into
+ * CUP_LEAGUE_PHASE_POTS pots that are themselves even (the draw builds each
+ * round as a perfect matching within a pot). 32 → two pots of 16 ✓. A 22- or
+ * 30-team field is NOT valid: pots of 11/15 are odd and cannot be paired.
+ * Since this size is 2 × countries + 8, **the world's country count must stay
+ * even** or the field is trimmed and clubs that qualified on league position
+ * get cut. See the note in competitions.ts.
  */
-export const CUP_LEAGUE_PHASE_SIZE = 24;
+export const CUP_LEAGUE_PHASE_SIZE = 32;
 export const CUP_LEAGUE_PHASE_GAMES = 6;
 /**
  * Number of strength pots the league-phase field is split into for the draw.
  * Each club plays CUP_LEAGUE_PHASE_GAMES / CUP_LEAGUE_PHASE_POTS opponents from
  * each pot, guaranteeing a balanced spread of tough and winnable games. Must
- * divide the field evenly (24 / 2 = 12 per pot) and divide the game count
+ * divide the field evenly (32 / 2 = 16 per pot) and divide the game count
  * evenly (6 / 2 = 3 per pot). Note a 22-club field would be invalid: pots of 11
  * are odd, and the draw builds each round as a perfect matching within pots.
  */
@@ -2772,11 +2806,29 @@ export const CUP_LEAGUE_PHASE_MATCHDAYS = [3, 7, 11, 15, 19, 23] as const;
 export const CUP_LP_ADVANCE_FRACTION = 0.5;
 
 /**
+ * And no more than this many brackets' worth, whatever the field. 1.5 is the
+ * shape the Cup has always played and the shape the real competition plays: a
+ * bracket of direct qualifiers plus a playoff for the other half of it (4 + 8 =
+ * 12 = 1.5 x 8 here; UEFA's 36-club field sends 24 = 1.5 x 16).
+ *
+ * The cap is what keeps BOTH shipped competitions untouched, which matters more
+ * than it looks: the Cup's field is 32 and the Shield's is 24, so no single
+ * fraction leaves both alone (half of 32 is 16, half of 24 is 12). Capped, both
+ * land on 4 / 8 / 8 exactly as before, so no scoreline moves and no prize money
+ * moves either -- the failure mode a format change reaches first.
+ *
+ * It is also the better format at the top end. Uncapped, a 32-club field
+ * advances 16, a full two brackets, which means ZERO direct qualifiers and a
+ * league phase whose winner earns nothing but a seeding.
+ */
+export const CUP_LP_MAX_ADVANCE_BRACKETS = 1.5;
+
+/**
  * Bracket-size bounds for the knockout the league phase feeds. The ceiling is
- * NOT a taste call — it is the depth of CUP_KO_LEG_MATCHDAYS, which allots two
+ * NOT a taste call -- it is the depth of CUP_KO_LEG_MATCHDAYS, which allots two
  * matchdays each to the quarter-final and semi-final plus one to the final. A
  * 16-slot bracket would need a whole round of legs the league calendar has no
- * room for, so a field big enough to want one gets a stingier cut instead.
+ * room for.
  */
 export const CUP_KO_MAX_SIZE = 8;
 export const CUP_KO_MIN_SIZE = 4;
@@ -2792,26 +2844,31 @@ export interface CupKnockoutPlan {
 }
 
 /**
- * How a league phase of `size` clubs splits three ways. CUP_LP_ADVANCE_FRACTION
- * of the field goes through; the bracket is the biggest power of two that fits
- * inside that (capped at CUP_KO_MAX_SIZE), and whatever the direct places don't
- * fill is played for in the playoff — two clubs per remaining slot.
+ * How a league phase of `size` clubs splits three ways: CUP_LP_ADVANCE_FRACTION
+ * of the field goes through, capped at CUP_LP_MAX_ADVANCE_BRACKETS brackets'
+ * worth. The bracket is the biggest power of two inside that (capped at
+ * CUP_KO_MAX_SIZE), and whatever the direct places don't fill is played for in
+ * the playoff, two clubs per remaining slot -- so
+ * `directQF = 2*koSize - advancing` and `playoffTeams = 2*(advancing - koSize)`.
  *
- * So `directQF = 2·koSize − advancing` and `playoffTeams = 2·(advancing − koSize)`,
- * which means BOTH ends are reachable and both are legal formats: a field of 16
- * advances exactly a bracket's worth and plays no playoff at all (top 8 of 16
- * straight to the quarter-finals), while a field of 32 advances two bracket's
- * worth and every one of them goes through the playoff. Callers must handle a
- * zero on either side — seedKnockoutFromLeaguePhase leaves `playoff` null
- * rather than building an empty round.
+ * This replaced two fixed constants (4 direct, 8 playoff) applied to every field
+ * whatever its size. Right for 24 and 32, and badly wrong below that: they put
+ * TWELVE of a 16-club field through, six league-phase rounds to eliminate four
+ * clubs. Both shipped competitions are unchanged (see the cap), so this is felt
+ * only by a world someone builds themselves.
+ *
+ * Note BOTH ends are reachable and both are legal formats -- a field of 16
+ * advances exactly a bracket's worth and plays no playoff at all. Callers must
+ * handle a zero on either side; seedKnockoutFromLeaguePhase leaves `playoff`
+ * null rather than building an empty round.
  *
  * Worked examples:
- *   12 → SF bracket,  2 direct +  4 playoff =  6 of 12
- *   16 → QF bracket,  8 direct +  0 playoff =  8 of 16   (the Shield)
- *   20 → QF bracket,  6 direct +  4 playoff = 10 of 20
- *   24 → QF bracket,  4 direct +  8 playoff = 12 of 24   (the Cup, as shipped)
- *   28 → QF bracket,  2 direct + 12 playoff = 14 of 28
- *   32 → QF bracket,  0 direct + 16 playoff = 16 of 32
+ *   12 -> SF bracket, 2 direct + 4 playoff =  6 of 12
+ *   16 -> QF bracket, 8 direct + 0 playoff =  8 of 16
+ *   20 -> QF bracket, 6 direct + 4 playoff = 10 of 20
+ *   24 -> QF bracket, 4 direct + 8 playoff = 12 of 24   (the Shield, as shipped)
+ *   32 -> QF bracket, 4 direct + 8 playoff = 12 of 32   (the Cup, as shipped)
+ *   40 -> QF bracket, 4 direct + 8 playoff = 12 of 40
  */
 export function cupKnockoutPlan(size: number): CupKnockoutPlan {
   // Rounded down to an even number: the playoff pairs its entrants off, so an
@@ -2820,13 +2877,13 @@ export function cupKnockoutPlan(size: number): CupKnockoutPlan {
   const half = Math.floor(size * CUP_LP_ADVANCE_FRACTION);
   const wanted = Math.max(CUP_KO_MIN_SIZE, half - (half % 2));
   const koSize = Math.min(CUP_KO_MAX_SIZE, 2 ** Math.floor(Math.log2(wanted)));
-  const advancing = Math.min(wanted, 2 * koSize);
+  const advancing = Math.min(wanted, CUP_LP_MAX_ADVANCE_BRACKETS * koSize);
   return { koSize, directQF: 2 * koSize - advancing, playoffTeams: 2 * (advancing - koSize) };
 }
 
 /**
- * Smallest league-phase field worth running. Not a structural bound — the draw
- * and cupKnockoutPlan both cope with 8 — but a competition that eliminates two
+ * Smallest league-phase field worth running. Not a structural bound -- the draw
+ * and cupKnockoutPlan both cope with 8 -- but a competition that eliminates two
  * clubs over six rounds isn't one, and holding the floor where it has always
  * been keeps which worlds get a cup at all unchanged.
  */
@@ -2973,24 +3030,6 @@ export interface CupPrizes {
   participation: number;
   /** Winning a league-phase playoff tie and reaching the knockout. */
   playoffWin: number;
-  /**
-   * Reaching the knockout straight off the league-phase table, without a
-   * playoff tie to win. Zero for the Continental Cup, whose direct qualifiers
-   * have never been paid for the privilege and whose split cupKnockoutPlan
-   * leaves exactly as it was.
-   *
-   * It exists for the Shield, and the reason is worth keeping: half of its
-   * 16-club field is exactly a bracket, so it advances its top eight directly
-   * and plays no playoff — which deleted the four playoff prizes it used to pay
-   * and, with them, £6M a season out of a world whose weakest clubs run within
-   * a rounding error of zero. Measured, that took Turkey into deficit on 2 of 4
-   * seeds over 20 seasons where the same audit on the pre-change build was
-   * solvent on all four. So the money the playoff used to pay for reaching the
-   * knockout is now paid for reaching the knockout, and the Shield's pot is
-   * arithmetically identical: 8 × SHIELD_PRIZE_KNOCKOUT_ENTRY is the 4 ×
-   * SHIELD_PRIZE_WIN_PLAYOFF it replaces.
-   */
-  knockoutEntry: number;
   /** Legacy format only: winning a preliminary play-in tie. */
   playInWin: number;
   /** Losing the final. */
@@ -3033,13 +3072,24 @@ export interface CupFormat {
 /* ── Continental Shield (the second-tier continental competition) ────────────
  * Same structure and the same matchdays as the Continental Cup, one rung down
  * the league tables: a strong league's 5th and 6th, a weak league's 3rd and
- * 4th — 8 leagues × 2 = 16 clubs. Sharing the calendar is safe *because* the
+ * 4th — 12 leagues × 2 = 24 clubs. Sharing the calendar is safe *because* the
  * fields are disjoint, and it is what the real midweek schedule does anyway.
  *
- * A 16-club field is already legal in the shared draw: two pots of 8, each
- * larger than the 3 games per pot. Its split is its own, though — cupKnockoutPlan
- * sizes the cut off the field, and half of 16 is exactly a bracket, so the top
- * eight go straight to the quarter-finals and the Shield plays no playoff round.
+ * Unlike the Cup, the Shield takes the SAME number from every tier-1 league, so
+ * its field is simply `countries × 2` and grows with every country added — 16
+ * on the 8-country world, 20 on the 10-country one, 24 on the 12-country one.
+ * That doubles the reason the country count must stay even: `2 × countries` is
+ * only a multiple of 4 when it is.
+ *
+ * A 24-club field is legal in the shared draw and split: two pots of 12 (even,
+ * and each larger than the 3 games per pot), and cupKnockoutPlan splits it 4
+ * straight to the quarter-finals, 8 into the playoff and 12 out. So the Shield
+ * needs no change to leaguePhase.ts at all.
+ *
+ * At 16 it would have split 4 / 8 / 4 — TWELVE of sixteen advancing, six rounds
+ * to eliminate four clubs — which is what a field-blind split gets you and why
+ * cupKnockoutPlan sizes the cut off the field. A world shrunk back below 12
+ * countries now gets a cut in proportion instead.
  * ──────────────────────────────────────────────────────────────────────── */
 
 export const SHIELD_NAME = "Continental Shield";
@@ -3048,8 +3098,8 @@ export const SHIELD_NAME = "Continental Shield";
 export const SHIELD_STRONG_LEAGUE_SLOTS = 2;
 export const SHIELD_WEAK_LEAGUE_SLOTS = 2;
 
-/** Field size on the shipped 8-country world: 8 tier-1 leagues × 2 = 16. See CupFormat.fieldSize. */
-export const SHIELD_LEAGUE_PHASE_SIZE = 16;
+/** Field size on the shipped 12-country world: 12 tier-1 leagues × 2 = 24. See CupFormat.fieldSize. */
+export const SHIELD_LEAGUE_PHASE_SIZE = 24;
 
 /* Prize money (£). Sized at roughly 40% of the Continental Cup's, so a Shield
  * run is worth chasing without rivalling the Cup: a champion nets ~£19.5M
@@ -3058,14 +3108,6 @@ export const SHIELD_LEAGUE_PHASE_SIZE = 16;
  * out-earn finishing 4th and going out of the Cup's league phase. */
 export const SHIELD_PRIZE_PARTICIPATION = 1_000_000;
 export const SHIELD_PRIZE_WIN_PLAYOFF = 1_500_000;
-/**
- * Paid to each club reaching the Shield's knockout without a playoff tie to
- * win. Half SHIELD_PRIZE_WIN_PLAYOFF because twice as many clubs collect it:
- * the Shield's eight direct qualifiers are paid the same £6M its four playoff
- * winners used to be. See CupPrizes.knockoutEntry for why holding that total
- * still is not optional.
- */
-export const SHIELD_PRIZE_KNOCKOUT_ENTRY = SHIELD_PRIZE_WIN_PLAYOFF / 2;
 export const SHIELD_PRIZE_WIN_QF = 2_500_000;
 export const SHIELD_PRIZE_WIN_SF = 4_000_000;
 export const SHIELD_PRIZE_WIN_FINAL = 12_000_000;
@@ -3088,9 +3130,6 @@ export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
     prizes: {
       participation: CUP_PRIZE_PARTICIPATION,
       playoffWin: CUP_PRIZE_WIN_PLAYOFF,
-      // A 24-club field still sends four straight through and plays four
-      // playoff ties, so the Cup pays exactly what it always has.
-      knockoutEntry: 0,
       playInWin: CUP_PRIZE_WIN_PLAYIN,
       runnerUp: CUP_PRIZE_RUNNER_UP,
       koByRound: CUP_KO_PRIZE_WIN_BY_ROUND,
@@ -3111,7 +3150,6 @@ export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
     prizes: {
       participation: SHIELD_PRIZE_PARTICIPATION,
       playoffWin: SHIELD_PRIZE_WIN_PLAYOFF,
-      knockoutEntry: SHIELD_PRIZE_KNOCKOUT_ENTRY,
       runnerUp: SHIELD_PRIZE_RUNNER_UP,
       koByRound: SHIELD_KO_PRIZE_WIN_BY_ROUND,
       // The legacy straight-bracket format predates the Shield, so no Shield

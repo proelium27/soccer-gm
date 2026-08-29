@@ -8,7 +8,6 @@ import { mulberry32, hashInts } from "../../engine/rng.js";
 import {
   matchupsForRound, applyPlayIn, applyPlayoff, cupFormat,
   isSwissCup, koPrizeByRound, koFinalRound, seedKnockoutFromLeaguePhase, dueCupLeg,
-  knockoutSeeded,
 } from "./cup.js";
 import {
   CUP_ET_CHANCES_PER_SIDE, CUP_PEN_BEST_OF, CUP_PEN_BASE_CONVERSION,
@@ -416,15 +415,6 @@ export function playLeaguePhaseRound(
   });
 
   const advanced = seedKnockoutFromLeaguePhase({ ...cup, leaguePhase: { ...lp, matches } });
-  // The round that completes the league phase seeds the bracket, and every club
-  // that took a slot straight off the table collects the knockout-entry prize
-  // here — the counterpart to the playoffWin the others earn on matchday 27.
-  // Guarded on the bracket having *just* been seeded, since this runs on all six
-  // league-phase rounds. Zero for the Cup, so nothing changes there.
-  const entry = cupFormat(cup).prizes.knockoutEntry;
-  if (entry > 0 && !knockoutSeeded(cup) && knockoutSeeded(advanced)) {
-    for (const tid of advanced.teams) if (tid >= 0) addPrize(tid, entry);
-  }
   return { cup: advanced, prizes };
 }
 

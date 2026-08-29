@@ -85,6 +85,35 @@ function positionCounts(roster: number[], players: Map<number, Player>): Record<
 }
 
 /**
+ * The order clubs shop the free-agent pool in: worst first, over the WHOLE
+ * world as one queue, so the weakest club anywhere gets first pick.
+ *
+ * Ranked by points per game, not raw points, and the distinction is
+ * load-bearing once divisions differ in size (2026-08-29). A 12-club league
+ * plays 22 games and a 20-club one 38, so at equal quality the small league's
+ * clubs carry ~58% of the points — and raw points put every one of them at the
+ * front of the queue whatever they are worth. The pool drains by quality, so
+ * picking first is the entire prize: measured on `scripts/divisionSizeProbe.ts`
+ * (six countries identical in strength, money and promotion, differing only in
+ * club count), a 12-club league's free-agent arrivals averaged **39 OVR**
+ * against a 20-club league's **26**, at the same count per club, and that gap
+ * alone was ~7 OVR of whole-roster drift over 15 seasons — big leagues signing
+ * junk into their holes while small ones signed players. It is what put
+ * Scotland, generated second-weakest in the world, top of the world's tier-1
+ * mean OVR by season 20.
+ *
+ * Within one division every club has played the same number of games, so ppg
+ * order IS raw-points order and a uniform-size world is byte-identical.
+ * Ties keep their input order, as before.
+ */
+export function freeAgencySigningOrder(
+  standings: readonly { tid: number; played: number; points: number }[],
+): number[] {
+  const ppg = (r: { played: number; points: number }) => (r.played > 0 ? r.points / r.played : 0);
+  return [...standings].sort((a, b) => ppg(a) - ppg(b)).map((s) => s.tid);
+}
+
+/**
  * AI free-agent signing: each team in `signingOrderTids` (skips `userTid`)
  * fills positional shortfalls against ROSTER_COMPOSITION by greedily signing
  * the best available free agent at that position. Contract terms are a

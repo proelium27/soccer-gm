@@ -12,14 +12,13 @@ import {
   playoffDue,
 } from "../../src/core/cup/cup.js";
 import { leaguePhaseComplete } from "../../src/core/cup/leaguePhase.js";
-import { playKnockoutLeg, playLeaguePhaseRound } from "../../src/core/cup/simCup.js";
+import { playKnockoutLeg, playPlayoff, playLeaguePhaseRound } from "../../src/core/cup/simCup.js";
 import {
   CUP_LEAGUE_PHASE_MATCHDAYS, CUP_PLAYOFF_MATCHDAY,
   CUP_LEAGUE_PHASE_GAMES, CUP_KO_SIZE, cupKnockoutPlan,
   CUP_STRONG_LEAGUE_SLOTS, CUP_WEAK_LEAGUE_SLOTS,
   SHIELD_FORMAT, CONTINENTAL_CUP_FORMAT, SHIELD_LEAGUE_PHASE_SIZE,
   SHIELD_PRIZE_PARTICIPATION, SHIELD_PRIZE_WIN_QF, SHIELD_PRIZE_WIN_PLAYOFF,
-  SHIELD_PRIZE_KNOCKOUT_ENTRY,
   SHIELD_PRIZE_WIN_SF, SHIELD_PRIZE_WIN_FINAL, SHIELD_PRIZE_RUNNER_UP,
 } from "../../src/core/constants.js";
 
@@ -73,11 +72,11 @@ function matchDataFor(cup: CupState): Map<number, TeamMatchData> {
 }
 
 describe("Shield qualification", () => {
-  it("fields 16 clubs: two from every tier-1 league, strong or weak", () => {
+  it("fields 24 clubs: two from every tier-1 league, strong or weak", () => {
     const plan = cupPlan(worldCompetitions(), SHIELD_FORMAT)!;
     expect(plan.strong).toHaveLength(4);
-    expect(plan.weak).toHaveLength(4);
-    expect(plan.total).toBe(SHIELD_LEAGUE_PHASE_SIZE); // 8 leagues x 2 = 16
+    expect(plan.weak).toHaveLength(8);
+    expect(plan.total).toBe(SHIELD_LEAGUE_PHASE_SIZE); // 12 leagues x 2 = 24
   });
 
   it("takes the places directly below the Continental Cup's in each league", () => {
@@ -102,8 +101,8 @@ describe("Shield qualification", () => {
     const tables = tablesFor(comps);
     const cup = qualifyCupTeams(comps, tables, CONTINENTAL_CUP_FORMAT).field;
     const shield = qualifyCupTeams(comps, tables, SHIELD_FORMAT).field;
-    expect(cup).toHaveLength(24);
-    expect(shield).toHaveLength(16);
+    expect(cup).toHaveLength(32);
+    expect(shield).toHaveLength(24);
     const overlap = shield.filter((t) => cup.includes(t));
     expect(overlap).toEqual([]);
   });
@@ -159,7 +158,7 @@ describe("buildCupState (Shield)", () => {
   });
 });
 
-describe("full Shield: league phase → knockout", () => {
+describe("full Shield: league phase → playoff → knockout", () => {
   it("plays out to a champion and credits the Shield's own, smaller prize tiers", () => {
     const comps = worldCompetitions();
     let shield = buildCupState(comps, tablesFor(comps), 2, SHIELD_FORMAT)!;
@@ -176,13 +175,19 @@ describe("full Shield: league phase → knockout", () => {
       addAll(prizes);
     }
     expect(leaguePhaseComplete(shield.leaguePhase!)).toBe(true);
-    // A 16-club field advances exactly a bracket's worth, so the top eight go
-    // straight to the quarter-finals and there is no playoff round at all —
-    // null rather than an empty round, or playoffDue would fire on it forever.
-    expect(cupKnockoutPlan(SHIELD_LEAGUE_PHASE_SIZE)).toEqual({ koSize: 8, directQF: 8, playoffTeams: 0 });
-    expect(shield.teams.filter((t) => t >= 0)).toHaveLength(8);
-    expect(shield.playoff).toBeNull();
-    expect(playoffDue(shield, CUP_PLAYOFF_MATCHDAY)).toBe(false);
+    // A 24-club field splits exactly as the Cup's does, which is the whole point
+    // of capping the cut at a bracket and a half: the Shield's format, and its
+    // prize money with it, is untouched by the split becoming field-sized.
+    const plan = cupKnockoutPlan(SHIELD_LEAGUE_PHASE_SIZE);
+    expect(plan).toEqual({ koSize: 8, directQF: 4, playoffTeams: 8 });
+    expect(shield.teams.filter((t) => t >= 0)).toHaveLength(plan.directQF);
+    expect(shield.playoff!.teams).toHaveLength(plan.playoffTeams);
+    expect(playoffDue(shield, CUP_PLAYOFF_MATCHDAY)).toBe(true);
+
+    const po = playPlayoff(shield, matchData, 0);
+    shield = po.cup;
+    addAll(po.prizes);
+    expect(shield.teams.every((t) => t >= 0)).toBe(true);
 
     koLegMatchdays(shield).forEach((legMds, round) => {
       expect(completedRounds(shield)).toBe(round);
@@ -202,14 +207,9 @@ describe("full Shield: league phase → knockout", () => {
     expect(koPrizeByRound(shield)).toEqual([
       SHIELD_PRIZE_WIN_QF, SHIELD_PRIZE_WIN_SF, SHIELD_PRIZE_WIN_FINAL,
     ]);
-    // Losing the playoff round must not lose the money it paid: the eight clubs
-    // that now reach the quarter-finals directly collect exactly what the four
-    // playoff winners used to. Measured, deleting that £6M a season put Turkey
-    // into deficit on half the audit's seeds, so this equality is load-bearing.
-    expect(8 * SHIELD_PRIZE_KNOCKOUT_ENTRY).toBe(4 * SHIELD_PRIZE_WIN_PLAYOFF);
     const pot =
       SHIELD_LEAGUE_PHASE_SIZE * SHIELD_PRIZE_PARTICIPATION +
-      8 * SHIELD_PRIZE_KNOCKOUT_ENTRY +
+      (plan.playoffTeams / 2) * SHIELD_PRIZE_WIN_PLAYOFF +
       4 * SHIELD_PRIZE_WIN_QF +
       2 * SHIELD_PRIZE_WIN_SF +
       1 * SHIELD_PRIZE_WIN_FINAL +

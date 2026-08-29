@@ -15,7 +15,8 @@ import { withSeason, summaryOf, ovrLookup } from "./players/careerSummary.js";
 import { extendPlayerNames } from "./players/playerNames.js";
 import { archiveCup } from "./cup/archive.js";
 import {
-  releaseExpiredContracts, runAIFreeAgency, trimRosterSurplus, ensureUserRosterSafety,
+  releaseExpiredContracts, runAIFreeAgency, freeAgencySigningOrder, trimRosterSurplus,
+  ensureUserRosterSafety,
   freeAgentPids,
 } from "./freeAgency.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
@@ -418,10 +419,12 @@ export function simOffseasonReporting(
       );
       const rank = rankByTid.get(t.tid) ?? defaultRank;
       const row = rowByTid.get(t.tid);
-      const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, scale);
-      const hype = row
-        ? updateHype(t.hype, row, rank, competitionTeamCount(competitionOf(league.competitions, compId)))
-        : t.hype;
+      // Both prize money and hype key off the club's finishing position, so
+      // both need the size of the division that position is out of — a 3rd of
+      // 12 is not a 3rd of 20.
+      const divisionSize = competitionTeamCount(competitionOf(league.competitions, compId));
+      const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, scale, divisionSize);
+      const hype = row ? updateHype(t.hype, row, rank, divisionSize) : t.hype;
       // The scouting spend the club committed to during the offseason window
       // (nextScoutingSpend) now locks in for the coming season. AI teams never
       // touch it, so it stays at the default they were created with.
@@ -457,10 +460,11 @@ export function simOffseasonReporting(
     teams, players, activeLoans, ceilingTransfers, nextSeason, league.meta.userTid, league.competitions,
   ));
 
-  // 4. AI free agency fills roster holes (worst team picks first, within
-  //    its own division's finishing order — cross-division buying happens
-  //    later, in the transfer market step), skipping the user's club.
-  const signingOrder = [...standings].sort((a, b) => a.points - b.points).map((s) => s.tid);
+  // 4. AI free agency fills roster holes (worst team picks first, the whole
+  //    world as one queue ranked by points per game — see
+  //    freeAgencySigningOrder for why not raw points), skipping the user's
+  //    club. Cross-division buying happens later, in the transfer market step.
+  const signingOrder = freeAgencySigningOrder(standings);
   let faSignings: { pid: number; toTid: number }[];
   ({ teams, players, signings: faSignings } = runAIFreeAgency(
     teams, players, nextSeason, rng, league.meta.userTid, signingOrder, activeLoans,
@@ -692,6 +696,7 @@ export function simOffseasonReporting(
         ),
       ],
       nextSeason,
+      league.rollingCoefficients ?? true,
     ) ?? undefined,
   };
 

@@ -35,14 +35,14 @@ function upsetHistory(seasons: number): CupState[] {
 
 describe("continental news", () => {
   it("reports nothing while every country's allocation is unchanged", () => {
-    const news = seasonContinentalNews(comps, teams, [[]], 5);
+    const news = seasonContinentalNews(comps, teams, [[]], 5, true);
     expect(news).toEqual([]);
   });
 
   it("reports nothing before the reallocation floor has been cleared", () => {
     // One season of results is not enough to move a place, so there is no
     // change to report either.
-    const news = seasonContinentalNews(comps, teams, [upsetHistory(1)], 1);
+    const news = seasonContinentalNews(comps, teams, [upsetHistory(1)], 1, true);
     expect(news).toEqual([]);
   });
 
@@ -51,7 +51,7 @@ describe("continental news", () => {
     // The season whose result tips the allocation over: before it, the window
     // is one short of the floor.
     const season = COEFFICIENT_MIN_SEASONS;
-    const news = seasonContinentalNews(comps, teams, [history], season);
+    const news = seasonContinentalNews(comps, teams, [history], season, true);
     expect(news.length).toBeGreaterThan(0);
 
     const gained = news.filter((n) => n.to > n.from);
@@ -65,8 +65,19 @@ describe("continental news", () => {
     expect(gained.some((n) => n.country === tier1[7].country)).toBe(true);
   });
 
+  it("reports nothing when the save fixed its allocation at creation", () => {
+    // Same history that produces movers above, so an empty list here is the
+    // save's setting rather than a quiet season.
+    const news = seasonContinentalNews(
+      comps, teams, [upsetHistory(COEFFICIENT_MIN_SEASONS)], COEFFICIENT_MIN_SEASONS, false,
+    );
+    expect(news).toEqual([]);
+  });
+
   it("names the country's top-flight competition, so the feed can file it", () => {
-    const news = seasonContinentalNews(comps, teams, [upsetHistory(COEFFICIENT_MIN_SEASONS)], COEFFICIENT_MIN_SEASONS);
+    const news = seasonContinentalNews(
+      comps, teams, [upsetHistory(COEFFICIENT_MIN_SEASONS)], COEFFICIENT_MIN_SEASONS, true,
+    );
     for (const n of news) {
       const comp = comps.find((c) => c.id === n.compId)!;
       expect(comp.tier).toBe(1);

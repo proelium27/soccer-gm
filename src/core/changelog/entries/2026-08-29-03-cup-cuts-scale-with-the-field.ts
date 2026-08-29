@@ -2,13 +2,12 @@ import type { ChangelogEntry } from "../types.js";
 
 const entry: ChangelogEntry = {
   date: "2026-08-29",
-  title: "Continental cups cut the field in half, whatever size the field is",
+  title: "Continental cups cut the field to size instead of always cutting it to twelve",
   items: [
-    "The Continental Cup's league phase always sent the top four straight to the quarter-finals and the next eight into a playoff. Twelve of twenty-four, which is a real cut. Trouble is those were fixed numbers, and the Shield's field is sixteen, so the Shield was putting twelve of its sixteen clubs through. Six rounds of football to eliminate four teams.",
-    "Now the line scales. **Half the field goes through**, whatever the field is. The Cup doesn't change, because half of twenty-four is the twelve it always sent. The Shield changes a lot: the top eight go straight to the quarter-finals and the bottom eight are out. Half of sixteen is exactly a quarter-final bracket, so there's nothing left for a playoff round to decide and the Shield doesn't play one any more.",
-    "So finishing 9th in the Shield's league phase now puts you out, where last season it put you in a playoff. Worth knowing before you write off a middling start.",
-    "No prize money left the game with the playoff. What the Shield used to pay its four playoff winners it now pays the eight clubs that reach the quarter-finals, so the same money goes out, just spread wider and earlier. I did check what happens if you simply delete it, and the answer was Turkish clubs going bankrupt around season 18.",
-    "If you build your own world the same rule handles whatever you throw at it. A twelve-club competition sends six through and opens at the semi-finals. A thirty-two-club one sends sixteen through and makes every one of them win a playoff tie first. The key under the league-phase table always names the real numbers for the competition you're looking at.",
+    "The league phase always sent the top four straight to the quarter-finals and the next eight into a playoff, no matter how many clubs were in the competition. Twelve through, always. That's a fair cut of the Cup's 32 and the Shield's 24, and it falls apart on anything smaller: a 16-club competition would have put **twelve of its sixteen** through, which is six rounds of football to eliminate four teams.",
+    "What goes through is now half the field, up to a maximum of twelve. **Both competitions in the shipped world are big enough to hit that maximum**, so both still send twelve through and neither of them changes in any way. No prize money moved either, which was the thing worth being careful about.",
+    "Where it shows up is a world you build yourself, now that you can set how many clubs each country sends. Drop a competition below 24 and it starts cutting deeper: 20 clubs sends ten through, 12 clubs sends six and opens at the semi-finals instead of the quarter-finals. A 16-club one sends eight straight to the quarter-finals and plays no playoff round at all, because eight is already a full bracket and there's nothing left for a playoff to decide.",
+    "The key under the league-phase table names the real numbers for whichever competition you're looking at, so you never have to work out which case you're in.",
   ],
 };
 

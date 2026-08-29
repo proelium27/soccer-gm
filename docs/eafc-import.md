@@ -78,7 +78,7 @@ progression.
   counterpart. This preserves the game's designed country-strength gaps (France
   and Portugal are deliberately weaker — see `COUNTRY_STRENGTH_OFFSET`) and
   keeps second-tier stars below the division-2 ceiling.
-- `global` pools all sixteen leagues, so real cross-league gaps carry over
+- `global` pools every imported league, so real cross-league gaps carry over
   instead. More faithful to reality, but the strongest second-tier players can
   then clear the division-2 ceiling (70) and get swept up to a top flight in
   the first offseason by `enforceDivision2Ceiling`.
@@ -308,3 +308,60 @@ in the division, if an untouched club happens to hold it.
 | `scripts/eafc/convert.ts` | the pipeline |
 | `scripts/ovrDistProbe.ts` | prints the world's OVR distribution (calibration) |
 | `test/core/eafcConvert.test.ts` | tests, incl. a round-trip through the real importer |
+
+## What FC26 actually holds for the four newest countries (2026-08-29)
+
+The Dutch, Scottish, Greek and Serbian rules were written from the leagues' real
+names and shipped with a note asking for a check against a real dataset. Here is
+that check, against `FC26_20250921.csv`.
+
+| League | Cell in the file | Result |
+| --- | --- | --- |
+| Eredivisie | `Eredivisie` (id 10) | 18 clubs, full squads — the name is unique, so it always worked |
+| Scottish Premiership | `Premiership` (id 50) | 12 clubs, full squads — **but only via the id** |
+| Greek Super League | `Super League` (id 63) | 4 clubs (AEK, Olympiacos, PAOK, Panathinaikos) — **only via the id** |
+| Serbian SuperLiga | absent | nothing, on any route |
+| Scottish Championship, Greek SL2, Serbian Prva Liga | absent | nothing |
+
+**Scotland and Greece imported zero clubs before their ids were added**, and
+neither failed loudly. Scotland's cell is a bare `Premiership`, which is
+deliberately not a pattern (Northern Ireland's NIFL Premiership would take it),
+so nothing matched. Greece's is a bare `Super League`, which **four** federations
+in that one file share — Greece, China, Switzerland and India — so the resolver's
+ambiguous-name guard did its job and dropped all four rather than importing
+Shanghai Port into the Greek top flight. Both are now reached by id, and the bare
+`super_league` pattern is gone, exactly as Belgium's `Pro League` is handled.
+
+The lesson generalizes past these two: **a name rule that matches nothing and a
+name rule that matches the wrong country fail differently but look identical from
+the outside — an empty competition.** Run `scripts/eafc/inspectLeagues.ts` over a
+new export before trusting either.
+
+## Partly-covered leagues are scaled against the world
+
+Rank-matching maps the source's *weakest* player onto the reference league's
+weakest, which is only sound when the source spans that league. FC26 holds 4 of
+Greece's 14 clubs and they are the four best in the country, so matching them
+onto the full Greek band states that Panathinaikos are Greece's relegation
+fodder: measured, their top-11 comes out at 56.7 rather than 62.6, below every
+Belgian and Turkish club.
+
+A competition whose source covers less than `PARTIAL_LEAGUE_COVERAGE` (0.75) of
+its slots therefore takes the pooled-world curve instead, which places each
+player where his EA overall ranks against every imported league at once. The bar
+clears every league FC26 genuinely carries — England's second tier is the
+thinnest at 20 of 24 — so it only catches the fragmentary case, and the report
+says when it fires. Scotland and the Netherlands come out byte-identical either
+way.
+
+Note the pooled curve only protects because the pool holds *other* leagues. A
+one-league conversion is its own pool, and rank-matching spreads it across the
+whole band again.
+
+## Slot counts come from the competition
+
+Divisions have real sizes (20 in England, 18 in Germany, 16 in Belgium, 14 in
+Greece, 12 in Scotland, 10 in Scotland's second tier), so `--clubs` now defaults
+to whatever the competition fields rather than a flat 20. It matters for which
+clubs survive: the converter cuts an over-full league by squad strength, whereas
+the importer would drop the overflow by slot order.

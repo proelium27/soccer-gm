@@ -5,6 +5,7 @@ import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { computeStandings } from "../../src/core/standings.js";
 import { ROSTER_CAP } from "../../src/core/constants.js";
+import { competitionTeamCount } from "../../src/core/competitions.js";
 
 /**
  * §8 gates were validated at M1/M3 for a single generated season. M4 adds
@@ -26,9 +27,38 @@ describe("M4 — multi-season stability", () => {
 
     for (let s = 0; s < SEASONS; s++) {
       league = simThrough(league, "season", rng);
-      const table = computeStandings(league.teams.map((t) => t.tid), league.played);
-      champPoints.push(table[0].points);
-      bottomPoints.push(table[table.length - 1].points);
+      // Measured PER COMPETITION and scaled to a 38-game season, then averaged —
+      // not as the best and worst club in one world-wide table.
+      //
+      // The pooled version was a world-wide max and min, which stopped being a
+      // league statistic the moment divisions stopped all being 20 clubs (see
+      // Competition.teamCount). Points are a function of games played, so the
+      // worst club in the world is now whoever sits bottom of the SHORTEST
+      // season — Scotland's 10-club second division, 18 games — and the gate
+      // read 8.8 against a floor of 10 while every league in the world was
+      // healthy. Same fault the M3 top-scorer gate had ("a world-wide max is not
+      // a league statistic") and the M1 benchmark gate had ("average team must
+      // mean the average team"): the estimator was wrong, not the band.
+      //
+      // The bands below are unchanged and still describe a full 38-game season,
+      // which is exactly what this now measures: 78.9 / 27.3 against 70-100 and
+      // 10-38.
+      const perComp = league.competitions.map((comp) => {
+        const tids = league.teams.filter((t) => t.compId === comp.id).map((t) => t.tid);
+        const own = new Set(tids);
+        const table = computeStandings(
+          tids,
+          league.played.filter((m) => own.has(m.home) && own.has(m.away)),
+        );
+        const games = (competitionTeamCount(comp) - 1) * 2;
+        return {
+          champ: (table[0].points / games) * 38,
+          bottom: (table[table.length - 1].points / games) * 38,
+        };
+      });
+      const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+      champPoints.push(mean(perComp.map((c) => c.champ)));
+      bottomPoints.push(mean(perComp.map((c) => c.bottom)));
       // AI teams get trimmed back to target composition each offseason; the
       // user's team is intentionally left alone (release is a manual action),
       // so only AI rosters are checked for bloat here.

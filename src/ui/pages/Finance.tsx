@@ -7,6 +7,7 @@ import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings } from "../../core/standings.js";
 import { seasonRevenue, wageBill, financeScaleFor } from "../../core/finance/budget.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
+import { competitionOf, competitionTeamCount } from "../../core/competitions.js";
 import { SCOUTING_SPEND_MAX, difficultyProfile } from "../../core/constants.js";
 import { currency, formatWeeklyWage, ordinal, seasonYear, transferFeeLabel } from "../format.js";
 import { Flag } from "../components/Flag.js";
@@ -84,6 +85,10 @@ export function Finance() {
     financeScaleFor(
       league.competitions, userTeam.compId, userTeam.tid, league.meta.userTid, league.difficulty,
     ),
+    // Prize cutoffs are a fraction of the division, so the projection has to
+    // pass the club's own division size or it promises a smaller league's clubs
+    // money the offseason won't pay.
+    competitionTeamCount(competitionOf(league.competitions, userTeam.compId)),
   );
   const wages = wageBill([...userTeam.roster, ...userTeam.academyRoster], salaryMap);
   const net = revenue.total - wages - userTeam.scoutingSpend;

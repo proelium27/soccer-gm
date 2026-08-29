@@ -470,21 +470,44 @@ export function Manual() {
 
         <Section id="world" title="The World">
           <p>
-            A new save drops you into one shared world: eight countries (<strong>England</strong>,{" "}
+            A new save drops you into one shared world: twelve countries (<strong>England</strong>,{" "}
             <strong>Spain</strong>, <strong>Italy</strong>, <strong>Germany</strong>,{" "}
-            <strong>France</strong>, <strong>Portugal</strong>, <strong>Belgium</strong> and{" "}
-            <strong>Turkey</strong>), each with its own two-division
-            pyramid (Division 1 and Division 2, 20 clubs apiece), for 16 leagues and 320 clubs total.
-            You pick any club in any country and division when you start.
+            <strong>France</strong>, the <strong>Netherlands</strong>, <strong>Portugal</strong>,{" "}
+            <strong>Belgium</strong>, <strong>Turkey</strong>, <strong>Greece</strong>,{" "}
+            <strong>Scotland</strong> and <strong>Serbia</strong>), each with its own two-division
+            pyramid, for 24 leagues and 420 clubs total. You pick any club in any country and
+            division when you start.
+          </p>
+          <p>
+            <strong>Leagues are the size they are in real life</strong>, not all the same. England,
+            Spain and Italy field 20 clubs; Germany, France, Portugal, Turkey and the Netherlands
+            18; Belgium and Serbia 16; Greece 14; and Scotland 12. Second divisions vary the same
+            way, down to Scotland's 10. Twenty is the ceiling, because a division of that size
+            already fills every matchday in the season, and a smaller league spreads its games
+            across the same calendar rather than finishing early — so the transfer windows and the
+            run-in still fall where you'd expect. A smaller league also plays fewer games, so its
+            points totals are lower; don't read a 12-club champion's tally against a 20-club one.
+          </p>
+          <p>
+            <strong>Promotion and relegation scale with that.</strong> Most countries swap three
+            clubs each way, but Portugal, Belgium, the Netherlands, Greece and Serbia swap two, and
+            Scotland only one — three up out of a 10-club second division would turn over a third
+            of it every season.
           </p>
           <p>
             The big four (England, Spain, Italy and Germany) are all built to the same strength and
-            budget bands, so none of them is a flagship league above the others. The other four are
+            budget bands, so none of them is a flagship league above the others. The other eight are
             deliberately weaker and poorer: their clubs generate at lower OVR, and they earn and can
             bank less money. They step down in that order —{" "}
-            <strong>France</strong>, then <strong>Portugal</strong>, then <strong>Belgium</strong>,
-            then <strong>Turkey</strong> weakest of all, and their budgets step down in that same
-            order. All four are selling leagues, and Turkey is the poorest as well as the weakest. You
+            <strong>France</strong>, then the <strong>Netherlands</strong>, then{" "}
+            <strong>Portugal</strong>, then <strong>Belgium</strong>, then <strong>Turkey</strong>,
+            then <strong>Greece</strong>, then <strong>Scotland</strong>, then{" "}
+            <strong>Serbia</strong> weakest of all, and their budgets step down in that same order.
+            All eight are selling leagues, and Serbia is the poorest as well as the weakest. Worth
+            knowing that these gaps close as a save gets long: weaker leagues develop players faster
+            than the big four do, so by season 20 or so the bottom few leagues are bunched much
+            closer together than they started. The order is real when you begin, and it softens from
+            there. You
             won't feel it inside their own matches (someone still wins Ligue 1), but it shows up
             wherever leagues meet. Their players are cheaper, so the big four steadily buy up their
             best talent, and they go into every Continental Cup tie at a real disadvantage. Division 2
@@ -503,14 +526,14 @@ export function Manual() {
             his own country.
           </p>
           <p>
-            Promotion and relegation (3 up, 3 down in every country the game ships) runs on its
+            Promotion and relegation (three clubs each way in most countries, fewer in the smaller ones) runs on its
             own within each country at the end of every season, so a rough season in Spain's top
             flight doesn't touch any other country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
-            grouped by country, so you can browse any of the 16 leagues. It defaults to
+            grouped by country, so you can browse any of the 24 leagues. It defaults to
             whichever one your own club is currently in.
           </p>
           <p>
-            <strong>Shaping your own world.</strong> The eight countries above are the default, not
+            <strong>Shaping your own world.</strong> The twelve countries above are the default, not
             the only option. The <strong>World setup</strong> panel on the New League screen lets you
             switch any of them off and add leagues of your own. An added league's clubs get
             generated names and colours, since the game ships no real clubs. The panel is on both
@@ -674,18 +697,17 @@ export function Manual() {
 
         <Section id="cup" title="The Continental Cup">
           <p>
-            The Continental Cup is a 24-club competition played alongside the league season.
+            The Continental Cup is a 32-club competition played alongside the league season.
             Qualification is purely about <strong>league position</strong>, not squad quality. The
             top four clubs in each of the four strongest top-flight leagues (England, Spain, Italy and
-            Germany) get in, plus the top two from each of the four weaker leagues,{" "}
-            <strong>France</strong>, <strong>Portugal</strong>, <strong>Belgium</strong> and{" "}
-            <strong>Turkey</strong>. That's 4×4 + 4×2 = 24 clubs. On
+            Germany) get in, plus the top two from each of the eight weaker leagues. That's
+            4×4 + 8×2 = 32 clubs. On
             the <a href="#pages">Standings</a> page the qualifying places are shaded as the
             qualification zone (top four in a strong league, top two in a weak one).
           </p>
           <p>
             <strong>How many places your country gets is earned, not fixed.</strong> Every season
-            the Cup&apos;s 24 places are handed out in order of a{" "}
+            the Cup&apos;s 32 places are handed out in order of a{" "}
             <strong>country coefficient</strong>: a rolling record, over the last five seasons, of
             how that country&apos;s clubs have actually done in Europe. Winning matches counts,
             going deep counts for more, and it&apos;s divided by how many clubs the country sent, so
@@ -696,11 +718,19 @@ export function Manual() {
           </p>
           <p>
             The places are only ever <strong>moved between countries, never created</strong>. The
-            competition always fields exactly 24 clubs, so for one country to gain a place another
+            competition always fields exactly 32 clubs, so for one country to gain a place another
             has to lose one. Nobody can be reduced below a single place, because a country with no
             clubs in Europe would have no way to earn its way back. Five seasons is a long window on
             purpose: a place should take years of results to move, not one bad year. You can see
             where every country stands on the <a href="#cup">Continental Cup</a> page.
+          </p>
+          <p>
+            If you'd rather the places never moved, there's a checkbox for it on the New League
+            screen: turn <strong>&quot;Cup places can move between countries&quot;</strong> off and
+            every country keeps the number it started with forever, however its clubs do in Europe.
+            It's fixed for the life of the save, same as difficulty, and with it off the coefficient
+            table doesn't appear on the Cup page at all. Saves made before the setting existed have
+            it on.
           </p>
           <p>
             League position is the usual way in, but not the only one.{" "}
@@ -709,11 +739,11 @@ export function Manual() {
             <a href="#shield">Continental Shield</a> and you're promoted into the Cup. If you'd have
             qualified through your league anyway, nothing changes and your league keeps all its
             places. If you wouldn't have, you take the lowest of your league's Cup places, and the
-            club who held it drops into the Shield rather than out of Europe. The field is always 24
+            club who held it drops into the Shield rather than out of Europe. The field is always 32
             clubs, so a place is never created, only moved.
           </p>
           <p>
-            It opens with a <strong>league phase</strong>: all 24 clubs sit in one combined table and
+            It opens with a <strong>league phase</strong>: all 32 clubs sit in one combined table and
             each plays <strong>six games</strong> against six different opponents. The draw isn't
             random. The field is split into a stronger half and a weaker half, and everyone plays
             three from each half, so no club draws six giants or six minnows. You never play a club
@@ -724,16 +754,17 @@ export function Manual() {
             When the six rounds are done, the table splits three ways. The <strong>top four</strong>{" "}
             go straight to the quarter-finals. Clubs ranked <strong>5th to 12th</strong> drop into a
             single-leg <strong>playoff round</strong> (matchday 27) and the four winners take the last
-            four quarter-final places. Clubs finishing <strong>13th to 24th</strong> are knocked out.
+            four quarter-final places. Clubs finishing <strong>13th to 32nd</strong> are knocked out.
             From there it's a straight knockout: quarter-finals, semi-finals and final.
           </p>
           <p>
-            Those cut lines are for a 24-club field, and they move if the field is a different size,
-            because <strong>half the field goes through</strong> however big it is. A smaller
-            competition sends fewer clubs to the knockout and can skip the playoff round entirely; a
-            bigger one puts more of them through the playoff instead of straight into the bracket.
-            You'll only see this if you build your own world, since the shipped Cup is always 24. The
-            key under the league-phase table always names the actual numbers.
+            Those cut lines move if the competition is smaller, because what goes through is{" "}
+            <strong>half the field</strong>, up to a maximum of twelve. Both competitions here are
+            big enough to hit that maximum, so both send twelve through and nothing about them has
+            changed. Shrink one below 24 clubs and it starts sending fewer: a 20-club competition
+            puts ten through, and a 16-club one puts eight through with no playoff round at all,
+            since eight is already a full quarter-final bracket. You'll only see this if you build
+            your own world. The key under the league-phase table always names the actual numbers.
           </p>
           <p>
             The <strong>quarter-finals and semi-finals are two-legged</strong>: each side hosts once,
@@ -795,8 +826,8 @@ export function Manual() {
           <p>
             The Continental Shield is the second competition, for the clubs that just miss out on the
             Continental Cup. It takes the places directly below the Cup's: <strong>5th and 6th</strong>{" "}
-            in each of the four strongest leagues, and <strong>3rd and 4th</strong> in each of the four
-            weaker ones. That's 8 × 2 = <strong>16 clubs</strong>, and because it starts exactly where
+            in each of the four strongest leagues, and <strong>3rd and 4th</strong> in each of the eight
+            weaker ones. That's 12 × 2 = <strong>24 clubs</strong>, and because it starts exactly where
             the Cup stops, no club is ever in both. On the <a href="#pages">Standings</a> page the
             Shield places get their own shaded band directly under the Cup's.
           </p>
@@ -805,7 +836,7 @@ export function Manual() {
             <strong>your country's domestic cup winner gets a Shield place</strong>. Win your{" "}
             <a href="#domestic-cup">domestic cup</a> and you're in Europe next season however badly
             your league campaign went. He takes the lowest of his league's Shield places, so the
-            field is still 16 and it's your league's 6th-placed club who makes way, not your 5th.
+            field is still 24 and it's your league's 6th-placed club who makes way, not your 5th.
             Most years this changes nothing, because the club who wins the cup has usually finished
             high enough to qualify anyway — and when that happens the place just passes back down
             the table.
@@ -824,22 +855,16 @@ export function Manual() {
             of these routes — hover the bar and it tells you which.
           </p>
           <p>
-            It runs like the Cup, one size down: a 16-club league phase of six games, then the{" "}
-            <strong>top eight go straight to the quarter-finals</strong> and the bottom eight are
-            out. Half the field goes through, same as the Cup — but half of sixteen is exactly a
-            quarter-final bracket, so the Shield has <strong>no playoff round</strong>; there's
-            nothing left for one to decide. Quarter-finals and semi-finals are two-legged, the final
-            is one match.
+            It runs exactly like the Cup: a 24-club league phase of six games, then the top four go
+            straight to the quarter-finals, 5th to 12th fight through a single-leg playoff, and the
+            rest go out. Quarter-finals and semi-finals are two-legged, the final is one match.
             It uses the <strong>same matchdays</strong> as the Cup, which is fine because no club
             plays in both. Like the Cup it starts in your world's second season, and if your club
             reaches the final the sim stops just before it.
           </p>
           <p>
-            The money is real but smaller: you're paid for taking part, for reaching the
-            quarter-finals, and for each knockout round you win, at roughly <strong>40%</strong> of
-            the Cup's rates. Losing the playoff round didn't cost the Shield any prize money. What
-            it used to pay the four playoff winners it now pays the eight clubs that reach the
-            quarter-finals, so the same money goes out either way. Winning the whole thing is worth
+            The money is real but smaller: participation, a playoff win and each knockout round all
+            pay, at roughly <strong>40%</strong> of the Cup's rates. Winning the whole thing is worth
             about what a decent cup run is, not what winning the Cup is. That's the point of it —
             finishing 5th now has something to play for, and a mid-table club can put a trophy in the
             cabinet, without it ever rivalling the Cup.
@@ -978,7 +1003,7 @@ export function Manual() {
             a single group and sends its top two straight to the final. A confederation that can't
             field even four nations doesn't hold one at all, which is why you'll usually see the
             Euro, Copa América and AFCON and not the others: nearly every player in the world is
-            born into one of the eight countries whose leagues you play in, so the rest of the world
+            born into one of the twelve countries whose leagues you play in, so the rest of the world
             is thin. Fill it out — with an imported roster, say — and those cups start
             being played on their own.
           </p>
@@ -1748,7 +1773,7 @@ export function Manual() {
           </p>
           <p>At season's end, the settlement adds and subtracts the rest:</p>
           <ul>
-            <li><strong>Prize money</strong>. $40M for winning the league, $20M for finishing 2nd&ndash;5th, $10M for 6th&ndash;10th, nothing below that.</li>
+            <li><strong>Prize money</strong>. $40M for winning the league, $20M for the rest of the top quarter, $10M for the rest of the top half, nothing below that. In a 20-club league that's 2nd&ndash;5th and 6th&ndash;10th; a smaller division pays the same share of its table, so half of it is paid whatever its size.</li>
             <li><strong>Hype revenue</strong>. Every club has a hype score (0&ndash;100) that drifts toward its recent results rather than snapping to them. Hype earns extra revenue (up to ~$30M at max hype), deliberately kept modest so fame stays a bonus and not an engine. Success payouts matter more.</li>
             <li><strong>Scouting spend</strong>. Whatever you set the slider to comes out here.</li>
           </ul>

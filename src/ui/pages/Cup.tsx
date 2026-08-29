@@ -83,7 +83,13 @@ function prelimSlots(round: { teams: number[]; ties: CupTie[] }): Slot[] {
  * Standings table one season and has nothing to attribute it to.
  */
 function CoefficientTable({ league }: { league: LeagueStore }) {
+  // Nothing to show on a save that fixed its allocation at creation: the places
+  // can't move, so a table of coefficients would describe a mechanic this save
+  // doesn't run. Checked inside the memo as well as before the render so the
+  // walk over the cup archive is skipped entirely.
+  const enabled = league.rollingCoefficients ?? true;
   const rows = useMemo(() => {
+    if (!enabled) return [];
     const live = [league.cup, league.shield].filter(
       (c): c is NonNullable<typeof c> => !!c && c.championTid !== null,
     );
@@ -106,8 +112,9 @@ function CoefficientTable({ league }: { league: LeagueStore }) {
           : 0,
       };
     });
-  }, [league]);
+  }, [league, enabled]);
 
+  if (!enabled) return null;
   if (rows.every((r) => r.clubsEntered === 0)) return null;
 
   return (

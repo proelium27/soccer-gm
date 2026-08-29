@@ -1,13 +1,41 @@
 /**
  * A competition is one league a set of clubs plays in — one entry per
  * division per country. Teams point at a competition via StoredTeam.compId.
- * New saves span eight countries (England, Spain, Italy, Germany, France,
- * Portugal, Belgium, Turkey), each a two-division pyramid; England-only saves
- * predating the world expansion keep just competitions 0/1. France, Portugal,
- * Belgium and Turkey are deliberately weaker leagues — see
- * COUNTRY_STRENGTH_OFFSET in constants.ts. Ids are stable forever within a
+ * New saves span twelve countries (England, Spain, Italy, Germany, France,
+ * Netherlands, Portugal, Belgium, Turkey, Greece, Scotland, Serbia), each a
+ * two-division pyramid; England-only saves predating the world expansion keep just
+ * competitions 0/1. Everything below the big four is deliberately weaker —
+ * see COUNTRY_STRENGTH_OFFSET in constants.ts. Ids are stable forever within a
  * save: an old save's legacy division values (0 = English D1, 1 = English D2)
  * are already valid compIds by construction.
+ *
+ * **Division sizes are the real ones**, not a uniform 20: England/Spain/Italy
+ * 20, Germany/France/Portugal/Turkey/Netherlands 18, Belgium/Serbia 16, Greece
+ * 14, Scotland 12, with second tiers to match. A division is capped at
+ * MAX_DIVISION_TEAMS (20) because a double round robin of n clubs needs 2(n-1)
+ * matchdays and the calendar is a fixed 38-matchday grid — which is why
+ * England's real 24-club second tier is 20 here. A smaller division SPREADS its
+ * rounds across the same grid rather than finishing early (see
+ * buildCompetitionSchedule), so the transfer windows, both continental
+ * competitions and the run-in all still line up.
+ *
+ * Promotion counts scale with the divisions they connect: 3 where both are big,
+ * 2 for Portugal/Belgium/Netherlands/Greece/Serbia, 1 for Scotland — 3 up out of
+ * a 10-club second tier would churn a third of it every season.
+ *
+ * The table's ORDER is not the strength ladder — it is generation order, and
+ * appending is what keeps every existing country's players byte-identical when
+ * a new one is added (see generateWorld). The Netherlands sits above Portugal
+ * on the ladder while being appended after Turkey, which is fine and expected.
+ *
+ * **Keep the country count EVEN.** Both continental fields are derived from it
+ * — Continental Cup = 2C + 8, Continental Shield = 2C — and the league-phase
+ * draw can only build a field that is a multiple of 4 (two pots, each even, each
+ * matched perfectly). An odd C puts both on 4n+2, so both get trimmed and clubs
+ * that qualified on league position are cut. At C=11 the Cup wants 30 and gets
+ * 28, the Shield wants 22 and gets 20. There is no uniform slot rule that fixes
+ * an odd count: it forces weak-league slots to a multiple of 4, i.e. a 44-club
+ * Cup. Add countries in pairs.
  */
 import {
   COUNTRY_STRENGTH_OFFSET, COUNTRY_BUDGET_SCALE, LEAGUE_BASE, DIVISION_2_OFFSET,
@@ -231,16 +259,24 @@ export function worldCompetitions(): Competition[] {
     { id: 3, country: "Spain", tier: 2, name: "Spanish Division 2" },
     { id: 4, country: "Italy", tier: 1, name: "Italian Division 1" },
     { id: 5, country: "Italy", tier: 2, name: "Italian Division 2" },
-    { id: 6, country: "Germany", tier: 1, name: "German Division 1" },
-    { id: 7, country: "Germany", tier: 2, name: "German Division 2" },
-    { id: 8, country: "France", tier: 1, name: "French Division 1" },
-    { id: 9, country: "France", tier: 2, name: "French Division 2" },
-    { id: 10, country: "Portugal", tier: 1, name: "Portuguese Division 1" },
-    { id: 11, country: "Portugal", tier: 2, name: "Portuguese Division 2" },
-    { id: 12, country: "Belgium", tier: 1, name: "Belgian Division 1" },
-    { id: 13, country: "Belgium", tier: 2, name: "Belgian Division 2" },
-    { id: 14, country: "Turkey", tier: 1, name: "Turkish Division 1" },
+    { id: 6, country: "Germany", tier: 1, name: "German Division 1", teamCount: 18 },
+    { id: 7, country: "Germany", tier: 2, name: "German Division 2", teamCount: 18 },
+    { id: 8, country: "France", tier: 1, name: "French Division 1", teamCount: 18 },
+    { id: 9, country: "France", tier: 2, name: "French Division 2", teamCount: 18 },
+    { id: 10, country: "Portugal", tier: 1, name: "Portuguese Division 1", teamCount: 18, promotionSpots: 2 },
+    { id: 11, country: "Portugal", tier: 2, name: "Portuguese Division 2", teamCount: 18, promotionSpots: 2 },
+    { id: 12, country: "Belgium", tier: 1, name: "Belgian Division 1", teamCount: 16, promotionSpots: 2 },
+    { id: 13, country: "Belgium", tier: 2, name: "Belgian Division 2", teamCount: 16, promotionSpots: 2 },
+    { id: 14, country: "Turkey", tier: 1, name: "Turkish Division 1", teamCount: 18 },
     { id: 15, country: "Turkey", tier: 2, name: "Turkish Division 2" },
+    { id: 16, country: "Netherlands", tier: 1, name: "Dutch Division 1", teamCount: 18, promotionSpots: 2 },
+    { id: 17, country: "Netherlands", tier: 2, name: "Dutch Division 2", promotionSpots: 2 },
+    { id: 18, country: "Scotland", tier: 1, name: "Scottish Division 1", teamCount: 12, promotionSpots: 1 },
+    { id: 19, country: "Scotland", tier: 2, name: "Scottish Division 2", teamCount: 10, promotionSpots: 1 },
+    { id: 20, country: "Greece", tier: 1, name: "Greek Division 1", teamCount: 14, promotionSpots: 2 },
+    { id: 21, country: "Greece", tier: 2, name: "Greek Division 2", teamCount: 16, promotionSpots: 2 },
+    { id: 22, country: "Serbia", tier: 1, name: "Serbian Division 1", teamCount: 16, promotionSpots: 2 },
+    { id: 23, country: "Serbia", tier: 2, name: "Serbian Division 2", teamCount: 16, promotionSpots: 2 },
   ];
 }
 
@@ -521,6 +557,11 @@ export function worldLeagueSpecs(): LeagueSpec[] {
   return tier1Pairs(worldCompetitions()).map(({ d1, d2 }) => ({
     country: d1.country,
     d1Name: d1.name,
+    // Only carried when actually set, so a country on the shipped defaults still
+    // round-trips to a competition with the field absent rather than spelled out.
+    ...(d1.teamCount === undefined ? {} : { d1Teams: d1.teamCount }),
+    ...(d2?.teamCount === undefined ? {} : { d2Teams: d2.teamCount }),
+    ...(d1.promotionSpots === undefined ? {} : { promotionSpots: d1.promotionSpots }),
     ...(d2 ? { d2Name: d2.name } : { divisions: 1 as const }),
   }));
 }

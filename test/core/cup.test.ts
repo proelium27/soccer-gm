@@ -78,7 +78,7 @@ function matchDataFor(cup: CupState): Map<number, TeamMatchData> {
   return md;
 }
 
-/** The shipped 24-club Cup's split: 4 straight to the quarter-finals, 8 into the playoff. */
+/** The shipped Cup's split: 4 straight to the quarter-finals, 8 into the playoff. */
 const SPLIT = cupKnockoutPlan(CUP_LEAGUE_PHASE_SIZE);
 
 describe("seedOrder", () => {
@@ -98,11 +98,13 @@ describe("seedOrder", () => {
 });
 
 describe("cupPlan", () => {
-  it("splits the real world into 4 strong + 4 weak tier-1 leagues, 24 qualifiers", () => {
+  it("splits the real world into 4 strong + 8 weak tier-1 leagues, 32 qualifiers", () => {
     const plan = cupPlan(worldCompetitions())!;
     expect(plan.strong.map((c) => c.country)).toEqual(["England", "Spain", "Italy", "Germany"]);
-    expect(plan.weak.map((c) => c.country)).toEqual(["France", "Portugal", "Belgium", "Turkey"]);
-    expect(plan.total).toBe(CUP_LEAGUE_PHASE_SIZE); // 4*4 + 4*2 = 24
+    expect(plan.weak.map((c) => c.country)).toEqual(
+      ["France", "Portugal", "Belgium", "Turkey", "Netherlands", "Scotland", "Greece", "Serbia"],
+    );
+    expect(plan.total).toBe(CUP_LEAGUE_PHASE_SIZE); // 4*4 + 8*2 = 32
   });
   it("still fields a cup for a 4-strong-league world (16), but not for England-only", () => {
     expect(cupPlan(strongComps)!.total).toBe(16);
@@ -303,14 +305,17 @@ describe("cupKnockoutPlan", () => {
   // The cut lines used to be two fixed constants (4 direct + 8 playoff), which
   // meant a 16-club Shield advanced twelve of its sixteen entrants: six rounds
   // of league phase to eliminate four clubs. They now scale with the field.
-  it("advances half the field, whatever size it is", () => {
+  it("advances half the field, up to a bracket and a half", () => {
     const table: [number, { koSize: number; directQF: number; playoffTeams: number }][] = [
       [12, { koSize: 4, directQF: 2, playoffTeams: 4 }],
       [16, { koSize: 8, directQF: 8, playoffTeams: 0 }],
       [20, { koSize: 8, directQF: 6, playoffTeams: 4 }],
+      // From 24 up the cap binds and the split settles on the shape both shipped
+      // competitions have always played, whatever the field grows to.
       [24, { koSize: 8, directQF: 4, playoffTeams: 8 }],
-      [28, { koSize: 8, directQF: 2, playoffTeams: 12 }],
-      [32, { koSize: 8, directQF: 0, playoffTeams: 16 }],
+      [28, { koSize: 8, directQF: 4, playoffTeams: 8 }],
+      [32, { koSize: 8, directQF: 4, playoffTeams: 8 }],
+      [40, { koSize: 8, directQF: 4, playoffTeams: 8 }],
     ];
     for (const [size, expected] of table) {
       expect(cupKnockoutPlan(size), `field of ${size}`).toEqual(expected);
@@ -324,8 +329,12 @@ describe("cupKnockoutPlan", () => {
     }
   });
 
-  it("leaves the shipped Cup's split exactly as it was", () => {
+  // The load-bearing one: the Cup's field is 32 and the Shield's is 24, so no
+  // single fraction leaves both alone. Capped at a bracket and a half, both come
+  // out on the split they already played — no scoreline and no prize money moves.
+  it("leaves both shipped competitions' splits exactly as they were", () => {
     expect(cupKnockoutPlan(CUP_LEAGUE_PHASE_SIZE)).toEqual({ koSize: 8, directQF: 4, playoffTeams: 8 });
+    expect(cupKnockoutPlan(SHIELD_LEAGUE_PHASE_SIZE)).toEqual({ koSize: 8, directQF: 4, playoffTeams: 8 });
   });
 
   // Bigger fields can't have a bigger bracket — CUP_KO_LEG_MATCHDAYS has room
@@ -336,6 +345,9 @@ describe("cupKnockoutPlan", () => {
       const plan = cupKnockoutPlan(size);
       expect(plan.koSize).toBe(8);
       expect(plan.directQF + plan.playoffTeams).toBeLessThanOrEqual(size / 2);
+      // Never zero direct qualifiers: a league phase whose winner earns nothing
+      // but a seeding is the format the bracket cap exists to avoid.
+      expect(plan.directQF).toBeGreaterThan(0);
     }
   });
 });
@@ -379,8 +391,9 @@ describe("a small cup: 12 clubs, semi-final bracket", () => {
 
 describe("a cup whose field is exactly a bracket's worth", () => {
   it("sends the top half straight to the knockout and plays no playoff", () => {
-    // The Shield's shape (16 clubs). The playoff is left null rather than
-    // built empty, or playoffDue would fire on a round with no ties in it.
+    // 16 clubs, which the shipped world no longer builds but a hand-made one
+    // can. The playoff is left null rather than built empty, or playoffDue
+    // would fire on a round with no ties in it.
     const cup = (() => {
       let c = buildCupState(strongComps, tablesFor(strongComps, 4), 2, {
         ...CONTINENTAL_CUP_FORMAT, strongSlots: 4, weakSlots: 0, fieldSize: SHIELD_LEAGUE_PHASE_SIZE,
