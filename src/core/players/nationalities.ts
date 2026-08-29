@@ -1480,6 +1480,58 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
  * they were ever graduated.
  */
 export const UNLISTED_NATIONALITIES: Record<string, NationalityDef> = {
+  // Curacao and Suriname are here for the Eredivisie, where the real breakdown
+  // puts them at 1.4% each. Spelled ASCII ("Curacao", not "Curaçao") because
+  // every other nationality key is, and the same anglicizing that makes Côte
+  // d'Ivoire "Ivory Coast" here. Neither has flag art, so both render the
+  // neutral swatch — the same call the other 15 artless nations took, and
+  // better than a wrong flag.
+  Curacao: {
+    weight: 3,
+    first: [
+      "Ryan", "Kevin", "Angelo", "Roberto", "Jurgen", "Miguel", "Randy", "Shurendy",
+      "Gino", "Delano", "Emilio", "Rodney", "Sherwin", "Ivan", "Rachid", "Orlando",
+      "Damian", "Elton", "Ramon", "Julio", "Franklin", "Kenneth", "Marvin", "Rudolf",
+      "Anthony", "Sergio", "Wendell", "Alberto", "Hendrik", "Nelson", "Vincent", "Osvaldo",
+      "Kelvin", "Fernando", "Jeffrey", "Ricardo", "Armando", "Leonardo", "Mauricio", "Edwin",
+      "Gerald", "Raymond", "Alfonso", "Cornelis", "Dwight", "Ernesto", "Gilbert", "Humberto",
+      "Ignacio", "Joel", "Lorenzo", "Manuel", "Norman", "Patrick", "Quincy", "Rolando",
+    ],
+    last: [
+      "Statia", "Cijntje", "Isenia", "Girigori", "Anthonia", "Nicolaas", "Wawoe", "Leito",
+      "Pieternella", "Hato", "Marchena", "Palm", "Croes", "Semeleer", "Kool", "Franciscus",
+      "Damascus", "Bakhuis", "Sambo", "Doran", "Rosalia", "Gumbs", "Lourens", "Willems",
+      "Jansen", "Bernabela", "Cornelia", "Angela", "Constansia", "Everts", "Frans", "Godett",
+      "Henriquez", "Ignacio", "Jacobs", "Koeiman", "Lopez", "Maduro", "Narvaez", "Osepa",
+      "Pietersz", "Rosaria", "Sluis", "Tromp", "Ursula", "Valpoort", "Wiels", "Zimmerman",
+      "Jesurun", "Pourier", "Refos", "Thode", "Vrolijk", "Felida", "Hooi", "Lasten",
+    ],
+  },
+  // Suriname's population is Dutch, Hindustani, Javanese, Creole and Maroon,
+  // and the pool spans all of them rather than picking one — a Surinamese squad
+  // drawn only from Dutch surnames would read wrong.
+  Suriname: {
+    weight: 3,
+    first: [
+      "Ricardo", "Dennis", "Humphrey", "Roy", "Steven", "Marlon", "Ramon", "Glenn",
+      "Clifton", "Errol", "Wensley", "Sergio", "Randy", "Gregory", "Farid", "Anand",
+      "Vikash", "Rakesh", "Soerin", "Djoemadi", "Hendrik", "Wilfred", "Rudy", "Cornelis",
+      "Marciano", "Delroy", "Nigel", "Ashwin", "Ravi", "Suresh", "Bhoendra", "Iwan",
+      "Johan", "Ludwig", "Melvin", "Norbert", "Oscar", "Percy", "Quintin", "Robby",
+      "Stanley", "Theo", "Urwin", "Vincent", "Winston", "Xavier", "Yvon", "Zachary",
+      "Armand", "Benito", "Cedric", "Dwight", "Edgar", "Freddy", "Gerard", "Harold",
+    ],
+    last: [
+      "Vriesde", "Kaersenhout", "Ramdin", "Bhagwandin", "Jharap", "Sardjoe", "Sariman",
+      "Wongsodikromo", "Amoksi", "Pinas", "Sanches", "Abrahams", "Alberga", "Fernandes",
+      "Gefferie", "Ilahibaks", "Jubitana", "Kartodikromo", "Leeflang", "Landveld", "Nanan",
+      "Oosterling", "Pengel", "Raghoebier", "Simson", "Soekhlal", "Uiterloo", "Vlijter",
+      "Wijdenbosch", "Zamuel", "Aroepa", "Codrington", "Esajas", "Findlay", "Grunberg",
+      "Hindori", "Kromodimedjo", "Lieuw", "Moesetiko", "Nurmohamed", "Pawironadi", "Sitaldin",
+      "Tjon", "Waterberg", "Adhin", "Alimoenadi", "Baldew", "Chotkan", "Doerga", "Elstak",
+      "Ferrier", "Goedschalk", "Hiwat", "Jagernath", "Lachmon", "Panday",
+    ],
+  },
   "Bosnia-Herzegovina": {
     weight: 3,
     first: [
@@ -3060,17 +3112,30 @@ export const LEAGUE_NATIONALITY_WEIGHTS: Record<string, Record<string, number>> 
     Tunisia: 9,
     [REST]: 65,
   },
-  // Eredivisie: a shade over half domestic, and the foreign half is shaped by
-  // the league's role as Europe's best-known development market rather than by
-  // one colonial pipeline — Scandinavia, Japan and South Korea, a broad West
-  // African intake, and the Belgian/German neighbours it trades with most.
+  // Eredivisie, taken from a real published breakdown (485 players). Half
+  // domestic, and the foreign half is two things at once: the Belgian and
+  // German neighbours it trades with, a genuine Scandinavian intake (Denmark,
+  // Norway, Sweden and Iceland together outweigh any single nation but the
+  // Belgians), and then the colonial pipeline — Curacao, Suriname and Indonesia
+  // at 1.4% each, alongside Morocco at 3.1%. That last part is the thing an
+  // outsider gets wrong: this table's first draft assumed the Eredivisie's
+  // foreign half was development-market signings from Japan and South Korea and
+  // a broad West African intake, and the real list has no Ghana or Nigeria in
+  // it at all, one Japanese player for every two Moroccans, and three former
+  // colonies in the top thirteen.
   Netherlands: {
-    Netherlands: 560, Belgium: 34, Germany: 28, Denmark: 21, Japan: 20, Nigeria: 20,
-    Spain: 18, Brazil: 18, Ghana: 16, Morocco: 16, Sweden: 15, Norway: 15,
-    "United States": 15, England: 13, Argentina: 12, Serbia: 11, "South Korea": 11,
-    Poland: 10, Austria: 10, "Cape Verde": 10, "Ivory Coast": 10, Senegal: 9, Croatia: 9,
-    Portugal: 9,
-    [REST]: 90,
+    Netherlands: 503, Belgium: 41, Germany: 37, Denmark: 33, Morocco: 31, France: 31,
+    Norway: 29, Sweden: 23, Spain: 19, Curacao: 14, Iceland: 14, Indonesia: 14,
+    Suriname: 14, Brazil: 12, Japan: 12, Portugal: 10, Croatia: 10, Austria: 10,
+    Poland: 8, Turkey: 8, "Czech Republic": 8, "United States": 8,
+    // Below the source's cut-off, which lists 89% of the league. Named for the
+    // reason Scotland's tail is: REST is ~40% English, and England does not
+    // appear in the real top twenty-two at all.
+    England: 5, Nigeria: 8, Ghana: 8, Serbia: 7, Switzerland: 6, "South Korea": 6,
+    Argentina: 6, Italy: 6, Greece: 5, "Republic of Ireland": 5, Hungary: 5, Israel: 4,
+    Finland: 4, Slovakia: 4, Australia: 4, "Ivory Coast": 4, Senegal: 4, "Cape Verde": 4,
+    Colombia: 4, Egypt: 4,
+    [REST]: 8,
   },
   // Scottish Premiership, taken from a real published breakdown (324 players).
   // The most lopsided foreign block in the game: England alone is 15.1%, close
