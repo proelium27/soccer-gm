@@ -4,6 +4,7 @@ import type { CompletedTransfer } from "../../src/core/transfers/negotiation.js"
 import { FREE_AGENT_TID } from "../../src/core/transfers/negotiation.js";
 import type { NewsEvent } from "../../src/core/newsEvents.js";
 import type { AwardNews } from "../../src/core/awardNews.js";
+import type { TrophyNews } from "../../src/core/trophyNews.js";
 import {
   NEWS_WORLD_TRANSFER_FEE,
   NEWS_WORLD_CAREER_GOALS,
@@ -21,8 +22,13 @@ const audience: NewsAudience = {
   compOf: (tid) => (tid < 5 ? USER_COMP : FOREIGN_COMP),
 };
 
+/** The pids a timeline reports, in order. Trophies name a club or a nation
+ *  rather than a player, so they carry no pid and are not counted here. */
 const pidsOf = (timeline: ReturnType<typeof buildSeasonTimeline>) =>
-  timeline.map((item) => item.data.pid).sort((a, b) => a - b);
+  timeline
+    .filter((item) => item.kind !== "trophy")
+    .map((item) => (item.data as { pid: number }).pid)
+    .sort((a, b) => a - b);
 
 describe("buildSeasonTimeline", () => {
   it("orders summer transfers before in-season accomplishments before winter transfers", () => {
@@ -182,6 +188,23 @@ describe("buildSeasonTimeline", () => {
       ];
 
       expect(pidsOf(buildSeasonTimeline([], [], audience, awards))).toEqual([1]);
+    });
+
+    it("shows every trophy wherever it was won, and sorts them before the honours", () => {
+      // A trophy is one row for the whole world, so it takes no tier test: who
+      // won the Continental Cup matters wherever you play.
+      const trophies: TrophyNews[] = [
+        { kind: "continentalCup", name: "Continental Cup", tid: 9 },
+        { kind: "worldCup", name: "World Cup", nation: "Brazil", runnerUp: "France", score: "2-1" },
+      ];
+      const awards: AwardNews[] = [{ kind: "goldenBoot", pid: 1, compId: USER_COMP }];
+      const events: NewsEvent[] = [
+        { type: "hattrick", pid: 2, tid: 3, season: 2026, matchday: 38, detail: 3 },
+      ];
+
+      const timeline = buildSeasonTimeline([], events, audience, awards, trophies);
+      // Who won what, then who was best.
+      expect(timeline.map((i) => i.kind)).toEqual(["news", "trophy", "trophy", "award"]);
     });
 
     it("sorts honours after the season's football", () => {

@@ -4,24 +4,25 @@ import type { NewsEvent } from "../core/newsEvents.js";
 import { newsEventScope, isNewsworthy } from "../core/newsEvents.js";
 import type { AwardNews } from "../core/awardNews.js";
 import { awardNewsScope } from "../core/awardNews.js";
+import type { TrophyNews } from "../core/trophyNews.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../core/calendar.js";
 import { NEWS_WORLD_TRANSFER_FEE } from "../core/constants.js";
 
 export type FeedItem =
   | { kind: "transfer"; order: number; data: CompletedTransfer }
   | { kind: "news"; order: number; data: NewsEvent }
+  | { kind: "trophy"; order: number; data: TrophyNews }
   | { kind: "award"; order: number; data: AwardNews };
 
 /**
- * Awards are decided once the football is over, so they sort after every
- * matchday however long the season was. A competition can be as short as
- * `MIN_DIVISION_TEAMS` rounds, so this is a sentinel rather than a matchday
- * number: it only has to be larger than any `order` a match or a window
- * produces. It also puts them first on the Dashboard's headline panel, which
- * reads the *end* of the timeline, so the season's honours are the news you
- * see the moment an offseason rolls over.
+ * Trophies and honours are settled once the football is over, so they sort
+ * after every matchday however long the season was. A competition can be as
+ * short as `MIN_DIVISION_TEAMS` rounds, so this is a sentinel rather than a
+ * matchday number: it only has to be larger than any `order` a match or a
+ * transfer window produces. It also puts them first on the Dashboard's
+ * headline panel, which reads the *end* of the timeline.
  */
-const AWARD_ORDER = Number.MAX_SAFE_INTEGER;
+const SEASON_END_ORDER = Number.MAX_SAFE_INTEGER;
 
 /**
  * Who is reading, and where they play — everything the feed needs to sort the
@@ -78,6 +79,7 @@ export function buildSeasonTimeline(
   newsEvents: NewsEvent[],
   audience: NewsAudience,
   awards: AwardNews[] = [],
+  trophies: TrophyNews[] = [],
 ): FeedItem[] {
   const { userTid, userCompId, compOf } = audience;
 
@@ -120,14 +122,17 @@ export function buildSeasonTimeline(
       data: t,
     })),
     ...shownEvents.map((e): FeedItem => ({ kind: "news", order: e.matchday, data: e })),
-    ...shownAwards.map((a): FeedItem => ({ kind: "award", order: AWARD_ORDER, data: a })),
+    // Trophies take no tier test: each is one row for the whole world, and
+    // which club or country won the Continental Cup is news wherever you play.
+    ...trophies.map((t): FeedItem => ({ kind: "trophy", order: SEASON_END_ORDER, data: t })),
+    ...shownAwards.map((a): FeedItem => ({ kind: "award", order: SEASON_END_ORDER, data: a })),
   ];
 
-  // Within one order key, business comes before what happened on the pitch.
-  // Awards carry an order of their own that nothing else shares, so their rank
-  // never actually decides anything — it is here so the comparator stays a
-  // total order rather than a two-way test with a third case.
-  const rank = (item: FeedItem) => (item.kind === "transfer" ? 0 : item.kind === "news" ? 1 : 2);
+  // Within one order key, business comes before what happened on the pitch,
+  // and at the end of a season the trophies come before the individual
+  // honours: who won what, then who was best.
+  const RANK: Record<FeedItem["kind"], number> = { transfer: 0, news: 1, trophy: 2, award: 3 };
+  const rank = (item: FeedItem) => RANK[item.kind];
 
   return items.sort((a, b) => (a.order !== b.order ? a.order - b.order : rank(a) - rank(b)));
 }

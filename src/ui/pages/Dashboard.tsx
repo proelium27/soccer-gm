@@ -30,6 +30,7 @@ import type { IntlStage } from "../../core/international/index.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { unpackPositionChange } from "../../core/newsEvents.js";
 import { seasonAwardNews } from "../../core/awardNews.js";
+import { trophyNewsBySeason } from "../../core/trophyNews.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { currency, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
@@ -312,15 +313,33 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
           .filter((a) => a.tid === userTid)
       : [];
 
+    // Trophies need no club filter: each is a single row for the whole world,
+    // where the honours run to 27. This season's arrive as they are won (the
+    // Continental Cup final, then the World Cup in the offseason, both while
+    // the clock still reads this season), and last season's ride along through
+    // the rollover the same way the honours do.
+    const trophies = trophyNewsBySeason({
+      cup: league.cup,
+      cupHistory: league.cupHistory,
+      shield: league.shield,
+      shieldHistory: league.shieldHistory,
+      international: league.international,
+    });
+    const shownTrophies = [
+      ...(league.played.length === 0 ? trophies.get(league.season - 1) ?? [] : []),
+      ...(trophies.get(league.season) ?? []),
+    ];
+
     const newsTimeline = buildSeasonTimeline(currentSeasonTransfers, currentSeasonEvents, {
       userTid,
       userCompId: comps[userTid],
       compOf: (tid) => comps[tid],
-    }, lastSeasonHonours);
+    }, lastSeasonHonours, shownTrophies);
     return [...newsTimeline].slice(-NEWS_TOP_N).reverse();
   }, [
     league.transfers, league.newsEvents, league.season, league.played,
     league.meta.userTid, league.teams, league.seasonHistory,
+    league.cup, league.cupHistory, league.shield, league.shieldHistory, league.international,
   ]);
 
   const teamByTid = useMemo(() => new Map(league.teams.map((t) => [t.tid, t])), [league.teams]);
@@ -349,6 +368,13 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
           {playerLink(player)} moves from {from?.name ?? "?"} to {to?.name ?? "?"} ({currency.format(t.fee)})
         </>
       );
+    }
+    if (item.kind === "trophy") {
+      const t = item.data;
+      const winner = t.tid !== undefined
+        ? teamByTid.get(t.tid)?.name ?? "A club"
+        : t.nation ?? "A nation";
+      return <>{winner} win the {t.name}</>;
     }
     if (item.kind === "award") {
       const a = item.data;

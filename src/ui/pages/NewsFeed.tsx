@@ -4,12 +4,14 @@ import { ClubLink } from "../components/ClubLink.js";
 import { unpackPositionChange, type NewsEvent, type NewsEventType } from "../../core/newsEvents.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { seasonAwardNews, type AwardNews } from "../../core/awardNews.js";
+import { trophyNewsBySeason } from "../../core/trophyNews.js";
 import { TOTS_SLOTS } from "../../core/awards.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { clubDisplayName, currency, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRefLink, usePlayerRefs } from "../components/PlayerRefLink.js";
+import { NationName } from "./nationalTeams/shared.js";
 
 type ClubFilter = "all" | "user";
 
@@ -124,11 +126,23 @@ export function NewsFeed() {
       (league?.seasonHistory ?? []).map((h) => [h.season, seasonAwardNews(h)]),
     );
 
+    // Trophies come from the cup and international records rather than the
+    // season entry, and include the cup being played right now — a season's
+    // biggest result shouldn't wait for the offseason to be reported.
+    const trophiesBySeason = trophyNewsBySeason({
+      cup: league?.cup ?? null,
+      cupHistory: league?.cupHistory ?? [],
+      shield: league?.shield ?? null,
+      shieldHistory: league?.shieldHistory ?? [],
+      international: league?.international ?? null,
+    });
+
     const out = new Map<number, FeedItem[]>();
     const seasons = new Set([
       ...transfersBySeason.keys(),
       ...eventsBySeason.keys(),
       ...awardsBySeason.keys(),
+      ...trophiesBySeason.keys(),
     ]);
     for (const season of seasons) {
       const comps = historyBySeason.get(season) ?? liveComps;
@@ -137,6 +151,7 @@ export function NewsFeed() {
         eventsBySeason.get(season) ?? [],
         { userTid, userCompId: comps[userTid], compOf: (tid) => comps[tid] },
         awardsBySeason.get(season) ?? [],
+        trophiesBySeason.get(season) ?? [],
       ));
     }
     return out;
@@ -146,6 +161,11 @@ export function NewsFeed() {
     league?.meta.userTid,
     league?.seasonHistory,
     league?.teams,
+    league?.cup,
+    league?.cupHistory,
+    league?.shield,
+    league?.shieldHistory,
+    league?.international,
   ]);
 
   if (!league) {
@@ -155,6 +175,8 @@ export function NewsFeed() {
   const userTid = league.meta.userTid;
   const userTeam = teamMap.get(userTid);
 
+  // A trophy has a tid only when a club won it; an international one never
+  // involves the user's club, so `tid === userTid` reads false for it anyway.
   const involvesUser = (item: FeedItem): boolean =>
     item.kind === "transfer"
       ? item.data.fromTid === userTid || item.data.toTid === userTid
@@ -296,6 +318,27 @@ export function NewsFeed() {
                                 </span>
                               </td>
                               <td className="text-end stat-num">{t.loanReturn ? "—" : currency.format(t.fee)}</td>
+                            </tr>
+                          );
+                        }
+                        if (item.kind === "trophy") {
+                          const t = item.data;
+                          return (
+                            <tr key={`w-${season}-${t.kind}-${t.name}-${i}`}
+                                className={highlighted ? "team-highlight" : undefined}>
+                              <td className="small">{t.name}</td>
+                              <td className="text-muted small">
+                                {t.runnerUp ? `beat ${t.runnerUp}` : "champions"}
+                              </td>
+                              {/* A nation is not a club, so it goes in the club
+                                  column through NationName rather than teamCell,
+                                  which needs a tid. */}
+                              <td>
+                                {t.tid !== undefined
+                                  ? teamCell(t.tid, season)
+                                  : <NationName nation={t.nation ?? ""} />}
+                              </td>
+                              <td className="text-end stat-num">{t.score ?? ""}</td>
                             </tr>
                           );
                         }
