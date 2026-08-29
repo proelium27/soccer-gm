@@ -668,6 +668,16 @@ export function Manual() {
             qualification zone (top four in a strong league, top two in a weak one).
           </p>
           <p>
+            League position is the usual way in, but not the only one.{" "}
+            <strong>The holders keep their place.</strong> Win the Continental Cup and you're in it
+            again next season wherever you finish, and win the{" "}
+            <a href="#shield">Continental Shield</a> and you're promoted into the Cup. If you'd have
+            qualified through your league anyway, nothing changes and your league keeps all its
+            places. If you wouldn't have, you take the lowest of your league's Cup places, and the
+            club who held it drops into the Shield rather than out of Europe. The field is always 24
+            clubs, so a place is never created, only moved.
+          </p>
+          <p>
             It opens with a <strong>league phase</strong>: all 24 clubs sit in one combined table and
             each plays <strong>six games</strong> against six different opponents. The draw isn't
             random. The field is split into a stronger half and a weaker half, and everyone plays
@@ -748,6 +758,29 @@ export function Manual() {
             Shield places get their own shaded band directly under the Cup's.
           </p>
           <p>
+            There's one more way in, and it's the interesting one:{" "}
+            <strong>your country's domestic cup winner gets a Shield place</strong>. Win your{" "}
+            <a href="#domestic-cup">domestic cup</a> and you're in Europe next season however badly
+            your league campaign went. He takes the lowest of his league's Shield places, so the
+            field is still 16 and it's your league's 6th-placed club who makes way, not your 5th.
+            Most years this changes nothing, because the club who wins the cup has usually finished
+            high enough to qualify anyway — and when that happens the place just passes back down
+            the table.
+          </p>
+          <p>
+            The domestic cups are contested by both divisions, so a{" "}
+            <strong>second-division club really can win one and go into the Shield</strong>. He goes
+            in as the bottom seed, because a good finish in the second division isn't the same thing
+            as a good finish in the top one, and he'll be kept apart from his own country's clubs in
+            the draw like anyone else. It doesn't happen often. It's worth watching when it does.
+          </p>
+          <p>
+            Because all of this is settled at the end of the season, the shading on the Standings
+            table is a live projection: it shows where each club would go if the season ended today,
+            and it can move when a cup final is played. A club shaded from mid-table is there on one
+            of these routes — hover the bar and it tells you which.
+          </p>
+          <p>
             It runs exactly like the Cup: a 16-club league phase of six games, then the top four go
             straight to the quarter-finals, 5th to 12th fight through a single-leg playoff, and the
             rest go out. Quarter-finals and semi-finals are two-legged, the final is one match.
@@ -782,6 +815,12 @@ export function Manual() {
             tier together. It's the trophy that lets a small club have the season of its life, and
             it's the third leg of the <strong>treble</strong>: win your league, the Continental Cup
             and your domestic cup in the same season and you've done the lot.
+          </p>
+          <p>
+            Winning it also gets you into Europe. Your country's cup winner takes a{" "}
+            <a href="#shield">Continental Shield</a> place next season, whatever he did in the
+            league — including a second-division club, who goes in as the bottom seed. See{" "}
+            <a href="#shield">The Continental Shield</a> for who makes way.
           </p>
           <p>
             There is no seeding and no bracket. Every round is an <strong>open draw</strong>: the

@@ -134,3 +134,72 @@ describe("Standings qualification bars", () => {
     expect(html).toContain("Continental Shield place");
   });
 });
+
+describe("Standings qualification bars — the routes that aren't a league finish", () => {
+  /** England's table as the page computes it, so a rank can be named by tid. */
+  function englishTable(league: LeagueStore) {
+    const comp = league.competitions.find((c) => c.tier === 1)!;
+    const tids = league.teams.filter((t) => t.compId === comp.id).map((t) => t.tid);
+    const compTids = new Set(tids);
+    return computeStandings(tids, league.played.filter((m) => compTids.has(m.home)));
+  }
+
+  /** The chunk of rendered tbody belonging to one club's row. */
+  function rowFor(html: string, name: string): string {
+    const body = html.slice(html.indexOf("<tbody"), html.indexOf("</tbody>"));
+    const row = body.split("<tr").find((r) => r.includes(name));
+    expect(row).toBeDefined();
+    return row!;
+  }
+
+  function withDomesticCupWinner(league: LeagueStore, tid: number): LeagueStore {
+    const comp = league.competitions.find((c) => c.tier === 1)!;
+    return {
+      ...league,
+      domesticCups: [{
+        season: league.season,
+        country: comp.country,
+        name: `${comp.country} Cup`,
+        teams: [tid],
+        rounds: [],
+        totalRounds: 1,
+        championTid: tid,
+        statLines: null,
+      }],
+    };
+  }
+
+  it("bars a mid-table domestic cup winner, and unbars the place he took", () => {
+    const league = withCompetitions();
+    const table = englishTable(league);
+    // Ninth: comfortably below every qualifying place, so a bar on his row can
+    // only have come from the cup route.
+    const winner = table[8].tid;
+    const displaced = table[5].tid; // 6th — the lowest Shield place, which he takes
+    const nameOf = (tid: number) => league.teams.find((t) => t.tid === tid)!.name;
+
+    const before = render(league, Standings);
+    expect(rowFor(before, nameOf(winner))).not.toContain("qual-bar");
+    expect(rowFor(before, nameOf(displaced))).toContain("qual-bar-shield");
+
+    const after = render(withDomesticCupWinner(league, winner), Standings);
+    expect(rowFor(after, nameOf(winner))).toContain("qual-bar-shield");
+    expect(rowFor(after, nameOf(displaced))).not.toContain("qual-bar");
+  });
+
+  it("keeps the number of qualifying places the same, wherever they come from", () => {
+    const league = withCompetitions();
+    const winner = englishTable(league)[8].tid;
+    const html = render(withDomesticCupWinner(league, winner), Standings);
+    const body = html.slice(html.indexOf("<tbody"), html.indexOf("</tbody>"));
+    expect(body.split("qual-bar-cup").length - 1).toBe(CUP_STRONG_LEAGUE_SLOTS);
+    expect(body.split("qual-bar-shield").length - 1).toBe(2);
+  });
+
+  it("says how a club got in when it wasn't through the league", () => {
+    const league = withCompetitions();
+    const winner = englishTable(league)[8].tid;
+    const html = render(withDomesticCupWinner(league, winner), Standings);
+    expect(html).toContain("as domestic cup winners");
+  });
+});

@@ -31,6 +31,8 @@ import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
 import { computeWorldAwards } from "./worldAwards.js";
 import { snapshotAwardWinners } from "./awardWinners.js";
 import { buildCupState } from "./cup/cup.js";
+import type { QualificationRoutes } from "./cup/qualification.js";
+import { domesticCupWinners } from "./cup/qualification.js";
 import { buildDomesticCups } from "./domesticCup/cup.js";
 import { archiveDomesticCup } from "./domesticCup/archive.js";
 import { computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence } from "./promotion.js";
@@ -43,7 +45,7 @@ import { competitionOf, competitionTeamCount, competitionNationalities } from ".
 import { simThroughInternational, confederationCupChampions } from "./international/index.js";
 import { carryIntlInjuries } from "./injuries.js";
 import { hashInts, mulberry32 } from "../engine/rng.js";
-import { NEWS_POSITION_CHANGE_OVR, SHIELD_FORMAT, difficultyProfile } from "./constants.js";
+import { NEWS_POSITION_CHANGE_OVR, CONTINENTAL_CUP_FORMAT, SHIELD_FORMAT, difficultyProfile } from "./constants.js";
 
 /** rng-stream tag for rolling carried-over international injury durations. */
 const INTL_INJURY_STREAM = 840;
@@ -656,6 +658,19 @@ export function simOffseasonReporting(
       : t,
   );
 
+  // The non-league routes into next season's continental competitions, read off
+  // the season that just finished. Both are taken from `league` rather than the
+  // rolled-over state because these are the cups that have just been decided —
+  // `rolled` replaces them with next season's empty ones. A cup still holding a
+  // null champion (abandoned mid-save) simply closes its route.
+  const cupRoutes: QualificationRoutes = {
+    domesticCupWinners: domesticCupWinners(league.domesticCups ?? []),
+    holders: {
+      continental: league.cup?.championTid ?? undefined,
+      shield: league.shield?.championTid ?? undefined,
+    },
+  };
+
   const rolled: LeagueStore = {
     ...league,
     teams,
@@ -676,12 +691,14 @@ export function simOffseasonReporting(
     ],
     winterMarketRunSeason: null,
     // Archive the season's completed continental competitions and seed next
-    // season's from the tier-1 tables just decided above. Each format takes its
-    // own slice of every table (the Cup from the top, the Shield from directly
-    // below it — see CUP_FORMATS), so the two fields can't overlap.
+    // season's from the tables just decided above, plus the two routes in that
+    // aren't a league finish: the reigning champions (the Cup keeps its winner
+    // and takes the Shield's) and each country's domestic cup winner, who takes
+    // one of his country's Shield places. Both formats are allocated in one
+    // pass, so a club is placed in exactly one of them — see cup/qualification.
     // buildCupState returns null if that format's field can't be filled.
-    cup: buildCupState(league.competitions, tablesByCompId, nextSeason),
-    shield: buildCupState(league.competitions, tablesByCompId, nextSeason, SHIELD_FORMAT),
+    cup: buildCupState(league.competitions, tablesByCompId, nextSeason, CONTINENTAL_CUP_FORMAT, cupRoutes),
+    shield: buildCupState(league.competitions, tablesByCompId, nextSeason, SHIELD_FORMAT, cupRoutes),
     // International football already played out (in stages) before this advance;
     // carry its state forward, resetting the per-offseason stage marker (and the
     // just-consumed injury carry-over list) so the new season starts clean.
