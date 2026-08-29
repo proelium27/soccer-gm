@@ -758,6 +758,15 @@ export function Manual() {
             From there it's a straight knockout: quarter-finals, semi-finals and final.
           </p>
           <p>
+            Those cut lines move if the competition is smaller, because what goes through is{" "}
+            <strong>half the field</strong>, up to a maximum of twelve. Both competitions here are
+            big enough to hit that maximum, so both send twelve through and nothing about them has
+            changed. Shrink one below 24 clubs and it starts sending fewer: a 20-club competition
+            puts ten through, and a 16-club one puts eight through with no playoff round at all,
+            since eight is already a full quarter-final bracket. You'll only see this if you build
+            your own world. The key under the league-phase table always names the actual numbers.
+          </p>
+          <p>
             The <strong>quarter-finals and semi-finals are two-legged</strong>: each side hosts once,
             on <strong>separate matchdays</strong> (first leg then second leg), and the tie is decided
             on the <strong>aggregate</strong> (both clubs' goals across the two games added up). Two

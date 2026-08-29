@@ -72,7 +72,13 @@ function cupState(over: Partial<CupState>): CupState {
   return {
     season: 2,
     name: "Continental Cup",
-    teams: [1, 2, 3, 4],
+    // Eight bracket slots because these cases assert quarter-final names, and
+    // the bracket's LENGTH is now what says how deep it is (koRoundsOf reads it,
+    // since a cup's bracket is sized from its field — see cupKnockoutPlan). A
+    // four-slot bracket is a semi-final-and-final cup, so it would read round 0
+    // as "Semi-finals" and round 2 as nothing sensible at all. Same class of
+    // fixture trap as the leaguePhase note below.
+    teams: [1, 2, 3, 4, 5, 6, 7, 8],
     seeds: { 1: 1, 2: 2, 3: 3, 4: 4 },
     // A real Swiss cup keeps its league phase for the whole season — nothing
     // clears it once the knockouts start, and `isSwissCup` is exactly this

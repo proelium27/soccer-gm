@@ -16,8 +16,25 @@ import { cupSlotsForCompetition } from "../../core/cup/qualification.js";
 import type { LeagueStore } from "../../core/leagueState.js";
 import type { CupCompetitionId } from "../../core/constants.js";
 import {
-  CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS, CUP_FORMATS, CONTINENTAL_CUP_FORMAT,
+  CUP_FORMATS, CONTINENTAL_CUP_FORMAT, cupKnockoutPlan, largestValidCupField,
 } from "../../core/constants.js";
+
+/**
+ * How a field of this size splits, in a sentence — "the top four go straight to
+ * the quarter-finals, the next eight fight through a playoff round, and the
+ * rest are out". Generated rather than written down because the cut lines scale
+ * with the field (see cupKnockoutPlan): a smaller competition sends fewer
+ * through, opens at a shallower round, and may have no playoff at all.
+ */
+function splitBlurb(fieldSize: number): string {
+  const played = largestValidCupField(fieldSize);
+  const { koSize, directQF, playoffTeams } = cupKnockoutPlan(played);
+  const opener = cupRoundName(0, Math.round(Math.log2(koSize))).toLowerCase();
+  if (playoffTeams === 0) return `the top ${directQF} go straight to the ${opener} and the rest are out`;
+  if (directQF === 0) return `the top ${playoffTeams} fight through a playoff round for the ${opener}, and the rest are out`;
+  return `the top ${directQF} go straight to the ${opener}, the next ${playoffTeams}`
+    + " fight through a playoff round, and the rest are out";
+}
 
 /** One slot in a bracket column: a finished tie, a two-legged tie with only its first leg played, a known-but-unplayed pairing, or a yet-undecided placeholder. */
 type Slot =
@@ -166,9 +183,8 @@ export function Cup({ competition = "continental" }: { competition?: CupCompetit
               </>
             )}{" "}
             Everyone starts together in a single league phase of six games, then the table splits:
-            the top four go straight to the quarter-finals, the next eight fight through a playoff
-            round, and the rest are out. It kicks off next season, and who gets in is decided by
-            this season&apos;s final league tables.
+            {" "}{splitBlurb(format.fieldSize)}. It kicks off next season, and who gets in is decided
+            by this season&apos;s final league tables.
           </p>
         ) : (
           <p className="text-muted">
@@ -274,8 +290,8 @@ export function Cup({ competition = "continental" }: { competition?: CupCompetit
         <HelpHint>
           A {format.fieldSize}-club competition played alongside the league
           {isShield ? ", for the clubs that finish just below the Continental Cup places" : ""}. It
-          opens with a league phase where everyone plays six games in one table; the top four skip
-          to the quarter-finals, the next eight play a one-off playoff round, and the rest go out.
+          opens with a league phase where everyone plays six games in one table, then{" "}
+          {splitBlurb(currentCup ? currentCup.leaguePhase?.teams.length ?? format.fieldSize : format.fieldSize)}.
           From there it&apos;s a straight knockout. If your club reaches the final, the sim pauses
           so you can play it.
         </HelpHint>
@@ -422,9 +438,11 @@ function LeaguePhaseSection({
 }) {
   const table = leaguePhaseTable(cup.leaguePhase!, cup.seeds);
   const played = cup.leaguePhase!.matches.some((m) => m.played);
+  const { directQF, playoffTeams } = cupKnockoutPlan(table.length);
+  const opener = cupRoundName(0, koRoundsOf(cup));
   const zoneClass = (pos: number): string => {
-    if (pos <= CUP_LP_DIRECT_QF) return "cup-lp-direct";
-    if (pos <= CUP_LP_DIRECT_QF + CUP_LP_PLAYOFF_TEAMS) return "cup-lp-playoff";
+    if (pos <= directQF) return "cup-lp-direct";
+    if (pos <= directQF + playoffTeams) return "cup-lp-playoff";
     return "cup-lp-out";
   };
   return (
@@ -463,8 +481,12 @@ function LeaguePhaseSection({
         </tbody>
       </table>
       <div className="cup-lp-key small text-muted">
-        <span className="cup-lp-key-item"><span className="cup-lp-swatch cup-lp-direct" /> Top {CUP_LP_DIRECT_QF} to the quarter-finals</span>
-        <span className="cup-lp-key-item"><span className="cup-lp-swatch cup-lp-playoff" /> Next {CUP_LP_PLAYOFF_TEAMS} to the playoff</span>
+        {directQF > 0 && (
+          <span className="cup-lp-key-item"><span className="cup-lp-swatch cup-lp-direct" /> Top {directQF} to the {opener.toLowerCase()}</span>
+        )}
+        {playoffTeams > 0 && (
+          <span className="cup-lp-key-item"><span className="cup-lp-swatch cup-lp-playoff" /> {directQF > 0 ? "Next" : "Top"} {playoffTeams} to the playoff</span>
+        )}
         <span className="cup-lp-key-item"><span className="cup-lp-swatch cup-lp-out" /> Rest eliminated</span>
       </div>
     </div>

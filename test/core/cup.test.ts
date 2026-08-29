@@ -4,12 +4,13 @@ import type { MatchPlayer } from "../../src/engine/attribution.js";
 import type { TeamMatchData } from "../../src/core/league/composites.js";
 import type { StandingsRow } from "../../src/core/standings.js";
 import type { Competition } from "../../src/core/competitions.js";
+import type { CupFormat } from "../../src/core/constants.js";
 import type { CupState } from "../../src/core/cup/types.js";
 import { worldCompetitions, englandCompetitions } from "../../src/core/competitions.js";
 import {
   seedOrder, qualifyCupTeams, buildCupState, matchupsForRound, cupPlan,
   completedRounds, dueCupRound, cupRoundName, cupFinalists, isCupComplete,
-  playoffDue, koFinalRound, koLegMatchdays,
+  playoffDue, koFinalRound, koLegMatchdays, koRoundsOf,
 } from "../../src/core/cup/cup.js";
 import { leaguePhaseComplete } from "../../src/core/cup/leaguePhase.js";
 import { playKnockoutLeg, playPlayoff, playLeaguePhaseRound, resolveCupTie } from "../../src/core/cup/simCup.js";
@@ -17,7 +18,7 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import {
   CUP_LEAGUE_PHASE_MATCHDAYS, CUP_KO_ROUND_MATCHDAYS, CUP_PLAYOFF_MATCHDAY,
   CUP_LEAGUE_PHASE_SIZE, CUP_LEAGUE_PHASE_GAMES, CUP_KO_SIZE,
-  CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS,
+  cupKnockoutPlan, CONTINENTAL_CUP_FORMAT, SHIELD_LEAGUE_PHASE_SIZE,
   CUP_PRIZE_PARTICIPATION, CUP_PRIZE_WIN_PLAYOFF, CUP_PRIZE_WIN_QF, CUP_PRIZE_WIN_SF,
   CUP_PRIZE_WIN_FINAL, CUP_PRIZE_RUNNER_UP,
 } from "../../src/core/constants.js";
@@ -76,6 +77,9 @@ function matchDataFor(cup: CupState): Map<number, TeamMatchData> {
   }
   return md;
 }
+
+/** The shipped Cup's split: 4 straight to the quarter-finals, 8 into the playoff. */
+const SPLIT = cupKnockoutPlan(CUP_LEAGUE_PHASE_SIZE);
 
 describe("seedOrder", () => {
   it("produces the standard 8-team bracket order", () => {
@@ -192,9 +196,9 @@ describe("full Swiss cup: league phase → playoff → knockout", () => {
     }
     expect(leaguePhaseComplete(cup.leaguePhase!)).toBe(true);
     // The knockout bracket is now seeded: four direct entrants + four -1 playoff slots.
-    expect(cup.teams.filter((t) => t >= 0)).toHaveLength(CUP_LP_DIRECT_QF);
-    expect(cup.teams.filter((t) => t === -1)).toHaveLength(CUP_KO_SIZE - CUP_LP_DIRECT_QF);
-    expect(cup.playoff!.teams).toHaveLength(CUP_LP_PLAYOFF_TEAMS);
+    expect(cup.teams.filter((t) => t >= 0)).toHaveLength(SPLIT.directQF);
+    expect(cup.teams.filter((t) => t === -1)).toHaveLength(CUP_KO_SIZE - SPLIT.directQF);
+    expect(cup.playoff!.teams).toHaveLength(SPLIT.playoffTeams);
     expect(playoffDue(cup, CUP_PLAYOFF_MATCHDAY)).toBe(true);
     // Knockout still can't start — playoff pending.
     expect(dueCupRound(cup, CUP_KO_ROUND_MATCHDAYS[0])).toBeNull();
@@ -203,7 +207,7 @@ describe("full Swiss cup: league phase → playoff → knockout", () => {
     const po = playPlayoff(cup, matchData, 0);
     cup = po.cup;
     addAll(po.prizes);
-    expect(cup.playoff!.ties).toHaveLength(CUP_LP_PLAYOFF_TEAMS / 2);
+    expect(cup.playoff!.ties).toHaveLength(SPLIT.playoffTeams / 2);
     expect(cup.teams.every((t) => t >= 0)).toBe(true);
     expect(dueCupRound(cup, CUP_KO_ROUND_MATCHDAYS[0])).toBe(0);
 
@@ -241,7 +245,7 @@ describe("full Swiss cup: league phase → playoff → knockout", () => {
     // Prize pot: participation for all 20, four playoff wins, and the knockout tiers.
     const pot =
       CUP_LEAGUE_PHASE_SIZE * CUP_PRIZE_PARTICIPATION +
-      (CUP_LP_PLAYOFF_TEAMS / 2) * CUP_PRIZE_WIN_PLAYOFF +
+      (SPLIT.playoffTeams / 2) * CUP_PRIZE_WIN_PLAYOFF +
       4 * CUP_PRIZE_WIN_QF +
       2 * CUP_PRIZE_WIN_SF +
       1 * CUP_PRIZE_WIN_FINAL +
@@ -294,5 +298,115 @@ describe("two-legged knockout across separate matchdays", () => {
     expect(cup.koLegs).toBeNull();
     expect(cup.ties.filter((t) => t.round === 0)).toHaveLength(CUP_KO_SIZE / 2);
     expect(completedRounds(cup)).toBe(1);
+  });
+});
+
+describe("cupKnockoutPlan", () => {
+  // The cut lines used to be two fixed constants (4 direct + 8 playoff), which
+  // meant a 16-club Shield advanced twelve of its sixteen entrants: six rounds
+  // of league phase to eliminate four clubs. They now scale with the field.
+  it("advances half the field, up to a bracket and a half", () => {
+    const table: [number, { koSize: number; directQF: number; playoffTeams: number }][] = [
+      [12, { koSize: 4, directQF: 2, playoffTeams: 4 }],
+      [16, { koSize: 8, directQF: 8, playoffTeams: 0 }],
+      [20, { koSize: 8, directQF: 6, playoffTeams: 4 }],
+      // From 24 up the cap binds and the split settles on the shape both shipped
+      // competitions have always played, whatever the field grows to.
+      [24, { koSize: 8, directQF: 4, playoffTeams: 8 }],
+      [28, { koSize: 8, directQF: 4, playoffTeams: 8 }],
+      [32, { koSize: 8, directQF: 4, playoffTeams: 8 }],
+      [40, { koSize: 8, directQF: 4, playoffTeams: 8 }],
+    ];
+    for (const [size, expected] of table) {
+      expect(cupKnockoutPlan(size), `field of ${size}`).toEqual(expected);
+      const { koSize, directQF, playoffTeams } = expected;
+      // Every plan has to seed a real bracket: the direct places plus one winner
+      // per playoff tie must fill it exactly, and neither half may overflow it.
+      expect(directQF + playoffTeams / 2).toBe(koSize);
+      expect(directQF).toBeLessThanOrEqual(koSize);
+      expect(playoffTeams % 2).toBe(0);
+      expect(directQF + playoffTeams).toBeLessThanOrEqual(size);
+    }
+  });
+
+  // The load-bearing one: the Cup's field is 32 and the Shield's is 24, so no
+  // single fraction leaves both alone. Capped at a bracket and a half, both come
+  // out on the split they already played — no scoreline and no prize money moves.
+  it("leaves both shipped competitions' splits exactly as they were", () => {
+    expect(cupKnockoutPlan(CUP_LEAGUE_PHASE_SIZE)).toEqual({ koSize: 8, directQF: 4, playoffTeams: 8 });
+    expect(cupKnockoutPlan(SHIELD_LEAGUE_PHASE_SIZE)).toEqual({ koSize: 8, directQF: 4, playoffTeams: 8 });
+  });
+
+  // Bigger fields can't have a bigger bracket — CUP_KO_LEG_MATCHDAYS has room
+  // for three rounds and no more — so they take a stingier cut instead of an
+  // impossible calendar.
+  it("caps the bracket at the depth the knockout calendar can hold", () => {
+    for (const size of [36, 40, 48, 64]) {
+      const plan = cupKnockoutPlan(size);
+      expect(plan.koSize).toBe(8);
+      expect(plan.directQF + plan.playoffTeams).toBeLessThanOrEqual(size / 2);
+      // Never zero direct qualifiers: a league phase whose winner earns nothing
+      // but a seeding is the format the bracket cap exists to avoid.
+      expect(plan.directQF).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("a small cup: 12 clubs, semi-final bracket", () => {
+  /** Four strong leagues sending three each — the smallest field the draw builds. */
+  const SMALL_FORMAT: CupFormat = { ...CONTINENTAL_CUP_FORMAT, strongSlots: 3, weakSlots: 0, fieldSize: 12 };
+
+  it("plays league phase → playoff → semi-final → final, finishing on the usual matchday", () => {
+    expect(cupPlan(strongComps, SMALL_FORMAT)!.total).toBe(12);
+    let cup = buildCupState(strongComps, tablesFor(strongComps, 3), 2, SMALL_FORMAT)!;
+    expect(cup.leaguePhase!.teams).toHaveLength(12);
+    // A four-slot bracket, so two knockout rounds rather than three.
+    expect(cup.teams).toHaveLength(4);
+    expect(koRoundsOf(cup)).toBe(2);
+    expect(cupRoundName(0, koRoundsOf(cup))).toBe("Semi-finals");
+    // It takes the LAST rounds of the knockout calendar, so the final still
+    // lands on the same matchday every other competition's does.
+    const legs = koLegMatchdays(cup);
+    expect(legs).toHaveLength(2);
+    expect(legs[legs.length - 1]).toEqual([CUP_KO_ROUND_MATCHDAYS[CUP_KO_ROUND_MATCHDAYS.length - 1]]);
+
+    const matchData = matchDataFor(cup);
+    for (const md of CUP_LEAGUE_PHASE_MATCHDAYS) cup = playLeaguePhaseRound(cup, matchData, 0, md).cup;
+    expect(leaguePhaseComplete(cup.leaguePhase!)).toBe(true);
+    expect(cup.teams.filter((t) => t >= 0)).toHaveLength(2); // two direct semi-finalists
+    expect(cup.playoff!.teams).toHaveLength(4); // four more play for the other two places
+    expect(playoffDue(cup, CUP_PLAYOFF_MATCHDAY)).toBe(true);
+
+    cup = playPlayoff(cup, matchData, 0).cup;
+    expect(cup.teams.every((t) => t >= 0)).toBe(true);
+    for (const legMds of koLegMatchdays(cup)) {
+      for (const md of legMds) cup = playKnockoutLeg(cup, matchData, 0, md).cup;
+    }
+    expect(isCupComplete(cup)).toBe(true);
+    expect(cup.championTid).not.toBeNull();
+    expect(cup.ties).toHaveLength(2 + 1); // two semi-finals and a final
+    expect(cupFinalists(cup)).toHaveLength(2);
+  });
+});
+
+describe("a cup whose field is exactly a bracket's worth", () => {
+  it("sends the top half straight to the knockout and plays no playoff", () => {
+    // 16 clubs, which the shipped world no longer builds but a hand-made one
+    // can. The playoff is left null rather than built empty, or playoffDue
+    // would fire on a round with no ties in it.
+    const cup = (() => {
+      let c = buildCupState(strongComps, tablesFor(strongComps, 4), 2, {
+        ...CONTINENTAL_CUP_FORMAT, strongSlots: 4, weakSlots: 0, fieldSize: SHIELD_LEAGUE_PHASE_SIZE,
+      })!;
+      const matchData = matchDataFor(c);
+      for (const md of CUP_LEAGUE_PHASE_MATCHDAYS) c = playLeaguePhaseRound(c, matchData, 0, md).cup;
+      return c;
+    })();
+    expect(cup.leaguePhase!.teams).toHaveLength(16);
+    expect(cup.playoff).toBeNull();
+    expect(cup.teams.filter((t) => t >= 0)).toHaveLength(8);
+    expect(playoffDue(cup, CUP_PLAYOFF_MATCHDAY)).toBe(false);
+    // The quarter-finals are due on schedule with nothing standing in the way.
+    expect(dueCupRound(cup, koLegMatchdays(cup)[0][0])).toBe(0);
   });
 });

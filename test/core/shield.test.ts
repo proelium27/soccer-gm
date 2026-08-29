@@ -15,10 +15,10 @@ import { leaguePhaseComplete } from "../../src/core/cup/leaguePhase.js";
 import { playKnockoutLeg, playPlayoff, playLeaguePhaseRound } from "../../src/core/cup/simCup.js";
 import {
   CUP_LEAGUE_PHASE_MATCHDAYS, CUP_PLAYOFF_MATCHDAY,
-  CUP_LEAGUE_PHASE_GAMES, CUP_KO_SIZE, CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS,
+  CUP_LEAGUE_PHASE_GAMES, CUP_KO_SIZE, cupKnockoutPlan,
   CUP_STRONG_LEAGUE_SLOTS, CUP_WEAK_LEAGUE_SLOTS,
   SHIELD_FORMAT, CONTINENTAL_CUP_FORMAT, SHIELD_LEAGUE_PHASE_SIZE,
-  SHIELD_PRIZE_PARTICIPATION, SHIELD_PRIZE_WIN_PLAYOFF, SHIELD_PRIZE_WIN_QF,
+  SHIELD_PRIZE_PARTICIPATION, SHIELD_PRIZE_WIN_QF, SHIELD_PRIZE_WIN_PLAYOFF,
   SHIELD_PRIZE_WIN_SF, SHIELD_PRIZE_WIN_FINAL, SHIELD_PRIZE_RUNNER_UP,
 } from "../../src/core/constants.js";
 
@@ -175,8 +175,13 @@ describe("full Shield: league phase → playoff → knockout", () => {
       addAll(prizes);
     }
     expect(leaguePhaseComplete(shield.leaguePhase!)).toBe(true);
-    expect(shield.teams.filter((t) => t >= 0)).toHaveLength(CUP_LP_DIRECT_QF);
-    expect(shield.playoff!.teams).toHaveLength(CUP_LP_PLAYOFF_TEAMS);
+    // A 24-club field splits exactly as the Cup's does, which is the whole point
+    // of capping the cut at a bracket and a half: the Shield's format, and its
+    // prize money with it, is untouched by the split becoming field-sized.
+    const plan = cupKnockoutPlan(SHIELD_LEAGUE_PHASE_SIZE);
+    expect(plan).toEqual({ koSize: 8, directQF: 4, playoffTeams: 8 });
+    expect(shield.teams.filter((t) => t >= 0)).toHaveLength(plan.directQF);
+    expect(shield.playoff!.teams).toHaveLength(plan.playoffTeams);
     expect(playoffDue(shield, CUP_PLAYOFF_MATCHDAY)).toBe(true);
 
     const po = playPlayoff(shield, matchData, 0);
@@ -204,7 +209,7 @@ describe("full Shield: league phase → playoff → knockout", () => {
     ]);
     const pot =
       SHIELD_LEAGUE_PHASE_SIZE * SHIELD_PRIZE_PARTICIPATION +
-      (CUP_LP_PLAYOFF_TEAMS / 2) * SHIELD_PRIZE_WIN_PLAYOFF +
+      (plan.playoffTeams / 2) * SHIELD_PRIZE_WIN_PLAYOFF +
       4 * SHIELD_PRIZE_WIN_QF +
       2 * SHIELD_PRIZE_WIN_SF +
       1 * SHIELD_PRIZE_WIN_FINAL +
