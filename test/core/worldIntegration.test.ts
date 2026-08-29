@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { generateWorld } from "../../src/core/league/generate.js";
-import { worldCompetitions } from "../../src/core/competitions.js";
+import { worldCompetitions, competitionTeamCount } from "../../src/core/competitions.js";
 import { assignIdentities } from "../../src/core/teams/clubs.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
@@ -71,10 +71,12 @@ describe("world integration (generateWorld through the real season/offseason pip
     league = simThrough(league, "season", rng);
     const beforeCompByTid = new Map(league.teams.map((t) => [t.tid, t.compId]));
     league = simOffseason(league, rng);
-    expect(league.teams).toHaveLength(320);
-    // Every competition still has exactly 20 teams after the swap.
+    expect(league.teams).toHaveLength(420);
+    // Every competition still has its own club count after the swap — divisions
+    // are different sizes now, and promotion must preserve each one exactly.
     for (const comp of league.competitions) {
-      expect(league.teams.filter((t) => t.compId === comp.id)).toHaveLength(20);
+      expect(league.teams.filter((t) => t.compId === comp.id))
+        .toHaveLength(competitionTeamCount(comp));
     }
     // At least one country actually swapped teams (statistically near-certain
     // across 6 countries x 3 promotions each) — proves the per-country loop

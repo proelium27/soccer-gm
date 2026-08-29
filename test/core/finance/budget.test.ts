@@ -121,6 +121,40 @@ describe("successPayout", () => {
     for (let rank = 11; rank <= NUM_TEAMS; rank++) expect(successPayout(rank, 1)).toBe(0);
   });
 
+  // The cutoffs are a fraction of the division, not fixed ranks. At fixed ranks
+  // a 10-club second division paid EVERY club top-10 money, which made a small
+  // league richer per club for no footballing reason and let it climb the
+  // strength ladder. See successPayout's comment for the measurement.
+  it("pays the same SHARE of every division, whatever its size", () => {
+    for (const size of [10, 12, 14, 16, 18, 20]) {
+      const paid = Array.from({ length: size }, (_, i) => successPayout(i + 1, 1, size))
+        .filter((p) => p > 0).length;
+      // Half the table is paid, in every division.
+      expect(paid).toBe(size / 2);
+    }
+  });
+
+  it("is unchanged for a 20-club division, so the big leagues are untouched", () => {
+    for (let rank = 1; rank <= NUM_TEAMS; rank++) {
+      expect(successPayout(rank, 1, NUM_TEAMS)).toBe(successPayout(rank, 1));
+    }
+  });
+
+  // The champion's prize is a lump that does not divide, so a small league still
+  // pays marginally more per club. That is deliberate — a title is a title — but
+  // it must stay marginal: at fixed cutoffs the 10-club figure was 2x the
+  // 20-club one.
+  it("keeps mean prize per club close across division sizes", () => {
+    const meanPer = (size: number) =>
+      Array.from({ length: size }, (_, i) => successPayout(i + 1, 1, size))
+        .reduce((a, b) => a + b, 0) / size;
+    const big = meanPer(NUM_TEAMS);
+    for (const size of [10, 12, 14, 16, 18]) {
+      expect(meanPer(size)).toBeGreaterThanOrEqual(big);
+      expect(meanPer(size)).toBeLessThan(big * 1.25);
+    }
+  });
+
   it("keeps the tiers strictly ordered", () => {
     expect(PRIZE_CHAMPION).toBeGreaterThan(PRIZE_TOP_5);
     expect(PRIZE_TOP_5).toBeGreaterThan(PRIZE_TOP_10);

@@ -25,7 +25,7 @@ function makeLeague() {
 }
 
 // Same problem as the `beforeAll` below, one level down: several tests here do
-// enough IDB work on a 6000-player world to land near vitest's 5s default, and
+// enough IDB work on a 10,000-player world to land near vitest's 5s default, and
 // a test that is *near* a timeout is a test that fails when the machine is
 // busy. Measured on CI, "splits a v3 row that still carries its career inline"
 // took 5347ms and "falls back to a full rewrite when another writer touched the
@@ -34,17 +34,31 @@ function makeLeague() {
 // a second run of the identical commit passed). They are legitimately slow, not
 // hung, so the fix is to let them take the time rather than to make them do
 // less work.
-vi.setConfig({ testTimeout: 30_000 });
+//
+// Raised 30s → 60s → 120s as the world went 8,000 → 10,000 → 12,000 players
+// (2026-08-28). Every cost in this file scales with the player count, so **this
+// budget needs re-checking each time a country is added** — this and
+// retireeStoreCost.test.ts are the files where growing the world shows up as a
+// timeout rather than a wrong number.
+//
+// hookTimeout matters as much as testTimeout and is easy to miss: the
+// beforeEach below clears three object stores, which on a 12,000-player world
+// blew vitest's 10s hook default and cascaded — a hook that times out mid-flight
+// skips its own cleanup, so every later test in the file fails with
+// InvalidStateError on a dead transaction rather than with anything that points
+// at the real cause.
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
 
 // Pay for the world up front, with a timeout that reflects what it actually
-// costs. Generation is ~4.3s (scripts/managerCostProbe.ts) against vitest's 5s
-// default, so leaving it to be paid lazily inside whichever test ran first left
-// a ~600ms margin: fine in isolation, but under a full parallel run that test
-// timed out, and because it timed out mid-flight it skipped the cleanup below,
-// cascading into "expected 1 league, got 2" failures in every test after it.
+// costs. Generation is ~5.4s on the ten-country world (scripts/managerCostProbe.ts)
+// against vitest's 5s default, so leaving it to be paid lazily inside whichever
+// test ran first left no margin at all: fine in isolation, but under a full
+// parallel run that test timed out, and because it timed out mid-flight it
+// skipped the cleanup below, cascading into "expected 1 league, got 2" failures
+// in every test after it.
 beforeAll(() => {
   makeLeague();
-}, 60_000);
+}, 180_000);
 
 // Clear all leagues between tests so each test starts with an empty store.
 beforeEach(async () => {

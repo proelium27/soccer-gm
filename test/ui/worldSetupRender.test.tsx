@@ -69,7 +69,7 @@ describe("WorldSetup renders", () => {
     for (const country of ["England", "Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey"]) {
       expect(html).toContain(country);
     }
-    expect(html).toContain("8 leagues, 320 clubs");
+    expect(html).toContain("12 leagues, 420 clubs");
     expect(html).not.toContain("alert-warning");
   });
 
@@ -80,7 +80,7 @@ describe("WorldSetup renders", () => {
     expect(html).toContain("Money");
     expect(html).toContain("Continental Cup places");
     expect(html).toContain("Continental Shield places");
-    expect(html).toContain("9 leagues, 360 clubs");
+    expect(html).toContain("13 leagues, 460 clubs");
   });
 
   it("keeps the shipped rows collapsed, so eight panels don't bury the checkboxes", () => {
@@ -216,8 +216,12 @@ describe("WorldSetup renders", () => {
     // their divisions and nothing else — even though every knob is an optional
     // field whose absence means "use the country table", so writing one has
     // always been safe.
-    const html = render(defaultWorldEntries());
-    expect(html.match(/>Customize</g)).toHaveLength(8);
+    //
+    // The count is derived rather than written down: it was pinned at 8 and
+    // failed the moment the world grew to twelve countries.
+    const entries = defaultWorldEntries();
+    expect(entries.length).toBeGreaterThan(1);
+    expect(render(entries).match(/>Customize</g)).toHaveLength(entries.length);
   });
 
   it("doesn't offer to customize a league that's switched off", () => {
@@ -349,7 +353,7 @@ describe("WorldSetup wiring", () => {
   it("keeps the entries it renders in step with the world they build", () => {
     const entries = withAddedLeague();
     const countries = countriesOf(buildCompetitions(includedSpecs(entries)));
-    expect(countries).toHaveLength(9);
+    expect(countries).toHaveLength(13);
     expect(countries[countries.length - 1]).toBe("Neverland");
   });
 });

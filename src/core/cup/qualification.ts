@@ -70,8 +70,8 @@ export function cupPlan(
   // strong/weak default its class would give it.
   const qualified = tier1.reduce((n, c) => n + cupSlotsForCompetition(c, format), 0);
   // Trim to a size the league-phase draw can actually build (see
-  // isValidCupFieldSize). The shipped world lands exactly on one — 24 for the
-  // Cup, 16 for the Shield — so this changes nothing there; a world whose
+  // isValidCupFieldSize). The shipped world lands exactly on one — 32 for the
+  // Cup, 24 for the Shield — so this changes nothing there; a world whose
   // leagues send an awkward total now gets the largest valid field rather than
   // crashing the offseason on the draw.
   const total = largestValidCupField(qualified);

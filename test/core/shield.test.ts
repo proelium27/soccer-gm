@@ -72,11 +72,11 @@ function matchDataFor(cup: CupState): Map<number, TeamMatchData> {
 }
 
 describe("Shield qualification", () => {
-  it("fields 16 clubs: two from every tier-1 league, strong or weak", () => {
+  it("fields 24 clubs: two from every tier-1 league, strong or weak", () => {
     const plan = cupPlan(worldCompetitions(), SHIELD_FORMAT)!;
     expect(plan.strong).toHaveLength(4);
-    expect(plan.weak).toHaveLength(4);
-    expect(plan.total).toBe(SHIELD_LEAGUE_PHASE_SIZE); // 8 leagues x 2 = 16
+    expect(plan.weak).toHaveLength(8);
+    expect(plan.total).toBe(SHIELD_LEAGUE_PHASE_SIZE); // 12 leagues x 2 = 24
   });
 
   it("takes the places directly below the Continental Cup's in each league", () => {
@@ -101,8 +101,8 @@ describe("Shield qualification", () => {
     const tables = tablesFor(comps);
     const cup = qualifyCupTeams(comps, tables, CONTINENTAL_CUP_FORMAT).field;
     const shield = qualifyCupTeams(comps, tables, SHIELD_FORMAT).field;
-    expect(cup).toHaveLength(24);
-    expect(shield).toHaveLength(16);
+    expect(cup).toHaveLength(32);
+    expect(shield).toHaveLength(24);
     const overlap = shield.filter((t) => cup.includes(t));
     expect(overlap).toEqual([]);
   });

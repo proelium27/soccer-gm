@@ -94,11 +94,13 @@ describe("seedOrder", () => {
 });
 
 describe("cupPlan", () => {
-  it("splits the real world into 4 strong + 4 weak tier-1 leagues, 24 qualifiers", () => {
+  it("splits the real world into 4 strong + 8 weak tier-1 leagues, 32 qualifiers", () => {
     const plan = cupPlan(worldCompetitions())!;
     expect(plan.strong.map((c) => c.country)).toEqual(["England", "Spain", "Italy", "Germany"]);
-    expect(plan.weak.map((c) => c.country)).toEqual(["France", "Portugal", "Belgium", "Turkey"]);
-    expect(plan.total).toBe(CUP_LEAGUE_PHASE_SIZE); // 4*4 + 4*2 = 24
+    expect(plan.weak.map((c) => c.country)).toEqual(
+      ["France", "Portugal", "Belgium", "Turkey", "Netherlands", "Scotland", "Greece", "Serbia"],
+    );
+    expect(plan.total).toBe(CUP_LEAGUE_PHASE_SIZE); // 4*4 + 8*2 = 32
   });
   it("still fields a cup for a 4-strong-league world (16), but not for England-only", () => {
     expect(cupPlan(strongComps)!.total).toBe(16);

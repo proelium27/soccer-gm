@@ -175,8 +175,6 @@ export const CLUBS: ClubIdentity[] = [
   { name: "Mainz Winzer",        abbrev: "MNZ", colors: ["#7b241c", "#f5b7b1"] },
   { name: "Kiel Mowen",          abbrev: "KIE", colors: ["#154360", "#ffffff"] },
   { name: "Rostock Anker",       abbrev: "RST", colors: ["#0b5345", "#f1c40f"] },
-  { name: "Essen Zechen",        abbrev: "ESS", colors: ["#1c2833", "#e74c3c"] },
-  { name: "Duisburg Schmelzer",  abbrev: "DUI", colors: ["#6e2c00", "#f4f6f6"] },
   { name: "Bielefeld Leinen",    abbrev: "BIE", colors: ["#283747", "#f39c12"] },
   { name: "Karlsruhe Markgrafen", abbrev: "KRL", colors: ["#a04000", "#f5b041"] },
   { name: "Mannheim Kurpfalz",   abbrev: "MAN", colors: ["#512e5f", "#f0f3f4"] },
@@ -195,8 +193,6 @@ export const CLUBS: ClubIdentity[] = [
   { name: "Furth Kleeblatter",   abbrev: "FUR", colors: ["#196f3d", "#ffffff"] },
   { name: "Heidenheim Brenztaler", abbrev: "HDH", colors: ["#b7950b", "#1a1a1a"] },
   { name: "Darmstadt Lilien",    abbrev: "DAR", colors: ["#1b2631", "#5dade2"] },
-  { name: "Magdeburg Ottonen",   abbrev: "MAG", colors: ["#0b5345", "#f7dc6f"] },
-  { name: "Chemnitz Spinner",    abbrev: "CHE", colors: ["#4a235a", "#f8c471"] },
   // French clubs (tids 160-199): real French cities/towns with invented,
   // evocative suffixes (Griffons/Corsaires/Aiglons/etc.), same fictional
   // styling as the sets above — deliberately not real Ligue 1/2 club names.
@@ -220,8 +216,6 @@ export const CLUBS: ClubIdentity[] = [
   { name: "Nancy Lorrains",      abbrev: "NCY", colors: ["#e74c3c", "#154360"] },
   { name: "Dijon Ducs",          abbrev: "DIJ", colors: ["#a04000", "#f5b041"] },
   { name: "Caen Vikings",        abbrev: "CAE", colors: ["#1a5276", "#e74c3c"] },
-  { name: "Amiens Licornes",     abbrev: "AMI", colors: ["#196f3d", "#ffffff"] },
-  { name: "Troyes Aubois",       abbrev: "TRO", colors: ["#2874a6", "#ffffff"] },
   { name: "Le Havre Quais",      abbrev: "LEH", colors: ["#154360", "#5dade2"] },
   { name: "Clermont Volcans",    abbrev: "CLF", colors: ["#7b241c", "#1a1a1a"] },
   { name: "Grenoble Alpins",     abbrev: "GBL", colors: ["#2e86c1", "#f0f3f4"] },
@@ -240,8 +234,6 @@ export const CLUBS: ClubIdentity[] = [
   { name: "Sochaux Lionceaux",   abbrev: "SOC", colors: ["#f39c12", "#154360"] },
   { name: "Guingamp Rouges",     abbrev: "GGP", colors: ["#c0392b", "#1a1a1a"] },
   { name: "Niort Chamois",       abbrev: "NIO", colors: ["#196f3d", "#f0f3f4"] },
-  { name: "Laval Tangos",        abbrev: "LVL", colors: ["#f39c12", "#e74c3c"] },
-  { name: "Sedan Sangliers",     abbrev: "SDN", colors: ["#7b241c", "#f4d03f"] },
   // Portuguese clubs (tids 200-239): real Portuguese cities/towns with invented
   // suffixes (Navegadores/Corsarios/Caravelas/etc.), same fictional styling.
   // ASCII-only (no accents); deliberately avoids the real big-three nicknames.
@@ -264,8 +256,6 @@ export const CLUBS: ClubIdentity[] = [
   { name: "Barcelos Galos",      abbrev: "BCL", colors: ["#f39c12", "#c0392b"] },
   { name: "Tondela Serranos",    abbrev: "TND", colors: ["#196f3d", "#f4d03f"] },
   { name: "Moreira Conegos",     abbrev: "MOR", colors: ["#154360", "#e74c3c"] },
-  { name: "Estoril Canarinhos",  abbrev: "EST", colors: ["#f4d03f", "#2874a6"] },
-  { name: "Cascais Corsarios",   abbrev: "CSC", colors: ["#1a1a1a", "#5dade2"] },
   { name: "Almada Ribeirinhos",  abbrev: "ALD", colors: ["#7b241c", "#f0f3f4"] },
   { name: "Loule Mouros",        abbrev: "LLE", colors: ["#a04000", "#1a1a1a"] },
   { name: "Guarda Sentinelas",   abbrev: "GDA", colors: ["#2c3e50", "#f5b041"] },
@@ -284,8 +274,6 @@ export const CLUBS: ClubIdentity[] = [
   { name: "Fafe Montanheses",    abbrev: "FAF", colors: ["#196f3d", "#f0f3f4"] },
   { name: "Vizela Termas",       abbrev: "VZL", colors: ["#0e6251", "#f8c471"] },
   { name: "Trofa Fabris",        abbrev: "TRF", colors: ["#4a235a", "#f7dc6f"] },
-  { name: "Amadora Estrelas",    abbrev: "AMD", colors: ["#1b2631", "#f4d03f"] },
-  { name: "Nazare Pescadores",   abbrev: "NZR", colors: ["#2e86c1", "#ffffff"] },
   // Belgian clubs (tids 240-279): real Belgian cities/towns with invented
   // Dutch/French suffixes (Beiaardiers/Sangliers/Diamantairs/etc.), same
   // fictional styling. ASCII-only; deliberately avoids every real Pro League
@@ -308,10 +296,6 @@ export const CLUBS: ClubIdentity[] = [
   { name: "Sint-Truiden Kanunniken", abbrev: "STT", colors: ["#7b241c", "#f4d03f"] },
   { name: "Waregem Vlasboeren",  abbrev: "WRG", colors: ["#0e6251", "#f8c471"] },
   { name: "Beveren Wasbeken",    abbrev: "BVR", colors: ["#2e86c1", "#ffffff"] },
-  { name: "Dendermonde Ros",     abbrev: "DDM", colors: ["#4a235a", "#f7dc6f"] },
-  { name: "Aalst Ajuinen",       abbrev: "ALS", colors: ["#b7950b", "#1a1a1a"] },
-  { name: "Roeselare Rodenbachs", abbrev: "RSL", colors: ["#943126", "#ecf0f1"] },
-  { name: "Bergen Doudous",      abbrev: "BGN", colors: ["#1a1a1a", "#e67e22"] },
   { name: "Doornik Tapijtwevers", abbrev: "DRN", colors: ["#154360", "#f4d03f"] },
   { name: "Verviers Lainiers",   abbrev: "VRV", colors: ["#7d6608", "#ffffff"] },
   { name: "Turnhout Kaartmakers", abbrev: "THT", colors: ["#c0392b", "#154360"] },
@@ -328,10 +312,6 @@ export const CLUBS: ClubIdentity[] = [
   { name: "Geel Ambachten",      abbrev: "GEL", colors: ["#f4d03f", "#2874a6"] },
   { name: "Herentals Kempenaars", abbrev: "HRT", colors: ["#196f3d", "#e74c3c"] },
   { name: "Tienen Suikerbieten", abbrev: "TNN", colors: ["#ecf0f1", "#7b241c"] },
-  { name: "Diest Hertogen",      abbrev: "DST", colors: ["#154360", "#b7950b"] },
-  { name: "Aat Tarasques",       abbrev: "AAT", colors: ["#6c3483", "#f0f3f4"] },
-  { name: "Hoei Bootsmannen",    abbrev: "HOE", colors: ["#2e86c1", "#1a1a1a"] },
-  { name: "Seraing Hoogovens",   abbrev: "SRG", colors: ["#1b2631", "#c0392b"] },
   // Turkish clubs (tids 280-319): real Turkish cities with invented Turkish
   // suffixes (Kartallar/Cinarlar/Madenciler/etc.), same fictional styling.
   // ASCII-only (no dotted-I, cedillas or breves) and deliberately avoiding the
@@ -356,8 +336,6 @@ export const CLUBS: ClubIdentity[] = [
   { name: "Erzurum Dadaslar",    abbrev: "ERZ", colors: ["#5d6d7e", "#2874a6"] },
   { name: "Mersin Limancilar",   abbrev: "MRS", colors: ["#0b5345", "#f4d03f"] },
   { name: "Rize Caycilar",       abbrev: "RIZ", colors: ["#145a32", "#5dade2"] },
-  { name: "Ordu Findikcilar",    abbrev: "ORD", colors: ["#7b241c", "#f5b041"] },
-  { name: "Balikesir Zeytinler", abbrev: "BLK", colors: ["#4a6741", "#ecf0f1"] },
   { name: "Van Kediler",         abbrev: "VAN", colors: ["#ecf0f1", "#2e86c1"] },
   { name: "Diyarbakir Karpuzlar", abbrev: "DYB", colors: ["#196f3d", "#c0392b"] },
   { name: "Sakarya Adapazarlilar", abbrev: "SKR", colors: ["#154360", "#f39c12"] },
@@ -378,6 +356,153 @@ export const CLUBS: ClubIdentity[] = [
   { name: "Canakkale Bogazcilar", abbrev: "CNK", colors: ["#1a1a1a", "#5dade2"] },
   { name: "Amasya Elmacilar",    abbrev: "AMS", colors: ["#c0392b", "#196f3d"] },
   { name: "Giresun Kirazcilar",  abbrev: "GRS", colors: ["#154360", "#f4d03f"] },
+  // Dutch clubs (tids 320-359): real Dutch cities and towns with invented
+  // Dutch trade/landscape suffixes (Molenaars/Turfschippers/Sluiswachters/
+  // etc.), same fictional styling as the rest of the world. ASCII-only, and
+  // deliberately avoiding every real club name and nickname (no Eagles, no
+  // Sparta, no Excelsior, nothing built on a real club's badge). The
+  // Netherlands is the strongest of the handicapped leagues — France's
+  // immediate neighbour on the ladder, see COUNTRY_STRENGTH_OFFSET.
+  { name: "Amsterdam Grachtwachters", abbrev: "AMT", colors: ["#c0392b", "#1a1a1a"] },
+  { name: "Rotterdam Havenlieden", abbrev: "RTD", colors: ["#1b2631", "#f4d03f"] },
+  { name: "Eindhoven Gloeikoppen", abbrev: "EIN", colors: ["#e74c3c", "#ffffff"] },
+  { name: "Utrecht Domwachters",  abbrev: "UTR", colors: ["#c0392b", "#154360"] },
+  { name: "Den Haag Duinridders", abbrev: "DHG", colors: ["#1a5276", "#f0f3f4"] },
+  { name: "Groningen Veenmannen", abbrev: "GRO", colors: ["#0e6251", "#ffffff"] },
+  { name: "Tilburg Wolkammers",   abbrev: "TLB", colors: ["#7d3c98", "#f7dc6f"] },
+  { name: "Breda Turfschippers",  abbrev: "BRD", colors: ["#b7950b", "#1b2631"] },
+  { name: "Nijmegen Waalzonen",   abbrev: "NIJ", colors: ["#196f3d", "#e74c3c"] },
+  { name: "Enschede Twentenaren", abbrev: "ENS", colors: ["#c0392b", "#f0f3f4"] },
+  { name: "Arnhem Rijnwachters",  abbrev: "ARN", colors: ["#1e8449", "#1a1a1a"] },
+  { name: "Haarlem Zilvermeeuwen", abbrev: "HRL", colors: ["#5dade2", "#ecf0f1"] },
+  { name: "Maastricht Mergelbrekers", abbrev: "MAA", colors: ["#873600", "#f8c471"] },
+  { name: "Almere Polderbouwers", abbrev: "ALR", colors: ["#154360", "#5dade2"] },
+  { name: "Apeldoorn Veluwelopers", abbrev: "APD", colors: ["#4a6741", "#f4d03f"] },
+  { name: "Zwolle IJsselvaarders", abbrev: "ZWL", colors: ["#1a5276", "#e67e22"] },
+  { name: "Leiden Sleutelhouders", abbrev: "LDN", colors: ["#7b241c", "#ffffff"] },
+  { name: "Dordrecht Maasgangers", abbrev: "DDR", colors: ["#0b5345", "#f0f3f4"] },
+  { name: "Deventer Hanzelieden", abbrev: "DVT", colors: ["#1b4f72", "#b7950b"] },
+  { name: "Venlo Grensvaarders",  abbrev: "VNL", colors: ["#1e8449", "#1a1a1a"] },
+  { name: "Delft Aardewerkers",   abbrev: "DFT", colors: ["#2874a6", "#ffffff"] },
+  { name: "Helmond Smeden",       abbrev: "HLM", colors: ["#1a1a1a", "#e74c3c"] },
+  { name: "Hilversum Omroepers",  abbrev: "HVS", colors: ["#6c3483", "#f0f3f4"] },
+  { name: "Heerlen Mijnwerkers",  abbrev: "HRN", colors: ["#1b2631", "#f39c12"] },
+  { name: "Leeuwarden Elfsteden", abbrev: "LWD", colors: ["#154360", "#ecf0f1"] },
+  { name: "Sittard Grenswachters", abbrev: "SIT", colors: ["#196f3d", "#f7dc6f"] },
+  { name: "Emmen Turfstekers",    abbrev: "EMM", colors: ["#7b241c", "#5d6d7e"] },
+  { name: "Assen Hunebedders",    abbrev: "ASN", colors: ["#5d6d7e", "#f4d03f"] },
+  { name: "Roosendaal Bietentelers", abbrev: "RSD", colors: ["#a04000", "#ecf0f1"] },
+  { name: "Purmerend Marktlieden", abbrev: "PMR", colors: ["#0e6251", "#f8c471"] },
+  { name: "Oss Vestingbouwers",   abbrev: "OSS", colors: ["#1a5276", "#e74c3c"] },
+  { name: "Schiedam Scheepsbouwers", abbrev: "SCD", colors: ["#5d4037", "#ffffff"] },
+  { name: "Vlaardingen Werfmannen", abbrev: "VLD", colors: ["#1b2631", "#5dade2"] },
+  { name: "Gouda Kaarsenmakers",  abbrev: "GOU", colors: ["#b9770e", "#1a1a1a"] },
+  { name: "Zeist Boslopers",      abbrev: "ZST", colors: ["#4a6741", "#f0f3f4"] },
+  { name: "Kampen Koggevaarders", abbrev: "KMP", colors: ["#7d6608", "#154360"] },
+  { name: "Middelburg Zeewachters", abbrev: "MDB", colors: ["#0b5345", "#f4d03f"] },
+  { name: "Terneuzen Sluiswachters", abbrev: "TRZ", colors: ["#2874a6", "#f5b041"] },
+  // Scottish clubs (tids 360-399): real Scottish burghs and towns with
+  // invented Scots suffixes (Reivers/Kelpies/Drovers/etc.), same fictional
+  // styling. ASCII-only, and deliberately steering clear of every real club
+  // name and suffix — no Thistle, Albion, Accies, Caledonian, County, Rangers
+  // or Athletic, and no town whose senior club is simply the town's own name.
+  // Scotland is the weakest league on the pitch and the poorest off it (see
+  // COUNTRY_STRENGTH_OFFSET and COUNTRY_BUDGET_SCALE), a two-point step below
+  // Turkey rather than the one-point steps further up the ladder.
+  { name: "Glasgow Kelpies",      abbrev: "GLK", colors: ["#154360", "#f4d03f"] },
+  { name: "Edinburgh Claymores",  abbrev: "EDB", colors: ["#7b241c", "#ecf0f1"] },
+  { name: "Perth Drovers",        abbrev: "PTH", colors: ["#1e8449", "#ffffff"] },
+  { name: "Stirling Bannermen",   abbrev: "STG", colors: ["#5d4037", "#f8c471"] },
+  { name: "Paisley Weavers",      abbrev: "PSL", colors: ["#1a5276", "#e74c3c"] },
+  { name: "Inverness Highlanders", abbrev: "IVN", colors: ["#0e6251", "#f0f3f4"] },
+  { name: "Dumfries Nithsiders",  abbrev: "DMF", colors: ["#6c3483", "#f4d03f"] },
+  { name: "Kirkcaldy Linoleumers", abbrev: "KKD", colors: ["#873600", "#1a1a1a"] },
+  { name: "Greenock Firthmen",    abbrev: "GRK", colors: ["#1b2631", "#5dade2"] },
+  { name: "Bathgate Shalemen",    abbrev: "BTG", colors: ["#7d6608", "#ffffff"] },
+  { name: "Musselburgh Honestmen", abbrev: "MSB", colors: ["#c0392b", "#f0f3f4"] },
+  { name: "Galashiels Tweedsiders", abbrev: "GLS", colors: ["#196f3d", "#b7950b"] },
+  { name: "Peebles Rowans",       abbrev: "PBL", colors: ["#1e8449", "#f0f3f4"] },
+  { name: "Selkirk Souters",      abbrev: "SLK", colors: ["#5d4037", "#f4d03f"] },
+  { name: "Melrose Abbeymen",     abbrev: "MLR", colors: ["#a04000", "#ecf0f1"] },
+  { name: "Jedburgh Callants",    abbrev: "JDB", colors: ["#1a5276", "#f8c471"] },
+  { name: "Kelso Tacksmen",       abbrev: "KLS", colors: ["#6c3483", "#ffffff"] },
+  { name: "Lanark Lampmen",       abbrev: "LNK", colors: ["#b9770e", "#1b2631"] },
+  { name: "Biggar Cairns",        abbrev: "BGR", colors: ["#0e6251", "#f7dc6f"] },
+  { name: "Moffat Braes",         abbrev: "MFT", colors: ["#5d6d7e", "#e74c3c"] },
+  { name: "Langholm Reivers",     abbrev: "LGH", colors: ["#1b2631", "#f4d03f"] },
+  { name: "Annan Borderers",      abbrev: "ANN", colors: ["#196f3d", "#ffffff"] },
+  // Greek clubs (tids 400-439): real Greek cities and islands with invented
+  // Greek-noun suffixes (Anemomyloi/Elaiones/Faroi/etc.), ASCII transliterations
+  // throughout. Deliberately avoids every real club name and the -iakos/-ikos
+  // club-name pattern, and steers clear of the real nicknames.
+  { name: "Athina Anemomyloi",   abbrev: "ATH", colors: ["#1a5276", "#f0f3f4"] },
+  { name: "Thessaloniki Faroi",  abbrev: "THS", colors: ["#7b241c", "#f4d03f"] },
+  { name: "Patra Elaiones",      abbrev: "PTR", colors: ["#196f3d", "#ffffff"] },
+  { name: "Irakleio Minoes",     abbrev: "IRK", colors: ["#0e6251", "#f8c471"] },
+  { name: "Larisa Kentavroi",    abbrev: "LRS", colors: ["#5d4037", "#f7dc6f"] },
+  { name: "Volos Argonaftes",    abbrev: "VLS", colors: ["#154360", "#5dade2"] },
+  { name: "Ioannina Limnaioi",   abbrev: "IAN", colors: ["#1b2631", "#b7950b"] },
+  { name: "Chania Amfores",      abbrev: "CHA", colors: ["#2874a6", "#ecf0f1"] },
+  { name: "Kavala Kapnergates",  abbrev: "KVL", colors: ["#873600", "#f5b041"] },
+  { name: "Serres Ampelourgoi",  abbrev: "SRR", colors: ["#4a6741", "#f0f3f4"] },
+  { name: "Rodos Kastropolites", abbrev: "ROD", colors: ["#c0392b", "#1a1a1a"] },
+  { name: "Kerkyra Kytharodoi",  abbrev: "KER", colors: ["#6c3483", "#f4d03f"] },
+  { name: "Kalamata Sykies",     abbrev: "KLM", colors: ["#1e8449", "#ffffff"] },
+  { name: "Xanthi Kapnades",     abbrev: "XNT", colors: ["#7d6608", "#1b2631"] },
+  { name: "Komotini Thrakes",    abbrev: "KMT", colors: ["#7b241c", "#f0f3f4"] },
+  { name: "Drama Dryades",       abbrev: "DRM", colors: ["#0e6251", "#f8c471"] },
+  { name: "Kozani Krokades",     abbrev: "KZN", colors: ["#a04000", "#ffffff"] },
+  { name: "Alexandroupoli Evrites", abbrev: "ALX", colors: ["#1b4f72", "#5dade2"] },
+  { name: "Karditsa Sitares",    abbrev: "KRD", colors: ["#7d3c98", "#f7dc6f"] },
+  { name: "Pyrgos Alfeioi",      abbrev: "PYR", colors: ["#196f3d", "#e74c3c"] },
+  { name: "Korinthos Stafidades", abbrev: "KOR", colors: ["#1a5276", "#f4d03f"] },
+  { name: "Tripoli Arkades",     abbrev: "TRP", colors: ["#5d4037", "#ecf0f1"] },
+  { name: "Sparti Oplites",      abbrev: "SPT", colors: ["#c0392b", "#1a1a1a"] },
+  { name: "Nafplio Kastelia",    abbrev: "NFP", colors: ["#0b5345", "#f5b041"] },
+  { name: "Mytilini Ouzades",    abbrev: "MYT", colors: ["#2874a6", "#f0f3f4"] },
+  { name: "Chios Mastichades",   abbrev: "CHS", colors: ["#4a6741", "#ffffff"] },
+  { name: "Samos Ampelia",       abbrev: "SAM", colors: ["#7d6608", "#154360"] },
+  { name: "Kos Ippokrates",      abbrev: "KOS", colors: ["#1e8449", "#f7dc6f"] },
+  { name: "Naxos Marmaroi",      abbrev: "NXS", colors: ["#ecf0f1", "#2e86c1"] },
+  { name: "Syros Karnagia",      abbrev: "SYR", colors: ["#1b2631", "#f39c12"] },
+  // Serbian clubs (tids 440-479): real Serbian cities and towns with invented
+  // Serbian-noun suffixes (Vitezovi/Splavari/Suncokreti/etc.), ASCII
+  // transliterations (no carons or acutes). Deliberately avoids every real club
+  // name and the recurring Serbian club words (Radnicki, Napredak, Partizan,
+  // Zvezda, Vojvodina, Spartak, Mladost, Sloboda, Borac, Proleter). Serbia is
+  // the weakest league on the pitch and the poorest off it.
+  { name: "Beograd Splavari",    abbrev: "BGD", colors: ["#7b241c", "#ffffff"] },
+  { name: "Novi Sad Dunavci",    abbrev: "NSD", colors: ["#154360", "#f4d03f"] },
+  { name: "Nis Carevi",          abbrev: "NIS", colors: ["#1a1a1a", "#e74c3c"] },
+  { name: "Kragujevac Topolivci", abbrev: "KGJ", colors: ["#5d6d7e", "#f0f3f4"] },
+  { name: "Subotica Salasari",   abbrev: "SBT", colors: ["#1e8449", "#f7dc6f"] },
+  { name: "Zrenjanin Ravnicari", abbrev: "ZRN", colors: ["#b9770e", "#1b2631"] },
+  { name: "Pancevo Tkaci",       abbrev: "PNC", colors: ["#2874a6", "#ecf0f1"] },
+  { name: "Cacak Vinogradari",   abbrev: "CCK", colors: ["#0e6251", "#f8c471"] },
+  { name: "Krusevac Kruskari",   abbrev: "KRV", colors: ["#c0392b", "#1a1a1a"] },
+  { name: "Kraljevo Bedemi",     abbrev: "KJV", colors: ["#4a6741", "#ffffff"] },
+  { name: "Novi Pazar Carsijci", abbrev: "NPZ", colors: ["#196f3d", "#f4d03f"] },
+  { name: "Smederevo Kovaci",    abbrev: "SMD", colors: ["#1b2631", "#f39c12"] },
+  { name: "Leskovac Paprikari",  abbrev: "LSK", colors: ["#7d3c98", "#f0f3f4"] },
+  { name: "Valjevo Jablanovi",   abbrev: "VLJ", colors: ["#0b5345", "#5dade2"] },
+  { name: "Uzice Planinci",      abbrev: "UZC", colors: ["#5d4037", "#f5b041"] },
+  { name: "Vranje Grncari",      abbrev: "VRN", colors: ["#873600", "#ecf0f1"] },
+  { name: "Zajecar Vinari",      abbrev: "ZJC", colors: ["#6c3483", "#f0f3f4"] },
+  { name: "Kikinda Zetelci",     abbrev: "KKN", colors: ["#1e8449", "#f8c471"] },
+  { name: "Sremska Mitrovica Legije", abbrev: "SRM", colors: ["#154360", "#e74c3c"] },
+  { name: "Jagodina Pcelari",    abbrev: "JGD", colors: ["#b9770e", "#1a1a1a"] },
+  { name: "Vrsac Lozari",        abbrev: "VRS", colors: ["#0e6251", "#ecf0f1"] },
+  { name: "Bor Bakarci",         abbrev: "BOR", colors: ["#a04000", "#f5b041"] },
+  { name: "Prokuplje Zitari",    abbrev: "PRK", colors: ["#4a6741", "#ffffff"] },
+  { name: "Loznica Solari",      abbrev: "LZN", colors: ["#5d6d7e", "#f4d03f"] },
+  { name: "Gornji Milanovac Kamenari", abbrev: "GML", colors: ["#1b4f72", "#f0f3f4"] },
+  { name: "Backa Palanka Splavovi", abbrev: "BPL", colors: ["#196f3d", "#f7dc6f"] },
+  { name: "Ruma Cardaci",        abbrev: "RUM", colors: ["#7d6608", "#ecf0f1"] },
+  { name: "Aleksinac Ugljari",   abbrev: "ALE", colors: ["#1a1a1a", "#5dade2"] },
+  { name: "Negotin Podrumari",   abbrev: "NGT", colors: ["#7b241c", "#f8c471"] },
+  { name: "Paracin Staklari",    abbrev: "PRC", colors: ["#2874a6", "#ffffff"] },
+  { name: "Cuprija Mostari",     abbrev: "CPR", colors: ["#0b5345", "#f4d03f"] },
+  { name: "Apatin Pivari",       abbrev: "APT", colors: ["#b7950b", "#1b2631"] },
 ];
 
 export interface StoredTeam {
