@@ -108,7 +108,16 @@ export const LEAGUE_RULES: LeagueRule[] = [
   // rule ("super_league_2") is listed above and therefore matches first; there
   // is no other Super League in the datasets checked. "souper_ligka" is the
   // normalized form of "Σούπερ Λίγκα" when a dataset ships it transliterated.
-  { competition: "Greek Division 1", patterns: ["super_league_greece", "greek_super_league", "souper_ligka", "super_league"] },
+  // Greece. Bare "super_league" is deliberately NOT a pattern, and this was
+  // corrected against the real FC26 export rather than reasoned about: that
+  // file carries FOUR leagues called exactly "Super League" — Greece (63),
+  // China (2012), Switzerland (189) and India (2149). The resolver's
+  // ambiguous-name guard stops it importing the wrong country, but only by
+  // dropping all four, so Greece silently imported nothing at all. It is
+  // Belgium's "Pro League" situation exactly, and it takes the same answer:
+  // qualified names only, and the id below does the real work.
+  // "souper_ligka" is the normalized form of "Σούπερ Λίγκα" transliterated.
+  { competition: "Greek Division 1", patterns: ["super_league_greece", "greek_super_league", "souper_ligka"] },
   // Serbia. "superliga" (one word) is Serbia's; the spaced "super liga" forms
   // belong to Denmark and Slovakia, so only the closed-up and qualified forms
   // are listed.
@@ -127,13 +136,19 @@ export const LEAGUE_RULES: LeagueRule[] = [
  * their generated identities after an import, the same as any club a roster file
  * does not cover.
  *
- * **The Dutch, Scottish, Greek and Serbian rules (added 2026-08-28) have NO
- * verified ids yet** — they were written from the leagues' real names, not
- * confirmed against a dataset, so they resolve by the unambiguous-name fallback
- * exactly like Portugal's second tier does. Run scripts/eafc/inspectLeagues.ts
- * over a real export and add the eight ids to LEAGUE_IDS before trusting an
- * import that covers any of those countries; the name route is the weaker of
- * the two by design. Adding a league means adding a rule below *and*, where the
+ * **The Dutch, Scottish and Greek TOP flights were verified against the FC26
+ * export on 2026-08-29 and now carry ids** (10, 50, 63). That check was worth
+ * running exactly as this note asked: on the name route alone Scotland and
+ * Greece resolved to *zero* clubs, because that file spells them "Premiership"
+ * and "Super League" — one of which is deliberately unclaimed and the other of
+ * which four federations share. The Netherlands worked on its name.
+ *
+ * **Their second tiers, and both Serbian divisions, still have no verified
+ * id**: no dataset checked so far carries any of them, so they resolve by the
+ * unambiguous-name fallback exactly like Portugal's second tier does. Run
+ * scripts/eafc/inspectLeagues.ts over a new export and add the ids before
+ * trusting an import that covers them; the name route is the weaker of the
+ * two by design. Adding a league means adding a rule below *and*, where the
  * name is not unique, a verified id in LEAGUE_IDS — confirmed against a real
  * dataset with scripts/eafc/inspectLeagues.ts, since names alone collide across
  * federations.
@@ -186,6 +201,20 @@ export const LEAGUE_IDS: Record<string, string> = {
   "308": "Portuguese Division 1", // Primeira Liga
   "4": "Belgian Division 1",    // Pro League (NOT 350 Saudi / 2013 UAE)
   "68": "Turkish Division 1",   // Süper Lig
+  // Verified against the FC26 export on 2026-08-29, the way every id above was:
+  // by inspecting the clubs each one holds, not from memory. Id 50 holds Celtic,
+  // Rangers, Hearts and Aberdeen; 63 holds AEK, Olympiacos, PAOK and
+  // Panathinaikos; 10 holds Ajax, PSV, Feyenoord and AZ.
+  //
+  // The first two are what make Scotland and Greece importable at all. Their
+  // name rules alone match nothing in that file: its Scottish cell is a bare
+  // "Premiership" (which stays unclaimed on purpose — Northern Ireland's NIFL
+  // Premiership would take it), and its Greek cell is a bare "Super League"
+  // shared with three other federations. Both leagues resolved to zero clubs
+  // before these ids existed.
+  "50": "Scottish Division 1",  // Premiership (NOT Northern Ireland's NIFL Premiership)
+  "63": "Greek Division 1",     // Super League (NOT 2012 China / 189 Switzerland / 2149 India)
+  "10": "Dutch Division 1",     // Eredivisie
 };
 
 /**
