@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { useSportName } from "../sportName.js";
@@ -20,6 +20,30 @@ export function TopBar({ onToggleNav }: TopBarProps) {
   const navigate = useNavigate();
   const [promptCopied, setPromptCopied] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+
+  // The sidebar pins itself directly beneath this bar (see `.sidebar` in
+  // styles.css), which needs the bar's real height rather than a guess: it runs
+  // 52px on a phone and 59px on a desktop, and moves again with the user's font
+  // size or a browser zoom. Measured here — the bar is the only thing that
+  // knows — and republished on resize, since a stale value shows up as a strip
+  // of page background between the bar and the pinned column.
+  const barRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar || typeof ResizeObserver === "undefined") return;
+    const publish = () => {
+      document.documentElement.style.setProperty("--sg-topbar-h", `${bar.offsetHeight}px`);
+    };
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(bar);
+    return () => {
+      ro.disconnect();
+      // Back to the stylesheet's fallback, so a page rendered without this bar
+      // (the manual's standalone shell) isn't left reading a stale height.
+      document.documentElement.style.removeProperty("--sg-topbar-h");
+    };
+  }, []);
 
   function handleSwitchLeague() {
     switchLeagueAction();
@@ -91,7 +115,7 @@ export function TopBar({ onToggleNav }: TopBarProps) {
 
   return (
     <>
-    <nav className="navbar navbar-dark app-topbar px-2 px-md-3">
+    <nav ref={barRef} className="navbar navbar-dark app-topbar px-2 px-md-3">
       <button
         className="btn btn-sm mobile-nav-toggle d-md-none"
         type="button"
