@@ -3072,40 +3072,69 @@ export const LEAGUE_NATIONALITY_WEIGHTS: Record<string, Record<string, number>> 
     Portugal: 9,
     [REST]: 90,
   },
-  // Scottish Premiership: the most lopsided foreign block in the world — one
-  // neighbour supplies more than a fifth of the imports on its own, which no
-  // other league here does. Then the Irish/Northern Irish traffic that comes
-  // with a shared border, and the Anglophone tail (Australia, Canada) plus
-  // Japan and Israel that the bigger clubs have leaned on recently.
+  // Scottish Premiership, taken from a real published breakdown (324 players).
+  // The most lopsided foreign block in the game: England alone is 15.1%, close
+  // to a quarter of every import, which no other league here comes near. Then
+  // the Irish and Northern Irish traffic that comes with a shared border, and
+  // an Anglophone tail — Australia at 5.2% is the joint-second nationality,
+  // with Canada, the US and New Zealand behind it — that no mainland European
+  // league has at all.
   Scotland: {
-    Scotland: 550, England: 78, "Republic of Ireland": 30, Japan: 22, Australia: 20,
-    "Northern Ireland": 18, Nigeria: 16, Poland: 15, Croatia: 14, Israel: 13, Canada: 13,
-    Portugal: 12, Denmark: 12, France: 12, Spain: 11, Belgium: 11, Greece: 10,
-    Netherlands: 10, Sweden: 9, Norway: 9, Brazil: 9, Wales: 9,
-    [REST]: 97,
+    Scotland: 358, England: 151, "Republic of Ireland": 52, Australia: 52,
+    Wales: 25, "Northern Ireland": 22, Germany: 22, Netherlands: 19, France: 15,
+    Canada: 12, Nigeria: 12, Austria: 12, Croatia: 12, Belgium: 12, Norway: 12,
+    "United States": 9, Sweden: 9, "New Zealand": 9, Ghana: 9, Denmark: 9,
+    Portugal: 9,
+    // Below the source's cut-off, which lists 84% of the league. Named rather
+    // than left to REST because that bucket is ~40% English (it is weighted
+    // from the Premier League's own makeup), and England is already the largest
+    // import here — a tail-sized REST would quietly push it past 20%.
+    Japan: 8, Israel: 7, Poland: 7, Spain: 7, Greece: 6, Senegal: 6,
+    "Ivory Coast": 6, Italy: 5, Brazil: 5, Jamaica: 5, Iceland: 5, Slovakia: 5,
+    Finland: 5, Cameroon: 5, "South Africa": 5, Morocco: 4, Gambia: 4,
+    "DR Congo": 4, Switzerland: 4, "Czech Republic": 4, Serbia: 4, Slovenia: 4,
+    Zimbabwe: 4, Argentina: 4, Guinea: 3, Mali: 3, Ukraine: 3, Hungary: 3,
+    [REST]: 23,
   },
-  // Greek Super League: the most foreign-heavy table here after Belgium's, a
-  // little under half domestic. The distinctive part is the Balkan
-  // neighbourhood (Serbia, Croatia, Albania, Bosnia, Romania) sitting next to a
-  // South American intake no other league in this band has at that scale.
+  // Greek Super League, taken from a real published breakdown (429 players). A
+  // little under half domestic, the most foreign-heavy table here after
+  // Belgium's. The distinctive part is that the single biggest import is Spain
+  // (6.3%) — not a neighbour and not Brazil. Greek clubs recruit the Iberian
+  // and South American markets harder than anything on their own border, with
+  // the Balkan neighbourhood (Serbia, Albania, Croatia, Bosnia) sitting
+  // underneath that rather than on top of it.
   Greece: {
-    Greece: 440, Brazil: 52, Argentina: 34, Portugal: 30, Spain: 26, France: 24,
-    Nigeria: 22, Serbia: 22, Croatia: 20, Morocco: 18, Poland: 16, Netherlands: 16,
-    Denmark: 15, Sweden: 15, Belgium: 14, Ghana: 14, "Ivory Coast": 13, Senegal: 12,
-    Romania: 12, Albania: 12, "Bosnia-Herzegovina": 11, Cameroon: 11, Uruguay: 9,
-    Colombia: 9, Germany: 9, England: 9, Italy: 9, Austria: 8, Switzerland: 8,
-    [REST]: 90,
+    Greece: 452, Spain: 63, Argentina: 47, France: 35, Serbia: 30, Portugal: 28,
+    Brazil: 21, Sweden: 16, Albania: 16, Senegal: 16, Croatia: 14, Morocco: 14,
+    Italy: 12, Nigeria: 12, Netherlands: 9, Guinea: 9,
+    // Below the source's cut-off, which lists 79% of the league. Named for the
+    // same reason Scotland's tail is.
+    Ghana: 12, "Ivory Coast": 12, Cameroon: 10, "Bosnia-Herzegovina": 10,
+    Romania: 10, Poland: 9, Denmark: 9, Belgium: 8, Uruguay: 8, Colombia: 8,
+    Georgia: 8, Slovenia: 7, "Czech Republic": 7, Austria: 7, Switzerland: 7,
+    Germany: 7, England: 7, Israel: 6, "North Macedonia": 6, Montenegro: 6,
+    Egypt: 5, Ukraine: 5, Bulgaria: 5, Hungary: 5,
+    [REST]: 22,
   },
-  // Serbian SuperLiga: by far the most domestic table in the game at ~72%, which
-  // is the point of it — a production league that exports rather than imports.
-  // What foreign intake there is comes almost entirely from the former Yugoslav
-  // republics next door, plus a small West African contingent.
+  // Serbian SuperLiga, taken from a real published breakdown (430 players). By
+  // far the most domestic table in the game at 66%, which is the point of it: a
+  // production league that exports rather than imports. The surprise in the real
+  // data is that the biggest import is not a neighbour but Ghana (4.2%) — the
+  // West African intake (Ghana, Ivory Coast, Nigeria, Senegal, Mali) outweighs
+  // the ex-Yugoslav one (Bosnia, Montenegro, North Macedonia, Slovenia).
   Serbia: {
-    Serbia: 720, "Bosnia-Herzegovina": 26, Montenegro: 22, "North Macedonia": 18,
-    Croatia: 16, Brazil: 16, Nigeria: 14, Ghana: 12, Slovenia: 12, Bulgaria: 10,
-    Romania: 10, Cameroon: 8, Senegal: 8, "Ivory Coast": 8, Greece: 6, Albania: 6,
-    Ukraine: 4, Hungary: 4,
-    [REST]: 80,
+    Serbia: 660, Ghana: 42, "Bosnia-Herzegovina": 35, Montenegro: 33,
+    "Ivory Coast": 23, Nigeria: 23, Brazil: 19, Senegal: 14, Austria: 12,
+    Spain: 9, France: 9, Mali: 7, Netherlands: 7, "North Macedonia": 7,
+    Slovenia: 7, Switzerland: 7, Cameroon: 7,
+    // Below the source's cut-off, which lists 92% of the league. The tail is
+    // kept small and explicit here above all: the source has no English players
+    // at all, and a REST bucket sized to the leftover 8% made England the
+    // league's second-largest nationality out of nothing.
+    Croatia: 7, Bulgaria: 6, Romania: 6, Guinea: 5, Albania: 5, Greece: 4,
+    Hungary: 4, Ukraine: 4, Gambia: 4, "Burkina Faso": 3, "DR Congo": 3,
+    Portugal: 3, Belgium: 3, Italy: 3, Slovakia: 3,
+    [REST]: 16,
   },
 };
 
