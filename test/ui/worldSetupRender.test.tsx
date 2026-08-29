@@ -213,8 +213,11 @@ describe("WorldSetup renders", () => {
     // Divisions used to be named after their country and nothing else, so a
     // roster file written for "Premier League" could never find one — the game
     // had no league by that name and no way to give it one.
-    const html = render(defaultWorldEntries());
-    expect(html.match(/>Rename</g)).toHaveLength(8);
+    // One per shipped country, derived so adding a country can't drift this —
+    // it was pinned at 8 and failed the moment the world went to 12.
+    const entries = defaultWorldEntries();
+    expect(entries.length).toBeGreaterThan(1);
+    expect(render(entries).match(/>Rename</g)).toHaveLength(entries.length);
   });
 
   it("doesn't offer to rename a league that's switched off", () => {
