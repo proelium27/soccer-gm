@@ -90,11 +90,26 @@ export function worldHasCup(
   return cupPlan(competitions, format) !== null;
 }
 
+/**
+ * Per-league slot counts for a single season, overriding both a league's own
+ * `continentalSlots` and the strong/weak default. Keyed by compId.
+ *
+ * This is how the country coefficient moves places between countries (see
+ * cup/coefficients.ts) WITHOUT writing to `Competition.continentalSlots`, which
+ * belongs to whoever authored the league and would be destroyed by a season's
+ * reallocation. A season's allocation is a fact about that season, not about
+ * the league, so it is passed in rather than stored.
+ */
+export type SlotOverrides = ReadonlyMap<number, Partial<Record<CupCompetitionId, number>>>;
+
 /** How many league-phase places a tier-1 competition earns in this competition. */
 export function cupSlotsForCompetition(
   comp: Competition,
   format: CupFormat = CONTINENTAL_CUP_FORMAT,
+  overrides?: SlotOverrides,
 ): number {
+  const override = overrides?.get(comp.id)?.[format.id];
+  if (override !== undefined) return Math.max(0, Math.floor(override));
   const own = comp.continentalSlots?.[format.id];
   if (own !== undefined) return Math.max(0, Math.floor(own));
   return isWeakLeague(comp) ? format.weakSlots : format.strongSlots;
@@ -113,11 +128,12 @@ export function cupSlotsForCompetition(
 export function cupOffsetForCompetition(
   comp: Competition,
   format: CupFormat = CONTINENTAL_CUP_FORMAT,
+  overrides?: SlotOverrides,
 ): number {
   let offset = 0;
   for (const id of CONTINENTAL_ORDER) {
     if (id === format.id) break;
-    offset += cupSlotsForCompetition(comp, CUP_FORMATS[id]);
+    offset += cupSlotsForCompetition(comp, CUP_FORMATS[id], overrides);
   }
   return offset;
 }
@@ -131,9 +147,10 @@ export function cupOffsetForCompetition(
 export function cupSlotRange(
   comp: Competition,
   format: CupFormat = CONTINENTAL_CUP_FORMAT,
+  overrides?: SlotOverrides,
 ): [number, number] {
-  const from = cupOffsetForCompetition(comp, format);
-  return [from + 1, from + cupSlotsForCompetition(comp, format)];
+  const from = cupOffsetForCompetition(comp, format, overrides);
+  return [from + 1, from + cupSlotsForCompetition(comp, format, overrides)];
 }
 
 /** How a club got in. Surfaced so the UI can say *why* a mid-table club qualified. */
@@ -168,11 +185,18 @@ export interface Entrant {
  * null), a world with no domestic cups, or a save's very first season all look
  * like.
  */
-export interface QualificationRoutes {
+export interface QualificationContext {
   /** Each country's domestic cup champion — `DomesticCupState.championTid`, by country. */
   domesticCupWinners?: ReadonlyMap<string, number>;
   /** The reigning champion of each continental competition, by competition id. */
   holders?: Partial<Record<CupCompetitionId, number>>;
+  /**
+   * This season's per-league slot counts, from the country coefficients. Absent
+   * → each league's own setting, or its strength class. Always zero-sum against
+   * the defaults, so it moves places between countries without changing how
+   * many the competition fields (see cup/coefficients.ts).
+   */
+  slots?: SlotOverrides;
 }
 
 /** Seeding is below every top-flight place; see Entrant.seedRank. */
@@ -206,7 +230,7 @@ export function domesticCupWinners(
 export function allocateContinentalPlaces(
   competitions: Competition[],
   tablesByCompId: ReadonlyMap<number, StandingsRow[]>,
-  routes: QualificationRoutes = {},
+  routes: QualificationContext = {},
 ): Map<CupCompetitionId, Entrant[]> {
   const tier1 = competitions.filter((c) => c.tier === 1);
   // Where a club sits in the world: his own division's table (which for a
@@ -249,7 +273,7 @@ export function allocateContinentalPlaces(
     const entrants: Entrant[] = [];
 
     for (const league of tier1) {
-      const slots = cupSlotsForCompetition(league, format);
+      const slots = cupSlotsForCompetition(league, format, routes.slots);
       if (slots <= 0) continue;
       const table = tablesByCompId.get(league.id) ?? [];
       const taken: Entrant[] = [];
@@ -321,7 +345,7 @@ export function allocateContinentalPlaces(
 export function qualificationByTid(
   competitions: Competition[],
   tablesByCompId: ReadonlyMap<number, StandingsRow[]>,
-  routes: QualificationRoutes = {},
+  routes: QualificationContext = {},
 ): Map<number, { competition: CupCompetitionId; route: QualificationRoute }> {
   const out = new Map<number, { competition: CupCompetitionId; route: QualificationRoute }>();
   for (const [competition, entrants] of allocateContinentalPlaces(competitions, tablesByCompId, routes)) {
@@ -346,7 +370,7 @@ export function qualifyCupTeams(
   competitions: Competition[],
   tablesByCompId: ReadonlyMap<number, StandingsRow[]>,
   format: CupFormat = CONTINENTAL_CUP_FORMAT,
-  routes: QualificationRoutes = {},
+  routes: QualificationContext = {},
 ): { field: number[]; compOf: Map<number, number>; drawGroups: Map<number, number>; entrants: Entrant[] } {
   const plan = cupPlan(competitions, format);
   const all = allocateContinentalPlaces(competitions, tablesByCompId, routes).get(format.id) ?? [];

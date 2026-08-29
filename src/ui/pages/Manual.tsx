@@ -668,6 +668,25 @@ export function Manual() {
             qualification zone (top four in a strong league, top two in a weak one).
           </p>
           <p>
+            <strong>How many places your country gets is earned, not fixed.</strong> Every season
+            the Cup&apos;s 24 places are handed out in order of a{" "}
+            <strong>country coefficient</strong>: a rolling record, over the last five seasons, of
+            how that country&apos;s clubs have actually done in Europe. Winning matches counts,
+            going deep counts for more, and it&apos;s divided by how many clubs the country sent, so
+            sending four clubs isn&apos;t worth anything by itself. Both competitions count toward
+            it. If your league&apos;s clubs keep going out in the league phase for years, it will
+            send fewer; if they keep winning things, it will send more, and England has no special
+            protection.
+          </p>
+          <p>
+            The places are only ever <strong>moved between countries, never created</strong>. The
+            competition always fields exactly 24 clubs, so for one country to gain a place another
+            has to lose one. Nobody can be reduced below a single place, because a country with no
+            clubs in Europe would have no way to earn its way back. Five seasons is a long window on
+            purpose: a place should take years of results to move, not one bad year. You can see
+            where every country stands on the <a href="#cup">Continental Cup</a> page.
+          </p>
+          <p>
             League position is the usual way in, but not the only one.{" "}
             <strong>The holders keep their place.</strong> Win the Continental Cup and you're in it
             again next season wherever you finish, and win the{" "}

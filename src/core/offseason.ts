@@ -31,8 +31,9 @@ import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
 import { computeWorldAwards } from "./worldAwards.js";
 import { snapshotAwardWinners } from "./awardWinners.js";
 import { buildCupState } from "./cup/cup.js";
-import type { QualificationRoutes } from "./cup/qualification.js";
+import type { QualificationContext } from "./cup/qualification.js";
 import { domesticCupWinners } from "./cup/qualification.js";
+import { coefficientSlots } from "./cup/coefficients.js";
 import { buildDomesticCups } from "./domesticCup/cup.js";
 import { archiveDomesticCup } from "./domesticCup/archive.js";
 import { computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence } from "./promotion.js";
@@ -658,17 +659,40 @@ export function simOffseasonReporting(
       : t,
   );
 
-  // The non-league routes into next season's continental competitions, read off
-  // the season that just finished. Both are taken from `league` rather than the
-  // rolled-over state because these are the cups that have just been decided —
-  // `rolled` replaces them with next season's empty ones. A cup still holding a
-  // null champion (abandoned mid-save) simply closes its route.
-  const cupRoutes: QualificationRoutes = {
+  // Everything next season's continental competitions need that isn't a league
+  // table: who holds each trophy, who won each domestic cup, and how many
+  // places each country has earned. All of it reads off `league` rather than
+  // the rolled-over state, because these are the cups that have just been
+  // decided and `rolled` replaces them with next season's empty ones. A cup
+  // still holding a null champion (abandoned mid-save) simply closes its route.
+  const cupRoutes: QualificationContext = {
     domesticCupWinners: domesticCupWinners(league.domesticCups ?? []),
     holders: {
       continental: league.cup?.championTid ?? undefined,
       shield: league.shield?.championTid ?? undefined,
     },
+    // How many places each country gets, off its rolling continental record.
+    // The season that just ended counts, so its competitions are passed in
+    // alongside the archive — they are archived a few lines below this, not
+    // before it. Zero-sum against the defaults, so the fields stay the size
+    // they were (see cup/coefficients.ts); null before there is any record,
+    // which leaves the shipped strength-class allocation in place.
+    slots: coefficientSlots(
+      league.competitions,
+      teams,
+      [
+        league.cupHistory ?? [],
+        league.shieldHistory ?? [],
+        // Only a competition with a champion counts, the same rule the live
+        // Standings projection uses (see cup/seasonQualification). Here they
+        // always have one, since the season is over; keeping the two callers on
+        // one rule is what stops them disagreeing about a country's record.
+        [league.cup, league.shield].filter(
+          (c): c is NonNullable<typeof c> => !!c && c.championTid !== null,
+        ),
+      ],
+      nextSeason,
+    ) ?? undefined,
   };
 
   const rolled: LeagueStore = {

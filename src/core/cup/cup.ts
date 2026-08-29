@@ -9,7 +9,7 @@ import {
   CUP_LP_DIRECT_QF, CUP_PLAYOFF_MATCHDAY,
   CUP_FORMATS, CONTINENTAL_CUP_FORMAT,
 } from "../constants.js";
-import type { QualificationRoutes } from "./qualification.js";
+import type { QualificationContext } from "./qualification.js";
 import { cupPlan, qualifyCupTeams } from "./qualification.js";
 import {
   drawLeaguePhase, leaguePhaseTable, splitLeaguePhase, leaguePhaseComplete,
@@ -85,7 +85,7 @@ export function koFinalRound(cup: CupState): number {
  * being able to qualify by league position alone (title holders and domestic
  * cup winners), which turned qualifying from a slice of each league's table
  * into one pass over every competition at once — see that file's header. */
-export type { CupPlan, Entrant, QualificationRoute, QualificationRoutes } from "./qualification.js";
+export type { CupPlan, Entrant, QualificationRoute, QualificationContext } from "./qualification.js";
 export {
   cupPlan, worldHasCup, cupSlotsForCompetition, cupOffsetForCompetition, cupSlotRange,
   qualifyCupTeams, allocateContinentalPlaces, qualificationByTid,
@@ -122,7 +122,7 @@ export function buildCupState(
   tablesByCompId: Map<number, StandingsRow[]>,
   season: number,
   format: CupFormat = CONTINENTAL_CUP_FORMAT,
-  routes: QualificationRoutes = {},
+  routes: QualificationContext = {},
 ): CupState | null {
   const plan = cupPlan(competitions, format);
   if (!plan) return null;
