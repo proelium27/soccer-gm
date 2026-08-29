@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  WorldSetup, defaultWorldEntries, includedSpecs, leagueRosterFiles,
+  WorldSetup, LeagueSettings, defaultWorldEntries, includedSpecs, leagueRosterFiles,
   strengthDial, strengthOffsetFromDial, type WorldEntry,
 } from "../../src/ui/components/WorldSetup.js";
 import {
@@ -83,13 +83,15 @@ describe("WorldSetup renders", () => {
     expect(html).toContain("13 leagues, 460 clubs");
   });
 
-  it("offers the up-and-down picker on an added league only", () => {
-    const html = render(withAddedLeague());
-    // One picker, on the one added league: the shipped countries aren't
-    // editable, so they don't get one.
-    expect(html.match(/Clubs promoted and relegated each season/g)).toHaveLength(1);
-    expect(render(defaultWorldEntries()))
-      .not.toContain("Clubs promoted and relegated each season");
+  it("keeps the shipped rows collapsed, so eight panels don't bury the checkboxes", () => {
+    // Shipped leagues have the same settings as added ones, but behind a button:
+    // the list is mostly used to switch countries on and off, and eight open
+    // panels would push those off the screen.
+    const html = render(defaultWorldEntries());
+    expect(html).not.toContain("Clubs promoted and relegated each season");
+    // The added league's panel is open on sight, so exactly one picker shows.
+    expect(render(withAddedLeague()).match(/Clubs promoted and relegated each season/g))
+      .toHaveLength(1);
   });
 
   it("starts the picker at the count every shipped country plays", () => {
@@ -147,10 +149,10 @@ describe("WorldSetup renders", () => {
     expect(html).toContain("at least one league");
   });
 
-  it("offers a roster import on an added league and not on a shipped one", () => {
+  it("offers a roster import on each open panel", () => {
     const html = render(withAddedLeague());
     expect(html).toContain("Import roster");
-    // One picker, on the one added league.
+    // One picker: the added league's panel is the only one open.
     expect(html.match(/Import roster/g)).toHaveLength(1);
   });
 
@@ -209,20 +211,22 @@ describe("WorldSetup renders", () => {
     expect(html).toContain("Add another file");
   });
 
-  it("offers to rename each shipped league", () => {
-    // Divisions used to be named after their country and nothing else, so a
-    // roster file written for "Premier League" could never find one — the game
-    // had no league by that name and no way to give it one.
-    // One per shipped country, derived so adding a country can't drift this —
-    // it was pinned at 8 and failed the moment the world went to 12.
+  it("offers to customize each shipped league", () => {
+    // The shipped eight used to be editable in name only — you could rename
+    // their divisions and nothing else — even though every knob is an optional
+    // field whose absence means "use the country table", so writing one has
+    // always been safe.
+    //
+    // The count is derived rather than written down: it was pinned at 8 and
+    // failed the moment the world grew to twelve countries.
     const entries = defaultWorldEntries();
     expect(entries.length).toBeGreaterThan(1);
-    expect(render(entries).match(/>Rename</g)).toHaveLength(entries.length);
+    expect(render(entries).match(/>Customize</g)).toHaveLength(entries.length);
   });
 
-  it("doesn't offer to rename a league that's switched off", () => {
+  it("doesn't offer to customize a league that's switched off", () => {
     const entries = defaultWorldEntries().map((e, i) => ({ ...e, included: i === 0 }));
-    expect(render(entries).match(/>Rename</g)).toHaveLength(1);
+    expect(render(entries).match(/>Customize</g)).toHaveLength(1);
   });
 
   it("gives an added league its division-name boxes, defaults as placeholders", () => {
@@ -351,5 +355,89 @@ describe("WorldSetup wiring", () => {
     const countries = countriesOf(buildCompetitions(includedSpecs(entries)));
     expect(countries).toHaveLength(13);
     expect(countries[countries.length - 1]).toBe("Neverland");
+  });
+});
+
+/**
+ * The settings panel is rendered directly here rather than through WorldSetup,
+ * because on a shipped league it sits behind a button and component state is out
+ * of reach of a static render.
+ */
+describe("a shipped league's settings panel", () => {
+  function panel(country: string): string {
+    const entry = defaultWorldEntries().find((e) => e.spec.country === country)!;
+    return renderToStaticMarkup(
+      createElement(LeagueSettings, { entry, onEntry: () => {}, onSpec: () => {} }),
+    );
+  }
+
+  /** The value a `<select>`/`<input>` in this panel is showing. */
+  function shown(html: string, label: string): string {
+    const select = new RegExp(`<select[^>]*aria-label="${label}"[^>]*>(.*?)</select>`, "s")
+      .exec(html);
+    if (select) return /<option value="([^"]*)" selected="">/.exec(select[1])?.[1] ?? "";
+    return new RegExp(`<input[^>]*aria-label="${label}"[^>]*value="([^"]*)"`).exec(html)?.[1]
+      ?? new RegExp(`value="([^"]*)"[^>]*aria-label="${label}"`).exec(html)?.[1] ?? "";
+  }
+
+  it("gives a shipped country every control an added league has", () => {
+    const html = panel("England");
+    expect(html).toContain("Strength");
+    expect(html).toContain("Money");
+    expect(html).toContain("Clubs promoted and relegated each season");
+    expect(html).toContain("Continental Cup places");
+    expect(html).toContain("Continental Shield places");
+    expect(html).toContain("Who this league produces");
+    expect(html).toContain("Import roster");
+  });
+
+  it("opens on the values that country actually ships with, not on zero", () => {
+    // The failure this pins is silent and would be acted on: reading the raw
+    // optional field showed France's handicap as absent, i.e. strength 20 and
+    // money 1.00 — the strongest, richest setting in the game — for a league
+    // that is really neither.
+    expect(shown(panel("France"), "Money")).toBe("0.7");
+    expect(shown(panel("England"), "Money")).toBe("1");
+    expect(panel("France")).toContain('aria-label="Strength" value="15"');
+    expect(panel("England")).toContain('aria-label="Strength" value="20"');
+  });
+
+  it("shows each league's own continental places, which are not all the same", () => {
+    // A big-four league sends four to the Cup and a weak one sends two, so a
+    // flat default of 2 would have quietly offered to halve England's places.
+    expect(shown(panel("England"), "Continental Cup places")).toBe("4");
+    expect(shown(panel("Turkey"), "Continental Cup places")).toBe("2");
+    expect(shown(panel("England"), "Continental Shield places")).toBe("2");
+  });
+
+  it("shows the shape every shipped country plays", () => {
+    const html = panel("Spain");
+    expect(shown(html, "Divisions")).toBe("2");
+    expect(shown(html, "Clubs per division")).toBe("20");
+    expect(shown(html, "Clubs promoted and relegated each season"))
+      .toBe(String(PROMOTION_RELEGATION_COUNT));
+  });
+
+  it("shows the country's own nationality mix rather than the rest-of-world bucket", () => {
+    // Spain generates Spaniards. Showing an added league's blank default here
+    // would be a preview that disagrees with the world it is previewing.
+    const html = panel("Spain");
+    expect(html).toContain("Spain");
+    expect(html).toContain("Argentina");
+    expect(panel("Turkey")).toContain("Turkey");
+  });
+
+  it("leaves every knob absent until something is moved", () => {
+    // Rendering the panel must not write the resolved values back. If it did,
+    // every shipped league would carry explicit knobs and a default world would
+    // stop being the one the game has always generated.
+    const specs = defaultWorldEntries().map((e) => e.spec);
+    for (const spec of specs) {
+      expect(spec.strengthOffset).toBeUndefined();
+      expect(spec.budgetScale).toBeUndefined();
+      expect(spec.cupSlots).toBeUndefined();
+      expect(spec.nationalities).toBeUndefined();
+    }
+    expect(buildCompetitions(includedSpecs(defaultWorldEntries()))).toEqual(worldCompetitions());
   });
 });

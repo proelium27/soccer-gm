@@ -234,3 +234,37 @@ describe("buildSeasonTimeline", () => {
     });
   });
 });
+
+describe("continental reallocation in the feed", () => {
+  const own = { country: "England", compId: USER_COMP, from: 4, to: 3 };
+  const foreign = { country: "Belgium", compId: FOREIGN_COMP, from: 2, to: 3 };
+
+  it("shows a foreign country's reallocation as well as your own", () => {
+    // Deliberately NOT tiered down to the user's league, for the same reason
+    // the trophies aren't: the tiers control volume, and a place changes hands
+    // well under once a season across the whole world.
+    const timeline = buildSeasonTimeline([], [], audience, [], [], [own, foreign]);
+    const countries = timeline
+      .flatMap((i) => (i.kind === "continental" ? [i.data.country] : []))
+      .sort();
+    expect(countries).toEqual(["Belgium", "England"]);
+  });
+
+  it("closes the season, after the trophies and the honours", () => {
+    const events: NewsEvent[] = [
+      { type: "hattrick", pid: 1, tid: 0, season: 2026, matchday: 20, detail: 3 },
+    ];
+    const awards: AwardNews[] = [{ kind: "ballonDOr", pid: 1, tid: 0, placing: 1 }];
+    const trophies: TrophyNews[] = [{ kind: "continentalCup", name: "Continental Cup", tid: 0 }];
+    const timeline = buildSeasonTimeline([], events, audience, awards, trophies, [own]);
+    expect(timeline.map((i) => i.kind)).toEqual(["news", "trophy", "award", "continental"]);
+  });
+
+  it("carries both ends, so the row can say which way it went", () => {
+    const timeline = buildSeasonTimeline([], [], audience, [], [], [own]);
+    const item = timeline.find((i) => i.kind === "continental");
+    if (item?.kind !== "continental") throw new Error("expected a continental item");
+    expect(item.data.from).toBe(4);
+    expect(item.data.to).toBe(3);
+  });
+});

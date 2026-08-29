@@ -1,7 +1,42 @@
 name: CI
+# Push is filtered to main, and this is not just tidiness.
+#
+# `push` with no filter plus `pull_request` means any branch with an open PR
+# fires BOTH events, so every push ran the whole suite twice on the same commit
+# — measured on one commit: run 33252205850 (event=push) and 33252221024
+# (event=pull_request), same sha, typecheck + six shards each. 14 jobs where 7
+# would do.
+#
+# The wasted half was not free. GitHub Free allows 20 concurrent jobs per
+# account, and with the suite on six shards three active branches want 42; the
+# repo sat pinned at exactly 20 in progress with 52 queued, which is why a run
+# crawled through its shards one at a time instead of starting them together.
+#
+# Coverage is unchanged: a PR branch is covered by `pull_request` and main by
+# `push`. The one thing given up is CI on a branch pushed with no PR open,
+# which starts as soon as a PR exists.
 on:
   push:
+    branches: [main]
   pull_request:
+
+# Supersede an in-flight run for the same PR. Pushing again makes the older
+# run's six shards pointless, but they keep occupying slots against the 20-job
+# account ceiling while nobody will ever read them — so the queue that made
+# runs crawl was half duplicate events (fixed above) and half stale runs.
+#
+# `github.ref` is `refs/pull/N/merge` for a pull_request event, so the group is
+# per PR rather than per commit, which is what makes a new push replace the old
+# run instead of queueing behind it.
+#
+# NOT on main, deliberately. Every commit that lands on main should be verified
+# on its own, and merging two PRs in quick succession would otherwise cancel the
+# first one's run and leave that commit permanently untested — exactly the
+# situation where you most want the signal.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   # Typecheck runs in its own job so it starts in parallel with the tests
   # instead of gating them.

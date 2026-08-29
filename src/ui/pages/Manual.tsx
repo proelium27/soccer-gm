@@ -354,7 +354,7 @@ export function Manual() {
             <li><strong>A club in one season</strong>. Click any club anywhere in the game &mdash; a table, a transfer, the club beside a season on a player's profile &mdash; and you land on what that club did that year: the squad, where it finished and its record, how far it got in the domestic cup, the Continental Cup and the Continental Shield, and where the Power Rankings had it at the end. A dropdown walks you through the club's other seasons. Two things to know about an old squad. It's who <em>finished</em> the season there, so a player sold in January shows up at his new club and not his old one. And players who retired long ago may be missing altogether, because the game only keeps a permanent career record for the ones worth remembering &mdash; the rest are gone for good. Retirees who are still on record show their appearances and the rating they played at, but not their goals and assists for that year, which aren't kept.</li>
             <li><strong>Frivolities</strong>. All-time lists that don't affect play: GOAT rankings for players and clubs, an awards record book (most Ballon d'Ors, World Team of the Year places, Players of the Season, Golden Boots and Team of the Season places, the highest-scoring individual seasons ever, and awards by club and country), all-time records (most dominant and worst team seasons, highest rating ever reached, longest careers, biggest transfer fees), All-Time Leaders (the top 10 in every stat at a glance, click through for the full board, career totals or best single seasons, world-wide and including retired players), an international record book (most caps, international goals and World Cups won, laid out the same way and filterable by country), player bios (oldest, youngest, where players come from, one-club men, name oddities), and club records (trophy cabinet, longest title droughts, biggest spenders and best traders). More in <a href="#frivolities">Frivolities</a>.</li>
             <li><strong>Season Preview</strong>. A snapshot of how the offseason shook out: the league's top 10 highest-rated players, top 10 highest-rated teams (both by OVR), the top 10 biggest transfers from the summer window ranked by fee, and who <a href="#development">retired</a>. It opens automatically the moment you advance past a season, with a link through to Awards.</li>
-            <li><strong>News Feed</strong>. Transfers and player accomplishments woven into one timeline per season, with club and season filters, and your club's items highlighted. It's filtered by how much the story has to do with you, because the world is sixteen leagues across eight countries and reporting all of them equally buries you in news about clubs you'll never play. Your own club is always in, whatever it did &mdash; every transfer, loan, loan return and free signing, and every accomplishment. Your league is next: every deal (loans included) and every accomplishment in it. From the rest of the world you only get the big stories &mdash; a four-goal haul, a 100th career goal, a 35-goal season, the standout performance of the matchday, the Ballon d'Or, the World Team of the Year, Goalkeeper and Defender of the Year, and transfers over $40M. Accomplishments themselves are hat-tricks, one standout performance a matchday, career goal milestones at 50 and then every 50, season goal milestones at 25 and then every 5, and position changes for established players. <strong>Trophies and end-of-season awards land in the feed too</strong>, at the bottom of the season they belong to. Trophies first: who won the Continental Cup and the Continental Shield, and who won the World Cup and each confederation cup, with the final score. Then the honours: anything one of your players wins, plus your league's Player of the Season, Golden Boot and Team of the Season. All of it comes straight off the same records the Awards and cup pages read, so old saves show every trophy and honour they ever handed out, right back to season 1. Trophies also reach your dashboard's news panel the moment they're won, and an honour won by one of your own players sits there until the new season kicks off.</li>
+            <li><strong>News Feed</strong>. Transfers and player accomplishments woven into one timeline per season, with club and season filters, and your club's items highlighted. It's filtered by how much the story has to do with you, because the world is sixteen leagues across eight countries and reporting all of them equally buries you in news about clubs you'll never play. Your own club is always in, whatever it did &mdash; every transfer, loan, loan return and free signing, and every accomplishment. Your league is next: every deal (loans included) and every accomplishment in it. From the rest of the world you only get the big stories &mdash; a four-goal haul, a 100th career goal, a 35-goal season, the standout performance of the matchday, the Ballon d'Or, the World Team of the Year, Goalkeeper and Defender of the Year, and transfers over $40M. Accomplishments themselves are hat-tricks, one standout performance a matchday, career goal milestones at 50 and then every 50, season goal milestones at 25 and then every 5, and position changes for established players. <strong>Trophies and end-of-season awards land in the feed too</strong>, at the bottom of the season they belong to. Trophies first: who won the Continental Cup and the Continental Shield, and who won the World Cup and each confederation cup, with the final score. Then the honours: anything one of your players wins, plus your league's Player of the Season, Golden Boot and Team of the Season. All of it comes straight off the same records the Awards and cup pages read, so old saves show every trophy and honour they ever handed out, right back to season 1. Last of all comes what it changed: <strong>countries winning and losing Continental Cup places</strong>, saying which way the places went and what the counts went from and to. Those are always reported, wherever they happen, because a place changes hands well under once a season across the whole world and when it does it reshapes the competition everyone plays in. They're worked out from the cups your save already has on record too, so an old dynasty shows every place it ever won or lost. Trophies also reach your dashboard's news panel the moment they're won, and an honour won by one of your own players sits there until the new season kicks off.</li>
             <li><strong>Roster</strong>. Your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay), a stats table for the XI, and a bench table (both with ratings, ages, contracts, and season stats, and goalkeepers also show goals against and xG against). Drag a bench player onto a pitch slot to swap him into the XI, drag one starter onto another to switch their positions, extend contracts, or release players.</li>
             <li><strong>Transfers</strong>. Recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
             <li><strong>Incoming Offers</strong>. AI clubs bidding for <em>your</em> players. Accept, reject, or counter to push the fee upward.</li>
@@ -535,16 +535,29 @@ export function Manual() {
           <p>
             <strong>Shaping your own world.</strong> The twelve countries above are the default, not
             the only option. The <strong>World setup</strong> panel on the New League screen lets you
-            switch any of them off and add leagues of your own. An added league is always a
-            two-division pyramid like the rest, and its clubs get generated names and colours, since
-            the game ships no real clubs. The panel is on both ways in, whether you started a plain
-            new league or came through Import Custom League.
+            switch any of them off and add leagues of your own. An added league's clubs get
+            generated names and colours, since the game ships no real clubs. The panel is on both
+            ways in, whether you started a plain new league or came through Import Custom League.
+          </p>
+          <p>
+            <strong>Every setting works on the countries the game ships, too.</strong> Hit{" "}
+            <strong>Customize</strong> beside England, Spain, Turkey or any of the others and you
+            get the same panel a league you added gets: names, strength, money, shape, promotion,
+            continental places, who it produces, and a roster import of its own. So you can make
+            Portugal a big-four league, shrink Belgium to twelve clubs, seal off Germany's second
+            division, or hand Turkey your own thirty-six clubs, without having to switch the
+            country off and rebuild it from scratch. Everything you leave alone keeps exactly the
+            values that country has always had.
+          </p>
+          <p>
+            The one thing you can't change on a shipped country is its <em>name</em>, because its
+            clubs, its flag and its player nationalities all hang off it. If you want a country the
+            game doesn't have, switch one off and add your own — that's what adding is for.
           </p>
           <p>
             <strong>Naming the leagues.</strong> Every league has a name of its own, and you can
-            change it. Hit <strong>Rename</strong> beside any shipped country to call its divisions
-            what you like, and a league you add has the same two boxes. Leave one empty and it goes
-            back to following the country's name.
+            change it. The two name boxes are the first thing in the panel, on shipped countries and
+            added ones alike. Leave one empty and it goes back to following the country's name.
           </p>
           <p>
             This matters for more than flavour: a world-wide roster file names the competition it
@@ -556,8 +569,8 @@ export function Manual() {
             same name the panel warns you, because a file aimed at that name can only fill one.
           </p>
           <p>
-            You also choose its <strong>shape</strong>: one division or two, how many clubs are in
-            each, and how many go up and down between them. Two divisions is the default and works
+            You also choose a league's <strong>shape</strong>: one division or two, how many clubs
+            are in each, and how many go up and down between them. Two divisions is the default and works
             like every shipped country, three up and three down, but that number is yours to set:
             anything from none at all up to six, capped at half the division so promoting six out
             of eight clubs isn't on offer. Pick <strong>None</strong> and the two divisions are
@@ -570,7 +583,7 @@ export function Manual() {
             for it. Three divisions isn't offered.
           </p>
           <p>
-            Each league you add carries more settings. <strong>Strength</strong> runs 0 to
+            Every league carries more settings. <strong>Strength</strong> runs 0 to
             20 and higher is stronger, with <strong>20</strong> level with England, Spain, Italy
             and Germany. Each point below that costs a league about 1 OVR across its squads, so at{" "}
             <strong>15</strong> (where France sits) its champion is about as good as England's
@@ -580,7 +593,10 @@ export function Manual() {
             <strong>Money</strong> is what its clubs earn and can bank, against 1 for the richest
             leagues. And you set how many places it sends to the{" "}
             <a href="#cup">Continental Cup</a> and the <a href="#shield">Continental Shield</a>.
-            Like the shipped countries, a league you add holds its level for the life of the save.
+            Every league holds its level for the life of the save, shipped or added. Note the
+            places move with the strength you set: drag a big-four league below 20 and it starts
+            sending a weak league's two clubs to the Cup rather than four, which changes the size
+            of the field. The panel warns you if the total stops adding up.
           </p>
           <p>
             Money is tied to strength by default and you should think twice before unlinking it. A
@@ -589,7 +605,7 @@ export function Manual() {
             panel warns you when your settings would do that.
           </p>
           <p>
-            <strong>Bringing your own clubs to an added league.</strong> Each added league has an
+            <strong>Bringing your own clubs to one league.</strong> Every league has an
             <strong> Import roster</strong> button of its own. It takes the same roster files the
             world-wide import takes, but it applies them to that one league, and it ignores what
             the file calls its competitions: the file's first competition fills the league's top
