@@ -1740,7 +1740,7 @@ export function Manual() {
           </p>
           <p>At season's end, the settlement adds and subtracts the rest:</p>
           <ul>
-            <li><strong>Prize money</strong>. $40M for winning the league, $20M for finishing 2nd&ndash;5th, $10M for 6th&ndash;10th, nothing below that.</li>
+            <li><strong>Prize money</strong>. $40M for winning the league, $20M for the rest of the top quarter, $10M for the rest of the top half, nothing below that. In a 20-club league that's 2nd&ndash;5th and 6th&ndash;10th; a smaller division pays the same share of its table, so half of it is paid whatever its size.</li>
             <li><strong>Hype revenue</strong>. Every club has a hype score (0&ndash;100) that drifts toward its recent results rather than snapping to them. Hype earns extra revenue (up to ~$30M at max hype), deliberately kept modest so fame stays a bonus and not an engine. Success payouts matter more.</li>
             <li><strong>Scouting spend</strong>. Whatever you set the slider to comes out here.</li>
           </ul>
