@@ -1,6 +1,23 @@
 name: CI
+# Push is filtered to main, and this is not just tidiness.
+#
+# `push` with no filter plus `pull_request` means any branch with an open PR
+# fires BOTH events, so every push ran the whole suite twice on the same commit
+# — measured on one commit: run 33252205850 (event=push) and 33252221024
+# (event=pull_request), same sha, typecheck + six shards each. 14 jobs where 7
+# would do.
+#
+# The wasted half was not free. GitHub Free allows 20 concurrent jobs per
+# account, and with the suite on six shards three active branches want 42; the
+# repo sat pinned at exactly 20 in progress with 52 queued, which is why a run
+# crawled through its shards one at a time instead of starting them together.
+#
+# Coverage is unchanged: a PR branch is covered by `pull_request` and main by
+# `push`. The one thing given up is CI on a branch pushed with no PR open,
+# which starts as soon as a PR exists.
 on:
   push:
+    branches: [main]
   pull_request:
 jobs:
   # Typecheck runs in its own job so it starts in parallel with the tests
