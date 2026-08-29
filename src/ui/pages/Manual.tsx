@@ -467,8 +467,24 @@ export function Manual() {
             <strong>France</strong>, the <strong>Netherlands</strong>, <strong>Portugal</strong>,{" "}
             <strong>Belgium</strong>, <strong>Turkey</strong>, <strong>Greece</strong>,{" "}
             <strong>Scotland</strong> and <strong>Serbia</strong>), each with its own two-division
-            pyramid (Division 1 and Division 2, 20 clubs apiece), for 24 leagues and 480 clubs
-            total. You pick any club in any country and division when you start.
+            pyramid, for 24 leagues and 420 clubs total. You pick any club in any country and
+            division when you start.
+          </p>
+          <p>
+            <strong>Leagues are the size they are in real life</strong>, not all the same. England,
+            Spain and Italy field 20 clubs; Germany, France, Portugal, Turkey and the Netherlands
+            18; Belgium and Serbia 16; Greece 14; and Scotland 12. Second divisions vary the same
+            way, down to Scotland's 10. Twenty is the ceiling, because a division of that size
+            already fills every matchday in the season, and a smaller league spreads its games
+            across the same calendar rather than finishing early — so the transfer windows and the
+            run-in still fall where you'd expect. A smaller league also plays fewer games, so its
+            points totals are lower; don't read a 12-club champion's tally against a 20-club one.
+          </p>
+          <p>
+            <strong>Promotion and relegation scale with that.</strong> Most countries swap three
+            clubs each way, but Portugal, Belgium, the Netherlands, Greece and Serbia swap two, and
+            Scotland only one — three up out of a 10-club second division would turn over a third
+            of it every season.
           </p>
           <p>
             The big four (England, Spain, Italy and Germany) are all built to the same strength and
@@ -502,7 +518,7 @@ export function Manual() {
             his own country.
           </p>
           <p>
-            Promotion and relegation (3 up, 3 down in every country the game ships) runs on its
+            Promotion and relegation (three clubs each way in most countries, fewer in the smaller ones) runs on its
             own within each country at the end of every season, so a rough season in Spain's top
             flight doesn't touch any other country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
             grouped by country, so you can browse any of the 24 leagues. It defaults to
