@@ -29,6 +29,7 @@ const BOARD_MOOD_CLASS: Record<string, string> = {
 import type { IntlStage } from "../../core/international/index.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { unpackPositionChange } from "../../core/newsEvents.js";
+import { seasonAwardNews } from "../../core/awardNews.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { currency, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
@@ -290,9 +291,37 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
   const newsHeadlines = useMemo(() => {
     const currentSeasonTransfers = league.transfers.filter((t) => t.season === league.season);
     const currentSeasonEvents = league.newsEvents.filter((e) => e.season === league.season);
-    const newsTimeline = buildSeasonTimeline(currentSeasonTransfers, currentSeasonEvents, league.meta.userTid);
+    // The season in progress has no seasonHistory snapshot yet, so the live
+    // teams are its competition map (see NewsFeed.tsx for the general case).
+    const comps: Record<number, number> = {};
+    for (const t of league.teams) comps[t.tid] = t.compId;
+    const userTid = league.meta.userTid;
+
+    // A season's honours are written into history by the offseason that ends
+    // it, which is the same step that moves the clock on — so the season the
+    // awards belong to is never the season this panel is showing, and passing
+    // it its own awards would always pass none. What the manager wants at that
+    // moment is last season's, so they ride along until the new season kicks
+    // off (`played` is emptied every offseason) and then drop out on their own.
+    //
+    // Only his own club's, and only here: the full slate is 27 honours against
+    // a panel of NEWS_TOP_N, so the world's would be all a reader ever saw.
+    // The News Feed carries the rest.
+    const lastSeasonHonours = league.played.length === 0
+      ? seasonAwardNews(league.seasonHistory.find((h) => h.season === league.season - 1))
+          .filter((a) => a.tid === userTid)
+      : [];
+
+    const newsTimeline = buildSeasonTimeline(currentSeasonTransfers, currentSeasonEvents, {
+      userTid,
+      userCompId: comps[userTid],
+      compOf: (tid) => comps[tid],
+    }, lastSeasonHonours);
     return [...newsTimeline].slice(-NEWS_TOP_N).reverse();
-  }, [league.transfers, league.newsEvents, league.season, league.meta.userTid]);
+  }, [
+    league.transfers, league.newsEvents, league.season, league.played,
+    league.meta.userTid, league.teams, league.seasonHistory,
+  ]);
 
   const teamByTid = useMemo(() => new Map(league.teams.map((t) => [t.tid, t])), [league.teams]);
   const playerByPid = useMemo(() => new Map(league.players.map((p) => [p.pid, p])), [league.players]);
@@ -320,6 +349,29 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
           {playerLink(player)} moves from {from?.name ?? "?"} to {to?.name ?? "?"} ({currency.format(t.fee)})
         </>
       );
+    }
+    if (item.kind === "award") {
+      const a = item.data;
+      const who = playerLink(playerByPid.get(a.pid));
+      const comp = league.competitions.find((c) => c.id === a.compId)?.name;
+      switch (a.kind) {
+        case "ballonDOr":
+          return a.placing === 1
+            ? <>{who} wins the Ballon d'Or</>
+            : <>{who} finishes {a.placing === 2 ? "2nd" : "3rd"} in the Ballon d'Or</>;
+        case "worldTeamOfYear":
+          return <>{who} makes the World Team of the Year</>;
+        case "goalkeeperOfYear":
+          return <>{who} is Goalkeeper of the Year</>;
+        case "defenderOfYear":
+          return <>{who} is Defender of the Year</>;
+        case "playerOfSeason":
+          return <>{who} is {comp ?? "his league"} Player of the Season</>;
+        case "goldenBoot":
+          return <>{who} wins the {comp ?? "league"} Golden Boot</>;
+        case "teamOfSeason":
+          return <>{who} makes the {comp ?? "league"} Team of the Season</>;
+      }
     }
     const e = item.data;
     const player = playerByPid.get(e.pid);
