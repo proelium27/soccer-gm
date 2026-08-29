@@ -10,7 +10,7 @@ import { leaguePhaseComplete } from "../../src/core/cup/leaguePhase.js";
 import type { CupTie } from "../../src/core/cup/types.js";
 import {
   CUP_KO_ROUND_MATCHDAYS, CUP_PLAYOFF_MATCHDAY,
-  CUP_LEAGUE_PHASE_SIZE, CUP_KO_SIZE, CUP_LP_PLAYOFF_TEAMS,
+  CUP_LEAGUE_PHASE_SIZE, CUP_KO_SIZE, cupKnockoutPlan,
 } from "../../src/core/constants.js";
 
 /** Advance a fresh save to the start of season 2 (regular phase), by which point a cup is seeded. */
@@ -62,7 +62,7 @@ describe("Continental Cup — season lifecycle", () => {
     // three knockout rounds are recorded (QF 4 + SF 2 + F 1 = 7; playoff separate).
     expect(leaguePhaseComplete(played.cup!.leaguePhase!)).toBe(true);
     expect(played.cup!.teams.every((t) => t >= 0)).toBe(true);
-    expect(played.cup!.playoff!.ties).toHaveLength(CUP_LP_PLAYOFF_TEAMS / 2);
+    expect(played.cup!.playoff!.ties).toHaveLength(cupKnockoutPlan(CUP_LEAGUE_PHASE_SIZE).playoffTeams / 2);
     expect(played.cup!.ties).toHaveLength(4 + 2 + 1);
 
     // The champion won the final (the single round-2 tie).

@@ -5,8 +5,8 @@ import { hashInts } from "../../engine/rng.js";
 import type { CupFormat } from "../constants.js";
 import {
   CUP_ROUNDS, CUP_ROUND_MATCHDAYS,
-  CUP_KO_SIZE, CUP_KO_ROUND_MATCHDAYS, CUP_KO_LEG_MATCHDAYS,
-  CUP_LP_DIRECT_QF, CUP_PLAYOFF_MATCHDAY,
+  CUP_KO_ROUND_MATCHDAYS, CUP_KO_LEG_MATCHDAYS,
+  CUP_PLAYOFF_MATCHDAY, cupKnockoutPlan,
   CUP_FORMATS, CONTINENTAL_CUP_FORMAT,
 } from "../constants.js";
 import type { QualificationContext } from "./qualification.js";
@@ -41,14 +41,30 @@ export function isSwissCup(cup: CupState): boolean {
   return !!cup.leaguePhase;
 }
 
-/** Number of knockout rounds: 3 (QF→Final) for Swiss, 4 (R16→Final) for legacy. */
+/**
+ * Number of knockout rounds: for a Swiss cup, however deep its own bracket is
+ * (3 for a QF→Final eight, 2 for a SF→Final four); 4 (R16→Final) for legacy.
+ *
+ * Read off `cup.teams.length` rather than a constant, because the bracket is
+ * sized from the field (see cupKnockoutPlan) and a small competition genuinely
+ * has fewer rounds. An old save's cup carries eight slots and so still answers
+ * 3, which is why this needs no migration.
+ */
 export function koRoundsOf(cup: CupState): number {
-  return isSwissCup(cup) ? CUP_KO_ROUND_MATCHDAYS.length : CUP_ROUNDS;
+  if (!isSwissCup(cup)) return CUP_ROUNDS;
+  return Math.max(1, Math.round(Math.log2(cup.teams.length || 2)));
 }
 
-/** League matchdays for each knockout round, by cup format (the last/only leg of each round). */
+/**
+ * League matchdays for each knockout round, by cup format (the last/only leg of
+ * each round). A shallower bracket takes the **last** rounds of the table, so a
+ * smaller cup still finishes on the same matchday as everything else — the final
+ * is the fixture the run-in and the stop-before-the-user's-final check are
+ * built around, and moving it forward would strand both.
+ */
 export function koRoundMatchdays(cup: CupState): readonly number[] {
-  return isSwissCup(cup) ? CUP_KO_ROUND_MATCHDAYS : CUP_ROUND_MATCHDAYS;
+  if (!isSwissCup(cup)) return CUP_ROUND_MATCHDAYS;
+  return CUP_KO_ROUND_MATCHDAYS.slice(CUP_KO_ROUND_MATCHDAYS.length - koRoundsOf(cup));
 }
 
 /**
@@ -59,7 +75,9 @@ export function koRoundMatchdays(cup: CupState): readonly number[] {
  * here, so this table is the single source of truth for the knockout calendar.
  */
 export function koLegMatchdays(cup: CupState): readonly (readonly number[])[] {
-  if (isSwissCup(cup) && cup.twoLegged) return CUP_KO_LEG_MATCHDAYS;
+  if (isSwissCup(cup) && cup.twoLegged) {
+    return CUP_KO_LEG_MATCHDAYS.slice(CUP_KO_LEG_MATCHDAYS.length - koRoundsOf(cup));
+  }
   return koRoundMatchdays(cup).map((md) => [md]);
 }
 
@@ -113,9 +131,10 @@ export function seedOrder(n: number): number[] {
 /**
  * Seed the next season's Swiss cup from a completed season's per-competition
  * final tables: qualify the field, seed it, and draw the league phase. The
- * knockout bracket (CupState.teams, CUP_KO_SIZE slots) stays empty until the
- * league phase and playoff resolve — see seedKnockoutFromLeaguePhase. Returns
- * null when the world can't field a cup (see cupPlan).
+ * knockout bracket (CupState.teams, sized from the field by cupKnockoutPlan)
+ * stays empty until the league phase and playoff resolve — see
+ * seedKnockoutFromLeaguePhase. Returns null when the world can't field a cup
+ * (see cupPlan).
  */
 export function buildCupState(
   competitions: Competition[],
@@ -136,7 +155,7 @@ export function buildCupState(
     competition: format.id,
     season,
     name: format.name,
-    teams: new Array<number>(CUP_KO_SIZE).fill(-1),
+    teams: new Array<number>(cupKnockoutPlan(field.length).koSize).fill(-1),
     seeds,
     leaguePhase: { teams: field, matches },
     playoff: null,
@@ -158,26 +177,33 @@ export function knockoutSeeded(cup: CupState): boolean {
 }
 
 /**
- * Once the league phase is complete, split its table and seed the quarter-final
- * bracket: the top CUP_LP_DIRECT_QF take seeds 1..4 directly, and the next
- * CUP_LP_PLAYOFF_TEAMS are paired into the single-leg playoff (5v12, 6v11, …)
- * whose four winners fill seeds 5..8. Bracket order via seedOrder(CUP_KO_SIZE)
- * so the top seeds can only meet late. No-op if not applicable / already seeded.
+ * Once the league phase is complete, split its table and seed the knockout
+ * bracket: the direct qualifiers take the top seeds outright, and the playoff
+ * entrants are paired highest-against-lowest (in a 24-club cup, 5v12, 6v11, …)
+ * with the winner of tie i taking the next seed down. Bracket order via
+ * seedOrder so the top seeds can only meet late. No-op if not applicable /
+ * already seeded.
+ *
+ * Both halves are sized by cupKnockoutPlan off the field, and **either can be
+ * empty**: a 16-club field advances exactly a bracket's worth, so there is no
+ * playoff to play and `playoff` is left null rather than set to a round with no
+ * ties in it — playoffDue would otherwise fire on an empty round forever.
  */
 export function seedKnockoutFromLeaguePhase(cup: CupState): CupState {
   if (!cup.leaguePhase || knockoutSeeded(cup) || !leaguePhaseComplete(cup.leaguePhase)) return cup;
   const table = leaguePhaseTable(cup.leaguePhase, cup.seeds);
   const { directQF, playoff } = splitLeaguePhase(table);
+  const koSize = cup.teams.length;
 
-  const order = seedOrder(CUP_KO_SIZE); // seed sitting at each bracket position
-  const teams = order.map((seed) => (seed <= CUP_LP_DIRECT_QF ? directQF[seed - 1] : -1));
+  const order = seedOrder(koSize); // seed sitting at each bracket position
+  const teams = order.map((seed) => (seed <= directQF.length ? directQF[seed - 1] : -1));
+  if (playoff.length === 0) return { ...cup, teams, playoff: null };
 
-  // Playoff ties: 5th vs 12th, 6th vs 11th, … Winner of tie i takes KO seed CUP_LP_DIRECT_QF+1+i.
   const playoffTeams: number[] = [];
   const half = playoff.length / 2;
   for (let i = 0; i < half; i++) playoffTeams.push(playoff[i], playoff[playoff.length - 1 - i]);
   const slots: number[] = [];
-  for (let s = CUP_LP_DIRECT_QF + 1; s <= CUP_KO_SIZE; s++) slots.push(order.indexOf(s));
+  for (let s = directQF.length + 1; s <= koSize; s++) slots.push(order.indexOf(s));
 
   const playoffRound: CupPlayoff = { teams: playoffTeams, slots, matchday: CUP_PLAYOFF_MATCHDAY, ties: [] };
   return { ...cup, teams, playoff: playoffRound };

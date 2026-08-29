@@ -728,6 +728,14 @@ export function Manual() {
             From there it's a straight knockout: quarter-finals, semi-finals and final.
           </p>
           <p>
+            Those cut lines are for a 24-club field, and they move if the field is a different size,
+            because <strong>half the field goes through</strong> however big it is. A smaller
+            competition sends fewer clubs to the knockout and can skip the playoff round entirely; a
+            bigger one puts more of them through the playoff instead of straight into the bracket.
+            You'll only see this if you build your own world, since the shipped Cup is always 24. The
+            key under the league-phase table always names the actual numbers.
+          </p>
+          <p>
             The <strong>quarter-finals and semi-finals are two-legged</strong>: each side hosts once,
             on <strong>separate matchdays</strong> (first leg then second leg), and the tie is decided
             on the <strong>aggregate</strong> (both clubs' goals across the two games added up). Two
@@ -816,16 +824,22 @@ export function Manual() {
             of these routes — hover the bar and it tells you which.
           </p>
           <p>
-            It runs exactly like the Cup: a 16-club league phase of six games, then the top four go
-            straight to the quarter-finals, 5th to 12th fight through a single-leg playoff, and the
-            rest go out. Quarter-finals and semi-finals are two-legged, the final is one match.
+            It runs like the Cup, one size down: a 16-club league phase of six games, then the{" "}
+            <strong>top eight go straight to the quarter-finals</strong> and the bottom eight are
+            out. Half the field goes through, same as the Cup — but half of sixteen is exactly a
+            quarter-final bracket, so the Shield has <strong>no playoff round</strong>; there's
+            nothing left for one to decide. Quarter-finals and semi-finals are two-legged, the final
+            is one match.
             It uses the <strong>same matchdays</strong> as the Cup, which is fine because no club
             plays in both. Like the Cup it starts in your world's second season, and if your club
             reaches the final the sim stops just before it.
           </p>
           <p>
-            The money is real but smaller: participation, a playoff win and each knockout round all
-            pay, at roughly <strong>40%</strong> of the Cup's rates. Winning the whole thing is worth
+            The money is real but smaller: you're paid for taking part, for reaching the
+            quarter-finals, and for each knockout round you win, at roughly <strong>40%</strong> of
+            the Cup's rates. Losing the playoff round didn't cost the Shield any prize money. What
+            it used to pay the four playoff winners it now pays the eight clubs that reach the
+            quarter-finals, so the same money goes out either way. Winning the whole thing is worth
             about what a decent cup run is, not what winning the Cup is. That's the point of it —
             finishing 5th now has something to play for, and a mid-table club can put a trophy in the
             cabinet, without it ever rivalling the Cup.

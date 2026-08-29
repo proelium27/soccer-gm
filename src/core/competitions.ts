@@ -11,7 +11,7 @@
  */
 import {
   COUNTRY_STRENGTH_OFFSET, COUNTRY_BUDGET_SCALE, LEAGUE_BASE, DIVISION_2_OFFSET,
-  CUP_STRONG_LEAGUE_SLOTS, CUP_WEAK_LEAGUE_SLOTS, CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS,
+  CUP_STRONG_LEAGUE_SLOTS, CUP_WEAK_LEAGUE_SLOTS, CUP_MIN_FIELD,
   SHIELD_STRONG_LEAGUE_SLOTS, SHIELD_WEAK_LEAGUE_SLOTS, largestValidCupField,
   NUM_TEAMS, NUM_TEAMS_D2, PROMOTION_RELEGATION_COUNT,
 } from "./constants.js";
@@ -496,7 +496,7 @@ export function worldTuningWarnings(specs: LeagueSpec[]): string[] {
     if (played === 0) {
       out.push(
         `Only ${asked} clubs would qualify for the ${name}, and it needs`
-        + ` ${CUP_LP_DIRECT_QF + CUP_LP_PLAYOFF_TEAMS}. Add more leagues or more places`
+        + ` ${CUP_MIN_FIELD}. Add more leagues or more places`
         + ` per league, or it won't run.`,
       );
     } else if (played < asked) {

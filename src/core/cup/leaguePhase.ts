@@ -1,7 +1,7 @@
 import { mulberry32, hashInts } from "../../engine/rng.js";
 import {
   CUP_LEAGUE_PHASE_GAMES, CUP_LEAGUE_PHASE_POTS,
-  CUP_LEAGUE_PHASE_MATCHDAYS, CUP_LP_DIRECT_QF, CUP_LP_PLAYOFF_TEAMS,
+  CUP_LEAGUE_PHASE_MATCHDAYS, cupKnockoutPlan,
   isValidCupFieldSize,
 } from "../constants.js";
 import type { CupLeaguePhase, LeaguePhaseMatch } from "./types.js";
@@ -301,19 +301,25 @@ export function leaguePhaseTable(
 }
 
 /**
- * Split a completed league-phase table three ways: the top CUP_LP_DIRECT_QF go
- * straight to the quarter-finals, the next CUP_LP_PLAYOFF_TEAMS contest the
- * single-leg playoff, and the rest are eliminated. Returns each group's tids in
- * finishing order.
+ * Split a completed league-phase table three ways: the top few go straight to
+ * the knockout, the next few contest the single-leg playoff, and the rest are
+ * eliminated. Returns each group's tids in finishing order.
+ *
+ * The cut lines come from cupKnockoutPlan and so scale with **the table's own
+ * length** — a 16-club Shield doesn't split like a 24-club Cup. Read off the
+ * table rather than passed in, so this can't be handed a plan for a different
+ * field than the one it is splitting; either group can legitimately come back
+ * empty (see cupKnockoutPlan).
  */
 export function splitLeaguePhase(
   table: LeaguePhaseStanding[],
 ): { directQF: number[]; playoff: number[]; out: number[] } {
   const tids = table.map((r) => r.tid);
+  const { directQF, playoffTeams } = cupKnockoutPlan(table.length);
   return {
-    directQF: tids.slice(0, CUP_LP_DIRECT_QF),
-    playoff: tids.slice(CUP_LP_DIRECT_QF, CUP_LP_DIRECT_QF + CUP_LP_PLAYOFF_TEAMS),
-    out: tids.slice(CUP_LP_DIRECT_QF + CUP_LP_PLAYOFF_TEAMS),
+    directQF: tids.slice(0, directQF),
+    playoff: tids.slice(directQF, directQF + playoffTeams),
+    out: tids.slice(directQF + playoffTeams),
   };
 }
 
