@@ -14,7 +14,7 @@ import { SuspensionBadge } from "../../components/SuspensionBadge.js";
 import { PositionBadge } from "../../components/PositionBadge.js";
 import { PlayerRatingsTooltip } from "../../components/PlayerRatingsTooltip.js";
 import { sortByPosThenOvr } from "../Roster.js";
-import { NationalTeamsLayout, NationName } from "./shared.js";
+import { NationalTeamsLayout, NationName, useClubIndex, ClubCell } from "./shared.js";
 
 const DRAG_MIME = "application/x-soccer-gm-pid";
 
@@ -50,14 +50,7 @@ export function NTMySquad() {
     () => new Map((league?.players ?? []).map((p) => [p.pid, p])),
     [league?.players],
   );
-  const clubByPid = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const t of league?.teams ?? []) {
-      for (const pid of t.roster) map.set(pid, t.name);
-      for (const pid of t.academyRoster) map.set(pid, `${t.name} (academy)`);
-    }
-    return map;
-  }, [league?.teams]);
+  const clubByPid = useClubIndex(league?.teams);
 
   const nation = league?.nationalManager.nation ?? null;
 
@@ -204,7 +197,7 @@ export function NTMySquad() {
         {p.injury && <> <InjuryBadge player={p} /></>}
         {<SuspensionBadge player={p} />}
       </td>
-      <td className="small text-muted">{clubByPid.get(p.pid) ?? "Free agent"}</td>
+      <td className="small text-muted"><ClubCell club={clubByPid.get(p.pid)} competitions={league.competitions} /></td>
       <td className="text-end">{league.season - p.born}</td>
       <td className="text-end fw-semibold" style={{ color: getRatingColor(p.ovr) }}>{p.ovr}</td>
       <td className="text-end">{p.intl?.caps ?? 0}</td>

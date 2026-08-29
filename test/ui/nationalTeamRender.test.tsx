@@ -116,6 +116,12 @@ describe("My Squad page", () => {
     expect(html).not.toContain("Search eligible players");
   });
 
+  /** The same Club column Player Pool carries, so the two can't disagree. */
+  it("marks each club with the division it plays in", () => {
+    const html = render(NTMySquad, staged(someNation()));
+    expect(html).toMatch(/division-badge--d[12]/);
+  });
+
   /**
    * Between campaigns the page is read-only rather than blank: arranging an
    * eleven that will never be fielded is worse than showing the last one.
@@ -149,6 +155,17 @@ describe("Player Pool page", () => {
     expect(html).toContain("Search eligible players");
     expect(html).toContain("Call up");
     expect(html).toContain("Showing the best");
+  });
+
+  /**
+   * A national squad is drawn from the whole world, so unlike a club roster the
+   * reader cannot otherwise tell a big-four regular from someone in another
+   * country's second division. Same marker Power Rankings uses, out of the same
+   * component, which is the point of it being a component.
+   */
+  it("marks each club with the division it plays in", () => {
+    const html = render(NTPlayerPool, staged(someNation()));
+    expect(html).toMatch(/division-badge--d[12]/);
   });
 
   it("points back at the team sheet", () => {

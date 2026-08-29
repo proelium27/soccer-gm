@@ -9,7 +9,7 @@ import { InjuryBadge } from "../../components/InjuryBadge.js";
 import { PositionBadge } from "../../components/PositionBadge.js";
 import { PlayerRatingsTooltip } from "../../components/PlayerRatingsTooltip.js";
 import { sortByPosThenOvr } from "../Roster.js";
-import { NationalTeamsLayout, NationName } from "./shared.js";
+import { NationalTeamsLayout, NationName, useClubIndex, ClubCell } from "./shared.js";
 
 /**
  * How many of the eligible pool to list at once.
@@ -33,14 +33,7 @@ export function NTPlayerPool() {
   const { league, setNationalSquadAction, simming } = useLeague();
   const [filter, setFilter] = useState("");
 
-  const clubByPid = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const t of league?.teams ?? []) {
-      for (const pid of t.roster) map.set(pid, t.name);
-      for (const pid of t.academyRoster) map.set(pid, `${t.name} (academy)`);
-    }
-    return map;
-  }, [league?.teams]);
+  const clubByPid = useClubIndex(league?.teams);
 
   const nation = league?.nationalManager.nation ?? null;
   const found = league && nation ? editableSquad(league.international, nation) : null;
@@ -92,7 +85,7 @@ export function NTPlayerPool() {
     ? pool.filter((p) => (
       p.name.toLowerCase().includes(query)
       || p.pos.toLowerCase() === query
-      || (clubByPid.get(p.pid) ?? "").toLowerCase().includes(query)
+      || (clubByPid.get(p.pid)?.name ?? "").toLowerCase().includes(query)
     ))
     : pool
   ).slice(0, POOL_SHOWN);
@@ -106,7 +99,9 @@ export function NTPlayerPool() {
         </PlayerRatingsTooltip>
         {p.injury && <> <InjuryBadge player={p} /></>}
       </td>
-      <td className="small text-muted">{clubByPid.get(p.pid) ?? "Free agent"}</td>
+      <td className="small text-muted">
+        <ClubCell club={clubByPid.get(p.pid)} competitions={league.competitions} />
+      </td>
       <td className="text-end">{league.season - p.born}</td>
       <td className="text-end fw-semibold" style={{ color: getRatingColor(p.ovr) }}>{p.ovr}</td>
       <td className="text-end">{p.intl?.caps ?? 0}</td>
