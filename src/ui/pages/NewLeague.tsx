@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { clubIdentitiesFor } from "../../core/teams/clubs.js";
 import { createLeagueState, type LeagueStore } from "../../core/leagueState.js";
@@ -10,7 +10,6 @@ import {
   DIFFICULTIES, DIFFICULTY_ORDER, DEFAULT_DIFFICULTY, INTL_MIN_POOL, type Difficulty,
 } from "../../core/constants.js";
 import { confederationOf, isEligibleNation } from "../../core/international/index.js";
-import { LEAGUE_NATIONALITY_WEIGHTS } from "../../core/players/nationalities.js";
 import { PICKABLE_NATIONALITIES } from "../components/NationalityEditor.js";
 import {
   buildCompetitions,
@@ -131,6 +130,9 @@ export function NewLeague() {
   // A chosen country the generated world turned out not to be able to field a
   // squad for. Reported rather than silently dropped — see handleStart.
   const [nationError, setNationError] = useState<string | null>(null);
+  // Filter box for the country list. 108 countries is too many to scroll for a
+  // specific one, and too few to be worth paginating.
+  const [nationFilter, setNationFilter] = useState("");
   // The world's generation seed, drawn once and reused — see buildLeague.
   const seedRef = useRef<number | null>(null);
   // Which year season 1 gets labelled as. Purely cosmetic (the sim counts
@@ -224,25 +226,30 @@ export function NewLeague() {
   const parsedStartYear = normalizeStartYear(startYear);
 
   // Countries that can be managed: anything the game ships names for that also
-  // belongs to a confederation (no confederation, no competition to enter).
-  //
-  // The first group is the safe one, and the test for it is deliberately NOT
-  // "is this country in the world". A league the player *added* takes the
-  // rest-of-world nationality mix by default, which is weighted to England (see
-  // REST_OF_WORLD in nationalities.ts) — so a league named "Netherlands"
-  // generates almost no Dutch players and would sit in the reassuring group
-  // while failing the eligibility check. Only a country with a shipped
-  // nationality table really does supply its own league.
-  const homeNations = useMemo(() => {
-    const inWorld = new Set(world.competitions.map((c) => c.country));
-    return PICKABLE_NATIONALITIES.filter(
-      (n) => inWorld.has(n) && n in LEAGUE_NATIONALITY_WEIGHTS && confederationOf(n) !== null,
-    );
-  }, [world.competitions]);
-  const otherNations = useMemo(() => {
-    const home = new Set(homeNations);
-    return PICKABLE_NATIONALITIES.filter((n) => !home.has(n) && confederationOf(n) !== null);
-  }, [homeNations]);
+  // belongs to a confederation, since no confederation means no competition to
+  // enter. One flat alphabetical list, deliberately — whether a country happens
+  // to host one of this world's leagues is not the question being asked here,
+  // and splitting on it implied a distinction the player has no use for. What
+  // actually decides eligibility is how many of its players get generated, which
+  // no grouping can promise and the check at Start reports honestly.
+  const manageableNations = useMemo(
+    () => PICKABLE_NATIONALITIES.filter((n) => confederationOf(n) !== null),
+    [],
+  );
+  const shownNations = useMemo(() => {
+    const q = nationFilter.trim().toLowerCase();
+    return q ? manageableNations.filter((n) => n.toLowerCase().includes(q)) : manageableNations;
+  }, [manageableNations, nationFilter]);
+
+  // Keep the chosen country on screen. The list is 108 rows in a 260px box, so
+  // typing a filter and then clearing it leaves the selection scrolled far out
+  // of view and the list looks like nothing is picked. `block: "nearest"` is
+  // what makes this safe to run on every change: it does nothing at all when
+  // the row is already visible, so it can't fight the user mid-scroll.
+  const nationListRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    nationListRef.current?.querySelector(".active")?.scrollIntoView({ block: "nearest" });
+  }, [shownNations, userNation]);
 
   /** The country's code, for the flag stand-in on its tab. */
   function abbrevForCountry(countryName: string): string {
@@ -712,37 +719,52 @@ export function NewLeague() {
 
       <div className="mb-3">
         <h6 className="text-muted text-uppercase small fw-semibold mb-2">National team</h6>
-        <select
-          className="form-select"
-          style={{ maxWidth: 340 }}
-          value={userNation ?? ""}
-          aria-label="National team to manage"
-          onChange={(e) => {
-            setUserNation(e.target.value || null);
-            setNationError(null);
-          }}
-        >
-          <option value="">None — club football only</option>
-          {homeNations.length > 0 && (
-            <optgroup label="Countries in your world">
-              {homeNations.map((n) => <option key={n} value={n}>{n}</option>)}
-            </optgroup>
-          )}
-          <optgroup label="Everywhere else">
-            {otherNations.map((n) => <option key={n} value={n}>{n}</option>)}
-          </optgroup>
-        </select>
-        <p className="text-muted small mt-2 mb-0">
+        <p className="text-muted small mb-2">
           {userNation
             ? `You'll pick ${userNation}'s squad and their eleven for qualifying, the World Cup and their continental championship, on top of your club job. The federation judges you every campaign.`
-            : "Managing a country is optional. Leave this alone and international football runs itself, exactly as it always has — you can still take a job later if one comes in."}
+            : "Managing a country is optional, and you can still take a job later if one comes in. A country needs enough players born into your world to enter anything, so you'll be told if the one you pick can't field a squad."}
         </p>
-        <p className="text-muted small mt-1 mb-0">
-          The first group is the countries your world's built-in leagues are in, which always
-          have deep enough pools. Anywhere else depends on how many of its players happen to
-          be born into your world, and a country needs {INTL_MIN_POOL} of them plus a
-          goalkeeper to enter anything.
-        </p>
+        <input
+          type="search"
+          className="form-control form-control-sm mb-2"
+          style={{ maxWidth: 340 }}
+          placeholder="Search countries"
+          aria-label="Search countries"
+          value={nationFilter}
+          onChange={(e) => setNationFilter(e.target.value)}
+        />
+        {/*
+          A list rather than a <select>, because an <option> cannot hold the
+          flag SVG. Same list-group the club picker above uses, so the two
+          choices on this page look like the same kind of choice.
+        */}
+        <div
+          className="list-group"
+          ref={nationListRef}
+          style={{ maxWidth: 340, maxHeight: 260, overflowY: "auto" }}
+        >
+          <button
+            type="button"
+            className={`list-group-item list-group-item-action py-1${userNation === null ? " active" : ""}`}
+            onClick={() => { setUserNation(null); setNationError(null); }}
+          >
+            None &mdash; club football only
+          </button>
+          {shownNations.map((n) => (
+            <button
+              type="button"
+              key={n}
+              className={`list-group-item list-group-item-action py-1 d-flex align-items-center gap-2${userNation === n ? " active" : ""}`}
+              onClick={() => { setUserNation(n); setNationError(null); }}
+            >
+              <CountryFlag country={n} fallback={n.slice(0, 2).toUpperCase()} />
+              {n}
+            </button>
+          ))}
+          {shownNations.length === 0 && (
+            <div className="list-group-item text-muted small">No country by that name.</div>
+          )}
+        </div>
         {nationError && (
           <div className="alert alert-warning py-2 mt-2 mb-0" role="alert">
             {nationError} can't field a squad in this world — there aren't {INTL_MIN_POOL} of
