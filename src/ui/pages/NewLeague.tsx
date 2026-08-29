@@ -546,12 +546,20 @@ export function NewLeague() {
     <CrestArtProvider tids={activeRoster ? [...activeRoster.byTid.keys()] : []}>
     <div className="container py-4" style={{ maxWidth: 600 }}>
       <h2 className="mb-3">{rosterMode ? "Import Custom League" : "New League"}</h2>
+      {/*
+        The country is deliberately not named here. It used to read "choose your
+        England club", which is clumsy on its own and ambiguous now that this
+        page also asks which *country* you want to manage — and the adjectival
+        form ("your English club") is not available, since a league the player
+        added has whatever name they typed and no demonym to derive.
+      */}
       <p className="text-muted">
+        Flip through each league to browse its clubs, then pick the club you want to manage.
         {worldRoster
-          ? `Flip through each league to browse its clubs, then choose your ${activeCountry} club to get started. Every club the file didn't cover keeps its original name and squad.`
+          ? " Every club the file didn't cover keeps its original name and squad."
           : customize
-            ? `Flip through each league to browse its clubs, then choose your ${activeCountry} club to customize every club before starting.`
-            : `Flip through each league to browse its clubs, then choose your ${activeCountry} club to get started.`}
+            ? " You'll get to customize every club before the save starts."
+            : ""}
       </p>
 
       {worldRoster && (
