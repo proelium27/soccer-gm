@@ -369,6 +369,14 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
         </>
       );
     }
+    if (item.kind === "continental") {
+      const c = item.data;
+      return (
+        <>
+          {c.country} {c.to > c.from ? "earns" : "loses"} a Continental Cup place ({c.from} to {c.to})
+        </>
+      );
+    }
     if (item.kind === "trophy") {
       const t = item.data;
       const winner = t.tid !== undefined

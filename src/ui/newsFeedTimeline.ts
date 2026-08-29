@@ -5,6 +5,7 @@ import { newsEventScope, isNewsworthy } from "../core/newsEvents.js";
 import type { AwardNews } from "../core/awardNews.js";
 import { awardNewsScope } from "../core/awardNews.js";
 import type { TrophyNews } from "../core/trophyNews.js";
+import type { ContinentalNews } from "../core/continentalNews.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../core/calendar.js";
 import { NEWS_WORLD_TRANSFER_FEE } from "../core/constants.js";
 
@@ -12,7 +13,8 @@ export type FeedItem =
   | { kind: "transfer"; order: number; data: CompletedTransfer }
   | { kind: "news"; order: number; data: NewsEvent }
   | { kind: "trophy"; order: number; data: TrophyNews }
-  | { kind: "award"; order: number; data: AwardNews };
+  | { kind: "award"; order: number; data: AwardNews }
+  | { kind: "continental"; order: number; data: ContinentalNews };
 
 /**
  * Trophies and honours are settled once the football is over, so they sort
@@ -80,6 +82,7 @@ export function buildSeasonTimeline(
   audience: NewsAudience,
   awards: AwardNews[] = [],
   trophies: TrophyNews[] = [],
+  continental: ContinentalNews[] = [],
 ): FeedItem[] {
   const { userTid, userCompId, compOf } = audience;
 
@@ -126,12 +129,21 @@ export function buildSeasonTimeline(
     // which club or country won the Continental Cup is news wherever you play.
     ...trophies.map((t): FeedItem => ({ kind: "trophy", order: SEASON_END_ORDER, data: t })),
     ...shownAwards.map((a): FeedItem => ({ kind: "award", order: SEASON_END_ORDER, data: a })),
+    // No tier test either, for the same reason as the trophies: a country's
+    // Cup allocation moves well under once a season across the whole world,
+    // and when it does it changes the competition everyone plays in. The tiers
+    // exist to control volume, and there is no volume here to control.
+    ...continental.map((c): FeedItem => ({
+      kind: "continental", order: SEASON_END_ORDER, data: c,
+    })),
   ];
 
   // Within one order key, business comes before what happened on the pitch,
-  // and at the end of a season the trophies come before the individual
-  // honours: who won what, then who was best.
-  const RANK: Record<FeedItem["kind"], number> = { transfer: 0, news: 1, trophy: 2, award: 3 };
+  // and a season ends in the order the story does: who won what, then who was
+  // best, then what it changed about next season'''s competition.
+  const RANK: Record<FeedItem["kind"], number> = {
+    transfer: 0, news: 1, trophy: 2, award: 3, continental: 4,
+  };
   const rank = (item: FeedItem) => RANK[item.kind];
 
   return items.sort((a, b) => (a.order !== b.order ? a.order - b.order : rank(a) - rank(b)));
