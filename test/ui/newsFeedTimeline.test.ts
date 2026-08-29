@@ -3,6 +3,7 @@ import { buildSeasonTimeline, type NewsAudience } from "../../src/ui/newsFeedTim
 import type { CompletedTransfer } from "../../src/core/transfers/negotiation.js";
 import { FREE_AGENT_TID } from "../../src/core/transfers/negotiation.js";
 import type { NewsEvent } from "../../src/core/newsEvents.js";
+import type { AwardNews } from "../../src/core/awardNews.js";
 import {
   NEWS_WORLD_TRANSFER_FEE,
   NEWS_WORLD_CAREER_GOALS,
@@ -144,6 +145,56 @@ describe("buildSeasonTimeline", () => {
       const current: NewsEvent = { ...legacy, pid: 2, detail: NEWS_CAREER_GOAL_FIRST };
 
       expect(pidsOf(buildSeasonTimeline([], [legacy, current], audience))).toEqual([2]);
+    });
+
+    it("shows an honour won by one of the user's own players", () => {
+      const awards: AwardNews[] = [
+        // His league's Team of the Season, at his club — the ask.
+        { kind: "teamOfSeason", pid: 1, tid: USER_TID, compId: USER_COMP, slot: 10 },
+        // The same honour in another country, at a club he has no stake in.
+        { kind: "teamOfSeason", pid: 2, tid: 9, compId: FOREIGN_COMP, slot: 10 },
+      ];
+
+      expect(pidsOf(buildSeasonTimeline([], [], audience, awards))).toEqual([1]);
+    });
+
+    it("keeps a competition's honours inside it and the worldwide ones everywhere", () => {
+      const awards: AwardNews[] = [
+        { kind: "playerOfSeason", pid: 1, tid: 3, compId: USER_COMP },
+        { kind: "playerOfSeason", pid: 2, tid: 9, compId: FOREIGN_COMP },
+        { kind: "ballonDOr", pid: 3, tid: 9, placing: 1 },
+        { kind: "goalkeeperOfYear", pid: 4, tid: 9 },
+        { kind: "worldTeamOfYear", pid: 5, tid: 9, slot: 0 },
+        // A placing behind the winner travels no further than his own league.
+        { kind: "ballonDOr", pid: 6, tid: 9, placing: 2 },
+        { kind: "ballonDOr", pid: 7, tid: 3, placing: 3 },
+      ];
+
+      expect(pidsOf(buildSeasonTimeline([], [], audience, awards))).toEqual([1, 3, 4, 5, 7]);
+    });
+
+    it("files a domestic honour by its competition, not by the winner's club", () => {
+      // An old save can have award pids it can no longer attach to a club. The
+      // competition is on the record itself, so the honour still files right.
+      const awards: AwardNews[] = [
+        { kind: "goldenBoot", pid: 1, compId: USER_COMP },
+        { kind: "goldenBoot", pid: 2, compId: FOREIGN_COMP },
+      ];
+
+      expect(pidsOf(buildSeasonTimeline([], [], audience, awards))).toEqual([1]);
+    });
+
+    it("sorts honours after the season's football", () => {
+      const transfers: CompletedTransfer[] = [
+        { pid: 1, fromTid: 2, toTid: 3, fee: 1, season: 2026, window: "winter" },
+      ];
+      const events: NewsEvent[] = [
+        { type: "hattrick", pid: 2, tid: 3, season: 2026, matchday: 38, detail: 3 },
+      ];
+      const awards: AwardNews[] = [{ kind: "goldenBoot", pid: 3, compId: USER_COMP }];
+
+      const timeline = buildSeasonTimeline(transfers, events, audience, awards);
+      expect(timeline.map((i) => i.kind)).toEqual(["transfer", "news", "award"]);
     });
 
     it("falls back to world-tier only when the season's competition map is missing", () => {

@@ -3,6 +3,8 @@ import { useLeague } from "../context/LeagueContext.js";
 import { ClubLink } from "../components/ClubLink.js";
 import { unpackPositionChange, type NewsEvent, type NewsEventType } from "../../core/newsEvents.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
+import { seasonAwardNews, type AwardNews } from "../../core/awardNews.js";
+import { TOTS_SLOTS } from "../../core/awards.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { clubDisplayName, currency, seasonYear } from "../format.js";
@@ -20,6 +22,35 @@ const EVENT_LABEL: Record<NewsEventType, string> = {
   goalMilestoneCareer: "Career milestone",
   positionChange: "Position change",
 };
+
+const AWARD_LABEL: Record<AwardNews["kind"], string> = {
+  ballonDOr: "Ballon d'Or",
+  worldTeamOfYear: "World Team of the Year",
+  goalkeeperOfYear: "Goalkeeper of the Year",
+  defenderOfYear: "Defender of the Year",
+  playerOfSeason: "Player of the Season",
+  goldenBoot: "Golden Boot",
+  teamOfSeason: "Team of the Season",
+};
+
+/** "1st", "2nd", "3rd" — the Ballon d'Or podium is the only place this is needed. */
+function ordinal(n: number): string {
+  const suffix = n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th";
+  return `${n}${suffix}`;
+}
+
+/**
+ * The right-hand column for an honour: what distinguishes this row from the
+ * others carrying the same label. For an XI place that is the slot he was
+ * picked in, which is the award itself; for the Ballon d'Or it is where he
+ * finished. A one-per-competition award has nothing to add, since the club
+ * beside it already says which league.
+ */
+function awardDetail(a: AwardNews): string {
+  if (a.slot !== undefined) return TOTS_SLOTS[a.slot] ?? "";
+  if (a.kind === "ballonDOr") return a.placing === 1 ? "winner" : ordinal(a.placing ?? 0);
+  return "";
+}
 
 function eventDetail(e: NewsEvent): string {
   switch (e.type) {
@@ -86,13 +117,26 @@ export function NewsFeed() {
     const liveComps: Record<number, number> = {};
     for (const t of league?.teams ?? []) liveComps[t.tid] = t.compId;
 
+    // Honours are derived from the season entry rather than stored as events,
+    // so they cost nothing in the save and an existing dynasty shows its whole
+    // back catalogue. A season with an entry is one whose awards are settled.
+    const awardsBySeason = new Map(
+      (league?.seasonHistory ?? []).map((h) => [h.season, seasonAwardNews(h)]),
+    );
+
     const out = new Map<number, FeedItem[]>();
-    for (const season of new Set([...transfersBySeason.keys(), ...eventsBySeason.keys()])) {
+    const seasons = new Set([
+      ...transfersBySeason.keys(),
+      ...eventsBySeason.keys(),
+      ...awardsBySeason.keys(),
+    ]);
+    for (const season of seasons) {
       const comps = historyBySeason.get(season) ?? liveComps;
       out.set(season, buildSeasonTimeline(
         transfersBySeason.get(season) ?? [],
         eventsBySeason.get(season) ?? [],
         { userTid, userCompId: comps[userTid], compOf: (tid) => comps[tid] },
+        awardsBySeason.get(season) ?? [],
       ));
     }
     return out;
@@ -115,6 +159,9 @@ export function NewsFeed() {
     item.kind === "transfer"
       ? item.data.fromTid === userTid || item.data.toTid === userTid
       : item.data.tid === userTid;
+
+  const compName = (compId: number | undefined): string | undefined =>
+    league.competitions.find((c) => c.id === compId)?.name;
 
   const passesFilters = (season: number, item: FeedItem): boolean => {
     if (clubFilter === "user" && !involvesUser(item)) return false;
@@ -249,6 +296,25 @@ export function NewsFeed() {
                                 </span>
                               </td>
                               <td className="text-end stat-num">{t.loanReturn ? "—" : currency.format(t.fee)}</td>
+                            </tr>
+                          );
+                        }
+                        if (item.kind === "award") {
+                          const a = item.data;
+                          // The competition names a domestic honour ("Player of
+                          // the Season" alone is one of sixteen); the worldwide
+                          // ones need no qualifier and get none.
+                          const comp = compName(a.compId);
+                          return (
+                            <tr key={`a-${a.pid}-${season}-${a.kind}-${a.slot ?? a.placing ?? 0}-${i}`}
+                                className={highlighted ? "team-highlight" : undefined}>
+                              <td className="small">
+                                {AWARD_LABEL[a.kind]}
+                                {comp && <span className="text-muted"> ({comp})</span>}
+                              </td>
+                              <td>{playerCell(a.pid)}</td>
+                              <td>{a.tid === undefined ? <span className="text-muted">—</span> : teamCell(a.tid, season)}</td>
+                              <td className="text-end stat-num">{awardDetail(a)}</td>
                             </tr>
                           );
                         }

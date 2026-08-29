@@ -21,7 +21,8 @@ import { mulberry32 } from "../src/engine/rng.js";
 import { createLeagueState } from "../src/core/leagueState.js";
 import { simThrough } from "../src/core/simThrough.js";
 import { simOffseason } from "../src/core/offseason.js";
-import { buildSeasonTimeline } from "../src/ui/newsFeedTimeline.js";
+import { buildSeasonTimeline, type FeedItem } from "../src/ui/newsFeedTimeline.js";
+import { seasonAwardNews } from "../src/core/awardNews.js";
 import { FREE_AGENT_TID } from "../src/core/transfers/negotiation.js";
 
 const SEASONS = Number(process.env.SEASONS ?? 5);
@@ -52,39 +53,48 @@ const median = (xs: number[]) =>
   xs.length === 0 ? 0 : [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
 
 console.log(
-  "season".padEnd(7), "shown".padStart(7), "detected".padStart(9),
+  "season".padEnd(7), "shown".padStart(7), "detected".padStart(9), "awards".padStart(7),
   "yourClub".padStart(9), "yourLeague".padStart(11), "medOvr".padStart(7),
 );
 
 for (let s = 0; s < SEASONS; s++) {
   league = simThrough(league, "season", rng);
   const season = league.season;
+  // Measure AFTER the rollover, not before it. A season's history entry — and
+  // so its honours — is written by the offseason that follows, which is also
+  // when a player first sees them, so measuring the moment the football ends
+  // reports every season as having handed out no awards at all.
+  league = simOffseason(league, rng);
 
-  const compsByTid: Record<number, number> = {};
-  for (const t of league.teams) compsByTid[t.tid] = t.compId;
+  const entry = league.seasonHistory.find((h) => h.season === season);
 
-  // Re-read each season: the club is unmanaged in a headless run, so it rots
-  // and gets relegated, and pinning its competition at generation would go on
-  // measuring a division it no longer plays in.
+  // The season's OWN competition map, exactly as the UI reads it: the offseason
+  // above has already applied promotion and relegation, so the live teams now
+  // describe next season, not the one being measured. The user's club is
+  // unmanaged in a headless run, rots and gets relegated, so this genuinely
+  // moves over a few seasons.
+  const compsByTid: Record<number, number> = { ...(entry?.compsByTid ?? {}) };
+  if (!entry) for (const t of league.teams) compsByTid[t.tid] = t.compId;
   const userComp = compsByTid[userTid];
 
   const seasonEvents = league.newsEvents.filter((e) => e.season === season);
   const seasonTransfers = league.transfers.filter((t) => t.season === season);
-  const items = BASELINE
+  const awards = seasonAwardNews(entry);
+  const items: FeedItem[] = BASELINE
     ? [
         ...seasonTransfers
           .filter((t) => t.fromTid !== FREE_AGENT_TID || t.toTid === userTid)
-          .map((t) => ({ kind: "transfer" as const, order: 0, data: t })),
-        ...seasonEvents.map((e) => ({ kind: "news" as const, order: e.matchday, data: e })),
+          .map((t): FeedItem => ({ kind: "transfer", order: 0, data: t })),
+        ...seasonEvents.map((e): FeedItem => ({ kind: "news", order: e.matchday, data: e })),
       ]
     : buildSeasonTimeline(seasonTransfers, seasonEvents, {
         userTid, userCompId: userComp, compOf: (tid) => compsByTid[tid],
-      });
+      }, awards);
 
-  const touches = (item: (typeof items)[number], tids: (tid: number) => boolean) =>
+  const touches = (item: FeedItem, tids: (tid: number) => boolean) =>
     item.kind === "transfer"
       ? tids(item.data.fromTid) || tids(item.data.toTid)
-      : tids(item.data.tid);
+      : item.data.tid !== undefined && tids(item.data.tid);
   const club = items.filter((i) => touches(i, (tid) => tid === userTid)).length;
   const league_ = items.filter((i) => touches(i, (tid) => compsByTid[tid] === userComp)).length;
 
@@ -99,10 +109,9 @@ for (let s = 0; s < SEASONS; s++) {
     String(season).padEnd(7),
     String(items.length).padStart(7),
     String(seasonEvents.length).padStart(9),
+    String(items.filter((i) => i.kind === "award").length).padStart(7),
     `${club} ${pct(club)}`.padStart(9),
     `${league_} ${pct(league_)}`.padStart(11),
     String(median(ovrs)).padStart(7),
   );
-
-  if (s < SEASONS - 1) league = simOffseason(league, rng);
 }

@@ -2678,6 +2678,16 @@ export const NEWS_WORLD_HATTRICK_GOALS = 4;
 export const NEWS_WORLD_TRANSFER_FEE = 40_000_000;
 
 /**
+ * How far down the Ballon d'Or shortlist counts as winning something.
+ *
+ * The shortlist is `BALLON_DOR_SHORTLIST` long and the whole of it is stored,
+ * but a ninth place is a ranking rather than an honour, and reporting all of it
+ * would put up to ten rows a season on the feed for one award. The podium is
+ * what a player carries on his profile.
+ */
+export const NEWS_BALLON_DOR_PLACINGS = 3;
+
+/**
  * Minimum OVR for a career position change at an AI club to reach the News
  * Feed. The user's own players are always reported regardless.
  *
