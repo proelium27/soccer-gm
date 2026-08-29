@@ -535,12 +535,54 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
   return (
     <div className="container-fluid p-3">
       {/* Team header */}
+      {/*
+        The club, and beside it how your two employers rate you.
+
+        Here rather than in a card of their own because that is what these are:
+        a property of the job, read at a glance on the way past, not a section.
+        Up at the top rather than at the foot of the page because the whole point
+        of a visible meter is that trouble is something you watch build — at the
+        bottom you meet it on the way out, which is too late to be a warning.
+      */}
       <div className="card mb-3">
         <div className="card-body">
-          <h4 className="card-title d-flex align-items-center gap-2">
-            <ClubCrest tid={userTeam.tid} colors={userTeam.colors} size={32} />
-            {userTeam.name}
-          </h4>
+          <div className="d-flex flex-wrap align-items-center gap-3">
+            <h4 className="card-title d-flex align-items-center gap-2 mb-0">
+              <ClubCrest tid={userTeam.tid} colors={userTeam.colors} size={32} />
+              {userTeam.name}
+            </h4>
+            <div className="d-flex flex-wrap gap-3 ms-auto">
+              <div style={{ minWidth: 190 }}>
+                <ConfidenceLine
+                  label="Board"
+                  mood={boardMood}
+                  value={league.manager.confidence}
+                  to="/manager"
+                  note={league.manager.offers.length > 0
+                    ? `${league.manager.offers.length} club${league.manager.offers.length === 1 ? "" : "s"} want you`
+                    : confidenceLabel(boardMood)}
+                />
+              </div>
+              {/*
+                Only when there is a country or somebody asking: a manager who
+                has never taken an international job should not be shown a meter
+                for a job they don't have.
+              */}
+              {(league.nationalManager.nation || league.nationalManager.offers.length > 0) && (
+                <div style={{ minWidth: 190 }}>
+                  <ConfidenceLine
+                    label={league.nationalManager.nation ?? "Federation"}
+                    mood={nationMood}
+                    value={league.nationalManager.nation ? league.nationalManager.confidence : null}
+                    to="/national-teams/federation"
+                    note={league.nationalManager.offers.length > 0
+                      ? `${league.nationalManager.offers.length} countr${league.nationalManager.offers.length === 1 ? "y wants" : "ies want"} you`
+                      : confidenceLabel(nationMood)}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -978,49 +1020,6 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
         </div>
       </div>
 
-      {/*
-        How your two employers rate you, on one slim line at the foot of the
-        page. It used to be two full cards up near the sim controls, on the
-        argument that a visible meter is what stops a sacking arriving out of
-        nowhere. That argument is still true and is why this is on the Dashboard
-        at all rather than only on the Manager and Federation pages — but it is a
-        glance, not a headline, and it was taking a card apiece to say one word.
-      */}
-      <div className="card mb-3">
-        <div className="card-body py-2">
-          <div className="row g-2 g-md-4">
-            <div className="col-12 col-md-6">
-              <ConfidenceLine
-                label="Board"
-                mood={boardMood}
-                value={league.manager.confidence}
-                to="/manager"
-                note={league.manager.offers.length > 0
-                  ? `${league.manager.offers.length} club${league.manager.offers.length === 1 ? "" : "s"} want you`
-                  : confidenceLabel(boardMood)}
-              />
-            </div>
-            {/*
-              Only when there is a country or somebody asking: a manager who has
-              never taken an international job should not be shown a meter for a
-              job they don't have.
-            */}
-            {(league.nationalManager.nation || league.nationalManager.offers.length > 0) && (
-              <div className="col-12 col-md-6">
-                <ConfidenceLine
-                  label={league.nationalManager.nation ?? "Federation"}
-                  mood={nationMood}
-                  value={league.nationalManager.nation ? league.nationalManager.confidence : null}
-                  to="/national-teams/federation"
-                  note={league.nationalManager.offers.length > 0
-                    ? `${league.nationalManager.offers.length} countr${league.nationalManager.offers.length === 1 ? "y wants" : "ies want"} you`
-                    : confidenceLabel(nationMood)}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
