@@ -489,7 +489,10 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
       .sort((a, b) => b.suspension!.matchesRemaining - a.suspension!.matchesRemaining);
   }, [league.players, userTeam.roster]);
 
-  const disableSim = simming || league.phase === "offseason";
+  // The matchday buttons only render in season now (the Simulation card
+  // swaps to the offseason controls otherwise), so a sim in flight is the
+  // only thing left to disable them for.
+  const disableSim = simming;
   const boardMood = confidenceMood(league.manager.confidence, league.manager.sackingEnabled);
   // Memoized on the league object (fresh per commit), since the expectation pass
   // walks every club in the world.
@@ -539,60 +542,159 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
         </div>
       )}
 
-      {/* Sim controls */}
+      {/* Sim controls. Phase-aware: in season these play matchdays, in the
+          offseason they play the offseason, so the buttons that move time
+          forward always sit in the same card instead of moving down the page
+          when the season ends. */}
       <div className="card mb-3">
         <div className="card-body">
           <h5 className="card-title">Simulation</h5>
-          {/* One row: the fixed jumps and the live viewer, then the
-              pick-your-own control, so the card doesn't leave a band of empty
-              space to their right. */}
-          <div className="d-flex align-items-start gap-2 flex-wrap">
-            <button
-              className="btn btn-primary"
-              disabled={disableSim}
-              onClick={() => simAction("game")}
-            >
-              Sim One Game
-            </button>
-            {/*
-              Same matchday, watched instead of skipped. Deliberately its own
-              button rather than a saved preference: watching is a mood, and
-              a setting you have to go and flip is worse than a second button
-              you can ignore.
-            */}
-            <button
-              className="btn btn-primary"
-              disabled={disableSim}
-              title="Watch your club's match play out minute by minute"
-              onClick={() => simLiveAction()}
-            >
-              Watch Next Game
-            </button>
-            <button
-              className="btn btn-primary"
-              disabled={disableSim}
-              onClick={() => simAction("season")}
-            >
-              Sim to End of Season
-            </button>
-            {nextMd !== null && lastMd !== null && (
-              <SimTargetForm
-                current={nextMd}
-                last={lastMd}
-                disabled={disableSim}
-                onSim={(matchday) => simAction({ matchday })}
-              />
-            )}
-          </div>
+          {league.phase === "offseason" ? (
+            <>
+              {league.manager.sacked ? (
+                <>
+                  <p className="card-text">
+                    The board has seen enough. You're out of a job, and the season
+                    can't move on until you've found a new one.
+                  </p>
+                  <button className="btn btn-danger" onClick={() => navigate("/manager")}>
+                    See who'll have you
+                  </button>
+                </>
+              ) : isIntlStagePending(league.international) ? (
+                <>
+                  <p className="card-text">
+                    {intlStageHeadline(
+                      league.international.stage as PlayableStage,
+                      qualifyingLeg(league.season) + 1,
+                      league.international.confederationCups,
+                      league.international.tournament,
+                    )}{" "}
+                    Follow it on the{" "}
+                    <Link to={intlStageLink(league.international.stage as PlayableStage)}>
+                      National Teams
+                    </Link>{" "}
+                    pages. You'll advance to {seasonYear(league.season + 1)} once it wraps up, or you
+                    can skip it and go straight to the offseason.
+                  </p>
+                  <div className="d-flex flex-wrap gap-2">
+                    <button
+                      className="btn btn-primary"
+                      disabled={simming}
+                      onClick={() => intlStageAction("stage")}
+                    >
+                      {intlStageButton(
+                        league.international.stage as PlayableStage,
+                        qualifyingLeg(league.season) + 1,
+                        league.international.confederationCups,
+                        league.international.tournament,
+                      )}
+                    </button>
+                    {league.international.stage !== "qualifying" && (
+                      <button
+                        className="btn btn-outline-primary"
+                        disabled={simming}
+                        onClick={() => intlStageAction("through")}
+                      >
+                        Sim through the {isConfederationCupStage(league.international.stage) ? "the cups" : INTL_TOURNAMENT_NAME}
+                      </button>
+                    )}
+                    {/*
+                      Skip: go straight to the offseason without watching any of
+                      this. Nothing is thrown away — the advance itself plays out
+                      every stage the user left unplayed (simOffseason opens with
+                      simThroughInternational), on the same seeded streams, so the
+                      results are identical to having clicked through them and are
+                      waiting on the National Teams pages afterwards.
+                    */}
+                    <button
+                      className="btn btn-outline-secondary"
+                      disabled={simming}
+                      onClick={() => navigate("/set-scouting")}
+                    >
+                      {league.international.stage === "qualifying"
+                        ? "Skip qualifying"
+                        : isConfederationCupStage(league.international.stage)
+                          ? "Skip the cups"
+                          : `Skip the ${INTL_TOURNAMENT_NAME}`}
+                    </button>
+                  </div>
+                  <p className="card-text text-muted small mt-2 mb-0">
+                    Skipping still plays the games out, you just don't watch them. The results will be
+                    on the National Teams pages when you get there.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="card-text">
+                    {seasonYear(league.season)} is complete. First you'll set your
+                    scouting budget for the new season, then advancing runs player
+                    progression, retirements, AI free agency, and youth intake, and
+                    starts {seasonYear(league.season + 1)}.
+                  </p>
+                  <button
+                    className="btn btn-success"
+                    disabled={simming}
+                    onClick={() => navigate("/set-scouting")}
+                  >
+                    Advance to {seasonYear(league.season + 1)}
+                  </button>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {/* One row: the fixed jumps and the live viewer, then the
+                  pick-your-own control, so the card doesn't leave a band of empty
+                  space to their right. */}
+              <div className="d-flex align-items-start gap-2 flex-wrap">
+                <button
+                  className="btn btn-primary"
+                  disabled={disableSim}
+                  onClick={() => simAction("game")}
+                >
+                  Sim One Game
+                </button>
+                {/*
+                  Same matchday, watched instead of skipped. Deliberately its own
+                  button rather than a saved preference: watching is a mood, and
+                  a setting you have to go and flip is worse than a second button
+                  you can ignore.
+                */}
+                <button
+                  className="btn btn-primary"
+                  disabled={disableSim}
+                  title="Watch your club's match play out minute by minute"
+                  onClick={() => simLiveAction()}
+                >
+                  Watch Next Game
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={disableSim}
+                  onClick={() => simAction("season")}
+                >
+                  Sim to End of Season
+                </button>
+                {nextMd !== null && lastMd !== null && (
+                  <SimTargetForm
+                    current={nextMd}
+                    last={lastMd}
+                    disabled={disableSim}
+                    onSim={(matchday) => simAction({ matchday })}
+                  />
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/*
-        Jump ahead. Its own card rather than a fifth button in Simulation: that
-        card plays matchdays of the season you're managing and is dead in the
-        offseason, while this hands the club over entirely and works from either
-        phase. Putting them together would make the two read as the same kind of
-        thing, and they are not.
+        Jump ahead. Its own card rather than another button in Simulation: that
+        card advances the season you're managing a step at a time, while this
+        hands the club over to the AI entirely for years. Putting them together
+        would make the two read as the same kind of thing, and they are not.
       */}
       <div className="card mb-3">
         <div className="card-body">
@@ -687,104 +789,6 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
           </div>
         </div>
       </div>
-
-      {league.phase === "offseason" && (
-        <div className="card mb-3">
-          <div className="card-body">
-            <h5 className="card-title">Offseason</h5>
-            {league.manager.sacked ? (
-              <>
-                <p className="card-text">
-                  The board has seen enough. You're out of a job, and the season
-                  can't move on until you've found a new one.
-                </p>
-                <button className="btn btn-danger" onClick={() => navigate("/manager")}>
-                  See who'll have you
-                </button>
-              </>
-            ) : isIntlStagePending(league.international) ? (
-              <>
-                <p className="card-text">
-                  {intlStageHeadline(
-                    league.international.stage as PlayableStage,
-                    qualifyingLeg(league.season) + 1,
-                    league.international.confederationCups,
-                    league.international.tournament,
-                  )}{" "}
-                  Follow it on the{" "}
-                  <Link to={intlStageLink(league.international.stage as PlayableStage)}>
-                    National Teams
-                  </Link>{" "}
-                  pages. You'll advance to {seasonYear(league.season + 1)} once it wraps up, or you
-                  can skip it and go straight to the offseason.
-                </p>
-                <div className="d-flex flex-wrap gap-2">
-                  <button
-                    className="btn btn-primary"
-                    disabled={simming}
-                    onClick={() => intlStageAction("stage")}
-                  >
-                    {intlStageButton(
-                      league.international.stage as PlayableStage,
-                      qualifyingLeg(league.season) + 1,
-                      league.international.confederationCups,
-                      league.international.tournament,
-                    )}
-                  </button>
-                  {league.international.stage !== "qualifying" && (
-                    <button
-                      className="btn btn-outline-primary"
-                      disabled={simming}
-                      onClick={() => intlStageAction("through")}
-                    >
-                      Sim through the {isConfederationCupStage(league.international.stage) ? "the cups" : INTL_TOURNAMENT_NAME}
-                    </button>
-                  )}
-                  {/*
-                    Skip: go straight to the offseason without watching any of
-                    this. Nothing is thrown away — the advance itself plays out
-                    every stage the user left unplayed (simOffseason opens with
-                    simThroughInternational), on the same seeded streams, so the
-                    results are identical to having clicked through them and are
-                    waiting on the National Teams pages afterwards.
-                  */}
-                  <button
-                    className="btn btn-outline-secondary"
-                    disabled={simming}
-                    onClick={() => navigate("/set-scouting")}
-                  >
-                    {league.international.stage === "qualifying"
-                      ? "Skip qualifying"
-                      : isConfederationCupStage(league.international.stage)
-                        ? "Skip the cups"
-                        : `Skip the ${INTL_TOURNAMENT_NAME}`}
-                  </button>
-                </div>
-                <p className="card-text text-muted small mt-2 mb-0">
-                  Skipping still plays the games out, you just don't watch them. The results will be
-                  on the National Teams pages when you get there.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="card-text">
-                  {seasonYear(league.season)} is complete. First you'll set your
-                  scouting budget for the new season, then advancing runs player
-                  progression, retirements, AI free agency, and youth intake, and
-                  starts {seasonYear(league.season + 1)}.
-                </p>
-                <button
-                  className="btn btn-success"
-                  disabled={simming}
-                  onClick={() => navigate("/set-scouting")}
-                >
-                  Advance to {seasonYear(league.season + 1)}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Standings | Record + Next Match | News headlines */}
       <div className="row g-3 mb-3">
