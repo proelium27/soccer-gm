@@ -55,6 +55,21 @@
  * for the purpose (relative size is what packs the shards) but it means you
  * should not read them as CI seconds, and should not chase a small discrepancy.
  *
+ * **A file timed on its own is not the same number as the same file timed
+ * during a full run, and the gap is large.** Measured on an 8GB MacBook:
+ * `offseasonFinance.test.ts` takes 156s alone and 244s alongside three other
+ * heavy files — 1.57x, at only four workers on eight cores, so it is not CPU
+ * contention but memory bandwidth and thermals. Parallel efficiency across
+ * those four files was ~55%. The entries here are full-run numbers, which is
+ * the right basis since packing is about a full run. So when you refresh one
+ * with a solo `npx vitest run <file>` it will look far too low — do not paste
+ * it in on its own. Mixing a solo number into a table of contended ones
+ * reorders the packing on a measurement artefact rather than on real cost.
+ *
+ * That inflation is also the reason the local two-machine runner
+ * (`scripts/testCluster.sh`) is worth more than its core count implies: a
+ * second machine adds a memory subsystem and a thermal budget, not just cores.
+ *
  * These drive load balancing only. Being wrong costs balance, never
  * correctness: every file still runs exactly once across the shards whatever
  * the weights say (`partitionByCost` is total and disjoint, pinned by
@@ -100,6 +115,12 @@ export function weightFor(relPath: string): number {
 /**
  * Split `relPaths` into `count` groups of roughly equal total weight.
  *
+ * `capacities` optionally makes the groups *unequal* — group `i` is given work
+ * in proportion to `capacities[i]`. CI passes nothing and gets equal shards.
+ * The two-machine local runner (`scripts/testCluster.sh`) passes a measured
+ * throughput ratio, because a 16GB machine and an 8GB one are not the same
+ * amount of test runner. Omitted, it behaves exactly as it always did.
+ *
  * Greedy longest-processing-time: heaviest file first, each one onto whichever
  * shard is currently lightest. That is the standard 4/3-approximation for
  * multiway partitioning, and well inside what matters here — the real limit is
@@ -109,8 +130,22 @@ export function weightFor(relPath: string): number {
  * order the caller happened to supply. Every shard runs this identically and
  * they must all agree, since each one keeps only its own group.
  */
-export function partitionByCost(relPaths: readonly string[], count: number): string[][] {
+export function partitionByCost(
+  relPaths: readonly string[],
+  count: number,
+  capacities?: readonly number[],
+): string[][] {
   if (count < 1) throw new Error(`shard count must be >= 1, got ${count}`);
+
+  const caps = capacities ?? new Array<number>(count).fill(1);
+  if (caps.length !== count) {
+    throw new Error(`expected ${count} capacities, got ${caps.length}`);
+  }
+  for (const c of caps) {
+    if (!Number.isFinite(c) || c <= 0) {
+      throw new Error(`every capacity must be a positive finite number, got ${c}`);
+    }
+  }
 
   const ordered = [...relPaths].sort((a, b) => {
     const d = weightFor(b) - weightFor(a);
@@ -121,12 +156,15 @@ export function partitionByCost(relPaths: readonly string[], count: number): str
   const totals = new Array<number>(count).fill(0);
 
   for (const path of ordered) {
-    let lightest = 0;
+    // Lightest *relative to capacity*. With uniform capacities every divisor is
+    // 1, so this is exactly the plain "least loaded" rule and CI's split is
+    // byte-for-byte what it was before capacities existed.
+    let best = 0;
     for (let i = 1; i < count; i++) {
-      if (totals[i] < totals[lightest]) lightest = i;
+      if (totals[i] / caps[i] < totals[best] / caps[best]) best = i;
     }
-    bins[lightest].push(path);
-    totals[lightest] += weightFor(path);
+    bins[best].push(path);
+    totals[best] += weightFor(path);
   }
 
   return bins;
