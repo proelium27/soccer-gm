@@ -19,6 +19,24 @@ on:
   push:
     branches: [main]
   pull_request:
+
+# Supersede an in-flight run for the same PR. Pushing again makes the older
+# run's six shards pointless, but they keep occupying slots against the 20-job
+# account ceiling while nobody will ever read them — so the queue that made
+# runs crawl was half duplicate events (fixed above) and half stale runs.
+#
+# `github.ref` is `refs/pull/N/merge` for a pull_request event, so the group is
+# per PR rather than per commit, which is what makes a new push replace the old
+# run instead of queueing behind it.
+#
+# NOT on main, deliberately. Every commit that lands on main should be verified
+# on its own, and merging two PRs in quick succession would otherwise cancel the
+# first one's run and leave that commit permanently untested — exactly the
+# situation where you most want the signal.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   # Typecheck runs in its own job so it starts in parallel with the tests
   # instead of gating them.
