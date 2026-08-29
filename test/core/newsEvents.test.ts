@@ -84,36 +84,80 @@ describe("detectMatchdayNewsEvents — standout rating", () => {
 });
 
 describe("detectMatchdayNewsEvents — goal milestones", () => {
-  it("fires a career milestone on an exact crossing", () => {
-    const md = [match({ boxScore: { home: [line({ pid: 1, goals: 2 })], away: [], events: [] } })];
-    const before = new Map([[1, { season: 3, career: 8 }]]);
-    const after = new Map([[1, { season: 5, career: 10 }]]);
-    const events = detectMatchdayNewsEvents(md, 2026, 5, before, after);
-    expect(events).toContainEqual({ type: "goalMilestoneCareer", pid: 1, tid: 0, season: 2026, matchday: 5, detail: 10 });
-  });
-
-  it("fires when a hat-trick jumps the total past a multiple of 10 without landing on it (8 -> 11)", () => {
-    const md = [match({ boxScore: { home: [line({ pid: 1, goals: 3 })], away: [], events: [] } })];
-    const before = new Map([[1, { season: 3, career: 8 }]]);
-    const after = new Map([[1, { season: 6, career: 11 }]]);
-    const events = detectMatchdayNewsEvents(md, 2026, 5, before, after);
-    expect(events).toContainEqual({ type: "goalMilestoneCareer", pid: 1, tid: 0, season: 2026, matchday: 5, detail: 10 });
-  });
-
-  it("fires both season and career milestones independently in the same match", () => {
-    const md = [match({ boxScore: { home: [line({ pid: 1, goals: 2 })], away: [], events: [] } })];
-    const before = new Map([[1, { season: 8, career: 18 }]]);
-    const after = new Map([[1, { season: 10, career: 20 }]]);
-    const events = detectMatchdayNewsEvents(md, 2026, 5, before, after);
-    expect(events).toContainEqual({ type: "goalMilestoneSeason", pid: 1, tid: 0, season: 2026, matchday: 5, detail: 10 });
-    expect(events).toContainEqual({ type: "goalMilestoneCareer", pid: 1, tid: 0, season: 2026, matchday: 5, detail: 20 });
-  });
-
-  it("does not fire when no multiple of 10 is crossed", () => {
+  /** One scoring player, with the goal totals he carried into and out of the match. */
+  function milestones(
+    before: { season: number; career: number },
+    after: { season: number; career: number },
+  ) {
     const md = [match({ boxScore: { home: [line({ pid: 1, goals: 1 })], away: [], events: [] } })];
-    const before = new Map([[1, { season: 4, career: 14 }]]);
-    const after = new Map([[1, { season: 5, career: 15 }]]);
-    const events = detectMatchdayNewsEvents(md, 2026, 5, before, after);
-    expect(events.some((e) => e.type.startsWith("goalMilestone"))).toBe(false);
+    return detectMatchdayNewsEvents(
+      md, 2026, 5, new Map([[1, before]]), new Map([[1, after]]),
+    ).filter((e) => e.type.startsWith("goalMilestone"));
+  }
+
+  it("fires a career milestone on an exact crossing of the first rung", () => {
+    expect(milestones({ season: 3, career: 49 }, { season: 4, career: 50 })).toEqual([
+      { type: "goalMilestoneCareer", pid: 1, tid: 0, season: 2026, matchday: 5, detail: 50 },
+    ]);
+  });
+
+  it("reports the rung reached when a haul jumps past it without landing on it", () => {
+    const md = [match({ boxScore: { home: [line({ pid: 1, goals: 3 })], away: [], events: [] } })];
+    const events = detectMatchdayNewsEvents(
+      md, 2026, 5, new Map([[1, { season: 3, career: 48 }]]), new Map([[1, { season: 6, career: 51 }]]),
+    );
+    expect(events).toContainEqual(
+      { type: "goalMilestoneCareer", pid: 1, tid: 0, season: 2026, matchday: 5, detail: 50 },
+    );
+  });
+
+  it("stays silent below the first rung — the every-10 ladder is gone", () => {
+    // These are exactly the crossings that used to bury the feed: measured on a
+    // 16-competition world, a flat step of 10 fired 1,661 career milestones a
+    // season by season 4, most of them journeymen passing 60.
+    expect(milestones({ season: 3, career: 8 }, { season: 4, career: 10 })).toEqual([]);
+    expect(milestones({ season: 8, career: 18 }, { season: 9, career: 20 })).toEqual([]);
+    expect(milestones({ season: 19, career: 39 }, { season: 20, career: 40 })).toEqual([]);
+  });
+
+  it("climbs the career ladder in 50s", () => {
+    expect(milestones({ season: 4, career: 99 }, { season: 5, career: 100 })[0]?.detail).toBe(100);
+    expect(milestones({ season: 4, career: 149 }, { season: 5, career: 150 })[0]?.detail).toBe(150);
+  });
+
+  it("starts the season ladder at 25 and climbs it in 5s", () => {
+    expect(milestones({ season: 24, career: 200 }, { season: 25, career: 201 })).toEqual([
+      { type: "goalMilestoneSeason", pid: 1, tid: 0, season: 2026, matchday: 5, detail: 25 },
+    ]);
+    expect(milestones({ season: 29, career: 205 }, { season: 30, career: 206 })[0]?.detail).toBe(30);
+  });
+
+  it("does not fire when no rung is crossed", () => {
+    expect(milestones({ season: 26, career: 114 }, { season: 27, career: 115 })).toEqual([]);
+  });
+
+  // One goal can carry a player over both ladders at once. Reporting both puts
+  // two rows on the same matchday for the same player, each quoting a bare goal
+  // count — and in a league's first season the totals are identical, so every
+  // career milestone restated a season one (measured: 747 of 747).
+  describe("when one goal crosses both ladders", () => {
+    it("reports the career milestone alone when the two rank equally", () => {
+      expect(milestones({ season: 24, career: 49 }, { season: 25, career: 50 })).toEqual([
+        { type: "goalMilestoneCareer", pid: 1, tid: 0, season: 2026, matchday: 5, detail: 50 },
+      ]);
+    });
+
+    it("prefers the season milestone when only it reaches the world tier", () => {
+      // A 35-goal season travels; a 50th career goal does not.
+      expect(milestones({ season: 34, career: 49 }, { season: 35, career: 50 })).toEqual([
+        { type: "goalMilestoneSeason", pid: 1, tid: 0, season: 2026, matchday: 5, detail: 35 },
+      ]);
+    });
+
+    it("keeps the career milestone when both reach the world tier", () => {
+      expect(milestones({ season: 34, career: 99 }, { season: 35, career: 100 })).toEqual([
+        { type: "goalMilestoneCareer", pid: 1, tid: 0, season: 2026, matchday: 5, detail: 100 },
+      ]);
+    });
   });
 });

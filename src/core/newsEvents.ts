@@ -1,7 +1,16 @@
 import type { Player, Position } from "./players/types.js";
 import { POSITIONS } from "./players/types.js";
 import type { PlayedMatch } from "./standings.js";
-import { NEWS_STANDOUT_RATING_FLOOR, NEWS_GOAL_MILESTONE_STEP } from "./constants.js";
+import {
+  NEWS_STANDOUT_RATING_FLOOR,
+  NEWS_CAREER_GOAL_FIRST,
+  NEWS_CAREER_GOAL_STEP,
+  NEWS_SEASON_GOAL_FIRST,
+  NEWS_SEASON_GOAL_STEP,
+  NEWS_WORLD_CAREER_GOALS,
+  NEWS_WORLD_SEASON_GOALS,
+  NEWS_WORLD_HATTRICK_GOALS,
+} from "./constants.js";
 
 export type NewsEventType =
   | "hattrick"
@@ -24,7 +33,7 @@ export interface NewsEvent {
   /**
    * Interpreted per `type`: hattrick = goals scored this match;
    * standoutRating = rating × 10 (integer); goalMilestoneSeason /
-   * goalMilestoneCareer = the milestone crossed (10, 20, 30...);
+   * goalMilestoneCareer = the milestone crossed (25, 30, 35... / 50, 100...);
    * positionChange = both positions packed by `packPositionChange` (matchday
    * 0 — it happens in the offseason, with progression).
    */
@@ -136,22 +145,104 @@ export function detectMatchdayNewsEvents(
     const after = goalTotalsAfter.get(line.pid);
     if (!before || !after) continue;
 
-    const seasonMilestone = Math.floor(after.season / NEWS_GOAL_MILESTONE_STEP);
-    if (Math.floor(before.season / NEWS_GOAL_MILESTONE_STEP) < seasonMilestone) {
-      events.push({
-        type: "goalMilestoneSeason", pid: line.pid, tid: line.tid, season, matchday,
-        detail: seasonMilestone * NEWS_GOAL_MILESTONE_STEP,
-      });
-    }
+    const careerMilestone = milestoneCrossed(
+      before.career, after.career, NEWS_CAREER_GOAL_FIRST, NEWS_CAREER_GOAL_STEP,
+    );
+    const seasonMilestone = milestoneCrossed(
+      before.season, after.season, NEWS_SEASON_GOAL_FIRST, NEWS_SEASON_GOAL_STEP,
+    );
 
-    const careerMilestone = Math.floor(after.career / NEWS_GOAL_MILESTONE_STEP);
-    if (Math.floor(before.career / NEWS_GOAL_MILESTONE_STEP) < careerMilestone) {
-      events.push({
-        type: "goalMilestoneCareer", pid: line.pid, tid: line.tid, season, matchday,
-        detail: careerMilestone * NEWS_GOAL_MILESTONE_STEP,
-      });
+    // One goal can cross both ladders at once, and reporting both puts two rows
+    // on the same matchday for the same player, each quoting a bare goal count
+    // — which reads as a duplicate even when the numbers differ. In a league's
+    // first season the two totals are *identical*, so before this every career
+    // milestone was an exact restatement of a season one (measured: 747 of
+    // 747). Report the better story only: the higher tier, and on a tie the
+    // career number, which climbs the rarer ladder.
+    const careerEvent: NewsEvent | null = careerMilestone === null ? null : {
+      type: "goalMilestoneCareer", pid: line.pid, tid: line.tid, season, matchday,
+      detail: careerMilestone,
+    };
+    const seasonEvent: NewsEvent | null = seasonMilestone === null ? null : {
+      type: "goalMilestoneSeason", pid: line.pid, tid: line.tid, season, matchday,
+      detail: seasonMilestone,
+    };
+    if (careerEvent && seasonEvent) {
+      const seasonOutranks =
+        newsEventScope(seasonEvent) === "world" && newsEventScope(careerEvent) !== "world";
+      events.push(seasonOutranks ? seasonEvent : careerEvent);
+    } else if (careerEvent) {
+      events.push(careerEvent);
+    } else if (seasonEvent) {
+      events.push(seasonEvent);
     }
   }
 
   return events;
+}
+
+/**
+ * The highest milestone a total crossed in going from `before` to `after`, or
+ * null if it crossed none. Milestones are `first`, then every `step` above it
+ * (50, 100, 150... / 25, 30, 35...), which requires `first` to be a whole
+ * multiple of `step` — both pairs in constants.ts are.
+ */
+function milestoneCrossed(
+  before: number, after: number, first: number, step: number,
+): number | null {
+  const reached = (total: number) => (total < first ? 0 : Math.floor(total / step) * step);
+  const now = reached(after);
+  return now > reached(before) ? now : null;
+}
+
+/**
+ * How far an accomplishment travels: "world" is worth reading about wherever
+ * you play, "league" only matters inside the competition it happened in.
+ *
+ * The world is 320 clubs across 16 competitions, so a feed that reports every
+ * competition equally is ~90% news about countries the user has no stake in —
+ * which is the whole reason this exists. See the relevance-tier block in
+ * constants.ts for why the tier is derived from the event rather than stored on
+ * it (deriving it applies the tiers retroactively to events older builds wrote,
+ * with no new persisted field and no migration).
+ */
+export function newsEventScope(e: NewsEvent): "world" | "league" {
+  switch (e.type) {
+    case "hattrick":
+      return e.detail >= NEWS_WORLD_HATTRICK_GOALS ? "world" : "league";
+    case "goalMilestoneCareer":
+      return e.detail >= NEWS_WORLD_CAREER_GOALS ? "world" : "league";
+    case "goalMilestoneSeason":
+      return e.detail >= NEWS_WORLD_SEASON_GOALS ? "world" : "league";
+    // Already at most one a matchday across the entire world, and floored at a
+    // rating hardly anyone reaches — it is the definition of world news.
+    case "standoutRating":
+      return "world";
+    // Never world news: NEWS_POSITION_CHANGE_OVR (72) is an established starter
+    // rather than an elite, and the constant's own note is that a squad player
+    // converting in another country isn't news. The OVR gate keeps the volume
+    // down; this keeps what survives it in the leagues that care.
+    case "positionChange":
+      return "league";
+  }
+}
+
+/**
+ * Whether an event clears the bar the detector now applies, independent of who
+ * is reading. Saves written by earlier builds are full of milestones off a flat
+ * every-10 ladder (a career total of 10, a season total of 20), which would
+ * otherwise keep crowding an existing save's feed forever. Re-applying the
+ * floor at render retires them with no migration and no data loss.
+ */
+export function isNewsworthy(e: NewsEvent): boolean {
+  switch (e.type) {
+    case "goalMilestoneCareer":
+      return e.detail >= NEWS_CAREER_GOAL_FIRST;
+    case "goalMilestoneSeason":
+      return e.detail >= NEWS_SEASON_GOAL_FIRST;
+    case "hattrick":
+    case "standoutRating":
+    case "positionChange":
+      return true;
+  }
 }
