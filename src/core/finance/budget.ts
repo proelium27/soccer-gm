@@ -2,7 +2,7 @@ import {
   BASE_SEASON_BUDGET, MAX_BUDGET, MAX_BUDGET_FLOOR, HYPE_MAX,
   HYPE_REVENUE_PER_POINT, HYPE_REVENUE_DAMPING,
   PRIZE_CHAMPION, PRIZE_TOP_5, PRIZE_TOP_10, PRIZE_TOP_5_CUTOFF, PRIZE_TOP_10_CUTOFF,
-  DIVISION_2_BUDGET_SCALE,
+  DIVISION_2_BUDGET_SCALE, NUM_TEAMS,
   difficultyProfile, type Difficulty,
 } from "../constants.js";
 import type { Competition } from "../competitions.js";
@@ -85,14 +85,37 @@ export interface SeasonRevenue {
 
 /**
  * Prize money for a final league position (1-indexed) within the club's own
- * competition, scaled down for tier 2. Three exclusive tiers: the
- * champion's prize, a top-5 prize (2nd-5th), and a top-10 prize (6th-10th);
- * the bottom half of the table gets nothing beyond the base.
+ * competition, scaled down for tier 2. Three exclusive tiers: the champion's
+ * prize, a top-quarter prize, and a top-half prize; the bottom half of the
+ * table gets nothing beyond the base.
+ *
+ * **The cutoffs are a FRACTION of the division, not fixed ranks, and that is a
+ * correctness requirement once divisions differ in size (2026-08-29).** They
+ * shipped as a flat 5th and 10th, which is the same thing while every league
+ * fields 20 clubs and stops being so the moment one doesn't: at fixed ranks a
+ * 12-club league pays 10 of its 12 clubs and a 10-club second division pays
+ * *every single one*, so mean prize per club runs £8.5M at 20 clubs against
+ * £17.0M at 10 — a smaller league is simply richer, per club, for no footballing
+ * reason. That lands straight on the documented tripwire that a weaker-but-richer
+ * league climbs the ladder over a dynasty, and it did: on the coefficient audit's
+ * seed 1, Scotland (12 clubs, generated second-weakest in the world) finished 20
+ * seasons with the HIGHEST tier-1 mean OVR of any country, above Germany.
+ *
+ * The fractions are derived from the shipped constants rather than written
+ * separately, so a 20-club division is byte-identical to before (0.25 → 5,
+ * 0.5 → 10) and the four big leagues are untouched. `divisionSize` therefore
+ * defaults to `NUM_TEAMS`, which is what every pre-existing caller meant.
+ *
+ * The residual is the champion's prize: it is a lump that does not divide, so a
+ * small league still pays marginally more per club (£9.2M at 12 against £8.5M at
+ * 20, down from £14.2M). That is deliberate — winning a title is worth the same
+ * wherever you win it — and it is ~18% of the distortion the flat cutoffs had.
  */
-export function successPayout(rank: number, scale: number): number {
+export function successPayout(rank: number, scale: number, divisionSize = NUM_TEAMS): number {
   if (rank === 1) return PRIZE_CHAMPION * scale;
-  if (rank <= PRIZE_TOP_5_CUTOFF) return PRIZE_TOP_5 * scale;
-  if (rank <= PRIZE_TOP_10_CUTOFF) return PRIZE_TOP_10 * scale;
+  const size = Number.isFinite(divisionSize) && divisionSize > 0 ? divisionSize : NUM_TEAMS;
+  if (rank <= Math.round((PRIZE_TOP_5_CUTOFF / NUM_TEAMS) * size)) return PRIZE_TOP_5 * scale;
+  if (rank <= Math.round((PRIZE_TOP_10_CUTOFF / NUM_TEAMS) * size)) return PRIZE_TOP_10 * scale;
   return 0;
 }
 
@@ -102,9 +125,11 @@ export function successPayout(rank: number, scale: number): number {
  * all scaled down for tier 2 to reflect the real financial gap between
  * top-flight and second-tier football.
  */
-export function seasonRevenue(rank: number, hype: number, scale: number): SeasonRevenue {
+export function seasonRevenue(
+  rank: number, hype: number, scale: number, divisionSize = NUM_TEAMS,
+): SeasonRevenue {
   const base = BASE_SEASON_BUDGET * scale;
-  const payout = successPayout(rank, scale);
+  const payout = successPayout(rank, scale, divisionSize);
   const hypeRevenue = hype * HYPE_REVENUE_PER_POINT * HYPE_REVENUE_DAMPING * scale;
   return { base, successPayout: payout, hypeRevenue, total: base + payout + hypeRevenue };
 }
@@ -131,8 +156,9 @@ export function settleSeasonEnd(
   hype: number,
   scoutingSpend: number,
   scale: number,
+  divisionSize = NUM_TEAMS,
 ): number {
-  const { successPayout: payout, hypeRevenue } = seasonRevenue(rank, hype, scale);
+  const { successPayout: payout, hypeRevenue } = seasonRevenue(rank, hype, scale, divisionSize);
   return clampBudget(currentBudget + payout + hypeRevenue - scoutingSpend, scale, hype);
 }
 

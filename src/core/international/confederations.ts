@@ -130,6 +130,10 @@ export const CONFEDERATION_OF: Record<string, Confederation> = {
   Guatemala: "North America",
   Honduras: "North America",
   Jamaica: "North America",
+  // Both play CONCACAF in real life, Suriname included despite sitting on the
+  // South American mainland.
+  Curacao: "North America",
+  Suriname: "North America",
   Mexico: "North America",
   Panama: "North America",
   "Trinidad and Tobago": "North America",

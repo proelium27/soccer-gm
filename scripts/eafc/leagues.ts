@@ -46,6 +46,14 @@ export function normalizeLeague(s: string): string {
  */
 export const LEAGUE_RULES: LeagueRule[] = [
   // --- Second tiers ---
+  // Scotland's second tier comes FIRST, and the order is load-bearing: its name
+  // is "Scottish Championship", which *contains* England's bare "championship"
+  // pattern, and mapLeague returns on the first matching rule. Listed after
+  // England it would silently import every Scottish second-tier club into the
+  // English Championship — the same class of bug as the 12 Austrian clubs in
+  // the Bundesliga. Bare "premiership" is likewise NOT a pattern for Scotland's
+  // top flight below: Northern Ireland's top division is the NIFL Premiership.
+  { competition: "Scottish Division 2", patterns: ["scottish_championship", "spfl_championship", "cinch_championship"] },
   { competition: "English Division 2", patterns: ["championship", "efl_championship", "english_league_championship"] },
   { competition: "Spanish Division 2", patterns: ["segunda_division", "laliga_2", "la_liga_2", "laliga_hypermotion", "spain_segunda"] },
   { competition: "Italian Division 2", patterns: ["serie_b"] },
@@ -60,6 +68,17 @@ export const LEAGUE_RULES: LeagueRule[] = [
   // forms are listed.
   { competition: "Belgian Division 2", patterns: ["challenger_pro_league", "belgian_first_division_b", "proximus_league"] },
   { competition: "Turkish Division 2", patterns: ["tff_1_lig", "trendyol_1_lig", "turkish_1_lig"] },
+  // The Netherlands' second tier. "eerste_divisie" is the risk to know about:
+  // Suriname's *top* flight is the SVB Eerste Divisie, so on a dataset that
+  // carries Surinamese football this pattern would claim it. No dataset checked
+  // so far does, and the id route below would separate them if one did.
+  { competition: "Dutch Division 2", patterns: ["eerste_divisie", "keuken_kampioen", "jupiler_league"] },
+  // Greece's and Serbia's second tiers. "super_league_2" must come before the
+  // Greek tier-1 rule below for the usual first-match reason, and bare
+  // "prva_liga" is deliberately absent — it is the second tier in Serbia but a
+  // *top* flight in Croatia, Slovenia, Bosnia and Montenegro.
+  { competition: "Greek Division 2", patterns: ["super_league_2", "souper_ligka_2", "football_league_greece"] },
+  { competition: "Serbian Division 2", patterns: ["prva_liga_srbije", "serbian_first_league", "prva_liga_serbia"] },
 
   // --- First tiers ---
   { competition: "English Division 1", patterns: ["premier_league", "english_premier"] },
@@ -79,6 +98,21 @@ export const LEAGUE_RULES: LeagueRule[] = [
   // `s_per_lig` is "Süper Lig" after normalization — the ü becomes a separator.
   // See the note on normalizeLeague for why that isn't fixed by folding accents.
   { competition: "Turkish Division 1", patterns: ["super_lig", "s_per_lig", "turkish_super"] },
+  // "eredivisie" is unique across every dataset checked, and does not contain
+  // and is not contained by any other pattern here.
+  { competition: "Dutch Division 1", patterns: ["eredivisie", "dutch_eredivisie"] },
+  // Scotland qualified every way. Bare "premiership" is deliberately absent —
+  // Northern Ireland's NIFL Premiership would match it.
+  { competition: "Scottish Division 1", patterns: ["scottish_premiership", "spfl_premiership", "cinch_premiership", "ladbrokes_premiership"] },
+  // Greece. Bare "super_league" is safe here only because the Greek second-tier
+  // rule ("super_league_2") is listed above and therefore matches first; there
+  // is no other Super League in the datasets checked. "souper_ligka" is the
+  // normalized form of "Σούπερ Λίγκα" when a dataset ships it transliterated.
+  { competition: "Greek Division 1", patterns: ["super_league_greece", "greek_super_league", "souper_ligka", "super_league"] },
+  // Serbia. "superliga" (one word) is Serbia's; the spaced "super liga" forms
+  // belong to Denmark and Slovakia, so only the closed-up and qualified forms
+  // are listed.
+  { competition: "Serbian Division 1", patterns: ["superliga_srbije", "serbian_superliga", "mozzart_bet_superliga", "linglong_superliga"] },
 ];
 
 /**
@@ -86,12 +120,20 @@ export const LEAGUE_RULES: LeagueRule[] = [
  * league is not one this converter covers (the datasets carry 30+ leagues;
  * everything else is simply skipped).
  *
- * **Coverage is all sixteen competitions across the game's eight countries** —
+ * **Coverage is all twenty-four competitions across the game's twelve countries** —
  * see COVERED_COMPETITIONS, which is derived from the rules rather than listed.
  * Coverage is not the same as *presence*: no dataset checked so far carries
  * Portugal's, Belgium's or Turkey's second tier, and those divisions simply keep
  * their generated identities after an import, the same as any club a roster file
- * does not cover. Adding a league means adding a rule below *and*, where the
+ * does not cover.
+ *
+ * **The Dutch, Scottish, Greek and Serbian rules (added 2026-08-28) have NO
+ * verified ids yet** — they were written from the leagues' real names, not
+ * confirmed against a dataset, so they resolve by the unambiguous-name fallback
+ * exactly like Portugal's second tier does. Run scripts/eafc/inspectLeagues.ts
+ * over a real export and add the eight ids to LEAGUE_IDS before trusting an
+ * import that covers any of those countries; the name route is the weaker of
+ * the two by design. Adding a league means adding a rule below *and*, where the
  * name is not unique, a verified id in LEAGUE_IDS — confirmed against a real
  * dataset with scripts/eafc/inspectLeagues.ts, since names alone collide across
  * federations.

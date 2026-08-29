@@ -1,5 +1,6 @@
 /**
- * Dynasty audit for the weak-league feature (France/Portugal/Belgium/Turkey).
+ * Dynasty audit for the weak-league feature (France/Netherlands/Portugal/
+ * Belgium/Turkey/Greece/Scotland/Serbia).
  * Verifies, over a multi-season dynasty with real simThrough/simOffseason:
  *  - AI solvency holds (no non-user club ever goes into deficit), including the
  *    poorer weak-league clubs;
@@ -52,6 +53,7 @@ import { createLeagueState, type LeagueStore } from "../src/core/leagueState.js"
 import { simThrough } from "../src/core/simThrough.js";
 import { simOffseason } from "../src/core/offseason.js";
 import { competitionOf } from "../src/core/competitions.js";
+import { countryStrengthOffset } from "../src/core/constants.js";
 
 const SEASONS = Number(process.env.SEASONS ?? 20);
 // Overridable so a tuning change can be checked against worlds it was not
@@ -82,7 +84,27 @@ const USER_TID = 0;
  * the big four are equal siblings by design, so their mutual order is noise.
  */
 const BIG_FOUR = ["England", "Spain", "Italy", "Germany"];
-const WEAK_LADDER = ["France", "Portugal", "Belgium", "Turkey"];
+const WEAK_LADDER = [
+  "France", "Netherlands", "Portugal", "Belgium", "Turkey", "Greece", "Scotland", "Serbia",
+];
+
+/**
+ * Rungs that are only ONE COUNTRY_STRENGTH_OFFSET point apart from the rung
+ * above them are NOT separately resolvable across a dynasty, so their per-seed
+ * order is not gated — only the cross-seed mean is. See the header.
+ *
+ * **Derived from the offsets, never hand-listed**, so it cannot drift when a
+ * country is added or an offset moves: if you widen a rung to a 2-point step it
+ * automatically starts being gated per-seed again, and if you squeeze one to a
+ * 1-point step it automatically stops. Hand-listing this was the obvious
+ * shortcut and would have silently kept gating a rung the design had just
+ * stopped promising.
+ */
+const RESOLVABLE_STEP = 2;
+function isConvergedRung(country: string, prevCountry: string): boolean {
+  const off = (c: string) => (c === "BIG4" ? 0 : countryStrengthOffset(c));
+  return off(country) - off(prevCountry) < RESOLVABLE_STEP;
+}
 
 /**
  * What the ladder actually guarantees, and what it does not.
@@ -123,6 +145,27 @@ const WEAK_LADDER = ["France", "Portugal", "Belgium", "Turkey"];
  * change needs the rungs individually resolvable across a dynasty, widen the
  * offsets to 2-point steps (e.g. Portugal 10 / Belgium 12 / Turkey 14) rather
  * than tightening these numbers.
+ *
+ * WHICH RUNGS GET THE PER-SEED GATE AT ALL (2026-08-28, when the world went to
+ * twelve countries). The weak ladder now has eight rungs and the bottom six sit
+ * one offset point apart, which is below the resolution the ladder has after a
+ * dynasty. Gating every adjacent pair per seed therefore started failing on
+ * seed noise alone on a world whose every cross-seed mean was healthy —
+ * measured, Turkey→Greece ran +1.31 / +1.69 / **-2.27** / +0.25 for a mean of
+ * +0.25. That is the same contradiction the 2026-08-11 note above describes,
+ * arriving from the other direction: the gate was asserting more than the
+ * header promised.
+ *
+ * So the per-seed gross-inversion gate now applies ONLY to rungs the design
+ * claims are resolvable — a step of RESOLVABLE_STEP (2) offset points or more,
+ * currently BIG4→France, France→Netherlands and Netherlands→Portugal. The
+ * one-point block below that (Portugal/Belgium/Turkey/Greece/Scotland/Serbia)
+ * is gated as a BLOCK: cross-seed mean order, plus the block-level spreads
+ * (BIG4→weakest and France→weakest) which are checked both per seed and on the
+ * mean. **This deliberately did NOT loosen SEED_INVERSION_TOLERANCE** — the
+ * tolerance is untouched and still fires on any rung that is supposed to hold
+ * apart. Widening a rung to a 2-point step automatically re-enables its
+ * per-seed gate, since isConvergedRung reads the offsets.
  *
  * THE SPREADS ARE GATED AT THE SAME TWO SCALES (2026-08-13), after the
  * per-seed MIN_END_SPREAD floor false-failed on a healthy main. Measured over
@@ -248,7 +291,15 @@ for (const seed of SEEDS) {
       const key = `${prevName}→${c}`;
       if (!gapsAcrossSeeds.has(key)) gapsAcrossSeeds.set(key, []);
       gapsAcrossSeeds.get(key)!.push(gap);
-      if (gap < -SEED_INVERSION_TOLERANCE) {
+      // Per-seed order is only gated where the design actually promises
+      // separation, i.e. a step of RESOLVABLE_STEP offset points or more. A
+      // one-point rung converges to within noise by season 20 and its per-seed
+      // sign is a coin flip (measured over 4 seeds, Turkey→Greece ran
+      // +1.31/+1.69/-2.27/+0.25 on a world whose every *mean* was healthy), so
+      // gating it per seed asserts precision the ladder does not have. The mean
+      // gate below still covers it, and that is where a systematic inversion —
+      // the failure that actually bit, at -2.23 and -2.5 on every seed — shows.
+      if (gap < -SEED_INVERSION_TOLERANCE && !isConvergedRung(c, prevName)) {
         problems.push(`${prevName}→${c} GROSSLY INVERTED (${gap.toFixed(2)})`);
       }
       prev = m.get(c)!;
@@ -279,7 +330,8 @@ for (const seed of SEEDS) {
       console.log(`  → ladder **BROKEN**: ${problems.join("; ")}`);
     } else {
       console.log(
-        `  → ladder OK (no inversion beyond ${SEED_INVERSION_TOLERANCE}; BIG4→${weakest} ${spread.toFixed(2)} ≥ ${MIN_SPREAD}; ` +
+        `  → ladder OK (no inversion beyond ${SEED_INVERSION_TOLERANCE} on resolvable rungs; ` +
+        `BIG4→${weakest} ${spread.toFixed(2)} ≥ ${MIN_SPREAD}; ` +
         `${WEAK_LADDER[0]}→${weakest} ${endSpread.toFixed(2)})`,
       );
     }

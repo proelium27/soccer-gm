@@ -14,7 +14,8 @@ import { makeLeague } from "../helpers/league.js";
 import { parseCsv, readCsvTable, normalizeHeader } from "../../scripts/eafc/csv.js";
 import { resolveColumns } from "../../scripts/eafc/schema.js";
 import { mapPosition } from "../../scripts/eafc/positions.js";
-import { mapLeague, buildLeagueResolver } from "../../scripts/eafc/leagues.js";
+import { mapLeague, buildLeagueResolver, COVERED_COMPETITIONS } from "../../scripts/eafc/leagues.js";
+import { worldCompetitions } from "../../src/core/competitions.js";
 import { mapNation } from "../../scripts/eafc/nations.js";
 import { buildRescaler } from "../../scripts/eafc/scale.js";
 import { deriveAbbrev, uniquifyAbbrevs } from "../../scripts/eafc/identity.js";
@@ -189,7 +190,57 @@ describe("league mapping", () => {
 
   it("skips leagues the game does not model", () => {
     expect(mapLeague("Major League Soccer")).toBeNull();
-    expect(mapLeague("Eredivisie")).toBeNull();
+    expect(mapLeague("Liga MX")).toBeNull();
+  });
+
+  it("matches Greece and Serbia", () => {
+    expect(mapLeague("Super League Greece")).toBe("Greek Division 1");
+    expect(mapLeague("Super League")).toBe("Greek Division 1");
+    expect(mapLeague("Super League 2")).toBe("Greek Division 2");
+    expect(mapLeague("Superliga Srbije")).toBe("Serbian Division 1");
+    expect(mapLeague("Mozzart Bet Superliga")).toBe("Serbian Division 1");
+    expect(mapLeague("Prva Liga Srbije")).toBe("Serbian Division 2");
+  });
+
+  // Two more first-match ordering traps, same family as Scotland's below.
+  // "Super League 2" contains "super_league", so Greece's second tier has to be
+  // listed above its first. And two bare names are deliberately left unclaimed:
+  // "Prva Liga" is a *top* flight in Croatia, Slovenia, Bosnia and Montenegro
+  // while being Serbia's second tier, and an unqualified "Superliga" is also
+  // Denmark's.
+  it("does not claim a bare 'Prva Liga' or 'Superliga', which other countries share", () => {
+    expect(mapLeague("Super League 2")).toBe("Greek Division 2");
+    expect(mapLeague("Prva Liga")).toBeNull();
+    expect(mapLeague("Superliga")).toBeNull();
+  });
+
+  it("matches the Netherlands and Scotland", () => {
+    expect(mapLeague("Eredivisie")).toBe("Dutch Division 1");
+    expect(mapLeague("Eerste Divisie")).toBe("Dutch Division 2");
+    expect(mapLeague("Keuken Kampioen Divisie")).toBe("Dutch Division 2");
+    expect(mapLeague("Scottish Premiership")).toBe("Scottish Division 1");
+    expect(mapLeague("cinch Premiership")).toBe("Scottish Division 1");
+  });
+
+  // Ordering regression guard. "Scottish Championship" CONTAINS England's bare
+  // "championship" pattern and mapLeague returns on first match, so listing
+  // Scotland after England imports every Scottish second-tier club into the
+  // English Championship — silently, exactly like the 12 Austrian clubs that
+  // once landed in the Bundesliga. Bare "Premiership" must stay unclaimed for
+  // the same reason: Northern Ireland's top flight is the NIFL Premiership.
+  it("does not let Scotland's second tier fall into England's Championship", () => {
+    expect(mapLeague("Scottish Championship")).toBe("Scottish Division 2");
+    expect(mapLeague("cinch Championship")).toBe("Scottish Division 2");
+    expect(mapLeague("Championship")).toBe("English Division 2");
+    expect(mapLeague("EFL Championship")).toBe("English Division 2");
+    expect(mapLeague("NIFL Premiership")).toBeNull();
+  });
+
+  it("covers every competition in the shipped world", () => {
+    const uncovered = worldCompetitions()
+      .map((c) => c.name)
+      .filter((n) => !COVERED_COMPETITIONS.includes(n));
+    expect(uncovered).toEqual([]);
   });
 
   it("matches Belgium and Turkey by their qualified names", () => {

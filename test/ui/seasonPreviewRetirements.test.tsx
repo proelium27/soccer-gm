@@ -23,6 +23,20 @@ vi.mock("../../src/ui/context/LeagueContext.js", () => ({
 
 const { SeasonPreview } = await import("../../src/ui/pages/SeasonPreview.js");
 
+/**
+ * Base for the ghost pids below. These stand for players the save has *deleted*,
+ * so they must not collide with anyone `makeLeague` actually generated — the
+ * "he has no page" case asserts that nothing renders a link, and a pid that
+ * resolves to a live player renders one.
+ *
+ * It is deliberately far above any world the game could ship rather than "a bit
+ * above the current player count": the original 9001-9004 were safely past the
+ * 8,000-player eight-country world and then silently collided when the
+ * Netherlands and Scotland took it to 10,000, turning a real assertion green-to-
+ * red for a reason that had nothing to do with the code under test.
+ */
+const GHOST_PID = 900_000;
+
 function retiree(over: Partial<RetiredPlayer> & { pid: number }): RetiredPlayer {
   return {
     name: `Retiree ${over.pid}`, nationality: "eng", pos: "ST", age: 35, ovr: 70,
@@ -60,7 +74,7 @@ describe("Season Preview retirements", () => {
     const league = leagueWithRetirements({ total: 812, rostered: 46, notable: [] });
     const club = league.teams[0];
     league.seasonHistory[0].retirements!.notable = [
-      retiree({ pid: 9001, name: "Old Hand", tid: club.tid, ovr: 81, age: 36 }),
+      retiree({ pid: GHOST_PID + 1, name: "Old Hand", tid: club.tid, ovr: 81, age: 36 }),
     ];
     const html = render(league);
 
@@ -73,25 +87,25 @@ describe("Season Preview retirements", () => {
 
   it("marks an unsigned retiree as a free agent instead of blanking the club", () => {
     const html = render(leagueWithRetirements({
-      total: 300, rostered: 0, notable: [retiree({ pid: 9002, tid: null })],
+      total: 300, rostered: 0, notable: [retiree({ pid: GHOST_PID + 2, tid: null })],
     }));
     expect(html).toContain("Free agent");
   });
 
   it("doesn't link a retiree the archive didn't keep — he has no page", () => {
     const html = render(leagueWithRetirements({
-      total: 5, rostered: 5, notable: [retiree({ pid: 9003, name: "Gone Forever" })],
+      total: 5, rostered: 5, notable: [retiree({ pid: GHOST_PID + 3, name: "Gone Forever" })],
     }));
     expect(html).toContain("Gone Forever");
-    expect(html).not.toContain('href="/player/9003"');
+    expect(html).not.toContain(`href="/player/${GHOST_PID + 3}"`);
   });
 
   it("links one the archive did keep, since his career page exists", () => {
     const league = leagueWithRetirements({
-      total: 5, rostered: 5, notable: [retiree({ pid: 9004, name: "Kept Forever" })],
+      total: 5, rostered: 5, notable: [retiree({ pid: GHOST_PID + 4, name: "Kept Forever" })],
     });
-    league.retiredPlayers = [{ pid: 9004, name: "Kept Forever" } as never];
-    expect(render(league)).toContain('href="/player/9004"');
+    league.retiredPlayers = [{ pid: GHOST_PID + 4, name: "Kept Forever" } as never];
+    expect(render(league)).toContain(`href="/player/${GHOST_PID + 4}"`);
   });
 
   it("says so plainly when the save has no record for that offseason", () => {

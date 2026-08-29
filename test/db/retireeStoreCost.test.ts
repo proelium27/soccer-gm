@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll, vi } from "vitest";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import {
@@ -32,6 +32,19 @@ const retiree = (pid: number): ArchivedPlayer => ({
   totals: {} as ArchivedPlayer["totals"], best: {} as ArchivedPlayer["best"],
   caps: 0, intlGoals: 0, intlTitles: 0,
 });
+
+// This file had no timeout config at all and rode vitest's 5s default while
+// lazily paying ~6s of createLeagueState inside whichever test ran first — the
+// exact trap leagueDb.test.ts documents and solved. On the 12,000-player world
+// that tipped over and took the whole file with it (a timed-out hook skips its
+// cleanup, so the rest fail on a dead transaction). Same fix as its sibling:
+// pay for the world up front, and give the tests and hooks budgets that reflect
+// what IDB work on a full world actually costs. Re-check when a country is added.
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
+
+beforeAll(() => {
+  makeLeague();
+}, 180_000);
 
 beforeEach(async () => {
   const db = await getDb();
