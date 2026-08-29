@@ -99,7 +99,14 @@ export function NTMySquad() {
       xiPids: xi.map((p) => p.pid),
       xiSet,
       reserves: sortByPosThenOvr(named.filter((p) => !xiSet.has(p.pid))),
-      uncalled: sortByPosThenOvr(pool.filter((p) => !namedSet.has(p.pid))),
+      // Your own squad groups by position, the way a team sheet does. The pool
+      // of everyone else is sorted by rating instead: it runs to hundreds of
+      // players, and by position it opens with every goalkeeper in the country
+      // before the first outfielder worth calling up. The question this column
+      // answers is "who is the best player I'm not taking".
+      uncalled: pool
+        .filter((p) => !namedSet.has(p.pid))
+        .sort((a, b) => b.ovr - a.ovr || a.pid - b.pid),
       coords: layoutSlots(squad.formation),
       keepers: named.filter((p) => p.pos === "GK").length,
     };
@@ -165,8 +172,41 @@ export function NTMySquad() {
   }
 
   const playerRow = (p: Player, action: "drop" | "call") => (
-    <tr key={p.pid} className={xiSet.has(p.pid) ? "row-selected" : undefined}>
-      <td>{p.pos}</td>
+    <tr
+      key={p.pid}
+      className={xiSet.has(p.pid) ? "row-selected" : undefined}
+      // Squad rows are drag sources and drop targets, which is the only way a
+      // reserve reaches the eleven: the pitch chips can only trade places with
+      // each other. `swapStarters` already covers bench-to-XI both ways, so this
+      // is the same one call the pitch uses.
+      draggable={!locked && action === "drop"}
+      onDragStart={(e) => e.dataTransfer.setData(DRAG_MIME, String(p.pid))}
+      onDragOver={(e) => {
+        if (locked || action !== "drop") return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      }}
+      onDrop={(e) => {
+        if (locked || action !== "drop") return;
+        e.preventDefault();
+        const raw = e.dataTransfer.getData(DRAG_MIME);
+        if (raw) handleSwap(Number(raw), p.pid);
+      }}
+    >
+      <td>
+        {!locked && action === "drop" && (
+          <button
+            type="button"
+            className="pitch-chip-handle me-1"
+            aria-label={selectedPid === p.pid ? "Cancel move" : "Move player"}
+            title="Drag onto a shirt, or tap this and then another player to swap them"
+            onClick={() => handleTap(p.pid)}
+          >
+            &#8942;&#8942;
+          </button>
+        )}
+        {p.pos}
+      </td>
       <td>
         <PlayerRatingsTooltip player={p}>
           <Link to={`/player/${p.pid}`}>{p.name}</Link>
@@ -263,8 +303,9 @@ export function NTMySquad() {
         </p>
       ) : (
         <p className="text-muted small">
-          Drag a player onto a shirt to put him there, or tap the handle on two players to
-          swap them. Keepers can only go in goal. If anyone you picked can't play on the day,
+          Drag a player onto a shirt to put him there, from the pitch or from your squad list
+          below, or tap the handle on two players to swap them. Keepers can only go in goal.
+          If anyone you picked can't play on the day,
           injured or retired since you named him, the game picks that whole eleven for you
           rather than field ten, so it's worth looking in again between rounds.
         </p>
