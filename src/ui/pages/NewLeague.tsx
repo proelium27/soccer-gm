@@ -660,7 +660,7 @@ export function NewLeague() {
       </div>
 
       <div className="mb-3">
-        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Continental places</h6>
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Continental Cup places</h6>
         <div className="form-check">
           <input
             type="checkbox"
@@ -670,7 +670,7 @@ export function NewLeague() {
             onChange={(e) => setRollingCoefficients(e.target.checked)}
           />
           <label className="form-check-label" htmlFor="rolling-coefficients">
-            Countries earn their Cup places
+            Cup places can move between countries
           </label>
         </div>
         <p className="text-muted small mt-2 mb-0">

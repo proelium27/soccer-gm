@@ -704,9 +704,9 @@ export function Manual() {
           </p>
           <p>
             If you'd rather the places never moved, there's a checkbox for it on the New League
-            screen: turn <strong>&quot;Countries earn their Cup places&quot;</strong> off and every
-            country keeps the number it started with forever, however its clubs do in Europe. It's
-            fixed for the life of the save, same as difficulty, and with it off the coefficient
+            screen: turn <strong>&quot;Cup places can move between countries&quot;</strong> off and
+            every country keeps the number it started with forever, however its clubs do in Europe.
+            It's fixed for the life of the save, same as difficulty, and with it off the coefficient
             table doesn't appear on the Cup page at all. Saves made before the setting existed have
             it on.
           </p>
