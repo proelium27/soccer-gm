@@ -39,6 +39,7 @@ vi.mock("../../src/ui/context/LeagueContext.js", () => ({
 
 const { NTMySquad } = await import("../../src/ui/pages/nationalTeams/MySquad.js");
 const { NTFederation } = await import("../../src/ui/pages/nationalTeams/Federation.js");
+const { NTCallUps } = await import("../../src/ui/pages/nationalTeams/CallUps.js");
 
 function render(page: () => ReactElement, league: LeagueStore): string {
   leagueRef.current = league;
@@ -74,29 +75,45 @@ describe("My Squad page", () => {
     expect(html).toContain("/national-teams/federation");
   });
 
-  it("renders the pitch, the bench strip and the squad table for a live campaign", () => {
+  it("renders the pitch and both squad tables for a live campaign", () => {
     const nation = someNation();
     const html = render(NTMySquad, staged(nation));
     expect(html).toContain("pitch-field");
-    // A chip per starter and per reserve, so the whole squad is draggable.
-    expect(html.match(/pitch-chip/g)?.length).toBeGreaterThanOrEqual(11);
-    expect(html).toContain("Rest of the squad");
+    // Eleven chips, each carrying the player's position the way the club
+    // Roster page's chips do. Counted on the name, which appears exactly once
+    // per chip — `pitch-chip-pos` would double-count a man out of position,
+    // whose marker reads `pitch-chip-pos pitch-chip-pos--misfit`.
+    expect(html.match(/pitch-chip-name/g)?.length).toBe(11);
+    expect(html).toContain("pitch-chip-pos");
+    expect(html).toContain("Starting XI");
+    expect(html).toContain("Substitutes");
     expect(html).toContain("Best XI");
     expect(html).toContain("called up");
   });
 
   /**
-   * The eligible pool is several hundred players, so it stays shut until asked
-   * for — both because it is a search rather than a list to browse, and because
-   * open it is thousands of table cells on a page whose job is picking eleven
-   * names. Closed, the only table on the page is the 23-man squad.
+   * The club half of PitchField must not follow it here: a national manager has
+   * no contracts to extend, no transfer list and nobody to release. Those props
+   * are optional and simply are not passed (see PitchFieldProps).
    */
-  it("keeps the eligible pool behind a disclosure", () => {
+  it("carries none of the club-only chip controls", () => {
     const nation = someNation();
     const html = render(NTMySquad, staged(nation));
-    expect(html).toContain("Call someone up");
+    expect(html).not.toContain("pitch-chip-contract-flag");
+    expect(html).not.toContain("pitch-chip-listed-flag");
+    expect(html).not.toContain("Release");
+  });
+
+  /**
+   * Naming the squad is a search across hundreds of players; picking the eleven
+   * is a team sheet of 23. Together on one page the search drowned the team
+   * sheet, so they are two pages and this one links across.
+   */
+  it("sends calling players up to its own page", () => {
+    const nation = someNation();
+    const html = render(NTMySquad, staged(nation));
+    expect(html).toContain("/national-teams/call-ups");
     expect(html).not.toContain("Search eligible players");
-    expect(html.match(/<table/g)?.length).toBe(1);
   });
 
   /**
@@ -120,6 +137,38 @@ describe("My Squad page", () => {
       nationalManager: emptyNationalManagerState("Nowhere at all", 1),
     });
     expect(html).toContain("haven&#x27;t named a squad yet");
+  });
+});
+
+describe("Call-ups page", () => {
+  it("lists the squad and the eligible pool, capped and searchable", () => {
+    const nation = someNation();
+    const html = render(NTCallUps, staged(nation));
+    expect(html).toContain("Your squad");
+    expect(html).toContain("Everyone else eligible");
+    expect(html).toContain("Search eligible players");
+    expect(html).toContain("Call up");
+    expect(html).toContain("Showing the best");
+  });
+
+  it("points back at the team sheet", () => {
+    const html = render(NTCallUps, staged(someNation()));
+    expect(html).toContain("/national-teams/my-squad");
+  });
+
+  it("explains itself when the user manages no country", () => {
+    const html = render(NTCallUps, staged(null));
+    expect(html).toContain("don&#x27;t manage a national team");
+  });
+
+  /** No campaign drawn means no squad to name, so there is nothing to do here. */
+  it("says so when there is no campaign to name a squad for", () => {
+    const base = staged(someNation());
+    const html = render(NTCallUps, {
+      ...base,
+      international: { ...base.international, stage: "done" },
+    });
+    expect(html).toContain("no campaign to name a squad for");
   });
 });
 

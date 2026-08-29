@@ -14,6 +14,7 @@ import { Cup, Shield } from "./pages/Cup.js";
 import { DomesticCup } from "./pages/DomesticCup.js";
 import { NTWorldCup } from "./pages/nationalTeams/WorldCup.js";
 import { NTMySquad } from "./pages/nationalTeams/MySquad.js";
+import { NTCallUps } from "./pages/nationalTeams/CallUps.js";
 import { NTFederation } from "./pages/nationalTeams/Federation.js";
 import { NTQualifying } from "./pages/nationalTeams/Qualifying.js";
 import { NTConfederationCups } from "./pages/nationalTeams/ConfederationCups.js";
@@ -130,6 +131,7 @@ export function App() {
             <Route path="/shield" element={<Shield />} />
             <Route path="/domestic-cup" element={<DomesticCup />} />
             <Route path="/national-teams/my-squad" element={<NTMySquad />} />
+            <Route path="/national-teams/call-ups" element={<NTCallUps />} />
             <Route path="/national-teams/federation" element={<NTFederation />} />
             <Route path="/national-teams/world-cup" element={<NTWorldCup />} />
             <Route path="/national-teams/qualifying" element={<NTQualifying />} />
