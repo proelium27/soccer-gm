@@ -242,7 +242,7 @@ export function NTMySquad() {
           {named.length} of {INTL_SQUAD_SIZE} called up
           {keepers <= INTL_MIN_KEEPERS && <>, only {keepers} keeper</>}
           {" · "}
-          <Link to="/national-teams/call-ups">Call someone up</Link>
+          <Link to="/national-teams/player-pool">Call someone up</Link>
         </span>
       </div>
 

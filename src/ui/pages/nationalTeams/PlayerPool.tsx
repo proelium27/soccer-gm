@@ -29,7 +29,7 @@ const POOL_SHOWN = 40;
  * page opened with several thousand table cells for a job that is mostly
  * picking eleven names.
  */
-export function NTCallUps() {
+export function NTPlayerPool() {
   const { league, setNationalSquadAction, simming } = useLeague();
   const [filter, setFilter] = useState("");
 
@@ -61,7 +61,7 @@ export function NTCallUps() {
 
   if (!nation) {
     return (
-      <NationalTeamsLayout title="Call-ups">
+      <NationalTeamsLayout title="Player Pool">
         <p className="text-muted">
           You don't manage a national team. Countries get in touch over the summer, and
           anything on the table is on the{" "}
@@ -73,7 +73,7 @@ export function NTCallUps() {
 
   if (!found) {
     return (
-      <NationalTeamsLayout title="Call-ups">
+      <NationalTeamsLayout title="Player Pool">
         <p className="text-muted">
           There's no campaign to name a squad for right now. One is drawn at the end of
           each season, and you can change who's in it from here before the first match of
@@ -164,7 +164,7 @@ export function NTCallUps() {
   );
 
   return (
-    <NationalTeamsLayout title="Call-ups">
+    <NationalTeamsLayout title="Player Pool">
       <div className="d-flex flex-wrap align-items-baseline gap-2 mb-2">
         <h5 className="mb-0"><NationName nation={nation} /></h5>
         <span className="text-muted small">picking for {found.competition}</span>

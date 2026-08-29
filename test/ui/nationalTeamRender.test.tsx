@@ -39,7 +39,7 @@ vi.mock("../../src/ui/context/LeagueContext.js", () => ({
 
 const { NTMySquad } = await import("../../src/ui/pages/nationalTeams/MySquad.js");
 const { NTFederation } = await import("../../src/ui/pages/nationalTeams/Federation.js");
-const { NTCallUps } = await import("../../src/ui/pages/nationalTeams/CallUps.js");
+const { NTPlayerPool } = await import("../../src/ui/pages/nationalTeams/PlayerPool.js");
 
 function render(page: () => ReactElement, league: LeagueStore): string {
   leagueRef.current = league;
@@ -112,7 +112,7 @@ describe("My Squad page", () => {
   it("sends calling players up to its own page", () => {
     const nation = someNation();
     const html = render(NTMySquad, staged(nation));
-    expect(html).toContain("/national-teams/call-ups");
+    expect(html).toContain("/national-teams/player-pool");
     expect(html).not.toContain("Search eligible players");
   });
 
@@ -140,10 +140,10 @@ describe("My Squad page", () => {
   });
 });
 
-describe("Call-ups page", () => {
+describe("Player Pool page", () => {
   it("lists the squad and the eligible pool, capped and searchable", () => {
     const nation = someNation();
-    const html = render(NTCallUps, staged(nation));
+    const html = render(NTPlayerPool, staged(nation));
     expect(html).toContain("Your squad");
     expect(html).toContain("Everyone else eligible");
     expect(html).toContain("Search eligible players");
@@ -152,19 +152,19 @@ describe("Call-ups page", () => {
   });
 
   it("points back at the team sheet", () => {
-    const html = render(NTCallUps, staged(someNation()));
+    const html = render(NTPlayerPool, staged(someNation()));
     expect(html).toContain("/national-teams/my-squad");
   });
 
   it("explains itself when the user manages no country", () => {
-    const html = render(NTCallUps, staged(null));
+    const html = render(NTPlayerPool, staged(null));
     expect(html).toContain("don&#x27;t manage a national team");
   });
 
   /** No campaign drawn means no squad to name, so there is nothing to do here. */
   it("says so when there is no campaign to name a squad for", () => {
     const base = staged(someNation());
-    const html = render(NTCallUps, {
+    const html = render(NTPlayerPool, {
       ...base,
       international: { ...base.international, stage: "done" },
     });
