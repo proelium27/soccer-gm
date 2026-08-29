@@ -418,10 +418,12 @@ export function simOffseasonReporting(
       );
       const rank = rankByTid.get(t.tid) ?? defaultRank;
       const row = rowByTid.get(t.tid);
-      const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, scale);
-      const hype = row
-        ? updateHype(t.hype, row, rank, competitionTeamCount(competitionOf(league.competitions, compId)))
-        : t.hype;
+      // Both prize money and hype key off the club's finishing position, so
+      // both need the size of the division that position is out of — a 3rd of
+      // 12 is not a 3rd of 20.
+      const divisionSize = competitionTeamCount(competitionOf(league.competitions, compId));
+      const budget = settleSeasonEnd(t.budget, rank, t.hype, t.scoutingSpend, scale, divisionSize);
+      const hype = row ? updateHype(t.hype, row, rank, divisionSize) : t.hype;
       // The scouting spend the club committed to during the offseason window
       // (nextScoutingSpend) now locks in for the coming season. AI teams never
       // touch it, so it stays at the default they were created with.
