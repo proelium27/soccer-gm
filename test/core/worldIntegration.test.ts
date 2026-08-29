@@ -7,6 +7,7 @@ import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { buildCompetitionSchedule, type LeagueStore } from "../../src/core/leagueState.js";
 import { emptyManagerState } from "../../src/core/manager/types.js";
+import { emptyNationalManagerState } from "../../src/core/nationalManager/types.js";
 
 function buildWorldLeague(seed: number): LeagueStore {
   const rng = mulberry32(seed);
@@ -49,6 +50,7 @@ function buildWorldLeague(seed: number): LeagueStore {
     godMode: false,
     difficulty: "normal",
     manager: emptyManagerState(0, 1),
+    nationalManager: emptyNationalManagerState(),
   };
 }
 

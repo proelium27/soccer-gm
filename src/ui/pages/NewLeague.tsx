@@ -7,8 +7,11 @@ import { mulberry32 } from "../../engine/rng.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { readLeagueFileText } from "../../db/exportImport.js";
 import {
-  DIFFICULTIES, DIFFICULTY_ORDER, DEFAULT_DIFFICULTY, type Difficulty,
+  DIFFICULTIES, DIFFICULTY_ORDER, DEFAULT_DIFFICULTY, INTL_MIN_POOL, type Difficulty,
 } from "../../core/constants.js";
+import { confederationOf, isEligibleNation } from "../../core/international/index.js";
+import { LEAGUE_NATIONALITY_WEIGHTS } from "../../core/players/nationalities.js";
+import { PICKABLE_NATIONALITIES } from "../components/NationalityEditor.js";
 import {
   buildCompetitions,
   competitionAbbrev,
@@ -120,6 +123,16 @@ export function NewLeague() {
   // Fixed for the save's lifetime once it's created, so it is chosen here and
   // nowhere else (see the DIFFICULTIES block in core/constants.ts).
   const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
+  // The country you'll manage alongside your club, or null for club football
+  // only — which is the default, and not a lesser save. Can be changed later by
+  // taking a federation's offer, so this is a starting point rather than a
+  // decision for the save's lifetime the way difficulty is.
+  const [userNation, setUserNation] = useState<string | null>(null);
+  // A chosen country the generated world turned out not to be able to field a
+  // squad for. Reported rather than silently dropped — see handleStart.
+  const [nationError, setNationError] = useState<string | null>(null);
+  // The world's generation seed, drawn once and reused — see buildLeague.
+  const seedRef = useRef<number | null>(null);
   // Which year season 1 gets labelled as. Purely cosmetic (the sim counts
   // seasons from 1 either way), so it's held as raw text and only turned into a
   // number once it reads as a usable year, letting the field go empty mid-edit.
@@ -210,6 +223,27 @@ export function NewLeague() {
 
   const parsedStartYear = normalizeStartYear(startYear);
 
+  // Countries that can be managed: anything the game ships names for that also
+  // belongs to a confederation (no confederation, no competition to enter).
+  //
+  // The first group is the safe one, and the test for it is deliberately NOT
+  // "is this country in the world". A league the player *added* takes the
+  // rest-of-world nationality mix by default, which is weighted to England (see
+  // REST_OF_WORLD in nationalities.ts) — so a league named "Netherlands"
+  // generates almost no Dutch players and would sit in the reassuring group
+  // while failing the eligibility check. Only a country with a shipped
+  // nationality table really does supply its own league.
+  const homeNations = useMemo(() => {
+    const inWorld = new Set(world.competitions.map((c) => c.country));
+    return PICKABLE_NATIONALITIES.filter(
+      (n) => inWorld.has(n) && n in LEAGUE_NATIONALITY_WEIGHTS && confederationOf(n) !== null,
+    );
+  }, [world.competitions]);
+  const otherNations = useMemo(() => {
+    const home = new Set(homeNations);
+    return PICKABLE_NATIONALITIES.filter((n) => !home.has(n) && confederationOf(n) !== null);
+  }, [homeNations]);
+
   /** The country's code, for the flag stand-in on its tab. */
   function abbrevForCountry(countryName: string): string {
     const comp = world.competitions.find((c) => c.country === countryName);
@@ -225,9 +259,14 @@ export function NewLeague() {
   }
 
   function buildLeague(tid: number): LeagueStore {
-    const seed = Date.now();
+    // Fixed for the life of the page, not re-rolled per attempt. If a chosen
+    // country turns out not to be able to field a squad, the advice is "pick
+    // another one" — which is only true if pressing Start again builds the same
+    // world. A fresh Date.now() would answer a different question each time, so
+    // the same country could fail and then succeed.
+    const seed = (seedRef.current ??= Date.now());
     const rng = mulberry32(seed);
-    const generated = createLeagueState(tid, rng, seed, difficulty, world.competitions);
+    const generated = createLeagueState(tid, rng, seed, difficulty, world.competitions, userNation);
     const league = activeRoster
       ? applyRosterFileToNewLeague(generated, activeRoster.file, tid).league
       : generated;
@@ -256,6 +295,17 @@ export function NewLeague() {
       await yieldToPaint();
       try {
         const league = buildLeague(selectedTid);
+        // Whether a country can enter international football at all depends on
+        // the world that just got generated (INTL_MIN_POOL players and a
+        // keeper), and there is no way to know before building it. A pick that
+        // doesn't clear the bar is reported rather than silently dropped — a
+        // save that quietly ignored the country you chose is worse than being
+        // told to choose again.
+        if (userNation && !isEligibleNation(userNation, league.players.filter((p) => p.nationality === userNation))) {
+          setNationError(userNation);
+          return;
+        }
+        setNationError(null);
         if (customize || nameClubs) {
           // Hold the generated league in memory and let the user edit team
           // identities before anything is persisted.
@@ -650,6 +700,48 @@ export function NewLeague() {
           {DIFFICULTIES[difficulty].blurb} It only changes things for your club, and you
           can't change it later, so pick one you'll want to live with.
         </p>
+      </div>
+
+      <div className="mb-3">
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">National team</h6>
+        <select
+          className="form-select"
+          style={{ maxWidth: 340 }}
+          value={userNation ?? ""}
+          aria-label="National team to manage"
+          onChange={(e) => {
+            setUserNation(e.target.value || null);
+            setNationError(null);
+          }}
+        >
+          <option value="">None — club football only</option>
+          {homeNations.length > 0 && (
+            <optgroup label="Countries in your world">
+              {homeNations.map((n) => <option key={n} value={n}>{n}</option>)}
+            </optgroup>
+          )}
+          <optgroup label="Everywhere else">
+            {otherNations.map((n) => <option key={n} value={n}>{n}</option>)}
+          </optgroup>
+        </select>
+        <p className="text-muted small mt-2 mb-0">
+          {userNation
+            ? `You'll pick ${userNation}'s squad and their eleven for qualifying, the World Cup and their continental championship, on top of your club job. The federation judges you every campaign.`
+            : "Managing a country is optional. Leave this alone and international football runs itself, exactly as it always has — you can still take a job later if one comes in."}
+        </p>
+        <p className="text-muted small mt-1 mb-0">
+          The first group is the countries your world's built-in leagues are in, which always
+          have deep enough pools. Anywhere else depends on how many of its players happen to
+          be born into your world, and a country needs {INTL_MIN_POOL} of them plus a
+          goalkeeper to enter anything.
+        </p>
+        {nationError && (
+          <div className="alert alert-warning py-2 mt-2 mb-0" role="alert">
+            {nationError} can't field a squad in this world — there aren't {INTL_MIN_POOL} of
+            their players in it, or no goalkeeper among them. Pick another country, or start
+            with none and wait for an offer.
+          </div>
+        )}
       </div>
 
       <div className="mb-3">

@@ -13,7 +13,7 @@ import { SCOUTING_SPEND_MAX, RATING_LEADER_QUALIFY_FRACTION } from "../../core/c
 import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
 import { domesticFinalists } from "../../core/domesticCup/cup.js";
-import { isIntlStagePending, roundsRemaining } from "../../core/international/index.js";
+import { isIntlStagePending, roundsRemaining, editableSquad } from "../../core/international/index.js";
 import { confidenceMood, confidenceLabel } from "../../core/manager/confidence.js";
 import { cachedExpectations } from "../../core/manager/expectation.js";
 import type { IntlConfederationCup, IntlTournament } from "../../core/international/index.js";
@@ -483,6 +483,12 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
 
   const disableSim = simming || league.phase === "offseason";
   const boardMood = confidenceMood(league.manager.confidence, league.manager.sackingEnabled);
+  const nationMood = confidenceMood(
+    league.nationalManager.confidence, league.nationalManager.sackingEnabled,
+  );
+  // Your country is in the campaign this stage belongs to, so there is a team to
+  // pick before the next click plays it.
+  const myNationPlaying = editableSquad(league.international, league.nationalManager.nation) !== null;
   // Memoized on the league object (fresh per commit), since the expectation pass
   // walks every club in the world.
   const boardExpectation = useMemo(
@@ -680,6 +686,51 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
         </div>
       </div>
 
+      {/*
+        The federation's bar sits beside the board's for the same reason, and
+        only when there is a federation: a manager who has never taken a country
+        should not be shown an empty meter for a job they don't have. When
+        countries are asking, the card becomes the prompt instead.
+      */}
+      {(league.nationalManager.nation || league.nationalManager.offers.length > 0) && (
+        <div className="card mb-3">
+          <div className="card-body">
+            <div className="d-flex justify-content-between align-items-baseline mb-2">
+              <h5 className="card-title mb-0">
+                {league.nationalManager.nation
+                  ? <>Federation confidence</>
+                  : "International management"}
+              </h5>
+              <button
+                className="btn btn-link btn-sm p-0"
+                onClick={() => navigate("/national-teams/federation")}
+              >
+                {league.nationalManager.offers.length > 0
+                  ? `${league.nationalManager.offers.length} countr${league.nationalManager.offers.length === 1 ? "y wants" : "ies want"} you`
+                  : "Federation"}
+              </button>
+            </div>
+            {league.nationalManager.nation ? (
+              <>
+                <div className="progress" style={{ height: 8 }}>
+                  <div
+                    className={`progress-bar ${BOARD_MOOD_CLASS[nationMood] ?? "bg-secondary"}`}
+                    style={{ width: `${Math.round(league.nationalManager.confidence)}%` }}
+                  />
+                </div>
+                <div className="text-muted small mt-1">
+                  {league.nationalManager.nation} · {confidenceLabel(nationMood)}
+                </div>
+              </>
+            ) : (
+              <div className="text-muted small">
+                You don't manage a country yet.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {league.phase === "offseason" && (
         <div className="card mb-3">
           <div className="card-body">
@@ -710,6 +761,20 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                   pages. You'll advance to {seasonYear(league.season + 1)} once it wraps up, or you
                   can skip it and go straight to the offseason.
                 </p>
+                {/*
+                  Your own country is in this one, so there is a team to pick
+                  before the next click plays it. Placed here rather than left to
+                  the sidebar because the stage button is the thing about to make
+                  the decision permanent.
+                */}
+                {myNationPlaying && (
+                  <p className="card-text">
+                    <strong>{league.nationalManager.nation}</strong> are in it, and you pick
+                    the team.{" "}
+                    <Link to="/national-teams/my-squad">Name your squad</Link> before you
+                    play the next round.
+                  </p>
+                )}
                 <div className="d-flex flex-wrap gap-2">
                   <button
                     className="btn btn-primary"

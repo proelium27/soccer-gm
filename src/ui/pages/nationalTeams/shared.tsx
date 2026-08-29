@@ -333,9 +333,10 @@ export function IntlEmpty() {
         of {INTL_GROUP_SIZE}, then a round of 16, quarter-finals, semi-finals and a final.
       </p>
       <p className="text-muted">
-        Nobody manages a national team, including you. Squads pick themselves from whoever's good
-        enough, so your job is to develop players worth calling up, then watch how they get on. The
-        first round of qualifying runs at the end of season 1.
+        You can manage a country alongside your club — pick one when you start a save, or wait
+        for a federation to get in touch over the summer. Every other nation picks itself, so
+        the rest of your job is developing players worth calling up and watching how they get on.
+        The first round of qualifying runs at the end of season 1.
       </p>
     </NationalTeamsLayout>
   );

@@ -44,6 +44,7 @@ import { academyContractTerms } from "./contracts.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
 import { competitionOf, competitionTeamCount, competitionNationalities } from "./competitions.js";
 import { simThroughInternational, confederationCupChampions } from "./international/index.js";
+import { reviewNationalCampaign } from "./nationalManager/index.js";
 import { carryIntlInjuries } from "./injuries.js";
 import { hashInts, mulberry32 } from "../engine/rng.js";
 import { NEWS_POSITION_CHANGE_OVR, CONTINENTAL_CUP_FORMAT, SHIELD_FORMAT, difficultyProfile } from "./constants.js";
@@ -149,6 +150,15 @@ export function simOffseasonReporting(
   // international match runs on its own seeded stream (see simIntl.ts).
   const intl = simThroughInternational(league.international, league.players, league.lid, league.season);
   league = { ...league, international: intl.international, players: intl.players };
+
+  // The federation's review of whatever campaign just concluded, plus this
+  // summer's approaches from other countries. It has to sit *here* rather than
+  // at the season boundary where the club board's review sits: the campaign is
+  // drawn at that boundary but played during this advance, so at the boundary
+  // there is nothing to judge yet. Touches only `nationalManager` (and, on a
+  // dismissal, the departed nation's chosen eleven) and draws on its own seeded
+  // stream, so a save managing no country is unaffected but for its offer list.
+  league = reviewNationalCampaign(league);
 
   const endingSeason = league.season;
   const nextSeason = endingSeason + 1;

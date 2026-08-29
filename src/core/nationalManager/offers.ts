@@ -1,0 +1,141 @@
+/**
+ * International reputation, and which countries come calling because of it.
+ *
+ * Offers are drawn on their own seeded stream (`hashInts` off lid + season +
+ * NATIONAL_OFFER_STREAM), never the shared `rng` and never the club side's
+ * stream — the same rule every post-hoc system in the sim follows. A shared
+ * draw here would shift every downstream roll in the world according to whether
+ * a federation happened to approach the user, which is exactly the class of bug
+ * the rule exists to prevent.
+ */
+import { mulberry32, hashInts } from "../../engine/rng.js";
+import {
+  NATIONAL_MAX_OFFERS,
+  NATIONAL_OFFER_BAND,
+  NATIONAL_OFFER_BASE_CHANCE,
+  NATIONAL_OFFER_UNEMPLOYED_CHANCE,
+  NATIONAL_OFFER_FORM_WEIGHT,
+  NATIONAL_OFFER_MAX_CHANCE,
+  NATIONAL_SACKED_PRESTIGE_PENALTY,
+  NATIONAL_REP_BASE,
+  NATIONAL_REP_TITLE_WEIGHT,
+  NATIONAL_REP_CONTINENTAL_WEIGHT,
+  NATIONAL_REP_QUALIFICATION_WEIGHT,
+  NATIONAL_REP_OVERPERFORMANCE_WEIGHT,
+  NATIONAL_REP_CAMPAIGN_WEIGHT,
+  NATIONAL_REP_CAMPAIGN_CAP,
+  NATIONAL_REP_SACKING_PENALTY,
+} from "../constants.js";
+import type { NationExpectation } from "./expectation.js";
+import type { NationOffer, NationalStint } from "./types.js";
+
+/** Distinct from MANAGER_OFFER_STREAM (970), so the two offer lists can't correlate. */
+const NATIONAL_OFFER_STREAM = 971;
+
+/**
+ * A manager's standing in the international game, 0-100 — derived from the
+ * stint record, never stored, so the formula can be retuned without rewriting
+ * anyone's career.
+ *
+ * Experience is capped for the same reason it is on the club side: seeing a
+ * small nation through twelve campaigns is a career, but it shouldn't out-argue
+ * a manager who actually won something.
+ */
+export function nationalReputation(stints: NationalStint[]): number {
+  let score = NATIONAL_REP_BASE;
+  let campaigns = 0;
+  let sackings = 0;
+  for (const s of stints) {
+    score += s.titles * NATIONAL_REP_TITLE_WEIGHT;
+    score += s.continentalTitles * NATIONAL_REP_CONTINENTAL_WEIGHT;
+    score += s.qualifications * NATIONAL_REP_QUALIFICATION_WEIGHT;
+    score += s.overperformance * NATIONAL_REP_OVERPERFORMANCE_WEIGHT;
+    campaigns += s.campaigns;
+    if (s.ending === "sacked") sackings++;
+  }
+  score += Math.min(campaigns, NATIONAL_REP_CAMPAIGN_CAP) * NATIONAL_REP_CAMPAIGN_WEIGHT;
+  score -= sackings * NATIONAL_REP_SACKING_PENALTY;
+  return Math.min(100, Math.max(0, score));
+}
+
+/** Fisher-Yates on a seeded stream, so an offer list is stable across reloads. */
+function shuffled<T>(items: T[], rng: () => number): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+const toOffer = (e: NationExpectation): NationOffer => ({
+  nation: e.nation,
+  confederation: e.confederation ?? "",
+  rank: e.rank,
+  nations: e.nations,
+  prestige: e.prestige,
+});
+
+export interface NationOfferInputs {
+  lid: number;
+  season: number;
+  /** The nation currently managed, or null when the user manages none. */
+  currentNation: string | null;
+  expectations: Map<string, NationExpectation>;
+  /** The federation dismissed you this offseason, so the nations that will take you are a rung down. */
+  sacked: boolean;
+  reputation: number;
+  /** Last campaign's placement-versus-expectation — a good tournament gets you noticed. */
+  lastOverperformance: number;
+}
+
+/**
+ * Which countries want you this offseason.
+ *
+ * While you already hold an international job the list is restricted to nations
+ * at least as strong as yours, on the same reasoning the club side uses: an
+ * approach from a weaker country is not an opportunity, and a list full of them
+ * buries the real ones. With no job the filter lifts entirely — every job is a
+ * step up from no job — and the per-nation chance rises sharply, because being
+ * approached is the only route back into the feature and a manager who is never
+ * asked has simply lost it.
+ *
+ * Unlike a sacked club manager, an empty list is a perfectly good answer here:
+ * there is no unemployed state to rescue, so nothing is forced.
+ */
+export function generateNationOffers(input: NationOfferInputs): NationOffer[] {
+  const { expectations, currentNation, sacked } = input;
+  const current = currentNation ? expectations.get(currentNation) : undefined;
+  const currentPrestige = current?.prestige ?? 0;
+  const employed = currentNation !== null;
+
+  const target = Math.min(
+    1,
+    Math.max(0, input.reputation / 100 - (sacked ? NATIONAL_SACKED_PRESTIGE_PENALTY : 0)),
+  );
+
+  const others = [...expectations.values()].filter((e) => e.nation !== currentNation);
+  const byCloseness = (a: NationExpectation, b: NationExpectation): number =>
+    Math.abs(a.prestige - target) - Math.abs(b.prestige - target);
+
+  const pool = others
+    .filter((e) => Math.abs(e.prestige - target) <= NATIONAL_OFFER_BAND)
+    // Only a manager already in a job insists on a step up. Sacked or
+    // unemployed, anything within the band is worth hearing.
+    .filter((e) => (employed && !sacked ? e.prestige >= currentPrestige : true))
+    .sort(byCloseness);
+
+  const rng = mulberry32(hashInts(input.lid, input.season, NATIONAL_OFFER_STREAM));
+  const base = employed ? NATIONAL_OFFER_BASE_CHANCE : NATIONAL_OFFER_UNEMPLOYED_CHANCE;
+  const chance = Math.min(
+    NATIONAL_OFFER_MAX_CHANCE,
+    Math.max(0, base + input.lastOverperformance * NATIONAL_OFFER_FORM_WEIGHT),
+  );
+
+  const offers: NationExpectation[] = [];
+  for (const nation of shuffled(pool.slice(0, NATIONAL_MAX_OFFERS * 4), rng)) {
+    if (offers.length >= NATIONAL_MAX_OFFERS) break;
+    if (rng() < chance) offers.push(nation);
+  }
+  return offers.sort((a, b) => a.rank - b.rank).map(toOffer);
+}
