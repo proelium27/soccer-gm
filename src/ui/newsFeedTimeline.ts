@@ -4,13 +4,16 @@ import type { NewsEvent } from "../core/newsEvents.js";
 import { newsEventScope, isNewsworthy } from "../core/newsEvents.js";
 import type { AwardNews } from "../core/awardNews.js";
 import { awardNewsScope } from "../core/awardNews.js";
+import type { ContinentalNews } from "../core/continentalNews.js";
+import { continentalNewsScope } from "../core/continentalNews.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../core/calendar.js";
 import { NEWS_WORLD_TRANSFER_FEE } from "../core/constants.js";
 
 export type FeedItem =
   | { kind: "transfer"; order: number; data: CompletedTransfer }
   | { kind: "news"; order: number; data: NewsEvent }
-  | { kind: "award"; order: number; data: AwardNews };
+  | { kind: "award"; order: number; data: AwardNews }
+  | { kind: "continental"; order: number; data: ContinentalNews };
 
 /**
  * Awards are decided once the football is over, so they sort after every
@@ -22,6 +25,13 @@ export type FeedItem =
  * see the moment an offseason rolls over.
  */
 const AWARD_ORDER = Number.MAX_SAFE_INTEGER;
+
+/**
+ * Continental reallocation sorts with the awards — both are settled once the
+ * football is over — but just ahead of them, so the season signs off with
+ * "your country now sends three clubs" before the individual honours.
+ */
+const CONTINENTAL_ORDER_KEY = Number.MAX_SAFE_INTEGER - 1;
 
 /**
  * Who is reading, and where they play — everything the feed needs to sort the
@@ -78,6 +88,7 @@ export function buildSeasonTimeline(
   newsEvents: NewsEvent[],
   audience: NewsAudience,
   awards: AwardNews[] = [],
+  continental: ContinentalNews[] = [],
 ): FeedItem[] {
   const { userTid, userCompId, compOf } = audience;
 
@@ -113,6 +124,14 @@ export function buildSeasonTimeline(
     return home || awardNewsScope(a) === "world";
   });
 
+  // Every one of these is shown: see continentalNewsScope on why the volume
+  // argument behind the tiers does not apply to something that happens well
+  // under once a season and reshapes the competition when it does.
+  const shownContinental = continental.filter((c) => {
+    if (userCompId !== undefined && c.compId === userCompId) return true;
+    return continentalNewsScope(c) === "world";
+  });
+
   const items: FeedItem[] = [
     ...shownTransfers.map((t): FeedItem => ({
       kind: "transfer",
@@ -121,6 +140,11 @@ export function buildSeasonTimeline(
     })),
     ...shownEvents.map((e): FeedItem => ({ kind: "news", order: e.matchday, data: e })),
     ...shownAwards.map((a): FeedItem => ({ kind: "award", order: AWARD_ORDER, data: a })),
+    // Decided in the same offseason the awards are, so it sorts with them, but
+    // ahead: next season's competition is the frame the honours sit inside.
+    ...shownContinental.map((c): FeedItem => ({
+      kind: "continental", order: CONTINENTAL_ORDER_KEY, data: c,
+    })),
   ];
 
   // Within one order key, business comes before what happened on the pitch.

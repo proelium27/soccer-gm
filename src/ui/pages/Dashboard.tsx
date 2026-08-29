@@ -373,6 +373,15 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
           return <>{who} makes the {comp ?? "league"} Team of the Season</>;
       }
     }
+    if (item.kind === "continental") {
+      const c = item.data;
+      const gained = c.to > c.from;
+      return (
+        <>
+          {c.country} {gained ? "earns" : "loses"} a Continental Cup place ({c.from} to {c.to})
+        </>
+      );
+    }
     const e = item.data;
     const player = playerByPid.get(e.pid);
     switch (e.type) {

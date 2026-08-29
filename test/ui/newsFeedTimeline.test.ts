@@ -22,7 +22,9 @@ const audience: NewsAudience = {
 };
 
 const pidsOf = (timeline: ReturnType<typeof buildSeasonTimeline>) =>
-  timeline.map((item) => item.data.pid).sort((a, b) => a - b);
+  timeline
+    .flatMap((item) => (item.kind === "continental" ? [] : [item.data.pid]))
+    .sort((a, b) => a - b);
 
 describe("buildSeasonTimeline", () => {
   it("orders summer transfers before in-season accomplishments before winter transfers", () => {
@@ -209,5 +211,38 @@ describe("buildSeasonTimeline", () => {
 
       expect(pidsOf(buildSeasonTimeline([], events, blind))).toEqual([2, 3]);
     });
+  });
+});
+
+describe("continental reallocation in the feed", () => {
+  const own = { country: "England", compId: USER_COMP, from: 4, to: 3 };
+  const foreign = { country: "Belgium", compId: FOREIGN_COMP, from: 2, to: 3 };
+
+  it("shows a foreign country's reallocation as well as your own", () => {
+    // Deliberately NOT tiered down to the user's league. The relevance tiers
+    // exist to control volume, and this happens well under once a season while
+    // reshaping the competition every club plays in.
+    const timeline = buildSeasonTimeline([], [], audience, [], [own, foreign]);
+    const countries = timeline
+      .flatMap((i) => (i.kind === "continental" ? [i.data.country] : []))
+      .sort();
+    expect(countries).toEqual(["Belgium", "England"]);
+  });
+
+  it("sorts with the end-of-season honours, not among the matchdays", () => {
+    const events: NewsEvent[] = [
+      { type: "hattrick", pid: 1, tid: 0, season: 2026, matchday: 20, detail: 3 },
+    ];
+    const timeline = buildSeasonTimeline([], events, audience, [], [own]);
+    expect(timeline[timeline.length - 1].kind).toBe("continental");
+  });
+
+  it("carries both ends, so the row can say which way it went", () => {
+    const timeline = buildSeasonTimeline([], [], audience, [], [own]);
+    const item = timeline.find((i) => i.kind === "continental");
+    expect(item).toBeDefined();
+    if (item?.kind !== "continental") throw new Error("expected a continental item");
+    expect(item.data.from).toBe(4);
+    expect(item.data.to).toBe(3);
   });
 });

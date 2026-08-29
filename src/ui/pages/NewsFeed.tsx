@@ -4,6 +4,7 @@ import { ClubLink } from "../components/ClubLink.js";
 import { unpackPositionChange, type NewsEvent, type NewsEventType } from "../../core/newsEvents.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { seasonAwardNews, type AwardNews } from "../../core/awardNews.js";
+import { seasonContinentalNews } from "../../core/continentalNews.js";
 import { TOTS_SLOTS } from "../../core/awards.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
@@ -124,11 +125,25 @@ export function NewsFeed() {
       (league?.seasonHistory ?? []).map((h) => [h.season, seasonAwardNews(h)]),
     );
 
+    // Cup places changing hands, derived the same way and for the same reason
+    // (see core/continentalNews.ts). Asked per season the save has a record
+    // for, so an existing dynasty reports every place it ever won or lost.
+    const histories = [league?.cupHistory ?? [], league?.shieldHistory ?? []];
+    const continentalBySeason = new Map(
+      (league?.seasonHistory ?? []).map((h) => [
+        h.season,
+        seasonContinentalNews(
+          league?.competitions ?? [], league?.teams ?? [], histories, h.season,
+        ),
+      ]),
+    );
+
     const out = new Map<number, FeedItem[]>();
     const seasons = new Set([
       ...transfersBySeason.keys(),
       ...eventsBySeason.keys(),
       ...awardsBySeason.keys(),
+      ...continentalBySeason.keys(),
     ]);
     for (const season of seasons) {
       const comps = historyBySeason.get(season) ?? liveComps;
@@ -137,6 +152,7 @@ export function NewsFeed() {
         eventsBySeason.get(season) ?? [],
         { userTid, userCompId: comps[userTid], compOf: (tid) => comps[tid] },
         awardsBySeason.get(season) ?? [],
+        continentalBySeason.get(season) ?? [],
       ));
     }
     return out;
@@ -146,6 +162,9 @@ export function NewsFeed() {
     league?.meta.userTid,
     league?.seasonHistory,
     league?.teams,
+    league?.competitions,
+    league?.cupHistory,
+    league?.shieldHistory,
   ]);
 
   if (!league) {
@@ -155,10 +174,17 @@ export function NewsFeed() {
   const userTid = league.meta.userTid;
   const userTeam = teamMap.get(userTid);
 
-  const involvesUser = (item: FeedItem): boolean =>
-    item.kind === "transfer"
-      ? item.data.fromTid === userTid || item.data.toTid === userTid
-      : item.data.tid === userTid;
+  const userCompId = league.teams.find((t) => t.tid === userTid)?.compId;
+
+  const involvesUser = (item: FeedItem): boolean => {
+    if (item.kind === "transfer") {
+      return item.data.fromTid === userTid || item.data.toTid === userTid;
+    }
+    // Nobody's club gains a Cup place — a country does. The nearest thing to
+    // "involves you" is that it is your league's allocation that moved.
+    if (item.kind === "continental") return item.data.compId === userCompId;
+    return item.data.tid === userTid;
+  };
 
   const compName = (compId: number | undefined): string | undefined =>
     league.competitions.find((c) => c.id === compId)?.name;
@@ -315,6 +341,22 @@ export function NewsFeed() {
                               <td>{playerCell(a.pid)}</td>
                               <td>{a.tid === undefined ? <span className="text-muted">—</span> : teamCell(a.tid, season)}</td>
                               <td className="text-end stat-num">{awardDetail(a)}</td>
+                            </tr>
+                          );
+                        }
+                        if (item.kind === "continental") {
+                          const c = item.data;
+                          const gained = c.to > c.from;
+                          return (
+                            <tr key={`c-${c.compId}-${season}-${i}`}
+                                className={highlighted ? "team-highlight" : undefined}>
+                              <td className="small">
+                                Continental places
+                                <span className="text-muted"> ({gained ? "earned" : "lost"})</span>
+                              </td>
+                              <td>{c.country}</td>
+                              <td>{compName(c.compId) ?? <span className="text-muted">—</span>}</td>
+                              <td className="text-end stat-num">{c.from} → {c.to}</td>
                             </tr>
                           );
                         }
