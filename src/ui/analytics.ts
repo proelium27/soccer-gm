@@ -19,7 +19,11 @@ import posthog from "posthog-js";
 /** Every gameplay event and the exact shape of its properties. */
 export interface GameEvents {
   /** A brand-new save was created. `roster` marks one started from a roster file. */
-  league_created: { country: string; tier: 1 | 2; roster?: boolean; difficulty?: string };
+  league_created: {
+    country: string; tier: 1 | 2; roster?: boolean; difficulty?: string;
+    /** Whether Cup places are re-earned on the country coefficient (the default). */
+    rollingCoefficients?: boolean;
+  };
   /**
    * The user simulated forward. `through` is how far: a single game, a chosen
    * target matchday, or the rest of the season. `matchdays` is how many were

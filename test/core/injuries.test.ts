@@ -63,6 +63,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     // Same value the old derived allocator produced, so pids are unchanged.
     nextPid: Math.max(0, ...league.players.map((p) => p.pid)) + 1,
     aiManagedSeasons: [],
+    rollingCoefficients: true,
     season: 2026,
     phase: "regular",
     schedule,

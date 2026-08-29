@@ -36,8 +36,9 @@ function allocationFor(
   teams: readonly { tid: number; compId: number }[],
   histories: readonly CupState[][],
   season: number,
+  enabled: boolean,
 ): Map<number, number> {
-  const overrides = coefficientSlots(competitions, teams, histories, season);
+  const overrides = coefficientSlots(competitions, teams, histories, season, enabled);
   const out = new Map<number, number>();
   for (const comp of competitions) {
     if (comp.tier !== 1) continue;
@@ -58,14 +59,19 @@ export function seasonContinentalNews(
   teams: readonly { tid: number; compId: number }[],
   histories: readonly CupState[][],
   season: number,
+  enabled: boolean,
 ): ContinentalNews[] {
+  // A save with the setting off never reallocates, so there is never anything
+  // to report — and the two allocations below would be equal anyway. Bailing
+  // here says so plainly rather than leaving it to arithmetic.
+  if (!enabled) return [];
   // Nothing to report before a world has any continental history: both sides of
   // the comparison fall back to the shipped allocation and are equal anyway,
   // but bailing early saves walking the archive twice on every render.
   if (season < 1) return [];
 
-  const before = allocationFor(competitions, teams, histories, season);
-  const after = allocationFor(competitions, teams, histories, season + 1);
+  const before = allocationFor(competitions, teams, histories, season, enabled);
+  const after = allocationFor(competitions, teams, histories, season + 1, enabled);
 
   const out: ContinentalNews[] = [];
   for (const comp of competitions) {
