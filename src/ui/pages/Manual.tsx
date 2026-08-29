@@ -134,6 +134,14 @@ export function Manual() {
             otherwise.
           </p>
           <p>
+            The same screen carries the <strong>World setup</strong> panel, so an import isn't stuck
+            with the eight countries the game ships. If your file covers a league this world hasn't
+            got, add it there and name it what the file calls it, and the file fills it. See{" "}
+            <a href="#world">the world</a> for the whole panel. Roster files can also be loaded
+            straight from the plain New League screen, so both ways in do the same things. They
+            just start you in a different place.
+          </p>
+          <p>
             If you don't have a roster file, the "Download Real Rosters" button next to Import gets
             you one covering every league in the game. It's a separate download rather than part of
             the game, which is why it's a button that fetches it instead of something already built
@@ -529,7 +537,23 @@ export function Manual() {
             the only option. The <strong>World setup</strong> panel on the New League screen lets you
             switch any of them off and add leagues of your own. An added league is always a
             two-division pyramid like the rest, and its clubs get generated names and colours, since
-            the game ships no real clubs.
+            the game ships no real clubs. The panel is on both ways in, whether you started a plain
+            new league or came through Import Custom League.
+          </p>
+          <p>
+            <strong>Naming the leagues.</strong> Every league has a name of its own, and you can
+            change it. Hit <strong>Rename</strong> beside any shipped country to call its divisions
+            what you like, and a league you add has the same two boxes. Leave one empty and it goes
+            back to following the country's name.
+          </p>
+          <p>
+            This matters for more than flavour: a world-wide roster file names the competition it
+            fills, and it finds it <em>by that name</em>. So a file written for the Eredivisie fills
+            nothing until this world has a league called the Eredivisie, which you get by renaming
+            one, or by adding one and naming it. The Import Custom League screen tells you which of
+            your file's leagues it couldn't place, and World setup sits directly underneath so you
+            can fix it and watch the count of matched clubs change. If two divisions end up with the
+            same name the panel warns you, because a file aimed at that name can only fill one.
           </p>
           <p>
             You also choose its <strong>shape</strong>: one division or two, how many clubs are in
@@ -651,9 +675,7 @@ export function Manual() {
           </p>
           <p className="text-muted small">
             World setup only applies when you create a save. There's no mid-save world expansion, and
-            saves created before it shipped keep whatever countries they were made with. It's also
-            hidden when you're importing a roster file, because a roster file maps its clubs onto the
-            world's slots by position and moving both at once would hand squads to the wrong clubs.
+            saves created before it shipped keep whatever countries they were made with.
           </p>
         </Section>
 
@@ -666,6 +688,35 @@ export function Manual() {
             4×4 + 8×2 = 32 clubs. On
             the <a href="#pages">Standings</a> page the qualifying places are shaded as the
             qualification zone (top four in a strong league, top two in a weak one).
+          </p>
+          <p>
+            <strong>How many places your country gets is earned, not fixed.</strong> Every season
+            the Cup&apos;s 32 places are handed out in order of a{" "}
+            <strong>country coefficient</strong>: a rolling record, over the last five seasons, of
+            how that country&apos;s clubs have actually done in Europe. Winning matches counts,
+            going deep counts for more, and it&apos;s divided by how many clubs the country sent, so
+            sending four clubs isn&apos;t worth anything by itself. Both competitions count toward
+            it. If your league&apos;s clubs keep going out in the league phase for years, it will
+            send fewer; if they keep winning things, it will send more, and England has no special
+            protection.
+          </p>
+          <p>
+            The places are only ever <strong>moved between countries, never created</strong>. The
+            competition always fields exactly 32 clubs, so for one country to gain a place another
+            has to lose one. Nobody can be reduced below a single place, because a country with no
+            clubs in Europe would have no way to earn its way back. Five seasons is a long window on
+            purpose: a place should take years of results to move, not one bad year. You can see
+            where every country stands on the <a href="#cup">Continental Cup</a> page.
+          </p>
+          <p>
+            League position is the usual way in, but not the only one.{" "}
+            <strong>The holders keep their place.</strong> Win the Continental Cup and you're in it
+            again next season wherever you finish, and win the{" "}
+            <a href="#shield">Continental Shield</a> and you're promoted into the Cup. If you'd have
+            qualified through your league anyway, nothing changes and your league keeps all its
+            places. If you wouldn't have, you take the lowest of your league's Cup places, and the
+            club who held it drops into the Shield rather than out of Europe. The field is always 32
+            clubs, so a place is never created, only moved.
           </p>
           <p>
             It opens with a <strong>league phase</strong>: all 32 clubs sit in one combined table and
@@ -748,6 +799,29 @@ export function Manual() {
             Shield places get their own shaded band directly under the Cup's.
           </p>
           <p>
+            There's one more way in, and it's the interesting one:{" "}
+            <strong>your country's domestic cup winner gets a Shield place</strong>. Win your{" "}
+            <a href="#domestic-cup">domestic cup</a> and you're in Europe next season however badly
+            your league campaign went. He takes the lowest of his league's Shield places, so the
+            field is still 24 and it's your league's 6th-placed club who makes way, not your 5th.
+            Most years this changes nothing, because the club who wins the cup has usually finished
+            high enough to qualify anyway — and when that happens the place just passes back down
+            the table.
+          </p>
+          <p>
+            The domestic cups are contested by both divisions, so a{" "}
+            <strong>second-division club really can win one and go into the Shield</strong>. He goes
+            in as the bottom seed, because a good finish in the second division isn't the same thing
+            as a good finish in the top one, and he'll be kept apart from his own country's clubs in
+            the draw like anyone else. It doesn't happen often. It's worth watching when it does.
+          </p>
+          <p>
+            Because all of this is settled at the end of the season, the shading on the Standings
+            table is a live projection: it shows where each club would go if the season ended today,
+            and it can move when a cup final is played. A club shaded from mid-table is there on one
+            of these routes — hover the bar and it tells you which.
+          </p>
+          <p>
             It runs exactly like the Cup: a 24-club league phase of six games, then the top four go
             straight to the quarter-finals, 5th to 12th fight through a single-leg playoff, and the
             rest go out. Quarter-finals and semi-finals are two-legged, the final is one match.
@@ -782,6 +856,12 @@ export function Manual() {
             tier together. It's the trophy that lets a small club have the season of its life, and
             it's the third leg of the <strong>treble</strong>: win your league, the Continental Cup
             and your domestic cup in the same season and you've done the lot.
+          </p>
+          <p>
+            Winning it also gets you into Europe. Your country's cup winner takes a{" "}
+            <a href="#shield">Continental Shield</a> place next season, whatever he did in the
+            league — including a second-division club, who goes in as the bottom seed. See{" "}
+            <a href="#shield">The Continental Shield</a> for who makes way.
           </p>
           <p>
             There is no seeding and no bracket. Every round is an <strong>open draw</strong>: the

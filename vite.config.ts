@@ -1,8 +1,58 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { copyFileSync } from "node:fs";
+import { cpus } from "node:os";
 import { fileURLToPath } from "node:url";
 import CostAwareSequencer from "./test/helpers/shardSequencer.js";
+
+/**
+ * How many test workers to run locally.
+ *
+ * Vitest defaults to roughly one worker per core, and on this suite that is
+ * measurably too many. The work is full-world multi-season sims, which are
+ * heavy and sustained, and the machines running them are fanless laptops that
+ * throttle under exactly that load. Measured on an 8-core MacBook Air:
+ *
+ *   6 workers, 6 heavy files  -> 2025s wall, and the SUM of per-test times came
+ *                               to 8476s against ~1038s for the same files
+ *                               measured uncontended: an ~8x inflation.
+ *   3 workers, 3 heavy files  -> 988s, against ~506s uncontended.
+ *
+ * i.e. past a fairly low worker count this suite scales *negatively* -- adding
+ * workers makes the whole run slower, not just sub-linear. Independently, the
+ * two-machine runner measured capping workers as worth 1.96x on the full suite
+ * (1117s -> 570s), which is the same effect from the other direction.
+ *
+ * Note the mechanism is NOT simply running out of RAM, which was the first
+ * guess: peak resident size is ~445MB per worker, so even nine of them fit
+ * comfortably. It is memory bandwidth and thermal throttling, and it gets worse
+ * the longer the machine has been working -- the same three files that take
+ * ~506s on a cool machine took 988s after six hours of back-to-back sims. That
+ * is the same effect test/helpers/shardPartition.ts warns about when it says a
+ * file "measured 234s and 557s an hour apart", one level up.
+ *
+ * So: half the cores, which is deliberately conservative rather than tuned. The
+ * exact optimum is machine- and temperature-dependent and could not be pinned
+ * down through that much thermal drift, so this does not pretend to. Override
+ * with VITEST_MAX_WORKERS when you know better for your machine.
+ *
+ * **CI is deliberately left alone.** Its runners are core-poor already (vitest's
+ * default is 1-3 workers there), they are not the thermally-limited laptops this
+ * is about, and CI is what gates merges -- so there is no upside to touching it
+ * and a real downside if this guess is wrong for that hardware.
+ */
+const localMaxWorkers = (): number | undefined => {
+  const override = process.env.VITEST_MAX_WORKERS;
+  if (override) {
+    const n = Number(override);
+    if (!Number.isInteger(n) || n < 1) {
+      throw new Error(`VITEST_MAX_WORKERS must be a positive integer, got "${override}"`);
+    }
+    return n;
+  }
+  if (process.env.CI) return undefined; // vitest's own default
+  return Math.max(1, Math.floor(cpus().length / 2));
+};
 
 /**
  * Build targets that are embedded in someone else's page rather than served
@@ -178,5 +228,14 @@ export default defineConfig(({ mode }) => ({
     // the split instead. It changes which runner runs a file, never which
     // files run.
     sequence: { sequencer: CostAwareSequencer },
+    // See localMaxWorkers above for the measurements. minWorkers moves with it
+    // because vitest's default minWorkers sits at the core count, and capping
+    // only maxWorkers below that is a contradiction it rejects outright
+    // ("options.minThreads and options.maxThreads must not conflict") -- zero
+    // tests run and the process exits 1.
+    ...(() => {
+      const max = localMaxWorkers();
+      return max === undefined ? {} : { minWorkers: 1, maxWorkers: max };
+    })(),
   },
 }));

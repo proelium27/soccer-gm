@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   englandCompetitions, competitionOf, tierOf, partnerOf, countriesOf, worldCompetitions, tier1Pairs,
-  countryClubRanges, competitionPromotionSpots, buildCompetitions, type Competition,
+  countryClubRanges, competitionPromotionSpots, buildCompetitions, worldTuningWarnings,
+  worldLeagueSpecs, type Competition,
 } from "../../src/core/competitions.js";
 import { PROMOTION_RELEGATION_COUNT } from "../../src/core/constants.js";
 
@@ -146,5 +147,39 @@ describe("buildCompetitions carries promotionSpots", () => {
     const comps = buildCompetitions([{ country: "Wakanda" }]);
     expect(comps.every((c) => c.promotionSpots === undefined)).toBe(true);
     expect(competitionPromotionSpots(comps[0], comps[1])).toBe(PROMOTION_RELEGATION_COUNT);
+  });
+});
+
+describe("league names are the player's to set", () => {
+  it("uses the names given, so a league can be called what it's really called", () => {
+    const comps = buildCompetitions([
+      { country: "Netherlands", d1Name: "Eredivisie", d2Name: "Eerste Divisie" },
+    ]);
+    expect(comps.map((c) => c.name)).toEqual(["Eredivisie", "Eerste Divisie"]);
+    // Naming a division doesn't change its country, which still groups the two
+    // divisions, flags them and picks their nationalities.
+    expect(comps.every((c) => c.country === "Netherlands")).toBe(true);
+  });
+
+  it("falls back to the country when a name is absent or blank", () => {
+    // The name box is free text a player can empty, and a blank league name
+    // reads as a broken game rather than as a choice.
+    const comps = buildCompetitions([{ country: "Wakanda", d1Name: "   " }]);
+    expect(comps.map((c) => c.name)).toEqual(["Wakanda Division 1", "Wakanda Division 2"]);
+  });
+
+  it("warns when two divisions end up sharing a name", () => {
+    // A roster file finds its competition BY NAME, so a duplicate means a file
+    // aimed at that name can only fill one of them.
+    const warnings = worldTuningWarnings([
+      { country: "Netherlands", d1Name: "Top Flight" },
+      { country: "Belgium", d1Name: "Top Flight" },
+    ]);
+    expect(warnings.some((w) => w.includes("Top Flight"))).toBe(true);
+  });
+
+  it("says nothing about names when they're all distinct", () => {
+    const warnings = worldTuningWarnings(worldLeagueSpecs());
+    expect(warnings.some((w) => w.includes("Two divisions"))).toBe(false);
   });
 });

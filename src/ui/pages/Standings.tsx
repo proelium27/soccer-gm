@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import { HelpHint, PotHelp } from "../components/HelpHint.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
@@ -6,32 +6,46 @@ import { computeTeamRating } from "../../core/teams/teamRating.js";
 import { teamSlots } from "../../core/lineup/formations.js";
 import { tierOf } from "../../core/competitions.js";
 import { worldHasCup, cupSlotsForCompetition, cupSlotRange } from "../../core/cup/cup.js";
+import { seasonQualification } from "../../core/cup/seasonQualification.js";
+import type { QualificationRoute } from "../../core/cup/qualification.js";
+import type { CupCompetitionId } from "../../core/constants.js";
 import { SHIELD_FORMAT } from "../../core/constants.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { ClubLink } from "../components/ClubLink.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 import { seasonYear, ordinal } from "../format.js";
 
+/** One club's continental place this season, from core/cup/seasonQualification. */
+type QualifiedPlace = { competition: CupCompetitionId; route: QualificationRoute };
+
 type StandingsSortKey =
   | "pos" | "team" | "p" | "w" | "d" | "l" | "gf" | "ga" | "gd" | "pts" | "ovr" | "pot";
 
 /**
- * The qualification bar on a row's leading edge, or null if the club's finish
- * earns nothing. Continental Cup and Shield get their own colour; the two zones
- * are always contiguous and the Cup's always sits above the Shield's, so their
- * order down the table is a signal in its own right rather than colour alone.
- * Each bar also carries a title, and the legend below the table names both.
+ * The qualification bar on a row's leading edge, or null if the club has not
+ * qualified for anything. Continental Cup and Shield get their own colour, and
+ * each bar carries a title the legend below the table repeats.
+ *
+ * The two zones are no longer guaranteed to be contiguous bands at the top of
+ * the table: a club can also enter by winning his domestic cup or by holding a
+ * continental trophy, and either can come from mid-table. So the shading is
+ * driven by the real allocation (see core/cup/seasonQualification) rather than
+ * by a rank range, and the title says which route it was when it wasn't the
+ * league — otherwise a bar beside 9th place reads as a bug.
  */
-function qualBarClass(isCup: boolean, isShield: boolean): string | null {
-  if (isCup) return "qual-bar qual-bar-cup";
-  if (isShield) return "qual-bar qual-bar-shield";
-  return null;
+function qualBarClass(place: QualifiedPlace | undefined): string | null {
+  if (!place) return null;
+  return place.competition === "continental"
+    ? "qual-bar qual-bar-cup"
+    : "qual-bar qual-bar-shield";
 }
 
-function qualTitle(isCup: boolean, isShield: boolean): string | undefined {
-  if (isCup) return "Continental Cup place";
-  if (isShield) return "Continental Shield place";
-  return undefined;
+function qualTitle(place: QualifiedPlace | undefined): string | undefined {
+  if (!place) return undefined;
+  const name = place.competition === "continental" ? "Continental Cup" : "Continental Shield";
+  if (place.route === "domestic-cup") return `${name} place, as domestic cup winners`;
+  if (place.route === "holder") return `${name} place, as holders`;
+  return `${name} place`;
 }
 
 export function Standings() {
@@ -68,6 +82,15 @@ export function Standings() {
   // separately rather than assumed to come along with the Cup zone.
   const showShieldZone = isTier1 && !!comp && worldHasCup(league.competitions, SHIELD_FORMAT);
   const [shieldFrom, shieldTo] = comp ? cupSlotRange(comp, SHIELD_FORMAT) : [0, -1];
+  // Who actually holds a continental place, rather than which finishing
+  // positions usually earn one — a domestic cup winner or a trophy holder can
+  // qualify from anywhere in the table, and neither shows up in a rank range.
+  // Memoised on the league object (the context hands out a fresh one per
+  // commit) because it rebuilds every competition's table.
+  const qualification = useMemo(
+    () => seasonQualification(league, season),
+    [league, season],
+  );
 
   const seasonOptions = [...league.seasonHistory.map((h) => h.season)].sort((a, b) => b - a);
 
@@ -180,16 +203,18 @@ export function Standings() {
               const pos = posByTid.get(row.tid) ?? 0;
               const isUser = row.tid === league.meta.userTid;
               const isChampion = row.tid === championTid;
-              const isCupSpot = showCupZone && pos < cupSlots;
-              // pos is 0-based; the Shield range is 1-based finishing places.
-              const isShieldSpot = showShieldZone && pos + 1 >= shieldFrom && pos + 1 <= shieldTo;
+              const place = qualification.byTid.get(row.tid);
+              const shown = place
+                && (place.competition === "continental" ? showCupZone : showShieldZone)
+                ? place
+                : undefined;
               const rowClass = [
                 isUser && "team-highlight",
                 isChampion && "champion-highlight",
               ]
                 .filter(Boolean)
                 .join(" ") || undefined;
-              const qualBar = qualBarClass(isCupSpot, isShieldSpot);
+              const qualBar = qualBarClass(shown);
               const rating = ratingByTid.get(row.tid) ?? null;
               return (
                 <tr key={row.tid} className={rowClass}>
@@ -199,7 +224,7 @@ export function Standings() {
                         it neither indents the number nor competes with the row
                         background, which already carries win/loss, your club
                         and the champion. */}
-                    {qualBar && <span className={qualBar} title={qualTitle(isCupSpot, isShieldSpot)} />}
+                    {qualBar && <span className={qualBar} title={qualTitle(shown)} />}
                     {pos + 1}
                   </td>
                   <td>
@@ -247,6 +272,15 @@ export function Standings() {
                 {" "}to the Continental Shield
               </span>
             )}
+            {/* The bands above are the usual case, not the rule: winning your
+                domestic cup or holding a continental trophy also gets you in,
+                from anywhere in the table. Saying so is what stops a shaded
+                9th place reading as a bug. */}
+            <span className="qual-key-item">
+              {qualification.settled
+                ? "Your domestic cup winner takes a Shield place, and holders keep theirs."
+                : "Once the cup finals are played, your domestic cup winner takes a Shield place and holders keep theirs."}
+            </span>
           </p>
         )}
         </>

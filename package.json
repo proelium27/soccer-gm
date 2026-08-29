@@ -13,8 +13,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:cluster": "bash scripts/testCluster.sh",
     "cli": "tsx scripts/cli.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "audit:cluster": "bash scripts/auditCluster.sh"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

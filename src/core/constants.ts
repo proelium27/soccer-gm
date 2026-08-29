@@ -3018,6 +3018,73 @@ export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
  */
 export const CONTINENTAL_ORDER: readonly CupCompetitionId[] = ["continental", "shield"];
 
+/* ── Country coefficients ────────────────────────────────────────────────────
+ * How many clubs a country sends to the Continental Cup is earned, not fixed:
+ * each season the Cup's places are handed out in order of a rolling record of
+ * how that country's clubs have actually done in Europe, exactly as UEFA's
+ * association coefficient works. See core/cup/coefficients.ts.
+ *
+ * The reallocation is ZERO-SUM — it re-sorts the world's own multiset of slot
+ * counts rather than choosing new ones — so none of these values can change how
+ * many clubs the competition fields. That is a hard requirement, not a
+ * nicety: the league-phase draw only accepts certain field sizes, so a
+ * reallocation that changed the total would fail in the draw rather than here.
+ * Tuning these therefore only ever changes WHICH countries sit where on the
+ * ladder, which is the safe half of the problem.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Seasons of continental results that count toward a country's coefficient.
+ *
+ * Five, matching UEFA, and the length is the main thing keeping this stable: a
+ * place should take years of sustained results to move, so one freak season
+ * can't restructure the competition. Shortening it makes the ladder jumpy and
+ * the weak leagues' finances lumpy along with it (their continental prize money
+ * is a real share of their income — see the transfer-mobility notes).
+ */
+export const COEFFICIENT_WINDOW = 5;
+
+/**
+ * Seasons of continental results required before the coefficient is allowed to
+ * move any places at all. Below this, the shipped strength-class allocation
+ * stands.
+ *
+ * Measured, not guessed: with no floor, season 3 of a fresh save reallocated on
+ * a SINGLE season of results and handed Belgium four places while dropping
+ * Germany to two, which then reverted. A world's first cups are the noisiest
+ * data it will ever have, and a place changing hands in year three for reasons
+ * the player cannot see or predict reads as a bug rather than a mechanic.
+ */
+export const COEFFICIENT_MIN_SEASONS = 3;
+
+/** League-phase result points, per club. */
+export const COEFFICIENT_WIN_POINTS = 2;
+export const COEFFICIENT_DRAW_POINTS = 1;
+
+/** Points for winning a knockout or playoff tie. */
+export const COEFFICIENT_TIE_WIN_POINTS = 2;
+
+/**
+ * Bonus for REACHING a knockout round, indexed by round (0 = quarter-final,
+ * 1 = semi-final, 2 = final). Paid to both sides of the tie, since both got
+ * there. Winning the competition pays COEFFICIENT_TITLE_BONUS on top.
+ */
+export const COEFFICIENT_ROUND_BONUS = [1, 1, 1] as const;
+
+/** Bonus for actually winning the competition, so a champion outscores a runner-up. */
+export const COEFFICIENT_TITLE_BONUS = 2;
+
+/**
+ * The fewest Continental Cup places any tier-1 league can be left with.
+ *
+ * A league reduced to zero places has no way to earn a coefficient and so no
+ * way back up the ladder — a trapdoor rather than a demotion, and the sort of
+ * one-way ratchet the rest of the sim is carefully built to avoid.
+ */
+export const COEFFICIENT_MIN_CUP_SLOTS = 1;
+
+
+
 /** The Continental Cup's format — the default for every cup helper and every pre-split save. */
 export const CONTINENTAL_CUP_FORMAT = CUP_FORMATS.continental;
 /** The Continental Shield's format. */

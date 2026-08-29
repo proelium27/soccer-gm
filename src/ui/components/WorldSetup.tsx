@@ -184,6 +184,21 @@ export function WorldSetup({ entries, onChange }: Props) {
   const specs = includedSpecs(entries);
   const warnings = worldTuningWarnings(specs);
   const clubs = buildCompetitions(specs).reduce((n, c) => n + competitionTeamCount(c), 0);
+  /**
+   * Which shipped leagues have their name fields open. Behind a toggle because a
+   * shipped row is otherwise a single line, and eight countries' worth of always-
+   * on name boxes buries the checkboxes that most people came for. Added leagues
+   * show theirs unconditionally — their row is already expanded.
+   */
+  const [renaming, setRenaming] = useState<ReadonlySet<string>>(() => new Set());
+
+  function toggleRenaming(id: string) {
+    setRenaming((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }
 
   function update(index: number, next: Partial<WorldEntry>) {
     onChange(entries.map((e, i) => (i === index ? { ...e, ...next } : e)));
@@ -233,9 +248,20 @@ export function WorldSetup({ entries, onChange }: Props) {
                   onChange={(e) => update(i, { included: e.target.checked })}
                 />
                 {entry.shipped ? (
+                  <>
                   <label htmlFor={`league-on-${i}`} className="flex-grow-1 mb-0">
                     {entry.spec.country}
                   </label>
+                  {entry.included && (
+                    <button
+                      type="button"
+                      className="btn btn-link btn-sm p-0"
+                      onClick={() => toggleRenaming(entry.id)}
+                    >
+                      {renaming.has(entry.id) ? "Done" : "Rename"}
+                    </button>
+                  )}
+                  </>
                 ) : (
                   <>
                   <input
@@ -275,8 +301,15 @@ export function WorldSetup({ entries, onChange }: Props) {
                 )}
               </div>
 
+              {entry.shipped && entry.included && renaming.has(entry.id) && (
+                <div className="mt-2 ps-4">
+                  <DivisionNames spec={entry.spec} onChange={(next) => updateSpec(i, next)} />
+                </div>
+              )}
+
               {!entry.shipped && entry.included && (
                 <div className="mt-2 ps-4">
+                  <DivisionNames spec={entry.spec} onChange={(next) => updateSpec(i, next)} />
                   <Slider
                     label="Strength"
                     min={0}
@@ -445,6 +478,61 @@ export function WorldSetup({ entries, onChange }: Props) {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * What a league's divisions are called. Worth a control of its own rather than
+ * being left to derive from the country, for two reasons: real leagues are not
+ * called "<Country> Division 1", and a world-wide roster file finds the league
+ * it fills BY THIS NAME — so renaming a league here is what makes a file written
+ * for "Eredivisie" or "Premier League" land somewhere instead of being skipped.
+ *
+ * Empty means "no name of my own": the default is shown as a placeholder and
+ * stored as absent, so a name keeps following the country while it's untouched.
+ */
+function DivisionNames({
+  spec,
+  onChange,
+}: {
+  spec: LeagueSpec;
+  onChange: (next: Partial<LeagueSpec>) => void;
+}) {
+  const twoDivisions = (spec.divisions ?? 2) === 2;
+  return (
+    <>
+      <div className="row g-2 mb-1">
+        <div className="col">
+          <label className="form-label small mb-1">
+            {twoDivisions ? "Top division name" : "League name"}
+          </label>
+          <input
+            type="text"
+            className="form-control form-control-sm"
+            value={spec.d1Name ?? ""}
+            placeholder={`${spec.country} Division 1`}
+            aria-label={twoDivisions ? "Top division name" : "League name"}
+            onChange={(e) => onChange({ d1Name: e.target.value || undefined })}
+          />
+        </div>
+        {twoDivisions && (
+          <div className="col">
+            <label className="form-label small mb-1">Second division name</label>
+            <input
+              type="text"
+              className="form-control form-control-sm"
+              value={spec.d2Name ?? ""}
+              placeholder={`${spec.country} Division 2`}
+              aria-label="Second division name"
+              onChange={(e) => onChange({ d2Name: e.target.value || undefined })}
+            />
+          </div>
+        )}
+      </div>
+      <p className="text-muted small mb-2">
+        A roster file loaded for the whole world finds its league by this name.
+      </p>
+    </>
   );
 }
 

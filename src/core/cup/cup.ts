@@ -7,9 +7,10 @@ import {
   CUP_ROUNDS, CUP_ROUND_MATCHDAYS,
   CUP_KO_SIZE, CUP_KO_ROUND_MATCHDAYS, CUP_KO_LEG_MATCHDAYS,
   CUP_LP_DIRECT_QF, CUP_PLAYOFF_MATCHDAY,
-  CUP_FORMATS, CONTINENTAL_CUP_FORMAT, CONTINENTAL_ORDER, largestValidCupField,
+  CUP_FORMATS, CONTINENTAL_CUP_FORMAT,
 } from "../constants.js";
-import { isWeakLeague } from "../competitions.js";
+import type { QualificationContext } from "./qualification.js";
+import { cupPlan, qualifyCupTeams } from "./qualification.js";
 import {
   drawLeaguePhase, leaguePhaseTable, splitLeaguePhase, leaguePhaseComplete,
 } from "./leaguePhase.js";
@@ -78,105 +79,17 @@ export function koFinalRound(cup: CupState): number {
   return koRoundsOf(cup) - 1;
 }
 
-/* ── Qualification ───────────────────────────────────────────────────────────
- * Strong (big-four) leagues send `format.strongSlots` clubs; weak
- * (every league with a countryStrengthOffset — France, the Netherlands,
- * Portugal, Belgium, Turkey, Greece, Scotland, Serbia) send `format.weakSlots`.
- * Each
- * competition starts `format.rankOffset` places down its leagues' final tables,
- * which is what keeps the fields disjoint — the Continental Cup takes from the
- * top, the Shield takes the places directly below it. The combined field opens
- * the Swiss league phase. Everything is seeded purely by the league tables —
- * OVR never enters. */
-
-/** The Swiss cup's structural plan for a world, or null if it can't field one. */
-export interface CupPlan {
-  strong: Competition[];
-  weak: Competition[];
-  total: number; // league-phase field size
-}
-
-/**
- * The Swiss cup plan for a world: which tier-1 leagues are strong/weak and the
- * resulting field size. Valid only when the field can seed the whole structure —
- * enough clubs for the top-4 + eight-team playoff, an even split into the draw's
- * pots, and enough per pot for the games each club plays. England-only legacy
- * worlds (one tier-1 league) and other undersized worlds return null (no cup).
- *
- * A world can field one competition and not another (a two-league world has
- * enough clubs for the Continental Cup's field but not for the Shield's), so
- * this is asked per format rather than once for the world.
- */
-export function cupPlan(
-  competitions: Competition[],
-  format: CupFormat = CONTINENTAL_CUP_FORMAT,
-): CupPlan | null {
-  const tier1 = competitions.filter((c) => c.tier === 1);
-  const strong = tier1.filter((c) => !isWeakLeague(c));
-  const weak = tier1.filter((c) => isWeakLeague(c));
-  // Summed per league rather than counted by class, because a league can carry
-  // its own slot count (Competition.continentalSlots) that differs from the
-  // strong/weak default its class would give it.
-  const qualified = tier1.reduce((n, c) => n + cupSlotsForCompetition(c, format), 0);
-  // Trim to a size the league-phase draw can actually build (see
-  // isValidCupFieldSize). The shipped world lands exactly on one — 24 for the
-  // Cup, 16 for the Shield — so this changes nothing there; a world whose
-  // leagues send an awkward total now gets the largest valid field rather than
-  // crashing the offseason on the draw.
-  const total = largestValidCupField(qualified);
-  if (total === 0) return null;
-  return { strong, weak, total };
-}
-
-/**
- * Whether this world can field the given competition. Used by the UI to decide
- * whether to show the qualification zone / competition page for a given world.
- */
-export function worldHasCup(
-  competitions: Competition[],
-  format: CupFormat = CONTINENTAL_CUP_FORMAT,
-): boolean {
-  return cupPlan(competitions, format) !== null;
-}
-
-/** How many league-phase places a tier-1 competition earns in this competition. */
-export function cupSlotsForCompetition(
-  comp: Competition,
-  format: CupFormat = CONTINENTAL_CUP_FORMAT,
-): number {
-  const own = comp.continentalSlots?.[format.id];
-  if (own !== undefined) return Math.max(0, Math.floor(own));
-  return isWeakLeague(comp) ? format.weakSlots : format.strongSlots;
-}
-
-/** How many places down this competition starts in a given league's table (0 = the champion). */
-export function cupOffsetForCompetition(
-  comp: Competition,
-  format: CupFormat = CONTINENTAL_CUP_FORMAT,
-): number {
-  // Sum what every competition above this one takes from THIS league, so the
-  // fields butt up against each other exactly and no club can fall into two of
-  // them (or into neither). See CONTINENTAL_ORDER.
-  let offset = 0;
-  for (const id of CONTINENTAL_ORDER) {
-    if (id === format.id) break;
-    offset += cupSlotsForCompetition(comp, CUP_FORMATS[id]);
-  }
-  return offset;
-}
-
-/**
- * The finishing positions a tier-1 league's clubs qualify from, as 1-based
- * ranks: `[first, last]` inclusive. The Continental Cup's strong-league range
- * is [1, 4], the Shield's [5, 6]. Used by the Standings qualification shading.
- */
-export function cupSlotRange(
-  comp: Competition,
-  format: CupFormat = CONTINENTAL_CUP_FORMAT,
-): [number, number] {
-  const from = cupOffsetForCompetition(comp, format);
-  return [from + 1, from + cupSlotsForCompetition(comp, format)];
-}
+/* ── Qualification ──────────────────────────────────────────────────
+ * Lives in ./qualification.ts, and is re-exported here because that is where
+ * every caller has always imported it from. It moved out when a club stopped
+ * being able to qualify by league position alone (title holders and domestic
+ * cup winners), which turned qualifying from a slice of each league's table
+ * into one pass over every competition at once — see that file's header. */
+export type { CupPlan, Entrant, QualificationRoute, QualificationContext } from "./qualification.js";
+export {
+  cupPlan, worldHasCup, cupSlotsForCompetition, cupOffsetForCompetition, cupSlotRange,
+  qualifyCupTeams, allocateContinentalPlaces, qualificationByTid,
+} from "./qualification.js";
 
 /**
  * Standard single-elimination seed ordering for a bracket of `n` slots
@@ -197,51 +110,6 @@ export function seedOrder(n: number): number[] {
   return pols;
 }
 
-interface Qualifier { tid: number; rank: number; points: number; gd: number; gf: number; }
-
-/** Seed order: finishing rank first (every champion outranks every runner-up), then points, GD, GF, tid. */
-function seedSort(a: Qualifier, b: Qualifier): number {
-  return a.rank - b.rank || b.points - a.points || b.gd - a.gd || b.gf - a.gf || a.tid - b.tid;
-}
-
-/**
- * The league-phase field in seed order (strongest first), and a tid → compId map
- * for the draw's same-league constraint. Strong leagues contribute
- * `format.strongSlots` clubs and weak leagues `format.weakSlots`, both starting
- * `format.rankOffset` places down the table.
- */
-export function qualifyCupTeams(
-  competitions: Competition[],
-  tablesByCompId: Map<number, StandingsRow[]>,
-  format: CupFormat = CONTINENTAL_CUP_FORMAT,
-): { field: number[]; compOf: Map<number, number> } {
-  const plan = cupPlan(competitions, format);
-  const compOf = new Map<number, number>();
-  const collect = (comps: Competition[]): Qualifier[] => {
-    const out: Qualifier[] = [];
-    for (const comp of comps) {
-      const table = tablesByCompId.get(comp.id) ?? [];
-      const slots = cupSlotsForCompetition(comp, format);
-      const from = cupOffsetForCompetition(comp, format);
-      for (let i = from; i < from + slots && i < table.length; i++) {
-        const row = table[i];
-        compOf.set(row.tid, comp.id);
-        out.push({ tid: row.tid, rank: i + 1, points: row.points, gd: row.gd, gf: row.gf });
-      }
-    }
-    return out;
-  };
-  const strong = plan ? plan.strong : competitions.filter((c) => c.tier === 1 && !isWeakLeague(c));
-  const weak = plan ? plan.weak : competitions.filter((c) => c.tier === 1 && isWeakLeague(c));
-  const field = [...collect(strong), ...collect(weak)]
-    .sort(seedSort)
-    .map((q) => q.tid)
-    // Trimmed AFTER seeding, so what gets dropped is the weakest qualifiers in
-    // the world rather than whichever league happened to be collected last.
-    .slice(0, plan ? plan.total : undefined);
-  return { field, compOf };
-}
-
 /**
  * Seed the next season's Swiss cup from a completed season's per-competition
  * final tables: qualify the field, seed it, and draw the league phase. The
@@ -254,15 +122,16 @@ export function buildCupState(
   tablesByCompId: Map<number, StandingsRow[]>,
   season: number,
   format: CupFormat = CONTINENTAL_CUP_FORMAT,
+  routes: QualificationContext = {},
 ): CupState | null {
   const plan = cupPlan(competitions, format);
   if (!plan) return null;
-  const { field, compOf } = qualifyCupTeams(competitions, tablesByCompId, format);
+  const { field, drawGroups } = qualifyCupTeams(competitions, tablesByCompId, format, routes);
   if (field.length !== plan.total) return null;
 
   const seeds: Record<number, number> = {};
   field.forEach((tid, i) => (seeds[tid] = i + 1));
-  const matches = drawLeaguePhase(field, compOf, hashInts(season, format.drawSeed));
+  const matches = drawLeaguePhase(field, drawGroups, hashInts(season, format.drawSeed));
   return {
     competition: format.id,
     season,
