@@ -98,6 +98,7 @@ function routesFor(league: LeagueStore, season: number, current: boolean): Quali
       league.teams,
       [league.cupHistory ?? [], league.shieldHistory ?? [], live],
       season + 1,
+      league.rollingCoefficients ?? true,
     ) ?? undefined,
   };
 }

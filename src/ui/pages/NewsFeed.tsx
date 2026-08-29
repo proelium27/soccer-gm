@@ -148,6 +148,7 @@ export function NewsFeed() {
         h.season,
         seasonContinentalNews(
           league?.competitions ?? [], league?.teams ?? [], continentalHistories, h.season,
+          league?.rollingCoefficients ?? true,
         ),
       ]),
     );

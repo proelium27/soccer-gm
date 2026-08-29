@@ -23,6 +23,7 @@ function buildWorldLeague(seed: number): LeagueStore {
     // Same value the old derived allocator produced, so pids are unchanged.
     nextPid: Math.max(0, ...world.players.map((p) => p.pid)) + 1,
     aiManagedSeasons: [],
+    rollingCoefficients: true,
     season: 1,
     phase: "regular",
     schedule,

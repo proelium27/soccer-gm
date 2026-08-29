@@ -696,6 +696,7 @@ export function simOffseasonReporting(
         ),
       ],
       nextSeason,
+      league.rollingCoefficients ?? true,
     ) ?? undefined,
   };
 
