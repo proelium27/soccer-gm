@@ -16,6 +16,15 @@ import { NationalTeamsLayout, NationName } from "./shared.js";
 
 const DRAG_MIME = "application/x-soccer-gm-pid";
 
+/**
+ * How many of the eligible pool the call-up panel lists at once.
+ *
+ * A country's pool runs to several hundred, and the page's job is picking
+ * eleven names, not browsing a national census. Sorted by rating, so the ones
+ * you'd actually call up are the ones you see; the search finds anyone else.
+ */
+const POOL_SHOWN = 40;
+
 /** Surname only, so a chip fits on the pitch. Same trick the award XI uses. */
 function shortName(name: string): string {
   const parts = name.split(" ");
@@ -42,6 +51,8 @@ export function NTMySquad() {
   } = useLeague();
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
   const [selectedPid, setSelectedPid] = useState<number | null>(null);
+  const [callUpOpen, setCallUpOpen] = useState(false);
+  const [poolFilter, setPoolFilter] = useState("");
 
   const byPid = useMemo(
     () => new Map((league?.players ?? []).map((p) => [p.pid, p])),
@@ -142,6 +153,18 @@ export function NTMySquad() {
   const { locked } = shown;
   const { named, slots, xi, xiPids, xiSet, reserves, uncalled, coords, keepers } = derived;
 
+  // What the call-up panel actually lists: the best POOL_SHOWN by rating, or
+  // everything matching a search. Capped because the pool runs to hundreds and
+  // nobody scrolls to the 300th-best player — they search for a name.
+  const poolQuery = poolFilter.trim().toLowerCase();
+  const shownPool = poolQuery
+    ? uncalled.filter((p) => (
+      p.name.toLowerCase().includes(poolQuery)
+      || p.pos.toLowerCase() === poolQuery
+      || (clubByPid.get(p.pid) ?? "").toLowerCase().includes(poolQuery)
+    )).slice(0, POOL_SHOWN)
+    : uncalled.slice(0, POOL_SHOWN);
+
   function handleSwap(draggedPid: number, targetPid: number) {
     if (locked) return;
     const next = swapStarters(named, slots, xiPids, draggedPid, targetPid);
@@ -193,20 +216,14 @@ export function NTMySquad() {
         if (raw) handleSwap(Number(raw), p.pid);
       }}
     >
-      <td>
-        {!locked && action === "drop" && (
-          <button
-            type="button"
-            className="pitch-chip-handle me-1"
-            aria-label={selectedPid === p.pid ? "Cancel move" : "Move player"}
-            title="Drag onto a shirt, or tap this and then another player to swap them"
-            onClick={() => handleTap(p.pid)}
-          >
-            &#8942;&#8942;
-          </button>
-        )}
-        {p.pos}
-      </td>
+      {/*
+        No drag handle here on purpose. Every man in the squad already carries
+        one on his chip above — on the pitch if he starts, on the bench strip if
+        he doesn't — so a second one in the table was redundant, and it wrapped
+        the position onto its own line. The row stays a drag source, which is
+        free and lets a mouse drag straight out of the list.
+      */}
+      <td>{p.pos}</td>
       <td>
         <PlayerRatingsTooltip player={p}>
           <Link to={`/player/${p.pid}`}>{p.name}</Link>
@@ -264,17 +281,60 @@ export function NTMySquad() {
     </table>
   );
 
+  /** A reserve, as a draggable chip under the pitch. */
+  const benchChip = (p: Player) => (
+    <PlayerRatingsTooltip player={p} key={p.pid}>
+      <span
+        className={
+          "pitch-chip" +
+          (p.pos === "GK" ? " pitch-chip--gk" : "") +
+          (selectedPid === p.pid ? " pitch-chip--selected" : "")
+        }
+        style={{ borderColor: getRatingColor(p.ovr), opacity: p.injury ? 0.55 : 1 }}
+        draggable={!locked}
+        onDragStart={(e) => e.dataTransfer.setData(DRAG_MIME, String(p.pid))}
+      >
+        {!locked && (
+          <button
+            type="button"
+            className="pitch-chip-handle"
+            aria-label={selectedPid === p.pid ? "Cancel move" : "Move player"}
+            onClick={(e) => { e.stopPropagation(); handleTap(p.pid); }}
+          >
+            &#8942;&#8942;
+          </button>
+        )}
+        <span className="pitch-chip-name">{p.pos} {shortName(p.name)}</span>
+        <span className="pitch-chip-ovr">{p.ovr}</span>
+      </span>
+    </PlayerRatingsTooltip>
+  );
+
   return (
     <NationalTeamsLayout title="My Squad">
-      <div className="d-flex flex-wrap align-items-center gap-3 mb-2">
+      <div className="d-flex flex-wrap align-items-baseline gap-2 mb-1">
         <h5 className="mb-0"><NationName nation={nation} /></h5>
         <span className="text-muted small">
-          {locked ? "Last named for" : "Picking for"} {competition}
+          {locked ? "last named for" : "picking for"} {competition}
         </span>
-        {!locked && (
-          <>
+        <span className="text-muted small ms-auto">
+          {named.length} of {INTL_SQUAD_SIZE} called up
+          {keepers > 0 && <>, {keepers} {keepers === 1 ? "keeper" : "keepers"}</>}
+        </span>
+      </div>
+
+      {locked ? (
+        <p className="text-muted small mb-3">
+          Nothing to pick for right now. Your squad is named for you when a campaign is
+          drawn at the end of a season, and you can change it from here before the first
+          match of that summer.
+        </p>
+      ) : (
+        <>
+          <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
             <select
               className="form-select form-select-sm w-auto"
+              aria-label="Formation"
               value={squad.formation}
               disabled={simming}
               onChange={(e) => setNationalFormationAction(e.target.value as FormationId)}
@@ -288,30 +348,14 @@ export function NTMySquad() {
             >
               Best XI
             </button>
-          </>
-        )}
-        <span className="text-muted small ms-auto">
-          {named.length} of {INTL_SQUAD_SIZE} called up
-        </span>
-      </div>
-
-      {locked ? (
-        <p className="text-muted small">
-          Nothing to pick for right now. Your squad is named for you when a campaign is
-          drawn at the end of a season, and you can change it from here before the first
-          match of that summer.
-        </p>
-      ) : (
-        <p className="text-muted small">
-          Drag a player onto a shirt to put him there, from the pitch or from your squad list
-          below, or tap the handle on two players to swap them. Keepers can only go in goal.
-          If anyone you picked can't play on the day,
-          injured or retired since you named him, the game picks that whole eleven for you
-          rather than field ten, so it's worth looking in again between rounds.
-        </p>
+            <span className="text-muted small">
+              Drag anyone onto a shirt, or tap two handles to swap them.
+            </span>
+          </div>
+        </>
       )}
 
-      <div className="pitch-field mb-3">
+      <div className="pitch-field">
         <div className="pitch-goal pitch-goal--left" />
         <div className="pitch-goal pitch-goal--right" />
         {xi.map((p, i) => {
@@ -368,26 +412,66 @@ export function NTMySquad() {
         })}
       </div>
 
-      <div className="row g-3">
-        <div className="col-12 col-lg-6">
-          <h6>Your squad</h6>
-          <div className="table-responsive" style={{ maxHeight: "60vh", overflowY: "auto" }}>
-            {squadTable([...xi, ...reserves], "drop")}
+      {/*
+        The rest of the squad as chips rather than a second table. They are the
+        players who might come on, so they belong beside the eleven and want the
+        same one drag gesture, not a row in a grid with its own headers.
+      */}
+      {reserves.length > 0 && (
+        <div className="mb-3">
+          <div className="text-muted text-uppercase small mb-1">
+            Rest of the squad
           </div>
+          <div className="d-flex flex-wrap gap-2">{reserves.map(benchChip)}</div>
         </div>
-        <div className="col-12 col-lg-6">
-          <h6>Everyone else who's eligible</h6>
-          {uncalled.length === 0 ? (
-            <p className="text-muted small">
-              Everyone eligible is already in your squad.
-            </p>
-          ) : (
-            <div className="table-responsive" style={{ maxHeight: "60vh", overflowY: "auto" }}>
-              {squadTable(uncalled, "call")}
+      )}
+
+      <div className="table-responsive mb-3">
+        {squadTable([...xi, ...reserves], "drop")}
+      </div>
+
+      {/*
+        The eligible pool is hundreds of players and is a search, not a list to
+        browse — so it stays shut until asked for. That also keeps it off the
+        first paint: open, it is several thousand table cells for a page whose
+        actual job is picking eleven names.
+      */}
+      {!locked && (
+        <>
+          <button
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => setCallUpOpen((v) => !v)}
+            aria-expanded={callUpOpen}
+          >
+            {callUpOpen ? "Done calling players up" : `Call someone up (${uncalled.length} eligible)`}
+          </button>
+          {callUpOpen && (
+            <div className="mt-2">
+              <input
+                type="search"
+                className="form-control form-control-sm mb-2"
+                style={{ maxWidth: 320 }}
+                placeholder="Search by name, club or position"
+                aria-label="Search eligible players"
+                value={poolFilter}
+                onChange={(e) => setPoolFilter(e.target.value)}
+              />
+              {shownPool.length === 0 ? (
+                <p className="text-muted small mb-0">Nobody eligible by that name.</p>
+              ) : (
+                <div className="table-responsive" style={{ maxHeight: "50vh", overflowY: "auto" }}>
+                  {squadTable(shownPool, "call")}
+                  {shownPool.length < uncalled.length && (
+                    <p className="text-muted small mt-2 mb-0">
+                      Best {shownPool.length} of {uncalled.length}. Search to find anyone else.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      </div>
+        </>
+      )}
     </NationalTeamsLayout>
   );
 }

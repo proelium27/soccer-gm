@@ -74,16 +74,29 @@ describe("My Squad page", () => {
     expect(html).toContain("/national-teams/federation");
   });
 
-  it("renders the pitch and both squad tables for a live campaign", () => {
+  it("renders the pitch, the bench strip and the squad table for a live campaign", () => {
     const nation = someNation();
     const html = render(NTMySquad, staged(nation));
     expect(html).toContain("pitch-field");
-    // Eleven chips on the pitch, one per slot.
+    // A chip per starter and per reserve, so the whole squad is draggable.
     expect(html.match(/pitch-chip/g)?.length).toBeGreaterThanOrEqual(11);
-    expect(html).toContain("Your squad");
-    expect(html).toContain("Everyone else who");
+    expect(html).toContain("Rest of the squad");
     expect(html).toContain("Best XI");
     expect(html).toContain("called up");
+  });
+
+  /**
+   * The eligible pool is several hundred players, so it stays shut until asked
+   * for — both because it is a search rather than a list to browse, and because
+   * open it is thousands of table cells on a page whose job is picking eleven
+   * names. Closed, the only table on the page is the 23-man squad.
+   */
+  it("keeps the eligible pool behind a disclosure", () => {
+    const nation = someNation();
+    const html = render(NTMySquad, staged(nation));
+    expect(html).toContain("Call someone up");
+    expect(html).not.toContain("Search eligible players");
+    expect(html.match(/<table/g)?.length).toBe(1);
   });
 
   /**
