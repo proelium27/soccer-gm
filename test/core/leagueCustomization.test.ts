@@ -5,7 +5,7 @@ import {
   competitionBudgetScale, isWeakLeague, academyBaseCenterOf,
   buildCompetitions, worldLeagueSpecs, tier1Pairs, countryClubRanges,
   worldTuningWarnings, suggestedBudgetScale, worldTeamSlots,
-  competitionTeamCount, partnerOrNull, competitionAbbrev,
+  competitionTeamCount, partnerOrNull, competitionAbbrev, resolveLeagueSpec,
 } from "../../src/core/competitions.js";
 import { computeCountrySwaps } from "../../src/core/promotion.js";
 import { buildCompetitionSchedule } from "../../src/core/leagueState.js";
@@ -34,6 +34,73 @@ import { generateClubIdentities, abbrevFor } from "../../src/core/teams/clubName
  * accessors as it did through the old country tables, so that is what most of
  * this file pins.
  */
+/**
+ * The other half of the same idea: absent is right for STORAGE and useless for a
+ * CONTROL, so the world editor needs a resolved reading of a spec — what each
+ * absent knob would actually build as — without writing any of it back.
+ */
+describe("resolveLeagueSpec reads a spec the way the world will build it", () => {
+  it("resolves a shipped country to its own table, not to a bare default", () => {
+    const france = resolveLeagueSpec(worldLeagueSpecs().find((s) => s.country === "France")!);
+    expect(france.strengthOffset).toBe(COUNTRY_STRENGTH_OFFSET.France);
+    expect(france.budgetScale).toBe(COUNTRY_BUDGET_SCALE.France);
+    // A weak league sends fewer clubs to both continental competitions, so a
+    // flat default here would misreport half the world.
+    expect(france.cupSlots).toBe(CONTINENTAL_CUP_FORMAT.weakSlots);
+    expect(france.shieldSlots).toBe(SHIELD_FORMAT.weakSlots);
+  });
+
+  it("gives a big-four league the strong league's places", () => {
+    const england = resolveLeagueSpec(worldLeagueSpecs().find((s) => s.country === "England")!);
+    expect(england.strengthOffset).toBe(0);
+    expect(england.budgetScale).toBe(1);
+    expect(england.cupSlots).toBe(CONTINENTAL_CUP_FORMAT.strongSlots);
+  });
+
+  it("agrees with the accessors the engine itself reads", () => {
+    // Two ways of answering the same question, and they have to match or the
+    // editor shows one thing and the world generates another.
+    for (const spec of worldLeagueSpecs()) {
+      const [d1] = buildCompetitions([spec]);
+      const r = resolveLeagueSpec(spec);
+      expect(r.strengthOffset).toBe(competitionStrengthOffset(d1));
+      expect(r.budgetScale).toBe(competitionBudgetScale(d1));
+      expect(r.d1Teams).toBe(competitionTeamCount(d1));
+      expect(r.cupSlots).toBe(cupSlotsForCompetition(d1, CONTINENTAL_CUP_FORMAT));
+      expect(r.shieldSlots).toBe(cupSlotsForCompetition(d1, SHIELD_FORMAT));
+    }
+  });
+
+  it("classifies by the resolved offset, so weakening a shipped league moves its places", () => {
+    // The player has dragged England down to Turkey's level. It is a weak league
+    // now whatever the country table says, and it should send a weak league's
+    // clubs to Europe.
+    const weakened = resolveLeagueSpec({ country: "England", strengthOffset: 12 });
+    expect(weakened.cupSlots).toBe(CONTINENTAL_CUP_FORMAT.weakSlots);
+  });
+
+  it("gives a country with no table England's mix, which is what it would draw", () => {
+    // Not a friendly-looking invented default: absent really does fall through
+    // to England's distribution in pickNationality, so saying anything else here
+    // would be a preview that disagrees with the world.
+    const invented = resolveLeagueSpec({ country: "Ruritania" });
+    expect(invented.strengthOffset).toBe(0);
+    expect(invented.nationalities.England).toBeGreaterThan(0);
+  });
+
+  it("prefers what the spec sets over every fallback", () => {
+    const tuned = resolveLeagueSpec({
+      country: "Spain", strengthOffset: 3, budgetScale: 0.9, d1Teams: 16, promotionSpots: 1,
+    });
+    expect(tuned.strengthOffset).toBe(3);
+    expect(tuned.budgetScale).toBe(0.9);
+    expect(tuned.d1Teams).toBe(16);
+    expect(tuned.promotionSpots).toBe(1);
+    // Untouched knobs still follow Spain.
+    expect(tuned.nationalities.Spain).toBeGreaterThan(0);
+  });
+});
+
 describe("per-league tuning falls back to the shipped country tables", () => {
   const comps = worldCompetitions();
 

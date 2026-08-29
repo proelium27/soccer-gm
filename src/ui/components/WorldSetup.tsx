@@ -4,8 +4,9 @@ import {
   worldLeagueSpecs, worldTuningWarnings, suggestedBudgetScale,
   buildCompetitions, competitionTeamCount, worldCompetitions,
   competitionStrengthOffset, competitionBudgetScale,
+  resolveLeagueSpec, type ResolvedLeagueSpec,
 } from "../../core/competitions.js";
-import { NUM_TEAMS, MAX_PROMOTION_SPOTS, PROMOTION_RELEGATION_COUNT } from "../../core/constants.js";
+import { MAX_PROMOTION_SPOTS } from "../../core/constants.js";
 
 /** What the code box suggests when left empty — the same rule competitionAbbrev uses. */
 function defaultAbbrev(country: string): string {
@@ -132,8 +133,8 @@ const DIVISION_SIZES = Array.from(
  * rather than running a promotion race, and a count above a division's size
  * would swap them outright.
  */
-function maxPromoSpots(spec: LeagueSpec): number {
-  const smallest = Math.min(spec.d1Teams ?? NUM_TEAMS, spec.d2Teams ?? NUM_TEAMS);
+function maxPromoSpots(resolved: ResolvedLeagueSpec): number {
+  const smallest = Math.min(resolved.d1Teams, resolved.d2Teams);
   return Math.min(MAX_PROMOTION_SPOTS, Math.floor(smallest / 2));
 }
 
@@ -142,8 +143,8 @@ function maxPromoSpots(spec: LeagueSpec): number {
  * divisions after choosing 6 up and down quietly takes what still fits instead
  * of keeping a number the league can no longer honour.
  */
-function promoSpotsOf(spec: LeagueSpec): number {
-  return Math.min(spec.promotionSpots ?? PROMOTION_RELEGATION_COUNT, maxPromoSpots(spec));
+function promoSpotsOf(resolved: ResolvedLeagueSpec): number {
+  return Math.min(resolved.promotionSpots, maxPromoSpots(resolved));
 }
 
 function newLeagueEntry(index: number): WorldEntry {
@@ -162,11 +163,12 @@ function newLeagueEntry(index: number): WorldEntry {
       budgetScale: suggestedBudgetScale(strengthOffset),
       cupSlots: 2,
       shieldSlots: 2,
-      // Set explicitly rather than left absent, so the editor below shows the
-      // table the world will actually be built with. Absent would fall back to
-      // England's distribution while the editor displayed the rest-of-world
-      // bucket — close, but not the same numbers, and a preview that quietly
-      // disagrees with the result is worse than no preview.
+      // Set explicitly rather than left absent, and it is a real choice rather
+      // than a display one: an invented country matches no shipped table, so
+      // absent means England's full distribution — 38% English players with
+      // English names, forever, since youth intake redraws from the same table
+      // every offseason. The rest-of-world bucket is the honest starting point
+      // for a league nobody has described yet.
       nationalities: DEFAULT_ADDED_LEAGUE_NATIONALITIES,
     },
     included: true,
@@ -185,15 +187,16 @@ export function WorldSetup({ entries, onChange }: Props) {
   const warnings = worldTuningWarnings(specs);
   const clubs = buildCompetitions(specs).reduce((n, c) => n + competitionTeamCount(c), 0);
   /**
-   * Which shipped leagues have their name fields open. Behind a toggle because a
-   * shipped row is otherwise a single line, and eight countries' worth of always-
-   * on name boxes buries the checkboxes that most people came for. Added leagues
-   * show theirs unconditionally — their row is already expanded.
+   * Which shipped leagues have their settings panel open. Behind a toggle
+   * because a shipped row is otherwise a single line, and eight countries' worth
+   * of always-on sliders buries the checkboxes that most people came for. Added
+   * leagues show theirs unconditionally — you only get one by asking for it, so
+   * it is already the thing you are looking at.
    */
-  const [renaming, setRenaming] = useState<ReadonlySet<string>>(() => new Set());
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
 
-  function toggleRenaming(id: string) {
-    setRenaming((prev) => {
+  function toggleExpanded(id: string) {
+    setExpanded((prev) => {
       const next = new Set(prev);
       if (!next.delete(id)) next.add(id);
       return next;
@@ -217,7 +220,7 @@ export function WorldSetup({ entries, onChange }: Props) {
     // picker reading 4 while the world was still built with the 6 chosen before
     // the divisions got smaller.
     if (spec.promotionSpots !== undefined) {
-      spec.promotionSpots = Math.min(spec.promotionSpots, maxPromoSpots(spec));
+      spec.promotionSpots = Math.min(spec.promotionSpots, maxPromoSpots(resolveLeagueSpec(spec)));
     }
     update(index, { spec });
   }
@@ -256,9 +259,9 @@ export function WorldSetup({ entries, onChange }: Props) {
                     <button
                       type="button"
                       className="btn btn-link btn-sm p-0"
-                      onClick={() => toggleRenaming(entry.id)}
+                      onClick={() => toggleExpanded(entry.id)}
                     >
-                      {renaming.has(entry.id) ? "Done" : "Rename"}
+                      {expanded.has(entry.id) ? "Done" : "Customize"}
                     </button>
                   )}
                   </>
@@ -301,159 +304,21 @@ export function WorldSetup({ entries, onChange }: Props) {
                 )}
               </div>
 
-              {entry.shipped && entry.included && renaming.has(entry.id) && (
+
+              {/*
+                One panel, whichever kind of league this is. A shipped country's
+                knobs and an added one's are the same knobs — every one of them
+                is an optional field on Competition that falls back to the
+                country table when absent — so the only real difference is that a
+                shipped row keeps its panel shut until asked, and that its
+                controls open on the values that country actually ships with.
+              */}
+              {entry.included && (!entry.shipped || expanded.has(entry.id)) && (
                 <div className="mt-2 ps-4">
-                  <DivisionNames spec={entry.spec} onChange={(next) => updateSpec(i, next)} />
-                </div>
-              )}
-
-              {!entry.shipped && entry.included && (
-                <div className="mt-2 ps-4">
-                  <DivisionNames spec={entry.spec} onChange={(next) => updateSpec(i, next)} />
-                  <Slider
-                    label="Strength"
-                    min={0}
-                    max={STRENGTH_SCALE_MAX}
-                    step={1}
-                    value={strengthDial(entry.spec.strengthOffset ?? 0)}
-                    display={String(strengthDial(entry.spec.strengthOffset ?? 0))}
-                    onChange={(v) => updateSpec(i, { strengthOffset: strengthOffsetFromDial(v) })}
-                  />
-                  <Slider
-                    label="Money"
-                    min={0.2}
-                    max={1.2}
-                    step={0.05}
-                    value={entry.spec.budgetScale ?? 1}
-                    display={(entry.spec.budgetScale ?? 1).toFixed(2)}
-                    onChange={(v) => updateSpec(i, { budgetScale: v })}
-                  />
-                  <div className="form-check small mb-2">
-                    <input
-                      type="checkbox"
-                      className="form-check-input"
-                      id={`link-money-${i}`}
-                      checked={entry.linkMoney}
-                      onChange={(e) => {
-                        const linkMoney = e.target.checked;
-                        const spec = linkMoney
-                          ? {
-                            ...entry.spec,
-                            budgetScale: suggestedBudgetScale(entry.spec.strengthOffset ?? 0),
-                          }
-                          : entry.spec;
-                        update(i, { linkMoney, spec });
-                      }}
-                    />
-                    <label className="form-check-label text-muted" htmlFor={`link-money-${i}`}>
-                      Keep money in step with strength
-                    </label>
-                  </div>
-
-                  {/*
-                    Sits directly under the two sliders it calibrates rather than
-                    at the foot of the card: the numbers only mean anything
-                    against the leagues already in the game, and a reference you
-                    have to scroll away to find is one you don't use.
-                  */}
-                  <ShippedLeagueTable />
-
-                  <div className="row g-2 mb-2">
-                    <div className="col">
-                      <label className="form-label small mb-1">Divisions</label>
-                      <select
-                        className="form-select form-select-sm"
-                        value={entry.spec.divisions ?? 2}
-                        onChange={(e) => updateSpec(i, {
-                          divisions: Number(e.target.value) === 1 ? 1 : 2,
-                        })}
-                      >
-                        <option value={2}>Two, with promotion</option>
-                        <option value={1}>One, no promotion</option>
-                      </select>
-                    </div>
-                    <div className="col">
-                      <label className="form-label small mb-1">Clubs per division</label>
-                      <select
-                        className="form-select form-select-sm"
-                        value={entry.spec.d1Teams ?? NUM_TEAMS}
-                        onChange={(e) => {
-                          // One control sets both divisions. The underlying
-                          // fields are separate, so splitting them later is a UI
-                          // change rather than a data one.
-                          const n = Number(e.target.value);
-                          updateSpec(i, { d1Teams: n, d2Teams: n });
-                        }}
-                      >
-                        {DIVISION_SIZES.map((n) => (
-                          <option key={n} value={n}>{n}</option>
-                        ))}
-                      </select>
-                    </div>
-                    {/* Nothing to size in a one-division league: it has no
-                        second tier to swap with. */}
-                    {(entry.spec.divisions ?? 2) === 2 && (
-                      <div className="col">
-                        <label className="form-label small mb-1">Up and down</label>
-                        <select
-                          className="form-select form-select-sm"
-                          value={promoSpotsOf(entry.spec)}
-                          aria-label="Clubs promoted and relegated each season"
-                          onChange={(e) => updateSpec(i, {
-                            promotionSpots: Number(e.target.value),
-                          })}
-                        >
-                          {Array.from(
-                            { length: maxPromoSpots(entry.spec) + 1 },
-                            (_, n) => (
-                              <option key={n} value={n}>
-                                {n === 0 ? "None" : `${n} up, ${n} down`}
-                              </option>
-                            ),
-                          )}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                  <div className="row g-2">
-                    <div className="col">
-                      <label className="form-label small mb-1">Continental Cup places</label>
-                      <input
-                        type="number"
-                        className="form-control form-control-sm"
-                        min={0}
-                        max={8}
-                        value={entry.spec.cupSlots ?? 2}
-                        onChange={(e) => updateSpec(i, { cupSlots: clampInt(e.target.value, 0, 8) })}
-                      />
-                    </div>
-                    <div className="col">
-                      <label className="form-label small mb-1">Continental Shield places</label>
-                      <input
-                        type="number"
-                        className="form-control form-control-sm"
-                        min={0}
-                        max={8}
-                        value={entry.spec.shieldSlots ?? 2}
-                        onChange={(e) => updateSpec(i, { shieldSlots: clampInt(e.target.value, 0, 8) })}
-                      />
-                    </div>
-                  </div>
-                  <NationalityEditor
-                    value={entry.spec.nationalities}
-                    onChange={(nationalities) => updateSpec(i, { nationalities })}
-                  />
-
-                  <RosterPicker
+                  <LeagueSettings
                     entry={entry}
-                    onChange={(rosterSources, nationalities) => {
-                      // A file that declares a mix pre-fills the editor rather
-                      // than overriding it out of sight, so there is one visible
-                      // source of truth and no precedence rule to remember. The
-                      // player can then adjust what the file gave them.
-                      update(i, { rosterSources });
-                      if (nationalities) updateSpec(i, { nationalities });
-                    }}
+                    onEntry={(next) => update(i, next)}
+                    onSpec={(next) => updateSpec(i, next)}
                   />
                 </div>
               )}
@@ -722,5 +587,200 @@ function Slider({ label, hint, min, max, step, value, display, onChange }: Slide
       />
       {hint && <div className="text-muted" style={{ fontSize: "0.75rem" }}>{hint}</div>}
     </div>
+  );
+}
+
+/**
+ * Everything you can set about one league: its division names, how strong and
+ * how rich it is, its shape, its continental places, who it produces and which
+ * clubs fill it.
+ *
+ * Shared by every row in the world editor rather than living inside the added-
+ * league branch, which is where it used to sit. A shipped country was editable
+ * in name only, and that was never a statement about the engine — every knob
+ * here is an optional field on Competition whose absence means "use the shipped
+ * country table", which is precisely what makes it safe to write one.
+ *
+ * **Every control shows the RESOLVED value and writes only on change.** That is
+ * the load-bearing detail. Reading `spec.strengthOffset ?? 0` was fine while
+ * only added leagues had sliders — they set theirs at creation — but on England
+ * it would show a handicap of 0 as strength 20 by luck and on France it would
+ * show 20 when the league is really at 15. Meanwhile writing the resolved value
+ * back on mount would make every shipped league carry explicit knobs, and
+ * `buildCompetitions(worldLeagueSpecs())` would stop equalling
+ * `worldCompetitions()` — pinned by a test, and the thing that keeps a default
+ * world byte-identical to the one the game has always generated.
+ *
+ * Exported so it can be rendered on its own: the shipped rows keep it collapsed
+ * behind a button, and component state is out of reach of a static render test.
+ */
+export function LeagueSettings({
+  entry,
+  onEntry,
+  onSpec,
+}: {
+  entry: WorldEntry;
+  onEntry: (next: Partial<WorldEntry>) => void;
+  onSpec: (next: Partial<LeagueSpec>) => void;
+}) {
+  const spec = entry.spec;
+  const resolved = resolveLeagueSpec(spec);
+
+  return (
+    <>
+      <DivisionNames spec={spec} onChange={onSpec} />
+      <Slider
+        label="Strength"
+        min={0}
+        max={STRENGTH_SCALE_MAX}
+        step={1}
+        value={strengthDial(resolved.strengthOffset)}
+        display={String(strengthDial(resolved.strengthOffset))}
+        onChange={(v) => onSpec({ strengthOffset: strengthOffsetFromDial(v) })}
+      />
+      <Slider
+        label="Money"
+        min={0.2}
+        max={1.2}
+        step={0.05}
+        value={resolved.budgetScale}
+        display={resolved.budgetScale.toFixed(2)}
+        onChange={(v) => onSpec({ budgetScale: v })}
+      />
+      <div className="form-check small mb-2">
+        <input
+          type="checkbox"
+          className="form-check-input"
+          id={`link-money-${entry.id}`}
+          checked={entry.linkMoney}
+          onChange={(e) => {
+            // One call, carrying the spec with it. onEntry and onSpec each
+            // rebuild the whole list from the entries array as it stands, so two
+            // calls in a row both read the same array and the second silently
+            // discards the first — see the roster picker below, which had this.
+            const linkMoney = e.target.checked;
+            onEntry({
+              linkMoney,
+              ...(linkMoney
+                ? { spec: { ...spec, budgetScale: suggestedBudgetScale(resolved.strengthOffset) } }
+                : {}),
+            });
+          }}
+        />
+        <label className="form-check-label text-muted" htmlFor={`link-money-${entry.id}`}>
+          Keep money in step with strength
+        </label>
+      </div>
+
+      {/*
+        Sits directly under the two sliders it calibrates rather than at the foot
+        of the card: the numbers only mean anything against the leagues already
+        in the game, and a reference you have to scroll away to find is one you
+        don't use.
+      */}
+      <ShippedLeagueTable />
+
+      <div className="row g-2 mb-2">
+        <div className="col">
+          <label className="form-label small mb-1">Divisions</label>
+          <select
+            className="form-select form-select-sm"
+            value={resolved.divisions}
+            aria-label="Divisions"
+            onChange={(e) => onSpec({ divisions: Number(e.target.value) === 1 ? 1 : 2 })}
+          >
+            <option value={2}>Two, with promotion</option>
+            <option value={1}>One, no promotion</option>
+          </select>
+        </div>
+        <div className="col">
+          <label className="form-label small mb-1">Clubs per division</label>
+          <select
+            className="form-select form-select-sm"
+            value={resolved.d1Teams}
+            aria-label="Clubs per division"
+            onChange={(e) => {
+              // One control sets both divisions. The underlying fields are
+              // separate, so splitting them later is a UI change rather than a
+              // data one.
+              const n = Number(e.target.value);
+              onSpec({ d1Teams: n, d2Teams: n });
+            }}
+          >
+            {DIVISION_SIZES.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </div>
+        {/* Nothing to size in a one-division league: it has no second tier to
+            swap with. */}
+        {resolved.divisions === 2 && (
+          <div className="col">
+            <label className="form-label small mb-1">Up and down</label>
+            <select
+              className="form-select form-select-sm"
+              value={promoSpotsOf(resolved)}
+              aria-label="Clubs promoted and relegated each season"
+              onChange={(e) => onSpec({ promotionSpots: Number(e.target.value) })}
+            >
+              {Array.from({ length: maxPromoSpots(resolved) + 1 }, (_, n) => (
+                <option key={n} value={n}>
+                  {n === 0 ? "None" : `${n} up, ${n} down`}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+      <div className="row g-2">
+        <div className="col">
+          <label className="form-label small mb-1">Continental Cup places</label>
+          <input
+            type="number"
+            className="form-control form-control-sm"
+            min={0}
+            max={8}
+            value={resolved.cupSlots}
+            aria-label="Continental Cup places"
+            onChange={(e) => onSpec({ cupSlots: clampInt(e.target.value, 0, 8) })}
+          />
+        </div>
+        <div className="col">
+          <label className="form-label small mb-1">Continental Shield places</label>
+          <input
+            type="number"
+            className="form-control form-control-sm"
+            min={0}
+            max={8}
+            value={resolved.shieldSlots}
+            aria-label="Continental Shield places"
+            onChange={(e) => onSpec({ shieldSlots: clampInt(e.target.value, 0, 8) })}
+          />
+        </div>
+      </div>
+      <NationalityEditor
+        value={resolved.nationalities}
+        onChange={(nationalities) => onSpec({ nationalities })}
+      />
+
+      <RosterPicker
+        entry={entry}
+        onChange={(rosterSources, nationalities) => {
+          // A file that declares a mix pre-fills the editor rather than
+          // overriding it out of sight, so there is one visible source of truth
+          // and no precedence rule to remember. The player can then adjust what
+          // the file gave them.
+          //
+          // Both halves go in ONE call. Setting the files and then the mix meant
+          // two writes built from the same entries array, and the second dropped
+          // the first — so a roster file that declared nationalities loaded its
+          // mix and lost its clubs.
+          onEntry({
+            rosterSources,
+            ...(nationalities ? { spec: { ...spec, nationalities } } : {}),
+          });
+        }}
+      />
+    </>
   );
 }

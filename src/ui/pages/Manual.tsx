@@ -512,16 +512,29 @@ export function Manual() {
           <p>
             <strong>Shaping your own world.</strong> The eight countries above are the default, not
             the only option. The <strong>World setup</strong> panel on the New League screen lets you
-            switch any of them off and add leagues of your own. An added league is always a
-            two-division pyramid like the rest, and its clubs get generated names and colours, since
-            the game ships no real clubs. The panel is on both ways in, whether you started a plain
-            new league or came through Import Custom League.
+            switch any of them off and add leagues of your own. An added league's clubs get
+            generated names and colours, since the game ships no real clubs. The panel is on both
+            ways in, whether you started a plain new league or came through Import Custom League.
+          </p>
+          <p>
+            <strong>Every setting works on the countries the game ships, too.</strong> Hit{" "}
+            <strong>Customize</strong> beside England, Spain, Turkey or any of the others and you
+            get the same panel a league you added gets: names, strength, money, shape, promotion,
+            continental places, who it produces, and a roster import of its own. So you can make
+            Portugal a big-four league, shrink Belgium to twelve clubs, seal off Germany's second
+            division, or hand Turkey your own thirty-six clubs, without having to switch the
+            country off and rebuild it from scratch. Everything you leave alone keeps exactly the
+            values that country has always had.
+          </p>
+          <p>
+            The one thing you can't change on a shipped country is its <em>name</em>, because its
+            clubs, its flag and its player nationalities all hang off it. If you want a country the
+            game doesn't have, switch one off and add your own — that's what adding is for.
           </p>
           <p>
             <strong>Naming the leagues.</strong> Every league has a name of its own, and you can
-            change it. Hit <strong>Rename</strong> beside any shipped country to call its divisions
-            what you like, and a league you add has the same two boxes. Leave one empty and it goes
-            back to following the country's name.
+            change it. The two name boxes are the first thing in the panel, on shipped countries and
+            added ones alike. Leave one empty and it goes back to following the country's name.
           </p>
           <p>
             This matters for more than flavour: a world-wide roster file names the competition it
@@ -533,8 +546,8 @@ export function Manual() {
             same name the panel warns you, because a file aimed at that name can only fill one.
           </p>
           <p>
-            You also choose its <strong>shape</strong>: one division or two, how many clubs are in
-            each, and how many go up and down between them. Two divisions is the default and works
+            You also choose a league's <strong>shape</strong>: one division or two, how many clubs
+            are in each, and how many go up and down between them. Two divisions is the default and works
             like every shipped country, three up and three down, but that number is yours to set:
             anything from none at all up to six, capped at half the division so promoting six out
             of eight clubs isn't on offer. Pick <strong>None</strong> and the two divisions are
@@ -547,7 +560,7 @@ export function Manual() {
             for it. Three divisions isn't offered.
           </p>
           <p>
-            Each league you add carries more settings. <strong>Strength</strong> runs 0 to
+            Every league carries more settings. <strong>Strength</strong> runs 0 to
             20 and higher is stronger, with <strong>20</strong> level with England, Spain, Italy
             and Germany. Each point below that costs a league about 1 OVR across its squads, so at{" "}
             <strong>15</strong> (where France sits) its champion is about as good as England's
@@ -557,7 +570,10 @@ export function Manual() {
             <strong>Money</strong> is what its clubs earn and can bank, against 1 for the richest
             leagues. And you set how many places it sends to the{" "}
             <a href="#cup">Continental Cup</a> and the <a href="#shield">Continental Shield</a>.
-            Like the shipped countries, a league you add holds its level for the life of the save.
+            Every league holds its level for the life of the save, shipped or added. Note the
+            places move with the strength you set: drag a big-four league below 20 and it starts
+            sending a weak league's two clubs to the Cup rather than four, which changes the size
+            of the field. The panel warns you if the total stops adding up.
           </p>
           <p>
             Money is tied to strength by default and you should think twice before unlinking it. A
@@ -566,7 +582,7 @@ export function Manual() {
             panel warns you when your settings would do that.
           </p>
           <p>
-            <strong>Bringing your own clubs to an added league.</strong> Each added league has an
+            <strong>Bringing your own clubs to one league.</strong> Every league has an
             <strong> Import roster</strong> button of its own. It takes the same roster files the
             world-wide import takes, but it applies them to that one league, and it ignores what
             the file calls its competitions: the file's first competition fills the league's top
