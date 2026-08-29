@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from "../types.js";
 
 const entry: ChangelogEntry = {
-  date: "2026-08-28",
+  date: "2026-08-29",
   title: "The News Feed reports your league instead of the whole world",
   items: [
     "The feed covered all sixteen leagues equally, which by the fifth season of a save came to **4,752 rows a year** with only **11.4%** of them touching your own league. The rest was second-division clubs in countries you don't play in. The typical player in a headline was rated **61**, below an average starter.",
