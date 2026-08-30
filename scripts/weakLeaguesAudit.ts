@@ -288,10 +288,11 @@ for (const seed of SEEDS) {
 
   const trackBudget = () => {
     const { count } = deficitRate(league);
-    if (count > worstDeficitCount) {
-      worstDeficitCount = count;
-      worstDeficitClubs = league.teams.filter((t) => t.tid !== USER_TID).length;
-    }
+    // Record the denominator every sample, not only when a new worst is seen —
+    // otherwise a world that never goes into deficit reports "0/0 clubs", which
+    // hides the very number the rate exists to make comparable.
+    worstDeficitClubs = league.teams.filter((t) => t.tid !== USER_TID).length;
+    worstDeficitCount = Math.max(worstDeficitCount, count);
     everInDeficit += count > 0 ? 1 : 0;
     samples += 1;
     const mb = minAIBudget(league);
