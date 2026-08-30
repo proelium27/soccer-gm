@@ -186,6 +186,14 @@ export function Manual() {
             downloads the prompt as a text file instead.)
           </p>
           <p>
+            Two things the prompt now spells out for the AI, because both of them go wrong quietly.
+            It can only fill leagues your world actually has, so if you ask for one it hasn't got it
+            will say so rather than invent a name, which the importer would skip without a word. And
+            it has to keep each division inside its real size, since a division here can be anywhere
+            from ten clubs to twenty. Both are why the prompt carries your world's league names and
+            sizes rather than being the same text for everyone.
+          </p>
+          <p>
             England's and Spain's clubs all have real crest art that shows up wherever the club's
             name does. Every club without one yet (Italy, Germany, France, Portugal, Belgium and
             Turkey) just shows a two-color swatch until it gets a crest of its own. Clubs that came
