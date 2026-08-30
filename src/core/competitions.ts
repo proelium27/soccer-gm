@@ -42,6 +42,7 @@ import {
   CUP_STRONG_LEAGUE_SLOTS, CUP_WEAK_LEAGUE_SLOTS, CUP_MIN_FIELD,
   SHIELD_STRONG_LEAGUE_SLOTS, SHIELD_WEAK_LEAGUE_SLOTS, largestValidCupField,
   NUM_TEAMS, NUM_TEAMS_D2, PROMOTION_RELEGATION_COUNT,
+  COUNTRY_PLAYOFF_FORMAT, DEFAULT_PLAYOFF_FORMAT, type PlayoffFormat,
 } from "./constants.js";
 import {
   LEAGUE_NATIONALITY_WEIGHTS, sanitizeNationalityWeights, type NationalityWeights,
@@ -123,6 +124,16 @@ export interface Competition {
    * the number inside what the divisions can supply.
    */
   promotionSpots?: number;
+  /**
+   * How this country settles its last promotion place — see `PlayoffFormat`.
+   * Absent → `COUNTRY_PLAYOFF_FORMAT` for a shipped country, else
+   * `DEFAULT_PLAYOFF_FORMAT`, so no existing save carries this field and none
+   * needed migrating for it.
+   *
+   * Written to both divisions like `promotionSpots`, and for the same reason.
+   * Resolve through `competitionPlayoffFormat`, never the field.
+   */
+  playoffFormat?: PlayoffFormat;
   /**
    * Three-letter code for the country, used wherever a flag would go and there
    * is no flag to draw. The game ships flag art keyed by country name, so a
@@ -217,6 +228,24 @@ export function competitionPromotionSpots(comp: Competition, partner: Competitio
  * "the automatic places" is N-1. If they read different Ns the bracket and the
  * table slice overlap and a club is promoted twice.
  */
+/**
+ * How this country settles its last promotion place.
+ *
+ * Reads either division's override (they are written together), else the
+ * shipped country table, else the default. Does **not** check that the country
+ * can actually stage the format — a division may be too short to seat an
+ * English bracket, and that is decided by `promotionPlayoffFields` against the
+ * real tables, which this accessor has never seen.
+ */
+export function competitionPlayoffFormat(
+  d1: Competition,
+  d2: Competition | null,
+): PlayoffFormat {
+  const set = d1.playoffFormat ?? d2?.playoffFormat;
+  if (set) return set;
+  return COUNTRY_PLAYOFF_FORMAT[d1.country] ?? DEFAULT_PLAYOFF_FORMAT;
+}
+
 export function effectivePromotionSpots(
   d1: Competition,
   d2: Competition | null,
@@ -344,6 +373,11 @@ export interface LeagueSpec {
    */
   promotionSpots?: number;
   /**
+   * How the league settles its last promotion place. Absent → the country's own
+   * system for a shipped country, else the default. See PlayoffFormat.
+   */
+  playoffFormat?: PlayoffFormat;
+  /**
    * The league's nationality mix, as relative weights. Absent → the shipped
    * country table, or England's for an invented country. Both of a country's
    * divisions get the same one.
@@ -372,6 +406,7 @@ export function buildCompetitions(specs: LeagueSpec[]): Competition[] {
       academyOffset: spec.academyOffset,
       budgetScale: spec.budgetScale,
       promotionSpots: spec.promotionSpots,
+      playoffFormat: spec.playoffFormat,
       nationalities: spec.nationalities,
       continentalSlots: Object.keys(slots).length > 0 ? slots : undefined,
     });
@@ -427,6 +462,7 @@ export interface ResolvedLeagueSpec {
   d1Teams: number;
   d2Teams: number;
   promotionSpots: number;
+  playoffFormat: PlayoffFormat;
   cupSlots: number;
   shieldSlots: number;
   nationalities: NationalityWeights;
@@ -446,6 +482,8 @@ export function resolveLeagueSpec(spec: LeagueSpec): ResolvedLeagueSpec {
     d1Teams: spec.d1Teams ?? NUM_TEAMS,
     d2Teams: spec.d2Teams ?? NUM_TEAMS_D2,
     promotionSpots: spec.promotionSpots ?? PROMOTION_RELEGATION_COUNT,
+    playoffFormat: spec.playoffFormat
+      ?? COUNTRY_PLAYOFF_FORMAT[spec.country] ?? DEFAULT_PLAYOFF_FORMAT,
     cupSlots: spec.cupSlots ?? (weak ? CUP_WEAK_LEAGUE_SLOTS : CUP_STRONG_LEAGUE_SLOTS),
     shieldSlots: spec.shieldSlots ?? (weak ? SHIELD_WEAK_LEAGUE_SLOTS : SHIELD_STRONG_LEAGUE_SLOTS),
     // England's table is the honest answer for a country with no table of its
@@ -580,6 +618,7 @@ export function worldLeagueSpecs(): LeagueSpec[] {
     ...(d1.teamCount === undefined ? {} : { d1Teams: d1.teamCount }),
     ...(d2?.teamCount === undefined ? {} : { d2Teams: d2.teamCount }),
     ...(d1.promotionSpots === undefined ? {} : { promotionSpots: d1.promotionSpots }),
+    ...(d1.playoffFormat === undefined ? {} : { playoffFormat: d1.playoffFormat }),
     ...(d2 ? { d2Name: d2.name } : { divisions: 1 as const }),
   }));
 }

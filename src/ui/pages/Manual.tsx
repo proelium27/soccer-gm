@@ -498,17 +498,36 @@ export function Manual() {
             of it every season.
           </p>
           <p>
-            <strong>The last promotion place is a playoff.</strong> Everywhere that sends two or
-            more clubs up, only the top ones go automatically — the last place is decided on the
-            pitch by the four clubs that finished just below them. So in a country that promotes
-            three, 1st and 2nd go up on the table and 3rd through 6th play off: two-legged
-            semi-finals (3rd v 6th, 4th v 5th), then a one-off final, and the winner is promoted.
-            Finishing higher gets you the tie against the lowest-placed club, and that's all it
-            gets you: over two legs you each host once, so a semi-final is as even as it looks,
-            and the final is at a neutral ground where neither side is at home. Sixth goes up about as often as third does, which is
+            <strong>The last promotion place is a playoff, and there are two systems.</strong>{" "}
+            Each country runs the one it runs in real life, and you can change any of them in
+            World setup when you start a save.
+          </p>
+          <p>
+            The <strong>English</strong> system is what England, Spain, Italy, France, Turkey and
+            the rest use. Only the top clubs go up automatically and the last place is decided on
+            the pitch by the four that finished just below them, so in a country promoting three,
+            1st and 2nd go up on the table and 3rd through 6th play off: two-legged semi-finals
+            (3rd v 6th, 4th v 5th), then a one-off final. Finishing higher gets you the tie against
+            the lowest-placed club and nothing else, because over two legs you each host once and
+            the final is at a neutral ground. Sixth goes up about as often as third does, which is
             roughly how it works in real life, and it means a mid-table run-in still has something
-            to play for. Scotland promotes only one club and so has no playoff: its champion goes
-            up and that's that.
+            to play for.
+          </p>
+          <p>
+            The <strong>German</strong> system, which the Bundesliga uses, points the last place at
+            both divisions at once. One fewer club goes up automatically and one fewer goes down,
+            and then the club that just missed out below plays the lowest club that just survived
+            above, home and away, for the remaining top-flight place. Win it from below and you
+            swap: you go up, they go down. Win it from above and nobody moves at all, so that
+            season the country promotes and relegates one fewer club than usual. It is a harder
+            route up than the English bracket, because you are playing a top-flight side rather
+            than your own division's stragglers.
+          </p>
+          <p>
+            Scotland promotes only one club and so runs no playoff by default: its champion goes
+            up and that's that. You can give it either system in World setup, though the English
+            bracket needs at least two promotion places to sit below, so at one place only the
+            German one is offered.
           </p>
           <p>
             It's played the moment the season ends, before anyone retires or moves clubs, so a

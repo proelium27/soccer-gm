@@ -39,7 +39,7 @@ import { buildDomesticCups } from "./domesticCup/cup.js";
 import { archiveDomesticCup } from "./domesticCup/archive.js";
 import { computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence } from "./promotion.js";
 import {
-  playPromotionPlayoffs, playoffWinnersByCompId, playoffsForSeason,
+  playPromotionPlayoffs, playoffOutcomes, playoffsForSeason,
 } from "./promotionPlayoff.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
@@ -480,7 +480,7 @@ export function simOffseasonReporting(
   //      goes to the playoff winner instead of to the club that finished there
   //      — same number up, decided on the pitch.
   const swaps = computeCountrySwaps(
-    league.competitions, tablesByCompId, playoffWinnersByCompId(promotionPlayoffs),
+    league.competitions, tablesByCompId, playoffOutcomes(promotionPlayoffs),
   );
   teams = applyCompetitionSwaps(teams, swaps);
   teams = stepAcademyBaseConvergence(teams, league.competitions);

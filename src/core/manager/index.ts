@@ -24,7 +24,7 @@ import type { PlayedMatch, StandingsRow } from "../standings.js";
 import { computeStandings } from "../standings.js";
 import { difficultyProfile } from "../constants.js";
 import { computeCountrySwaps } from "../promotion.js";
-import { playoffWinnersByCompId, type PromotionPlayoff } from "../promotionPlayoff.js";
+import { playoffOutcomes, type PromotionPlayoff } from "../promotionPlayoff.js";
 import { cupRunSummary } from "../cup/cup.js";
 import { deriveExpectations, actualFinish } from "./expectation.js";
 import { judgeSeason, type SeasonVerdict } from "./confidence.js";
@@ -121,7 +121,7 @@ export function reviewSeason(input: ReviewInput): ManagerReview {
   if (finish === null) return { manager, verdict: null };
 
   const swaps = computeCountrySwaps(
-    league.competitions, tables, playoffWinnersByCompId(input.promotionPlayoffs ?? []),
+    league.competitions, tables, playoffOutcomes(input.promotionPlayoffs ?? []),
   );
   const promoted = swaps.some((s) => s.promoted.includes(userTid));
   const relegated = swaps.some((s) => s.relegated.includes(userTid));

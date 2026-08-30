@@ -28,7 +28,7 @@ import { simOffseason } from "../src/core/offseason.js";
 import { computeStandings } from "../src/core/standings.js";
 import { competitionOf, effectivePromotionSpots, partnerOrNull } from "../src/core/competitions.js";
 import {
-  playPromotionPlayoffs, playoffWinnersByCompId, PLAYOFF_ROUND_FINAL,
+  playPromotionPlayoffs, playoffOutcomes, PLAYOFF_ROUND_FINAL,
 } from "../src/core/promotionPlayoff.js";
 
 const SEASONS = Number(process.env.SEASONS ?? 3);
@@ -41,6 +41,9 @@ const fail = (msg: string): void => {
 };
 
 const seedWins = [0, 0, 0, 0];
+const formatCounts: Record<string, number> = { english: 0, german: 0 };
+let germanHeld = 0;
+let germanSwapped = 0;
 let finals = 0;
 let extraTimes = 0;
 let shootouts = 0;
@@ -73,32 +76,57 @@ for (let s = 0; s < SEASONS; s++) {
     tables.set(comp.id, computeStandings(tids, league.played.filter((m) => set.has(m.home))));
   }
 
-  // (1) The right clubs, in the right places.
+  // (1) The right clubs, in the right places, for the country's own format.
   for (const p of playoffs) {
     const d2 = competitionOf(league.competitions, p.d2CompId);
     const d1 = competitionOf(league.competitions, p.d1CompId);
-    const table = tables.get(p.d2CompId)!;
+    const d2Table = tables.get(p.d2CompId)!;
+    const d1Table = tables.get(p.d1CompId)!;
     const spots = effectivePromotionSpots(
-      d1, partnerOrNull(league.competitions, d1.id), tables.get(d1.id)!.length, table.length,
+      d1, partnerOrNull(league.competitions, d1.id), d1Table.length, d2Table.length,
     );
-    if (p.autoSpots !== spots - 1) fail(`${d2.name}: autoSpots ${p.autoSpots} != ${spots - 1}`);
-    p.teams.forEach((tid, i) => {
-      if (table[p.autoSpots + i].tid !== tid) fail(`${d2.name}: entrant ${i} is not position ${p.autoSpots + i + 1}`);
-    });
-    if (p.ties.length !== 3) fail(`${d2.name}: ${p.ties.length} ties, expected 3`);
+    formatCounts[p.format]++;
     if (p.ties.some((t) => t.boxScore !== null)) fail(`${d2.name}: a tie kept its box score`);
-    const semiWinners = p.ties.filter((t) => t.round !== PLAYOFF_ROUND_FINAL).map((t) => t.winner);
     const decider = p.ties.find((t) => t.round === PLAYOFF_ROUND_FINAL)!;
-    if (!semiWinners.includes(decider.home) || !semiWinners.includes(decider.away)) {
-      fail(`${d2.name}: the final is not between the two semi-final winners`);
-    }
-    if (decider.winner !== p.winnerTid) fail(`${d2.name}: winner is not the final's winner`);
-    const seed = p.teams.indexOf(p.winnerTid!);
-    if (seed < 0) fail(`${d2.name}: winner was not an entrant`);
-    else seedWins[seed]++;
-    finals++;
+    if (decider.winner !== p.winnerTid) fail(`${d2.name}: winner is not the deciding tie's winner`);
     if (decider.wentToExtraTime) extraTimes++;
     if (decider.wentToPens) shootouts++;
+    finals++;
+
+    if (p.format === "english") {
+      if (p.autoPromoted !== spots - 1) fail(`${d2.name}: autoPromoted ${p.autoPromoted} != ${spots - 1}`);
+      if (p.autoRelegated !== spots) fail(`${d2.name}: English relegation should be untouched`);
+      p.teams.forEach((tid, i) => {
+        if (d2Table[p.autoPromoted + i].tid !== tid) {
+          fail(`${d2.name}: entrant ${i} is not position ${p.autoPromoted + i + 1}`);
+        }
+      });
+      if (p.ties.length !== 3) fail(`${d2.name}: ${p.ties.length} ties, expected 3`);
+      const semiWinners = p.ties.filter((t) => t.round !== PLAYOFF_ROUND_FINAL).map((t) => t.winner);
+      if (!semiWinners.includes(decider.home) || !semiWinners.includes(decider.away)) {
+        fail(`${d2.name}: the final is not between the two semi-final winners`);
+      }
+      const seed = p.teams.indexOf(p.winnerTid!);
+      if (seed < 0) fail(`${d2.name}: winner was not an entrant`);
+      else seedWins[seed]++;
+      continue;
+    }
+
+    // German: one tie, tier-1 incumbent first, and both automatic counts cut by
+    // one so the tie can settle a place on each side at once.
+    if (p.ties.length !== 1) fail(`${d2.name}: ${p.ties.length} ties, expected 1`);
+    if (p.autoPromoted !== spots - 1 || p.autoRelegated !== spots - 1) {
+      fail(`${d2.name}: German auto counts ${p.autoPromoted}/${p.autoRelegated} != ${spots - 1} each`);
+    }
+    if (p.tiers[0] !== 1 || p.tiers[1] !== 2) fail(`${d2.name}: German entrants are not [tier 1, tier 2]`);
+    if (d1Table[d1Table.length - spots].tid !== p.teams[0]) {
+      fail(`${d2.name}: the tier-1 entrant is not the lowest club above the drop zone`);
+    }
+    if (d2Table[spots - 1].tid !== p.teams[1]) {
+      fail(`${d2.name}: the tier-2 entrant is not the club below the automatic places`);
+    }
+    if (p.winnerTid === p.teams[0]) germanHeld++;
+    else germanSwapped++;
   }
 
   // The headless path must reproduce what simThrough already settled.
@@ -109,8 +137,9 @@ for (let s = 0; s < SEASONS; s++) {
     fail("replaying the playoff from the offseason gives a different result");
   }
 
-  // (2) Same number promoted, and the winner is the one who goes up.
-  const winners = playoffWinnersByCompId(playoffs);
+  // (2) Promotion and relegation stay equal, and the playoff's own result is
+  //     the one the swap applied.
+  const outcomes = playoffOutcomes(playoffs);
   const compBefore = new Map(league.teams.map((t) => [t.tid, t.compId]));
   const scorelines = league.played.map((m) => `${m.home}:${m.homeGoals}-${m.awayGoals}`).join("|");
 
@@ -125,16 +154,26 @@ for (let s = 0; s < SEASONS; s++) {
   for (const comp of league.competitions.filter((c) => c.tier === 2)) {
     const up = league.teams.filter((t) => compBefore.get(t.tid) === comp.id && t.compId !== comp.id);
     const d1 = league.competitions.find((c) => c.country === comp.country && c.tier === 1)!;
-    const want = effectivePromotionSpots(
+    const spots = effectivePromotionSpots(
       d1, comp, tables.get(d1.id)!.length, tables.get(comp.id)!.length,
     );
-    if (up.length !== want) fail(`${comp.name}: ${up.length} promoted, expected ${want}`);
-    const winner = winners.get(comp.id);
-    if (winner !== undefined && !up.some((t) => t.tid === winner)) {
-      fail(`${comp.name}: playoff winner ${winner} was not promoted`);
-    }
     const down = league.teams.filter((t) => compBefore.get(t.tid) === d1.id && t.compId !== d1.id);
-    if (down.length !== want) fail(`${d1.name}: ${down.length} relegated, expected ${want}`);
+    const outcome = outcomes.get(comp.id);
+    // The invariant that actually matters: whatever the format and whichever way
+    // a tie went, the two counts match, or the divisions change size.
+    if (up.length !== down.length) {
+      fail(`${comp.country}: ${up.length} up but ${down.length} down`);
+    }
+    // A German tie the incumbent won moves one fewer each way; everything else
+    // moves the country's full allocation.
+    const want = outcome && outcome.promotedTid === null ? spots - 1 : spots;
+    if (up.length !== want) fail(`${comp.name}: ${up.length} promoted, expected ${want}`);
+    if (outcome?.promotedTid != null && !up.some((t) => t.tid === outcome.promotedTid)) {
+      fail(`${comp.name}: playoff winner ${outcome.promotedTid} was not promoted`);
+    }
+    if (outcome?.relegatedTid != null && !down.some((t) => t.tid === outcome.relegatedTid)) {
+      fail(`${d1.name}: playoff loser ${outcome.relegatedTid} was not relegated`);
+    }
   }
 }
 
@@ -144,5 +183,7 @@ seedWins.forEach((n, i) => {
   console.log(`  entrant ${i + 1} (best-placed = 1) won ${n} (${((n / total) * 100).toFixed(1)}%)`);
 });
 console.log(`  finals: ${finals}, extra time ${extraTimes}, shootouts ${shootouts}`);
+console.log(`  formats: english ${formatCounts.english}, german ${formatCounts.german}`);
+console.log(`  german ties: challenger went up ${germanSwapped}, incumbent held on ${germanHeld}`);
 console.log(problems === 0 ? "\nRESULT: all checks passed" : `\nRESULT: ${problems} FAILURES`);
 process.exit(problems === 0 ? 0 : 1);

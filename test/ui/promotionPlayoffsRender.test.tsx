@@ -70,9 +70,12 @@ function playoff(league: LeagueStore, season: number): PromotionPlayoff {
     country: d2.country,
     d1CompId: d1.id,
     d2CompId: d2.id,
+    format: "english",
     teams,
     positions: [3, 4, 5, 6],
-    autoSpots: 2,
+    tiers: [2, 2, 2, 2],
+    autoPromoted: 2,
+    autoRelegated: 3,
     ties: [
       // Both semis carry legs, and one goes to a shootout — the two branches
       // the tie renderer has beyond a plain scoreline.
@@ -89,6 +92,31 @@ function playoff(league: LeagueStore, season: number): PromotionPlayoff {
       tie(1, teams[0], teams[2], teams[2]),
     ],
     winnerTid: teams[2],
+  };
+}
+
+/** A finished German tie. `incumbentWins` decides which way it went. */
+function germanPlayoff(league: LeagueStore, incumbentWins: boolean): PromotionPlayoff {
+  const d2 = league.competitions.find((c) => c.tier === 2)!;
+  const d1 = league.competitions.find((c) => c.country === d2.country && c.tier === 1)!;
+  const topFlight = league.teams.find((t) => t.compId === d1.id)!.tid;
+  const challenger = league.teams.find((t) => t.compId === d2.id)!.tid;
+  const winner = incumbentWins ? topFlight : challenger;
+  return {
+    season: league.season,
+    country: d2.country,
+    d1CompId: d1.id,
+    d2CompId: d2.id,
+    format: "german",
+    teams: [topFlight, challenger],
+    positions: [16, 3],
+    tiers: [1, 2],
+    autoPromoted: 2,
+    autoRelegated: 2,
+    ties: [tie(1, challenger, topFlight, winner, {
+      legs: [{ homeGoals: 1, awayGoals: 1 }, { homeGoals: 0, awayGoals: 1 }],
+    })],
+    winnerTid: winner,
   };
 }
 
@@ -113,6 +141,24 @@ describe("Promotion Playoffs page", () => {
     // Every entrant is listed with the position he finished in.
     const winner = league.teams.find((t) => t.tid === p.winnerTid)!;
     expect(html).toContain(winner.name);
+  });
+
+  it("says the challenger went up when a German tie is won from below", () => {
+    const league = makeLeague(0, 1);
+    const html = render({ ...league, promotionPlayoffs: [germanPlayoff(league, false)] });
+    expect(html).toContain("Promoted");
+    expect(html).not.toContain("Stayed up");
+    // One tie, so no semi-final column and no neutral-ground marker.
+    expect(html).toContain("Playoff");
+    expect(html).not.toContain("Semi-finals");
+  });
+
+  it("says the incumbent stayed up when a German tie is won from above", () => {
+    // The result an English bracket cannot produce: the winner is a top-flight
+    // club and nobody moves.
+    const league = makeLeague(0, 1);
+    const html = render({ ...league, promotionPlayoffs: [germanPlayoff(league, true)] });
+    expect(html).toContain("Stayed up");
   });
 
   it("renders an archived set off a season-history entry", () => {

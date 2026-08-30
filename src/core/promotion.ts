@@ -4,6 +4,7 @@ import type { Competition } from "./competitions.js";
 import {
   tier1Pairs, competitionOf, academyBaseCenterOf, effectivePromotionSpots,
 } from "./competitions.js";
+import type { PlayoffOutcome } from "./promotionPlayoff.js";
 import { ACADEMY_BASE_CONVERGENCE_SEASONS } from "./constants.js";
 
 /** One country's promotion/relegation swap between its tier-1 and tier-2 competitions. */
@@ -23,19 +24,27 @@ export interface CompetitionSwap {
  * number on the New League screen). Every table in `tablesByCompId` must
  * already be sorted by computeStandings (points, then GD, then GF, then tid).
  *
- * `playoffWinners` (tier-2 compId -> tid) is how a promotion playoff reaches the
- * swap: where a country held one, only the top **N-1** go up on the table and
- * the last place goes to the club that won the playoff. The count is unchanged
- * either way — the playoff decides *who* takes the last place, never how many go
- * up, because every division's size is fixed and one extra club promoted would
- * mean one extra relegated. Absent (a headless caller, a world with no eligible
- * country, a save from before playoffs existed) means the plain top-N slice,
- * which is exactly the old behaviour.
+ * `playoffOutcomes` (tier-2 compId -> outcome) is how a promotion playoff
+ * reaches the swap. What it does depends on the country's format, which is why
+ * it carries counts rather than a bare winner:
+ *
+ *  - **English** — the top N-1 go up on the table and the playoff winner takes
+ *    the last place. Relegation is untouched: N still go down.
+ *  - **German** — N-1 go up and N-1 go down on the table, and the tie either
+ *    swaps one more pair or moves nobody.
+ *
+ * **The two lists always come out the same length**, whichever way a tie went,
+ * which is the property the whole feature rests on: every division's size is
+ * fixed, so one extra club promoted would mean one extra relegated.
+ *
+ * Absent (a headless caller, a world with no eligible country, a save from
+ * before playoffs existed) means the plain top-N slice, which is exactly the old
+ * behaviour.
  */
 export function computeCountrySwaps(
   competitions: Competition[],
   tablesByCompId: Map<number, StandingsRow[]>,
-  playoffWinners?: Map<number, number>,
+  playoffOutcomes?: Map<number, PlayoffOutcome>,
 ): CompetitionSwap[] {
   return tier1Pairs(competitions).flatMap(({ d1, d2 }) => {
     // Nothing to swap with: a one-division country has no tier 2 to send clubs
@@ -49,20 +58,39 @@ export function computeCountrySwaps(
     // early return is the only thing standing between that setting and a world
     // that turns itself inside out every offseason.
     if (n <= 0) return [];
-    // A playoff winner always comes from a position *below* the automatic
-    // places (see promotionPlayoffFields), so he can never also be in the top
-    // n-1 slice and `promoted` cannot end up holding a club twice.
-    const playoffWinner = playoffWinners?.get(d2.id);
-    const promoted =
-      playoffWinner === undefined
-        ? d2Table.slice(0, n).map((r) => r.tid)
-        : [...d2Table.slice(0, n - 1).map((r) => r.tid), playoffWinner];
-    return {
-      d1CompId: d1.id,
-      d2CompId: d2.id,
-      promoted,
-      relegated: d1Table.slice(-n).map((r) => r.tid),
-    };
+    const outcome = playoffOutcomes?.get(d2.id);
+    if (!outcome) {
+      return {
+        d1CompId: d1.id,
+        d2CompId: d2.id,
+        promoted: d2Table.slice(0, n).map((r) => r.tid),
+        relegated: d1Table.slice(-n).map((r) => r.tid),
+      };
+    }
+    // Both formats hold back one promotion place for the playoff to settle.
+    // Only the German one also holds back a relegation place, because its tie
+    // decides a place on each side at once.
+    //
+    // Derived from `n` here rather than read off the outcome: the record was
+    // built at the season boundary and is applied now, and deriving is what
+    // keeps the two lists the same length even if the two ever disagreed about
+    // how many places the country gives out.
+    const autoPromoted = n - 1;
+    const autoRelegated = outcome.format === "german" ? n - 1 : n;
+    // Both playoff entrants come from *outside* the automatic slices by
+    // construction (see promotionPlayoffFields), so neither list can end up
+    // holding a club twice. The `> 0` guards are the `slice(-0)` trap again:
+    // a German playoff in a country promoting one club automates nothing, and
+    // `slice(-0)` would relegate the entire division.
+    const promoted = autoPromoted > 0
+      ? d2Table.slice(0, autoPromoted).map((r) => r.tid)
+      : [];
+    if (outcome.promotedTid !== null) promoted.push(outcome.promotedTid);
+    const relegated = autoRelegated > 0
+      ? d1Table.slice(-autoRelegated).map((r) => r.tid)
+      : [];
+    if (outcome.relegatedTid !== null) relegated.push(outcome.relegatedTid);
+    return { d1CompId: d1.id, d2CompId: d2.id, promoted, relegated };
   });
 }
 
