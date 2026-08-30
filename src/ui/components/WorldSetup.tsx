@@ -272,8 +272,7 @@ export function WorldSetup({ entries, onChange, defaultOpen = false }: Props) {
         {open && (
         <div id="world-setup-body" className="mt-2">
         <p className="text-muted small mb-3">
-          Pick which countries your world has, or add your own. This is fixed once the
-          save is created, so it's worth getting right now.
+          Pick which countries your world has, or add your own. Fixed once you start.
         </p>
 
         <ul className="list-unstyled mb-3">
@@ -506,10 +505,9 @@ function RosterPicker({
 
       {sources.length === 0 ? (
         <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
-          Leave this alone and the league gets invented clubs. Or load a roster file to
-          use your own, and its first competition fills the top division. You can also
-          name and colour every club by hand instead: tick <strong>Name the clubs
-          yourself</strong> further down this page.
+          Leave this alone and the league gets invented clubs. Or load a roster file for
+          your own, its first competition filling the top division. To only rename them,
+          tick <strong>Name the clubs yourself</strong> below.
         </p>
       ) : (
         <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
