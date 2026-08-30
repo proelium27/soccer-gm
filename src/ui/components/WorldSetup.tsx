@@ -687,9 +687,13 @@ export function LeagueSettings({
             className="form-select form-select-sm"
             value={resolved.divisions}
             aria-label="Divisions"
-            onChange={(e) => onSpec({ divisions: Number(e.target.value) === 1 ? 1 : 2 })}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              onSpec({ divisions: n === 1 ? 1 : n === 3 ? 3 : 2 });
+            }}
           >
             <option value={2}>Two, with promotion</option>
+            <option value={3}>Three, with promotion</option>
             <option value={1}>One, no promotion</option>
           </select>
         </div>
@@ -700,11 +704,12 @@ export function LeagueSettings({
             value={resolved.d1Teams}
             aria-label="Clubs per division"
             onChange={(e) => {
-              // One control sets both divisions. The underlying fields are
+              // One control sets every division. The underlying fields are
               // separate, so splitting them later is a UI change rather than a
-              // data one.
+              // data one. The unused ones are harmless on a shallower pyramid:
+              // buildCompetitions only reads as many as `divisions` asks for.
               const n = Number(e.target.value);
-              onSpec({ d1Teams: n, d2Teams: n });
+              onSpec({ d1Teams: n, d2Teams: n, d3Teams: n });
             }}
           >
             {DIVISION_SIZES.map((n) => (

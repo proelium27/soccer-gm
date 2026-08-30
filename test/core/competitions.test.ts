@@ -37,22 +37,35 @@ describe("competitions", () => {
 describe("worldCompetitions", () => {
   const comps = worldCompetitions();
 
-  it("has 16 entries: 8 countries x 2 tiers", () => {
-    expect(comps).toHaveLength(24);
+  it("has 28 entries: 12 countries, the big four three deep and the rest two", () => {
+    expect(comps).toHaveLength(28);
   });
 
   it("starts with England, matching englandCompetitions() exactly", () => {
     expect(comps.slice(0, 2)).toEqual(englandCompetitions());
   });
 
-  it("has every non-England country with one tier-1 and one tier-2 competition", () => {
+  it("runs the big four three divisions deep and everyone else two", () => {
+    const deep = ["England", "Spain", "Italy", "Germany"];
     for (const country of [
-      "Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey",
-      "Netherlands", "Scotland", "Greece", "Serbia",
+      "England", "Spain", "Italy", "Germany", "France", "Portugal", "Belgium",
+      "Turkey", "Netherlands", "Scotland", "Greece", "Serbia",
     ]) {
       const group = comps.filter((c) => c.country === country);
-      expect(group).toHaveLength(2);
-      expect(group.map((c) => c.tier).sort()).toEqual([1, 2]);
+      const tiers = deep.includes(country) ? [1, 2, 3] : [1, 2];
+      expect(group.map((c) => c.tier).sort()).toEqual(tiers);
+    }
+  });
+
+  it("keeps each country's divisions contiguous and in tier order in the table", () => {
+    // CompetitionSelect groups by country and filters the table in array order,
+    // so a division listed out of place would show out of order in every
+    // competition dropdown in the game.
+    for (const country of countriesOf(comps)) {
+      const group = comps.filter((c) => c.country === country);
+      expect(group.map((c) => c.tier)).toEqual([...group.map((c) => c.tier)].sort());
+      const ids = group.map((c) => c.id);
+      expect(ids).toEqual(Array.from({ length: ids.length }, (_, i) => ids[0] + i));
     }
   });
 
@@ -77,17 +90,18 @@ describe("worldCompetitions", () => {
       "England", "Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey",
       "Netherlands", "Scotland", "Greece", "Serbia",
     ]);
+    const deep = ["England", "Spain", "Italy", "Germany"];
     for (const { country, divisions } of chains) {
-      // Every shipped country is a two-division pyramid. The chain is only
-      // variable-length because a player can build one or three divisions.
-      expect(divisions.map((d) => d.tier)).toEqual([1, 2]);
+      expect(divisions.map((d) => d.tier)).toEqual(deep.includes(country) ? [1, 2, 3] : [1, 2]);
       expect(divisions.every((d) => d.country === country)).toBe(true);
     }
   });
 
   it("promotionLinks pairs each division with the one below it", () => {
     const links = promotionLinks(comps);
-    expect(links).toHaveLength(countriesOf(comps).length);
+    // One link per adjacent pair, so a three-division country contributes two:
+    // 12 countries, four of them three deep.
+    expect(links).toHaveLength(12 + 4);
     for (const { upper, lower } of links) {
       expect(upper.country).toBe(lower.country);
       expect(lower.tier).toBe(upper.tier + 1);
@@ -123,23 +137,25 @@ function divisionsOfTiers(comps: Competition[], country: string): number[] {
 }
 
 describe("countryClubRanges", () => {
-  it("splits the world into 8 contiguous 40-wide ranges, in table order", () => {
+  it("splits the world into 12 contiguous ranges, in table order", () => {
     const ranges = countryClubRanges(worldCompetitions());
     expect(ranges).toEqual([
-      // Blocks are sized by each country's real division sizes, so they are no
-      // longer a uniform 40 — see Competition.teamCount.
-      { country: "England", start: 0, end: 40 },
-      { country: "Spain", start: 40, end: 80 },
-      { country: "Italy", start: 80, end: 120 },
-      { country: "Germany", start: 120, end: 156 },
-      { country: "France", start: 156, end: 192 },
-      { country: "Portugal", start: 192, end: 228 },
-      { country: "Belgium", start: 228, end: 260 },
-      { country: "Turkey", start: 260, end: 298 },
-      { country: "Netherlands", start: 298, end: 336 },
-      { country: "Scotland", start: 336, end: 358 },
-      { country: "Greece", start: 358, end: 388 },
-      { country: "Serbia", start: 388, end: 420 },
+      // Blocks are sized by each country's real division sizes and by how deep
+      // its pyramid runs, so they are neither uniform nor a multiple of 40 —
+      // see Competition.teamCount and LeagueSpec.divisions. The big four carry
+      // a 20-club third division on top of their two.
+      { country: "England", start: 0, end: 60 },
+      { country: "Spain", start: 60, end: 120 },
+      { country: "Italy", start: 120, end: 180 },
+      { country: "Germany", start: 180, end: 236 },
+      { country: "France", start: 236, end: 272 },
+      { country: "Portugal", start: 272, end: 308 },
+      { country: "Belgium", start: 308, end: 340 },
+      { country: "Turkey", start: 340, end: 378 },
+      { country: "Netherlands", start: 378, end: 416 },
+      { country: "Scotland", start: 416, end: 438 },
+      { country: "Greece", start: 438, end: 468 },
+      { country: "Serbia", start: 468, end: 500 },
     ]);
   });
 
@@ -148,7 +164,7 @@ describe("countryClubRanges", () => {
     // layout by hand — a regression guard, same spirit as clubs.test.ts's
     // CLUBS/tid regression test.
     const ranges = countryClubRanges(worldCompetitions());
-    expect(ranges.reduce((sum, r) => sum + (r.end - r.start), 0)).toBe(420);
+    expect(ranges.reduce((sum, r) => sum + (r.end - r.start), 0)).toBe(500);
   });
 });
 

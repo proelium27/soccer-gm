@@ -262,7 +262,9 @@ describe("building a world's competitions table", () => {
     const chains = countryDivisions(table);
     expect(chains).toHaveLength(11);
     for (const { country, divisions } of chains) {
-      expect(divisions.map((d) => d.tier)).toEqual([1, 2]);
+      // Spain, Italy and Germany keep their third division; the rest run two.
+      const deep = ["Spain", "Italy", "Germany"];
+      expect(divisions.map((d) => d.tier)).toEqual(deep.includes(country) ? [1, 2, 3] : [1, 2]);
       expect(divisions.every((d) => d.country === country)).toBe(true);
     }
   });

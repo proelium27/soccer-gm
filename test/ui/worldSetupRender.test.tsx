@@ -69,7 +69,7 @@ describe("WorldSetup renders", () => {
     for (const country of ["England", "Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey"]) {
       expect(html).toContain(country);
     }
-    expect(html).toContain("12 leagues, 420 clubs");
+    expect(html).toContain("12 leagues, 500 clubs");
     expect(html).not.toContain("alert-warning");
   });
 
@@ -80,7 +80,7 @@ describe("WorldSetup renders", () => {
     expect(html).toContain("Money");
     expect(html).toContain("Continental Cup places");
     expect(html).toContain("Continental Shield places");
-    expect(html).toContain("13 leagues, 460 clubs");
+    expect(html).toContain("13 leagues, 540 clubs");
   });
 
   it("keeps the shipped rows collapsed, so eight panels don't bury the checkboxes", () => {
@@ -138,7 +138,7 @@ describe("WorldSetup renders", () => {
   it("renders a world with countries switched off", () => {
     const entries = defaultWorldEntries().map((e, i) => ({ ...e, included: i < 2 }));
     const html = render(entries);
-    expect(html).toContain("2 leagues, 80 clubs");
+    expect(html).toContain("2 leagues, 120 clubs");
     // Two countries can't field the Continental Cup, and it says so.
     expect(html).toContain("Continental Cup");
   });
@@ -411,11 +411,17 @@ describe("a shipped league's settings panel", () => {
   });
 
   it("shows the shape every shipped country plays", () => {
-    const html = panel("Spain");
-    expect(shown(html, "Divisions")).toBe("2");
-    expect(shown(html, "Clubs per division")).toBe("20");
-    expect(shown(html, "Clubs promoted and relegated each season"))
+    // The big four run three divisions and everyone else two, so the picker has
+    // to show the country's own depth rather than a single shipped default.
+    const spain = panel("Spain");
+    expect(shown(spain, "Divisions")).toBe("3");
+    expect(shown(spain, "Clubs per division")).toBe("20");
+    expect(shown(spain, "Clubs promoted and relegated each season"))
       .toBe(String(PROMOTION_RELEGATION_COUNT));
+
+    const turkey = panel("Turkey");
+    expect(shown(turkey, "Divisions")).toBe("2");
+    expect(shown(turkey, "Clubs per division")).toBe("18");
   });
 
   it("shows the country's own nationality mix rather than the rest-of-world bucket", () => {

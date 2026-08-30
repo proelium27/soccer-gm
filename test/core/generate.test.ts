@@ -4,7 +4,7 @@ import { generatePlayer } from "../../src/core/players/generate.js";
 import { RATING_MIN, RATING_MAX, ABS_LOW_MAX } from "../../src/core/constants.js";
 import { generateLeague, generateTwoDivisionLeague, generateWorld } from "../../src/core/league/generate.js";
 import { NUM_TEAMS, NUM_TEAMS_D2 } from "../../src/core/constants.js";
-import { worldCompetitions, competitionTeamCount } from "../../src/core/competitions.js";
+import { worldCompetitions, competitionTeamCount, countryClubRanges, countryDivisions } from "../../src/core/competitions.js";
 
 describe("generatePlayer", () => {
   it("returns a complete player with all ratings in range", () => {
@@ -67,9 +67,9 @@ describe("generateTwoDivisionLeague", () => {
 });
 
 describe("generateWorld", () => {
-  it("produces 420 teams across 24 competitions, each its own size", () => {
+  it("produces 500 teams across 28 competitions, each its own size", () => {
     const world = generateWorld(mulberry32(42));
-    expect(world.teams).toHaveLength(420);
+    expect(world.teams).toHaveLength(500);
     for (const comp of worldCompetitions()) {
       expect(world.teams.filter((t) => t.compId === comp.id))
         .toHaveLength(competitionTeamCount(comp));
@@ -77,37 +77,40 @@ describe("generateWorld", () => {
   });
 
   it("assigns tid blocks in country order, sized by each country's divisions", () => {
+    // Cross-checked against countryClubRanges rather than spelled out as a
+    // literal per competition: the two derive the layout independently, so this
+    // catches them drifting apart, and a country changing size or pyramid depth
+    // no longer means editing two dozen hardcoded tids.
     const world = generateWorld(mulberry32(42));
-    const tidsFor = (compId: number) => world.teams.filter((t) => t.compId === compId).map((t) => t.tid);
-    expect(Math.min(...tidsFor(0), ...tidsFor(1))).toBe(0);
-    expect(Math.max(...tidsFor(0), ...tidsFor(1))).toBe(39);
-    expect(Math.min(...tidsFor(2), ...tidsFor(3))).toBe(40);
-    expect(Math.max(...tidsFor(2), ...tidsFor(3))).toBe(79);
-    expect(Math.min(...tidsFor(4), ...tidsFor(5))).toBe(80);
-    expect(Math.max(...tidsFor(4), ...tidsFor(5))).toBe(119);
-    expect(Math.min(...tidsFor(6), ...tidsFor(7))).toBe(120);
-    expect(Math.max(...tidsFor(6), ...tidsFor(7))).toBe(155);
-    expect(Math.min(...tidsFor(8), ...tidsFor(9))).toBe(156);
-    expect(Math.max(...tidsFor(8), ...tidsFor(9))).toBe(191);
-    expect(Math.min(...tidsFor(10), ...tidsFor(11))).toBe(192);
-    expect(Math.max(...tidsFor(10), ...tidsFor(11))).toBe(227);
-    expect(Math.min(...tidsFor(12), ...tidsFor(13))).toBe(228);
-    expect(Math.max(...tidsFor(12), ...tidsFor(13))).toBe(259);
-    expect(Math.min(...tidsFor(14), ...tidsFor(15))).toBe(260);
-    expect(Math.max(...tidsFor(14), ...tidsFor(15))).toBe(297);
-    expect(Math.min(...tidsFor(16), ...tidsFor(17))).toBe(298);
-    expect(Math.max(...tidsFor(16), ...tidsFor(17))).toBe(335);
-    expect(Math.min(...tidsFor(18), ...tidsFor(19))).toBe(336);
-    expect(Math.max(...tidsFor(18), ...tidsFor(19))).toBe(357);
-    expect(Math.min(...tidsFor(20), ...tidsFor(21))).toBe(358);
-    expect(Math.max(...tidsFor(20), ...tidsFor(21))).toBe(387);
-    expect(Math.min(...tidsFor(22), ...tidsFor(23))).toBe(388);
-    expect(Math.max(...tidsFor(22), ...tidsFor(23))).toBe(419);
+    const comps = worldCompetitions();
+    const compById = new Map(comps.map((c) => [c.id, c]));
+
+    for (const { country, start, end } of countryClubRanges(comps)) {
+      const tids = world.teams
+        .filter((t) => compById.get(t.compId)!.country === country)
+        .map((t) => t.tid)
+        .sort((a, b) => a - b);
+      expect(tids).toEqual(Array.from({ length: end - start }, (_, i) => start + i));
+    }
+
+    // Within a country the divisions are contiguous too, top flight first — the
+    // order club identities are handed out in.
+    for (const { divisions } of countryDivisions(comps)) {
+      let cursor = Math.min(...world.teams
+        .filter((t) => divisions.some((d) => d.id === t.compId))
+        .map((t) => t.tid));
+      for (const d of divisions) {
+        const tids = world.teams.filter((t) => t.compId === d.id).map((t) => t.tid);
+        expect(Math.min(...tids)).toBe(cursor);
+        expect(tids).toHaveLength(competitionTeamCount(d));
+        cursor += competitionTeamCount(d);
+      }
+    }
   });
 
-  it("has 10500 players (420 teams x 25)", () => {
+  it("has 12500 players (500 teams x 25)", () => {
     const world = generateWorld(mulberry32(42));
-    expect(world.players).toHaveLength(10500);
+    expect(world.players).toHaveLength(12500);
   });
 
   it("generates the weak leagues in coefficient order: England > France > Netherlands > Portugal > Belgium > Turkey > Greece > Scotland > Serbia", () => {

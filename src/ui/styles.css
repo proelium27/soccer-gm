@@ -925,6 +925,13 @@ a:hover {
   background: var(--sg-surface-2);
   border: 1px solid var(--sg-border);
 }
+/* Third tier: quieter still than D2, so the three read as a pyramid at a
+   glance rather than as two states plus an odd one out. */
+.division-badge--d3 {
+  color: var(--sg-text-faint, var(--sg-text-muted));
+  background: transparent;
+  border: 1px dashed var(--sg-border);
+}
 
 /* Nationality flag (SVG image, sized by the Flag component's `size` prop) */
 .player-flag-wrap {
