@@ -93,6 +93,11 @@ interface LeagueContextValue {
   declineJobOffersAction: () => Promise<void>;
   /** Save-level switch for whether the board can sack you at all. */
   setSackingEnabledAction: (on: boolean) => Promise<void>;
+  /**
+   * God Mode: take charge of any club in the world, right now — no offer, no
+   * offseason. Same handover as accepting a job offer.
+   */
+  godModeSwitchClubAction: (tid: number) => Promise<void>;
   movePlayerToClubAction: (pid: number, tid: number) => Promise<void>;
   releasePlayerGodModeAction: (pid: number) => Promise<void>;
   editPlayerAction: (pid: number, edit: PlayerEdit) => Promise<void>;
@@ -716,6 +721,28 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     [mutate],
   );
 
+  /**
+   * God Mode: hand the user any club in the world. Runs the same handover as
+   * accepting a job offer — the old club's academy graduates, it goes to the
+   * AI with its user-only fields stripped, the new squad arrives fogged, and
+   * the career picks up a stint — but skips the two gates that make an offer an
+   * offer: that somebody asked, and that it is the offseason.
+   *
+   * Mid-season the new stint opens on the season in progress rather than the
+   * next one, because that is when the user actually starts picking this squad.
+   * The board then judges *this* club at season end, on a fresh honeymoon
+   * confidence, which is the honest reading of a takeover.
+   */
+  const godModeSwitchClubAction = useCallback(
+    (tid: number) => mutate((l) => {
+      if (!l.godMode) return null;
+      if (tid === l.meta.userTid) return null;
+      if (!l.teams.some((t) => t.tid === tid)) return null;
+      return switchClub(l, tid, "left", l.phase === "offseason" ? l.season + 1 : l.season);
+    }),
+    [mutate],
+  );
+
   const releasePlayerGodModeAction = useCallback(
     (pid: number) => mutate((l) => detachPlayer(l, pid)),
     [mutate],
@@ -820,6 +847,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     setGodModeAction,
     acceptJobOfferAction, declineJobOffersAction, setSackingEnabledAction,
     movePlayerToClubAction,
+    godModeSwitchClubAction,
     releasePlayerGodModeAction,
     editPlayerAction,
     createPlayerAction,
@@ -844,6 +872,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     rejectLoanOfferAction, setTransferListedAction, setMoreMinutesAction, setLineupAction, setFormationAction,
     autoPickBestXIAction,
     setGodModeAction, movePlayerToClubAction, releasePlayerGodModeAction,
+    godModeSwitchClubAction,
     acceptJobOfferAction, declineJobOffersAction, setSackingEnabledAction,
     editPlayerAction, createPlayerAction, setClubFinancesAction,
     simming, simOverlayOpen, watchable, jumpOpen, busy, saveToDb, doExport, doImport,
