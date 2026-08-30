@@ -713,8 +713,9 @@ export function LeagueSettings({
           </select>
         </div>
         {/* Nothing to size in a one-division league: it has no second tier to
-            swap with. */}
-        {resolved.divisions === 2 && (
+            swap with. Anything deeper does, and the count applies to every link
+            in the chain — so this is a depth test, not an equality one. */}
+        {resolved.divisions >= 2 && (
           <div className="col">
             <label className="form-label small mb-1">Up and down</label>
             <select

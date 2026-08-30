@@ -96,7 +96,7 @@ export function enforceDivisionCeilings(
       .filter((p) => p.ovr >= ceiling)
       .sort((a, b) => b.ovr - a.ovr || a.pid - b.pid);
 
-      for (const player of qualifying) {
+    for (const player of qualifying) {
       const sellerTid = [...rosterByTid.entries()].find(([, r]) => r.includes(player.pid))?.[0];
       if (sellerTid === undefined) continue; // already moved earlier this pass
 
@@ -113,15 +113,15 @@ export function enforceDivisionCeilings(
       // teleporting its best players past a division would flatten the pyramid it
       // is meant to grade.
       const sellerCountry = countryByTid.get(sellerTid);
-      const d1Candidates = [...tierByTid.entries()].filter(
+      const upCandidates = [...tierByTid.entries()].filter(
         ([tid, tier]) =>
           tier === fromTier - 1 && tid !== userTid && countryByTid.get(tid) === sellerCountry,
       );
-      if (d1Candidates.length === 0) continue;
+      if (upCandidates.length === 0) continue;
 
-      let buyerTid = d1Candidates[0][0];
+      let buyerTid = upCandidates[0][0];
       let bestNeed = avgOvrAtPos(buyerTid, player.pos);
-      for (const [tid] of d1Candidates.slice(1)) {
+      for (const [tid] of upCandidates.slice(1)) {
         const need = avgOvrAtPos(tid, player.pos);
         if (need < bestNeed) {
           bestNeed = need;
