@@ -6,7 +6,7 @@ import {
   competitionStrengthOffset, competitionBudgetScale,
   resolveLeagueSpec, type ResolvedLeagueSpec,
 } from "../../core/competitions.js";
-import { MAX_PROMOTION_SPOTS } from "../../core/constants.js";
+import { MAX_PROMOTION_SPOTS, type PlayoffFormat } from "../../core/constants.js";
 
 /** What the code box suggests when left empty — the same rule competitionAbbrev uses. */
 function defaultAbbrev(country: string): string {
@@ -728,6 +728,30 @@ export function LeagueSettings({
                   {n === 0 ? "None" : `${n} up, ${n} down`}
                 </option>
               ))}
+            </select>
+          </div>
+        )}
+        {/* How the last of those places is settled. Only worth asking about
+            where there are places to settle: a country swapping nobody has
+            nothing to play for. */}
+        {resolved.divisions === 2 && promoSpotsOf(resolved) > 0 && (
+          <div className="col">
+            <label className="form-label small mb-1">Playoff</label>
+            <select
+              className="form-select form-select-sm"
+              value={resolved.playoffFormat}
+              aria-label="How the last promotion place is decided"
+              onChange={(e) => onSpec({ playoffFormat: e.target.value as PlayoffFormat })}
+            >
+              <option value="none">None, straight swap</option>
+              {/* The English bracket sits BELOW the automatic places, so it
+                  needs at least one of them to sit below. At a single place the
+                  only bracket available would be positions 1-4, which takes
+                  promotion off the champion. */}
+              <option value="english" disabled={promoSpotsOf(resolved) < 2}>
+                English, four-club bracket
+              </option>
+              <option value="german">German, v the club above</option>
             </select>
           </div>
         )}

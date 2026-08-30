@@ -498,6 +498,44 @@ export function Manual() {
             of it every season.
           </p>
           <p>
+            <strong>The last promotion place is a playoff, and there are two systems.</strong>{" "}
+            Each country runs the one it runs in real life, and you can change any of them in
+            World setup when you start a save.
+          </p>
+          <p>
+            The <strong>English</strong> system is what England, Spain, Italy, France, Turkey and
+            the rest use. Only the top clubs go up automatically and the last place is decided on
+            the pitch by the four that finished just below them, so in a country promoting three,
+            1st and 2nd go up on the table and 3rd through 6th play off: two-legged semi-finals
+            (3rd v 6th, 4th v 5th), then a one-off final. Finishing higher gets you the tie against
+            the lowest-placed club and nothing else, because over two legs you each host once and
+            the final is at a neutral ground. Sixth goes up about as often as third does, which is
+            roughly how it works in real life, and it means a mid-table run-in still has something
+            to play for.
+          </p>
+          <p>
+            The <strong>German</strong> system, which the Bundesliga uses, points the last place at
+            both divisions at once. One fewer club goes up automatically and one fewer goes down,
+            and then the club that just missed out below plays the lowest club that just survived
+            above, home and away, for the remaining top-flight place. Win it from below and you
+            swap: you go up, they go down. Win it from above and nobody moves at all, so that
+            season the country promotes and relegates one fewer club than usual. It is a harder
+            route up than the English bracket, because you are playing a top-flight side rather
+            than your own division's stragglers.
+          </p>
+          <p>
+            Scotland promotes only one club and so runs no playoff by default: its champion goes
+            up and that's that. You can give it either system in World setup, though the English
+            bracket needs at least two promotion places to sit below, so at one place only the
+            German one is offered.
+          </p>
+          <p>
+            It's played the moment the season ends, before anyone retires or moves clubs, so a
+            veteran on his way out gets one last game. Suspensions don't carry into it — there are
+            no matchdays left to serve a ban against — but injuries do. Results are on the{" "}
+            <strong>Promotion Playoffs</strong> page, for any country and any past season.
+          </p>
+          <p>
             The big four (England, Spain, Italy and Germany) are all built to the same strength and
             budget bands, so none of them is a flagship league above the others. The other eight are
             deliberately weaker and poorer: their clubs generate at lower OVR, and they earn and can
@@ -529,7 +567,8 @@ export function Manual() {
             his own country.
           </p>
           <p>
-            Promotion and relegation (three clubs each way in most countries, fewer in the smaller ones) runs on its
+            Promotion and relegation (three clubs each way in most countries, fewer in the smaller
+            ones, with the last place up decided by a playoff) runs on its
             own within each country at the end of every season, so a rough season in Spain's top
             flight doesn't touch any other country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
             grouped by country, so you can browse any of the 24 leagues. It defaults to

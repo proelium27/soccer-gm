@@ -178,9 +178,19 @@ export function resolveCupTie(
   ad: TeamMatchData,
   round: number,
   matchday: number,
+  /**
+   * Played at a neutral venue, so neither side takes the home attack bonus.
+   *
+   * Only the promotion playoff final passes this (England's final is at
+   * Wembley). Every cup caller omits it and is bit-identical to before: the
+   * flag changes a composite value, never a draw. Extra time and the shootout
+   * are already venue-neutral here, so a neutral tie is neutral end to end.
+   */
+  neutral = false,
 ): CupTie {
   const result = simMatchDetailed(rng, hd.composites, ad.composites, hd.xi, ad.xi, hd.bench, ad.bench, {
     recompute: { home: hd.recompute, away: ad.recompute },
+    neutral,
   });
   const box = result.boxScore;
   let homeGoals = result.home;

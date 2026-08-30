@@ -108,9 +108,17 @@ describe("simOffseason", () => {
     // down moves exactly two clubs per country; a league set to none moves
     // nobody, which is the case that would silently swap whole divisions if
     // computeCountrySwaps ever went back to slicing by a zero count.
+    // `playoffFormat: "none"` alongside, because this is a test about promotion
+    // COUNTS and a playoff is a different axis: Germany runs the German format
+    // even at a single place, where the top-flight club holding on means that
+    // country moves nobody at all. That is correct behaviour (see
+    // promotionPlayoff.test.ts, which covers it directly) and it would make the
+    // count here depend on a simulated tie.
     const withSpots = (promotionSpots: number) => ({
       ...league,
-      competitions: league.competitions.map((c) => ({ ...c, promotionSpots })),
+      competitions: league.competitions.map((c) => ({
+        ...c, promotionSpots, playoffFormat: "none" as const,
+      })),
     });
     const one = simOffseason(withSpots(1), rng);
     const closed = simOffseason(withSpots(0), rng);

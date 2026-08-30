@@ -50,6 +50,7 @@ function createEnglandOnlyLeagueState(userTid: number, rng: () => number, seed =
     shieldHistory: [],
     domesticCups: [],
     domesticCupHistory: [],
+    promotionPlayoffs: [],
     international: { qualifying: null, tournament: null, confederationCups: [], history: [], qualifyingHistory: [], confederationCupHistory: [], powerRankings: [], stage: null, stageInjuries: [] },
     powerRankingHistory: [],
     godMode: false,

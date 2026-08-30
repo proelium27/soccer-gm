@@ -5,6 +5,7 @@ import { newsEventScope, isNewsworthy } from "../core/newsEvents.js";
 import type { AwardNews } from "../core/awardNews.js";
 import { awardNewsScope } from "../core/awardNews.js";
 import type { TrophyNews } from "../core/trophyNews.js";
+import type { PromotionNews } from "../core/promotionNews.js";
 import type { ContinentalNews } from "../core/continentalNews.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../core/calendar.js";
 import { NEWS_WORLD_TRANSFER_FEE } from "../core/constants.js";
@@ -13,6 +14,7 @@ export type FeedItem =
   | { kind: "transfer"; order: number; data: CompletedTransfer }
   | { kind: "news"; order: number; data: NewsEvent }
   | { kind: "trophy"; order: number; data: TrophyNews }
+  | { kind: "promotion"; order: number; data: PromotionNews }
   | { kind: "award"; order: number; data: AwardNews }
   | { kind: "continental"; order: number; data: ContinentalNews };
 
@@ -83,6 +85,7 @@ export function buildSeasonTimeline(
   awards: AwardNews[] = [],
   trophies: TrophyNews[] = [],
   continental: ContinentalNews[] = [],
+  promotions: PromotionNews[] = [],
 ): FeedItem[] {
   const { userTid, userCompId, compOf } = audience;
 
@@ -136,13 +139,23 @@ export function buildSeasonTimeline(
     ...continental.map((c): FeedItem => ({
       kind: "continental", order: SEASON_END_ORDER, data: c,
     })),
+    // A playoff is reported for the user'"'"'s own country only, and the test is
+    // either division rather than his own: a top-flight manager wants to know
+    // which club is joining his league, and a second-division one wants to know
+    // who took the place he was chasing. Ten other countries deciding their
+    // second division is not news wherever you play, which is what separates
+    // this from the trophies above.
+    ...promotions
+      .filter((p) => userCompId !== undefined
+        && (p.d1CompId === userCompId || p.d2CompId === userCompId))
+      .map((p): FeedItem => ({ kind: "promotion", order: SEASON_END_ORDER, data: p })),
   ];
 
   // Within one order key, business comes before what happened on the pitch,
   // and a season ends in the order the story does: who won what, then who was
   // best, then what it changed about next season'''s competition.
   const RANK: Record<FeedItem["kind"], number> = {
-    transfer: 0, news: 1, trophy: 2, award: 3, continental: 4,
+    transfer: 0, news: 1, trophy: 2, promotion: 3, award: 4, continental: 5,
   };
   const rank = (item: FeedItem) => RANK[item.kind];
 

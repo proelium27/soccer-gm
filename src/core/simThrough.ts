@@ -35,7 +35,8 @@ import { leaguePhaseDue } from "./cup/leaguePhase.js";
 import { playKnockoutLeg, playPlayIn, playLeaguePhaseRound, playPlayoff } from "./cup/simCup.js";
 import { clampBudget, financeScaleFor } from "./finance/budget.js";
 import { initInternationalCampaign } from "./international/index.js";
-import { reviewSeason } from "./manager/index.js";
+import { reviewSeason, tablesByCompetition } from "./manager/index.js";
+import { playPromotionPlayoffs } from "./promotionPlayoff.js";
 import { POWER_SNAPSHOT_INTERVAL } from "./constants.js";
 
 /**
@@ -595,6 +596,24 @@ export function simThrough(
     ? initInternationalCampaign(league.international, currentPlayers, league.season, league.lid)
     : league.international;
 
+  // Same boundary: the promotion playoffs are the last act of the season, so
+  // they are played here — on end-of-season squads, before progression ages
+  // anyone and before retirement takes a veteran out of his club's final. It
+  // has to happen *before* the board review below, because where a country
+  // holds a playoff "did we go up" is not a question the table can answer.
+  // Every tie runs on its own seeded stream (see promotionPlayoff.ts), so no
+  // league scoreline moves; `simOffseason` replays this itself if it is handed
+  // a league that never came through here, which is how headless callers get
+  // the same world the game does.
+  const allPlayed = [...league.played, ...newResults];
+  const promotionPlayoffs = enteringOffseason
+    ? playPromotionPlayoffs(
+      league.competitions, currentTeams, currentPlayers,
+      tablesByCompetition(currentTeams, league.competitions, allPlayed),
+      league.lid, league.season,
+    )
+    : league.promotionPlayoffs;
+
   // Same boundary, same reasoning: the board reviews the season the moment it
   // ends, so a sacking or a job offer is answered *before* the offseason runs
   // and a manager who moves manages his new club's summer, not his old one's.
@@ -604,10 +623,11 @@ export function simThrough(
       league,
       teams: currentTeams,
       players: currentPlayers,
-      played: [...league.played, ...newResults],
+      played: allPlayed,
       cup,
       shield,
       domesticCups,
+      promotionPlayoffs,
     }).manager
     : league.manager;
 
@@ -619,7 +639,7 @@ export function simThrough(
     international,
     schedule: finalRemaining,
     manager,
-    played: [...league.played, ...newResults],
+    played: allPlayed,
     transfers,
     activeLoans,
     winterMarketRunSeason,
@@ -628,5 +648,6 @@ export function simThrough(
     cup,
     shield,
     domesticCups,
+    promotionPlayoffs,
   };
 }
