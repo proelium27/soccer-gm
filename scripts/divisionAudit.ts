@@ -10,10 +10,31 @@
  * See DIVISION_2_OFFSET and divisionRefusalOvr in constants.ts.
  *
  * Reports per tier rather than for a hardcoded D1/D2 pair (2026-08-30), because
- * the big four now run three divisions. The headline check is the one the old
- * version made for a single pair, applied to EVERY adjacent pair:
+ * every country now runs three divisions.
+ *
+ * **The strict check is gated on the TOP boundary only, and that is a product
+ * decision rather than a measurement one (user call, 2026-08-30).** The old
+ * single-pair check was:
  *
  *     tier N's strongest TEAM must not out-rate tier N-1's average TEAM.
+ *
+ * That still holds at D1/D2 — the boundary players actually watch, and the one
+ * DIVISION_2_OFFSET was tuned against — and it is a hard failure there. Below
+ * that it converges: measured at 30 seasons, D3's strongest team reached 52.1
+ * against D2's average 51.0, from a correct 45.4 vs 50.5 at generation. Deeper
+ * tiers erode faster for the reason CLAUDE.md already documents for the bottom
+ * of the COUNTRY ladder — growthDamping throttles growth above an absolute ovr,
+ * so a tier further below that line grows undamped — and the conclusion there
+ * was the same: ordered at generation, converged by the end, don't chase it
+ * with bigger offsets. Nobody is scrutinising whether a third division's best
+ * club edges the average second-division one.
+ *
+ * So deeper boundaries are gated on MEAN ORDERING instead: tier N's mean OVR
+ * must stay below tier N-1's. That is the claim that actually matters — the
+ * divisions are still in the right order — and it is not a weakened version of
+ * the same test, it is a different and cheaper one. Measured comfortably clear
+ * (D1 56.5 / D2 50.9 / D3 44.1 at 30 seasons), so it has real headroom to catch
+ * a genuine reordering.
  *
  * Two things this script gets right that are easy to get wrong:
  *
@@ -134,18 +155,30 @@ for (const seed of SEEDS) {
     );
   }
 
-  // THE invariant, for every adjacent pair rather than just D1/D2.
   for (let i = 1; i < last.length; i++) {
     const upper = last[i - 1];
     const lower = last[i];
     const strongest = Math.max(...lower.teamAvgs);
     const average = avg(upper.teamAvgs);
+    // Strict only at the top boundary; below that the tiers are allowed to
+    // converge and only their ORDER is gated. See the file header.
+    const strict = upper.tier === 1;
     const ok = strongest <= average;
-    if (!ok) failures++;
+    if (strict && !ok) failures++;
     console.log(
-      `  ${ok ? "OK  " : "FAIL"} tier ${lower.tier}'s strongest team ${strongest.toFixed(1)} ` +
+      `  ${strict ? (ok ? "OK  " : "FAIL") : (ok ? "ok  " : "note")} ` +
+      `tier ${lower.tier}'s strongest team ${strongest.toFixed(1)} ` +
       `vs tier ${upper.tier}'s average team ${average.toFixed(1)} ` +
-      `(gen: ${Math.max(...first[i].teamAvgs).toFixed(1)} vs ${avg(first[i - 1].teamAvgs).toFixed(1)})`,
+      `(gen: ${Math.max(...first[i].teamAvgs).toFixed(1)} vs ${avg(first[i - 1].teamAvgs).toFixed(1)})` +
+      (strict ? "" : "  [converging is accepted here]"),
+    );
+
+    // What IS gated all the way down: the divisions stay in order.
+    const ordered = avg(lower.playerOvrs) < avg(upper.playerOvrs);
+    if (!ordered) failures++;
+    console.log(
+      `  ${ordered ? "OK  " : "FAIL"} tier ${lower.tier} mean ${avg(lower.playerOvrs).toFixed(1)} ` +
+      `below tier ${upper.tier} mean ${avg(upper.playerOvrs).toFixed(1)}`,
     );
   }
 
