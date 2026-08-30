@@ -345,7 +345,7 @@ export function Manual() {
             <li><strong>Continental Cup</strong>. The live league-phase table and knockout bracket for the current season, plus past winners via a season dropdown. More in <a href="#cup">The Continental Cup</a>.</li>
             <li><strong>Continental Shield</strong>. The same page for the second competition, for clubs finishing just below the Cup places. More in <a href="#shield">The Continental Shield</a>.</li>
             <li><strong>Domestic Cup</strong>. Every round of your country&apos;s cup as it&apos;s drawn and played, with a dropdown for any other country and for past seasons. More in <a href="#domestic-cup">The Domestic Cup</a>.</li>
-            <li><strong>National Teams</strong>. A whole section for the summer's national-team football: the current World Cup, Qualifying and Confederation Cups (the Euro, Copa América and AFCON), Rosters showing every nation's named squad, a Schedule of fixtures, Power Rankings of every nation, Stat Leaders (top nations and top players, filterable by country), and History with past winners and each nation's record. More in <a href="#international">International Football</a>.</li>
+            <li><strong>National Teams</strong>. A whole section for the summer's national-team football: Player Pool (call players into your own country's squad) and My Squad (pick its eleven), Federation (your international career, and who wants you), the current World Cup, Qualifying and Confederation Cups (the Euro, Copa América and AFCON), Rosters showing every nation's named squad, a Schedule of fixtures, Power Rankings of every nation, Stat Leaders (top nations and top players, filterable by country), and History with past winners and each nation's record. More in <a href="#international">International Football</a>.</li>
             <li><strong>Power Rankings</strong>. Every club in the world ranked by a blended Power score: squad OVR (Starting XI plus bench, depth-weighted, same formula as Standings' OVR column) plus a current-season form bonus or penalty. Form isn't just your record. Beating a strong side counts for more than beating a weak one (and losing to a weak side hurts more than losing to a strong one), and goal difference factors in too, so a club can rank above or below its raw OVR depending on how it's actually playing. Record, goal difference, OVR, and the blended Power score all sit side by side, with a badge showing each club's competition and its rank within it. Click a team to expand its full roster in place. The rankings also get snapshotted every 10 matchdays (plus once after the final matchday), so four times a season, and a dropdown lets you browse any past snapshot from any season, with arrows showing how far each club rose or fell since the last one. Snapshots taken before this cadence changed are kept, so an older save has a denser dropdown for its early seasons. Historical views can't expand rosters, since past squads aren't stored, and snapshots only start piling up from the point this feature shipped.</li>
             <li><strong>Schedule</strong>. Every matchday's fixtures and results. Click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong>. A Players tab (league-wide leaderboards for one season at a time: goals, assists, shots, shots on target, xG, tackles, interceptions, passes, crosses, fouls, yellow cards, red cards, saves, minutes, and average match rating, with a season dropdown covering the current season and every completed one) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown). Match rating is an average rather than a running total, so to keep a one-off cameo from topping the chart a player needs to have appeared in at least half of the games played so far before he shows up on the match-rating board (a threshold that scales as the season goes, so it works ten games in as well as at the end). A <strong>Totals / Per 90</strong> switch sits next to the stat dropdown: Per 90 divides each stat by the number of full matches the player's minutes add up to, which is how you find the squad player outproducing a starter rather than just the one who played most. Per-90 mode has a playing-time floor of its own &mdash; 30% of the minutes available so far, quoted above the table &mdash; because a rate is far easier to fluke than a total: score in a twelve-minute cameo and you've "scored" 7.5 per 90. It's counted in minutes rather than appearances, since twenty run-outs off the bench is exactly the case an appearance count would wave through. Appearances, minutes and match rating stay as totals either way (the first two are what the rate divides by, and a match rating is already an average). For career totals and all-time bests across every season at once, see <a href="#frivolities">Frivolities</a>' All-Time Leaders.</li>
@@ -1031,13 +1031,48 @@ export function Manual() {
             being played on their own.
           </p>
           <p>
-            <strong>Nobody manages a national team, including you.</strong> Each nation picks its
-            own squad from whoever is good enough, in the strongest formation it can field. So your
-            job isn't to pick the team, it's to develop players worth picking, then watch how they
-            get on. One consequence worth knowing: a squad is chosen from the ratings and injuries
-            your players finished the club season with, so a star who ends the year injured really
-            does miss the tournament. The whole thing also plays out before anyone retires, so a
-            veteran in his final season gets one last crack at it.
+            <strong>You can manage one of these countries yourself.</strong> Pick one when you
+            start a save — there's a National team box under Difficulty — or leave it alone and
+            wait, because federations get in touch over the summer and anything on the table shows
+            up on the <strong>Federation</strong> page. Managing a country is entirely optional,
+            and plenty of good saves never bother. Every nation you don't manage picks itself:
+            its best available players in the strongest shape it can field.
+          </p>
+          <p>
+            What you actually control is the squad and the team, and they're two pages. When a
+            campaign is drawn, at the end of a season, a squad of 23 is named for you.{" "}
+            <strong>Player Pool</strong> is where you change who's in it — everyone born in your
+            country is eligible, whoever they play for, so you can call anyone up and drop anyone
+            you don't fancy. <strong>My Squad</strong> is where you pick the shape and drag your
+            eleven around, exactly as you do on your club's Roster page. Both are open until the
+            first match, and you can change the eleven again between rounds. Two
+            rules the game keeps for you: you have to take at least one goalkeeper, and only a
+            goalkeeper can go in goal. If anyone in the eleven you picked can't play on the day,
+            because he got hurt or retired since you named him, the game picks that whole eleven
+            for you rather than field ten. It won't leave you a man short, but it does mean a
+            lineup you set two seasons ago can quietly stop being the one that gets used, so look
+            in between rounds.
+          </p>
+          <p>
+            You don't get a transfer market, a budget or any say in training — a national manager
+            picks from who exists, and that's the whole job. One consequence worth knowing: a squad
+            is chosen from the ratings and injuries your players finished the club season with, so
+            a star who ends the year injured really does miss the tournament. The whole thing also
+            plays out before anyone retires, so a veteran in his final season gets one last crack
+            at it.
+          </p>
+          <p>
+            The federation judges you once per campaign, not once per season — after qualifying
+            ends, after a World Cup, after a continental championship. They compare how far you got
+            with how good your players are, which is a bar you genuinely cannot move: it's read off
+            your country's best available eleven, not the squad you named, so leaving your stars at
+            home lowers nothing except your chances. Qualifying is the campaign that can really
+            hurt you. If you were expected to make the finals and you don't, that's the worst thing
+            that can happen to an international manager; if nobody expected you and you get there
+            anyway, it's the best. Winning a World Cup buys you years. Confidence works exactly
+            like the club version, including the "Never sack me" switch, and there's one important
+            difference: being let go by a country is a perfectly ordinary place to end up. You just
+            go back to club football until someone else asks.
           </p>
           <p>
             International football is mostly a record, not a lever. Caps, goals, tournaments played
@@ -1053,7 +1088,12 @@ export function Manual() {
             to see a golden generation announce itself.
           </p>
           <p>
-            You can browse all of it in the <strong>National Teams</strong> section. The World Cup,
+            You can browse all of it in the <strong>National Teams</strong> section.{" "}
+            <strong>Player Pool</strong> is where you decide who's in your country's squad and{" "}
+            <strong>My Squad</strong> is where you pick the eleven, while{" "}
+            <strong>Federation</strong> is the international half of your career: how they rate
+            you, what they made of the last campaign, which other countries have been in touch,
+            and every job you've held. The World Cup,
             Qualifying and Confederation Cups tabs show the current campaign and let you flip back to
             past years (Confederation Cups shows every cup of a given summer on one page);
             Rosters shows the squad every nation has named for the campaign being played, with the
@@ -2135,16 +2175,18 @@ export function Manual() {
           </p>
           <p>What it unlocks while it's on:</p>
           <ul>
+            <li><strong>Manage any club.</strong> The <em>God Mode</em> page (it shows up in the sidebar once the switch is on) opens on a Switch Club tab. Pick any club in the world and take charge of it on the spot, no job offer needed and no waiting for the offseason. The club you leave goes straight to the AI, its youth academy graduates onto the senior squad on the way out, and any transfer talks you were holding are dropped. You arrive at the new club knowing its players' ratings but not their ceilings, same as taking a job normally. It goes in your career record as a spell like any other, and the board there starts you on a fresh slate.</li>
             <li><strong>Edit any player.</strong> Open any player's profile and hit <em>Edit</em>. Change every one of his 14 ratings (OVR recomputes as you go), his potential, name, nationality, age, position, height, and his contract wage and length. You can also clear an injury outright.</li>
             <li><strong>Move players freely.</strong> From a player's profile, send him to any club instantly, with no fee, no budget check, and no cap, or release him to free agency.</li>
-            <li><strong>Create players.</strong> The <em>God Mode</em> page (it shows up in the sidebar once the switch is on) has a Create Player tool. Build a player from scratch and drop him onto any club or leave him a free agent.</li>
+            <li><strong>Create players.</strong> The <em>God Mode</em> page has a Create Player tool. Build a player from scratch and drop him onto any club or leave him a free agent.</li>
             <li><strong>Build any club's roster.</strong> The same page lets you pick any club and add, move, or release its players directly.</li>
             <li><strong>Set club finances and identity.</strong> Set any club's budget and hype to whatever you want, and rename or recolor any club.</li>
             <li><strong>See true potential.</strong> The scouting fog lifts while God Mode is on, so every player's exact potential shows everywhere, not an estimate.</li>
           </ul>
           <p>
-            What it deliberately <em>won't</em> do: it can't add or delete whole clubs (the world is
-            a fixed 20-per-league shape the schedule depends on), it can't erase a player from
+            What it deliberately <em>won't</em> do: it can't add or delete whole clubs (the shape of
+            the world is fixed when you create the save, and the schedule depends on it), it can't
+            erase a player from
             history (releasing him to free agency is how you get rid of him), and it can't force a
             match result or rewrite the standings. Everything else about the sim keeps running
             normally around your edits.

@@ -18,6 +18,8 @@ import type { InternationalState } from "./international/types.js";
 import { emptyInternationalState } from "./international/index.js";
 import type { ManagerState } from "./manager/types.js";
 import { emptyManagerState } from "./manager/types.js";
+import type { NationalManagerState } from "./nationalManager/types.js";
+import { emptyNationalManagerState } from "./nationalManager/types.js";
 import { generateWorld } from "./league/generate.js";
 import { assignIdentities, assignAIFormations } from "./teams/clubs.js";
 import { generateSchedule } from "./schedule.js";
@@ -251,6 +253,18 @@ export interface LeagueStore {
    */
   manager: ManagerState;
   /**
+   * The user's *international* career, run alongside the club one: which
+   * country they manage (if any), how the federation rates them, and which
+   * other countries have come calling.
+   *
+   * A sibling of `manager` rather than a field on it, because the two jobs are
+   * held at the same time and judged by different people on different things.
+   * Unlike the club career, having no job here is an ordinary permanent state —
+   * `nation` null is what every save was before this existed, and is what an
+   * old save is backfilled to.
+   */
+  nationalManager: NationalManagerState;
+  /**
    * Seasons the AI managed the user's club, because they jumped forward past
    * them (see core/autopilot.ts). Oldest first, normally empty.
    *
@@ -286,6 +300,13 @@ export function createLeagueState(
   difficulty: Difficulty = DEFAULT_DIFFICULTY,
   competitions: Competition[] = worldCompetitions(),
   rollingCoefficients = true,
+  /**
+   * The national team the user takes charge of, or null for club football only.
+   * Takes no rng draw and touches nothing in generation — the world is built
+   * first and the appointment is simply recorded against it, so two saves that
+   * differ only in this are the same world.
+   */
+  userNation: string | null = null,
 ): LeagueStore {
   const league = generateWorld(rng, seed, competitions);
   // Each AI club lines up in the formation that fields its strongest XI; the
@@ -345,6 +366,9 @@ export function createLeagueState(
     international: emptyInternationalState(),
     godMode: false,
     manager: emptyManagerState(userTid, 1),
+    // Chosen on the New League screen, and legitimately null: managing a country
+    // is opt-in, and declining is not a lesser save.
+    nationalManager: emptyNationalManagerState(userNation, 1),
     difficulty,
     // Same value the old derived `max(pid) + 1` produced at first use, so a
     // fresh world generates identically to before.

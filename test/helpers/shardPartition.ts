@@ -94,6 +94,7 @@ export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
   "test/validation/m3-top-scorer.test.ts": 173,
   "test/core/offseasonSolvency.test.ts": 128,
   "test/core/simThrough.test.ts": 81,
+  "test/core/nationalManager.test.ts": 35,
   "test/ui/transfersRender.test.tsx": 65,
   "test/helpers/fixtureFidelity.test.ts": 31,
   "test/validation/m1-benchmarks.test.ts": 20,

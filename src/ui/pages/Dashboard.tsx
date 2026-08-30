@@ -13,7 +13,7 @@ import { SCOUTING_SPEND_MAX, RATING_LEADER_QUALIFY_FRACTION } from "../../core/c
 import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
 import { domesticFinalists } from "../../core/domesticCup/cup.js";
-import { isIntlStagePending } from "../../core/international/index.js";
+import { isIntlStagePending, editableSquad } from "../../core/international/index.js";
 import {
   intlStageButton,
   intlStageHeadline,
@@ -44,6 +44,43 @@ import { Flag } from "../components/Flag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
 import { isSuspended, matchesLabel } from "../../core/suspensions.js";
+
+/**
+ * One job's standing, as a single line: who you answer to, a thin bar, and
+ * where you stand with them.
+ *
+ * Both meters share this so the club board and the federation can't drift into
+ * looking like two different things — they are the same relationship from two
+ * chairs, and the Manager and Federation pages already mirror each other.
+ *
+ * `value` null means there is no bar to draw: a manager being courted by
+ * countries while managing none has a standing with nobody, and a meter sitting
+ * at its starting value would invent one.
+ */
+function ConfidenceLine({ label, mood, value, note, to }: {
+  label: string;
+  mood: string;
+  value: number | null;
+  note: string;
+  to: string;
+}) {
+  return (
+    <div className="d-flex align-items-center gap-2">
+      <Link to={to} className="small text-body text-decoration-none flex-shrink-0">{label}</Link>
+      {value !== null && (
+        <div className="progress flex-grow-1" style={{ height: 4, minWidth: 40 }}>
+          <div
+            className={`progress-bar ${BOARD_MOOD_CLASS[mood] ?? "bg-secondary"}`}
+            style={{ width: `${Math.round(value)}%` }}
+          />
+        </div>
+      )}
+      <span className={`small text-nowrap ${value === null ? "flex-grow-1" : "flex-shrink-0"} text-muted`}>
+        {note}
+      </span>
+    </div>
+  );
+}
 
 const STANDINGS_TOP_N = 8;
 const NEWS_TOP_N = 8;
@@ -417,6 +454,12 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
     () => cachedExpectations(league).get(league.meta.userTid) ?? null,
     [league],
   );
+  const nationMood = confidenceMood(
+    league.nationalManager.confidence, league.nationalManager.sackingEnabled,
+  );
+  // Your country is in the campaign this stage belongs to, so there is a team to
+  // pick before the next click plays it.
+  const myNationPlaying = editableSquad(league.international, league.nationalManager.nation) !== null;
   // The matchday the club is standing on, and the last one left this season —
   // the bounds the "sim to matchday" box accepts.
   const nextMd = nextMatchday(league);
@@ -427,12 +470,62 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
   return (
     <div className="container-fluid p-3">
       {/* Team header */}
+      {/*
+        The club, and beside it how your two employers rate you.
+
+        Here rather than in a card of their own because that is what these are:
+        a property of the job, read at a glance on the way past, not a section.
+        Up at the top rather than at the foot of the page because the whole point
+        of a visible meter is that trouble is something you watch build — at the
+        bottom you meet it on the way out, which is too late to be a warning.
+      */}
       <div className="card mb-3">
         <div className="card-body">
-          <h4 className="card-title d-flex align-items-center gap-2">
-            <ClubCrest tid={userTeam.tid} colors={userTeam.colors} size={32} />
-            {userTeam.name}
-          </h4>
+          <div className="d-flex flex-wrap align-items-center gap-3">
+            <h4 className="card-title d-flex align-items-center gap-2 mb-0">
+              <ClubCrest tid={userTeam.tid} colors={userTeam.colors} size={32} />
+              {userTeam.name}
+            </h4>
+            <div className="d-flex flex-wrap gap-3 ms-auto">
+              {/*
+                The note carries where the board expects you to finish, kept
+                from the larger card this line replaced. An offer to leave is
+                the more urgent thing to say in the same space, so it takes the
+                slot whenever there is one.
+              */}
+              <div style={{ minWidth: 190 }}>
+                <ConfidenceLine
+                  label="Board"
+                  mood={boardMood}
+                  value={league.manager.confidence}
+                  to="/manager"
+                  note={league.manager.offers.length > 0
+                    ? `${league.manager.offers.length} club${league.manager.offers.length === 1 ? "" : "s"} want you`
+                    : boardExpectation
+                      ? `${confidenceLabel(boardMood)} · ${ordinal(boardExpectation.expectedRank)} of ${boardExpectation.clubs} expected`
+                      : confidenceLabel(boardMood)}
+                />
+              </div>
+              {/*
+                Only when there is a country or somebody asking: a manager who
+                has never taken an international job should not be shown a meter
+                for a job they don't have.
+              */}
+              {(league.nationalManager.nation || league.nationalManager.offers.length > 0) && (
+                <div style={{ minWidth: 190 }}>
+                  <ConfidenceLine
+                    label={league.nationalManager.nation ?? "Federation"}
+                    mood={nationMood}
+                    value={league.nationalManager.nation ? league.nationalManager.confidence : null}
+                    to="/national-teams/federation"
+                    note={league.nationalManager.offers.length > 0
+                      ? `${league.nationalManager.offers.length} countr${league.nationalManager.offers.length === 1 ? "y wants" : "ies want"} you`
+                      : confidenceLabel(nationMood)}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -494,6 +587,20 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                     pages. You'll advance to {seasonYear(league.season + 1)} once it wraps up, or you
                     can skip it and go straight to the offseason.
                   </p>
+                  {/*
+                    Your own country is in this one, so there is a team to pick
+                    before the next click plays it. Placed here rather than left
+                    to the sidebar because the stage button is the thing about to
+                    make the decision permanent.
+                  */}
+                  {myNationPlaying && (
+                    <p className="card-text">
+                      <strong>{league.nationalManager.nation}</strong> are in it, and you pick
+                      the team.{" "}
+                      <Link to="/national-teams/my-squad">Name your squad</Link> before you
+                      play the next round.
+                    </p>
+                  )}
                   <div className="d-flex flex-wrap gap-2">
                     <button
                       className="btn btn-primary"
@@ -669,39 +776,6 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
         </div>
       )}
 
-      {/* Offseason */}
-      {/*
-        Board confidence, always on screen rather than tucked away on the Manager
-        page: the whole point of a visible meter is that trouble is something you
-        can see building and act on, not a verdict that arrives out of nowhere.
-      */}
-      <div className="card mb-3">
-        <div className="card-body">
-          <div className="d-flex justify-content-between align-items-baseline mb-2">
-            <h5 className="card-title mb-0">Board confidence</h5>
-            <button
-              className="btn btn-link btn-sm p-0"
-              onClick={() => navigate("/manager")}
-            >
-              {league.manager.offers.length > 0
-                ? `${league.manager.offers.length} club${league.manager.offers.length === 1 ? "" : "s"} want you`
-                : "Manager"}
-            </button>
-          </div>
-          <div className="progress" style={{ height: 8 }}>
-            <div
-              className={`progress-bar ${BOARD_MOOD_CLASS[boardMood] ?? "bg-secondary"}`}
-              style={{ width: `${Math.round(league.manager.confidence)}%` }}
-            />
-          </div>
-          <div className="text-muted small mt-1">
-            {confidenceLabel(boardMood)}
-            {boardExpectation && (
-              <> · they expect around {ordinal(boardExpectation.expectedRank)} of {boardExpectation.clubs}</>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* Standings | Record + Next Match | News headlines */}
       <div className="row g-3 mb-3">
@@ -885,6 +959,7 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
           <Link to="/leaders" className="small">Full stat leaders</Link>
         </div>
       </div>
+
     </div>
   );
 }

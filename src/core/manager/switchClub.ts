@@ -110,6 +110,17 @@ export function switchClub(
   league: LeagueStore,
   newTid: number,
   ending: "sacked" | "left",
+  /**
+   * The season the new stint opens on. Defaults to the season after the one
+   * just finished, which is what an offseason switch means: job offers are made
+   * at a boundary, so your first season at the new club is the next one.
+   *
+   * The parameter exists for God Mode, which can hand you a club in the middle
+   * of a season. There the new spell starts *now* — you manage the rest of this
+   * season at the new club, and dating the stint a year forward would leave the
+   * career table claiming you were nowhere while you were playing matches.
+   */
+  startSeason: number = league.season + 1,
 ): LeagueStore {
   const oldTid = league.meta.userTid;
   if (newTid === oldTid) return league;
@@ -145,9 +156,10 @@ export function switchClub(
   const manager: ManagerState = {
     ...league.manager,
     confidence: MANAGER_START_CONFIDENCE,
-    // A new job starts the season after the one just finished — the switch
-    // happens at the offseason boundary, so your first season here is the next.
-    stints: [...stints, newStint(newTid, league.season + 1)],
+    // Normally the season after the one just finished (the switch happens at
+    // the offseason boundary), but God Mode can start it today — see the
+    // `startSeason` parameter.
+    stints: [...stints, newStint(newTid, startSeason)],
     offers: [],
     sacked: false,
     // Belongs to the club just left. Kept, it renders beside the new club's

@@ -322,6 +322,32 @@ a:hover {
   margin-top: 0.35rem;
 }
 
+/* God Mode's section of the nav, in the same warn-gold the God Mode toggle and
+   every guardrail-free button already use. Every other link in this column is
+   ordinary football; this one ignores fees, budgets, the roster cap and the
+   depth floor, and it is the only place a save can be edited into a state the
+   sim would never produce. Colouring it says that from every screen rather than
+   only once you have opened it, and it reuses the existing accent rather than
+   introducing a second yellow. The section only renders while God Mode is on,
+   so it can't shout at a player who never turned it on. */
+.sidebar .nav-section--god {
+  color: var(--sg-warn);
+}
+.sidebar .nav-link--god {
+  color: var(--sg-warn);
+}
+.sidebar .nav-link--god:hover {
+  color: var(--sg-warn);
+  /* Lighter than --sg-warn-wash: that is the *active* fill, and matching it on
+     hover would make a hovered link look like the page you are already on. */
+  background-color: oklch(0.80 0.13 80 / 0.10);
+}
+.sidebar .nav-link--god.active {
+  color: var(--sg-warn);
+  background-color: var(--sg-warn-wash);
+  border-left-color: var(--sg-warn);
+}
+
 /* Detached scrolling. Above the drawer breakpoint the nav column pins itself
    under the top bar and scrolls its own overflow, so the page's scroll no
    longer drags the nav out of view: the nav is ~1290px of links against a
