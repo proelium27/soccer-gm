@@ -5,13 +5,13 @@ import { CLUBS, assignIdentities } from "../../src/core/teams/clubs.js";
 import { englandCompetitions } from "../../src/core/competitions.js";
 
 describe("CLUBS", () => {
-  it("has exactly 500 entries", () => {
-    expect(CLUBS).toHaveLength(500);
+  it("has exactly 626 entries", () => {
+    expect(CLUBS).toHaveLength(626);
   });
 
   it("has all unique abbreviations that are exactly 3 characters", () => {
     const abbrevs = CLUBS.map((c) => c.abbrev);
-    expect(new Set(abbrevs).size).toBe(500);
+    expect(new Set(abbrevs).size).toBe(626);
     for (const a of abbrevs) {
       expect(a).toHaveLength(3);
     }

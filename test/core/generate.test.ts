@@ -67,9 +67,9 @@ describe("generateTwoDivisionLeague", () => {
 });
 
 describe("generateWorld", () => {
-  it("produces 500 teams across 28 competitions, each its own size", () => {
+  it("produces 626 teams across 36 competitions, each its own size", () => {
     const world = generateWorld(mulberry32(42));
-    expect(world.teams).toHaveLength(500);
+    expect(world.teams).toHaveLength(626);
     for (const comp of worldCompetitions()) {
       expect(world.teams.filter((t) => t.compId === comp.id))
         .toHaveLength(competitionTeamCount(comp));
@@ -108,9 +108,9 @@ describe("generateWorld", () => {
     }
   });
 
-  it("has 12500 players (500 teams x 25)", () => {
+  it("has 15650 players (626 teams x 25)", () => {
     const world = generateWorld(mulberry32(42));
-    expect(world.players).toHaveLength(12500);
+    expect(world.players).toHaveLength(15650);
   });
 
   it("generates the weak leagues in coefficient order: England > France > Netherlands > Portugal > Belgium > Turkey > Greece > Scotland > Serbia", () => {

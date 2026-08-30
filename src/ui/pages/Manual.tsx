@@ -478,7 +478,7 @@ export function Manual() {
             <strong>France</strong>, the <strong>Netherlands</strong>, <strong>Portugal</strong>,{" "}
             <strong>Belgium</strong>, <strong>Turkey</strong>, <strong>Greece</strong>,{" "}
             <strong>Scotland</strong> and <strong>Serbia</strong>), each with its own league
-            pyramid, for 28 leagues and 500 clubs total. You pick any club in any country and
+            pyramid, for 36 leagues and 626 clubs total. You pick any club in any country and
             division when you start.
           </p>
           <p>
@@ -543,7 +543,7 @@ export function Manual() {
             Promotion and relegation (three clubs each way in most countries, fewer in the smaller ones) runs on its
             own within each country at the end of every season, so a rough season in Spain's top
             flight doesn't touch any other country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
-            grouped by country, so you can browse any of the 28 leagues. It defaults to
+            grouped by country, so you can browse any of the 36 leagues. It defaults to
             whichever one your own club is currently in.
           </p>
           <p>

@@ -41,7 +41,7 @@ describe("simOffseason", () => {
     expect(next.season).toBe(league.season + 1);
     expect(next.phase).toBe("regular");
     expect(next.played).toEqual([]);
-    expect(next.schedule).toHaveLength(8612);
+    expect(next.schedule).toHaveLength(10538);
   });
 
   it("every team stays at or above the roster safety floor after progression/retirement/FA/youth", () => {

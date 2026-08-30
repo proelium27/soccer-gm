@@ -37,23 +37,23 @@ describe("competitions", () => {
 describe("worldCompetitions", () => {
   const comps = worldCompetitions();
 
-  it("has 28 entries: 12 countries, the big four three deep and the rest two", () => {
-    expect(comps).toHaveLength(28);
+  it("has 36 entries: twelve countries, three divisions each", () => {
+    expect(comps).toHaveLength(36);
   });
 
   it("starts with England, matching englandCompetitions() exactly", () => {
     expect(comps.slice(0, 2)).toEqual(englandCompetitions());
   });
 
-  it("runs the big four three divisions deep and everyone else two", () => {
-    const deep = ["England", "Spain", "Italy", "Germany"];
-    for (const country of [
-      "England", "Spain", "Italy", "Germany", "France", "Portugal", "Belgium",
-      "Turkey", "Netherlands", "Scotland", "Greece", "Serbia",
-    ]) {
+  it("runs EVERY country three divisions deep", () => {
+    // The symmetry is load-bearing, not cosmetic: giving a third tier to only
+    // some countries makes those countries stronger over a dynasty, because
+    // enforceDivisionCeilings pumps talent up from a deeper reservoir. Measured
+    // with only the big four three deep, BIG4->France widened from +2.74 to
+    // +7.35 against a ~+3.4 design target and the weak leagues went insolvent.
+    for (const country of countriesOf(comps)) {
       const group = comps.filter((c) => c.country === country);
-      const tiers = deep.includes(country) ? [1, 2, 3] : [1, 2];
-      expect(group.map((c) => c.tier).sort()).toEqual(tiers);
+      expect(group.map((c) => c.tier).sort()).toEqual([1, 2, 3]);
     }
   });
 
@@ -90,18 +90,16 @@ describe("worldCompetitions", () => {
       "England", "Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey",
       "Netherlands", "Scotland", "Greece", "Serbia",
     ]);
-    const deep = ["England", "Spain", "Italy", "Germany"];
     for (const { country, divisions } of chains) {
-      expect(divisions.map((d) => d.tier)).toEqual(deep.includes(country) ? [1, 2, 3] : [1, 2]);
+      expect(divisions.map((d) => d.tier)).toEqual([1, 2, 3]);
       expect(divisions.every((d) => d.country === country)).toBe(true);
     }
   });
 
   it("promotionLinks pairs each division with the one below it", () => {
     const links = promotionLinks(comps);
-    // One link per adjacent pair, so a three-division country contributes two:
-    // 12 countries, four of them three deep.
-    expect(links).toHaveLength(12 + 4);
+    // One link per adjacent pair, so a three-division country contributes two.
+    expect(links).toHaveLength(countriesOf(comps).length * 2);
     for (const { upper, lower } of links) {
       expect(upper.country).toBe(lower.country);
       expect(lower.tier).toBe(upper.tier + 1);
@@ -143,19 +141,19 @@ describe("countryClubRanges", () => {
       // Blocks are sized by each country's real division sizes and by how deep
       // its pyramid runs, so they are neither uniform nor a multiple of 40 —
       // see Competition.teamCount and LeagueSpec.divisions. The big four carry
-      // a 20-club third division on top of their two.
+      // every country a third division on top of its two.
       { country: "England", start: 0, end: 60 },
       { country: "Spain", start: 60, end: 120 },
       { country: "Italy", start: 120, end: 180 },
       { country: "Germany", start: 180, end: 236 },
-      { country: "France", start: 236, end: 272 },
-      { country: "Portugal", start: 272, end: 308 },
-      { country: "Belgium", start: 308, end: 340 },
-      { country: "Turkey", start: 340, end: 378 },
-      { country: "Netherlands", start: 378, end: 416 },
-      { country: "Scotland", start: 416, end: 438 },
-      { country: "Greece", start: 438, end: 468 },
-      { country: "Serbia", start: 468, end: 500 },
+      { country: "France", start: 236, end: 290 },
+      { country: "Portugal", start: 290, end: 344 },
+      { country: "Belgium", start: 344, end: 392 },
+      { country: "Turkey", start: 392, end: 448 },
+      { country: "Netherlands", start: 448, end: 504 },
+      { country: "Scotland", start: 504, end: 536 },
+      { country: "Greece", start: 536, end: 578 },
+      { country: "Serbia", start: 578, end: 626 },
     ]);
   });
 
@@ -164,7 +162,7 @@ describe("countryClubRanges", () => {
     // layout by hand — a regression guard, same spirit as clubs.test.ts's
     // CLUBS/tid regression test.
     const ranges = countryClubRanges(worldCompetitions());
-    expect(ranges.reduce((sum, r) => sum + (r.end - r.start), 0)).toBe(500);
+    expect(ranges.reduce((sum, r) => sum + (r.end - r.start), 0)).toBe(626);
   });
 });
 

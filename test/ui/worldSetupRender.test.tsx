@@ -69,7 +69,7 @@ describe("WorldSetup renders", () => {
     for (const country of ["England", "Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey"]) {
       expect(html).toContain(country);
     }
-    expect(html).toContain("12 leagues, 500 clubs");
+    expect(html).toContain("12 leagues, 626 clubs");
     expect(html).not.toContain("alert-warning");
   });
 
@@ -80,7 +80,7 @@ describe("WorldSetup renders", () => {
     expect(html).toContain("Money");
     expect(html).toContain("Continental Cup places");
     expect(html).toContain("Continental Shield places");
-    expect(html).toContain("13 leagues, 540 clubs");
+    expect(html).toContain("13 leagues, 666 clubs");
   });
 
   it("keeps the shipped rows collapsed, so eight panels don't bury the checkboxes", () => {
@@ -411,8 +411,9 @@ describe("a shipped league's settings panel", () => {
   });
 
   it("shows the shape every shipped country plays", () => {
-    // The big four run three divisions and everyone else two, so the picker has
-    // to show the country's own depth rather than a single shipped default.
+    // Every shipped country runs three divisions; they differ in size, so the
+    // picker still has to read each country's own numbers rather than a single
+    // shipped default.
     const spain = panel("Spain");
     expect(shown(spain, "Divisions")).toBe("3");
     expect(shown(spain, "Clubs per division")).toBe("20");
@@ -420,7 +421,7 @@ describe("a shipped league's settings panel", () => {
       .toBe(String(PROMOTION_RELEGATION_COUNT));
 
     const turkey = panel("Turkey");
-    expect(shown(turkey, "Divisions")).toBe("2");
+    expect(shown(turkey, "Divisions")).toBe("3");
     expect(shown(turkey, "Clubs per division")).toBe("18");
   });
 

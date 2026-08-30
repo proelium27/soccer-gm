@@ -266,11 +266,20 @@ export function englandCompetitions(): Competition[] {
 export function worldCompetitions(): Competition[] {
   return [
     ...englandCompetitions(),
-    // The big four run THREE divisions; everyone else runs two. Their third
-    // tiers take NUM_TEAMS_D3 (20) by omission — which is the real size of a
-    // German 3. Liga even though the two divisions above it hold 18, and is the
-    // cap for England/Spain/Italy, whose real third tiers are bigger than the
-    // 38-matchday calendar can seat (see MAX_DIVISION_TEAMS).
+    // EVERY country runs three divisions, and the symmetry is load-bearing
+    // rather than cosmetic. Giving a third tier to only some countries makes
+    // those countries STRONGER over a dynasty — more clubs means more talent
+    // generated and developed there, and enforceDivisionCeilings pumps the best
+    // of it upward, so a three-tier country drains 60 clubs where a two-tier one
+    // drains 40. Measured: with only the big four three deep, their top flights
+    // ended a 20-season dynasty ~2.7 OVR stronger and BIG4->France widened from
+    // +2.74 to +7.35 against a design target of ~+3.4, which dried up the weak
+    // leagues' transfer receipts and put 3 of 4 audit seeds into deficit.
+    //
+    // The big four's third tiers take NUM_TEAMS_D3 (20) by omission — the real
+    // size of a German 3. Liga even though the two divisions above it hold 18,
+    // and the cap for England/Spain/Italy, whose real third tiers are bigger
+    // than the 38-matchday calendar can seat (see MAX_DIVISION_TEAMS).
     { id: 2, country: "England", tier: 3, name: "English Division 3" },
     { id: 3, country: "Spain", tier: 1, name: "Spanish Division 1" },
     { id: 4, country: "Spain", tier: 2, name: "Spanish Division 2" },
@@ -283,20 +292,28 @@ export function worldCompetitions(): Competition[] {
     { id: 11, country: "Germany", tier: 3, name: "German Division 3" },
     { id: 12, country: "France", tier: 1, name: "French Division 1", teamCount: 18 },
     { id: 13, country: "France", tier: 2, name: "French Division 2", teamCount: 18 },
-    { id: 14, country: "Portugal", tier: 1, name: "Portuguese Division 1", teamCount: 18, promotionSpots: 2 },
-    { id: 15, country: "Portugal", tier: 2, name: "Portuguese Division 2", teamCount: 18, promotionSpots: 2 },
-    { id: 16, country: "Belgium", tier: 1, name: "Belgian Division 1", teamCount: 16, promotionSpots: 2 },
-    { id: 17, country: "Belgium", tier: 2, name: "Belgian Division 2", teamCount: 16, promotionSpots: 2 },
-    { id: 18, country: "Turkey", tier: 1, name: "Turkish Division 1", teamCount: 18 },
-    { id: 19, country: "Turkey", tier: 2, name: "Turkish Division 2" },
-    { id: 20, country: "Netherlands", tier: 1, name: "Dutch Division 1", teamCount: 18, promotionSpots: 2 },
-    { id: 21, country: "Netherlands", tier: 2, name: "Dutch Division 2", promotionSpots: 2 },
-    { id: 22, country: "Scotland", tier: 1, name: "Scottish Division 1", teamCount: 12, promotionSpots: 1 },
-    { id: 23, country: "Scotland", tier: 2, name: "Scottish Division 2", teamCount: 10, promotionSpots: 1 },
-    { id: 24, country: "Greece", tier: 1, name: "Greek Division 1", teamCount: 14, promotionSpots: 2 },
-    { id: 25, country: "Greece", tier: 2, name: "Greek Division 2", teamCount: 16, promotionSpots: 2 },
-    { id: 26, country: "Serbia", tier: 1, name: "Serbian Division 1", teamCount: 16, promotionSpots: 2 },
-    { id: 27, country: "Serbia", tier: 2, name: "Serbian Division 2", teamCount: 16, promotionSpots: 2 },
+    { id: 14, country: "France", tier: 3, name: "French Division 3", teamCount: 18 },
+    { id: 15, country: "Portugal", tier: 1, name: "Portuguese Division 1", teamCount: 18, promotionSpots: 2 },
+    { id: 16, country: "Portugal", tier: 2, name: "Portuguese Division 2", teamCount: 18, promotionSpots: 2 },
+    { id: 17, country: "Portugal", tier: 3, name: "Portuguese Division 3", teamCount: 18, promotionSpots: 2 },
+    { id: 18, country: "Belgium", tier: 1, name: "Belgian Division 1", teamCount: 16, promotionSpots: 2 },
+    { id: 19, country: "Belgium", tier: 2, name: "Belgian Division 2", teamCount: 16, promotionSpots: 2 },
+    { id: 20, country: "Belgium", tier: 3, name: "Belgian Division 3", teamCount: 16, promotionSpots: 2 },
+    { id: 21, country: "Turkey", tier: 1, name: "Turkish Division 1", teamCount: 18 },
+    { id: 22, country: "Turkey", tier: 2, name: "Turkish Division 2" },
+    { id: 23, country: "Turkey", tier: 3, name: "Turkish Division 3", teamCount: 18 },
+    { id: 24, country: "Netherlands", tier: 1, name: "Dutch Division 1", teamCount: 18, promotionSpots: 2 },
+    { id: 25, country: "Netherlands", tier: 2, name: "Dutch Division 2", promotionSpots: 2 },
+    { id: 26, country: "Netherlands", tier: 3, name: "Dutch Division 3", teamCount: 18, promotionSpots: 2 },
+    { id: 27, country: "Scotland", tier: 1, name: "Scottish Division 1", teamCount: 12, promotionSpots: 1 },
+    { id: 28, country: "Scotland", tier: 2, name: "Scottish Division 2", teamCount: 10, promotionSpots: 1 },
+    { id: 29, country: "Scotland", tier: 3, name: "Scottish Division 3", teamCount: 10, promotionSpots: 1 },
+    { id: 30, country: "Greece", tier: 1, name: "Greek Division 1", teamCount: 14, promotionSpots: 2 },
+    { id: 31, country: "Greece", tier: 2, name: "Greek Division 2", teamCount: 16, promotionSpots: 2 },
+    { id: 32, country: "Greece", tier: 3, name: "Greek Division 3", teamCount: 12, promotionSpots: 2 },
+    { id: 33, country: "Serbia", tier: 1, name: "Serbian Division 1", teamCount: 16, promotionSpots: 2 },
+    { id: 34, country: "Serbia", tier: 2, name: "Serbian Division 2", teamCount: 16, promotionSpots: 2 },
+    { id: 35, country: "Serbia", tier: 3, name: "Serbian Division 3", teamCount: 16, promotionSpots: 2 },
   ];
 }
 
