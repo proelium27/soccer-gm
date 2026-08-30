@@ -477,9 +477,18 @@ export function Manual() {
             <strong>Spain</strong>, <strong>Italy</strong>, <strong>Germany</strong>,{" "}
             <strong>France</strong>, the <strong>Netherlands</strong>, <strong>Portugal</strong>,{" "}
             <strong>Belgium</strong>, <strong>Turkey</strong>, <strong>Greece</strong>,{" "}
-            <strong>Scotland</strong> and <strong>Serbia</strong>), each with its own two-division
+            <strong>Scotland</strong> and <strong>Serbia</strong>), each with its own league
             pyramid, for 28 leagues and 500 clubs total. You pick any club in any country and
             division when you start.
+          </p>
+          <p>
+            <strong>England, Spain, Italy and Germany run three divisions</strong>; everyone else
+            runs two. The third tier holds 20 clubs in each of the four, and it works like any other
+            division — its own table, its own promotion and relegation with the division above, its
+            clubs in the domestic cup. Starting down there is the longest climb the game offers.
+            Be warned that it's a genuinely different game: third-division money is a fraction of
+            top-flight money, and a youth academy that deep produces very little, so you'll be
+            building out of the transfer market and out of whoever you can keep hold of.
           </p>
           <p>
             <strong>Leagues are the size they are in real life</strong>, not all the same. England,
@@ -495,7 +504,9 @@ export function Manual() {
             <strong>Promotion and relegation scale with that.</strong> Most countries swap three
             clubs each way, but Portugal, Belgium, the Netherlands, Greece and Serbia swap two, and
             Scotland only one — three up out of a 10-club second division would turn over a third
-            of it every season.
+            of it every season. Where there's a third division the same count applies to both
+            links, and each is settled on its own final table, so you can only ever move one
+            division a season.
           </p>
           <p>
             The big four (England, Spain, Italy and Germany) are all built to the same strength and
