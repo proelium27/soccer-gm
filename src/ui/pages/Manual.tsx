@@ -2155,16 +2155,18 @@ export function Manual() {
           </p>
           <p>What it unlocks while it's on:</p>
           <ul>
+            <li><strong>Manage any club.</strong> The <em>God Mode</em> page (it shows up in the sidebar once the switch is on) opens on a Switch Club tab. Pick any club in the world and take charge of it on the spot, no job offer needed and no waiting for the offseason. The club you leave goes straight to the AI, its youth academy graduates onto the senior squad on the way out, and any transfer talks you were holding are dropped. You arrive at the new club knowing its players' ratings but not their ceilings, same as taking a job normally. It goes in your career record as a spell like any other, and the board there starts you on a fresh slate.</li>
             <li><strong>Edit any player.</strong> Open any player's profile and hit <em>Edit</em>. Change every one of his 14 ratings (OVR recomputes as you go), his potential, name, nationality, age, position, height, and his contract wage and length. You can also clear an injury outright.</li>
             <li><strong>Move players freely.</strong> From a player's profile, send him to any club instantly, with no fee, no budget check, and no cap, or release him to free agency.</li>
-            <li><strong>Create players.</strong> The <em>God Mode</em> page (it shows up in the sidebar once the switch is on) has a Create Player tool. Build a player from scratch and drop him onto any club or leave him a free agent.</li>
+            <li><strong>Create players.</strong> The <em>God Mode</em> page has a Create Player tool. Build a player from scratch and drop him onto any club or leave him a free agent.</li>
             <li><strong>Build any club's roster.</strong> The same page lets you pick any club and add, move, or release its players directly.</li>
             <li><strong>Set club finances and identity.</strong> Set any club's budget and hype to whatever you want, and rename or recolor any club.</li>
             <li><strong>See true potential.</strong> The scouting fog lifts while God Mode is on, so every player's exact potential shows everywhere, not an estimate.</li>
           </ul>
           <p>
-            What it deliberately <em>won't</em> do: it can't add or delete whole clubs (the world is
-            a fixed 20-per-league shape the schedule depends on), it can't erase a player from
+            What it deliberately <em>won't</em> do: it can't add or delete whole clubs (the shape of
+            the world is fixed when you create the save, and the schedule depends on it), it can't
+            erase a player from
             history (releasing him to free agency is how you get rid of him), and it can't force a
             match result or rewrite the standings. Everything else about the sim keeps running
             normally around your edits.
