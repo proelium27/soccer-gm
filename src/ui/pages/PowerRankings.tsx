@@ -12,16 +12,15 @@ import {
   computePowerRankingSnapshot,
   type PowerRankingSnapshot,
 } from "../../core/teams/powerRanking.js";
-import { competitionOf, tierOf, competitionAbbrev } from "../../core/competitions.js";
 import { layoutSlots } from "../pitchLayout.js";
 import { getRatingColor } from "../utils/ratingColor.js";
 import { formatWeeklyWage, seasonYear } from "../format.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { Flag } from "../components/Flag.js";
-import { CountryFlag } from "../components/CountryFlag.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
+import { DivisionBadge } from "../components/DivisionBadge.js";
 import { sortByPosThenOvr } from "./Roster.js";
 
 function shortName(name: string): string {
@@ -236,19 +235,12 @@ export function PowerRankings() {
                           </span>
                         );
                       }
-                      const comp = competitionOf(league.competitions, r.compId);
-                      const tier = tierOf(league.competitions, r.compId);
                       return (
-                        <span
-                          className={
-                            "division-badge " +
-                            (tier === 1 ? "division-badge--d1" : "division-badge--d2")
-                          }
-                          title={comp.name}
-                        >
-                          <CountryFlag country={comp.country} fallback={competitionAbbrev(comp)} size={11} />
-                          <span>D{tier} #{divisionRanks.get(r.tid)}</span>
-                        </span>
+                        <DivisionBadge
+                          competitions={league.competitions}
+                          compId={r.compId}
+                          rank={divisionRanks.get(r.tid)}
+                        />
                       );
                     })()}
                   </td>

@@ -29,9 +29,13 @@ import {
   type PlayerEdit, type NewPlayerSpec,
 } from "../../core/godMode.js";
 import { switchClub } from "../../core/manager/switchClub.js";
+import { takeNationalJob, leaveNationalJob } from "../../core/nationalManager/index.js";
+import {
+  editableSquad, writeSquad, isValidNationSquad, squadRating,
+} from "../../core/international/index.js";
 import { isManagerDecisionPending } from "../../core/manager/index.js";
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
-import { teamSlots, chooseBestFormation, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
+import { teamSlots, chooseBestFormation, FORMATIONS, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
 import { SimOverlay } from "../components/SimOverlay.js";
 import { LiveMatchOverlay } from "../components/LiveMatchOverlay.js";
 import { LiveMatchPicker } from "../components/LiveMatchPicker.js";
@@ -93,6 +97,22 @@ interface LeagueContextValue {
   declineJobOffersAction: () => Promise<void>;
   /** Save-level switch for whether the board can sack you at all. */
   setSackingEnabledAction: (on: boolean) => Promise<void>;
+  /** Take charge of a national team, leaving whichever one you had. */
+  takeNationalJobAction: (nation: string) => Promise<void>;
+  /** Step down from the national job, going back to club football only. */
+  leaveNationalJobAction: () => Promise<void>;
+  /** Turn down every national approach on the table. */
+  declineNationalOffersAction: () => Promise<void>;
+  /** Save-level switch for whether a federation can dismiss you. */
+  setNationalSackingEnabledAction: (on: boolean) => Promise<void>;
+  /** Name the 23 for your nation's current campaign. */
+  setNationalSquadAction: (pids: number[]) => Promise<void>;
+  /** Pick your nation's starting eleven. */
+  setNationalLineupAction: (starters: number[]) => Promise<void>;
+  /** Change your nation's shape, clearing the manual eleven so it re-picks. */
+  setNationalFormationAction: (formation: FormationId) => Promise<void>;
+  /** Let the game pick your nation's best shape and eleven. */
+  autoPickNationalXIAction: () => Promise<void>;
   movePlayerToClubAction: (pid: number, tid: number) => Promise<void>;
   releasePlayerGodModeAction: (pid: number) => Promise<void>;
   editPlayerAction: (pid: number, edit: PlayerEdit) => Promise<void>;
@@ -716,6 +736,117 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     [mutate],
   );
 
+  // --- National team ------------------------------------------------------
+  // Every squad edit goes through the same three steps: find which campaign the
+  // pending stage belongs to (editableSquad is the one answer to that), validate
+  // against what the sim can actually field, then write that one squad back.
+  // Refusing invalid state at the action layer rather than trusting the screen
+  // is the same rule setLineupAction follows, and it matters more here: an
+  // eleven with no keeper doesn't fail, it silently wrecks the keeping composite.
+
+  const takeNationalJobAction = useCallback(
+    (nation: string) => mutate((l) => {
+      // Only a country that actually approached. Same reasoning as accepting a
+      // club job: the page can't be trusted to hold a fresh list, and taking a
+      // job nobody offered bypasses the whole feature.
+      if (!l.nationalManager.offers.some((o) => o.nation === nation)) return null;
+      trackEvent("national_job_accepted");
+      return takeNationalJob(l, nation);
+    }),
+    [mutate],
+  );
+
+  const leaveNationalJobAction = useCallback(
+    () => mutate((l) => (l.nationalManager.nation ? leaveNationalJob(l, "left") : null)),
+    [mutate],
+  );
+
+  const declineNationalOffersAction = useCallback(
+    () => mutate((l) => (
+      l.nationalManager.offers.length === 0
+        ? null
+        : { ...l, nationalManager: { ...l.nationalManager, offers: [] } }
+    )),
+    [mutate],
+  );
+
+  const setNationalSackingEnabledAction = useCallback(
+    (on: boolean) => mutate((l) => (
+      { ...l, nationalManager: { ...l.nationalManager, sackingEnabled: on } }
+    )),
+    [mutate],
+  );
+
+  const setNationalSquadAction = useCallback((pids: number[]) => mutate((l) => {
+    const nation = l.nationalManager.nation;
+    const found = editableSquad(l.international, nation);
+    if (!nation || !found) return null;
+    const pool = l.players.filter((p) => p.nationality === nation);
+    if (!isValidNationSquad(pids, pool)) return null;
+    // A chosen eleven survives a squad change only while every man in it is
+    // still called up. resolveXI would fall back on its own, but clearing it
+    // here means the screen shows the auto-pick straight away instead of an
+    // eleven the sim has quietly stopped using.
+    const named = new Set(pids);
+    const starters = found.squad.starters?.every((pid) => named.has(pid))
+      ? found.squad.starters
+      : null;
+    const squad = { ...found.squad, pids, starters };
+    return {
+      ...l,
+      international: writeSquad(
+        l.international, found.slot, nation,
+        // The draw is long since done by the time a squad can be edited, so the
+        // rating is only ever redisplayed — see squadRating.
+        { ...squad, rating: squadRating(squad, l.players) },
+      ),
+    };
+  }), [mutate]);
+
+  const setNationalLineupAction = useCallback((starters: number[]) => mutate((l) => {
+    const nation = l.nationalManager.nation;
+    const found = editableSquad(l.international, nation);
+    if (!nation || !found) return null;
+    const named = new Set(found.squad.pids);
+    const squadPlayers = l.players.filter((p) => named.has(p.pid));
+    if (!isValidStarters(squadPlayers, FORMATIONS[found.squad.formation], starters)) return null;
+    return {
+      ...l,
+      international: writeSquad(l.international, found.slot, nation, { ...found.squad, starters }),
+    };
+  }), [mutate]);
+
+  const setNationalFormationAction = useCallback((formation: FormationId) => mutate((l) => {
+    const nation = l.nationalManager.nation;
+    const found = editableSquad(l.international, nation);
+    if (!nation || !found) return null;
+    if (!(FORMATION_IDS as readonly string[]).includes(formation)) return null;
+    // Clear the eleven with the shape, exactly as the club version does: a
+    // lineup picked for the old slots would drop players into the wrong jobs.
+    return {
+      ...l,
+      international: writeSquad(
+        l.international, found.slot, nation, { ...found.squad, formation, starters: null },
+      ),
+    };
+  }), [mutate]);
+
+  const autoPickNationalXIAction = useCallback(() => mutate((l) => {
+    const nation = l.nationalManager.nation;
+    const found = editableSquad(l.international, nation);
+    if (!nation || !found) return null;
+    const named = new Set(found.squad.pids);
+    const squadPlayers = l.players.filter((p) => named.has(p.pid));
+    if (squadPlayers.length === 0) return null;
+    const formation = chooseBestFormation(squadPlayers);
+    return {
+      ...l,
+      international: writeSquad(
+        l.international, found.slot, nation, { ...found.squad, formation, starters: null },
+      ),
+    };
+  }), [mutate]);
+
   const releasePlayerGodModeAction = useCallback(
     (pid: number) => mutate((l) => detachPlayer(l, pid)),
     [mutate],
@@ -819,6 +950,9 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     autoPickBestXIAction,
     setGodModeAction,
     acceptJobOfferAction, declineJobOffersAction, setSackingEnabledAction,
+    takeNationalJobAction, leaveNationalJobAction, declineNationalOffersAction,
+    setNationalSackingEnabledAction, setNationalSquadAction, setNationalLineupAction,
+    setNationalFormationAction, autoPickNationalXIAction,
     movePlayerToClubAction,
     releasePlayerGodModeAction,
     editPlayerAction,
@@ -845,6 +979,9 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     autoPickBestXIAction,
     setGodModeAction, movePlayerToClubAction, releasePlayerGodModeAction,
     acceptJobOfferAction, declineJobOffersAction, setSackingEnabledAction,
+    takeNationalJobAction, leaveNationalJobAction, declineNationalOffersAction,
+    setNationalSackingEnabledAction, setNationalSquadAction, setNationalLineupAction,
+    setNationalFormationAction, autoPickNationalXIAction,
     editPlayerAction, createPlayerAction, setClubFinancesAction,
     simming, simOverlayOpen, watchable, jumpOpen, busy, saveToDb, doExport, doImport,
   ]);
