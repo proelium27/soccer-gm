@@ -441,7 +441,7 @@ export function NewLeague() {
 
   if (pending) {
     return (
-      <div className="container py-4" style={{ maxWidth: 700 }}>
+      <div className="container py-4" style={{ maxWidth: 900 }}>
         <h2 className="mb-1">Customize Teams</h2>
         <p className="text-muted mb-3">
           Rename any club, change its abbreviation or colors, then start your league.
@@ -595,7 +595,12 @@ export function NewLeague() {
     // the same crests the league itself will — otherwise a club shows a badge
     // here and a colour swatch the moment the save opens.
     <CrestArtProvider tids={activeRoster ? [...activeRoster.byTid.keys()] : []}>
-    <div className="container py-4" style={{ maxWidth: 600 }}>
+    {/* Wider than the prose screens either side of it: this one is a stack of
+        controls and a club list, not something you read left to right, and at
+        600 a desktop window was mostly empty either side of it. `.container`
+        still goes full width below its own breakpoints, so this only widens
+        the page on a screen that has the room. */}
+    <div className="container py-4" style={{ maxWidth: 900 }}>
       <h2 className="mb-3">{rosterMode ? "Import Custom League" : "New League"}</h2>
       {/*
         The country is deliberately not named here. It used to read "choose your
@@ -817,7 +822,7 @@ export function NewLeague() {
             {divisionName(activeCountry, 1)}
           </h6>
         )}
-        <div className="list-group">
+        <div className="list-group club-picker-list">
           {shownClubs.map(({ tid, name, colors, squad }) => (
             <button
               key={tid}

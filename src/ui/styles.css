@@ -571,6 +571,26 @@ a:hover {
   box-shadow: inset 2px 0 0 var(--sg-green);
 }
 
+/* Two columns of clubs once the page is wide enough to hold them. A top flight
+   runs to 20 clubs, which stacked one per line is most of a screen of
+   scrolling, while a row at the picker's desktop width holds a crest and a
+   short name with half its length left over. Below the breakpoint the page is
+   a single narrow column anyway, so it stays the stock stacked list. */
+@media (min-width: 768px) {
+  .club-picker-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 0.5rem;
+  }
+  /* A list-group collapses the border between neighbours, which assumes they
+     are stacked: in a grid that edge is no longer shared, so every row carries
+     its own full border and its own corners. */
+  .club-picker-list > .list-group-item {
+    border-top-width: 1px;
+    border-radius: var(--sg-radius);
+  }
+}
+
 /* =========================================================================
    Cards & surfaces — flat, tonal, no drop shadow by default.
    ========================================================================= */
