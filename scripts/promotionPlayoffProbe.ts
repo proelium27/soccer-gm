@@ -50,6 +50,15 @@ let league = createLeagueState(0, rng);
 
 for (let s = 0; s < SEASONS; s++) {
   league = simThrough(league, "season", rng);
+  // simThrough halts before the user's cup or domestic final (a UI courtesy —
+  // the live player sims it himself). Headlessly that leaves the phase
+  // "regular", and both simOffseason and the season-end playoff simply never
+  // run, which reads here as "nothing was promoted anywhere" rather than as a
+  // stopped season. Same guard weakLeaguesAudit carries, for the same reason.
+  for (let resumes = 0; (league.phase as string) !== "offseason"; resumes++) {
+    if (resumes >= 3) throw new Error(`season ${league.season} refuses to finish (phase ${league.phase})`);
+    league = simThrough(league, "season", rng);
+  }
   const season = league.season;
   console.log(`\n=== season ${season} ===`);
 

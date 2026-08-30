@@ -42,9 +42,9 @@ export function PromotionPlayoffs() {
     <HelpHint>
       In most countries the last promotion place isn&apos;t won in the table, it&apos;s won in a
       playoff. The clubs finishing just below the automatic places go into a four-club bracket:
-      two-legged semi-finals, then a one-off final, and the winner goes up. Finishing higher gets
-      you the tie against the lowest-placed club and home advantage in the final, and that is all
-      it gets you — over two legs you each host once, so a semi-final is as even as it looks.
+      two-legged semi-finals, then a one-off final at a neutral ground, and the winner goes up.
+      Finishing higher gets you the tie against the lowest-placed club and nothing else — over two
+      legs you each host once, and nobody is at home for the final, so this is as even as it looks.
       It&apos;s played the moment the season ends, before anyone retires or moves on.
     </HelpHint>
   );
@@ -178,7 +178,10 @@ export function PromotionPlayoffs() {
         </div>
         {decider && (
           <div className="cup-round">
-            <div className="cup-round-title"><span>Final</span></div>
+            <div className="cup-round-title">
+              <span>Final</span>
+              <span className="cup-round-count" title="Neutral ground">N</span>
+            </div>
             <div className="cup-round-body">
               <div className="cup-tie cup-tie--final">{renderTie(decider)}</div>
             </div>

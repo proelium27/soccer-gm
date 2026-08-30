@@ -130,8 +130,11 @@ export function promotionPlayoffFields(
  * cancels over the two legs, and extra time and the shootout are then played on
  * raw composites (`playExtraTime`/`playShootout` never apply the bonus). So the
  * second leg at home buys nothing here, and reversing the leg order would
- * change no result. Finishing higher is worth exactly two things: the tie
- * against the lowest-placed entrant, and home advantage in the one-off final.
+ * change no result. And the final is played at a neutral venue, so it carries no
+ * home advantage either. Finishing higher is therefore worth exactly one thing:
+ * the tie against the lowest-placed entrant. That is deliberately a thin edge —
+ * the English playoff is close to a lottery by design, which is what keeps a
+ * mid-table run-in worth playing.
  */
 export function semiFinalPairings(size: number): { home: number; away: number }[] {
   const out: { home: number; away: number }[] = [];
@@ -149,10 +152,12 @@ export function semiFinalPairings(size: number): { home: number; away: number }[
  * either at the offseason transition or lazily at the top of `simOffseason` and
  * come out the same.
  *
- * The final is single-leg with the better league finisher at home. There is no
- * neutral venue in the engine (`HOME_ATTACK_BONUS` is unconditional), so rather
- * than pretend, the home tie goes to whoever finished higher — which is the
- * league season still counting for something at the last.
+ * The final is single-leg at a **neutral venue** — England plays it at Wembley,
+ * and neither finalist is at home. `resolveCupTie` takes the flag through to
+ * `simMatchDetailed`, which then withholds `HOME_ATTACK_BONUS` from both sides;
+ * extra time and the shootout never applied it anyway, so the tie is neutral
+ * end to end. The better finisher is still listed as `home`, because the box
+ * score and the event feed need two named sides — it just buys him nothing.
  */
 export function playPromotionPlayoff(
   field: PlayoffField,
@@ -212,6 +217,7 @@ export function playPromotionPlayoff(
     matchData.get(finalAway)!,
     PLAYOFF_ROUND_FINAL,
     0,
+    true,
   );
   ties.push({ ...decider, boxScore: null });
 

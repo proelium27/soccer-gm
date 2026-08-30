@@ -503,9 +503,9 @@ export function Manual() {
             pitch by the four clubs that finished just below them. So in a country that promotes
             three, 1st and 2nd go up on the table and 3rd through 6th play off: two-legged
             semi-finals (3rd v 6th, 4th v 5th), then a one-off final, and the winner is promoted.
-            Finishing higher gets you the tie against the lowest-placed club and home advantage
-            in the final, and that's all it gets you: over two legs you each host once, so a
-            semi-final is as even as it looks. Sixth goes up about as often as third does, which is
+            Finishing higher gets you the tie against the lowest-placed club, and that's all it
+            gets you: over two legs you each host once, so a semi-final is as even as it looks,
+            and the final is at a neutral ground where neither side is at home. Sixth goes up about as often as third does, which is
             roughly how it works in real life, and it means a mid-table run-in still has something
             to play for. Scotland promotes only one club and so has no playoff: its champion goes
             up and that's that.
