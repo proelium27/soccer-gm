@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { ROSTER_FILE_FORMAT, type RosterFile } from "../../src/core/teams/rosterFile.js";
 import { setPendingRoster } from "../../src/ui/pendingRoster.js";
 import { NewLeague } from "../../src/ui/pages/NewLeague.js";
+import { clubIdentitiesFor } from "../../src/core/teams/clubs.js";
 
 /**
  * The world editor has to be reachable from the roster-import flow, not just the
@@ -70,6 +71,32 @@ function renderNewLeague(
     createElement(MemoryRouter, { initialEntries: [url] }, createElement(NewLeague)),
   );
 }
+
+/**
+ * Lives here rather than in a file of its own so it can reuse the harness and
+ * the two module mocks above — a third copy of those would be a worse trade than
+ * a second describe block.
+ */
+describe("the club picker shows one division at a time", () => {
+  // The same lookup the page uses. England's slots are its tier-1 block then its
+  // tier-2 block, so index 0 is a first-division club and index 20 a second.
+  const england = clubIdentitiesFor("England", 40);
+
+  it("lists the first division and not the second", () => {
+    const html = renderNewLeague("/new-league");
+    expect(html).toContain(england[0].name);
+    // Forty club rows buried everything under the picker, and the two divisions
+    // are alternatives rather than one list to read end to end.
+    expect(html).not.toContain(england[20].name);
+  });
+
+  it("offers both divisions as tabs, so the other one is reachable", () => {
+    const html = renderNewLeague("/new-league");
+    expect(html).toContain("English Division 1");
+    expect(html).toContain("English Division 2");
+    expect(html).toContain('aria-label="Choose a division"');
+  });
+});
 
 describe("the New League screen offers the world editor", () => {
   it("shows it once a roster file has been imported", () => {

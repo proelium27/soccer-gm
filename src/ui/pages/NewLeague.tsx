@@ -119,6 +119,10 @@ export function NewLeague() {
 
   const [country, setCountry] = useState<string>(() => countriesOf(buildCompetitions(includedSpecs(defaultWorldEntries())))[0]);
   const [selectedTid, setSelectedTid] = useState<number | null>(null);
+  // Which division's clubs the picker is showing. A view, not part of the save:
+  // picking a club is what matters, and the tier it plays in is read off its tid
+  // (tierForTid) rather than from here.
+  const [tier, setTier] = useState<1 | 2>(1);
   // Fixed for the save's lifetime once it's created, so it is chosen here and
   // nowhere else (see the DIFFICULTIES block in core/constants.ts).
   const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
@@ -574,6 +578,12 @@ export function NewLeague() {
   // so a selection is always one of these.
   const selectedClubName =
     selectedTid === null ? null : (countryClubs.find((c) => c.tid === selectedTid)?.name ?? null);
+  // A country can have one division or two, so the tab the picker is on has to
+  // fall back rather than show an empty list — the same shape as activeCountry
+  // falling back when a country is switched off underneath the picker.
+  const hasSecondDivision = d2Clubs.length > 0;
+  const shownTier = hasSecondDivision ? tier : 1;
+  const shownClubs = shownTier === 1 ? d1Clubs : d2Clubs;
 
   function selectCountry(c: string) {
     setCountry(c);
@@ -595,7 +605,8 @@ export function NewLeague() {
         added has whatever name they typed and no demonym to derive.
       */}
       <p className="text-muted">
-        Flip through each league to browse its clubs, then pick the club you want to manage.
+        Flip through each country and division to browse the clubs, then pick the one you
+        want to manage.
         {worldRoster
           ? " Every club the file didn't cover keeps its original name and squad."
           : customize
@@ -780,34 +791,63 @@ export function NewLeague() {
         ))}
       </div>
 
-      {(
-        [
-          [divisionName(activeCountry, 1), d1Clubs],
-          [divisionName(activeCountry, 2), d2Clubs],
-        ] as const
-      ).map(([label, clubs]) => (
-        <div key={label} className="mb-3">
-          <h6 className="text-muted text-uppercase small fw-semibold mb-2">{label}</h6>
-          <div className="list-group">
-            {clubs.map(({ tid, name, colors, squad }) => (
+      {/*
+        One division at a time. Both stacked is forty club rows for a big
+        country, which buried everything below the picker — and the two are
+        alternatives, not a list to read end to end. Tabs rather than a heading
+        per division, so this reads as the same kind of choice as the country
+        tabs directly above it.
+      */}
+      <div className="mb-3">
+        {hasSecondDivision ? (
+          <div className="btn-group w-100 mb-2" role="group" aria-label="Choose a division">
+            {([1, 2] as const).map((t) => (
               <button
-                key={tid}
+                key={t}
                 type="button"
-                className={`list-group-item list-group-item-action d-flex align-items-center${
-                  selectedTid === tid ? " active" : ""
-                }`}
-                onClick={() => setSelectedTid(tid)}
+                className={`btn btn-outline-secondary${t === shownTier ? " active" : ""}`}
+                onClick={() => setTier(t)}
               >
-                <ClubCrest tid={tid} colors={colors} size={28} />
-                {name}
-                {squad > 0 && (
-                  <small className="ms-auto opacity-75">{squad} players</small>
-                )}
+                {divisionName(activeCountry, t)}
               </button>
             ))}
           </div>
+        ) : (
+          <h6 className="text-muted text-uppercase small fw-semibold mb-2">
+            {divisionName(activeCountry, 1)}
+          </h6>
+        )}
+        <div className="list-group">
+          {shownClubs.map(({ tid, name, colors, squad }) => (
+            <button
+              key={tid}
+              type="button"
+              className={`list-group-item list-group-item-action d-flex align-items-center${
+                selectedTid === tid ? " active" : ""
+              }`}
+              onClick={() => setSelectedTid(tid)}
+            >
+              <ClubCrest tid={tid} colors={colors} size={28} />
+              {name}
+              {squad > 0 && (
+                <small className="ms-auto opacity-75">{squad} players</small>
+              )}
+            </button>
+          ))}
         </div>
-      ))}
+        {/*
+          Switching divisions doesn't discard your pick — only switching country
+          does, and that one has to, since the clubs change. But a pick you can
+          no longer see reads as no pick at all with the Start button live at the
+          bottom, so it says where the club you chose actually is.
+        */}
+        {selectedTid !== null && !shownClubs.some((c) => c.tid === selectedTid) && (
+          <p className="text-muted small mt-2 mb-0">
+            You've picked {selectedClubName}, over in{" "}
+            {divisionName(activeCountry, shownTier === 1 ? 2 : 1)}.
+          </p>
+        )}
+      </div>
 
       <div className="mb-3">
         <h6 className="text-muted text-uppercase small fw-semibold mb-2">National team</h6>
