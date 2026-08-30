@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { playSeason } from "../helpers/offseasonLeague.js";
 import { makeLeague } from "../helpers/league.js";
 import {
   computeLoanFee, executeLoan, processLoanReturns, listPlayerForLoan,
@@ -8,7 +9,6 @@ import {
 import { createLeagueState, type LeagueStore } from "../../src/core/leagueState.js";
 import { trimRosterSurplus, freeAgentPids } from "../../src/core/freeAgency.js";
 import { makeTransferOffer } from "../../src/core/transfers/negotiation.js";
-import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { trueTransferValue } from "../../src/core/finance/valuation.js";
@@ -230,7 +230,7 @@ describe("no phantom players (loan + market/sweep interaction)", () => {
 
     // Sim across the loan's return (returnSeason = season + 2).
     for (let s = 0; s < 2; s++) {
-      league = simThrough(league, "season", rng);
+      league = playSeason(league, rng);
       league = simOffseason(league, rng);
       const count = new Map<number, number>();
       for (const t of league.teams) for (const r of t.roster) count.set(r, (count.get(r) ?? 0) + 1);
