@@ -96,6 +96,22 @@ describe("the New League screen offers the world editor", () => {
   it("shows it on the plain New League screen too", () => {
     const html = renderNewLeague("/new-league");
     expect(html).toContain("World setup");
+    // Offered, but shut: the editor is a tall block and this page is for
+    // picking a club. What has to be present is the way in, plus the summary
+    // that says what world you would get without opening it.
+    expect(html).toContain('aria-controls="world-setup-body"');
+    expect(html).toContain("12 countries, 24 divisions, 420 clubs");
+    expect(html).not.toContain("Add a league");
+  });
+
+  it("opens the editor for a roster import, since that is where the fix lives", () => {
+    // A file naming a league this world hasn't got is skipped entirely, and
+    // adding or renaming a league in the editor is the only thing that makes it
+    // apply — so collapsing it here would hide the cure behind a card the
+    // warning merely points at.
+    const html = renderNewLeague("/new-league?roster=1", [
+      { name: "netherlands.json", file: rosterFile() },
+    ]);
     expect(html).toContain("Add a league");
   });
 

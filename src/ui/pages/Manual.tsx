@@ -385,6 +385,13 @@ export function Manual() {
             it's still season 1. Saves you already have keep showing 2026.
           </p>
           <p>
+            <strong>Naming your save.</strong> There's a league name box on the New League screen.
+            Leave it alone and the save gets named after the club you picked, the way it always
+            has. Fill it in and that's what shows on the Leagues screen instead, which is worth
+            doing once you've got three saves in the same country. Renaming your club later only
+            renames the save if you never typed a name of your own.
+          </p>
+          <p>
             <strong>Historic seasons.</strong> Every so often, a club's whole season just clicks.
             Or completely falls apart. A rare hidden form swing can carry a squad well above (or
             below) what its ratings say, for one season only. It's where the runaway record-points
@@ -541,6 +548,13 @@ export function Manual() {
             switch any of them off and add leagues of your own. An added league's clubs get
             generated names and colours, since the game ships no real clubs. The panel is on both
             ways in, whether you started a plain new league or came through Import Custom League.
+          </p>
+          <p>
+            It starts closed, with a one-line summary of the world you'd get — how many countries,
+            divisions and clubs — so you can take the default without scrolling past a dozen rows
+            of countries you weren't going to change. Hit <strong>Customize</strong> on it to open
+            it up. If you loaded a roster file it opens on its own, because adding or renaming a
+            league in there is usually the thing that makes your file apply.
           </p>
           <p>
             <strong>Every setting works on the countries the game ships, too.</strong> Hit{" "}
