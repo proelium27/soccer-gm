@@ -53,8 +53,8 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
 
       {league?.godMode && (
         <>
-          <div className="nav-section">God Mode</div>
-          <NavLink to="/god-mode" className="nav-link" onClick={onNavigate}>Sandbox Tools</NavLink>
+          <div className="nav-section nav-section--god">God Mode</div>
+          <NavLink to="/god-mode" className="nav-link nav-link--god" onClick={onNavigate}>Sandbox Tools</NavLink>
         </>
       )}
 
