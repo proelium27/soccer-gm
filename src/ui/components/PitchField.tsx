@@ -19,6 +19,9 @@ import { suspensionText } from "./SuspensionBadge.js";
 
 const DRAG_MIME = "application/x-soccer-gm-pid";
 
+/** Shared empty default for the optional club-only pid sets; never mutated. */
+const EMPTY_PIDS: Set<number> = new Set();
+
 function shortName(name: string): string {
   const parts = name.trim().split(/\s+/);
   return parts[parts.length - 1];
@@ -31,16 +34,25 @@ export interface PitchFieldProps {
   bench: Player[];
   showDepthChart: boolean;
   season: number;
-  releasablePids: Set<number>;
-  refusingPids: Set<number>;
-  transferListedPids: Set<number>;
-  loanListedPids: Set<number>;
+  /**
+   * Club-only, and all optional together: a national team has no contracts, no
+   * transfer list and nobody to release, so the National Teams squad screen
+   * renders the same pitch with none of them. Absent, the chip drops its
+   * contract/listing flags and its action panel keeps only the read-only
+   * header; everything that describes the *player* (position, slot fit,
+   * injury, suspension, rating, movement) is unconditional, because that is
+   * what a pitch is for.
+   */
+  releasablePids?: Set<number>;
+  refusingPids?: Set<number>;
+  transferListedPids?: Set<number>;
+  loanListedPids?: Set<number>;
   /** Loans can only be listed while a transfer window is open, same as the Loans page. */
-  windowOpen: boolean;
-  onRelease: (pid: number) => void;
-  onExtend: (pid: number, lengthSeasons: number) => void;
-  onToggleTransferListed: (pid: number, listed: boolean) => void;
-  onToggleLoanListed: (pid: number, listed: boolean) => void;
+  windowOpen?: boolean;
+  onRelease?: (pid: number) => void;
+  onExtend?: (pid: number, lengthSeasons: number) => void;
+  onToggleTransferListed?: (pid: number, listed: boolean) => void;
+  onToggleLoanListed?: (pid: number, listed: boolean) => void;
   dragOverSlotIndex: number | null;
   setDragOverSlotIndex: (i: number | null) => void;
   onDropOnSlot: (slotIndex: number, draggedPid: number) => void;
@@ -55,11 +67,11 @@ export function PitchField({
   bench,
   showDepthChart,
   season,
-  releasablePids,
-  refusingPids,
-  transferListedPids,
-  loanListedPids,
-  windowOpen,
+  releasablePids = EMPTY_PIDS,
+  refusingPids = EMPTY_PIDS,
+  transferListedPids = EMPTY_PIDS,
+  loanListedPids = EMPTY_PIDS,
+  windowOpen = false,
   onRelease,
   onExtend,
   onToggleTransferListed,
@@ -170,7 +182,7 @@ export function PitchField({
                 className="pitch-chip-info"
                 onClick={() => setOpenPid(isOpen ? null : p.pid)}
               >
-                {canExtend(p, season) && (
+                {onExtend && canExtend(p, season) && (
                   <span
                     className="pitch-chip-contract-flag"
                     title="Contract expiring — needs extending"
@@ -265,7 +277,7 @@ export function PitchField({
                   <div className="pitch-chip-actions-meta text-danger">{suspensionText(p)}</div>
                 )}
                 <div className="d-flex flex-wrap gap-1 mt-2">
-                  {canExtend(p, season) && (
+                  {onExtend && canExtend(p, season) && (
                     refusingPids.has(p.pid) ? (
                       <span
                         className="text-muted small fst-italic text-nowrap"
@@ -284,31 +296,35 @@ export function PitchField({
                       />
                     )
                   )}
-                  <ListingMenu
-                    player={p}
-                    season={season}
-                    transferListed={transferListedPids.has(p.pid)}
-                    loanListed={loanListedPids.has(p.pid)}
-                    keepsDepthFloor={releasablePids.has(p.pid)}
-                    windowOpen={windowOpen}
-                    onToggleTransferListed={onToggleTransferListed}
-                    onToggleLoanListed={onToggleLoanListed}
-                  />
-                  <button
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={() => {
-                      onRelease(p.pid);
-                      setOpenPid(null);
-                    }}
-                    disabled={!releasablePids.has(p.pid)}
-                    title={
-                      releasablePids.has(p.pid)
-                        ? undefined
-                        : `Can't release: squad would be too thin at ${p.pos}`
-                    }
-                  >
-                    Release
-                  </button>
+                  {onToggleTransferListed && onToggleLoanListed && (
+                    <ListingMenu
+                      player={p}
+                      season={season}
+                      transferListed={transferListedPids.has(p.pid)}
+                      loanListed={loanListedPids.has(p.pid)}
+                      keepsDepthFloor={releasablePids.has(p.pid)}
+                      windowOpen={windowOpen}
+                      onToggleTransferListed={onToggleTransferListed}
+                      onToggleLoanListed={onToggleLoanListed}
+                    />
+                  )}
+                  {onRelease && (
+                    <button
+                      className="btn btn-sm btn-outline-danger"
+                      onClick={() => {
+                        onRelease(p.pid);
+                        setOpenPid(null);
+                      }}
+                      disabled={!releasablePids.has(p.pid)}
+                      title={
+                        releasablePids.has(p.pid)
+                          ? undefined
+                          : `Can't release: squad would be too thin at ${p.pos}`
+                      }
+                    >
+                      Release
+                    </button>
+                  )}
                 </div>
               </div>
             )}

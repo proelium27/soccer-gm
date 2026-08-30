@@ -15,6 +15,20 @@ export interface NationSquad {
   formation: FormationId;
   /** Mean OVR of the named squad — seeds the draw, then display only. */
   rating: number;
+  /**
+   * The eleven the manager picked, or null to auto-select via `selectXI`.
+   *
+   * The exact counterpart of `StoredTeam.starters`, down to the fallback: an
+   * array that no longer resolves (a player retired mid-cycle, or picked up an
+   * injury after being named) is silently replaced by the auto-pick rather than
+   * fielding ten. Only ever set for the nation the user manages — every other
+   * nation, and every nation in a save that manages none, auto-picks, which is
+   * what international football did before management existed.
+   *
+   * Optional so squads named before this field existed need no backfill; absent
+   * already means what it should.
+   */
+  starters?: number[] | null;
 }
 
 /**

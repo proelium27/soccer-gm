@@ -74,7 +74,26 @@ export function selectSquad(pool: Player[]): NationSquad | null {
     pids: squad.map((p) => p.pid),
     formation,
     rating,
+    // Nobody has picked a team yet. The user's nation gets its eleven the moment
+    // they touch the squad screen; every other nation keeps auto-picking forever.
+    starters: null,
   };
+}
+
+/**
+ * Recompute a squad's rating after the manager has changed who is in it.
+ *
+ * `rating` seeds the draw, so this is only ever called *after* a campaign has
+ * been drawn — the fixtures, the pots and the seeding are already fixed by then,
+ * and nothing re-reads it except the display. Calling it at draw time would be a
+ * different thing entirely, and it isn't.
+ */
+export function squadRating(squad: NationSquad, players: Player[]): number {
+  const byPid = new Map(players.map((p) => [p.pid, p]));
+  const named = squad.pids.map((pid) => byPid.get(pid)).filter((p): p is Player => p != null);
+  if (named.length === 0) return 0;
+  const xi = selectXI(named, FORMATIONS[squad.formation]);
+  return xi.length ? xi.reduce((sum, p) => sum + p.ovr, 0) / xi.length : 0;
 }
 
 /**
@@ -127,7 +146,11 @@ export function nationMatchData(squads: NationSquad[], players: Player[]): Map<n
     avgOvr: squad.rating,
     academyBase: 0,
     compId: 0,
-    starters: null,
+    // The manager's eleven, if this is the nation the user runs. `resolveXI`
+    // validates it against the formation's slots and falls back to the auto-pick
+    // on any mismatch, so a stale or impossible lineup degrades to exactly the
+    // behaviour every nation had before management existed.
+    starters: squad.starters ?? null,
     formation: squad.formation,
   }));
   const data = leagueMatchData({ teams, players });

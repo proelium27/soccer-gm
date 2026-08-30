@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { clubIdentitiesFor } from "../../core/teams/clubs.js";
 import { createLeagueState, type LeagueStore } from "../../core/leagueState.js";
@@ -7,8 +7,10 @@ import { mulberry32 } from "../../engine/rng.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { readLeagueFileText } from "../../db/exportImport.js";
 import {
-  DIFFICULTIES, DIFFICULTY_ORDER, DEFAULT_DIFFICULTY, type Difficulty,
+  DIFFICULTIES, DIFFICULTY_ORDER, DEFAULT_DIFFICULTY, INTL_MIN_POOL, type Difficulty,
 } from "../../core/constants.js";
+import { confederationOf, isEligibleNation } from "../../core/international/index.js";
+import { PICKABLE_NATIONALITIES } from "../components/NationalityEditor.js";
 import {
   buildCompetitions,
   competitionAbbrev,
@@ -120,6 +122,19 @@ export function NewLeague() {
   // Fixed for the save's lifetime once it's created, so it is chosen here and
   // nowhere else (see the DIFFICULTIES block in core/constants.ts).
   const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
+  // The country you'll manage alongside your club, or null for club football
+  // only — which is the default, and not a lesser save. Can be changed later by
+  // taking a federation's offer, so this is a starting point rather than a
+  // decision for the save's lifetime the way difficulty is.
+  const [userNation, setUserNation] = useState<string | null>(null);
+  // A chosen country the generated world turned out not to be able to field a
+  // squad for. Reported rather than silently dropped — see handleStart.
+  const [nationError, setNationError] = useState<string | null>(null);
+  // Filter box for the country list. 108 countries is too many to scroll for a
+  // specific one, and too few to be worth paginating.
+  const [nationFilter, setNationFilter] = useState("");
+  // The world's generation seed, drawn once and reused — see buildLeague.
+  const seedRef = useRef<number | null>(null);
   // Which year season 1 gets labelled as. Purely cosmetic (the sim counts
   // seasons from 1 either way), so it's held as raw text and only turned into a
   // number once it reads as a usable year, letting the field go empty mid-edit.
@@ -215,6 +230,44 @@ export function NewLeague() {
 
   const parsedStartYear = normalizeStartYear(startYear);
 
+  // Countries that can be managed: anything the game ships names for that also
+  // belongs to a confederation, since no confederation means no competition to
+  // enter. One flat alphabetical list, deliberately — whether a country happens
+  // to host one of this world's leagues is not the question being asked here,
+  // and splitting on it implied a distinction the player has no use for. What
+  // actually decides eligibility is how many of its players get generated, which
+  // no grouping can promise and the check at Start reports honestly.
+  const manageableNations = useMemo(
+    () => PICKABLE_NATIONALITIES.filter((n) => confederationOf(n) !== null),
+    [],
+  );
+  const shownNations = useMemo(() => {
+    const q = nationFilter.trim().toLowerCase();
+    return q ? manageableNations.filter((n) => n.toLowerCase().includes(q)) : manageableNations;
+  }, [manageableNations, nationFilter]);
+
+  // Keep the chosen country on screen. The list is 108 rows in a 260px box, so
+  // typing a filter and then clearing it leaves the selection scrolled far out
+  // of view and the list looks like nothing is picked.
+  //
+  // Scrolls the list box itself rather than calling `scrollIntoView`, which
+  // scrolls EVERY scrollable ancestor including the window. This picker sits
+  // below the fold, so on mount the row genuinely is not visible in the page
+  // and "nearest" dutifully scrolled the whole screen down to it — the page
+  // opened at its own bottom. Moving `scrollTop` by hand cannot reach past the
+  // one element it is given, and it still leaves an already-visible row alone,
+  // so it can't fight a scroll the user is in the middle of either.
+  const nationListRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const list = nationListRef.current;
+    const row = list?.querySelector<HTMLElement>(".active");
+    if (!list || !row) return;
+    const listBox = list.getBoundingClientRect();
+    const rowBox = row.getBoundingClientRect();
+    if (rowBox.top < listBox.top) list.scrollTop -= listBox.top - rowBox.top;
+    else if (rowBox.bottom > listBox.bottom) list.scrollTop += rowBox.bottom - listBox.bottom;
+  }, [shownNations, userNation]);
+
   /** The country's code, for the flag stand-in on its tab. */
   function abbrevForCountry(countryName: string): string {
     const comp = world.competitions.find((c) => c.country === countryName);
@@ -230,10 +283,15 @@ export function NewLeague() {
   }
 
   function buildLeague(tid: number): LeagueStore {
-    const seed = Date.now();
+    // Fixed for the life of the page, not re-rolled per attempt. If a chosen
+    // country turns out not to be able to field a squad, the advice is "pick
+    // another one" — which is only true if pressing Start again builds the same
+    // world. A fresh Date.now() would answer a different question each time, so
+    // the same country could fail and then succeed.
+    const seed = (seedRef.current ??= Date.now());
     const rng = mulberry32(seed);
     const generated = createLeagueState(
-      tid, rng, seed, difficulty, world.competitions, rollingCoefficients,
+      tid, rng, seed, difficulty, world.competitions, rollingCoefficients, userNation,
     );
     const league = activeRoster
       ? applyRosterFileToNewLeague(generated, activeRoster.file, tid).league
@@ -263,6 +321,17 @@ export function NewLeague() {
       await yieldToPaint();
       try {
         const league = buildLeague(selectedTid);
+        // Whether a country can enter international football at all depends on
+        // the world that just got generated (INTL_MIN_POOL players and a
+        // keeper), and there is no way to know before building it. A pick that
+        // doesn't clear the bar is reported rather than silently dropped — a
+        // save that quietly ignored the country you chose is worse than being
+        // told to choose again.
+        if (userNation && !isEligibleNation(userNation, league.players.filter((p) => p.nationality === userNation))) {
+          setNationError(userNation);
+          return;
+        }
+        setNationError(null);
         if (customize || nameClubs) {
           // Hold the generated league in memory and let the user edit team
           // identities before anything is persisted.
@@ -503,12 +572,20 @@ export function NewLeague() {
     <CrestArtProvider tids={activeRoster ? [...activeRoster.byTid.keys()] : []}>
     <div className="container py-4" style={{ maxWidth: 600 }}>
       <h2 className="mb-3">{rosterMode ? "Import Custom League" : "New League"}</h2>
+      {/*
+        The country is deliberately not named here. It used to read "choose your
+        England club", which is clumsy on its own and ambiguous now that this
+        page also asks which *country* you want to manage — and the adjectival
+        form ("your English club") is not available, since a league the player
+        added has whatever name they typed and no demonym to derive.
+      */}
       <p className="text-muted">
+        Flip through each league to browse its clubs, then pick the club you want to manage.
         {worldRoster
-          ? `Flip through each league to browse its clubs, then choose your ${activeCountry} club to get started. Every club the file didn't cover keeps its original name and squad.`
+          ? " Every club the file didn't cover keeps its original name and squad."
           : customize
-            ? `Flip through each league to browse its clubs, then choose your ${activeCountry} club to customize every club before starting.`
-            : `Flip through each league to browse its clubs, then choose your ${activeCountry} club to get started.`}
+            ? " You'll get to customize every club before the save starts."
+            : ""}
       </p>
 
       {worldRoster && (
@@ -657,6 +734,63 @@ export function NewLeague() {
           {DIFFICULTIES[difficulty].blurb} It only changes things for your club, and you
           can't change it later, so pick one you'll want to live with.
         </p>
+      </div>
+
+      <div className="mb-3">
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">National team</h6>
+        <p className="text-muted small mb-2">
+          {userNation
+            ? `You'll pick ${userNation}'s squad and their eleven for qualifying, the World Cup and their continental championship, on top of your club job. The federation judges you every campaign.`
+            : "Managing a country is optional, and you can still take a job later if one comes in. A country needs enough players born into your world to enter anything, so you'll be told if the one you pick can't field a squad."}
+        </p>
+        <input
+          type="search"
+          className="form-control form-control-sm mb-2"
+          style={{ maxWidth: 340 }}
+          placeholder="Search countries"
+          aria-label="Search countries"
+          value={nationFilter}
+          onChange={(e) => setNationFilter(e.target.value)}
+        />
+        {/*
+          A list rather than a <select>, because an <option> cannot hold the
+          flag SVG. Same list-group the club picker above uses, so the two
+          choices on this page look like the same kind of choice.
+        */}
+        <div
+          className="list-group"
+          ref={nationListRef}
+          style={{ maxWidth: 340, maxHeight: 260, overflowY: "auto" }}
+        >
+          <button
+            type="button"
+            className={`list-group-item list-group-item-action py-1${userNation === null ? " active" : ""}`}
+            onClick={() => { setUserNation(null); setNationError(null); }}
+          >
+            None &mdash; club football only
+          </button>
+          {shownNations.map((n) => (
+            <button
+              type="button"
+              key={n}
+              className={`list-group-item list-group-item-action py-1 d-flex align-items-center gap-2${userNation === n ? " active" : ""}`}
+              onClick={() => { setUserNation(n); setNationError(null); }}
+            >
+              <CountryFlag country={n} fallback={n.slice(0, 2).toUpperCase()} />
+              {n}
+            </button>
+          ))}
+          {shownNations.length === 0 && (
+            <div className="list-group-item text-muted small">No country by that name.</div>
+          )}
+        </div>
+        {nationError && (
+          <div className="alert alert-warning py-2 mt-2 mb-0" role="alert">
+            {nationError} can't field a squad in this world — there aren't {INTL_MIN_POOL} of
+            their players in it, or no goalkeeper among them. Pick another country, or start
+            with none and wait for an offer.
+          </div>
+        )}
       </div>
 
       <div className="mb-3">
