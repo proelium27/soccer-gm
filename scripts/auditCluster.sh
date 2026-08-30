@@ -44,6 +44,26 @@ cd "$(dirname "$0")/.."
 ROOT="$PWD"
 CONFIG="$ROOT/.test-cluster.json"
 
+# The config is GITIGNORED (it names your machine), and a git worktree only
+# checks out TRACKED files — so it is never present in one, and looking for it
+# beside the worktree's package.json is a guaranteed false negative. That reads
+# as "no second machine configured" and silently falls back to a local run,
+# which is how a worktree session ends up running the suite at 1x while the
+# other Mac sits idle. Resolve it from the MAIN checkout when it is not here:
+# `git rev-parse --git-common-dir` points at the main .git from any worktree.
+if [ ! -f "$CONFIG" ]; then
+  COMMON_DIR=$(git -C "$ROOT" rev-parse --git-common-dir 2>/dev/null || true)
+  case "$COMMON_DIR" in
+    "") ;;
+    /*) MAIN_ROOT=$(dirname "$COMMON_DIR") ;;
+    *)  MAIN_ROOT=$(cd "$ROOT/$(dirname "$COMMON_DIR")" 2>/dev/null && pwd || true) ;;
+  esac
+  if [ -n "${MAIN_ROOT:-}" ] && [ -f "$MAIN_ROOT/.test-cluster.json" ]; then
+    CONFIG="$MAIN_ROOT/.test-cluster.json"
+    echo "==> Using the main checkout's cluster config: $CONFIG"
+  fi
+fi
+
 # Audits that compute something across seeds and gate on it. Splitting these
 # silently produces two partial aggregates. Keep this list honest: it is
 # derived from scripts that reference SEEDS.length or average across seeds.
