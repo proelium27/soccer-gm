@@ -24,6 +24,7 @@ import type { PlayedMatch, StandingsRow } from "../standings.js";
 import { computeStandings } from "../standings.js";
 import { difficultyProfile } from "../constants.js";
 import { computeCountrySwaps } from "../promotion.js";
+import { playoffWinnersByCompId, type PromotionPlayoff } from "../promotionPlayoff.js";
 import { cupRunSummary } from "../cup/cup.js";
 import { deriveExpectations, actualFinish } from "./expectation.js";
 import { judgeSeason, type SeasonVerdict } from "./confidence.js";
@@ -59,6 +60,16 @@ export interface ReviewInput {
   cup: CupState | null;
   shield: CupState | null;
   domesticCups: DomesticCupState[];
+  /**
+   * This season's promotion playoffs, already played.
+   *
+   * The board reviews the season the moment it ends, and where a country holds
+   * a playoff "did we go up" is not answerable from the table alone — so the
+   * playoff is settled first (see simThrough's offseason transition) and the
+   * result comes in here. Omitted by a caller with none, which reads as the
+   * plain top-N promotion the swap then applies.
+   */
+  promotionPlayoffs?: PromotionPlayoff[];
 }
 
 export interface ManagerReview {
@@ -109,7 +120,9 @@ export function reviewSeason(input: ReviewInput): ManagerReview {
   // empty competition): there is nothing to judge, so the board stays put.
   if (finish === null) return { manager, verdict: null };
 
-  const swaps = computeCountrySwaps(league.competitions, tables);
+  const swaps = computeCountrySwaps(
+    league.competitions, tables, playoffWinnersByCompId(input.promotionPlayoffs ?? []),
+  );
   const promoted = swaps.some((s) => s.promoted.includes(userTid));
   const relegated = swaps.some((s) => s.relegated.includes(userTid));
 

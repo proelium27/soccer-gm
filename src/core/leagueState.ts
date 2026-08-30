@@ -12,6 +12,7 @@ import type { ActiveLoan, LoanListing, LoanRejection } from "./loans.js";
 import type { Competition } from "./competitions.js";
 import type { CupState } from "./cup/types.js";
 import type { DomesticCupState } from "./domesticCup/types.js";
+import type { PromotionPlayoff } from "./promotionPlayoff.js";
 import { buildDomesticCups } from "./domesticCup/cup.js";
 import type { InternationalState } from "./international/types.js";
 import { emptyInternationalState } from "./international/index.js";
@@ -187,6 +188,22 @@ export interface LeagueStore {
   /** Every completed domestic cup, oldest first (archived at offseason rollover). */
   domesticCupHistory: DomesticCupState[];
   /**
+   * The promotion playoffs decided by the season that just ended, one per
+   * country that holds one.
+   *
+   * **Transient, not history.** Filled the moment the season ends (in
+   * simThrough, before the board reviews it, so a manager who goes up is told
+   * so) and emptied again by the offseason that consumes it — which copies the
+   * same records onto that season's `seasonHistory` entry, where they live
+   * permanently. So it is non-empty only while the user is sitting in the
+   * offseason looking at the result, and the page reads both places for the
+   * same reason the Cup page reads `cup` and `cupHistory`.
+   *
+   * Old saves backfill to empty and pick playoffs up at their next season end.
+   * See core/promotionPlayoff.ts.
+   */
+  promotionPlayoffs: PromotionPlayoff[];
+  /**
    * National-team football, played entirely inside the offseason on a two-year
    * cycle (odd seasons qualify, even seasons play the tournament). Starts empty
    * on a new save and fills from the first offseason onward; see
@@ -324,6 +341,7 @@ export function createLeagueState(
     // builder handles by falling back to tid order.
     domesticCups: buildDomesticCups(competitions, teams, new Map(), 1),
     domesticCupHistory: [],
+    promotionPlayoffs: [],
     international: emptyInternationalState(),
     godMode: false,
     manager: emptyManagerState(userTid, 1),

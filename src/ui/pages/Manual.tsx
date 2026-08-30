@@ -498,6 +498,25 @@ export function Manual() {
             of it every season.
           </p>
           <p>
+            <strong>The last promotion place is a playoff.</strong> Everywhere that sends two or
+            more clubs up, only the top ones go automatically — the last place is decided on the
+            pitch by the four clubs that finished just below them. So in a country that promotes
+            three, 1st and 2nd go up on the table and 3rd through 6th play off: two-legged
+            semi-finals (3rd v 6th, 4th v 5th), then a one-off final, and the winner is promoted.
+            Finishing higher gets you the tie against the lowest-placed club and home advantage
+            in the final, and that's all it gets you: over two legs you each host once, so a
+            semi-final is as even as it looks. Sixth goes up about as often as third does, which is
+            roughly how it works in real life, and it means a mid-table run-in still has something
+            to play for. Scotland promotes only one club and so has no playoff: its champion goes
+            up and that's that.
+          </p>
+          <p>
+            It's played the moment the season ends, before anyone retires or moves clubs, so a
+            veteran on his way out gets one last game. Suspensions don't carry into it — there are
+            no matchdays left to serve a ban against — but injuries do. Results are on the{" "}
+            <strong>Promotion Playoffs</strong> page, for any country and any past season.
+          </p>
+          <p>
             The big four (England, Spain, Italy and Germany) are all built to the same strength and
             budget bands, so none of them is a flagship league above the others. The other eight are
             deliberately weaker and poorer: their clubs generate at lower OVR, and they earn and can
@@ -529,7 +548,8 @@ export function Manual() {
             his own country.
           </p>
           <p>
-            Promotion and relegation (three clubs each way in most countries, fewer in the smaller ones) runs on its
+            Promotion and relegation (three clubs each way in most countries, fewer in the smaller
+            ones, with the last place up decided by a playoff) runs on its
             own within each country at the end of every season, so a rough season in Spain's top
             flight doesn't touch any other country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
             grouped by country, so you can browse any of the 24 leagues. It defaults to

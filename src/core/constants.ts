@@ -107,6 +107,15 @@ export const DIVISION_2_REFUSAL_OVR_THRESHOLD = 70;
 export const PROMOTION_RELEGATION_COUNT = 3;
 
 /**
+ * How many semi-finals a promotion playoff has, i.e. it is contested by twice
+ * this many clubs. Two (a four-club bracket) is the English shape and the only
+ * one the code seeds; changing it changes how many places below the automatic
+ * ones are worth playing for, and `promotionPlayoffFields` will simply seat
+ * that many clubs — but nothing else has been measured at another value.
+ */
+export const PROMOTION_PLAYOFF_SEMI_FINALS = 2;
+
+/**
  * The most clubs an added league can be set to promote and relegate. Held below
  * half that league's own division size as well (see WorldSetup), so the ceiling
  * that actually applies is often lower — this is the point past which the number

@@ -38,6 +38,9 @@ import { coefficientSlots } from "./cup/coefficients.js";
 import { buildDomesticCups } from "./domesticCup/cup.js";
 import { archiveDomesticCup } from "./domesticCup/archive.js";
 import { computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence } from "./promotion.js";
+import {
+  playPromotionPlayoffs, playoffWinnersByCompId, playoffsForSeason,
+} from "./promotionPlayoff.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
 import { settleSeasonEnd, chargeSeasonStart, wageBill, financeScaleFor } from "./finance/budget.js";
@@ -153,6 +156,37 @@ export function simOffseasonReporting(
 
   const endingSeason = league.season;
   const nextSeason = endingSeason + 1;
+
+  // Per-competition final tables. Computed here rather than down at step 3.5
+  // where they are spent, because the promotion playoff immediately below needs
+  // them and must run before anything touches a squad. Nothing between here and
+  // there moves a club between competitions or adds one, so this is the same
+  // map step 3.5 used to build for itself.
+  const tablesByCompId = new Map<number, StandingsRow[]>();
+  for (const comp of league.competitions) {
+    const compTids = league.teams.filter((t) => t.compId === comp.id).map((t) => t.tid);
+    const compTidSet = new Set(compTids);
+    tablesByCompId.set(
+      comp.id,
+      computeStandings(compTids, league.played.filter((m) => compTidSet.has(m.home))),
+    );
+  }
+
+  // Promotion playoffs for the season just finished. Normally already played —
+  // `simThrough` settles them the moment the season ends, so the board could
+  // review a promotion — and this replays them only for a caller that never
+  // came through there (every test and audit script that drives `simOffseason`
+  // directly). Both paths land on the same result: every tie's stream is
+  // derived from the league's own content, and both read end-of-season squads,
+  // which is why this sits above contract renewals rather than beside the swap
+  // it feeds at step 3.6. No shared-`rng` draw, so no league scoreline moves.
+  const playedPlayoffs = playoffsForSeason(league.promotionPlayoffs, endingSeason);
+  const promotionPlayoffs = playedPlayoffs.length > 0
+    ? playedPlayoffs
+    : playPromotionPlayoffs(
+      league.competitions, league.teams, league.players, tablesByCompId,
+      league.lid, endingSeason,
+    );
 
   // Snapshotted before any roster/competition change below, from
   // league.players (not the `players` variable mutated further down) so a
@@ -351,20 +385,12 @@ export function simOffseasonReporting(
     mulberry32(hashInts(league.lid, endingSeason, INTL_INJURY_STREAM)),
   );
 
-  // 3.5. Per-competition standings, rank-based settlement, and hype update.
-  //      Each competition's own table is computed independently — pooling
-  //      multiple competitions into one table would misapply prize-tier rank
-  //      cutoffs (PRIZE_TOP_5_CUTOFF etc. assume a single competition's table
-  //      size) and the hype curve to a league neither was tuned for.
-  const tablesByCompId = new Map<number, StandingsRow[]>();
-  for (const comp of league.competitions) {
-    const compTids = teams.filter((t) => t.compId === comp.id).map((t) => t.tid);
-    const compTidSet = new Set(compTids);
-    tablesByCompId.set(
-      comp.id,
-      computeStandings(compTids, league.played.filter((m) => compTidSet.has(m.home))),
-    );
-  }
+  // 3.5. Rank-based settlement and hype update, off the tables computed at the
+  //      top of this function. Each competition's own table is computed
+  //      independently — pooling multiple competitions into one table would
+  //      misapply prize-tier rank cutoffs (PRIZE_TOP_5_CUTOFF etc. assume a
+  //      single competition's table size) and the hype curve to a league
+  //      neither was tuned for.
   const standings = league.competitions.flatMap((comp) => tablesByCompId.get(comp.id)!);
   const teamStats =
     precomputedTeamStats ?? computeTeamSeasonStats(teams.map((t) => t.tid), league.played);
@@ -440,7 +466,12 @@ export function simOffseasonReporting(
   //      actually just played out). Then every mid-convergence team's
   //      academyBase moves one step closer to its current competition's
   //      strength band.
-  const swaps = computeCountrySwaps(league.competitions, tablesByCompId);
+  //      Where a country held a promotion playoff, its last promotion place
+  //      goes to the playoff winner instead of to the club that finished there
+  //      — same number up, decided on the pitch.
+  const swaps = computeCountrySwaps(
+    league.competitions, tablesByCompId, playoffWinnersByCompId(promotionPlayoffs),
+  );
   teams = applyCompetitionSwaps(teams, swaps);
   teams = stepAcademyBaseConvergence(teams, league.competitions);
 
@@ -750,6 +781,11 @@ export function simOffseasonReporting(
       ...(league.domesticCupHistory ?? []),
       ...(league.domesticCups ?? []).map(archiveDomesticCup),
     ],
+    // Emptied, not archived: the same records were just written onto this
+    // season's history entry below, which is where they live from here on.
+    // Holding both would keep a second copy of every scoreline for a whole
+    // season and mean two places the page could read a different answer from.
+    promotionPlayoffs: [],
     nextPid,
     retiredPlayers,
     seasonHistory: [
@@ -768,6 +804,10 @@ export function simOffseasonReporting(
         // Same reason, one step further out: an award winner outlives his own
         // record by decades, so his name travels with the award (step 3.65).
         awardWinners,
+        // The playoffs this season's tier-2 tables sent to. Left absent when a
+        // world holds none, so a save that never plays one carries no empty
+        // arrays through its whole history.
+        promotionPlayoffs: promotionPlayoffs.length > 0 ? promotionPlayoffs : undefined,
       },
     ],
   };

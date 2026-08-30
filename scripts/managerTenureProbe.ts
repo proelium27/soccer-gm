@@ -23,6 +23,7 @@ import { deriveExpectations, actualFinish } from "../src/core/manager/expectatio
 import { tablesByCompetition } from "../src/core/manager/index.js";
 import { judgeSeason } from "../src/core/manager/confidence.js";
 import { computeCountrySwaps } from "../src/core/promotion.js";
+import { playoffWinnersByCompId } from "../src/core/promotionPlayoff.js";
 import {
   DIFFICULTIES, DIFFICULTY_ORDER, MANAGER_START_CONFIDENCE, MANAGER_GRACE_SEASONS,
   type Difficulty,
@@ -64,7 +65,12 @@ function main(): void {
       league.teams, league.players, league.competitions, league.seasonHistory,
     );
     const tables = tablesByCompetition(league.teams, league.competitions, league.played);
-    const swaps = computeCountrySwaps(league.competitions, tables);
+    // The playoffs simThrough just settled decide the last promotion place, so
+    // reading the table alone would credit the wrong club with going up — and
+    // "were you promoted" is one of the inputs this probe is measuring.
+    const swaps = computeCountrySwaps(
+      league.competitions, tables, playoffWinnersByCompId(league.promotionPlayoffs),
+    );
     const promoted = new Set(swaps.flatMap((x) => x.promoted));
     const relegated = new Set(swaps.flatMap((x) => x.relegated));
 

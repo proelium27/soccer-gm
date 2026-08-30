@@ -37,6 +37,7 @@ import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { unpackPositionChange } from "../../core/newsEvents.js";
 import { seasonAwardNews } from "../../core/awardNews.js";
 import { trophyNewsBySeason } from "../../core/trophyNews.js";
+import { promotionNewsBySeason } from "../../core/promotionNews.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { currency, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
@@ -222,16 +223,34 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
       ...(trophies.get(league.season) ?? []),
     ];
 
+    // The promotion playoffs the season just ended decided. They live on
+    // `promotionPlayoffs` only between the final whistle and the advance, and
+    // are stamped with the season that has just finished — so during the
+    // offseason that is `league.season`, and once the clock has moved on the
+    // record has moved to the history entry and this is empty. Either way the
+    // panel shows it beside the trophies, which ride the rollover the same way.
+    const promotions = promotionNewsBySeason([
+      ...league.promotionPlayoffs,
+      ...(league.played.length === 0
+        ? (league.seasonHistory.find((h) => h.season === league.season - 1)?.promotionPlayoffs ?? [])
+        : []),
+    ]);
+    const shownPromotions = [
+      ...(promotions.get(league.season) ?? []),
+      ...(promotions.get(league.season - 1) ?? []),
+    ];
+
     const newsTimeline = buildSeasonTimeline(currentSeasonTransfers, currentSeasonEvents, {
       userTid,
       userCompId: comps[userTid],
       compOf: (tid) => comps[tid],
-    }, lastSeasonHonours, shownTrophies);
+    }, lastSeasonHonours, shownTrophies, [], shownPromotions);
     return [...newsTimeline].slice(-NEWS_TOP_N).reverse();
   }, [
     league.transfers, league.newsEvents, league.season, league.played,
     league.meta.userTid, league.teams, league.seasonHistory,
     league.cup, league.cupHistory, league.shield, league.shieldHistory, league.international,
+    league.promotionPlayoffs,
   ]);
 
   const teamByTid = useMemo(() => new Map(league.teams.map((t) => [t.tid, t])), [league.teams]);
@@ -275,6 +294,12 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
         ? teamByTid.get(t.tid)?.name ?? "A club"
         : t.nation ?? "A nation";
       return <>{winner} win the {t.name}</>;
+    }
+    if (item.kind === "promotion") {
+      const p = item.data;
+      const up = teamByTid.get(p.tid)?.name ?? "A club";
+      const beaten = teamByTid.get(p.runnerUpTid)?.name ?? "the other finalist";
+      return <>{up} win the promotion playoff final {p.score} against {beaten}</>;
     }
     if (item.kind === "award") {
       const a = item.data;

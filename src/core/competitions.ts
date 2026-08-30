@@ -208,6 +208,24 @@ export function competitionPromotionSpots(comp: Competition, partner: Competitio
   ));
 }
 
+/**
+ * How many clubs actually swap between these two divisions, once the requested
+ * count is clamped to what the two tables can supply.
+ *
+ * Split out because the promotion playoff and the swap itself must agree on N
+ * to the club: the playoff seats the four clubs below the automatic places, and
+ * "the automatic places" is N-1. If they read different Ns the bracket and the
+ * table slice overlap and a club is promoted twice.
+ */
+export function effectivePromotionSpots(
+  d1: Competition,
+  d2: Competition | null,
+  d1TableLength: number,
+  d2TableLength: number,
+): number {
+  return Math.min(competitionPromotionSpots(d1, d2), d1TableLength, d2TableLength);
+}
+
 /** This league's money multiplier, before the tier scale. See Competition.budgetScale. */
 export function competitionBudgetScale(comp: Competition): number {
   return comp.budgetScale ?? COUNTRY_BUDGET_SCALE[comp.country] ?? 1;
