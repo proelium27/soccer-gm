@@ -239,6 +239,34 @@ function minAIBudget(league: LeagueStore): number {
   return Math.min(...league.teams.filter((t) => t.tid !== USER_TID).map((t) => t.budget));
 }
 
+/**
+ * Clubs currently in deficit, as a COUNT and a SHARE of the world.
+ *
+ * The min alone is not comparable between worlds of different sizes, and this
+ * file is the one place that matters most. A minimum is a tail statistic: it
+ * gets worse as you add clubs even when nothing about the per-club distribution
+ * has moved, so a 626-club world will read a deeper worst case than a 420-club
+ * one for free. Measured across this exact change — adding a third division to
+ * every country grew the world 49% — and the min went from -£0.6M to -£8.0M
+ * while the question "is a club here more likely to go broke than before" was
+ * never actually asked.
+ *
+ * Same lesson as the M3 top-scorer gate (a world-wide max standing in for a
+ * league statistic), the offseason roster floor ("a minimum over 320 clubs is
+ * not a safety invariant"), the M4 points gate and the free-agency ppg fix:
+ * when a gate fails after a world-size change, check whether its ESTIMATOR is
+ * size-dependent before believing the number. Fix the statistic, don't widen
+ * the band.
+ *
+ * The min is still reported — a single club £8M under is worth seeing — but the
+ * rate is what compares across worlds.
+ */
+function deficitRate(league: LeagueStore): { count: number; share: number } {
+  const ai = league.teams.filter((t) => t.tid !== USER_TID);
+  const count = ai.filter((t) => t.budget < 0).length;
+  return { count, share: count / ai.length };
+}
+
 let anyFailure = false;
 /** Each rung gap, collected across seeds, so the mean gate can run at the end. */
 const gapsAcrossSeeds = new Map<string, number[]>();
@@ -250,11 +278,22 @@ for (const seed of SEEDS) {
   console.log(`\n=== seed ${seed} (${SEASONS} seasons) ===`);
   let league = createLeagueState(USER_TID, mulberry32(seed));
 
+  let worstDeficitCount = 0;
+  let worstDeficitClubs = 0;
+  let everInDeficit = 0;
+  let samples = 0;
   let minBudget = Infinity;
   let minBudgetSeason = 0;
   let minBudgetCountry = "";
 
   const trackBudget = () => {
+    const { count } = deficitRate(league);
+    if (count > worstDeficitCount) {
+      worstDeficitCount = count;
+      worstDeficitClubs = league.teams.filter((t) => t.tid !== USER_TID).length;
+    }
+    everInDeficit += count > 0 ? 1 : 0;
+    samples += 1;
     const mb = minAIBudget(league);
     if (mb < minBudget) {
       minBudget = mb;
@@ -382,6 +421,13 @@ for (const seed of SEEDS) {
   console.log(
     `  → min AI budget over dynasty: £${(minBudget / 1e6).toFixed(1)}M ` +
     `(season ${minBudgetSeason}, ${minBudgetCountry}) — ${solvent ? "SOLVENT" : "**DEFICIT**"}`,
+  );
+  // The size-independent reading. Compare THIS across worlds; the min above is
+  // a tail statistic and deepens for free as the club count grows.
+  console.log(
+    `  → deficit rate: worst ${worstDeficitCount}/${worstDeficitClubs} clubs ` +
+    `(${(100 * worstDeficitCount / Math.max(1, worstDeficitClubs)).toFixed(2)}% at once), ` +
+    `any club in deficit at ${everInDeficit}/${samples} samples`,
   );
 }
 

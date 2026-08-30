@@ -72,7 +72,7 @@ AGGREGATING="weakLeaguesAudit leagueVolumeProbe positionAwardAudit midVsMidProbe
 # Env knobs the audits actually read (grep for process.env across scripts/).
 # SEEDS is deliberately absent -- it is what gets split. Add to this list when a
 # new audit reads a new variable, or it silently won't reach the remote.
-FORWARD_VARS="SEASONS SEED SHOW RUN RATE N ALL_N"
+FORWARD_VARS="SEASONS SEED SHOW RUN RATE N ALL_N COUNTRY"
 
 PER_SEED_ONLY=0
 FORCE_LOCAL=0
