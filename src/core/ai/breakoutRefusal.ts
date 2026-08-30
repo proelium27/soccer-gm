@@ -2,12 +2,17 @@ import type { Player } from "../players/types.js";
 import type { StoredTeam } from "../teams/clubs.js";
 import type { Competition } from "../competitions.js";
 import { tierOf } from "../competitions.js";
-import { DIVISION_2_REFUSAL_OVR_THRESHOLD } from "../constants.js";
+import { divisionRefusalOvr } from "../constants.js";
 
 /**
- * A Division 2 player refuses to sign a new deal with his current club once
- * he's simply too good to want to keep playing Division 2 football — a flat
- * OVR preference, not a per-club match. Simplified 2026-07-15 from an
+ * A player below the top flight refuses to sign a new deal with his current club
+ * once he's simply too good to want to keep playing at that level — a flat OVR
+ * preference per tier, not a per-club match. The bar falls as the pyramid
+ * deepens (see divisionRefusalOvr), so a third-tier player wants out at a lower
+ * rating than a second-tier one does, which is what keeps the tiers graded
+ * relative to each other rather than all measured against the top flight.
+ *
+ * Simplified 2026-07-15 from an
  * earlier version that required finding one specific Division 1 club that
  * both valued him above his own club's reservation and could afford him:
  * that version was realistic in theory (a poor Division 2 club genuinely
@@ -23,6 +28,8 @@ import { DIVISION_2_REFUSAL_OVR_THRESHOLD } from "../constants.js";
 export function wouldRefuseExtension(
   player: Player, currentTeam: StoredTeam, competitions: Competition[],
 ): boolean {
-  return tierOf(competitions, currentTeam.compId) === 2
-    && player.ovr >= DIVISION_2_REFUSAL_OVR_THRESHOLD;
+  // Each tier has its own bar and tier 1 has none, so this is one comparison
+  // rather than a tier test plus a threshold: divisionRefusalOvr returns
+  // Infinity for a top-flight club, which no player's ovr can reach.
+  return player.ovr >= divisionRefusalOvr(tierOf(competitions, currentTeam.compId));
 }

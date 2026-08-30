@@ -64,6 +64,31 @@ export const NUM_TEAMS_D2 = 20;
 export const DIVISION_2_TARGET_D1_RANK = 16;
 export const DIVISION_2_OFFSET =
   ((DIVISION_2_TARGET_D1_RANK - 1) / (NUM_TEAMS - 1)) * 2 * TEAM_STRENGTH_SPREAD;
+
+/** Third division team count. Only a country that opts into three tiers has one. */
+export const NUM_TEAMS_D3 = 20;
+
+/**
+ * How far below Division 1 a tier's strength band sits — the number generation
+ * subtracts from every club's target, and the number academyBaseCenter walks a
+ * promoted or relegated club toward.
+ *
+ * One step per tier, so the D1/D2 relationship DIVISION_2_OFFSET was tuned for
+ * (D2's strongest club lands at D1's rank-16 target) repeats between D2 and D3.
+ * Stated as a formula rather than a table because that is what makes a third
+ * tier free of a second tuning pass AND keeps tiers 1 and 2 arithmetically
+ * identical to what shipped: tier 1 is 0 and tier 2 is exactly
+ * DIVISION_2_OFFSET, so no existing world moves by a float.
+ *
+ * The honest caveat, and it is why the third tier needs its own audit rather
+ * than inheriting this one's: at tier 3 the resulting academy anchor lands in
+ * the saturated part of YOUTH_BASE_FLOOR's softplus, the same regime the
+ * weakest shipped second divisions already sit in. Playable, measured, and
+ * flatter than a tier higher up the pyramid.
+ */
+export function divisionStrengthOffset(tier: number): number {
+  return Math.max(0, tier - 1) * DIVISION_2_OFFSET;
+}
 /**
  * Division 2's money-in scale (2026-07-15 retune): both the income rate
  * (see divisionScale in finance/budget.ts) and, as of the same retune, the
@@ -95,6 +120,41 @@ export const DIVISION_2_BUDGET_SCALE = 0.6;
  * the season-30 drift) or too tight (empties Division 2 of anyone decent).
  */
 export const DIVISION_2_REFUSAL_OVR_THRESHOLD = 70;
+
+/**
+ * The same bar for a pyramid deeper than two, keyed by tier. A third-tier club
+ * has to lose its good players to the SECOND division, not straight to the top
+ * flight, so the bar has to fall as you go down or the tiers stop meaning
+ * anything relative to each other.
+ *
+ * Tier 2 is DIVISION_2_REFUSAL_OVR_THRESHOLD by reference, not by a copied
+ * literal, so the shipped two-division world cannot drift from the constant it
+ * was tuned against. Tier 3's 62 is a STARTING VALUE and has not been audited —
+ * `scripts/divisionAudit.ts` is what settles it, and the failure modes to watch
+ * are the documented pair: too loose barely dents long-dynasty drift, too tight
+ * empties the division of anyone worth watching.
+ *
+ * A tier with no entry falls back to the deepest one listed, so a fourth tier
+ * would inherit the third's bar rather than silently keeping everybody.
+ */
+const DIVISION_REFUSAL_OVR_BY_TIER: Record<number, number> = {
+  2: DIVISION_2_REFUSAL_OVR_THRESHOLD,
+  3: 62,
+};
+
+/**
+ * OVR at or above which an AI player refuses to stay in this tier. Tier 1 has
+ * no ceiling — there is nothing above it — so it returns Infinity rather than a
+ * number, which is what makes every call site's `ovr >= threshold` test
+ * correctly false for a top-flight club without needing a tier check of its own.
+ */
+export function divisionRefusalOvr(tier: number): number {
+  if (tier <= 1) return Infinity;
+  const listed = DIVISION_REFUSAL_OVR_BY_TIER[tier];
+  if (listed !== undefined) return listed;
+  const deepest = Math.max(...Object.keys(DIVISION_REFUSAL_OVR_BY_TIER).map(Number));
+  return DIVISION_REFUSAL_OVR_BY_TIER[deepest];
+}
 
 /**
  * Straight automatic swap each offseason: bottom N of D1 <-> top N of D2.
@@ -229,8 +289,8 @@ export function countryBudgetScale(country: string): number {
  * relegation swap — its new tier's band within its own country, so a promoted
  * French club rises toward French D1's (handicapped) level, not England's.
  */
-export function academyBaseCenter(country: string, tier: 1 | 2): number {
-  return LEAGUE_BASE - countryStrengthOffset(country) - (tier === 2 ? DIVISION_2_OFFSET : 0);
+export function academyBaseCenter(country: string, tier: number): number {
+  return LEAGUE_BASE - countryStrengthOffset(country) - divisionStrengthOffset(tier);
 }
 
 /**

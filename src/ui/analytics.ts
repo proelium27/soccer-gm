@@ -20,7 +20,7 @@ import posthog from "posthog-js";
 export interface GameEvents {
   /** A brand-new save was created. `roster` marks one started from a roster file. */
   league_created: {
-    country: string; tier: 1 | 2; roster?: boolean; difficulty?: string;
+    country: string; tier: number; roster?: boolean; difficulty?: string;
     /** Whether Cup places are re-earned on the country coefficient (the default). */
     rollingCoefficients?: boolean;
   };

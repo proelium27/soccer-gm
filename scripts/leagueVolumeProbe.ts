@@ -44,7 +44,7 @@ const SEEDS = (process.env.SEEDS ?? "1").split(",").map(Number);
 interface Bucket {
   compId: number;
   label: string;
-  tier: 1 | 2;
+  tier: number;
   ovrTotal: number;
   ovrCount: number;
   defEvents: number;

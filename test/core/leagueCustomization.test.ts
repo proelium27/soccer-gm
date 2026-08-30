@@ -3,9 +3,9 @@ import type { Competition } from "../../src/core/competitions.js";
 import {
   worldCompetitions, competitionStrengthOffset, competitionAcademyOffset,
   competitionBudgetScale, isWeakLeague, academyBaseCenterOf,
-  buildCompetitions, worldLeagueSpecs, tier1Pairs, countryClubRanges,
+  buildCompetitions, worldLeagueSpecs, countryDivisions, countryClubRanges,
   worldTuningWarnings, suggestedBudgetScale, worldTeamSlots,
-  competitionTeamCount, partnerOrNull, competitionAbbrev, resolveLeagueSpec,
+  competitionTeamCount, divisionBelow, competitionAbbrev, resolveLeagueSpec,
 } from "../../src/core/competitions.js";
 import { computeCountrySwaps } from "../../src/core/promotion.js";
 import { buildCompetitionSchedule } from "../../src/core/leagueState.js";
@@ -19,7 +19,7 @@ import {
 } from "../../src/core/teams/rosterFile.js";
 import {
   COUNTRY_STRENGTH_OFFSET, COUNTRY_BUDGET_SCALE, LEAGUE_BASE, DIVISION_2_OFFSET,
-  CONTINENTAL_CUP_FORMAT, SHIELD_FORMAT, NUM_TEAMS, NUM_TEAMS_D2,
+  CONTINENTAL_CUP_FORMAT, SHIELD_FORMAT, NUM_TEAMS, NUM_TEAMS_D2, NUM_TEAMS_D3,
   isValidCupFieldSize, largestValidCupField,
 } from "../../src/core/constants.js";
 import { CLUBS, shippedClubsFor } from "../../src/core/teams/clubs.js";
@@ -257,11 +257,14 @@ describe("building a world's competitions table", () => {
     expect("continentalSlots" in d1).toBe(false);
   });
 
-  it("a table with a country left out still pairs every remaining country", () => {
+  it("a table with a country left out still chains every remaining country", () => {
     const table = buildCompetitions(worldLeagueSpecs().filter((s) => s.country !== "England"));
-    const pairs = tier1Pairs(table);
-    expect(pairs).toHaveLength(11);
-    for (const { d1, d2 } of pairs) expect(d2?.country).toBe(d1.country);
+    const chains = countryDivisions(table);
+    expect(chains).toHaveLength(11);
+    for (const { country, divisions } of chains) {
+      expect(divisions.map((d) => d.tier)).toEqual([1, 2]);
+      expect(divisions.every((d) => d.country === country)).toBe(true);
+    }
   });
 });
 
@@ -437,8 +440,33 @@ describe("division count and size", () => {
     const table = buildCompetitions([{ country: "Neverland", divisions: 1 }]);
     expect(table).toHaveLength(1);
     expect(table[0].tier).toBe(1);
-    expect(tier1Pairs(table)[0].d2).toBeNull();
-    expect(partnerOrNull(table, 0)).toBeNull();
+    expect(countryDivisions(table)[0].divisions).toHaveLength(1);
+    expect(divisionBelow(table, 0)).toBeNull();
+  });
+
+  it("builds a three-division country, top flight first", () => {
+    const table = buildCompetitions([{ country: "Neverland", divisions: 3 }]);
+    expect(table.map((c) => c.tier)).toEqual([1, 2, 3]);
+    expect(table.map((c) => c.name)).toEqual([
+      "Neverland Division 1", "Neverland Division 2", "Neverland Division 3",
+    ]);
+    expect(competitionTeamCount(table[2])).toBe(NUM_TEAMS_D3);
+    expect(divisionBelow(table, table[2].id)).toBeNull();
+  });
+
+  it("carries the third division's own name and size", () => {
+    const table = buildCompetitions([
+      { country: "Neverland", divisions: 3, d3Teams: 14, d3Name: "Neverland League Two" },
+    ]);
+    expect(table[2].name).toBe("Neverland League Two");
+    expect(competitionTeamCount(table[2])).toBe(14);
+  });
+
+  it("ignores d3 fields on a country that did not ask for a third division", () => {
+    const table = buildCompetitions([
+      { country: "Neverland", d3Teams: 14, d3Name: "Neverland League Two" },
+    ]);
+    expect(table).toHaveLength(2);
   });
 
   it("carries per-division team counts", () => {

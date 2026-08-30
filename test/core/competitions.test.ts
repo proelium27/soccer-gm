@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  englandCompetitions, competitionOf, tierOf, partnerOf, countriesOf, worldCompetitions, tier1Pairs,
+  englandCompetitions, competitionOf, tierOf, divisionAbove, divisionBelow, countriesOf,
+  worldCompetitions, countryDivisions, promotionLinks,
   countryClubRanges, competitionPromotionSpots, buildCompetitions, worldTuningWarnings,
   worldLeagueSpecs, type Competition,
 } from "../../src/core/competitions.js";
@@ -20,8 +21,11 @@ describe("competitions", () => {
     expect(competitionOf(comps, 1).name).toBe("English Division 2");
     expect(tierOf(comps, 0)).toBe(1);
     expect(tierOf(comps, 1)).toBe(2);
-    expect(partnerOf(comps, 0).id).toBe(1);
-    expect(partnerOf(comps, 1).id).toBe(0);
+    expect(divisionBelow(comps, 0)?.id).toBe(1);
+    expect(divisionAbove(comps, 1)?.id).toBe(0);
+    // The ends of the chain have no neighbour that way.
+    expect(divisionAbove(comps, 0)).toBeNull();
+    expect(divisionBelow(comps, 1)).toBeNull();
     expect(countriesOf(comps)).toEqual(["England"]);
   });
 
@@ -57,30 +61,66 @@ describe("worldCompetitions", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("partnerOf works across all 8 countries", () => {
+  it("neighbours stay inside the country and are adjacent by tier", () => {
     for (const comp of comps) {
-      const partner = partnerOf(comps, comp.id);
-      expect(partner.country).toBe(comp.country);
-      expect(partner.tier).not.toBe(comp.tier);
+      for (const neighbour of [divisionAbove(comps, comp.id), divisionBelow(comps, comp.id)]) {
+        if (!neighbour) continue;
+        expect(neighbour.country).toBe(comp.country);
+        expect(Math.abs(neighbour.tier - comp.tier)).toBe(1);
+      }
     }
   });
 
-  it("tier1Pairs returns one pair per country, in table order", () => {
-    const pairs = tier1Pairs(comps);
-    expect(pairs.map((p) => p.d1.country)).toEqual([
+  it("countryDivisions returns each country's chain, top flight first, in table order", () => {
+    const chains = countryDivisions(comps);
+    expect(chains.map((c) => c.country)).toEqual([
       "England", "Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey",
       "Netherlands", "Scotland", "Greece", "Serbia",
     ]);
-    for (const pair of pairs) {
-      expect(pair.d1.tier).toBe(1);
-      // Every shipped country has both divisions; d2 is nullable only because a
-      // player can now build a one-division country.
-      expect(pair.d2).not.toBeNull();
-      expect(pair.d2!.tier).toBe(2);
-      expect(pair.d2!.country).toBe(pair.d1.country);
+    for (const { country, divisions } of chains) {
+      // Every shipped country is a two-division pyramid. The chain is only
+      // variable-length because a player can build one or three divisions.
+      expect(divisions.map((d) => d.tier)).toEqual([1, 2]);
+      expect(divisions.every((d) => d.country === country)).toBe(true);
     }
   });
+
+  it("promotionLinks pairs each division with the one below it", () => {
+    const links = promotionLinks(comps);
+    expect(links).toHaveLength(countriesOf(comps).length);
+    for (const { upper, lower } of links) {
+      expect(upper.country).toBe(lower.country);
+      expect(lower.tier).toBe(upper.tier + 1);
+    }
+  });
+
+  it("a one-division country has no promotion link and no neighbours", () => {
+    const solo = buildCompetitions([{ country: "Solitaria", divisions: 1 }]);
+    expect(promotionLinks(solo)).toEqual([]);
+    expect(divisionAbove(solo, solo[0].id)).toBeNull();
+    expect(divisionBelow(solo, solo[0].id)).toBeNull();
+  });
+
+  it("a three-division country chains top-down and links each adjacent pair", () => {
+    const deep = buildCompetitions([{ country: "Deepland", divisions: 3 }]);
+    expect(deep.map((c) => c.tier)).toEqual([1, 2, 3]);
+    expect(divisionsOfTiers(deep, "Deepland")).toEqual([1, 2, 3]);
+
+    // The old partnerOrNull answered "the other competition in this country",
+    // which has no answer here — it returned whichever came first in the table.
+    // Adjacency is what the middle division needs, in both directions.
+    expect(divisionAbove(deep, deep[1].id)?.tier).toBe(1);
+    expect(divisionBelow(deep, deep[1].id)?.tier).toBe(3);
+    expect(divisionAbove(deep, deep[0].id)).toBeNull();
+    expect(divisionBelow(deep, deep[2].id)).toBeNull();
+
+    expect(promotionLinks(deep).map((l) => [l.upper.tier, l.lower.tier])).toEqual([[1, 2], [2, 3]]);
+  });
 });
+
+function divisionsOfTiers(comps: Competition[], country: string): number[] {
+  return countryDivisions(comps).find((c) => c.country === country)!.divisions.map((d) => d.tier);
+}
 
 describe("countryClubRanges", () => {
   it("splits the world into 8 contiguous 40-wide ranges, in table order", () => {

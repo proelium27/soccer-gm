@@ -4,7 +4,7 @@ import type { CompletedTransfer } from "../transfers/negotiation.js";
 import type { Competition } from "../competitions.js";
 import type { ActiveLoan } from "../loans.js";
 import { tierOf, competitionOf } from "../competitions.js";
-import { DIVISION_2_REFUSAL_OVR_THRESHOLD, ROSTER_CAP, ROSTER_COMPOSITION } from "../constants.js";
+import { divisionRefusalOvr, ROSTER_CAP, ROSTER_COMPOSITION } from "../constants.js";
 import { trueTransferValue } from "../finance/valuation.js";
 import { clampBudget, financeScale } from "../finance/budget.js";
 
@@ -44,7 +44,7 @@ import { clampBudget, financeScale } from "../finance/budget.js";
  * push a club into deficit, and the selling club banks the fee (clamped by
  * its tier's budget cap, same as any AI-market sale).
  */
-export function enforceDivision2Ceiling(
+export function enforceDivisionCeilings(
   teams: StoredTeam[],
   players: Player[],
   activeLoans: ActiveLoan[],
@@ -74,111 +74,129 @@ export function enforceDivision2Ceiling(
     return atPos.reduce((s, p) => s + p.ovr, 0) / atPos.length;
   };
 
-  // Highest OVR first: the biggest stars get first pick of the neediest
-  // Division 1 club, since avgOvrAtPos is recomputed (and shifts) after
-  // each move.
-  const qualifying = [...rosterByTid.entries()]
-    .filter(([tid]) => tierByTid.get(tid) === 2 && tid !== userTid)
-    .flatMap(([, roster]) => roster)
-    .filter((pid) => !onLoanPids.has(pid))
-    .map((pid) => playerByPid.get(pid)!)
-    .filter((p) => p.ovr >= DIVISION_2_REFUSAL_OVR_THRESHOLD)
-    .sort((a, b) => b.ovr - a.ovr || a.pid - b.pid);
+  // One pass per tier that has a division above it, DEEPEST FIRST — and the
+  // order is load-bearing rather than tidy. Each pass reads the rosters the
+  // previous one left behind, so a third-tier player good enough to clear both
+  // bars is swept up to tier 2 and then swept again to tier 1 within this single
+  // call. Running shallowest-first would strand him one division short and cost
+  // him a whole season to surface, which is exactly the drift this exists to
+  // prevent. A two-division world runs one pass and is unchanged.
+  const deepestTier = Math.max(1, ...competitions.map((c) => c.tier));
+  for (let fromTier = deepestTier; fromTier >= 2; fromTier--) {
+    const ceiling = divisionRefusalOvr(fromTier);
 
-  for (const player of qualifying) {
-    const sellerTid = [...rosterByTid.entries()].find(([, r]) => r.includes(player.pid))?.[0];
-    if (sellerTid === undefined) continue; // already moved earlier this pass
+    // Highest OVR first: the biggest stars get first pick of the neediest club
+    // one division up, since avgOvrAtPos is recomputed (and shifts) after each
+    // move.
+    const qualifying = [...rosterByTid.entries()]
+      .filter(([tid]) => tierByTid.get(tid) === fromTier && tid !== userTid)
+      .flatMap(([, roster]) => roster)
+      .filter((pid) => !onLoanPids.has(pid))
+      .map((pid) => playerByPid.get(pid)!)
+      .filter((p) => p.ovr >= ceiling)
+      .sort((a, b) => b.ovr - a.ovr || a.pid - b.pid);
 
-    // Receiving pool is the player's OWN country's tier-1 clubs — the ceiling
-    // invariant is "a country's D2 can't out-strengthen its own D1", so a
-    // Portuguese D2 star is pulled up into Portuguese D1, not dumped into
-    // whichever weak-league club happens to be the globally weakest. (Scoping
-    // this worldwide systematically injected strong players into France/Portugal
-    // D1 — the weakest tier-1 clubs — compressing the deliberate cross-country
-    // strength gap over a dynasty; a 15-season audit confirmed the compression.)
-    const sellerCountry = countryByTid.get(sellerTid);
-    const d1Candidates = [...tierByTid.entries()].filter(
-      ([tid, tier]) => tier === 1 && tid !== userTid && countryByTid.get(tid) === sellerCountry,
-    );
-    if (d1Candidates.length === 0) continue;
+      for (const player of qualifying) {
+      const sellerTid = [...rosterByTid.entries()].find(([, r]) => r.includes(player.pid))?.[0];
+      if (sellerTid === undefined) continue; // already moved earlier this pass
 
-    let buyerTid = d1Candidates[0][0];
-    let bestNeed = avgOvrAtPos(buyerTid, player.pos);
-    for (const [tid] of d1Candidates.slice(1)) {
-      const need = avgOvrAtPos(tid, player.pos);
-      if (need < bestNeed) {
-        bestNeed = need;
-        buyerTid = tid;
-      }
-    }
+      // Receiving pool is the player's OWN country's clubs ONE DIVISION UP — the
+      // ceiling invariant is "a country's D2 can't out-strengthen its own D1", so
+      // a Portuguese D2 star is pulled up into Portuguese D1, not dumped into
+      // whichever weak-league club happens to be the globally weakest. (Scoping
+      // this worldwide systematically injected strong players into France/Portugal
+      // D1 — the weakest tier-1 clubs — compressing the deliberate cross-country
+      // strength gap over a dynasty; a 15-season audit confirmed the compression.)
+      //
+      // One division up rather than straight to the top flight, for the same
+      // reason: a third tier's ceiling is a statement about the second tier, and
+      // teleporting its best players past a division would flatten the pyramid it
+      // is meant to grade.
+      const sellerCountry = countryByTid.get(sellerTid);
+      const d1Candidates = [...tierByTid.entries()].filter(
+        ([tid, tier]) =>
+          tier === fromTier - 1 && tid !== userTid && countryByTid.get(tid) === sellerCountry,
+      );
+      if (d1Candidates.length === 0) continue;
 
-    let buyerRoster = rosterByTid.get(buyerTid)!;
-    if (buyerRoster.length >= ROSTER_CAP) {
-      // Prefer the weakest player whose release still keeps the buyer's
-      // positional depth floor (same bar releasePlayer/keepsDepthFloor use
-      // elsewhere) — otherwise a forced sweep can strip a club's only backup
-      // at a thin position with nothing left in this offseason to refill it
-      // (this is the second, later of enforceDivision2Ceiling's two passes;
-      // free agency/trimming/the summer market have already run). Falls back
-      // to the true weakest player only if every release would breach the
-      // floor, so the move still always succeeds.
-      const posCounts = new Map<Position, number>();
-      for (const pid of buyerRoster) {
-        const pos = playerByPid.get(pid)!.pos;
-        posCounts.set(pos, (posCounts.get(pos) ?? 0) + 1);
-      }
-      const keepsFloor = (pid: number): boolean => {
-        const pos = playerByPid.get(pid)!.pos;
-        return (posCounts.get(pos) ?? 0) - 1 >= Math.ceil(ROSTER_COMPOSITION[pos] / 2);
-      };
-
-      // Never release a loaned-in player to make room: he's owned by his
-      // parent and must leave only via processLoanReturns, or the live loan is
-      // orphaned into a duplicate (same reasoning as the sweep's own onLoanPids
-      // skip above). Releasable = on the buyer's roster and not on loan.
-      const releasable = buyerRoster.filter((pid) => !onLoanPids.has(pid));
-      let weakestPid: number | null = null;
-      let weakestOvr = Infinity;
-      for (const pid of releasable) {
-        if (!keepsFloor(pid)) continue;
-        const ovr = playerByPid.get(pid)!.ovr;
-        if (ovr < weakestOvr) {
-          weakestOvr = ovr;
-          weakestPid = pid;
+      let buyerTid = d1Candidates[0][0];
+      let bestNeed = avgOvrAtPos(buyerTid, player.pos);
+      for (const [tid] of d1Candidates.slice(1)) {
+        const need = avgOvrAtPos(tid, player.pos);
+        if (need < bestNeed) {
+          bestNeed = need;
+          buyerTid = tid;
         }
       }
-      if (weakestPid === null) {
-        // No release keeps every position above its floor — fall back to
-        // the true weakest overall (still never a loaned-in player) rather
-        // than block the guaranteed move.
+
+      let buyerRoster = rosterByTid.get(buyerTid)!;
+      if (buyerRoster.length >= ROSTER_CAP) {
+        // Prefer the weakest player whose release still keeps the buyer's
+        // positional depth floor (same bar releasePlayer/keepsDepthFloor use
+        // elsewhere) — otherwise a forced sweep can strip a club's only backup
+        // at a thin position with nothing left in this offseason to refill it
+        // (this is the second, later of enforceDivisionCeilings's two passes;
+        // free agency/trimming/the summer market have already run). Falls back
+        // to the true weakest player only if every release would breach the
+        // floor, so the move still always succeeds.
+        const posCounts = new Map<Position, number>();
+        for (const pid of buyerRoster) {
+          const pos = playerByPid.get(pid)!.pos;
+          posCounts.set(pos, (posCounts.get(pos) ?? 0) + 1);
+        }
+        const keepsFloor = (pid: number): boolean => {
+          const pos = playerByPid.get(pid)!.pos;
+          return (posCounts.get(pos) ?? 0) - 1 >= Math.ceil(ROSTER_COMPOSITION[pos] / 2);
+        };
+
+        // Never release a loaned-in player to make room: he's owned by his
+        // parent and must leave only via processLoanReturns, or the live loan is
+        // orphaned into a duplicate (same reasoning as the sweep's own onLoanPids
+        // skip above). Releasable = on the buyer's roster and not on loan.
+        const releasable = buyerRoster.filter((pid) => !onLoanPids.has(pid));
+        let weakestPid: number | null = null;
+        let weakestOvr = Infinity;
         for (const pid of releasable) {
+          if (!keepsFloor(pid)) continue;
           const ovr = playerByPid.get(pid)!.ovr;
           if (ovr < weakestOvr) {
             weakestOvr = ovr;
             weakestPid = pid;
           }
         }
+        if (weakestPid === null) {
+          // No release keeps every position above its floor — fall back to
+          // the true weakest overall (still never a loaned-in player) rather
+          // than block the guaranteed move.
+          for (const pid of releasable) {
+            const ovr = playerByPid.get(pid)!.ovr;
+            if (ovr < weakestOvr) {
+              weakestOvr = ovr;
+              weakestPid = pid;
+            }
+          }
+        }
+        buyerRoster = buyerRoster.filter((pid) => pid !== weakestPid);
       }
-      buyerRoster = buyerRoster.filter((pid) => pid !== weakestPid);
+
+      // The move is guaranteed, but the buyer still pays the regular market
+      // price for the player — capped at what it actually has, so a forced
+      // move never drives its budget negative. Money is conserved between the
+      // two clubs (before the seller's tier budget cap, same as the AI market).
+      const fee = Math.min(
+        Math.round(trueTransferValue(player, season)),
+        Math.max(0, budgetByTid.get(buyerTid) ?? 0),
+      );
+      budgetByTid.set(buyerTid, (budgetByTid.get(buyerTid) ?? 0) - fee);
+      budgetByTid.set(
+        sellerTid,
+        clampBudget((budgetByTid.get(sellerTid) ?? 0) + fee, scaleByTid.get(sellerTid)!, hypeByTid.get(sellerTid) ?? 0),
+      );
+
+      rosterByTid.set(sellerTid, rosterByTid.get(sellerTid)!.filter((pid) => pid !== player.pid));
+      rosterByTid.set(buyerTid, [...buyerRoster, player.pid]);
+      executed.push({ pid: player.pid, fromTid: sellerTid, toTid: buyerTid, fee, season, window: "summer" });
     }
-
-    // The move is guaranteed, but the buyer still pays the regular market
-    // price for the player — capped at what it actually has, so a forced
-    // move never drives its budget negative. Money is conserved between the
-    // two clubs (before the seller's tier budget cap, same as the AI market).
-    const fee = Math.min(
-      Math.round(trueTransferValue(player, season)),
-      Math.max(0, budgetByTid.get(buyerTid) ?? 0),
-    );
-    budgetByTid.set(buyerTid, (budgetByTid.get(buyerTid) ?? 0) - fee);
-    budgetByTid.set(
-      sellerTid,
-      clampBudget((budgetByTid.get(sellerTid) ?? 0) + fee, scaleByTid.get(sellerTid)!, hypeByTid.get(sellerTid) ?? 0),
-    );
-
-    rosterByTid.set(sellerTid, rosterByTid.get(sellerTid)!.filter((pid) => pid !== player.pid));
-    rosterByTid.set(buyerTid, [...buyerRoster, player.pid]);
-    executed.push({ pid: player.pid, fromTid: sellerTid, toTid: buyerTid, fee, season, window: "summer" });
   }
 
   return {

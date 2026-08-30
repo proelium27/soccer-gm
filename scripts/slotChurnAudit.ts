@@ -70,7 +70,7 @@ for (const seed of SEEDS) {
       (tierByTid.get(tid) === 2 ? d2 : d1).push(p.ovr);
     }
     meanOvrBySeason.push(avg([...d1, ...d2]));
-    // The real invariant enforceDivision2Ceiling holds is "no AI tier-2 player
+    // The real invariant enforceDivisionCeilings holds is "no AI tier-2 player
     // at or above DIVISION_2_REFUSAL_OVR_THRESHOLD" — not "below the D1 mean",
     // which a mid-tier D2 player clears routinely and which therefore carries
     // no signal at all.

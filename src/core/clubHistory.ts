@@ -9,7 +9,7 @@ export interface ClubSeasonRecord {
   season: number;
   /** Competition the club played in *that* season (from the season's compsByTid snapshot). */
   compId: number;
-  tier: 1 | 2;
+  tier: number;
   /** 1-based finishing position within the club's competition that season. */
   position: number;
   teamsInComp: number;
@@ -98,7 +98,7 @@ export interface ClubHistory {
   /** All-time aggregate record across every completed season. */
   totals: { played: number; won: number; drawn: number; lost: number; gf: number; ga: number };
   /** Best (lowest-numbered) finishing position ever, preferring a tier-1 finish; null if no seasons. */
-  bestFinish: { season: number; position: number; tier: 1 | 2 } | null;
+  bestFinish: { season: number; position: number; tier: number } | null;
   mostPoints: { season: number; points: number } | null;
   mostWins: { season: number; won: number } | null;
   /** Every completed season, newest first. */

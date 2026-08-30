@@ -110,7 +110,7 @@ export function NewLeague() {
   const world = useMemo(() => describeWorld(includedSpecs(worldEntries)), [worldEntries]);
 
   /** Competition name for a country's given tier (e.g. "English Division 1"). */
-  function divisionName(countryName: string, tier: 1 | 2): string {
+  function divisionName(countryName: string, tier: number): string {
     return (
       world.competitions.find((c) => c.country === countryName && c.tier === tier)?.name ??
       `Division ${tier}`
@@ -277,7 +277,7 @@ export function NewLeague() {
   // Which tier the chosen club plays in. Read off the slot layout rather than
   // assumed from position in the country's block, because divisions can be
   // different sizes and a country can have only one of them.
-  function tierForTid(tid: number): 1 | 2 {
+  function tierForTid(tid: number): number {
     const compId = world.slotWorld.teams.find((t) => t.tid === tid)?.compId;
     return world.competitions.find((c) => c.id === compId)?.tier ?? 1;
   }

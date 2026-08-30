@@ -2,7 +2,8 @@ import type { StandingsRow } from "./standings.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import type { Competition } from "./competitions.js";
 import {
-  tier1Pairs, competitionOf, academyBaseCenterOf, competitionPromotionSpots,
+  promotionLinks, competitionOf, academyBaseCenterOf, competitionPromotionSpots,
+  competitionTeamCount,
 } from "./competitions.js";
 import { ACADEMY_BASE_CONVERGENCE_SEASONS } from "./constants.js";
 
@@ -17,24 +18,49 @@ export interface CompetitionSwap {
 }
 
 /**
- * For every country, the bottom N of its tier-1 final table swap with the top N
- * of its tier-2 final table, where N is that country's own
+ * For every adjacent pair of divisions in the world, the bottom N of the upper
+ * table swap with the top N of the lower one, where N is that country's own
  * `competitionPromotionSpots` (3 unless the league was added with a different
  * number on the New League screen). Every table in `tablesByCompId` must
  * already be sorted by computeStandings (points, then GD, then GF, then tid).
+ *
+ * One swap per LINK, not per country: a three-division country produces two
+ * independent swaps, and because each reads the final tables rather than the
+ * result of the other, a club can only ever move one division per season. That
+ * is the intended behaviour and it falls out of the shape — do not "fix" it by
+ * chaining the links, which would let a runaway second-tier club skip a level.
+ *
+ * A one-division country contributes no links at all, so it has no promotion or
+ * relegation without needing a special case here.
  */
 export function computeCountrySwaps(
   competitions: Competition[],
   tablesByCompId: Map<number, StandingsRow[]>,
 ): CompetitionSwap[] {
-  return tier1Pairs(competitions).flatMap(({ d1, d2 }) => {
-    // Nothing to swap with: a one-division country has no tier 2 to send clubs
-    // down to, so it simply has no promotion or relegation.
-    if (!d2) return [];
+  const links = promotionLinks(competitions);
+
+  // A division in the MIDDLE of a pyramid is promoted out of at the top and
+  // relegated out of at the bottom in the same season, so those two slices must
+  // not overlap: a club inside both would be sent up by one link and down by the
+  // other, and applyCompetitionSwaps would silently keep whichever it wrote last.
+  // Half the division in each direction is the most that can be asked for.
+  //
+  // Deliberately scoped to middle divisions rather than applied to every link,
+  // because it is unreachable with two divisions — a top-flight club can only go
+  // down and a second-tier club can only go up, so there is nothing to overlap —
+  // and clamping there would silently change a world nothing is wrong with.
+  const middles = new Set(
+    links.map((l) => l.lower.id).filter((id) => links.some((l) => l.upper.id === id)),
+  );
+  const swapLimit = (comp: Competition): number =>
+    middles.has(comp.id) ? Math.floor(competitionTeamCount(comp) / 2) : Infinity;
+
+  return links.flatMap(({ upper: d1, lower: d2 }) => {
     const d1Table = tablesByCompId.get(d1.id)!;
     const d2Table = tablesByCompId.get(d2.id)!;
     const n = Math.min(
       competitionPromotionSpots(d1, d2), d1Table.length, d2Table.length,
+      swapLimit(d1), swapLimit(d2),
     );
     // `slice(-0)` is `slice(0)` — the WHOLE table — so a league set to no
     // promotion or relegation would relegate every club in its division. The
