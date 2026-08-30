@@ -119,9 +119,18 @@ export function NewLeague() {
 
   const [country, setCountry] = useState<string>(() => countriesOf(buildCompetitions(includedSpecs(defaultWorldEntries())))[0]);
   const [selectedTid, setSelectedTid] = useState<number | null>(null);
+  // Which division's clubs the picker is showing. A view, not part of the save:
+  // picking a club is what matters, and the tier it plays in is read off its tid
+  // (tierForTid) rather than from here.
+  const [tier, setTier] = useState<1 | 2>(1);
   // Fixed for the save's lifetime once it's created, so it is chosen here and
   // nowhere else (see the DIFFICULTIES block in core/constants.ts).
   const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
+  // What the save is called on /leagues. Empty means "no name of my own", and
+  // the save keeps naming itself after your club (see buildLeague) — the same
+  // absent-means-default rule the division names follow, so leaving it alone
+  // reproduces exactly what the page did before this field existed.
+  const [leagueName, setLeagueName] = useState("");
   // The country you'll manage alongside your club, or null for club football
   // only — which is the default, and not a lesser save. Can be changed later by
   // taking a federation's offer, so this is a starting point rather than a
@@ -298,12 +307,16 @@ export function NewLeague() {
       : generated;
     return {
       ...league,
-      // Name the save after whatever the user's club ended up being called —
-      // the imported name when a roster replaced it, else the fictional one.
-      // Every tid in the world has a team, so the fallback is only a guard.
       meta: {
         ...league.meta,
-        name: league.teams.find((t) => t.tid === tid)?.name ?? `Club ${tid}`,
+        // A name the player typed wins; otherwise the save is named after
+        // whatever the user's club ended up being called — the imported name
+        // when a roster replaced it, else the fictional one. Every tid in the
+        // world has a team, so the fallback is only a guard.
+        name:
+          leagueName.trim() ||
+          league.teams.find((t) => t.tid === tid)?.name ||
+          `Club ${tid}`,
         // Display only: seasons stay a 1-based counter, this just decides which
         // year the UI calls season 1. The Start button is disabled while the
         // field is unusable, so the fallback only keeps the type honest.
@@ -559,6 +572,18 @@ export function NewLeague() {
   // division or two, and they need not be the same size.
   const d1Clubs = countryClubs.filter((c) => tierForTid(c.tid) === 1);
   const d2Clubs = countryClubs.filter((c) => tierForTid(c.tid) === 2);
+  // Shown as the League name placeholder, so the default the save would take is
+  // visible rather than merely described. Safe to look up in the active
+  // country's clubs alone: selecting a country clears the club (selectCountry),
+  // so a selection is always one of these.
+  const selectedClubName =
+    selectedTid === null ? null : (countryClubs.find((c) => c.tid === selectedTid)?.name ?? null);
+  // A country can have one division or two, so the tab the picker is on has to
+  // fall back rather than show an empty list — the same shape as activeCountry
+  // falling back when a country is switched off underneath the picker.
+  const hasSecondDivision = d2Clubs.length > 0;
+  const shownTier = hasSecondDivision ? tier : 1;
+  const shownClubs = shownTier === 1 ? d1Clubs : d2Clubs;
 
   function selectCountry(c: string) {
     setCountry(c);
@@ -580,7 +605,8 @@ export function NewLeague() {
         added has whatever name they typed and no demonym to derive.
       */}
       <p className="text-muted">
-        Flip through each league to browse its clubs, then pick the club you want to manage.
+        Flip through each country and division to browse the clubs, then pick the one you
+        want to manage.
         {worldRoster
           ? " Every club the file didn't cover keeps its original name and squad."
           : customize
@@ -669,52 +695,55 @@ export function NewLeague() {
         follows the world when it moves — and adding the league a file was
         written for is the only way to make that file apply at all.
       */}
-      <WorldSetup entries={worldEntries} onChange={changeWorld} />
-
-      <div className="btn-group mb-3 flex-wrap" role="group" aria-label="Choose a league">
-        {world.countries.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className={`btn btn-outline-secondary d-inline-flex align-items-center gap-2${
-              c === activeCountry ? " active" : ""
-            }`}
-            onClick={() => selectCountry(c)}
+      {/*
+        What kind of save this is — the three things true of the whole league
+        rather than of any one club — gathered above the world and the club so
+        the page reads in one direction: what game, then what world, then who
+        you are in it. Difficulty and the start year used to sit below the club
+        list, which put two save-wide decisions after the most specific one on
+        the page.
+      */}
+      <div className="d-flex gap-2 mb-2 flex-wrap align-items-end">
+        <div className="flex-grow-1" style={{ minWidth: 190 }}>
+          <label
+            htmlFor="league-name"
+            className="text-muted text-uppercase small fw-semibold mb-2 d-block"
           >
-            <CountryFlag country={c} fallback={abbrevForCountry(c)} />
-            {c}
-          </button>
-        ))}
-      </div>
-
-      {(
-        [
-          [divisionName(activeCountry, 1), d1Clubs],
-          [divisionName(activeCountry, 2), d2Clubs],
-        ] as const
-      ).map(([label, clubs]) => (
-        <div key={label} className="mb-3">
-          <h6 className="text-muted text-uppercase small fw-semibold mb-2">{label}</h6>
-          <div className="list-group">
-            {clubs.map(({ tid, name, colors, squad }) => (
-              <button
-                key={tid}
-                type="button"
-                className={`list-group-item list-group-item-action d-flex align-items-center${
-                  selectedTid === tid ? " active" : ""
-                }`}
-                onClick={() => setSelectedTid(tid)}
-              >
-                <ClubCrest tid={tid} colors={colors} size={28} />
-                {name}
-                {squad > 0 && (
-                  <small className="ms-auto opacity-75">{squad} players</small>
-                )}
-              </button>
-            ))}
-          </div>
+            League name
+          </label>
+          <input
+            type="text"
+            id="league-name"
+            className="form-control"
+            maxLength={60}
+            placeholder={selectedClubName ?? "Named after your club"}
+            value={leagueName}
+            onChange={(e) => setLeagueName(e.target.value)}
+          />
         </div>
-      ))}
+        <div style={{ width: 130 }}>
+          <label
+            htmlFor="start-year"
+            className="text-muted text-uppercase small fw-semibold mb-2 d-block"
+          >
+            Start year
+          </label>
+          <input
+            type="number"
+            id="start-year"
+            className={`form-control${parsedStartYear === null ? " is-invalid" : ""}`}
+            value={startYear}
+            min={MIN_START_YEAR}
+            max={MAX_START_YEAR}
+            onChange={(e) => setStartYear(e.target.value)}
+          />
+        </div>
+      </div>
+      <p className="text-muted small mb-3">
+        {parsedStartYear === null
+          ? `Pick a year between ${MIN_START_YEAR} and ${MAX_START_YEAR}.`
+          : `Your first season is ${parsedStartYear}-${String((parsedStartYear + 1) % 100).padStart(2, "0")}. Just for looks — every season after counts up from there.`}
+      </p>
 
       <div className="mb-3">
         <h6 className="text-muted text-uppercase small fw-semibold mb-2">Difficulty</h6>
@@ -734,6 +763,90 @@ export function NewLeague() {
           {DIFFICULTIES[difficulty].blurb} It only changes things for your club, and you
           can't change it later, so pick one you'll want to live with.
         </p>
+      </div>
+
+      <WorldSetup
+        entries={worldEntries}
+        onChange={changeWorld}
+        // A loaded file that names a league this world hasn't got is skipped,
+        // and adding or renaming one in here is the only thing that fixes it —
+        // so the editor opens itself for an import rather than hiding the cure
+        // behind a collapsed card the warning above merely points at.
+        defaultOpen={!!worldRoster}
+      />
+
+      <div className="btn-group mb-3 flex-wrap" role="group" aria-label="Choose a league">
+        {world.countries.map((c) => (
+          <button
+            key={c}
+            type="button"
+            className={`btn btn-outline-secondary d-inline-flex align-items-center gap-2${
+              c === activeCountry ? " active" : ""
+            }`}
+            onClick={() => selectCountry(c)}
+          >
+            <CountryFlag country={c} fallback={abbrevForCountry(c)} />
+            {c}
+          </button>
+        ))}
+      </div>
+
+      {/*
+        One division at a time. Both stacked is forty club rows for a big
+        country, which buried everything below the picker — and the two are
+        alternatives, not a list to read end to end. Tabs rather than a heading
+        per division, so this reads as the same kind of choice as the country
+        tabs directly above it.
+      */}
+      <div className="mb-3">
+        {hasSecondDivision ? (
+          <div className="btn-group w-100 mb-2" role="group" aria-label="Choose a division">
+            {([1, 2] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                className={`btn btn-outline-secondary${t === shownTier ? " active" : ""}`}
+                onClick={() => setTier(t)}
+              >
+                {divisionName(activeCountry, t)}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <h6 className="text-muted text-uppercase small fw-semibold mb-2">
+            {divisionName(activeCountry, 1)}
+          </h6>
+        )}
+        <div className="list-group">
+          {shownClubs.map(({ tid, name, colors, squad }) => (
+            <button
+              key={tid}
+              type="button"
+              className={`list-group-item list-group-item-action d-flex align-items-center${
+                selectedTid === tid ? " active" : ""
+              }`}
+              onClick={() => setSelectedTid(tid)}
+            >
+              <ClubCrest tid={tid} colors={colors} size={28} />
+              {name}
+              {squad > 0 && (
+                <small className="ms-auto opacity-75">{squad} players</small>
+              )}
+            </button>
+          ))}
+        </div>
+        {/*
+          Switching divisions doesn't discard your pick — only switching country
+          does, and that one has to, since the clubs change. But a pick you can
+          no longer see reads as no pick at all with the Start button live at the
+          bottom, so it says where the club you chose actually is.
+        */}
+        {selectedTid !== null && !shownClubs.some((c) => c.tid === selectedTid) && (
+          <p className="text-muted small mt-2 mb-0">
+            You've picked {selectedClubName}, over in{" "}
+            {divisionName(activeCountry, shownTier === 1 ? 2 : 1)}.
+          </p>
+        )}
       </div>
 
       <div className="mb-3">
@@ -812,33 +925,6 @@ export function NewLeague() {
             ? "How many clubs each country sends to the Continental Cup depends on how its clubs have done in Europe over the last few seasons. Do well and your league sends more; go out early for years and it sends fewer. The Shield gives every league the same two either way."
             : "Every country keeps the same number of Cup places forever, however its clubs do in Europe."}{" "}
           This is fixed once the save is created.
-        </p>
-      </div>
-
-      <div className="mb-3">
-        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Start year</h6>
-        <div className="d-flex align-items-center gap-2">
-          <input
-            type="number"
-            className={`form-control${parsedStartYear === null ? " is-invalid" : ""}`}
-            style={{ maxWidth: 140 }}
-            value={startYear}
-            min={MIN_START_YEAR}
-            max={MAX_START_YEAR}
-            aria-label="Start year"
-            onChange={(e) => setStartYear(e.target.value)}
-          />
-          {parsedStartYear !== null && (
-            <span className="text-muted small">
-              Your first season is {parsedStartYear}-
-              {String((parsedStartYear + 1) % 100).padStart(2, "0")}.
-            </span>
-          )}
-        </div>
-        <p className="text-muted small mt-2 mb-0">
-          {parsedStartYear === null
-            ? `Pick a year between ${MIN_START_YEAR} and ${MAX_START_YEAR}.`
-            : "Just for looks. It's the year the game puts on your first season, and every season after counts up from there."}
         </p>
       </div>
 
