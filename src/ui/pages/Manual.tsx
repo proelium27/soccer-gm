@@ -482,13 +482,14 @@ export function Manual() {
             division when you start.
           </p>
           <p>
-            <strong>England, Spain, Italy and Germany run three divisions</strong>; everyone else
-            runs two. The third tier holds 20 clubs in each of the four, and it works like any other
-            division — its own table, its own promotion and relegation with the division above, its
-            clubs in the domestic cup. Starting down there is the longest climb the game offers.
-            Be warned that it's a genuinely different game: third-division money is a fraction of
-            top-flight money, and a youth academy that deep produces very little, so you'll be
-            building out of the transfer market and out of whoever you can keep hold of.
+            <strong>Every country runs three divisions.</strong> Sizes vary — England, Spain and
+            Italy field 20 in every tier, down to Scotland's 10 in its bottom two — and the third
+            tier works like any other division: its own table, its own promotion and relegation with
+            the division above, its clubs in the domestic cup. Starting down there is the longest
+            climb the game offers. Be warned that it's a genuinely different game: third-division
+            money is a fraction of top-flight money, and a youth academy that deep produces very
+            little, so you'll be building out of the transfer market and out of whoever you can keep
+            hold of.
           </p>
           <p>
             <strong>Leagues are the size they are in real life</strong>, not all the same. England,
