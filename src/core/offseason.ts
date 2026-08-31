@@ -335,6 +335,10 @@ export function simOffseasonReporting(
     inboundOffers: league.inboundOffers.filter((o) => !retiredPids.has(o.pid)),
     loanListings: league.loanListings.filter((l) => !retiredPids.has(l.pid)),
     loanRejections: league.loanRejections.filter((l) => !retiredPids.has(l.pid)),
+    // The watchlist is a shortlist of players to sign, and a retiree has
+    // stopped being one. Dropping him is also the only way he *can* leave it:
+    // his profile page goes with him, and that is where the star lives.
+    watchlist: league.watchlist.filter((pid) => !retiredPids.has(pid)),
   };
   league = { ...league, ...liveRefsScrubbed };
 

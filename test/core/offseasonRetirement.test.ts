@@ -60,6 +60,23 @@ describe("simOffseason — retirement, archive and awards", () => {
     }
   });
 
+  it("drops retired and culled players from the watchlist, since nothing else can", () => {
+    const rng = mulberry32(6);
+    const league = playFullSeason(rng);
+    // Star the whole world, so whoever the offseason deletes was on it.
+    const watching = { ...league, watchlist: league.players.map((p) => p.pid) };
+
+    const next = simOffseason(watching, rng);
+
+    // The star lives on a player's profile page, and a deleted player has none —
+    // so a pid left behind here could never be un-starred, and the shortlist
+    // would carry a row nobody can open for the rest of the save.
+    const alive = new Set(next.players.map((p) => p.pid));
+    expect(next.watchlist.every((pid) => alive.has(pid))).toBe(true);
+    // And it really was exercised: an offseason always retires someone.
+    expect(next.watchlist.length).toBeLessThan(watching.watchlist.length);
+  });
+
   it("names every award winner on the season it was won", () => {
     // Awards are stored as bare pids, and a pid stops resolving once retirement
     // deletes the player and the capped archive declines to keep him — measured

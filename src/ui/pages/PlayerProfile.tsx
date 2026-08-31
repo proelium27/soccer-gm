@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { WatchToggle } from "../components/WatchToggle.js";
 import { SKILL_KEYS } from "../../core/players/types.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
@@ -244,6 +245,7 @@ export function PlayerProfile() {
 
       <h4 className="mt-2">
         {player.name} <Flag nationality={player.nationality} />{" "}
+        <WatchToggle pid={player.pid} name={player.name} />{" "}
         <small className="text-muted">
           <PositionBadge player={player} /> &middot; Age {league.season - player.born} &middot; {player.heightCm}cm &middot; {player.nationality}
         </small>

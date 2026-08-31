@@ -34,6 +34,7 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
       <NavLink to="/manager" className="nav-link" onClick={onNavigate}>Manager</NavLink>
       <NavLink to="/roster" className="nav-link" onClick={onNavigate}>Roster</NavLink>
       <NavLink to="/transfers" className="nav-link" onClick={onNavigate}>Transfers</NavLink>
+      <NavLink to="/watchlist" className="nav-link" onClick={onNavigate}>Watchlist</NavLink>
       <NavLink to="/incoming-offers" className="nav-link" onClick={onNavigate}>Incoming Offers</NavLink>
       <NavLink to="/loans" className="nav-link" onClick={onNavigate}>Loans</NavLink>
       <NavLink to="/finance" className="nav-link" onClick={onNavigate}>Finance</NavLink>

@@ -79,6 +79,7 @@ function makeLeagueStore(seed: number): LeagueStore {
     activeLoans: [],
     loanListings: [],
     loanRejections: [],
+    watchlist: [],
     cup: null,
     cupHistory: [],
     shield: null,

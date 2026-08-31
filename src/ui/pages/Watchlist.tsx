@@ -1,0 +1,188 @@
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
+import { useLeague } from "../context/LeagueContext.js";
+import { watchlistEntries } from "../../core/watchlist.js";
+import { competitionOf } from "../../core/competitions.js";
+import { currency, formatWeeklyWage, seasonYear } from "../format.js";
+import { ClubLink } from "../components/ClubLink.js";
+import { Flag } from "../components/Flag.js";
+import { HelpHint } from "../components/HelpHint.js";
+import { InjuryBadge } from "../components/InjuryBadge.js";
+import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { PositionBadge } from "../components/PositionBadge.js";
+import { PotDisplay } from "../components/PotDisplay.js";
+import { SuspensionBadge } from "../components/SuspensionBadge.js";
+import { WatchToggle } from "../components/WatchToggle.js";
+import { SortableTh, sortRows, useTableSort } from "../components/SortableTable.js";
+
+type SortKey =
+  | "name" | "pos" | "age" | "ovr" | "pot" | "club" | "wage" | "contract" | "value" | "apps";
+
+/**
+ * Your shortlist: every player you've starred, wherever he is in the world,
+ * with what he's doing this season and whether you could actually sign him.
+ *
+ * Everything on it is derived on read (see core/watchlist.ts) rather than
+ * snapshotted when the star was clicked, so a name starred three seasons ago
+ * shows the club he's at today at the price he'd cost today.
+ */
+export function Watchlist() {
+  const { league } = useLeague();
+
+  const entries = useMemo(() => (league ? watchlistEntries(league) : []), [league]);
+
+  const { sort, toggle } = useTableSort<SortKey>("ovr");
+
+  const rows = useMemo(() => {
+    if (!league) return [];
+    const teamByTid = new Map(league.teams.map((t) => [t.tid, t]));
+    const named = entries.map((e) => {
+      const team = e.tid === null ? undefined : teamByTid.get(e.tid);
+      return {
+        ...e,
+        clubName: team?.name ?? "Free agent",
+        // competitionOf throws on an unknown compId, so it is only asked when
+        // there is a club to ask about.
+        compName: team ? competitionOf(league.competitions, team.compId).name : null,
+        // This season's line, if he has one yet. Absent in the offseason and
+        // before a ball is kicked, which reads as blank rather than as zeroes.
+        season: e.player.stats.find((s) => s.season === league.season) ?? null,
+      };
+    });
+    return sortRows(named, sort, {
+      name: (r) => r.player.name,
+      pos: (r) => r.player.pos,
+      age: (r) => league.season - r.player.born,
+      ovr: (r) => r.player.ovr,
+      pot: (r) => r.player.potential,
+      club: (r) => r.clubName,
+      wage: (r) => r.player.contract.salary,
+      contract: (r) => r.player.contract.expiresSeason,
+      value: (r) => r.value,
+      apps: (r) => r.season?.appearances ?? -1,
+    });
+  }, [league, entries, sort]);
+
+  if (!league) return null;
+
+  return (
+    <div className="container-fluid p-3">
+      <h4>
+        Watchlist
+        <HelpHint>
+          Players you've starred to keep an eye on. Click the star beside anyone's name — on his
+          profile, in the transfer search, or on the free agent and youth lists — to add or remove
+          him. It's just a shortlist: watching a player doesn't scout him, doesn't tell his club
+          anything, and doesn't affect anything in the game.
+        </HelpHint>
+      </h4>
+
+      {rows.length === 0 ? (
+        <p className="text-muted">
+          Nobody on your watchlist yet. Star a player from his profile, or from the search on the{" "}
+          <Link to="/transfers">Transfers</Link> page, and he'll show up here.
+        </p>
+      ) : (
+        <>
+          <p className="text-muted">
+            {rows.length} {rows.length === 1 ? "player" : "players"}. Club, rating and price are
+            all as they stand today, not as they were when you starred him.
+          </p>
+          <table className="table table-striped table-sm align-middle">
+            <thead>
+              <tr>
+                <th></th>
+                <SortableTh sortKey="name" sort={sort} onSort={toggle} defaultDir="asc">Name</SortableTh>
+                <SortableTh sortKey="pos" sort={sort} onSort={toggle} defaultDir="asc">Pos</SortableTh>
+                <SortableTh sortKey="age" sort={sort} onSort={toggle} className="text-end" defaultDir="asc">Age</SortableTh>
+                <SortableTh sortKey="ovr" sort={sort} onSort={toggle} className="text-end">Ovr</SortableTh>
+                <SortableTh sortKey="pot" sort={sort} onSort={toggle} className="text-end">Pot</SortableTh>
+                <SortableTh sortKey="club" sort={sort} onSort={toggle} defaultDir="asc">Club</SortableTh>
+                <SortableTh sortKey="apps" sort={sort} onSort={toggle} className="text-end">
+                  This season
+                  <HelpHint>
+                    Appearances, goals and assists in league play so far this season, and his
+                    average match rating. Blank if he hasn't played yet.
+                  </HelpHint>
+                </SortableTh>
+                <SortableTh sortKey="wage" sort={sort} onSort={toggle} className="text-end">Wage</SortableTh>
+                <SortableTh sortKey="contract" sort={sort} onSort={toggle} className="text-end" defaultDir="asc">Until</SortableTh>
+                <SortableTh sortKey="value" sort={sort} onSort={toggle} className="text-end">
+                  Scout value
+                  <HelpHint>
+                    Our scouts' estimate of his transfer value — the same figure the Transfers
+                    page quotes, and an estimate rather than the asking price. More scouting spend
+                    makes it sharper.
+                  </HelpHint>
+                </SortableTh>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const p = r.player;
+                return (
+                  <tr key={p.pid}>
+                    <td><WatchToggle pid={p.pid} name={p.name} /></td>
+                    <td>
+                      <PlayerRatingsTooltip player={p}>
+                        <Link to={`/player/${p.pid}`}>{p.name}</Link>
+                      </PlayerRatingsTooltip>{" "}
+                      <Flag nationality={p.nationality} />
+                      <InjuryBadge player={p} />
+                      <SuspensionBadge player={p} />
+                    </td>
+                    <td><PositionBadge player={p} /></td>
+                    <td className="text-end">{league.season - p.born}</td>
+                    <td className="text-end">{p.ovr}</td>
+                    <td className="text-end"><PotDisplay player={p} /></td>
+                    <td>
+                      {r.tid === null ? (
+                        <span className="text-muted">Free agent</span>
+                      ) : (
+                        <>
+                          <ClubLink tid={r.tid} />
+                          {r.academy && <span className="text-muted small"> Academy</span>}
+                          <br />
+                          <span className="text-muted small">{r.compName}</span>
+                        </>
+                      )}
+                    </td>
+                    <td className="text-end text-nowrap">
+                      {r.season && r.season.appearances > 0 ? (
+                        <>
+                          {r.season.appearances} app{r.season.appearances === 1 ? "" : "s"}
+                          {" "}&middot; {r.season.goals}G {r.season.assists}A
+                          <br />
+                          <span className="text-muted small">
+                            {r.season.avgRating.toFixed(2)} avg
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted">&mdash;</span>
+                      )}
+                    </td>
+                    <td className="text-end text-nowrap">{formatWeeklyWage(p.contract.salary)}</td>
+                    <td className="text-end">{seasonYear(p.contract.expiresSeason)}</td>
+                    <td className="text-end text-nowrap">{currency.format(r.value)}</td>
+                    <td className="small">
+                      {r.own ? (
+                        <span className="text-muted">Yours</span>
+                      ) : r.tid === null ? (
+                        <Link to="/free-agents">Sign him free</Link>
+                      ) : r.notForSaleReason ? (
+                        <span className="text-muted">{r.notForSaleReason}</span>
+                      ) : (
+                        <Link to="/transfers">Make an offer</Link>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </>
+      )}
+    </div>
+  );
+}
