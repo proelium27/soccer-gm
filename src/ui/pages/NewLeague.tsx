@@ -755,12 +755,16 @@ export function NewLeague() {
 
       <div className="mb-3">
         <h6 className="text-muted text-uppercase small fw-semibold mb-2">Difficulty</h6>
-        <div className="btn-group w-100" role="group" aria-label="Choose a difficulty">
+        <div className="btn-group segmented w-100" role="group" aria-label="Choose a difficulty">
           {DIFFICULTY_ORDER.map((d) => (
             <button
               key={d}
               type="button"
               className={`btn btn-outline-secondary${d === difficulty ? " active" : ""}`}
+              // The picked segment is otherwise a CSS class and nothing more, so
+              // a screen reader announces four identical buttons with no way to
+              // tell which one is the current choice.
+              aria-pressed={d === difficulty}
               onClick={() => setDifficulty(d)}
             >
               {DIFFICULTIES[d].label}
@@ -783,7 +787,7 @@ export function NewLeague() {
         defaultOpen={!!worldRoster}
       />
 
-      <div className="btn-group mb-3 flex-wrap" role="group" aria-label="Choose a league">
+      <div className="btn-group segmented mb-3 flex-wrap" role="group" aria-label="Choose a league">
         {world.countries.map((c) => (
           <button
             key={c}
@@ -791,6 +795,7 @@ export function NewLeague() {
             className={`btn btn-outline-secondary d-inline-flex align-items-center gap-2${
               c === activeCountry ? " active" : ""
             }`}
+            aria-pressed={c === activeCountry}
             onClick={() => selectCountry(c)}
           >
             <CountryFlag country={c} fallback={abbrevForCountry(c)} />
@@ -808,12 +813,13 @@ export function NewLeague() {
       */}
       <div className="mb-3">
         {hasSecondDivision ? (
-          <div className="btn-group w-100 mb-2" role="group" aria-label="Choose a division">
+          <div className="btn-group segmented w-100 mb-2" role="group" aria-label="Choose a division">
             {([1, 2] as const).map((t) => (
               <button
                 key={t}
                 type="button"
                 className={`btn btn-outline-secondary${t === shownTier ? " active" : ""}`}
+                aria-pressed={t === shownTier}
                 onClick={() => setTier(t)}
               >
                 {divisionName(activeCountry, t)}
