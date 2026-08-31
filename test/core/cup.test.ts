@@ -19,7 +19,8 @@ import {
   CUP_LEAGUE_PHASE_MATCHDAYS, CUP_KO_ROUND_MATCHDAYS, CUP_PLAYOFF_MATCHDAY,
   CUP_LEAGUE_PHASE_SIZE, CUP_LEAGUE_PHASE_GAMES, CUP_KO_SIZE,
   cupKnockoutPlan, CONTINENTAL_CUP_FORMAT, SHIELD_LEAGUE_PHASE_SIZE,
-  CUP_PRIZE_PARTICIPATION, CUP_PRIZE_WIN_PLAYOFF, CUP_PRIZE_WIN_QF, CUP_PRIZE_WIN_SF,
+  CUP_PRIZE_PARTICIPATION, CUP_PRIZE_LP_WIN, CUP_PRIZE_LP_DRAW,
+  CUP_PRIZE_WIN_PLAYOFF, CUP_PRIZE_WIN_QF, CUP_PRIZE_WIN_SF,
   CUP_PRIZE_WIN_FINAL, CUP_PRIZE_RUNNER_UP,
 } from "../../src/core/constants.js";
 
@@ -242,9 +243,19 @@ describe("full Swiss cup: league phase → playoff → knockout", () => {
     const champion = cup.championTid!;
     expect(cupFinalists(cup)).toContain(champion);
 
-    // Prize pot: participation for all 20, four playoff wins, and the knockout tiers.
+    // Prize pot: participation for all 20, a fee for every league-phase result,
+    // four playoff wins, and the knockout tiers. The league-phase half is derived
+    // from the matches actually played rather than written as a number, so it
+    // pins that each one paid exactly once and by its own result — a draw pays
+    // both clubs, a decisive game pays only the winner.
+    const lpPot = cup.leaguePhase!.matches.reduce(
+      (sum, m) =>
+        sum + (m.homeGoals === m.awayGoals ? 2 * CUP_PRIZE_LP_DRAW : CUP_PRIZE_LP_WIN),
+      0,
+    );
     const pot =
       CUP_LEAGUE_PHASE_SIZE * CUP_PRIZE_PARTICIPATION +
+      lpPot +
       (SPLIT.playoffTeams / 2) * CUP_PRIZE_WIN_PLAYOFF +
       4 * CUP_PRIZE_WIN_QF +
       2 * CUP_PRIZE_WIN_SF +

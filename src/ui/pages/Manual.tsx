@@ -881,10 +881,19 @@ export function Manual() {
             highlighted; each two-legged tie lists both leg scores beneath it.
           </p>
           <p>
-            Prize money is real and it's paid as you go. Every club banks a participation fee for
-            reaching the league phase, winning a playoff tie pays more, and each knockout round you
-            win pays more than the last. Going all the way is worth a serious chunk on top of your
-            normal league finances, enough to reshape a transfer budget.
+            Prize money is real, it's paid as you go, and the biggest single cheque is for{" "}
+            <strong>getting there at all</strong>. Qualifying for the league phase banks $10M on its
+            own, half of what finishing in the top quarter of your league pays, and it lands whether
+            you go on to win a game or not. After that every league-phase result is worth
+            money too: $1.5M for a win, $500k each for a draw. Six games, six chances to earn.
+          </p>
+          <p>
+            Going deep pays more on top. A playoff win is $3M, the quarter-final $6M, the semi-final
+            $9M, and lifting the trophy $14M, with $5M for losing the final. Win the lot from the
+            playoff round and you'll clear $40M across the campaign. That shape is deliberate, and
+            it's the one real continental football has: simply being in it is transformative,
+            especially for a club from a smaller league, and a deep run is a bonus rather than the
+            only thing worth having. Qualifying is a season's work and it's paid like one.
           </p>
           <p>
             Cup matches are their own thing. Goals, assists and appearances there are tracked{" "}
@@ -945,11 +954,12 @@ export function Manual() {
             reaches the final the sim stops just before it.
           </p>
           <p>
-            The money is real but smaller: participation, a playoff win and each knockout round all
-            pay, at roughly <strong>40%</strong> of the Cup's rates. Winning the whole thing is worth
-            about what a decent cup run is, not what winning the Cup is. That's the point of it —
-            finishing 5th now has something to play for, and a mid-table club can put a trophy in the
-            cabinet, without it ever rivalling the Cup.
+            The money is real but smaller, at roughly <strong>40%</strong> of the Cup's rates, and
+            it's front-loaded the same way: $4M for qualifying, $600k a win and $200k a draw in the
+            league phase, then $1.5M for a playoff win and $2.5M / $3.5M / $5.5M through the
+            knockout. Winning the whole thing is worth about what a decent cup run is, not what
+            winning the Cup is. That's the point of it: finishing 5th now has something to play for,
+            and a mid-table club can put a trophy in the cabinet, without it ever rivalling the Cup.
           </p>
           <p>
             Shield stats are tracked the same way cup stats are, separately from your league season,
