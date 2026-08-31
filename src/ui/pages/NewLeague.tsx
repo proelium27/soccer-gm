@@ -477,11 +477,15 @@ export function NewLeague() {
 
         {ROSTER_DOWNLOAD_URL && (
           <div className="border rounded p-3 mb-3">
-            <div className="fw-semibold mb-1">Don't have one yet?</div>
+            <div className="d-flex align-items-center gap-2 mb-1">
+              <span className="fw-semibold">Don't have one yet?</span>
+              <span className="badge bg-success">Updated for EA FC 27</span>
+            </div>
             <p className="text-muted small mb-2">
               Grab the ready-made file covering every league in the game, save it
               somewhere you'll find it, then load it below. It's a separate download
-              rather than part of the game itself.
+              rather than part of the game itself. The current one was rebuilt on 30
+              August 2026 from the EA FC 27 ratings and covers all twelve countries.
             </p>
             <a
               className="btn btn-outline-primary btn-sm"

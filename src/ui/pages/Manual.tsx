@@ -152,6 +152,14 @@ export function Manual() {
             would otherwise end up on the wrong team. Colors do carry over.
           </p>
           <p>
+            Every club in it carries a real name, but not every one carries a real squad, because
+            the source data doesn't reach that far down. Serbia, the second tiers of Portugal,
+            Belgium, Turkey, the Netherlands, Scotland and Greece, and most of the Greek top flight
+            get real names with generated players. Everywhere else has both. The file is rebuilt
+            when the ratings are, and the link never changes, so downloading it again is how you
+            get a newer one.
+          </p>
+          <p>
             You can hand it more than one file. Select as many as you like at once, or load one and
             then use "Add another file" on the club picker, and they all go into the same league. A
             file per league is usually the sane way to do it, since asking an AI for twelve leagues

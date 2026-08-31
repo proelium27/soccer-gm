@@ -320,16 +320,24 @@ export function Leagues() {
           Import
         </button>
         {ROSTER_DOWNLOAD_URL && (
-          <a
-            className="btn btn-outline-secondary"
-            href={ROSTER_DOWNLOAD_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            download
-            title="Get a roster file of real clubs and squads, then load it with Import"
-          >
-            Download Real Rosters
-          </a>
+          <>
+            <a
+              className="btn btn-outline-secondary"
+              href={ROSTER_DOWNLOAD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              title="Get a roster file of real clubs and squads, then load it with Import"
+            >
+              Download Real Rosters
+            </a>
+            {/* States what the file IS rather than that it is new, so it doesn't
+                go stale sitting here. The URL never changes, so anyone who
+                downloaded the old one gets this by downloading again. */}
+            <span className="badge bg-success align-self-center">
+              Updated for EA FC 27
+            </span>
+          </>
         )}
         <input
           ref={importInputRef}
@@ -347,7 +355,13 @@ export function Leagues() {
         many roster files as you like (one per league is the usual way) and they all go into
         the same league.
         {ROSTER_DOWNLOAD_URL && (
-          <> Download Real Rosters gets you one covering every league to start with.</>
+          <>
+            {" "}
+            Download Real Rosters gets you one covering every league to start with. It was
+            rebuilt on 30 August 2026 from the EA FC 27 ratings, so it now covers all
+            twelve countries instead of the first eight. If you grabbed it before then,
+            download it again for the newer squads.
+          </>
         )}
       </p>
     </div>

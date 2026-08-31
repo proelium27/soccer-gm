@@ -81,6 +81,22 @@ describe("roster download link on the Leagues page", () => {
     expect(await renderLeaguesPage()).toContain("Import");
     expect(await renderLeaguesPage("https://example.com/r.json")).toContain("Import");
   });
+
+  // The file behind the link is rebuilt in place rather than versioned, so the
+  // only way someone holding an old copy learns there is a newer one is this
+  // note. It rides the same `&&` as the link, or a build with no download would
+  // advertise a file it cannot offer.
+  it("says what the file is built from, beside the button", async () => {
+    const html = await renderLeaguesPage("https://example.com/r.json");
+    expect(html).toContain("Updated for EA FC 27");
+    expect(html).toContain("download it again");
+  });
+
+  it("says nothing about the file when the build has no URL", async () => {
+    const html = await renderLeaguesPage();
+    expect(html).not.toContain("Updated for EA FC 27");
+    expect(html).not.toContain("download it again");
+  });
 });
 
 describe("roster download link on the import screen", () => {
@@ -100,6 +116,13 @@ describe("roster download link on the import screen", () => {
     const html = await renderImportScreen();
     expect(html).not.toContain("Download roster file");
     expect(html).not.toContain("Don't have one yet?");
+    expect(html).not.toContain("Updated for EA FC 27");
+  });
+
+  it("carries the same note as the Leagues page when there is a URL", async () => {
+    expect(await renderImportScreen("https://example.com/r.json")).toContain(
+      "Updated for EA FC 27",
+    );
   });
 
   it("still offers the file picker either way", async () => {
