@@ -245,10 +245,10 @@ export function PlayerProfile() {
 
       <h4 className="mt-2">
         {player.name} <Flag nationality={player.nationality} />{" "}
-        <WatchToggle pid={player.pid} name={player.name} />{" "}
         <small className="text-muted">
           <PositionBadge player={player} /> &middot; Age {league.season - player.born} &middot; {player.heightCm}cm &middot; {player.nationality}
-        </small>
+        </small>{" "}
+        <WatchToggle pid={player.pid} name={player.name} />
       </h4>
       <p className="mb-3">
         {team ? (

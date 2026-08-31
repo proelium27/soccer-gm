@@ -1545,7 +1545,13 @@ a:hover {
   background: none;
   line-height: 1;
   color: var(--sg-text-muted);
-  vertical-align: text-bottom;
+  /*
+   * Centred on the line box rather than sat on the baseline, because this sits
+   * in text of very different sizes: a table row's 14px name and the player
+   * profile's h4. text-bottom looks right beside small text and visibly low
+   * next to a heading, where the line box is twice the icon's height.
+   */
+  vertical-align: middle;
   cursor: pointer;
 }
 .watch-star:hover:not(:disabled),
