@@ -116,6 +116,14 @@ describe("simOffseason", () => {
     // count here depend on a simulated tie.
     const withSpots = (promotionSpots: number) => ({
       ...league,
+      // The playoffs ALSO have to be cleared, or the `none` below never takes
+      // effect: playFullSeason already played them under the countries' real
+      // formats, and simOffseason reuses a season's recorded outcomes rather
+      // than replaying them. Without this the count depends on how Germany's
+      // German-format tie happened to go — it moves two clubs when the
+      // challenger wins and none when the incumbent holds on — which is the
+      // one thing the comment above says this test must not measure.
+      promotionPlayoffs: [],
       competitions: league.competitions.map((c) => ({
         ...c, promotionSpots, playoffFormat: "none" as const,
       })),
@@ -127,8 +135,8 @@ describe("simOffseason", () => {
       const before = new Map(league.teams.map((t) => [t.tid, t.compId]));
       return next.teams.filter((t) => before.get(t.tid) !== t.compId).length;
     };
-    // Per LINK, not per country: the big four run three divisions and so
-    // contribute two links each.
+    // Per LINK, not per country: every country runs three divisions and so
+    // contributes two links each.
     expect(moved(one)).toBe(2 * promotionLinks(league.competitions).length);
     expect(moved(closed)).toBe(0);
     // Division sizes hold either way.
