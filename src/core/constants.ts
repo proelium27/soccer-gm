@@ -167,6 +167,51 @@ export function divisionRefusalOvr(tier: number): number {
 export const PROMOTION_RELEGATION_COUNT = 3;
 
 /**
+ * How many semi-finals a promotion playoff has, i.e. it is contested by twice
+ * this many clubs. Two (a four-club bracket) is the English shape and the only
+ * one the code seeds; changing it changes how many places below the automatic
+ * ones are worth playing for, and `promotionPlayoffFields` will simply seat
+ * that many clubs — but nothing else has been measured at another value.
+ */
+export const PROMOTION_PLAYOFF_SEMI_FINALS = 2;
+
+/**
+ * How a country decides its last promotion place.
+ *
+ *  - `english` — the top N-1 go up on the table and the four clubs below them
+ *    contest two-legged semi-finals and a neutral-ground final for the last
+ *    place. Self-contained in tier 2: no top-flight club is at risk.
+ *  - `german` — N-1 go up **and** N-1 go down on the table, then tier 2's next
+ *    club plays tier 1's lowest safe club over two legs for the remaining
+ *    place. A top-flight club can save itself, and when it does, one fewer club
+ *    goes up *and* one fewer goes down — so the divisions still balance.
+ *  - `none` — the straight top-N/bottom-N swap, which is how the game worked
+ *    before playoffs existed.
+ */
+export type PlayoffFormat = "english" | "german" | "none";
+
+/**
+ * What each shipped country plays, absent a per-league override.
+ *
+ * These are the real systems: the Bundesliga settles its last place with a
+ * relegation playoff against 2. Bundesliga's third, while the rest of the
+ * shipped world runs the English four-club bracket. Anything not listed falls
+ * back to `DEFAULT_PLAYOFF_FORMAT`, which covers every country a player invents.
+ *
+ * A country promoting fewer than two clubs has no automatic place to sit below,
+ * so `english` is not available to it and `promotionPlayoffFields` returns no
+ * bracket — Scotland promotes one and is listed as `none` to say so plainly
+ * rather than relying on that fallback.
+ */
+export const COUNTRY_PLAYOFF_FORMAT: Record<string, PlayoffFormat> = {
+  Germany: "german",
+  Scotland: "none",
+};
+
+/** What a country not in COUNTRY_PLAYOFF_FORMAT plays, including invented ones. */
+export const DEFAULT_PLAYOFF_FORMAT: PlayoffFormat = "english";
+
+/**
  * The most clubs an added league can be set to promote and relegate. Held below
  * half that league's own division size as well (see WorldSetup), so the ceiling
  * that actually applies is often lower — this is the point past which the number

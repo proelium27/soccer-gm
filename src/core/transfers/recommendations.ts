@@ -306,6 +306,52 @@ export interface PlayerSearchResult extends TransferTarget {
 export const PLAYER_SEARCH_LIMIT = 60;
 
 /**
+ * Builds the "would this club entertain an offer at all?" test — every sale
+ * gate `makeTransferOffer` enforces, in the order it enforces them, returning
+ * the reason it would refuse or null if it wouldn't.
+ *
+ * A factory rather than a plain function because the expensive halves are
+ * per-league, not per-player: `protectedStarPids` recomputes last season's
+ * standings and `clubStatures` walks every squad in the world. Build it once
+ * per pass, then call it per candidate.
+ *
+ * **Shared on purpose.** Two surfaces ask this question — the transfer search
+ * and the watchlist — and they must never answer it differently for the same
+ * player, which is exactly what a second copy of these five gates would drift
+ * into. Building it is the expensive part, so keep the call site's laziness:
+ * `searchWorldPlayers` only builds it once it knows something matched.
+ */
+export function saleGateFor(
+  league: LeagueStore,
+  user: StoredTeam,
+  playerMap: Map<number, Player>,
+): (player: Player, team: StoredTeam) => string | null {
+  const loanedPids = new Set(league.activeLoans.map((l) => l.pid));
+  const protectedPids = protectedStarPids(
+    lastCompletedSeason(league), league.teams, league.players, league.competitions, user.tid,
+    userProtectedStarBar(league.difficulty),
+  );
+  const protectedReason = protectedStarReason(league.difficulty);
+  const statures = clubStatures(league.teams, league.players);
+  const userStature = statures.get(user.tid) ?? 0;
+
+  return (player, team) => {
+    if (loanedPids.has(player.pid)) return "Out on loan";
+    if (departsAtRollover(league, player)) return "Free agent at season's end";
+    if (protectedPids.has(player.pid)) return protectedReason;
+    if (!isForSaleOrRefusing(team, playerMap, player.pid, league.competitions)) {
+      return "Club needs him for depth";
+    }
+    // Mirrors makeTransferOffer's playerWill gate, so a player who'd turn the
+    // move down says so instead of silently swallowing the offer.
+    if (refusesMove(player.ovr, statures.get(team.tid) ?? 0, userStature)) {
+      return "Wouldn't drop to a club this size";
+    }
+    return null;
+  };
+}
+
+/**
  * Free-form world search: every player on another club's roster, narrowed by
  * `filters` (name and/or the usual numeric constraints), ranked by OVR and
  * capped at PLAYER_SEARCH_LIMIT. Unlike `recommendedTransfers` this applies no
@@ -365,18 +411,9 @@ export function searchWorldPlayers(
 
   candidates.sort((a, b) => b.player.ovr - a.player.ovr || a.player.pid - b.player.pid);
 
-  const loanedPids = new Set(league.activeLoans.map((l) => l.pid));
-  // Only needed once we know at least one player survived the cheap filters —
+  // Only built once we know at least one player survived the cheap filters —
   // it recomputes last season's standings, which is wasted on a no-match query.
-  const protectedPids = protectedStarPids(
-    lastCompletedSeason(league), league.teams, league.players, league.competitions, user.tid,
-    userProtectedStarBar(league.difficulty),
-  );
-
-  const protectedReason = protectedStarReason(league.difficulty);
-
-  const searchStatures = clubStatures(league.teams, league.players);
-  const searchUserStature = searchStatures.get(user.tid) ?? 0;
+  const gate = saleGateFor(league, user, playerMap);
 
   const results: PlayerSearchResult[] = [];
   for (const { player, team } of candidates) {
@@ -387,20 +424,7 @@ export function searchWorldPlayers(
     );
     if (!valueMatchesFilters(value, filters)) continue;
 
-    // Mirror makeTransferOffer's sale gates so the UI can explain, not no-op.
-    let notForSaleReason: string | null = null;
-    if (loanedPids.has(player.pid)) notForSaleReason = "Out on loan";
-    else if (departsAtRollover(league, player)) notForSaleReason = "Free agent at season's end";
-    else if (protectedPids.has(player.pid)) notForSaleReason = protectedReason;
-    else if (!isForSaleOrRefusing(team, playerMap, player.pid, league.competitions)) {
-      notForSaleReason = "Club needs him for depth";
-    } else if (
-      refusesMove(player.ovr, searchStatures.get(team.tid) ?? 0, searchUserStature)
-    ) {
-      // Mirrors makeTransferOffer's playerWill gate, so a player who'd turn the
-      // move down says so instead of silently swallowing the offer.
-      notForSaleReason = "Wouldn't drop to a club this size";
-    }
+    const notForSaleReason = gate(player, team);
 
     if (filters.forSaleOnly && notForSaleReason !== null) continue;
 

@@ -12,6 +12,7 @@ import { Dashboard } from "./pages/Dashboard.js";
 import { Standings } from "./pages/Standings.js";
 import { Cup, Shield } from "./pages/Cup.js";
 import { DomesticCup } from "./pages/DomesticCup.js";
+import { PromotionPlayoffs } from "./pages/PromotionPlayoffs.js";
 import { NTWorldCup } from "./pages/nationalTeams/WorldCup.js";
 import { NTMySquad } from "./pages/nationalTeams/MySquad.js";
 import { NTPlayerPool } from "./pages/nationalTeams/PlayerPool.js";
@@ -33,6 +34,7 @@ import { IncomingTalent } from "./pages/IncomingTalent.js";
 import { FreeAgents } from "./pages/FreeAgents.js";
 import { Academy } from "./pages/Academy.js";
 import { Transfers } from "./pages/Transfers.js";
+import { Watchlist } from "./pages/Watchlist.js";
 import { IncomingOffers } from "./pages/IncomingOffers.js";
 import { Loans } from "./pages/Loans.js";
 import { Finance } from "./pages/Finance.js";
@@ -130,6 +132,7 @@ export function App() {
             <Route path="/cup" element={<Cup />} />
             <Route path="/shield" element={<Shield />} />
             <Route path="/domestic-cup" element={<DomesticCup />} />
+            <Route path="/promotion-playoffs" element={<PromotionPlayoffs />} />
             <Route path="/national-teams/my-squad" element={<NTMySquad />} />
             <Route path="/national-teams/player-pool" element={<NTPlayerPool />} />
             <Route path="/national-teams/federation" element={<NTFederation />} />
@@ -160,6 +163,7 @@ export function App() {
             <Route path="/free-agents" element={<FreeAgents />} />
             <Route path="/academy" element={<Academy />} />
             <Route path="/transfers" element={<Transfers />} />
+            <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/incoming-offers" element={<IncomingOffers />} />
             <Route path="/loans" element={<Loans />} />
             <Route path="/finance" element={<Finance />} />

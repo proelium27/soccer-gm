@@ -12,6 +12,7 @@ import type { ActiveLoan, LoanListing, LoanRejection } from "./loans.js";
 import type { Competition } from "./competitions.js";
 import type { CupState } from "./cup/types.js";
 import type { DomesticCupState } from "./domesticCup/types.js";
+import type { PromotionPlayoff } from "./promotionPlayoff.js";
 import { buildDomesticCups } from "./domesticCup/cup.js";
 import type { InternationalState } from "./international/types.js";
 import { emptyInternationalState } from "./international/index.js";
@@ -158,6 +159,23 @@ export interface LeagueStore {
   /** Incoming loan offers the user has turned down this window (see loans.ts's loanOfferCandidates). */
   loanRejections: LoanRejection[];
   /**
+   * Players the user has starred to keep an eye on — a shortlist, in the order
+   * they were added. Read by `/watchlist`; see core/watchlist.ts.
+   *
+   * Stored as bare pids because everything else about a watched player (club,
+   * rating, price, whether he's buyable) is a question about the world *now*,
+   * not about the day he was starred, so it is all derived on read.
+   *
+   * The other league-level user lists beside it here are their club's business
+   * and are dropped when the user takes a new job; this one deliberately isn't
+   * (see manager/switchClub.ts) — it's the manager's own notebook, not the
+   * club's. Scrubbed when a watched player retires or is culled, since a pid
+   * that names nobody can never be un-starred through the UI.
+   *
+   * Migrated to `[]`, which is what every save written before it means.
+   */
+  watchlist: number[];
+  /**
    * The Continental Cup being played during the current season, or null when
    * none runs (season 1 always — no prior-season table to qualify from — and
    * any world that can't field a full 16-team bracket). Seeded each offseason
@@ -188,6 +206,22 @@ export interface LeagueStore {
   domesticCups: DomesticCupState[];
   /** Every completed domestic cup, oldest first (archived at offseason rollover). */
   domesticCupHistory: DomesticCupState[];
+  /**
+   * The promotion playoffs decided by the season that just ended, one per
+   * country that holds one.
+   *
+   * **Transient, not history.** Filled the moment the season ends (in
+   * simThrough, before the board reviews it, so a manager who goes up is told
+   * so) and emptied again by the offseason that consumes it — which copies the
+   * same records onto that season's `seasonHistory` entry, where they live
+   * permanently. So it is non-empty only while the user is sitting in the
+   * offseason looking at the result, and the page reads both places for the
+   * same reason the Cup page reads `cup` and `cupHistory`.
+   *
+   * Old saves backfill to empty and pick playoffs up at their next season end.
+   * See core/promotionPlayoff.ts.
+   */
+  promotionPlayoffs: PromotionPlayoff[];
   /**
    * National-team football, played entirely inside the offseason on a two-year
    * cycle (odd seasons qualify, even seasons play the tournament). Starts empty
@@ -333,6 +367,7 @@ export function createLeagueState(
     activeLoans: [],
     loanListings: [],
     loanRejections: [],
+    watchlist: [],
     // No cup in season 1: it's seeded from the previous season's final tables,
     // and there is none yet. The first Continental Cup runs in season 2.
     cup: null,
@@ -345,6 +380,7 @@ export function createLeagueState(
     // builder handles by falling back to tid order.
     domesticCups: buildDomesticCups(competitions, teams, new Map(), 1),
     domesticCupHistory: [],
+    promotionPlayoffs: [],
     international: emptyInternationalState(),
     godMode: false,
     manager: emptyManagerState(userTid, 1),

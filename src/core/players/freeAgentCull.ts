@@ -186,6 +186,9 @@ export function cullFreeAgentPoolReporting(
     inboundOffers: league.inboundOffers.filter((o) => !cull.has(o.pid)),
     loanListings: league.loanListings.filter((l) => !cull.has(l.pid)),
     loanRejections: league.loanRejections.filter((l) => !cull.has(l.pid)),
+    // A starred player nobody can open, list or un-star is worse than one the
+    // shortlist forgets, so the watchlist is scrubbed with everything else.
+    watchlist: league.watchlist.filter((pid) => !cull.has(pid)),
     teams: league.teams.map((t) => {
       // Fog-of-war bookkeeping is a pid-keyed map, so it needs the same scrub.
       const observed = t.scoutingObserved;

@@ -42,6 +42,7 @@ import {
   CUP_STRONG_LEAGUE_SLOTS, CUP_WEAK_LEAGUE_SLOTS, CUP_MIN_FIELD,
   SHIELD_STRONG_LEAGUE_SLOTS, SHIELD_WEAK_LEAGUE_SLOTS, largestValidCupField,
   NUM_TEAMS, NUM_TEAMS_D2, NUM_TEAMS_D3, PROMOTION_RELEGATION_COUNT,
+  COUNTRY_PLAYOFF_FORMAT, DEFAULT_PLAYOFF_FORMAT, type PlayoffFormat,
 } from "./constants.js";
 import {
   LEAGUE_NATIONALITY_WEIGHTS, sanitizeNationalityWeights, type NationalityWeights,
@@ -133,6 +134,16 @@ export interface Competition {
    */
   promotionSpots?: number;
   /**
+   * How this country settles its last promotion place — see `PlayoffFormat`.
+   * Absent → `COUNTRY_PLAYOFF_FORMAT` for a shipped country, else
+   * `DEFAULT_PLAYOFF_FORMAT`, so no existing save carries this field and none
+   * needed migrating for it.
+   *
+   * Written to both divisions like `promotionSpots`, and for the same reason.
+   * Resolve through `competitionPlayoffFormat`, never the field.
+   */
+  playoffFormat?: PlayoffFormat;
+  /**
    * Three-letter code for the country, used wherever a flag would go and there
    * is no flag to draw. The game ships flag art keyed by country name, so a
    * country the player invented has none and would otherwise render an empty
@@ -217,6 +228,74 @@ export function competitionPromotionSpots(comp: Competition, partner: Competitio
   return Math.max(0, Math.min(
     Math.floor(want), competitionTeamCount(comp), competitionTeamCount(partner),
   ));
+}
+
+/**
+ * How this country settles its last promotion place.
+ *
+ * Reads either division's override (they are written together), else the
+ * shipped country table, else the default. Does **not** check that the country
+ * can actually stage the format — a division may be too short to seat an
+ * English bracket, and that is decided by `promotionPlayoffFields` against the
+ * real tables, which this accessor has never seen.
+ */
+export function competitionPlayoffFormat(
+  d1: Competition,
+  d2: Competition | null,
+): PlayoffFormat {
+  const set = d1.playoffFormat ?? d2?.playoffFormat;
+  if (set) return set;
+  return COUNTRY_PLAYOFF_FORMAT[d1.country] ?? DEFAULT_PLAYOFF_FORMAT;
+}
+
+/**
+ * The most clubs a division can send in ONE direction without the two ends of
+ * its own table overlapping.
+ *
+ * Only a MIDDLE division is ever at risk, and only once a pyramid is three
+ * deep: it is promoted out of at the top and relegated out of at the bottom in
+ * the same season, so a count past half its size puts one club in both slices,
+ * and applyCompetitionSwaps silently keeps whichever it wrote last. A top
+ * flight only goes down and a bottom division only goes up, so neither has
+ * anything to overlap and both take Infinity — which is what keeps a
+ * two-division country reading exactly as it did before pyramids went N deep.
+ */
+function swapLimitOf(competitions: Competition[], comp: Competition | null): number {
+  if (!comp) return Infinity;
+  const chain = divisionsOf(competitions, comp.country);
+  const i = chain.findIndex((c) => c.id === comp.id);
+  const isMiddle = i > 0 && i < chain.length - 1;
+  return isMiddle ? Math.floor(competitionTeamCount(comp) / 2) : Infinity;
+}
+
+/**
+ * How many clubs actually swap between these two divisions, once the requested
+ * count is clamped to what the two tables can supply and to what a middle
+ * division can give up at both ends at once.
+ *
+ * Split out because the promotion playoff and the swap itself must agree on N
+ * to the club: the playoff seats the four clubs below the automatic places, and
+ * "the automatic places" is N-1. If they read different Ns the bracket and the
+ * table slice overlap and a club is promoted twice.
+ *
+ * That is also exactly why the middle-division clamp belongs HERE rather than
+ * in computeCountrySwaps, where it was first written: a clamp only the swap can
+ * see IS the disagreement this function exists to prevent. It cannot bite in
+ * the shipped world (the smallest middle division is 10 clubs against at most 3
+ * places) but a hand-built one can reach it — MIN_DIVISION_TEAMS is 8 and
+ * MAX_PROMOTION_SPOTS is 6.
+ */
+export function effectivePromotionSpots(
+  competitions: Competition[],
+  d1: Competition,
+  d2: Competition | null,
+  d1TableLength: number,
+  d2TableLength: number,
+): number {
+  return Math.min(
+    competitionPromotionSpots(d1, d2), d1TableLength, d2TableLength,
+    swapLimitOf(competitions, d1), swapLimitOf(competitions, d2),
+  );
 }
 
 /** This league's money multiplier, before the tier scale. See Competition.budgetScale. */
@@ -370,12 +449,25 @@ export interface LeagueSpec {
    */
   promotionSpots?: number;
   /**
+   * How the league settles its last promotion place. Absent → the country's own
+   * system for a shipped country, else the default. See PlayoffFormat.
+   */
+  playoffFormat?: PlayoffFormat;
+  /**
    * The league's nationality mix, as relative weights. Absent → the shipped
    * country table, or England's for an invented country. Both of a country's
    * divisions get the same one.
    */
   nationalities?: NationalityWeights;
 }
+
+/**
+ * The deepest pyramid a country can be built with — the upper bound on both
+ * `LeagueSpec.divisions` and any `Competition.tier`. Exported so the roster
+ * file's tier validation reads the same bound the world builder enforces
+ * instead of carrying its own copy of the number.
+ */
+export const MAX_DIVISIONS = 3;
 
 /** Drop keys whose value is undefined, so an untouched knob stays *absent*. */
 function withDefined<T extends object>(obj: T): T {
@@ -398,6 +490,7 @@ export function buildCompetitions(specs: LeagueSpec[]): Competition[] {
       academyOffset: spec.academyOffset,
       budgetScale: spec.budgetScale,
       promotionSpots: spec.promotionSpots,
+      playoffFormat: spec.playoffFormat,
       nationalities: spec.nationalities,
       continentalSlots: Object.keys(slots).length > 0 ? slots : undefined,
     });
@@ -452,6 +545,7 @@ export interface ResolvedLeagueSpec {
   d2Teams: number;
   d3Teams: number;
   promotionSpots: number;
+  playoffFormat: PlayoffFormat;
   cupSlots: number;
   shieldSlots: number;
   nationalities: NationalityWeights;
@@ -472,6 +566,8 @@ export function resolveLeagueSpec(spec: LeagueSpec): ResolvedLeagueSpec {
     d2Teams: spec.d2Teams ?? NUM_TEAMS_D2,
     d3Teams: spec.d3Teams ?? NUM_TEAMS_D3,
     promotionSpots: spec.promotionSpots ?? PROMOTION_RELEGATION_COUNT,
+    playoffFormat: spec.playoffFormat
+      ?? COUNTRY_PLAYOFF_FORMAT[spec.country] ?? DEFAULT_PLAYOFF_FORMAT,
     cupSlots: spec.cupSlots ?? (weak ? CUP_WEAK_LEAGUE_SLOTS : CUP_STRONG_LEAGUE_SLOTS),
     shieldSlots: spec.shieldSlots ?? (weak ? SHIELD_WEAK_LEAGUE_SLOTS : SHIELD_STRONG_LEAGUE_SLOTS),
     // England's table is the honest answer for a country with no table of its
@@ -609,6 +705,7 @@ export function worldLeagueSpecs(): LeagueSpec[] {
       ...(d2?.teamCount === undefined ? {} : { d2Teams: d2.teamCount }),
       ...(d3?.teamCount === undefined ? {} : { d3Teams: d3.teamCount }),
       ...(d1.promotionSpots === undefined ? {} : { promotionSpots: d1.promotionSpots }),
+      ...(d1.playoffFormat === undefined ? {} : { playoffFormat: d1.playoffFormat }),
       ...(d2 ? { d2Name: d2.name } : {}),
       ...(d3 ? { d3Name: d3.name } : {}),
       // Two is the default, so only a country that differs spells it out — which

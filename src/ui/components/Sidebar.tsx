@@ -21,6 +21,7 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
       <NavLink to="/cup" className="nav-link" onClick={onNavigate}>Continental Cup</NavLink>
       <NavLink to="/shield" className="nav-link" onClick={onNavigate}>Continental Shield</NavLink>
       <NavLink to="/domestic-cup" className="nav-link" onClick={onNavigate}>Domestic Cup</NavLink>
+      <NavLink to="/promotion-playoffs" className="nav-link" onClick={onNavigate}>Promotion Playoffs</NavLink>
       <NavLink to="/power-rankings" className="nav-link" onClick={onNavigate}>Power Rankings</NavLink>
       <NavLink to="/schedule" className="nav-link" onClick={onNavigate}>Schedule</NavLink>
       <NavLink to="/leaders" className="nav-link" onClick={onNavigate}>Stat Leaders</NavLink>
@@ -34,6 +35,7 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
       <NavLink to="/manager" className="nav-link" onClick={onNavigate}>Manager</NavLink>
       <NavLink to="/roster" className="nav-link" onClick={onNavigate}>Roster</NavLink>
       <NavLink to="/transfers" className="nav-link" onClick={onNavigate}>Transfers</NavLink>
+      <NavLink to="/watchlist" className="nav-link" onClick={onNavigate}>Watchlist</NavLink>
       <NavLink to="/incoming-offers" className="nav-link" onClick={onNavigate}>Incoming Offers</NavLink>
       <NavLink to="/loans" className="nav-link" onClick={onNavigate}>Loans</NavLink>
       <NavLink to="/finance" className="nav-link" onClick={onNavigate}>Finance</NavLink>

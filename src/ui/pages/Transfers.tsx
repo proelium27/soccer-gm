@@ -19,6 +19,7 @@ import {
 } from "../../core/transfers/negotiation.js";
 import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
 import { clubDisplayName, currency, formatWeeklyWage, talksCollapsedMessage } from "../format.js";
+import { WatchToggle } from "../components/WatchToggle.js";
 import { Flag } from "../components/Flag.js";
 import { OfferAmountInput } from "../components/OfferAmountInput.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
@@ -415,6 +416,7 @@ export function Transfers() {
               <table className="table table-striped table-sm align-middle">
                 <thead>
                   <tr>
+                    <th></th>
                     <SortableTh sortKey="name" sort={sort} onSort={toggle} defaultDir="asc">Name</SortableTh>
                     <SortableTh sortKey="pos" sort={sort} onSort={toggle} defaultDir="asc">Pos</SortableTh>
                     <SortableTh sortKey="age" sort={sort} onSort={toggle} className="text-end" defaultDir="asc">Age</SortableTh>
@@ -436,6 +438,7 @@ export function Transfers() {
                 <tbody>
                   {displayTargets.map(({ player: p, sellerTid, scoutedValue }) => (
                     <tr key={p.pid}>
+                      <td><WatchToggle pid={p.pid} name={p.name} /></td>
                       <td>
                         <PlayerRatingsTooltip player={p}>
                           <Link to={`/player/${p.pid}`}>{p.name}</Link>
@@ -523,6 +526,7 @@ export function Transfers() {
               <table className="table table-striped table-sm align-middle">
                 <thead>
                   <tr>
+                    <th></th>
                     <SortableTh sortKey="name" sort={searchSort.sort} onSort={searchSort.toggle} defaultDir="asc">Name</SortableTh>
                     <SortableTh sortKey="pos" sort={searchSort.sort} onSort={searchSort.toggle} defaultDir="asc">Pos</SortableTh>
                     <SortableTh sortKey="age" sort={searchSort.sort} onSort={searchSort.toggle} className="text-end" defaultDir="asc">Age</SortableTh>
@@ -537,6 +541,7 @@ export function Transfers() {
                 <tbody>
                   {displaySearchResults.map(({ player: p, sellerTid, scoutedValue, forSale, notForSaleReason }) => (
                     <tr key={p.pid}>
+                      <td><WatchToggle pid={p.pid} name={p.name} /></td>
                       <td>
                         <PlayerRatingsTooltip player={p}>
                           <Link to={`/player/${p.pid}`}>{p.name}</Link>

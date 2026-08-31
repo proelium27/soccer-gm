@@ -152,6 +152,14 @@ export function Manual() {
             would otherwise end up on the wrong team. Colors do carry over.
           </p>
           <p>
+            Every club in it carries a real name, but not every one carries a real squad, because
+            the source data doesn't reach that far down. Serbia, the second tiers of Portugal,
+            Belgium, Turkey, the Netherlands, Scotland and Greece, and most of the Greek top flight
+            get real names with generated players. Everywhere else has both. The file is rebuilt
+            when the ratings are, and the link never changes, so downloading it again is how you
+            get a newer one.
+          </p>
+          <p>
             You can hand it more than one file. Select as many as you like at once, or load one and
             then use "Add another file" on the club picker, and they all go into the same league. A
             file per league is usually the sane way to do it, since asking an AI for twelve leagues
@@ -184,6 +192,14 @@ export function Manual() {
             up entirely. Then save its reply as a <code>.json</code> file and start a league with it
             using "Import" on the Leagues screen. (If your browser blocks clipboard access, the button
             downloads the prompt as a text file instead.)
+          </p>
+          <p>
+            Two things the prompt now spells out for the AI, because both of them go wrong quietly.
+            It can only fill leagues your world actually has, so if you ask for one it hasn't got it
+            will say so rather than invent a name, which the importer would skip without a word. And
+            it has to keep each division inside its real size, since a division here can be anywhere
+            from ten clubs to twenty. Both are why the prompt carries your world's league names and
+            sizes rather than being the same text for everyone.
           </p>
           <p>
             England's and Spain's clubs all have real crest art that shows up wherever the club's
@@ -357,6 +373,7 @@ export function Manual() {
             <li><strong>News Feed</strong>. Transfers and player accomplishments woven into one timeline per season, with club and season filters, and your club's items highlighted. It's filtered by how much the story has to do with you, because the world is sixteen leagues across eight countries and reporting all of them equally buries you in news about clubs you'll never play. Your own club is always in, whatever it did &mdash; every transfer, loan, loan return and free signing, and every accomplishment. Your league is next: every deal (loans included) and every accomplishment in it. From the rest of the world you only get the big stories &mdash; a four-goal haul, a 100th career goal, a 35-goal season, the standout performance of the matchday, the Ballon d'Or, the World Team of the Year, Goalkeeper and Defender of the Year, and transfers over $40M. Accomplishments themselves are hat-tricks, one standout performance a matchday, career goal milestones at 50 and then every 50, season goal milestones at 25 and then every 5, and position changes for established players. <strong>Trophies and end-of-season awards land in the feed too</strong>, at the bottom of the season they belong to. Trophies first: who won the Continental Cup and the Continental Shield, and who won the World Cup and each confederation cup, with the final score. Then the honours: anything one of your players wins, plus your league's Player of the Season, Golden Boot and Team of the Season. All of it comes straight off the same records the Awards and cup pages read, so old saves show every trophy and honour they ever handed out, right back to season 1. Last of all comes what it changed: <strong>countries winning and losing Continental Cup places</strong>, saying which way the places went and what the counts went from and to. Those are always reported, wherever they happen, because a place changes hands well under once a season across the whole world and when it does it reshapes the competition everyone plays in. They're worked out from the cups your save already has on record too, so an old dynasty shows every place it ever won or lost. Trophies also reach your dashboard's news panel the moment they're won, and an honour won by one of your own players sits there until the new season kicks off.</li>
             <li><strong>Roster</strong>. Your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay), a stats table for the XI, and a bench table (both with ratings, ages, contracts, and season stats, and goalkeepers also show goals against and xG against). Drag a bench player onto a pitch slot to swap him into the XI, drag one starter onto another to switch their positions, extend contracts, or release players.</li>
             <li><strong>Transfers</strong>. Recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
+            <li><strong>Watchlist</strong>. Players you&apos;ve starred to keep an eye on. Click the star beside anyone&apos;s name &mdash; on his profile, in the transfer search, or on the Free Agents and Incoming Talent lists &mdash; and he shows up here with his club, this season&apos;s form, his wage, when his contract runs out, what your scouts think he&apos;s worth, and whether his club would entertain an offer at all. It&apos;s a shortlist and nothing more: watching a player doesn&apos;t scout him, doesn&apos;t tell his club anything, and doesn&apos;t change what he costs. Everything on it is worked out fresh each time you open it, so a name you starred three seasons ago shows the club he&apos;s at today at today&apos;s price. He drops off on his own if he retires.</li>
             <li><strong>Incoming Offers</strong>. AI clubs bidding for <em>your</em> players. Accept, reject, or counter to push the fee upward.</li>
             <li><strong>Loans</strong>. List your own players for a fixed-length loan, look over AI clubs' incoming loan offers, and keep track of who's currently out on loan.</li>
             <li><strong>Finance</strong>. Budget, the full wage-bill table, a projected (or final) season settlement, your transfer history, and a league-wide money table.</li>
@@ -383,6 +400,13 @@ export function Manual() {
             save to be set in. It's purely cosmetic. Nothing in the game reads it, so a save that
             starts in 1994 plays exactly the same as one that starts in 2026, and behind the scenes
             it's still season 1. Saves you already have keep showing 2026.
+          </p>
+          <p>
+            <strong>Naming your save.</strong> There's a league name box on the New League screen.
+            Leave it alone and the save gets named after the club you picked, the way it always
+            has. Fill it in and that's what shows on the Leagues screen instead, which is worth
+            doing once you've got three saves in the same country. Renaming your club later only
+            renames the save if you never typed a name of your own.
           </p>
           <p>
             <strong>Historic seasons.</strong> Every so often, a club's whole season just clicks.
@@ -510,6 +534,44 @@ export function Manual() {
             division a season.
           </p>
           <p>
+            <strong>The last promotion place is a playoff, and there are two systems.</strong>{" "}
+            Each country runs the one it runs in real life, and you can change any of them in
+            World setup when you start a save.
+          </p>
+          <p>
+            The <strong>English</strong> system is what England, Spain, Italy, France, Turkey and
+            the rest use. Only the top clubs go up automatically and the last place is decided on
+            the pitch by the four that finished just below them, so in a country promoting three,
+            1st and 2nd go up on the table and 3rd through 6th play off: two-legged semi-finals
+            (3rd v 6th, 4th v 5th), then a one-off final. Finishing higher gets you the tie against
+            the lowest-placed club and nothing else, because over two legs you each host once and
+            the final is at a neutral ground. Sixth goes up about as often as third does, which is
+            roughly how it works in real life, and it means a mid-table run-in still has something
+            to play for.
+          </p>
+          <p>
+            The <strong>German</strong> system, which the Bundesliga uses, points the last place at
+            both divisions at once. One fewer club goes up automatically and one fewer goes down,
+            and then the club that just missed out below plays the lowest club that just survived
+            above, home and away, for the remaining top-flight place. Win it from below and you
+            swap: you go up, they go down. Win it from above and nobody moves at all, so that
+            season the country promotes and relegates one fewer club than usual. It is a harder
+            route up than the English bracket, because you are playing a top-flight side rather
+            than your own division's stragglers.
+          </p>
+          <p>
+            Scotland promotes only one club and so runs no playoff by default: its champion goes
+            up and that's that. You can give it either system in World setup, though the English
+            bracket needs at least two promotion places to sit below, so at one place only the
+            German one is offered.
+          </p>
+          <p>
+            It's played the moment the season ends, before anyone retires or moves clubs, so a
+            veteran on his way out gets one last game. Suspensions don't carry into it — there are
+            no matchdays left to serve a ban against — but injuries do. Results are on the{" "}
+            <strong>Promotion Playoffs</strong> page, for any country and any past season.
+          </p>
+          <p>
             The big four (England, Spain, Italy and Germany) are all built to the same strength and
             budget bands, so none of them is a flagship league above the others. The other eight are
             deliberately weaker and poorer: their clubs generate at lower OVR, and they earn and can
@@ -541,7 +603,8 @@ export function Manual() {
             his own country.
           </p>
           <p>
-            Promotion and relegation (three clubs each way in most countries, fewer in the smaller ones) runs on its
+            Promotion and relegation (three clubs each way in most countries, fewer in the smaller
+            ones, with the last place up decided by a playoff) runs on its
             own within each country at the end of every season, so a rough season in Spain's top
             flight doesn't touch any other country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
             grouped by country, so you can browse any of the 36 leagues. It defaults to
@@ -553,6 +616,13 @@ export function Manual() {
             switch any of them off and add leagues of your own. An added league's clubs get
             generated names and colours, since the game ships no real clubs. The panel is on both
             ways in, whether you started a plain new league or came through Import Custom League.
+          </p>
+          <p>
+            It starts closed, with a one-line summary of the world you'd get — how many countries,
+            divisions and clubs — so you can take the default without scrolling past a dozen rows
+            of countries you weren't going to change. Hit <strong>Customize</strong> on it to open
+            it up. If you loaded a roster file it opens on its own, because adding or renaming a
+            league in there is usually the thing that makes your file apply.
           </p>
           <p>
             <strong>Every setting works on the countries the game ships, too.</strong> Hit{" "}
@@ -575,13 +645,22 @@ export function Manual() {
             added ones alike. Leave one empty and it goes back to following the country's name.
           </p>
           <p>
-            This matters for more than flavour: a world-wide roster file names the competition it
-            fills, and it finds it <em>by that name</em>. So a file written for the Eredivisie fills
-            nothing until this world has a league called the Eredivisie, which you get by renaming
-            one, or by adding one and naming it. The Import Custom League screen tells you which of
-            your file's leagues it couldn't place, and World setup sits directly underneath so you
-            can fix it and watch the count of matched clubs change. If two divisions end up with the
-            same name the panel warns you, because a file aimed at that name can only fill one.
+            <strong>Renaming won't break a roster file.</strong> A world-wide roster file names the
+            competition it fills, but the name isn't the only thing it's found by: if the name
+            doesn't match anything, the game reads it as the country and division it describes and
+            looks there instead. So a file written for "English Division 1" still fills your top
+            flight after you've renamed it to the Premier League, and the real-rosters download
+            keeps working however much of the world you've renamed. Countries can't be renamed on
+            shipped leagues, which is what makes that reliable.
+          </p>
+          <p>
+            The name still does real work in the other direction: a file written for a league this
+            world doesn't have — the Eredivisie, say, if you've switched the Netherlands off —
+            fills nothing until you rename a league to it or add one and name it. The Import Custom
+            League screen tells you which of your file's leagues it couldn't place, and World setup
+            sits directly underneath so you can fix it and watch the count of matched clubs change.
+            If two divisions end up with the same name the panel warns you, because a file aimed at
+            that name can only fill one.
           </p>
           <p>
             You also choose a league's <strong>shape</strong>: one division or two, how many clubs
@@ -1584,6 +1663,15 @@ export function Manual() {
             <li><strong>Summer</strong>. The whole offseason plus matchdays 1&ndash;4 (closes early September).</li>
             <li><strong>Winter</strong>. Matchdays 18&ndash;22 (mid-December to late January). Matchday 22 is <strong>deadline day</strong>, and simming to matchday 21 lands you on it with the window still open.</li>
           </ul>
+          <p>
+            <strong>Keeping a shortlist.</strong> The star beside a player's name puts him on your{" "}
+            <strong>Watchlist</strong>, which is just a list of names you're keeping an eye on. It
+            shows each of them with his club, his form this season, his wage and contract, what your
+            scouts reckon he's worth, and whether his club would take an offer &mdash; so you can
+            line targets up in October and act on them when the window opens. It changes nothing
+            about the player: he isn't scouted any harder, his club never finds out, and his price
+            doesn't move.
+          </p>
           <p>
             <strong>Market value.</strong> A player's value climbs steeply with OVR (an average
             starter runs $35&ndash;45M, an elite player can top $150M), then gets multiplied by age

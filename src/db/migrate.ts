@@ -82,8 +82,8 @@ function fallbackAcademyBase(tid: number): number {
 
 /** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "nationalManager"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "nationalManager">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "promotionPlayoffs" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "nationalManager" | "watchlist"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "promotionPlayoffs" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "nationalManager" | "watchlist">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking / cards. */
 type SeasonStatsAnyVersion =
@@ -525,6 +525,9 @@ function migrateFields(league: LeagueStore): LeagueStore {
     activeLoans: anyVersion.activeLoans ?? [],
     loanListings: anyVersion.loanListings ?? [],
     loanRejections: anyVersion.loanRejections ?? [],
+    // A save written before the watchlist existed had no shortlist, so empty is
+    // exact rather than a guess.
+    watchlist: anyVersion.watchlist ?? [],
     // Pre-cup saves have no Continental Cup; they start with none and get one
     // seeded at their next offseason from that season's final tables (so an
     // existing save picks the cup up from the following season onward). Backfill
@@ -566,6 +569,13 @@ function migrateFields(league: LeagueStore): LeagueStore {
     domesticCupHistory: (anyVersion.domesticCupHistory ?? []).map((c) => archiveDomesticCup({
       ...c, statLines: c.statLines ?? null,
     })),
+    // The playoffs a just-finished season sent to, held only until the
+    // offseason consumes them. Empty for any save that isn't sitting in exactly
+    // that window, and deliberately never reconstructed for past seasons: those
+    // promotions really were decided on the table, so inventing a bracket for
+    // them would be inventing results. A save mid-season picks its first
+    // playoff up when that season ends. See core/promotionPlayoff.ts.
+    promotionPlayoffs: anyVersion.promotionPlayoffs ?? [],
     // Pre-feature saves start with no power-rankings history; snapshots can't
     // be reconstructed retroactively (past rosters/matches are gone), so they
     // simply accrue from the next simmed matchdays onward.

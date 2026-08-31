@@ -2,18 +2,18 @@ import type { StandingsRow } from "./standings.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import type { Competition } from "./competitions.js";
 import {
-  promotionLinks, competitionOf, academyBaseCenterOf, competitionPromotionSpots,
-  competitionTeamCount,
+  promotionLinks, competitionOf, academyBaseCenterOf, effectivePromotionSpots,
 } from "./competitions.js";
+import type { PlayoffOutcome } from "./promotionPlayoff.js";
 import { ACADEMY_BASE_CONVERGENCE_SEASONS } from "./constants.js";
 
-/** One country's promotion/relegation swap between its tier-1 and tier-2 competitions. */
+/** One promotion/relegation swap, between an adjacent pair of a country's divisions. */
 export interface CompetitionSwap {
   d1CompId: number;
   d2CompId: number;
-  /** Tids moving from the tier-2 competition up to tier 1. */
+  /** Tids moving from the lower competition up into the upper one. */
   promoted: number[];
-  /** Tids moving from the tier-1 competition down to tier 2. */
+  /** Tids moving from the upper competition down into the lower one. */
   relegated: number[];
 }
 
@@ -32,47 +32,77 @@ export interface CompetitionSwap {
  *
  * A one-division country contributes no links at all, so it has no promotion or
  * relegation without needing a special case here.
+ *
+ * `playoffOutcomes` (lower-division compId -> outcome) is how a promotion
+ * playoff reaches the swap. What it does depends on the country's format, which
+ * is why it carries counts rather than a bare winner:
+ *
+ *  - **English** — the top N-1 go up on the table and the playoff winner takes
+ *    the last place. Relegation is untouched: N still go down.
+ *  - **German** — N-1 go up and N-1 go down on the table, and the tie either
+ *    swaps one more pair or moves nobody.
+ *
+ * **The two lists always come out the same length**, whichever way a tie went,
+ * which is the property the whole feature rests on: every division's size is
+ * fixed, so one extra club promoted would mean one extra relegated.
+ *
+ * Absent (a headless caller, a world with no eligible country, a save from
+ * before playoffs existed) means the plain top-N slice, which is exactly the old
+ * behaviour. Playoffs are seated at the TOP link only, so on a three-division
+ * country the second link never finds an outcome and takes that plain slice —
+ * see promotionPlayoffFields.
  */
 export function computeCountrySwaps(
   competitions: Competition[],
   tablesByCompId: Map<number, StandingsRow[]>,
+  playoffOutcomes?: Map<number, PlayoffOutcome>,
 ): CompetitionSwap[] {
   const links = promotionLinks(competitions);
-
-  // A division in the MIDDLE of a pyramid is promoted out of at the top and
-  // relegated out of at the bottom in the same season, so those two slices must
-  // not overlap: a club inside both would be sent up by one link and down by the
-  // other, and applyCompetitionSwaps would silently keep whichever it wrote last.
-  // Half the division in each direction is the most that can be asked for.
-  //
-  // Deliberately scoped to middle divisions rather than applied to every link,
-  // because it is unreachable with two divisions — a top-flight club can only go
-  // down and a second-tier club can only go up, so there is nothing to overlap —
-  // and clamping there would silently change a world nothing is wrong with.
-  const middles = new Set(
-    links.map((l) => l.lower.id).filter((id) => links.some((l) => l.upper.id === id)),
-  );
-  const swapLimit = (comp: Competition): number =>
-    middles.has(comp.id) ? Math.floor(competitionTeamCount(comp) / 2) : Infinity;
 
   return links.flatMap(({ upper: d1, lower: d2 }) => {
     const d1Table = tablesByCompId.get(d1.id)!;
     const d2Table = tablesByCompId.get(d2.id)!;
-    const n = Math.min(
-      competitionPromotionSpots(d1, d2), d1Table.length, d2Table.length,
-      swapLimit(d1), swapLimit(d2),
+    const n = effectivePromotionSpots(
+      competitions, d1, d2, d1Table.length, d2Table.length,
     );
     // `slice(-0)` is `slice(0)` — the WHOLE table — so a league set to no
     // promotion or relegation would relegate every club in its division. The
     // early return is the only thing standing between that setting and a world
     // that turns itself inside out every offseason.
     if (n <= 0) return [];
-    return {
-      d1CompId: d1.id,
-      d2CompId: d2.id,
-      promoted: d2Table.slice(0, n).map((r) => r.tid),
-      relegated: d1Table.slice(-n).map((r) => r.tid),
-    };
+    const outcome = playoffOutcomes?.get(d2.id);
+    if (!outcome) {
+      return {
+        d1CompId: d1.id,
+        d2CompId: d2.id,
+        promoted: d2Table.slice(0, n).map((r) => r.tid),
+        relegated: d1Table.slice(-n).map((r) => r.tid),
+      };
+    }
+    // Both formats hold back one promotion place for the playoff to settle.
+    // Only the German one also holds back a relegation place, because its tie
+    // decides a place on each side at once.
+    //
+    // Derived from `n` here rather than read off the outcome: the record was
+    // built at the season boundary and is applied now, and deriving is what
+    // keeps the two lists the same length even if the two ever disagreed about
+    // how many places the country gives out.
+    const autoPromoted = n - 1;
+    const autoRelegated = outcome.format === "german" ? n - 1 : n;
+    // Both playoff entrants come from *outside* the automatic slices by
+    // construction (see promotionPlayoffFields), so neither list can end up
+    // holding a club twice. The `> 0` guards are the `slice(-0)` trap again:
+    // a German playoff in a country promoting one club automates nothing, and
+    // `slice(-0)` would relegate the entire division.
+    const promoted = autoPromoted > 0
+      ? d2Table.slice(0, autoPromoted).map((r) => r.tid)
+      : [];
+    if (outcome.promotedTid !== null) promoted.push(outcome.promotedTid);
+    const relegated = autoRelegated > 0
+      ? d1Table.slice(-autoRelegated).map((r) => r.tid)
+      : [];
+    if (outcome.relegatedTid !== null) relegated.push(outcome.relegatedTid);
+    return { d1CompId: d1.id, d2CompId: d2.id, promoted, relegated };
   });
 }
 

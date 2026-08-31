@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { ROSTER_FILE_FORMAT, type RosterFile } from "../../src/core/teams/rosterFile.js";
 import { setPendingRoster } from "../../src/ui/pendingRoster.js";
 import { NewLeague } from "../../src/ui/pages/NewLeague.js";
+import { clubIdentitiesFor } from "../../src/core/teams/clubs.js";
 
 /**
  * The world editor has to be reachable from the roster-import flow, not just the
@@ -71,6 +72,32 @@ function renderNewLeague(
   );
 }
 
+/**
+ * Lives here rather than in a file of its own so it can reuse the harness and
+ * the two module mocks above — a third copy of those would be a worse trade than
+ * a second describe block.
+ */
+describe("the club picker shows one division at a time", () => {
+  // The same lookup the page uses. England's slots are its tier-1 block then its
+  // tier-2 block, so index 0 is a first-division club and index 20 a second.
+  const england = clubIdentitiesFor("England", 40);
+
+  it("lists the first division and not the second", () => {
+    const html = renderNewLeague("/new-league");
+    expect(html).toContain(england[0].name);
+    // Forty club rows buried everything under the picker, and the two divisions
+    // are alternatives rather than one list to read end to end.
+    expect(html).not.toContain(england[20].name);
+  });
+
+  it("offers both divisions as tabs, so the other one is reachable", () => {
+    const html = renderNewLeague("/new-league");
+    expect(html).toContain("English Division 1");
+    expect(html).toContain("English Division 2");
+    expect(html).toContain('aria-label="Choose a division"');
+  });
+});
+
 describe("the New League screen offers the world editor", () => {
   it("shows it once a roster file has been imported", () => {
     const html = renderNewLeague("/new-league?roster=1", [
@@ -96,6 +123,22 @@ describe("the New League screen offers the world editor", () => {
   it("shows it on the plain New League screen too", () => {
     const html = renderNewLeague("/new-league");
     expect(html).toContain("World setup");
+    // Offered, but shut: the editor is a tall block and this page is for
+    // picking a club. What has to be present is the way in, plus the summary
+    // that says what world you would get without opening it.
+    expect(html).toContain('aria-controls="world-setup-body"');
+    expect(html).toContain("12 countries, 36 divisions, 626 clubs");
+    expect(html).not.toContain("Add a league");
+  });
+
+  it("opens the editor for a roster import, since that is where the fix lives", () => {
+    // A file naming a league this world hasn't got is skipped entirely, and
+    // adding or renaming a league in the editor is the only thing that makes it
+    // apply — so collapsing it here would hide the cure behind a card the
+    // warning merely points at.
+    const html = renderNewLeague("/new-league?roster=1", [
+      { name: "netherlands.json", file: rosterFile() },
+    ]);
     expect(html).toContain("Add a league");
   });
 
