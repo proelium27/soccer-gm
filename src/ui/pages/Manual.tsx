@@ -1955,8 +1955,8 @@ export function Manual() {
           <p>
             Every summer your academy turns up a group of 16-year-olds on trial, and they land on
             the <strong>Youth Intake</strong> page. Nobody's signed until you say so. You can offer
-            a contract to five of them, and whoever's left when you start the next season has gone
-            — free for anyone else to sign, so passing on the right one can come back to bite you.
+            a contract to five of them, and whoever's left when you start the next season has gone,
+            free for anyone else to sign, so passing on the right one can come back to bite you.
             Their ceilings are estimates like everywhere else, which is the whole difficulty of it:
             you're choosing on a guess.
           </p>
@@ -1966,7 +1966,7 @@ export function Manual() {
             <strong>what you spend on scouting</strong>, which is what finds young players in the
             first place, and <strong>your hype</strong>, because kids want to join a club people are
             excited about. Those last two are worth a few rating points on the whole group at full
-            tilt — not transformative on their own, but they compound over a decade of intakes, and
+            tilt. Not transformative on their own, but they compound over a decade of intakes, and
             scouting money now buys you something beyond a clearer view of a player's ceiling.
           </p>
           <p>

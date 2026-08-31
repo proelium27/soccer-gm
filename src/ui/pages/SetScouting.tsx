@@ -77,6 +77,11 @@ export function SetScouting() {
               up as an exact number sooner, instead of a wide "somewhere in this
               range" guess.
             </li>
+            <li>
+              A better youth intake. A scouting network is what finds young players
+              in the first place, so what you spend here feeds straight into the
+              group your academy turns up next summer.
+            </li>
           </ul>
         </div>
       </div>

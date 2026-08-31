@@ -64,8 +64,8 @@ export function YouthIntake() {
         How good the group is comes down to your academy's standing, how the club's been finishing,
         and two things you control directly: what you spend on scouting, and how much buzz there is
         around the club. Right now that's worth <strong>+{bonus.toFixed(1)}</strong> of a possible
-        +{ACADEMY_FACILITIES_MAX.toFixed(1)}. Their ceilings are estimates, same as anywhere else —
-        better scouting narrows them.
+        +{ACADEMY_FACILITIES_MAX.toFixed(1)}. Their ceilings are estimates, same as anywhere else,
+        and better scouting narrows them.
       </p>
 
       {trialists.length === 0 ? (
