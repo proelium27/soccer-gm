@@ -633,13 +633,22 @@ export function Manual() {
             added ones alike. Leave one empty and it goes back to following the country's name.
           </p>
           <p>
-            This matters for more than flavour: a world-wide roster file names the competition it
-            fills, and it finds it <em>by that name</em>. So a file written for the Eredivisie fills
-            nothing until this world has a league called the Eredivisie, which you get by renaming
-            one, or by adding one and naming it. The Import Custom League screen tells you which of
-            your file's leagues it couldn't place, and World setup sits directly underneath so you
-            can fix it and watch the count of matched clubs change. If two divisions end up with the
-            same name the panel warns you, because a file aimed at that name can only fill one.
+            <strong>Renaming won't break a roster file.</strong> A world-wide roster file names the
+            competition it fills, but the name isn't the only thing it's found by: if the name
+            doesn't match anything, the game reads it as the country and division it describes and
+            looks there instead. So a file written for "English Division 1" still fills your top
+            flight after you've renamed it to the Premier League, and the real-rosters download
+            keeps working however much of the world you've renamed. Countries can't be renamed on
+            shipped leagues, which is what makes that reliable.
+          </p>
+          <p>
+            The name still does real work in the other direction: a file written for a league this
+            world doesn't have — the Eredivisie, say, if you've switched the Netherlands off —
+            fills nothing until you rename a league to it or add one and name it. The Import Custom
+            League screen tells you which of your file's leagues it couldn't place, and World setup
+            sits directly underneath so you can fix it and watch the count of matched clubs change.
+            If two divisions end up with the same name the panel warns you, because a file aimed at
+            that name can only fill one.
           </p>
           <p>
             You also choose a league's <strong>shape</strong>: one division or two, how many clubs

@@ -387,9 +387,13 @@ export function WorldSetup({ entries, onChange, defaultOpen = false }: Props) {
 /**
  * What a league's divisions are called. Worth a control of its own rather than
  * being left to derive from the country, for two reasons: real leagues are not
- * called "<Country> Division 1", and a world-wide roster file finds the league
- * it fills BY THIS NAME — so renaming a league here is what makes a file written
- * for "Eredivisie" or "Premier League" land somewhere instead of being skipped.
+ * called "<Country> Division 1", and a world-wide roster file written for
+ * "Eredivisie" or "Premier League" finds the league it fills BY THAT NAME.
+ *
+ * Renaming here no longer BREAKS a file written for the old name, which it used
+ * to: resolveRosterSlots falls back to the country and tier the file's name
+ * describes, and a country is not renameable on a shipped league. So this is a
+ * way to make an oddly-named file land, not a thing to be careful with.
  *
  * Empty means "no name of my own": the default is shown as a placeholder and
  * stored as absent, so a name keeps following the country while it's untouched.
@@ -433,7 +437,8 @@ function DivisionNames({
         )}
       </div>
       <p className="text-muted small mb-2">
-        A roster file loaded for the whole world finds its league by this name.
+        Renaming is safe for roster files: one written for this country's old
+        division names still finds it.
       </p>
     </>
   );

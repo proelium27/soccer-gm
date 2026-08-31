@@ -24,6 +24,17 @@ describe("buildImportPromptText", () => {
     expect(prompt).toContain(`${slots} club slots`);
   });
 
+  // The name is the one identifier the player can invalidate by renaming a
+  // division, so the prompt asks for the country and tier alongside it — those
+  // survive a rename and are what resolveRosterSlots prefers.
+  it("gives each competition's country and tier, and asks for them back", () => {
+    for (const c of league.competitions) {
+      expect(prompt).toContain(`country "${c.country}", tier ${c.tier}`);
+    }
+    expect(prompt).toMatch(/ALWAYS include `country` and `tier`/);
+    expect(prompt).toContain('"country": "<country>"');
+  });
+
   it("documents every position and skill key so an AI can produce exact ratings", () => {
     for (const p of POSITIONS) expect(prompt).toContain(p);
     for (const k of SKILL_KEYS) expect(prompt).toContain(k);
