@@ -3,6 +3,7 @@ import type { StandingsRow } from "./standings.js";
 import { tierOf } from "./competitions.js";
 import { cupRunSummary } from "./cup/cup.js";
 import { clubDomesticRun, clubDomesticRunLabel } from "./domesticCup/cup.js";
+import { superCupChampion } from "./superCup/types.js";
 
 /** One completed season from a single club's perspective. */
 export interface ClubSeasonRecord {
@@ -84,6 +85,21 @@ export interface ClubHistory {
   shieldTitles: number[];
   /** Seasons the club reached the Continental Shield final but lost it, newest first. */
   shieldFinals: number[];
+  /**
+   * Seasons the club won a super cup, newest first — its country's, the
+   * continental one, or both.
+   *
+   * **A season can legitimately appear twice**, which is why this is a list of
+   * seasons rather than a set: the two competitions are separate trophies and a
+   * club that is both league champion and Continental Cup holder contests them
+   * both in the same preseason. Deduplicating would undercount the cabinet.
+   *
+   * Unlike every other honour here this is read off the super-cup records
+   * directly rather than off a `ClubSeasonRecord`, because a super cup opens a
+   * season rather than closing one — it belongs to no season's *table*, so
+   * there is no per-season row for it to hang from.
+   */
+  superCupTitles: number[];
   playerOfSeason: ClubIndividualHonour[];
   goldenBoots: ClubIndividualHonour[];
   teamOfSeasonSelections: ClubIndividualHonour[];
@@ -144,6 +160,19 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
       .filter((c) => c.teams.includes(tid))
       .map((c) => [c.season, c]),
   );
+
+  // Super cups, read straight off their own records for the reason
+  // ClubHistory.superCupTitles gives: one is played *before* a season rather
+  // than during it, so no per-season table row describes it. The live field and
+  // the archive are both read, exactly as the Cup page reads both — a season
+  // appears in one or the other, never both.
+  const superCupTitles = [
+    ...(league.superCups ?? []),
+    ...league.seasonHistory.flatMap((h) => h.superCups ?? []),
+  ]
+    .filter((sc) => superCupChampion(sc) === tid)
+    .map((sc) => sc.season)
+    .sort((a, b) => b - a);
 
   const records: ClubSeasonRecord[] = ordered.map((entry, i) => {
     const compId = entry.compsByTid[tid];
@@ -287,6 +316,7 @@ export function computeClubHistory(league: LeagueStore, tid: number): ClubHistor
     shieldFinals: newest
       .filter((r) => r.shieldRun?.isRunnerUp)
       .map((r) => r.season),
+    superCupTitles,
     domesticCupTitles: newest
       .filter((r) => r.domesticCupRun?.isChampion)
       .map((r) => r.season),

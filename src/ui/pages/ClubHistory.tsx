@@ -212,6 +212,21 @@ export function ClubHistory() {
                 }
               />
             </div>
+            {/*
+              Shown only once the club has one. Unlike the league and cup cards
+              above, a zero here is not an interesting fact about a club — the
+              competition is a one-off preseason match most clubs never reach —
+              and an always-present "0" would crowd the row for everyone.
+            */}
+            {history.superCupTitles.length > 0 && (
+              <div className="col-6 col-md-3">
+                <StatCard
+                  label="Champions Cups"
+                  value={history.superCupTitles.length}
+                  sub={titleYears(history.superCupTitles)}
+                />
+              </div>
+            )}
             {history.trebles.length > 0 && (
               <div className="col-6 col-md-3">
                 <StatCard

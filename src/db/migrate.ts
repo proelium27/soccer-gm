@@ -82,8 +82,8 @@ function fallbackAcademyBase(tid: number): number {
 
 /** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "promotionPlayoffs" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "nationalManager" | "watchlist"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "promotionPlayoffs" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "nationalManager" | "watchlist">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "promotionPlayoffs" | "superCups" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "nationalManager" | "watchlist"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "promotionPlayoffs" | "superCups" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "nationalManager" | "watchlist">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking / cards. */
 type SeasonStatsAnyVersion =
@@ -576,6 +576,12 @@ function migrateFields(league: LeagueStore): LeagueStore {
     // them would be inventing results. A save mid-season picks its first
     // playoff up when that season ends. See core/promotionPlayoff.ts.
     promotionPlayoffs: anyVersion.promotionPlayoffs ?? [],
+    // Same one-way reasoning as the playoffs above: a season that opened before
+    // super cups existed did not play one, so an old save picks its first up at
+    // its next rollover rather than having one invented for a preseason that is
+    // already behind it. Empty also means "no gate", so a save loaded
+    // mid-preseason can never be stuck waiting on a match it cannot play.
+    superCups: anyVersion.superCups ?? [],
     // Pre-feature saves start with no power-rankings history; snapshots can't
     // be reconstructed retroactively (past rosters/matches are gone), so they
     // simply accrue from the next simmed matchdays onward.

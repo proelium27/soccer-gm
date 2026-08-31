@@ -57,6 +57,13 @@ export interface GameEvents {
   /** The user clicked "Best XI" to auto-pick the strongest formation + lineup. */
   best_xi_auto_picked: { formation: string };
   /**
+   * The user played the preseason super cups from the button rather than
+   * letting the season's first advance play them. Fires at most once a season,
+   * and it is the only signal for whether the preseason gate is a moment people
+   * stop for or one they walk straight past.
+   */
+  super_cups_played: { count: number; userWon: boolean };
+  /**
    * The user took charge of a national team. A rare, deliberate moment — once
    * every few seasons at most — and the only signal for whether anyone manages
    * a country at all, which is the one thing worth knowing about the feature.

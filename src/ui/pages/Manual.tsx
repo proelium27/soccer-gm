@@ -22,6 +22,7 @@ const SECTIONS: [id: string, title: string][] = [
   ["cup", "The Continental Cup"],
   ["shield", "The Continental Shield"],
   ["domestic-cup", "The Domestic Cup"],
+  ["champions-cups", "The Champions Cups"],
   ["international", "International Football"],
   ["players", "Players: Ratings, OVR & Potential"],
   ["development", "Player Development & Aging"],
@@ -1029,6 +1030,49 @@ export function Manual() {
             Saves started before domestic cups existed pick them up at the next offseason, so
             there's one season without one. New saves have a cup from season one, since nothing has
             to qualify for it.
+          </p>
+        </Section>
+
+        <Section id="champions-cups" title="The Champions Cups">
+          <p>
+            Your season doesn't open with a league game. It opens with the{" "}
+            <strong>champions cups</strong>, played in the preseason before anyone has a point on
+            the board, the way the Community Shield and the UEFA Super Cup are.
+          </p>
+          <p>
+            There's one in <strong>every country</strong>: your league champions against your{" "}
+            <a href="#domestic-cup">domestic cup</a> winners. If the same club won both, the{" "}
+            <strong>league runners-up</strong> take the other place, because a club can't play
+            itself. And there's one more on top of those, the only match of the year between the
+            two continental competitions: the <a href="#cup">Continental Cup</a> winners against
+            the <a href="#shield">Continental Shield</a> winners.
+          </p>
+          <p>
+            They're <strong>one-off matches at a neutral ground</strong>, so nobody has home
+            advantage and there's no second leg to put a bad night right. Level after 90 minutes
+            goes to extra time and then penalties. You'll find them all on the{" "}
+            <strong>Champions Cups</strong> page, with a dropdown for past seasons, and a win shows
+            up in your club's trophy cabinet on <strong>Club History</strong>.
+          </p>
+          <p>
+            Because they're played before the first matchday, they use the squad you have{" "}
+            <em>then</em> — so anyone you sign in the summer can play in yours, and anyone you sell
+            can't. You can play them from your dashboard when the season opens. If you'd rather not
+            stop for it, just sim as normal and they'll be played on the way into the season.
+          </p>
+          <p className="text-muted small">
+            Like the domestic cup, a champions cup <strong>pays no prize money</strong>, and for
+            the same reason: I measured what handing the domestic cup real payouts did to a
+            20-season dynasty and it pushed two of four test worlds' poorest clubs into the red.
+            A one-off match crediting the same clubs would do the same thing, so it's a trophy and
+            bragging rights and nothing else. It also means the competition can't disturb anything
+            — I've got a test that plays a season with the champions cups and a season without and
+            checks the two come out identical down to the last scoreline.
+          </p>
+          <p className="text-muted small">
+            There's nothing to contest in season one, since nobody has won anything yet, so your
+            first champions cups are at the start of season two. Older saves pick them up at their
+            next offseason the same way.
           </p>
         </Section>
 

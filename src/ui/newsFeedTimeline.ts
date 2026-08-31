@@ -27,6 +27,12 @@ export type FeedItem =
  * headline panel, which reads the *end* of the timeline.
  */
 const SEASON_END_ORDER = Number.MAX_SAFE_INTEGER;
+/**
+ * Before matchday 1 — the summer window and the super cups played in it. Shares
+ * its key with the summer transfers deliberately: they happen in the same weeks
+ * and there is no finer clock to separate them by.
+ */
+const PRESEASON_ORDER = 0;
 
 /**
  * Who is reading, and where they play — everything the feed needs to sort the
@@ -130,7 +136,18 @@ export function buildSeasonTimeline(
     ...shownEvents.map((e): FeedItem => ({ kind: "news", order: e.matchday, data: e })),
     // Trophies take no tier test: each is one row for the whole world, and
     // which club or country won the Continental Cup is news wherever you play.
-    ...trophies.map((t): FeedItem => ({ kind: "trophy", order: SEASON_END_ORDER, data: t })),
+    //
+    // A super cup is the one trophy that is *not* a season-end story: it is
+    // played in the preseason, before a league point exists, so it sorts at the
+    // top of the season alongside the summer window rather than at the bottom
+    // with the champions. Within that key the summer's business still comes
+    // first (RANK below), which is the right order — you sign your players and
+    // then play the match.
+    ...trophies.map((t): FeedItem => ({
+      kind: "trophy",
+      order: t.kind === "superCup" ? PRESEASON_ORDER : SEASON_END_ORDER,
+      data: t,
+    })),
     ...shownAwards.map((a): FeedItem => ({ kind: "award", order: SEASON_END_ORDER, data: a })),
     // No tier test either, for the same reason as the trophies: a country's
     // Cup allocation moves well under once a season across the whole world,

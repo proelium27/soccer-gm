@@ -14,6 +14,7 @@ import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
 import { domesticFinalists } from "../../core/domesticCup/cup.js";
 import { isIntlStagePending, editableSquad } from "../../core/international/index.js";
+import { superCupsPending } from "../../core/superCup/superCup.js";
 import {
   intlStageButton,
   intlStageHeadline,
@@ -163,8 +164,14 @@ export function Dashboard() {
 function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: StoredTeam }) {
   const {
     simAction, simLiveAction, jumpSeasonsAction, setScoutingSpendAction, intlStageAction, simming,
+    playSuperCupsAction,
   } = useLeague();
   const navigate = useNavigate();
+  // Whether the user's own club contests one of this preseason's champions
+  // cups. Cheap enough to read straight off the field — it is at most a dozen
+  // ties — so it needs no memo.
+  const userInSuperCup = (league.superCups ?? [])
+    .some((sc) => sc.teams.includes(league.meta.userTid));
   // Slider position while dragging; persisted (and clamped) only on release
   // so we don't write to IndexedDB on every drag tick.
   const [scoutingDraft, setScoutingDraft] = useState<number | null>(null);
@@ -253,6 +260,10 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
       cupHistory: league.cupHistory,
       shield: league.shield,
       shieldHistory: league.shieldHistory,
+      // Only the live ones: the panel shows the season in progress, and this
+      // preseason's super cups are exactly that. Archived ones belong to
+      // seasons the panel has already stopped reporting.
+      superCups: league.superCups ?? [],
       international: league.international,
     });
     const shownTrophies = [
@@ -288,6 +299,7 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
     league.meta.userTid, league.teams, league.seasonHistory,
     league.cup, league.cupHistory, league.shield, league.shieldHistory, league.international,
     league.promotionPlayoffs,
+    league.superCups,
   ]);
 
   const teamByTid = useMemo(() => new Map(league.teams.map((t) => [t.tid, t])), [league.teams]);
@@ -661,6 +673,36 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                   </button>
                 </>
               )}
+            </>
+          ) : superCupsPending(league.superCups ?? []) ? (
+            <>
+              {/*
+                The preseason, standing in for the sim buttons for one click so
+                the season's opening match is a moment rather than something
+                that happens behind a "sim to end of season".
+
+                It reads like a gate and is not one: `simThrough` plays anything
+                still pending on its way into the season, so every path that
+                never sees this card — a multi-season jump, a headless audit —
+                gets the same result without needing a button. This is only
+                where a person is offered the click.
+              */}
+              <p className="card-text">
+                The season opens with the champions cups.{" "}
+                {userInSuperCup
+                  ? <><strong>You're in one.</strong> </>
+                  : null}
+                They're played before the first matchday, so anyone you sign
+                between now and then can play in yours.
+              </p>
+              <div className="d-flex align-items-start gap-2 flex-wrap">
+                <button className="btn btn-primary" onClick={() => void playSuperCupsAction()}>
+                  Play the champions cups
+                </button>
+                <button className="btn btn-outline-secondary" onClick={() => navigate("/champions-cups")}>
+                  See the ties
+                </button>
+              </div>
             </>
           ) : (
             <>
