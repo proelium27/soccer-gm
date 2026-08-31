@@ -480,9 +480,8 @@ export function NewLeague() {
           <div className="border rounded p-3 mb-3">
             <div className="fw-semibold mb-1">Don't have one yet?</div>
             <p className="text-muted small mb-2">
-              Grab the ready-made file covering every league in the game, save it
-              somewhere you'll find it, then load it below. It's a separate download
-              rather than part of the game itself.
+              A ready-made file covering every league in the game. Save it, then load
+              it below.
             </p>
             <a
               className="btn btn-outline-primary btn-sm"
@@ -496,28 +495,23 @@ export function NewLeague() {
           </div>
         )}
 
-        <p className="text-muted">
-          A roster file is a plain text (JSON) file listing clubs by league, each one
-          optionally carrying a squad. You can write one yourself, or generate one with
-          the "Copy AI Prompt to Customize" button in the top bar of any save, which hands
-          you a ready-made prompt to paste into ChatGPT or Claude.
-        </p>
-        <p className="text-muted">
-          You can pick several files at once, or add more after the first, and they'll all
-          go into the same league. That's the easy way to do a whole world: one file per
-          league is a much more manageable thing to ask an AI for than every league at
-          once.
-        </p>
-        <p className="text-muted">
-          Roster files can only be loaded while a league is being created, here or on the
-          New League screen. Bringing real squads into a save already in progress would
-          wipe out the careers and stats of everyone they replaced.
-        </p>
-        <p className="text-muted">
-          On the next step you can also reshape the world itself: rename a league, add one
-          of your own, or switch one off. If your file names a league this world hasn't
-          got, adding it there is what makes the file apply.
-        </p>
+        {/* The detail matters to anyone writing their own file and to nobody
+            else, so it folds away rather than standing between the reader and
+            the button they came here to press. */}
+        <details className="mb-3">
+          <summary className="text-muted small" style={{ cursor: "pointer" }}>
+            What's a roster file?
+          </summary>
+          <p className="text-muted small mt-2 mb-0">
+            A plain text (JSON) file listing clubs by league, each one optionally
+            carrying a squad. Write one yourself, or use "Copy AI Prompt to Customize"
+            in the top bar of any save to get a prompt you can paste into ChatGPT or
+            Claude. Load as many as you like — one file per league is a far easier ask
+            than a whole world at once. They only load while a league is being created:
+            replacing squads in a save already going would wipe out the careers of
+            everyone they replaced.
+          </p>
+        </details>
 
         {rosterError && (
           <div className="alert alert-danger py-2" role="alert">
@@ -610,18 +604,14 @@ export function NewLeague() {
         form ("your English club") is not available, since a league the player
         added has whatever name they typed and no demonym to derive.
       */}
-      {/*
-        No general introduction. It used to open with "flip through each country
-        and division to browse the clubs, then pick the one you want to manage",
-        which restated a page already titled New League and showing country tabs
-        above a list of clubs. What survives is the two cases where something
-        genuinely isn't visible: what happens to the clubs a roster file didn't
-        name, and that this run ends at an editor rather than at a save.
-      */}
+      {/* The club list below is self-explanatory, so this says nothing at all
+          in the ordinary case and appears only when there is something the
+          page cannot show: what an import left alone, or that an editor is
+          coming after this screen. */}
       {(worldRoster || customize) && (
         <p className="text-muted">
           {worldRoster
-            ? "Every club your file didn't cover keeps its original name and squad."
+            ? "Every club the file didn't cover keeps its original name and squad."
             : "You'll get to customize every club before the save starts."}
         </p>
       )}
@@ -643,11 +633,13 @@ export function NewLeague() {
           )}
           {/* The commonest reason a file lands nowhere is that the world hasn't
               got the league it was written for, which the editor below can fix —
-              so say so here, next to the warning that reports it. */}
-          <div className="small text-muted mt-1">
-            A league your file names that this world hasn't got is skipped. Rename a
-            league to match it, or add one, in World setup below.
-          </div>
+              so say so next to the warning that reports it, and only then. A
+              clean import needs no cure and shouldn't be handed one. */}
+          {worldRoster.warnings.length > 0 && (
+            <div className="small text-muted mt-1">
+              Rename a league to match, or add one, in World setup below.
+            </div>
+          )}
           <div className="d-flex gap-3 mt-1">
             <button
               type="button"
@@ -684,7 +676,7 @@ export function NewLeague() {
             Load roster files
           </button>
           <p className="text-muted small mt-2 mb-0">
-            Optional. Puts real clubs and squads into the leagues a file names.
+            Optional. Real or invented clubs and squads, in place of the fictional ones.
           </p>
           {rosterError && <div className="small text-danger mt-1">{rosterError}</div>}
         </div>
@@ -986,7 +978,7 @@ export function NewLeague() {
           {rollingCoefficients
             ? "Your league sends more clubs when they do well in Europe, fewer when they don't."
             : "Every country keeps the same number of places forever."}{" "}
-          Fixed once the save is created.
+          Fixed once you start.
         </p>
       </div>
 
@@ -1011,7 +1003,7 @@ export function NewLeague() {
           <label className="form-check-label" htmlFor="name-clubs">
             Name the clubs yourself
             <span className="text-muted small d-block">
-              Opens an editor after the world is built. Nothing is saved until you're done.
+              Rename any club and set its colours, on the next screen.
             </span>
           </label>
         </div>
@@ -1057,8 +1049,7 @@ export function NewLeague() {
           about the wait making sense, not about preventing anything. */}
       {saving && (
         <p className="text-muted small mt-2 mb-0">
-          Filling 240 clubs with players. This takes a few seconds, and the page
-          will sit still while it happens.
+          Filling 240 clubs with players. The page will sit still for a few seconds.
         </p>
       )}
     </div>
