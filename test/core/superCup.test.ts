@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { makeLeague } from "../helpers/league.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { simThrough } from "../../src/core/simThrough.js";
+import { simOffseason } from "../../src/core/offseason.js";
 import {
   buildSuperCups, playSuperCups, superCupsPending, superCupName,
   CONTINENTAL_SUPER_CUP_NAME,
@@ -167,6 +168,58 @@ describe("playSuperCups", () => {
       once, league.competitions, league.teams, league.players, league.lid,
     );
     expect(twice).toBe(once);
+  });
+});
+
+describe("the offseason seeds, plays and archives them", () => {
+  /**
+   * The pipeline end to end, against a real world rather than a hand-built
+   * fixture.
+   *
+   * `makeLeague` is load-bearing here rather than incidental: it goes through
+   * `createLeagueState`, which builds each country's domestic cup. A league
+   * assembled field by field with `domesticCups: []` crowns no cup winners, so
+   * there is nothing for a super cup to be contested between and
+   * `buildSuperCups` correctly returns none — which looks exactly like the
+   * feature being broken. That is how this test failed the first time it ran.
+   */
+  it("seeds one per country, plays it on the next advance, and files it", () => {
+    const rng = mulberry32(103);
+    let league = makeLeague(0, 5);
+    // Season 1 decides the league champions and domestic cup winners who
+    // contest the first super cups. There is no continental one yet: the Cup
+    // and the Shield both need a prior season's table to qualify from, so
+    // neither has been played, let alone won.
+    league = simThrough(league, "season", rng);
+    league = simOffseason(league, rng);
+
+    const seeded = league.superCups;
+    const countries = new Set(league.competitions.map((c) => c.country));
+    expect(seeded).toHaveLength(countries.size);
+    expect(seeded.every((sc) => sc.competition === "domestic")).toBe(true);
+    expect(superCupsPending(seeded)).toBe(true);
+    for (const sc of seeded) {
+      // Stamped with the season it opens, not the one that decided it.
+      expect(sc.season).toBe(league.season);
+      // Two different clubs, which is the double rule doing its job.
+      expect(sc.teams[0]).not.toBe(sc.teams[1]);
+    }
+
+    // Advancing plays them on the way into the season without the user ever
+    // visiting the page — the lazy path, against a real world.
+    league = simThrough(league, "season", rng);
+    expect(superCupsPending(league.superCups)).toBe(false);
+    for (const sc of league.superCups) {
+      expect(sc.teams).toContain(superCupChampion(sc));
+    }
+
+    // And the next rollover moves them onto the season they opened, clearing
+    // the live field for the set it seeds in the same breath.
+    const played = league.superCups;
+    league = simOffseason(league, rng);
+    const archived = league.seasonHistory.find((h) => h.season === played[0].season)?.superCups;
+    expect(archived).toEqual(played);
+    expect(league.superCups.every((sc) => sc.season === league.season)).toBe(true);
   });
 });
 

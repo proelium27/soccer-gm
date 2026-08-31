@@ -93,6 +93,17 @@ export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
   "test/core/offseason.test.ts": 208,
   "test/validation/m3-top-scorer.test.ts": 173,
   "test/core/offseasonSolvency.test.ts": 128,
+  // These two were sitting on the 10s default while really costing minutes,
+  // which is exactly the mis-packing this table exists to prevent. Measured
+  // 2026-08-31 in a six-file parallel run (contended, not solo — see the
+  // cluster runner's note on why a solo number must not be pasted in here):
+  // worldIntegration 249s over its three world-sized season/offseason cases,
+  // migrate 201s, almost all of it the two award-winner backfill cases.
+  "test/core/worldIntegration.test.ts": 249,
+  "test/db/migrate.test.ts": 201,
+  // Almost entirely the one case that takes a real world through two full
+  // season/offseason cycles to watch a super cup be seeded, played and filed.
+  "test/core/superCup.test.ts": 142,
   "test/core/simThrough.test.ts": 81,
   "test/core/nationalManager.test.ts": 35,
   "test/ui/transfersRender.test.tsx": 65,

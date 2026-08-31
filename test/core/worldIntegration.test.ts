@@ -5,8 +5,6 @@ import { worldCompetitions, competitionTeamCount } from "../../src/core/competit
 import { assignIdentities } from "../../src/core/teams/clubs.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
-import { superCupsPending } from "../../src/core/superCup/superCup.js";
-import { superCupChampion } from "../../src/core/superCup/types.js";
 import { buildCompetitionSchedule, type LeagueStore } from "../../src/core/leagueState.js";
 import { emptyManagerState } from "../../src/core/manager/types.js";
 import { emptyNationalManagerState } from "../../src/core/nationalManager/types.js";
@@ -114,45 +112,6 @@ describe("world integration (generateWorld through the real season/offseason pip
     expect(league.promotionPlayoffs).toHaveLength(0);
     const archived = league.seasonHistory.at(-1)!.promotionPlayoffs;
     expect(archived).toEqual(playoffs);
-  });
-
-  it("seeds a super cup per country at the rollover, plays it, and archives it", () => {
-    const rng = mulberry32(103);
-    let league = buildWorldLeague(103);
-    // Season 1 decides the league champions and the domestic cups that contest
-    // the first super cups. There is no continental one yet: the Continental
-    // Cup and Shield need a prior season's table to qualify from, so neither
-    // has been played, let alone won.
-    league = simThrough(league, "season", rng);
-    league = simOffseason(league, rng);
-
-    const seeded = league.superCups;
-    const countries = new Set(league.competitions.map((c) => c.country));
-    expect(seeded).toHaveLength(countries.size);
-    expect(seeded.every((sc) => sc.competition === "domestic")).toBe(true);
-    expect(superCupsPending(seeded)).toBe(true);
-    // Stamped with the season they open, and contested by two different clubs
-    // — the double rule is what guarantees the second half of that.
-    for (const sc of seeded) {
-      expect(sc.season).toBe(league.season);
-      expect(sc.teams[0]).not.toBe(sc.teams[1]);
-    }
-
-    // Advancing plays them on the way into the season, without the user ever
-    // visiting the page — the lazy path, exercised against a real world.
-    league = simThrough(league, "season", rng);
-    expect(superCupsPending(league.superCups)).toBe(false);
-    for (const sc of league.superCups) {
-      expect(sc.teams).toContain(superCupChampion(sc));
-    }
-
-    // And the next rollover moves them onto the season they opened, clearing
-    // the live field for the ones it seeds in the same breath.
-    const played = league.superCups;
-    league = simOffseason(league, rng);
-    const archived = league.seasonHistory.find((h) => h.season === played[0].season)?.superCups;
-    expect(archived).toEqual(played);
-    expect(league.superCups.every((sc) => sc.season === league.season)).toBe(true);
   });
 
   it("the Division-2 ceiling sweep moves a qualifying player to tier 1 in ANY country, not just England", () => {
