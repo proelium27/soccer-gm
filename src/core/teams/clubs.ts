@@ -727,6 +727,12 @@ export function assignIdentities(
       colors: club.colors,
       roster: t.roster,
       academyRoster: [],
+      // Set at creation to match what migrate.ts backfills, so a save's
+      // round trip through the database is an identity rather than gaining
+      // two fields on load (leagueDb.test.ts compares the whole team).
+      // The first real trial group arrives at the first offseason.
+      youthTrialists: [],
+      youthTrialSignings: 0,
       budget,
       hype: HYPE_INITIAL,
       scoutingSpend: clampScoutingSpend(SCOUTING_SPEND_DEFAULT, budget),
