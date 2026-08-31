@@ -8,6 +8,7 @@ const entry: ChangelogEntry = {
     "The club list is two columns when the window has room for them. A twenty club top flight is ten rows instead of twenty, and a row isn't mostly empty space any more. On a narrow window it's still one club per line.",
     "So is the country list you pick a national team from, which was a narrow strip down the left with the rest of the page empty next to it. There are over a hundred countries in there, so seeing twice as many at once is worth a lot.",
     "The difficulty, country and division tabs pick out the one you're on in green now, like everything else in the game does. They were grey, which was left over from before the game had a look of its own, and it meant the page answered \"which one is selected\" two different ways depending on where you looked. They're also only as wide as their own labels instead of stretched across the page, so four difficulty settings aren't four enormous slabs.",
+    "There's a lot less to read. The page explained itself at length in about three times the words it needed, so the explanations moved behind the same little **?** buttons the rest of the game uses: they sit next to **Start year**, **Difficulty**, **National team** and **Continental Cup places**, and nothing was thrown away. What's left on screen is the part that changes as you click, plus a reminder for the two settings you can't change later.",
     "The screen where you name the clubs yourself got the same treatment, so the name box is wide enough for a long one.",
   ],
 };

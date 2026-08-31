@@ -34,6 +34,7 @@ import { takePendingRoster } from "../pendingRoster.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 import { ClubCrest, CrestArtProvider } from "../components/ClubCrest.js";
 import { CountryFlag } from "../components/CountryFlag.js";
+import { HelpHint } from "../components/HelpHint.js";
 import { trackEvent } from "../analytics.js";
 import {
   SEASON_START_YEAR, MIN_START_YEAR, MAX_START_YEAR, normalizeStartYear,
@@ -609,15 +610,21 @@ export function NewLeague() {
         form ("your English club") is not available, since a league the player
         added has whatever name they typed and no demonym to derive.
       */}
-      <p className="text-muted">
-        Flip through each country and division to browse the clubs, then pick the one you
-        want to manage.
-        {worldRoster
-          ? " Every club the file didn't cover keeps its original name and squad."
-          : customize
-            ? " You'll get to customize every club before the save starts."
-            : ""}
-      </p>
+      {/*
+        No general introduction. It used to open with "flip through each country
+        and division to browse the clubs, then pick the one you want to manage",
+        which restated a page already titled New League and showing country tabs
+        above a list of clubs. What survives is the two cases where something
+        genuinely isn't visible: what happens to the clubs a roster file didn't
+        name, and that this run ends at an editor rather than at a save.
+      */}
+      {(worldRoster || customize) && (
+        <p className="text-muted">
+          {worldRoster
+            ? "Every club your file didn't cover keeps its original name and squad."
+            : "You'll get to customize every club before the save starts."}
+        </p>
+      )}
 
       {worldRoster && (
         <div className="alert alert-secondary py-2">
@@ -677,8 +684,7 @@ export function NewLeague() {
             Load roster files
           </button>
           <p className="text-muted small mt-2 mb-0">
-            Optional. Roster files put real (or invented) clubs and squads into the
-            leagues they name, in place of the fictional ones.
+            Optional. Puts real clubs and squads into the leagues a file names.
           </p>
           {rosterError && <div className="small text-danger mt-1">{rosterError}</div>}
         </div>
@@ -734,7 +740,11 @@ export function NewLeague() {
             htmlFor="start-year"
             className="text-muted text-uppercase small fw-semibold mb-2 d-block"
           >
-            Start year
+            Start year{" "}
+            <HelpHint label="What does the start year do?">
+              Cosmetic. The game counts seasons from 1 whatever you pick, so this only
+              decides what year they're labelled with.
+            </HelpHint>
           </label>
           <input
             type="number"
@@ -750,11 +760,18 @@ export function NewLeague() {
       <p className="text-muted small mb-3">
         {parsedStartYear === null
           ? `Pick a year between ${MIN_START_YEAR} and ${MAX_START_YEAR}.`
-          : `Your first season is ${parsedStartYear}-${String((parsedStartYear + 1) % 100).padStart(2, "0")}. Just for looks — every season after counts up from there.`}
+          : `Your first season is ${parsedStartYear}-${String((parsedStartYear + 1) % 100).padStart(2, "0")}.`}
       </p>
 
       <div className="mb-3">
-        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Difficulty</h6>
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">
+          Difficulty{" "}
+          <HelpHint label="What does difficulty change?">
+            It only changes things for your club: the money you get, what your academy
+            turns out, what you pay for players and who'll sell to you. Every other club
+            plays by the same rules whichever setting you pick.
+          </HelpHint>
+        </h6>
         <div className="btn-group segmented" role="group" aria-label="Choose a difficulty">
           {DIFFICULTY_ORDER.map((d) => (
             <button
@@ -772,8 +789,11 @@ export function NewLeague() {
           ))}
         </div>
         <p className="text-muted small mt-2 mb-0">
-          {DIFFICULTIES[difficulty].blurb} It only changes things for your club, and you
-          can't change it later, so pick one you'll want to live with.
+          {/* The per-setting blurb stays on screen because it changes as you
+              click, so it is feedback on the choice rather than an explanation
+              of it. Only the permanence is worth keeping beside it; what the
+              lever actually touches moved to the hint on the heading. */}
+          {DIFFICULTIES[difficulty].blurb} You can't change it later.
         </p>
       </div>
 
@@ -864,11 +884,22 @@ export function NewLeague() {
       </div>
 
       <div className="mb-3">
-        <h6 className="text-muted text-uppercase small fw-semibold mb-2">National team</h6>
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">
+          National team{" "}
+          <HelpHint label="What does managing a country involve?">
+            You pick the squad and the eleven for qualifying, the World Cup and their
+            continental championship, on top of your club job, and the federation judges
+            you every campaign. A country needs enough players born into your world to
+            field a squad at all, so you'll be told if the one you pick can't.
+          </HelpHint>
+        </h6>
+        {/* The squad-eligibility rule used to be spelled out here as well, which
+            was explaining an error before it happened: the nationError alert
+            below already says it in full, and only in the case where it's true. */}
         <p className="text-muted small mb-2">
           {userNation
-            ? `You'll pick ${userNation}'s squad and their eleven for qualifying, the World Cup and their continental championship, on top of your club job. The federation judges you every campaign.`
-            : "Managing a country is optional, and you can still take a job later if one comes in. A country needs enough players born into your world to enter anything, so you'll be told if the one you pick can't field a squad."}
+            ? `You'll pick ${userNation}'s squad and their eleven, on top of your club job.`
+            : "Optional. You can always take the job later if one comes in."}
         </p>
         <input
           type="search"
@@ -927,7 +958,15 @@ export function NewLeague() {
       </div>
 
       <div className="mb-3">
-        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Continental Cup places</h6>
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">
+          Continental Cup places{" "}
+          <HelpHint label="How do Cup places move?">
+            Each country's places are re-earned on how its clubs have done in Europe over
+            the last few seasons: go deep and your league sends more, go out early for
+            years and it sends fewer. The Shield gives every league the same two either
+            way. Turn it off and the places stay exactly as the world was built.
+          </HelpHint>
+        </h6>
         <div className="form-check">
           <input
             type="checkbox"
@@ -940,11 +979,14 @@ export function NewLeague() {
             Cup places can move between countries
           </label>
         </div>
+        {/* One line either way, saying which of the two you're getting. How the
+            mechanic works is on the heading's hint, next to the label that
+            names it. */}
         <p className="text-muted small mt-2 mb-0">
           {rollingCoefficients
-            ? "How many clubs each country sends to the Continental Cup depends on how its clubs have done in Europe over the last few seasons. Do well and your league sends more; go out early for years and it sends fewer. The Shield gives every league the same two either way."
-            : "Every country keeps the same number of Cup places forever, however its clubs do in Europe."}{" "}
-          This is fixed once the save is created.
+            ? "Your league sends more clubs when they do well in Europe, fewer when they don't."
+            : "Every country keeps the same number of places forever."}{" "}
+          Fixed once the save is created.
         </p>
       </div>
 
@@ -969,8 +1011,7 @@ export function NewLeague() {
           <label className="form-check-label" htmlFor="name-clubs">
             Name the clubs yourself
             <span className="text-muted small d-block">
-              Opens an editor after the world is built, where you can rename any club
-              and set its colours. Nothing is saved until you're done.
+              Opens an editor after the world is built. Nothing is saved until you're done.
             </span>
           </label>
         </div>
