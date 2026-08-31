@@ -24,11 +24,19 @@ import { ROSTER_FILE_FORMAT, ROSTER_FILE_VERSION } from "./rosterFile.js";
  * the three numbered rules: copy the name rather than building one from the
  * country, never overshoot the slot count, and don't invent a competition that
  * isn't listed.
+ *
+ * The first of those three is much less sharp than it was, because a file can
+ * now state `country` and `tier` and be found by them (resolveRosterSlots) —
+ * and that exact failure would not happen today, since "Scotland Division 1"
+ * reads back as Scotland's top flight. The prompt still asks for the name to be
+ * copied, and now asks for the country and tier beside it, because a file that
+ * carries all three cannot be aimed wrongly by either route.
  */
 export function buildImportPromptText(league: LeagueStore): string {
   const slotsOf = (id: number) => league.teams.filter((t) => t.compId === id).length;
   const comps = league.competitions.map(
-    (c) => `  - "${c.name}" (${c.country}) — ${slotsOf(c.id)} club slots`,
+    (c) =>
+      `  - "${c.name}" — country "${c.country}", tier ${c.tier} — ${slotsOf(c.id)} club slots`,
   );
 
   // A concrete example beats an abstract warning, and taking it from this world
@@ -55,6 +63,8 @@ export function buildImportPromptText(league: LeagueStore): string {
     competitions: [
       {
         match: league.competitions[0]?.name ?? "English Division 1",
+        country: league.competitions[0]?.country ?? "England",
+        tier: league.competitions[0]?.tier ?? 1,
         clubs: [
           {
             name: "Example City",
@@ -81,11 +91,11 @@ export function buildImportPromptText(league: LeagueStore): string {
     "It overlays club names and (optionally) whole squads onto my save. The clubs and players can be anything I ask for: real present-day leagues, a historical season, all-time XIs, a made-up world, a themed or fictional league, whatever. Output ONE valid JSON file in exactly the format described below — no prose, no markdown fences, just the JSON.",
     "",
     "== My world's competitions ==",
-    "These are the only competitions my save has. Use these names EXACTLY in the `match` field — case doesn't matter, nothing else about them may change.",
+    "These are the only competitions my save has. Give each one its `match` name EXACTLY as written here, plus the `country` and `tier` shown beside it.",
     ...comps,
     "",
     "Three rules about that list. They are in the order people get them wrong, and getting any of them wrong fails QUIETLY — the file still imports, it just doesn't do what you meant.",
-    `1. COPY each name from the list; never build one out of the country's name. ${nameWarning} A \`match\` value that isn't on the list is skipped with no error: that whole competition is dropped and not one of its clubs is applied.`,
+    `1. COPY each name from the list; never build one out of the country's name. ${nameWarning} ALWAYS include \`country\` and \`tier\` as well: that pair is what actually finds the league, and it keeps working if I rename my divisions later, whereas a \`match\` name that matches nothing and has no country beside it is skipped with no error — that whole competition is dropped and not one of its clubs is applied.`,
     `2. NEVER list more clubs than a competition's slot count.${sizeNote} Anything past the count is thrown away from the END of your list, so you would silently lose whichever clubs you happened to put last. If the real league you are copying is bigger than the slot count, you decide which clubs to leave out — drop the weakest — and list only the ones that fit.`,
     "3. Don't invent a competition. If I ask for a league that isn't on the list, do the ones that are and then TELL me the rest aren't in this world, so I can add them before importing. A plausible-looking name for a league I don't have is worse than no entry at all, because it looks like it worked.",
     "",
@@ -96,7 +106,7 @@ export function buildImportPromptText(league: LeagueStore): string {
     "{",
     `  "format": "${ROSTER_FILE_FORMAT}",`,
     `  "formatVersion": ${ROSTER_FILE_VERSION},`,
-    '  "competitions": [ { "match": "<competition name>", "clubs": [ <club>, ... ] }, ... ],',
+    '  "competitions": [ { "match": "<competition name>", "country": "<country>", "tier": 1 | 2, "clubs": [ <club>, ... ] }, ... ],',
     '  "nationalities"?: { "<nation>": number, ..., "__REST__": number }',
     "}",
     "",

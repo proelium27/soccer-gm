@@ -485,7 +485,13 @@ export function convert(csvText: string, opts: Partial<ConvertOptions> = {}): {
       };
     });
 
-    competitionsOut.push({ match: comp.name, clubs: outClubs });
+    // Country and tier as well as the name: a division's name is the player's
+    // to change in World setup, a shipped country's is not, so stating both is
+    // what lets one of these files import into a world where the top flight has
+    // been renamed to "Premier League" (see resolveRosterSlots).
+    competitionsOut.push({
+      match: comp.name, country: comp.country, tier: comp.tier, clubs: outClubs,
+    });
 
     const seen = new Map<number, number>();
     for (const c of clubs) for (const p of c.squad) {
