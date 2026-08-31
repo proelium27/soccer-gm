@@ -325,6 +325,13 @@ export function Leagues() {
           // itself and lands under the leftmost button, which reads as a label
           // for that one instead. Wrapping them together means they wrap as a
           // pair or not at all.
+          //
+          // The knock-on is deliberate and was a user call: the pair no longer
+          // fits beside the other three buttons, so it takes its own row. No
+          // badge can fit up there — measured, the row leaves ~244px, the
+          // button needs ~183px of it, and nothing legible fits in the ~53px
+          // left over. So the choice is this row break, a corner badge overlapping
+          // the button, or no badge at all, and the row break won.
           <span className="d-inline-flex align-items-center gap-2">
             <a
               className="btn btn-outline-secondary"
