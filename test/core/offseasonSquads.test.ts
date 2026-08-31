@@ -33,17 +33,27 @@ describe("simOffseason — youth intake and free agency", () => {
     expect(sixteenYearOlds.length).toBeGreaterThanOrEqual(NUM_TEAMS * 3);
   });
 
-  it("routes the user's youth intake to the academy, not straight to the roster", () => {
+  it("routes the user's youth intake to the trial list, signing nobody for him", () => {
+    // Used to assert the intake landed in academyRoster. It now arrives
+    // unsigned on youthTrialists and the user chooses (see YOUTH_TRIAL_*):
+    // the assertion moves with the contract rather than being dropped.
     const rng = mulberry32(5);
     const league = playFullSeason(rng);
     const next = simOffseason(league, rng);
 
     const userTeam = next.teams.find((t) => t.tid === next.meta.userTid)!;
-    const academyYouth = userTeam.academyRoster.filter((pid) => {
-      const p = next.players.find((q) => q.pid === pid);
-      return p && next.season - p.born === 16;
-    });
-    expect(academyYouth.length).toBeGreaterThan(0);
+    const trialists = userTeam.youthTrialists ?? [];
+    expect(trialists.length).toBeGreaterThan(0);
+    for (const pid of trialists) {
+      const p = next.players.find((q) => q.pid === pid)!;
+      expect(next.season - p.born).toBe(16);
+    }
+    // Nobody is signed on his behalf, and no trialist leaks onto either squad.
+    expect(userTeam.youthTrialSignings).toBe(0);
+    for (const pid of trialists) {
+      expect(userTeam.academyRoster).not.toContain(pid);
+      expect(userTeam.roster).not.toContain(pid);
+    }
   });
 
   it("still lands AI clubs' youth intake straight on the senior roster", () => {
