@@ -755,7 +755,7 @@ export function NewLeague() {
 
       <div className="mb-3">
         <h6 className="text-muted text-uppercase small fw-semibold mb-2">Difficulty</h6>
-        <div className="btn-group segmented w-100" role="group" aria-label="Choose a difficulty">
+        <div className="btn-group segmented" role="group" aria-label="Choose a difficulty">
           {DIFFICULTY_ORDER.map((d) => (
             <button
               key={d}
@@ -787,7 +787,7 @@ export function NewLeague() {
         defaultOpen={!!worldRoster}
       />
 
-      <div className="btn-group segmented mb-3 flex-wrap" role="group" aria-label="Choose a league">
+      <div className="btn-group segmented mb-3" role="group" aria-label="Choose a league">
         {world.countries.map((c) => (
           <button
             key={c}
@@ -813,7 +813,7 @@ export function NewLeague() {
       */}
       <div className="mb-3">
         {hasSecondDivision ? (
-          <div className="btn-group segmented w-100 mb-2" role="group" aria-label="Choose a division">
+          <div className="btn-group segmented mb-2" role="group" aria-label="Choose a division">
             {([1, 2] as const).map((t) => (
               <button
                 key={t}

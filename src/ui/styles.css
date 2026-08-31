@@ -730,7 +730,17 @@ a:hover {
    control saying "Normal" must not outshout it. The marker runs along the
    bottom, where a row of tabs reads it as an indicator, rather than the
    leading edge a stacked list row uses. */
+/* Sized to their labels rather than stretched across the page. Bootstrap grows
+   every child of a .btn-group (flex: 1 1 auto), which on a 900px page turned
+   four difficulty choices into four 235px slabs. Wrapping is what makes
+   dropping the stretch safe at any width: without it a long division name on a
+   phone would push the group off the side of the screen instead of onto a
+   second line. */
+.segmented {
+  flex-wrap: wrap;
+}
 .segmented > .btn {
+  flex: 0 0 auto;
   --bs-btn-color: var(--sg-text-muted);
   --bs-btn-border-color: var(--sg-border);
   --bs-btn-bg: transparent;
