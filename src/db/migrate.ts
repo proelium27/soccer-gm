@@ -371,6 +371,12 @@ function migrateFields(league: LeagueStore): LeagueStore {
         // every team fielded before formations were selectable.
         formation: t.formation ?? "4-3-3",
         academyRoster: t.academyRoster ?? [],
+        // Youth trial group (added 2026-08-31). Empty on every old save, which
+        // is exact rather than a guess: the intake those saves already ran
+        // signed itself straight into the academy, so there is no pending
+        // decision to reconstruct. The next offseason lays out a real group.
+        youthTrialists: t.youthTrialists ?? [],
+        youthTrialSignings: t.youthTrialSignings ?? 0,
         compId,
         divisionConvergence: t.divisionConvergence ?? null,
         transferListed: t.transferListed ?? [],

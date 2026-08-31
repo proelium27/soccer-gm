@@ -360,7 +360,7 @@ export function Manual() {
             <li><strong>Incoming Offers</strong>. AI clubs bidding for <em>your</em> players. Accept, reject, or counter to push the fee upward.</li>
             <li><strong>Loans</strong>. List your own players for a fixed-length loan, look over AI clubs' incoming loan offers, and keep track of who's currently out on loan.</li>
             <li><strong>Finance</strong>. Budget, the full wage-bill table, a projected (or final) season settlement, your transfer history, and a league-wide money table.</li>
-            <li><strong>Incoming Talent</strong>. Unsigned prospects age 21 or younger. Sign them to your senior team or into your academy.</li>
+            <li><strong>Youth Intake</strong>. This year's crop from your academy, on trial. Offer a contract to a few of them; the rest leave.</li>
             <li><strong>Free Agents</strong>. Every other unsigned player, sign straight to your senior team. The default view shows the best across every position but caps how many of any one position it lists, so a spot that always has lots of free agents (defensive and attacking mids only get two roster spots per club, so their good extras spill into free agency more often) can't crowd out the rest. Pick a position from the dropdown to see that position's full list.</li>
             <li><strong>Academy</strong>. Your club's youth-academy holding pool: extend, release, or promote to the senior team.</li>
             <li><strong>Box Score</strong>. Per-match detail, in three parts. The scoreboard at the top names the competition and matchday and starts the Man of the Match, the highest-rated player among those who actually played. Under it, a head-to-head strip compares the two sides on possession, shots, shots on target, xG, corners and fouls. Then a full-width stat table per club (xG, passes completed/attempted, crosses and fouls, goals against and xG against on the goalkeeper's row, and a 0&ndash;10 match rating for everyone who appeared), grouped into attacking, keeping, defending, passing and discipline blocks. The play-by-play at the bottom runs down a timeline with one club on each side, showing goals, cards, substitutions, penalties and injuries by default; switch it to "Every event" to add every shot and corner too.</li>
@@ -1608,7 +1608,7 @@ export function Manual() {
           </p>
           <p>
             <strong>Roster cap: 30 players.</strong> Signings, transfer buys, and academy promotions
-            are blocked once you're full (the Roster, Transfers, and Incoming Talent pages all show
+            are blocked once you're full (the Roster, Transfers, and Free Agents pages all show
             an x/30 count). Your academy has its own separate 10-player cap, covered in{" "}
             <a href="#youth">The Youth Academy</a>.
           </p>
@@ -1953,12 +1953,27 @@ export function Manual() {
             on the Academy page regularly instead.
           </p>
           <p>
-            Prospects age 21 or younger who were never on any club's academy or roster show up on the{" "}
-            <strong>Incoming Talent</strong> page instead, where you can sign them straight to your
-            senior team or into your academy. Older free agents live on the separate{" "}
-            <strong>Free Agents</strong> page. Don't expect to find a future star sitting there:
-            clubs keep their best young players now, so what reaches this page is genuinely what
-            nobody wanted. Your own academy is the reliable route to a homegrown star.
+            Every summer your academy turns up a group of 16-year-olds on trial, and they land on
+            the <strong>Youth Intake</strong> page. Nobody's signed until you say so. You can offer
+            a contract to five of them, and whoever's left when you start the next season has gone
+            — free for anyone else to sign, so passing on the right one can come back to bite you.
+            Their ceilings are estimates like everywhere else, which is the whole difficulty of it:
+            you're choosing on a guess.
+          </p>
+          <p>
+            How good that group is comes down to four things. Your academy's standing, fixed when
+            the league was created. How you've been finishing lately. And two you control directly:{" "}
+            <strong>what you spend on scouting</strong>, which is what finds young players in the
+            first place, and <strong>your hype</strong>, because kids want to join a club people are
+            excited about. Those last two are worth a few rating points on the whole group at full
+            tilt — not transformative on their own, but they compound over a decade of intakes, and
+            scouting money now buys you something beyond a clearer view of a player's ceiling.
+          </p>
+          <p>
+            Unsigned players of any age, youngsters included, live on the <strong>Free Agents</strong>{" "}
+            page. Don't expect to find a future star there: clubs keep their best young players now,
+            so what reaches it is genuinely what nobody wanted. Your own academy is the reliable
+            route to a homegrown star.
           </p>
         </Section>
 

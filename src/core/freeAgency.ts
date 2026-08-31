@@ -4,7 +4,7 @@ import type { StoredTeam } from "./teams/clubs.js";
 import type { ActiveLoan } from "./loans.js";
 import {
   ROSTER_COMPOSITION, ROSTER_CAP, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
-  ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR, PROSPECT_AGE_MAX,
+  ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR, PROSPECT_AGE_MAX, YOUTH_TRIAL_SIGN_LIMIT,
   AI_PROSPECT_SLOTS, AI_PROSPECT_MAX_AGE, AI_PROSPECT_MIN_POT,
 } from "./constants.js";
 import {
@@ -38,7 +38,13 @@ export function freeAgentPids(
   players: Player[],
   activeLoans: ActiveLoan[] = [],
 ): Set<number> {
-  const rostered = new Set(teams.flatMap((t) => [...t.roster, ...t.academyRoster]));
+  // Trialists count as rostered: a youth trial group awaiting the user's
+  // decision must not be signable by an AI club, nor culled out from under it.
+  // Read off the team rather than taken as a parameter so every caller gets it
+  // without a signature change (see StoredTeam.youthTrialists).
+  const rostered = new Set(
+    teams.flatMap((t) => [...t.roster, ...t.academyRoster, ...(t.youthTrialists ?? [])]),
+  );
   const onLoan = new Set(activeLoans.map((l) => l.pid));
   return new Set(
     players.map((p) => p.pid).filter((pid) => !rostered.has(pid) && !onLoan.has(pid)),
@@ -630,4 +636,92 @@ export function ensureUserRosterSafety(
     teams: teams.map((t) => (t.tid === userTid ? { ...t, roster, academyRoster: academy } : t)),
     players: players.map((p) => promoted.get(p.pid) ?? p),
   };
+}
+
+/**
+ * How many of this year's trial group can still be signed.
+ *
+ * Both bounds are real and the tighter one wins: YOUTH_TRIAL_SIGN_LIMIT is the
+ * decision the intake is meant to be, and ACADEMY_ROSTER_CAP is the pool's hard
+ * ceiling — a club arriving with a full academy signs nobody however good the
+ * group is. The per-intake count is a counter on the team, reset when the
+ * offseason lays out the new group, rather than something derived from ages or
+ * contract dates: those are ambiguous the moment a 16-year-old can reach the
+ * academy by any other route.
+ */
+export function trialSigningsLeft(team: StoredTeam, _players?: Player[]): number {
+  return Math.max(
+    0,
+    Math.min(
+      YOUTH_TRIAL_SIGN_LIMIT - (team.youthTrialSignings ?? 0),
+      ACADEMY_ROSTER_CAP - team.academyRoster.length,
+    ),
+  );
+}
+
+/**
+ * Sign one of this year's trialists into the academy.
+ *
+ * The trialist leaves `youthTrialists` and joins `academyRoster` on ordinary
+ * academy stipend terms. **The academy stamp on his ratings history happens
+ * here, not at generation**, because a trialist who is never signed was never
+ * an academy player and his OVR chart should not claim he was.
+ *
+ * No budget check and no mid-season charge, unlike `signToAcademy`: the intake
+ * is resolved in the offseason, where the season-start charge has not yet run
+ * and will pick up his stipend along with everyone else's.
+ */
+export function signTrialist(
+  teams: StoredTeam[],
+  players: Player[],
+  tid: number,
+  pid: number,
+  season: number,
+): { teams: StoredTeam[]; players: Player[] } {
+  const team = teams.find((t) => t.tid === tid);
+  if (!team || !(team.youthTrialists ?? []).includes(pid)) return { teams, players };
+  if (trialSigningsLeft(team) <= 0) return { teams, players };
+
+  const terms = academyContractTerms(season);
+  return {
+    teams: teams.map((t) =>
+      t.tid === tid
+        ? {
+            ...t,
+            youthTrialists: (t.youthTrialists ?? []).filter((x) => x !== pid),
+            academyRoster: [...t.academyRoster, pid],
+            youthTrialSignings: (t.youthTrialSignings ?? 0) + 1,
+          }
+        : t,
+    ),
+    players: players.map((p) =>
+      p.pid === pid
+        ? {
+            ...p,
+            contract: { salary: terms.salary, expiresSeason: terms.expiresSeason },
+            // Start his OVR history in the academy (blue) rather than with a
+            // stray senior point before his first real academy season.
+            hist: p.hist.map((h) => ({ ...h, academy: true })),
+          }
+        : p,
+    ),
+  };
+}
+
+/**
+ * Turn a trialist down. He leaves the trial list and, holding no contract and
+ * sitting on no roster, is a free agent from that moment — so an AI club can
+ * sign him, which is the point: a prospect you passed on should be able to
+ * come back to haunt you.
+ */
+export function releaseTrialist(
+  teams: StoredTeam[],
+  tid: number,
+  pid: number,
+): StoredTeam[] {
+  return teams.map((t) =>
+    t.tid === tid
+      ? { ...t, youthTrialists: (t.youthTrialists ?? []).filter((x) => x !== pid) }
+      : t,
+  );
 }

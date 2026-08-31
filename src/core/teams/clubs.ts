@@ -520,6 +520,36 @@ export interface StoredTeam {
    * stays empty for every AI team.
    */
   academyRoster: number[];
+  /**
+   * This year's youth trial group, awaiting the user's decision on the Youth
+   * Intake screen — pids only, no contracts, no wages, nobody signed.
+   *
+   * **User's club only**, like `academyRoster`: an AI club's intake still goes
+   * straight to `roster`. Trialists are deliberately counted as rostered by
+   * `freeAgentPids` (which reads them off the team, so all 18 of its callers
+   * get this for free), because a pending trialist must not be signable by an
+   * AI club or culled from under the decision. They carry no contract, so they
+   * cost nothing at the season-start wage charge, which sums roster + academy.
+   *
+   * The offseason clears any group left undecided before generating the next
+   * one, so this can never accumulate into the `academyRoster`-style zombies
+   * an AI club would strand — the group is resolved either by the user or by
+   * the next rollover, never held indefinitely.
+   *
+   * Optional: absent on every save written before the screen existed, and
+   * `migrate.ts` backfills `[]`.
+   */
+  youthTrialists?: number[];
+  /**
+   * How many of the CURRENT trial group have been signed, against
+   * YOUTH_TRIAL_SIGN_LIMIT. Reset by the offseason when it lays out the new
+   * group, so it always describes this intake and never accumulates.
+   *
+   * A counter rather than something derived from ages or contract dates,
+   * because both are ambiguous the moment a 16-year-old can reach the academy
+   * by any other route. Optional; `migrate.ts` backfills 0.
+   */
+  youthTrialSignings?: number;
   /** Funds available to spend on wages, transfers, and scouting. */
   budget: number;
   /** Fame/popularity, 0-100; drives a damped ticket/jersey revenue channel. */

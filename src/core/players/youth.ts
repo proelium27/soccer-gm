@@ -74,8 +74,15 @@ export function generateYouthIntake(
   genSeed = 0,
   homeCountry?: string,
   nationalities?: NationalityWeights | null,
+  /**
+   * Exact number to generate, for the user's youth trial group (see
+   * YOUTH_TRIAL_GROUP_MIN). Omitted, the count is drawn from `rng` as always —
+   * so passing it also SKIPS that draw, which is why the trial top-up must run
+   * on its own stream rather than the shared one.
+   */
+  countOverride?: number,
 ): { players: Player[]; nextPid: number } {
-  const count = YOUTH_INTAKE_MIN
+  const count = countOverride ?? YOUTH_INTAKE_MIN
     + Math.floor(rng() * (YOUTH_INTAKE_MAX - YOUTH_INTAKE_MIN + 1));
   const base = youthGenerationBase(academyBase);
 

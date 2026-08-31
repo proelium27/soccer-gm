@@ -30,7 +30,7 @@ import { Schedule } from "./pages/Schedule.js";
 import { Roster } from "./pages/Roster.js";
 import { Leaders } from "./pages/Leaders.js";
 import { BoxScore } from "./pages/BoxScore.js";
-import { IncomingTalent } from "./pages/IncomingTalent.js";
+import { YouthIntake } from "./pages/YouthIntake.js";
 import { FreeAgents } from "./pages/FreeAgents.js";
 import { Academy } from "./pages/Academy.js";
 import { Transfers } from "./pages/Transfers.js";
@@ -158,7 +158,10 @@ export function App() {
             <Route path="/box-score/:matchIndex" element={<BoxScore />} />
             <Route path="/roster" element={<Roster />} />
             <Route path="/leaders" element={<Leaders />} />
-            <Route path="/incoming-talent" element={<IncomingTalent />} />
+            <Route path="/youth-intake" element={<YouthIntake />} />
+            {/* The old Incoming Talent path: keep it working rather than 404 a
+                bookmark, and it lands on what replaced it. */}
+            <Route path="/incoming-talent" element={<Navigate to="/youth-intake" replace />} />
             <Route path="/free-agents" element={<FreeAgents />} />
             <Route path="/academy" element={<Academy />} />
             <Route path="/transfers" element={<Transfers />} />
