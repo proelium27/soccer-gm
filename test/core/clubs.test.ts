@@ -19,7 +19,7 @@ describe("CLUBS", () => {
 
   it("has all unique names", () => {
     const names = CLUBS.map((c) => c.name);
-    expect(new Set(names).size).toBe(500);
+    expect(new Set(names).size).toBe(626);
   });
 
   it("has exactly one entry per tid generateWorld() actually produces (regression guard against CLUBS/tid-layout drift)", () => {

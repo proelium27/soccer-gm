@@ -527,9 +527,17 @@ describe("convert (end to end)", () => {
       c.players!.map((pl) => computeOvr(pl.pos, pl.ratings!, pl.heightCm ?? 180)),
     );
     // Every one of these players is elite in EA terms, so none of them may come
-    // out at the bottom of the game's band — which is exactly where a
-    // per-competition curve would put the weakest of them.
-    expect(Math.min(...ovrs)).toBeGreaterThan(45);
+    // out at the bottom of the game's band, which is exactly where a
+    // per-competition curve would put the weakest of them (measured: min 20).
+    //
+    // The absolute number is REFERENCE-WORLD DEPENDENT and moved when every
+    // country gained a third division: rank-matching maps onto a freshly
+    // generated world's OVR distribution, and 206 third-division clubs gave
+    // that distribution a long low tail, so the same rank now lands lower
+    // (measured 45+ before, 43 after). The bar is set well clear of the failure
+    // mode it discriminates against rather than tuned to whatever the current
+    // world happens to produce, so a future world change does not move it again.
+    expect(Math.min(...ovrs)).toBeGreaterThan(35);
     expect(report.warnings.some((w) => w.includes("scaled") && w.includes("Greek Division 1"))).toBe(true);
   });
 
