@@ -320,7 +320,12 @@ export function Leagues() {
           Import
         </button>
         {ROSTER_DOWNLOAD_URL && (
-          <>
+          // The button and its badge are ONE flex item, not two. The row is
+          // `flex-wrap`, and as two items the badge wraps onto the next line by
+          // itself and lands under the leftmost button, which reads as a label
+          // for that one instead. Wrapping them together means they wrap as a
+          // pair or not at all.
+          <span className="d-inline-flex align-items-center gap-2">
             <a
               className="btn btn-outline-secondary"
               href={ROSTER_DOWNLOAD_URL}
@@ -334,10 +339,8 @@ export function Leagues() {
             {/* States what the file IS rather than that it is new, so it doesn't
                 go stale sitting here. The URL never changes, so anyone who
                 downloaded the old one gets this by downloading again. */}
-            <span className="badge bg-success align-self-center">
-              Updated for EA FC 27
-            </span>
-          </>
+            <span className="badge bg-success">Updated for EA FC 27</span>
+          </span>
         )}
         <input
           ref={importInputRef}

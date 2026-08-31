@@ -97,6 +97,17 @@ describe("roster download link on the Leagues page", () => {
     expect(html).not.toContain("Updated for EA FC 27");
     expect(html).not.toContain("download it again");
   });
+
+  // Found in the browser, not here: the button row is `flex-wrap`, so as two
+  // separate flex items the badge wrapped onto the next line on its own and
+  // landed under the LEFTMOST button, reading as a label for that one. Every
+  // assertion above still passed, because the string was present either way.
+  // Keeping them in one inline-flex item is what makes them wrap as a pair, so
+  // pin the adjacency rather than the mere presence.
+  it("keeps the badge welded to the button rather than loose in the row", async () => {
+    const html = await renderLeaguesPage("https://example.com/r.json");
+    expect(html).toMatch(/Download Real Rosters<\/a><span class="badge[^"]*">Updated for EA FC 27/);
+  });
 });
 
 describe("roster download link on the import screen", () => {
