@@ -1939,8 +1939,13 @@ export function Manual() {
             its own cap, separate from your senior roster's, at 10 prospects.
           </p>
           <p>
-            AI clubs don't keep a real academy pool. Their youth intake still lands straight on their
-            senior roster and gets trimmed back to target depth like any other offseason surplus. If
+            AI clubs don't keep a real academy pool. Their youth intake lands straight on their
+            senior roster and gets trimmed back to target depth like any other offseason surplus,
+            with one exception: each club hangs on to a handful of its most promising youngsters
+            beyond that, whatever their current rating. They're carried on top of the squad rather
+            than in place of anyone, so it doesn't change who a club picks. It does mean rival clubs
+            no longer throw away every wonderkid they produce, and the ones who do reach the free
+            market are the ones nobody rated. If
             you leave your own academy alone for several seasons while your senior roster shrinks
             (retirements, expiring contracts you don't re-sign), the game will automatically call up
             your best academy prospects, goalkeeper first if you have none at all, to keep your squad
@@ -1951,7 +1956,9 @@ export function Manual() {
             Prospects age 21 or younger who were never on any club's academy or roster show up on the{" "}
             <strong>Incoming Talent</strong> page instead, where you can sign them straight to your
             senior team or into your academy. Older free agents live on the separate{" "}
-            <strong>Free Agents</strong> page.
+            <strong>Free Agents</strong> page. Don't expect to find a future star sitting there:
+            clubs keep their best young players now, so what reaches this page is genuinely what
+            nobody wanted. Your own academy is the reliable route to a homegrown star.
           </p>
         </Section>
 

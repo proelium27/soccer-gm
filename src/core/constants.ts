@@ -3997,3 +3997,51 @@ export const NATIONAL_REP_CAMPAIGN_WEIGHT = 1.2;
 /** Campaigns past this stop adding experience credit. */
 export const NATIONAL_REP_CAMPAIGN_CAP = 12;
 export const NATIONAL_REP_SACKING_PENALTY = 9;
+
+/**
+ * How many young high-potential players an AI club retains beyond its
+ * ROSTER_COMPOSITION depth chart — its academy, in effect.
+ *
+ * **This exists because AI clubs used to throw away their entire youth intake.**
+ * `trimRosterSurplus` cuts each position to ROSTER_COMPOSITION ranked on
+ * *current* ovr, and a 16-year-old is always bottom of his depth chart, so
+ * measured on a fresh world **84-86% of every AI club's youth intake was
+ * released into free agency in the same offseason it arrived** — 220 of the 275
+ * POT>=70 prospects among them, every year. Neither pass of `runAIFreeAgency`
+ * ranked on potential either (the word appeared nowhere in the file), so nobody
+ * picked them back up: the unsigned under-22 pool grew 1,485 -> 3,072 between
+ * seasons 2 and 7 and the user was the only actor in the world that valued
+ * youth. Ten free prospects taken in season 2 read 84/83/82/79/79/79/71/71 by
+ * season 11, against a tier-1 XI mean of 66.
+ *
+ * **Retention is ADDITIVE to the depth chart, never a reweighting of it, and
+ * that is the load-bearing part.** Blending potential into the trim ranking is
+ * the obvious implementation and it trades starters for prospects: a club that
+ * keeps a 30-ovr 16-year-old *instead of* a 55-ovr squad player fields a worse
+ * XI, which moves match quality, the M1 benchmark gates and the country ladder
+ * all at once. Protecting prospects in slots of their own leaves `selectXI`'s
+ * input untouched — who plays is decided on the same depth chart as before —
+ * so the change is a squad-size and wage-bill question rather than a football
+ * one. Wages are cubic in ovr, so the marginal prospect is close to free.
+ *
+ * Sized against ACADEMY_ROSTER_CAP (10), which is the equivalent allowance the
+ * user's club gets, discounted because an AI club carries its prospects on the
+ * senior roster (they count toward ROSTER_CAP and can be picked in an injury
+ * crisis) rather than in a separate pool. Raising it costs roster slots and a
+ * little wage bill; the thing to watch is weak-league solvency, which is the
+ * column that fails first here (see docs/transfer-mobility.md).
+ */
+export const AI_PROSPECT_SLOTS = 5;
+
+/**
+ * Bars a young player must clear to take one of an AI club's AI_PROSPECT_SLOTS.
+ *
+ * The age bar is PROSPECT_AGE_MAX by reference rather than a copy: it is the
+ * same "still a prospect" line Incoming Talent draws, and the two drifting
+ * apart would mean the AI stops protecting players the user is still shown as
+ * prospects. The potential bar is deliberately well above the ~62 median intake
+ * potential — this protects genuine wonderkids, not every teenager, or a club
+ * would spend all five slots on filler and still bin the player worth keeping.
+ */
+export const AI_PROSPECT_MAX_AGE = PROSPECT_AGE_MAX;
+export const AI_PROSPECT_MIN_POT = 70;

@@ -5,6 +5,7 @@ import type { ActiveLoan } from "./loans.js";
 import {
   ROSTER_COMPOSITION, ROSTER_CAP, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
   ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR, PROSPECT_AGE_MAX,
+  AI_PROSPECT_SLOTS, AI_PROSPECT_MAX_AGE, AI_PROSPECT_MIN_POT,
 } from "./constants.js";
 import {
   contractTerms, extendContract, seasonSalaryForOvr, extendAcademyContract, academyContractTerms,
@@ -225,6 +226,73 @@ export function runAIFreeAgency(
     }
   }
 
+  // Third pass: prospects. The two passes above rank purely on current ovr, so
+  // no AI club had any reason to sign a 16-year-old — measured, that left the
+  // unsigned under-22 pool growing without bound (1,485 in season 2 to 3,072 by
+  // season 7 on a fresh world) with the user the only actor in the world that
+  // valued potential. Each club fills its AI_PROSPECT_SLOTS from the pool,
+  // worst-first like the passes above so weak clubs get first pick at the next
+  // generation, which is also the upward-mobility direction the country ladder
+  // depends on.
+  //
+  // These sign ON TOP of the depth chart and trimRosterSurplus protects exactly
+  // the same count on exactly the same rule, so a club signs a prospect and
+  // keeps him rather than churning him straight back out next offseason.
+  //
+  // Ordering note: free agency is offseason step 4 and youth intake is step 5,
+  // so a club fills its slots here without knowing what its own academy is
+  // about to produce, and step 6's trim then keeps the best AI_PROSPECT_SLOTS
+  // across both. A signing can therefore be released in the same offseason it
+  // was made — harmless (he returns to the pool, and the club keeps the better
+  // player either way), and rare in practice because supply is the binding
+  // constraint: ~275 POT>=70 players are generated a year against 320 clubs'
+  // worth of slots, so clubs sit well short of full. Measured, rosters settle
+  // ~1 player above the depth chart, not five.
+  //
+  // Contract length comes from a per-signing seeded stream (tag 6, distinct
+  // from the poach pass's 5), NOT the shared rng — so this pass consumes no
+  // shared draws and youth generation downstream stays bit-identical, the same
+  // RNG-stream-order invariant the poach pass above preserves.
+  const prospectSign = (team: StoredTeam & { roster: number[] }, signing: Player): void => {
+    const lenRng = mulberry32(hashInts(season, team.tid, signing.pid, 6));
+    const length = CONTRACT_LENGTH_MIN
+      + Math.floor(lenRng() * (CONTRACT_LENGTH_MAX - CONTRACT_LENGTH_MIN + 1));
+    signing.contract = {
+      salary: seasonSalaryForOvr(signing.ovr, signing.pid, season),
+      expiresSeason: season + length,
+    };
+    team.roster.push(signing.pid);
+    signings.push({ pid: signing.pid, toTid: team.tid });
+    pool = pool.filter((pid) => pid !== signing.pid);
+  };
+
+  for (const tid of signingOrderTids) {
+    if (tid === userTid) continue;
+    const team = teamMap.get(tid);
+    if (!team) continue;
+
+    // How many prospect slots this club has spare. Counted against the same
+    // bar trimRosterSurplus retains on, so the two agree on who is a prospect;
+    // a club that already developed five wonderkids signs none.
+    const held = team.roster
+      .map((pid) => playerMap.get(pid)!)
+      .filter(
+        (p) => p && season - p.born <= AI_PROSPECT_MAX_AGE && p.potential >= AI_PROSPECT_MIN_POT,
+      ).length;
+
+    for (let slot = held; slot < AI_PROSPECT_SLOTS; slot++) {
+      if (team.roster.length >= ROSTER_CAP) break;
+      const best = pool
+        .map((pid) => playerMap.get(pid)!)
+        .filter(
+          (p) => p && season - p.born <= AI_PROSPECT_MAX_AGE && p.potential >= AI_PROSPECT_MIN_POT,
+        )
+        .sort((a, b) => b.potential - a.potential || b.ovr - a.ovr || a.pid - b.pid)[0];
+      if (!best) break;
+      prospectSign(team, best);
+    }
+  }
+
   return {
     teams: [...teams.map((t) => teamMap.get(t.tid)!)],
     players: [...players.map((p) => playerMap.get(p.pid)!)],
@@ -245,11 +313,21 @@ export function runAIFreeAgency(
  * a "free agent" a club could re-sign while the loan later hands a copy back
  * to his parent, duplicating the pid across two rosters. He's also excluded
  * from the position's kept-count so he can't displace a genuine squad member.
+ *
+ * **Each club also retains up to AI_PROSPECT_SLOTS young high-potential players
+ * beyond the depth chart.** Without that the depth chart alone — which ranks on
+ * *current* ovr, where a 16-year-old is always last — released 84-86% of every
+ * club's youth intake into free agency in the offseason it arrived, wonderkids
+ * included, and nothing in AI free agency valued potential enough to pick them
+ * back up. See AI_PROSPECT_SLOTS for the measurements and for why retention is
+ * additive rather than folded into the ranking: keeping a prospect *instead of*
+ * a squad player would change who is selected, and the point is that it doesn't.
  */
 export function trimRosterSurplus(
   teams: StoredTeam[],
   players: Player[],
   userTid: number,
+  season: number,
   activeLoans: ActiveLoan[] = [],
 ): StoredTeam[] {
   const playerMap = new Map(players.map((p) => [p.pid, p]));
@@ -273,6 +351,21 @@ export function trimRosterSurplus(
       const squad = (byPos.get(pos) ?? []).sort((a, b) => b.ovr - a.ovr);
       for (const p of squad.slice(0, ROSTER_COMPOSITION[pos])) kept.add(p.pid);
     }
+
+    // Prospect slots, on top of the depth chart above. Ranked by potential
+    // (then ovr, then pid — a total order, so the choice can't depend on
+    // roster array order) among the young players the chart didn't already
+    // keep. Rng-free, like the rest of this function.
+    const prospects = [...byPos.values()]
+      .flat()
+      .filter(
+        (p) =>
+          !kept.has(p.pid)
+          && season - p.born <= AI_PROSPECT_MAX_AGE
+          && p.potential >= AI_PROSPECT_MIN_POT,
+      )
+      .sort((a, b) => b.potential - a.potential || b.ovr - a.ovr || a.pid - b.pid);
+    for (const p of prospects.slice(0, AI_PROSPECT_SLOTS)) kept.add(p.pid);
 
     return { ...t, roster: t.roster.filter((pid) => kept.has(pid) || onLoan.has(pid)) };
   });

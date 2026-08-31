@@ -596,7 +596,7 @@ export function simOffseasonReporting(
   // 6. Trim AI squads back down to target composition. Loaned-in players are
   //    left in place (owned by their parent — see trimRosterSurplus) so
   //    trimming can't orphan a live loan into a duplicate.
-  teams = trimRosterSurplus(teams, players, league.meta.userTid, activeLoans);
+  teams = trimRosterSurplus(teams, players, league.meta.userTid, nextSeason, activeLoans);
 
   // 6.4. AI<->AI transfer market (summer window, cross-division by design —
   //      no division filtering here, see design doc).
