@@ -595,6 +595,7 @@ export function ensureUserRosterSafety(
   const playerMap = new Map(players.map((p) => [p.pid, p]));
   const roster = [...team.roster];
   let academy = [...team.academyRoster];
+  let trialists = [...(team.youthTrialists ?? [])];
   const promoted = new Map<number, Player>();
 
   function promote(pid: number): void {
@@ -603,37 +604,76 @@ export function ensureUserRosterSafety(
     promoted.set(pid, { ...p, contract: { salary: terms.salary, expiresSeason: terms.expiresSeason } });
     roster.push(pid);
     academy = academy.filter((q) => q !== pid);
+    trialists = trialists.filter((q) => q !== pid);
   }
 
+  /**
+   * Everyone the club could call up, best first: its own academy, then this
+   * year's trial group, then the open market.
+   *
+   * **The trial group is here because the academy stopped being guaranteed to
+   * hold anyone.** Youth intake used to sign itself straight into the academy,
+   * so there was always somebody to promote; now the user chooses, and a user
+   * who ignores the Youth Intake screen has an empty academy forever. Left
+   * unfixed that is fatal rather than cosmetic: the roster starves, `selectXI`
+   * silently leaves slots empty, and `pickInterceptor` then dereferences an
+   * undefined tackler and takes the whole sim down. Found by the dynasty audit,
+   * which never signs anybody.
+   *
+   * **Free agents make the floor a guarantee instead of best-effort.** The GK
+   * branch below already reached for the market as a last resort for exactly
+   * this reason; the general floor had no such fallback and so quietly did
+   * nothing whenever the academy was empty, which was reachable before this
+   * change too (release your whole academy). Only ever fires below
+   * ROSTER_SAFETY_FLOOR, i.e. when a squad has been neglected into being
+   * unfieldable, and only ever for the user's club.
+   */
+  function callUpPool(): Player[] {
+    const own = [...academy, ...trialists];
+    // `freeAgentPids` reads the CALLER's teams, which this function does not
+    // update as it promotes — so anyone already called up still looks unsigned
+    // here. Excluding them is a correctness requirement, not a tidy-up: without
+    // it the loop below re-promotes the same man every pass, the roster ends up
+    // holding a duplicate pid, `selectXI` cannot then fill one slot (a player
+    // may hold only one), and `improve` dereferences the resulting null and
+    // takes the sim down. Found by the dynasty audit.
+    const market = [...freeAgentPids(teams, players, activeLoans)].filter(
+      (pid) => !promoted.has(pid) && !own.includes(pid),
+    );
+    const rank = (pids: number[]): Player[] =>
+      pids
+        .map((pid) => playerMap.get(pid))
+        .filter((p): p is Player => p != null)
+        .sort((a, b) => b.ovr - a.ovr);
+    // TIERED, not one sorted list. A single ovr sort collapses the tiers: free
+    // agents are grown men and a trialist is 16, so the market would always win
+    // and the club would sign strangers while its own kids sat on the trial
+    // list. A call-up promotes from within first; the market is the last resort
+    // it always was.
+    return [...rank(own), ...rank(market)];
+  }
+
+  // A keeper first and separately: an outfielder forced into goal corrupts the
+  // keeping composite, so "enough bodies" is not the same as "fieldable".
   if (!roster.some((pid) => playerMap.get(pid)?.pos === "GK")) {
-    const academyGk = academy
-      .map((pid) => playerMap.get(pid)!)
-      .filter((p) => p.pos === "GK")
-      .sort((a, b) => b.ovr - a.ovr)[0];
-    if (academyGk) {
-      promote(academyGk.pid);
-    } else {
-      // The academy has no GK either — last resort, sign the best available
-      // free-agent GK so the team can't end up call-up-"safe" but GK-less.
-      const faGk = [...freeAgentPids(teams, players, activeLoans)]
-        .map((fpid) => playerMap.get(fpid))
-        .filter((p): p is Player => p != null && p.pos === "GK")
-        .sort((a, b) => b.ovr - a.ovr)[0];
-      if (faGk) promote(faGk.pid);
-    }
+    const gk = callUpPool().find((p) => p.pos === "GK");
+    if (gk) promote(gk.pid);
   }
 
-  while (roster.length < ROSTER_SAFETY_FLOOR && academy.length > 0) {
-    const best = academy
-      .map((pid) => playerMap.get(pid)!)
-      .sort((a, b) => b.ovr - a.ovr)[0];
+  while (roster.length < ROSTER_SAFETY_FLOOR) {
+    const best = callUpPool()[0];
+    if (!best) break;
     promote(best.pid);
   }
 
   if (promoted.size === 0) return { teams, players };
 
   return {
-    teams: teams.map((t) => (t.tid === userTid ? { ...t, roster, academyRoster: academy } : t)),
+    teams: teams.map((t) =>
+      t.tid === userTid
+        ? { ...t, roster, academyRoster: academy, youthTrialists: trialists }
+        : t,
+    ),
     players: players.map((p) => promoted.get(p.pid) ?? p),
   };
 }

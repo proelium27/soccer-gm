@@ -4,12 +4,12 @@ import { createLeagueState } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import {
-  freeAgentPids, signTrialist, releaseTrialist, trialSigningsLeft,
+  freeAgentPids, signTrialist, releaseTrialist, trialSigningsLeft, ensureUserRosterSafety,
 } from "../../src/core/freeAgency.js";
 import { academyFacilitiesBonus } from "../../src/core/players/academyFacilities.js";
 import {
   YOUTH_TRIAL_GROUP_MIN, YOUTH_TRIAL_GROUP_MAX, YOUTH_TRIAL_SIGN_LIMIT,
-  SCOUTING_SPEND_MAX, HYPE_MAX, YOUTH_AGE,
+  SCOUTING_SPEND_MAX, HYPE_MAX, YOUTH_AGE, ROSTER_SAFETY_FLOOR,
 } from "../../src/core/constants.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 
@@ -132,6 +132,56 @@ describe("the trial group's containment", () => {
       if (trialists.has(p.pid)) continue;
       expect(p.pid).toBeLessThan(lowestExtra);
     }
+  });
+});
+
+describe("the roster safety net, once the academy stopped filling itself", () => {
+  // Both cases here are crashes in disguise, not cosmetic shortfalls: a roster
+  // short of eleven fit players leaves selectXI with empty slots, and the
+  // engine then dereferences an undefined player and takes the sim down.
+  const stripSquad = (league: LeagueStore, keep: number): LeagueStore => {
+    const tid = league.meta.userTid;
+    return {
+      ...league,
+      teams: league.teams.map((t) =>
+        t.tid === tid ? { ...t, roster: t.roster.slice(0, keep), academyRoster: [] } : t,
+      ),
+    };
+  };
+
+  it("calls up trialists when the academy is empty", () => {
+    const rng = mulberry32(4);
+    const league = stripSquad(advance(createLeagueState(0, rng), rng), 5);
+    const tid = league.meta.userTid;
+    const before = league.teams.find((t) => t.tid === tid)!.youthTrialists!.length;
+
+    const { teams } = ensureUserRosterSafety(
+      league.teams, league.players, tid, league.season, league.activeLoans,
+    );
+    const after = teams.find((t) => t.tid === tid)!;
+    expect(after.roster.length).toBeGreaterThanOrEqual(ROSTER_SAFETY_FLOOR);
+    expect(after.youthTrialists!.length).toBeLessThan(before);
+  });
+
+  it("never calls the same player up twice", () => {
+    // freeAgentPids reads the caller's teams, which the promotion loop doesn't
+    // write back, so an already-promoted player still looks unsigned on the
+    // next pass. Duplicating a pid leaves selectXI unable to fill a slot.
+    const rng = mulberry32(4);
+    let league = stripSquad(advance(createLeagueState(0, rng), rng), 3);
+    league = {
+      ...league,
+      teams: league.teams.map((t) =>
+        t.tid === league.meta.userTid ? { ...t, youthTrialists: [] } : t,
+      ),
+    };
+
+    const { teams } = ensureUserRosterSafety(
+      league.teams, league.players, league.meta.userTid, league.season, league.activeLoans,
+    );
+    const roster = teams.find((t) => t.tid === league.meta.userTid)!.roster;
+    expect(roster.length).toBeGreaterThanOrEqual(ROSTER_SAFETY_FLOOR);
+    expect(new Set(roster).size).toBe(roster.length);
   });
 });
 
