@@ -34,6 +34,7 @@ import { takePendingRoster } from "../pendingRoster.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 import { ClubCrest, CrestArtProvider } from "../components/ClubCrest.js";
 import { CountryFlag } from "../components/CountryFlag.js";
+import { HelpHint } from "../components/HelpHint.js";
 import { trackEvent } from "../analytics.js";
 import {
   SEASON_START_YEAR, MIN_START_YEAR, MAX_START_YEAR, normalizeStartYear,
@@ -441,7 +442,7 @@ export function NewLeague() {
 
   if (pending) {
     return (
-      <div className="container py-4" style={{ maxWidth: 700 }}>
+      <div className="container py-4" style={{ maxWidth: 900 }}>
         <h2 className="mb-1">Customize Teams</h2>
         <p className="text-muted mb-3">
           Rename any club, change its abbreviation or colors, then start your league.
@@ -589,7 +590,12 @@ export function NewLeague() {
     // the same crests the league itself will — otherwise a club shows a badge
     // here and a colour swatch the moment the save opens.
     <CrestArtProvider tids={activeRoster ? [...activeRoster.byTid.keys()] : []}>
-    <div className="container py-4" style={{ maxWidth: 600 }}>
+    {/* Wider than the prose screens either side of it: this one is a stack of
+        controls and a club list, not something you read left to right, and at
+        600 a desktop window was mostly empty either side of it. `.container`
+        still goes full width below its own breakpoints, so this only widens
+        the page on a screen that has the room. */}
+    <div className="container py-4 new-league-page" style={{ maxWidth: 900 }}>
       <h2 className="mb-3">{rosterMode ? "Import Custom League" : "New League"}</h2>
       {/*
         The country is deliberately not named here. It used to read "choose your
@@ -700,7 +706,10 @@ export function NewLeague() {
         list, which put two save-wide decisions after the most specific one on
         the page.
       */}
-      <div className="d-flex gap-2 mb-2 flex-wrap align-items-end">
+      {/* Capped rather than left to fill the page: a field's width is a hint at
+          how much to type into it, and a club name in an 800px box reads as
+          the wrong control. */}
+      <div className="d-flex gap-2 mb-2 flex-wrap align-items-end" style={{ maxWidth: 560 }}>
         <div className="flex-grow-1" style={{ minWidth: 190 }}>
           <label
             htmlFor="league-name"
@@ -723,7 +732,11 @@ export function NewLeague() {
             htmlFor="start-year"
             className="text-muted text-uppercase small fw-semibold mb-2 d-block"
           >
-            Start year
+            Start year{" "}
+            <HelpHint label="What does the start year do?">
+              Cosmetic. The game counts seasons from 1 whatever you pick, so this only
+              decides what year they're labelled with.
+            </HelpHint>
           </label>
           <input
             type="number"
@@ -739,17 +752,28 @@ export function NewLeague() {
       <p className="text-muted small mb-3">
         {parsedStartYear === null
           ? `Pick a year between ${MIN_START_YEAR} and ${MAX_START_YEAR}.`
-          : `Your first season is ${parsedStartYear}-${String((parsedStartYear + 1) % 100).padStart(2, "0")}. Just a label.`}
+          : `Your first season is ${parsedStartYear}-${String((parsedStartYear + 1) % 100).padStart(2, "0")}.`}
       </p>
 
       <div className="mb-3">
-        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Difficulty</h6>
-        <div className="btn-group w-100" role="group" aria-label="Choose a difficulty">
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">
+          Difficulty{" "}
+          <HelpHint label="What does difficulty change?">
+            It only changes things for your club: the money you get, what your academy
+            turns out, what you pay for players and who'll sell to you. Every other club
+            plays by the same rules whichever setting you pick.
+          </HelpHint>
+        </h6>
+        <div className="btn-group segmented" role="group" aria-label="Choose a difficulty">
           {DIFFICULTY_ORDER.map((d) => (
             <button
               key={d}
               type="button"
               className={`btn btn-outline-secondary${d === difficulty ? " active" : ""}`}
+              // The picked segment is otherwise a CSS class and nothing more, so
+              // a screen reader announces four identical buttons with no way to
+              // tell which one is the current choice.
+              aria-pressed={d === difficulty}
               onClick={() => setDifficulty(d)}
             >
               {DIFFICULTIES[d].label}
@@ -757,8 +781,11 @@ export function NewLeague() {
           ))}
         </div>
         <p className="text-muted small mt-2 mb-0">
-          {DIFFICULTIES[difficulty].blurb} Only affects your club, and it's fixed once
-          you start.
+          {/* The per-setting blurb stays on screen because it changes as you
+              click, so it is feedback on the choice rather than an explanation
+              of it. Only the permanence is worth keeping beside it; what the
+              lever actually touches moved to the hint on the heading. */}
+          {DIFFICULTIES[difficulty].blurb} You can't change it later.
         </p>
       </div>
 
@@ -772,7 +799,7 @@ export function NewLeague() {
         defaultOpen={!!worldRoster}
       />
 
-      <div className="btn-group mb-3 flex-wrap" role="group" aria-label="Choose a league">
+      <div className="btn-group segmented mb-3" role="group" aria-label="Choose a league">
         {world.countries.map((c) => (
           <button
             key={c}
@@ -780,6 +807,7 @@ export function NewLeague() {
             className={`btn btn-outline-secondary d-inline-flex align-items-center gap-2${
               c === activeCountry ? " active" : ""
             }`}
+            aria-pressed={c === activeCountry}
             onClick={() => selectCountry(c)}
           >
             <CountryFlag country={c} fallback={abbrevForCountry(c)} />
@@ -797,12 +825,13 @@ export function NewLeague() {
       */}
       <div className="mb-3">
         {hasSecondDivision ? (
-          <div className="btn-group w-100 mb-2" role="group" aria-label="Choose a division">
+          <div className="btn-group segmented mb-2" role="group" aria-label="Choose a division">
             {([1, 2] as const).map((t) => (
               <button
                 key={t}
                 type="button"
                 className={`btn btn-outline-secondary${t === shownTier ? " active" : ""}`}
+                aria-pressed={t === shownTier}
                 onClick={() => setTier(t)}
               >
                 {divisionName(activeCountry, t)}
@@ -814,7 +843,7 @@ export function NewLeague() {
             {divisionName(activeCountry, 1)}
           </h6>
         )}
-        <div className="list-group">
+        <div className="list-group picker-columns">
           {shownClubs.map(({ tid, name, colors, squad }) => (
             <button
               key={tid}
@@ -847,11 +876,22 @@ export function NewLeague() {
       </div>
 
       <div className="mb-3">
-        <h6 className="text-muted text-uppercase small fw-semibold mb-2">National team</h6>
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">
+          National team{" "}
+          <HelpHint label="What does managing a country involve?">
+            You pick the squad and the eleven for qualifying, the World Cup and their
+            continental championship, on top of your club job, and the federation judges
+            you every campaign. A country needs enough players born into your world to
+            field a squad at all, so you'll be told if the one you pick can't.
+          </HelpHint>
+        </h6>
+        {/* The squad-eligibility rule used to be spelled out here as well, which
+            was explaining an error before it happened: the nationError alert
+            below already says it in full, and only in the case where it's true. */}
         <p className="text-muted small mb-2">
           {userNation
-            ? `You'll pick ${userNation}'s squad and eleven on top of your club job, and the federation will judge you every campaign.`
-            : "Optional — you can always take a job later if one comes in."}
+            ? `You'll pick ${userNation}'s squad and their eleven, on top of your club job.`
+            : "Optional. You can always take the job later if one comes in."}
         </p>
         <input
           type="search"
@@ -867,10 +907,14 @@ export function NewLeague() {
           flag SVG. Same list-group the club picker above uses, so the two
           choices on this page look like the same kind of choice.
         */}
+        {/* Two columns like the club picker above it. At 340 wide this was a
+            narrow rail with most of the page empty beside it, and the country
+            list is the one place on the page where more rows in view is worth
+            real money: there are over a hundred of them. */}
         <div
-          className="list-group"
+          className="list-group picker-columns"
           ref={nationListRef}
-          style={{ maxWidth: 340, maxHeight: 260, overflowY: "auto" }}
+          style={{ maxHeight: 260, overflowY: "auto" }}
         >
           <button
             type="button"
@@ -891,7 +935,9 @@ export function NewLeague() {
             </button>
           ))}
           {shownNations.length === 0 && (
-            <div className="list-group-item text-muted small">No country by that name.</div>
+            <div className="list-group-item picker-columns-full text-muted small">
+              No country by that name.
+            </div>
           )}
         </div>
         {nationError && (
@@ -904,7 +950,15 @@ export function NewLeague() {
       </div>
 
       <div className="mb-3">
-        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Continental Cup places</h6>
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">
+          Continental Cup places{" "}
+          <HelpHint label="How do Cup places move?">
+            Each country's places are re-earned on how its clubs have done in Europe over
+            the last few seasons: go deep and your league sends more, go out early for
+            years and it sends fewer. The Shield gives every league the same two either
+            way. Turn it off and the places stay exactly as the world was built.
+          </HelpHint>
+        </h6>
         <div className="form-check">
           <input
             type="checkbox"
@@ -917,10 +971,13 @@ export function NewLeague() {
             Cup places can move between countries
           </label>
         </div>
+        {/* One line either way, saying which of the two you're getting. How the
+            mechanic works is on the heading's hint, next to the label that
+            names it. */}
         <p className="text-muted small mt-2 mb-0">
           {rollingCoefficients
-            ? "A country's Cup places follow how its clubs have done in Europe lately — do well and your league sends more."
-            : "Every country keeps the same number of Cup places forever."}{" "}
+            ? "Your league sends more clubs when they do well in Europe, fewer when they don't."
+            : "Every country keeps the same number of places forever."}{" "}
           Fixed once you start.
         </p>
       </div>
