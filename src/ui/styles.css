@@ -1665,6 +1665,41 @@ a:hover {
   vertical-align: text-bottom;
   margin-left: 0.25em;
 }
+
+/*
+ * The watchlist star (WatchToggle). A bare button rather than an icon inside a
+ * wrapper, so adding it to a table costs one element per row — see the DOM
+ * weight note on ClubLink for why that matters on the dense pages.
+ */
+.watch-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 1;
+  color: var(--sg-text-muted);
+  /*
+   * Centred on the line box rather than sat on the baseline, because this sits
+   * in text of very different sizes: a table row's 14px name and the player
+   * profile's h4. text-bottom looks right beside small text and visibly low
+   * next to a heading, where the line box is twice the icon's height.
+   */
+  vertical-align: middle;
+  cursor: pointer;
+}
+.watch-star:hover:not(:disabled),
+.watch-star:focus-visible {
+  color: var(--sg-warn);
+}
+.watch-star.watched {
+  color: var(--sg-warn);
+}
+.watch-star:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
 .pitch-chip .player-ratings-tooltip-anchor {
   border-bottom: none;
 }

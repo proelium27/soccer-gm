@@ -34,6 +34,7 @@ import { IncomingTalent } from "./pages/IncomingTalent.js";
 import { FreeAgents } from "./pages/FreeAgents.js";
 import { Academy } from "./pages/Academy.js";
 import { Transfers } from "./pages/Transfers.js";
+import { Watchlist } from "./pages/Watchlist.js";
 import { IncomingOffers } from "./pages/IncomingOffers.js";
 import { Loans } from "./pages/Loans.js";
 import { Finance } from "./pages/Finance.js";
@@ -162,6 +163,7 @@ export function App() {
             <Route path="/free-agents" element={<FreeAgents />} />
             <Route path="/academy" element={<Academy />} />
             <Route path="/transfers" element={<Transfers />} />
+            <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/incoming-offers" element={<IncomingOffers />} />
             <Route path="/loans" element={<Loans />} />
             <Route path="/finance" element={<Finance />} />

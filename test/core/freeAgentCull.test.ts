@@ -139,6 +139,9 @@ describe("cullFreeAgentPool", () => {
       type: "hattrick", pid: doomed.pid, tid: 1, season: 1, matchday: 3, detail: 3,
     });
     league.teams[0].scoutingObserved = { [doomed.pid]: 1 };
+    // A watched player who is then culled could never be un-starred through the
+    // UI — his profile page goes with him, and that is where the star lives.
+    league.watchlist = [doomed.pid, league.teams[1].roster[0]];
 
     const after = cullFreeAgentPool(league);
 
@@ -146,6 +149,7 @@ describe("cullFreeAgentPool", () => {
     expect(after.transfers.some((t) => t.pid === doomed.pid)).toBe(false);
     expect(after.newsEvents.some((e) => "pid" in e && e.pid === doomed.pid)).toBe(false);
     expect(after.teams[0].scoutingObserved[doomed.pid]).toBeUndefined();
+    expect(after.watchlist).toEqual([league.teams[1].roster[0]]);
   });
 
   it("drops culled pids from national-team squads and pending injuries", () => {
