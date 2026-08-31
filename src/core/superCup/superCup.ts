@@ -206,14 +206,10 @@ export function playSuperCups(
   // once here rather than per pool.
   const season = superCups[0].season;
 
-  // One pool per distinct baseline, built once and shared by every match that
-  // uses it — the continental match and a country's match never share a pool,
-  // but two countries' matches never share one either, so this is keyed by the
-  // pool rather than by the match.
-  const pools = new Map<string, Map<number, TeamMatchData>>();
-  const poolFor = (key: string, compIds: Set<number>): Map<number, TeamMatchData> => {
-    const cached = pools.get(key);
-    if (cached) return cached;
+  // Built per match rather than cached: there is exactly one super cup per
+  // country and one in the world, so no two matches ever want the same pool and
+  // a cache here would never once be hit.
+  const poolFor = (compIds: Set<number>): Map<number, TeamMatchData> => {
     const poolTeams = teams.filter((t) => compIds.has(t.compId));
     const data = leagueMatchData({
       teams: poolTeams.map((t) => ({
@@ -239,15 +235,14 @@ export function playSuperCups(
         recompute: (onPitch) => applySeasonForm(d.recompute(onPitch), delta),
       });
     });
-    pools.set(key, built);
     return built;
   };
 
   return superCups.map((sc) => {
     if (sc.tie !== null) return sc;
     const pool = sc.competition === "continental"
-      ? poolFor("continental", tier1)
-      : poolFor(`c:${sc.country}`, compsByCountry.get(sc.country ?? "") ?? new Set());
+      ? poolFor(tier1)
+      : poolFor(compsByCountry.get(sc.country ?? "") ?? new Set());
 
     const [homeTid, awayTid] = sc.teams;
     const hd = pool.get(homeTid);
