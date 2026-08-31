@@ -19,6 +19,7 @@ import { archiveCup } from "../core/cup/archive.js";
 import { archiveDomesticCup } from "../core/domesticCup/archive.js";
 import { cupRunSummary } from "../core/cup/cup.js";
 import type { ManagerState } from "../core/manager/types.js";
+import { emptyNationalManagerState } from "../core/nationalManager/types.js";
 import type { IntlStage } from "../core/international/index.js";
 
 /**
@@ -81,8 +82,8 @@ function fallbackAcademyBase(tid: number): number {
 
 /** A league as it may exist in a save written before M6 added the transfer market, or before the competitions refactor. */
 type LeagueStoreAnyVersion =
-  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "watchlist"> &
-  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "watchlist">>;
+  Omit<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "promotionPlayoffs" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "nationalManager" | "watchlist"> &
+  Partial<Pick<LeagueStore, "negotiations" | "inboundOffers" | "transfers" | "winterMarketRunSeason" | "seasonHistory" | "newsEvents" | "competitions" | "activeLoans" | "loanListings" | "loanRejections" | "cup" | "cupHistory" | "domesticCups" | "domesticCupHistory" | "promotionPlayoffs" | "powerRankingHistory" | "godMode" | "international" | "nextPid" | "difficulty" | "aiManagedSeasons" | "manager" | "rollingCoefficients" | "nationalManager" | "watchlist">>;
 
 /** A season-stats entry as it may exist in a save written before Match Rating / xG / xGA / per-season team tracking / cards. */
 type SeasonStatsAnyVersion =
@@ -568,6 +569,13 @@ function migrateFields(league: LeagueStore): LeagueStore {
     domesticCupHistory: (anyVersion.domesticCupHistory ?? []).map((c) => archiveDomesticCup({
       ...c, statLines: c.statLines ?? null,
     })),
+    // The playoffs a just-finished season sent to, held only until the
+    // offseason consumes them. Empty for any save that isn't sitting in exactly
+    // that window, and deliberately never reconstructed for past seasons: those
+    // promotions really were decided on the table, so inventing a bracket for
+    // them would be inventing results. A save mid-season picks its first
+    // playoff up when that season ends. See core/promotionPlayoff.ts.
+    promotionPlayoffs: anyVersion.promotionPlayoffs ?? [],
     // Pre-feature saves start with no power-rankings history; snapshots can't
     // be reconstructed retroactively (past rosters/matches are gone), so they
     // simply accrue from the next simmed matchdays onward.
@@ -614,6 +622,15 @@ function migrateFields(league: LeagueStore): LeagueStore {
           qualifyingHistory: [], confederationCupHistory: [], powerRankings: [],
           stage: null, stageInjuries: [],
         },
+    // Managing a country is opt-in and chosen at league creation, so a save
+    // that predates it has declined by default — `nation: null` is the state
+    // every save was in before this shipped, not a gap to be filled. Nothing is
+    // reconstructed: past campaigns were played with nobody in charge of any
+    // nation, and inventing a career for them would credit the user with
+    // tournaments they never picked a squad for. An existing dynasty can take a
+    // national job the next time one is offered, which is the following
+    // offseason at the latest.
+    nationalManager: anyVersion.nationalManager ?? emptyNationalManagerState(),
     // God Mode sandbox editing defaults off for any save that predates it.
     godMode: anyVersion.godMode ?? false,
     // Difficulty is fixed at league creation, so a save that predates it was

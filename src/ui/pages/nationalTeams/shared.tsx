@@ -1,6 +1,9 @@
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useLeague } from "../../context/LeagueContext.js";
 import { Flag } from "../../components/Flag.js";
+import { DivisionBadge } from "../../components/DivisionBadge.js";
+import type { StoredTeam } from "../../../core/teams/clubs.js";
+import type { Competition } from "../../../core/competitions.js";
 import type {
   IntlGroup, InternationalState, IntlTournament, IntlQualifyingCampaign,
 } from "../../../core/international/index.js";
@@ -333,10 +336,59 @@ export function IntlEmpty() {
         of {INTL_GROUP_SIZE}, then a round of 16, quarter-finals, semi-finals and a final.
       </p>
       <p className="text-muted">
-        Nobody manages a national team, including you. Squads pick themselves from whoever's good
-        enough, so your job is to develop players worth calling up, then watch how they get on. The
-        first round of qualifying runs at the end of season 1.
+        You can manage a country alongside your club — pick one when you start a save, or wait
+        for a federation to get in touch over the summer. Every other nation picks itself, so
+        the rest of your job is developing players worth calling up and watching how they get on.
+        The first round of qualifying runs at the end of season 1.
       </p>
     </NationalTeamsLayout>
+  );
+}
+
+/** A player's club, and which division that club plays in. */
+export interface ClubEntry {
+  name: string;
+  compId: number;
+  /** He's in the club's youth setup rather than its senior squad. */
+  academy: boolean;
+}
+
+/**
+ * pid -> the club he's at, for the Club column both squad pages carry.
+ *
+ * Shared because those two pages list the same players, and would read as a bug
+ * the moment they described one of them differently. Keyed on the teams array,
+ * so it rebuilds only when a squad actually moves.
+ */
+export function useClubIndex(teams: StoredTeam[] | undefined): Map<number, ClubEntry> {
+  return useMemo(() => {
+    const map = new Map<number, ClubEntry>();
+    for (const t of teams ?? []) {
+      for (const pid of t.roster) map.set(pid, { name: t.name, compId: t.compId, academy: false });
+      for (const pid of t.academyRoster) {
+        map.set(pid, { name: t.name, compId: t.compId, academy: true });
+      }
+    }
+    return map;
+  }, [teams]);
+}
+
+/**
+ * A player's club, marked with its division the way Power Rankings marks one.
+ *
+ * Worth the room here because a national squad is drawn from the whole world.
+ * On a club roster every player is at the same club by definition; here the
+ * reader genuinely cannot otherwise tell a big-four regular from someone in
+ * another country's second division.
+ */
+export function ClubCell(
+  { club, competitions }: { club: ClubEntry | undefined; competitions: Competition[] },
+) {
+  if (!club) return <span className="text-muted">Free agent</span>;
+  return (
+    <span className="d-inline-flex align-items-center gap-1 text-nowrap">
+      <span>{club.name}{club.academy && " (academy)"}</span>
+      <DivisionBadge competitions={competitions} compId={club.compId} />
+    </span>
   );
 }

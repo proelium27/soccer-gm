@@ -17,7 +17,14 @@ export {
 } from "./confederationCup.js";
 export { formatFor, knockoutRounds, type TournamentFormat } from "./format.js";
 export { qualifyingPlan, placesByPosition, type ConfederationQualifyingPlan } from "./qualifying.js";
-export { buildSquads, selectSquad, isEligibleNation, nationPools, buildPowerSnapshot } from "./squads.js";
+export {
+  buildSquads, selectSquad, isEligibleNation, nationPools, buildPowerSnapshot,
+  squadRating, nationMatchData,
+} from "./squads.js";
+export {
+  editableSquad, displaySquad, writeSquad, isValidNationSquad,
+  type CampaignSlot, type FoundSquad,
+} from "./userSquad.js";
 export { finalTie, tournamentGoals, roundsRemaining, summarize, summarizeQualifying } from "./tournament.js";
 export { nationRecords, finishOf, type NationRecord } from "./nationHistory.js";
 export {

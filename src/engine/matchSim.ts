@@ -375,6 +375,18 @@ export interface SimMatchOptions {
    * substitutions affect only stat attribution and energy.
    */
   recompute?: Partial<Record<Side, (onPitch: MatchPlayer[]) => Composites>>;
+  /**
+   * Played at a neutral venue: neither side gets `HOME_ATTACK_BONUS`.
+   *
+   * Only the promotion playoff final asks for this (a Wembley final, where
+   * neither finalist is at home). Everything else leaves it unset and is
+   * bit-identical to before — the flag changes a composite value, never a draw,
+   * so an ordinary match's rng stream is untouched either way.
+   *
+   * `home`/`away` still mean something with it set: the box score, the event
+   * feed and every stat line keep their sides. It is only the bonus that goes.
+   */
+  neutral?: boolean;
 }
 
 /**
@@ -395,9 +407,12 @@ export function simMatchDetailed(
   awayBench: MatchPlayer[] = [],
   opts: SimMatchOptions = {},
 ): DetailedMatchResult {
+  // A neutral venue simply withholds the home bonus; `home`/`away` still label
+  // the two sides everywhere else (box score, events, stat lines).
+  const homeBonus = opts.neutral ? 0 : HOME_ATTACK_BONUS;
   const homeEff: Composites = {
     ...home,
-    attack: clamp(home.attack + HOME_ATTACK_BONUS),
+    attack: clamp(home.attack + homeBonus),
   };
   const teams: Record<Side, Composites> = { home: homeEff, away };
   const manDown = { home: false, away: false };
@@ -472,7 +487,7 @@ export function simMatchDetailed(
     const rc = opts.recompute?.[side];
     if (!rc) return;
     let c = rc(onPitch[side]);
-    if (side === "home") c = { ...c, attack: clamp(c.attack + HOME_ATTACK_BONUS) };
+    if (side === "home") c = { ...c, attack: clamp(c.attack + homeBonus) };
     teams[side] = manDown[side] ? applyManDown(c) : c;
   }
 

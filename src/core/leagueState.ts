@@ -12,11 +12,14 @@ import type { ActiveLoan, LoanListing, LoanRejection } from "./loans.js";
 import type { Competition } from "./competitions.js";
 import type { CupState } from "./cup/types.js";
 import type { DomesticCupState } from "./domesticCup/types.js";
+import type { PromotionPlayoff } from "./promotionPlayoff.js";
 import { buildDomesticCups } from "./domesticCup/cup.js";
 import type { InternationalState } from "./international/types.js";
 import { emptyInternationalState } from "./international/index.js";
 import type { ManagerState } from "./manager/types.js";
 import { emptyManagerState } from "./manager/types.js";
+import type { NationalManagerState } from "./nationalManager/types.js";
+import { emptyNationalManagerState } from "./nationalManager/types.js";
 import { generateWorld } from "./league/generate.js";
 import { assignIdentities, assignAIFormations } from "./teams/clubs.js";
 import { generateSchedule } from "./schedule.js";
@@ -204,6 +207,22 @@ export interface LeagueStore {
   /** Every completed domestic cup, oldest first (archived at offseason rollover). */
   domesticCupHistory: DomesticCupState[];
   /**
+   * The promotion playoffs decided by the season that just ended, one per
+   * country that holds one.
+   *
+   * **Transient, not history.** Filled the moment the season ends (in
+   * simThrough, before the board reviews it, so a manager who goes up is told
+   * so) and emptied again by the offseason that consumes it — which copies the
+   * same records onto that season's `seasonHistory` entry, where they live
+   * permanently. So it is non-empty only while the user is sitting in the
+   * offseason looking at the result, and the page reads both places for the
+   * same reason the Cup page reads `cup` and `cupHistory`.
+   *
+   * Old saves backfill to empty and pick playoffs up at their next season end.
+   * See core/promotionPlayoff.ts.
+   */
+  promotionPlayoffs: PromotionPlayoff[];
+  /**
    * National-team football, played entirely inside the offseason on a two-year
    * cycle (odd seasons qualify, even seasons play the tournament). Starts empty
    * on a new save and fills from the first offseason onward; see
@@ -251,6 +270,18 @@ export interface LeagueStore {
    */
   manager: ManagerState;
   /**
+   * The user's *international* career, run alongside the club one: which
+   * country they manage (if any), how the federation rates them, and which
+   * other countries have come calling.
+   *
+   * A sibling of `manager` rather than a field on it, because the two jobs are
+   * held at the same time and judged by different people on different things.
+   * Unlike the club career, having no job here is an ordinary permanent state —
+   * `nation` null is what every save was before this existed, and is what an
+   * old save is backfilled to.
+   */
+  nationalManager: NationalManagerState;
+  /**
    * Seasons the AI managed the user's club, because they jumped forward past
    * them (see core/autopilot.ts). Oldest first, normally empty.
    *
@@ -286,6 +317,13 @@ export function createLeagueState(
   difficulty: Difficulty = DEFAULT_DIFFICULTY,
   competitions: Competition[] = worldCompetitions(),
   rollingCoefficients = true,
+  /**
+   * The national team the user takes charge of, or null for club football only.
+   * Takes no rng draw and touches nothing in generation — the world is built
+   * first and the appointment is simply recorded against it, so two saves that
+   * differ only in this are the same world.
+   */
+  userNation: string | null = null,
 ): LeagueStore {
   const league = generateWorld(rng, seed, competitions);
   // Each AI club lines up in the formation that fields its strongest XI; the
@@ -342,9 +380,13 @@ export function createLeagueState(
     // builder handles by falling back to tid order.
     domesticCups: buildDomesticCups(competitions, teams, new Map(), 1),
     domesticCupHistory: [],
+    promotionPlayoffs: [],
     international: emptyInternationalState(),
     godMode: false,
     manager: emptyManagerState(userTid, 1),
+    // Chosen on the New League screen, and legitimately null: managing a country
+    // is opt-in, and declining is not a lesser save.
+    nationalManager: emptyNationalManagerState(userNation, 1),
     difficulty,
     // Same value the old derived `max(pid) + 1` produced at first use, so a
     // fresh world generates identically to before.

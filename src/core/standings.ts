@@ -3,6 +3,7 @@ import type { SeasonAwards } from "./awards.js";
 import type { WorldAwards } from "./worldAwards.js";
 import type { RetirementSummary } from "./players/retirements.js";
 import type { AwardWinner } from "./awardWinners.js";
+import type { PromotionPlayoff } from "./promotionPlayoff.js";
 
 export interface MatchScore {
   home: number;
@@ -88,6 +89,16 @@ export interface SeasonHistoryEntry {
    * survivors for an old one — nothing can bring back a player already deleted.
    */
   awardWinners?: AwardWinner[];
+  /**
+   * The promotion playoffs this season's tier-2 tables sent to (one per country
+   * that holds one), played in the offseason that followed it.
+   *
+   * Scorelines only — no box scores are ever stored, because the world plays 36
+   * of these ties a season and history is kept forever. Optional and never
+   * backfilled: a season played before playoffs existed was decided on the table
+   * alone, so absent is the truth about it rather than a gap.
+   */
+  promotionPlayoffs?: PromotionPlayoff[];
 }
 
 /** Sum each club's box-score lines across a season's played matches. */

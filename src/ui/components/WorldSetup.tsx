@@ -6,7 +6,7 @@ import {
   competitionStrengthOffset, competitionBudgetScale,
   resolveLeagueSpec, type ResolvedLeagueSpec,
 } from "../../core/competitions.js";
-import { MAX_PROMOTION_SPOTS } from "../../core/constants.js";
+import { MAX_PROMOTION_SPOTS, type PlayoffFormat } from "../../core/constants.js";
 
 /** What the code box suggests when left empty — the same rule competitionAbbrev uses. */
 function defaultAbbrev(country: string): string {
@@ -180,12 +180,23 @@ function newLeagueEntry(index: number): WorldEntry {
 interface Props {
   entries: WorldEntry[];
   onChange: (entries: WorldEntry[]) => void;
+  /**
+   * Whether the card starts open. Collapsed is the right default on the New
+   * League page — twelve shipped countries is a tall block to sit above the club
+   * picker on every visit, and most saves take the world as it ships — but a
+   * loaded roster file inverts that: adding or renaming a league in here is the
+   * ONLY way to make a file the world has no league for apply at all, so hiding
+   * the editor would hide the fix for the commonest import failure.
+   */
+  defaultOpen?: boolean;
 }
 
-export function WorldSetup({ entries, onChange }: Props) {
+export function WorldSetup({ entries, onChange, defaultOpen = false }: Props) {
   const specs = includedSpecs(entries);
   const warnings = worldTuningWarnings(specs);
-  const clubs = buildCompetitions(specs).reduce((n, c) => n + competitionTeamCount(c), 0);
+  const comps = buildCompetitions(specs);
+  const clubs = comps.reduce((n, c) => n + competitionTeamCount(c), 0);
+  const [open, setOpen] = useState(defaultOpen);
   /**
    * Which shipped leagues have their settings panel open. Behind a toggle
    * because a shipped row is otherwise a single line, and eight countries' worth
@@ -228,15 +239,40 @@ export function WorldSetup({ entries, onChange }: Props) {
   return (
     <div className="card mb-3">
       <div className="card-body">
-        <div className="d-flex justify-content-between align-items-center mb-1">
-          <h5 className="mb-0">World setup</h5>
-          <span className="text-muted small">
-            {specs.length} {specs.length === 1 ? "league" : "leagues"}, {clubs} clubs
-          </span>
+        {/*
+          The summary is what makes collapsing safe: it says what world you would
+          get without making you open the card to find out. A tuning warning is
+          counted on the header too, so advice the editor raised can never be
+          hidden by the card being shut.
+        */}
+        <div className="d-flex justify-content-between align-items-center gap-2">
+          <h5 className="mb-0 d-flex align-items-center gap-2">
+            World setup
+            {!open && warnings.length > 0 && (
+              <span className="badge text-bg-warning">{warnings.length}</span>
+            )}
+          </h5>
+          <div className="d-flex align-items-center gap-3">
+            <span className="text-muted small">
+              {specs.length} {specs.length === 1 ? "country" : "countries"},{" "}
+              {comps.length} {comps.length === 1 ? "division" : "divisions"}, {clubs} clubs
+            </span>
+            <button
+              type="button"
+              className="btn btn-link btn-sm p-0"
+              aria-expanded={open}
+              aria-controls="world-setup-body"
+              onClick={() => setOpen((v) => !v)}
+            >
+              {open ? "Done" : "Customize"}
+            </button>
+          </div>
         </div>
+
+        {open && (
+        <div id="world-setup-body" className="mt-2">
         <p className="text-muted small mb-3">
-          Pick which countries your world has, or add your own. This is fixed once the
-          save is created, so it's worth getting right now.
+          Pick which countries your world has, or add your own. Fixed once you start.
         </p>
 
         <ul className="list-unstyled mb-3">
@@ -340,6 +376,8 @@ export function WorldSetup({ entries, onChange }: Props) {
               <div key={w}>{w}</div>
             ))}
           </div>
+        )}
+        </div>
         )}
       </div>
     </div>
@@ -467,10 +505,9 @@ function RosterPicker({
 
       {sources.length === 0 ? (
         <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
-          Leave this alone and the league gets invented clubs. Or load a roster file to
-          use your own, and its first competition fills the top division. You can also
-          name and colour every club by hand instead: tick <strong>Name the clubs
-          yourself</strong> further down this page.
+          Leave this alone and the league gets invented clubs. Or load a roster file for
+          your own, its first competition filling the top division. To only rename them,
+          tick <strong>Name the clubs yourself</strong> below.
         </p>
       ) : (
         <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
@@ -728,6 +765,30 @@ export function LeagueSettings({
                   {n === 0 ? "None" : `${n} up, ${n} down`}
                 </option>
               ))}
+            </select>
+          </div>
+        )}
+        {/* How the last of those places is settled. Only worth asking about
+            where there are places to settle: a country swapping nobody has
+            nothing to play for. */}
+        {resolved.divisions === 2 && promoSpotsOf(resolved) > 0 && (
+          <div className="col">
+            <label className="form-label small mb-1">Playoff</label>
+            <select
+              className="form-select form-select-sm"
+              value={resolved.playoffFormat}
+              aria-label="How the last promotion place is decided"
+              onChange={(e) => onSpec({ playoffFormat: e.target.value as PlayoffFormat })}
+            >
+              <option value="none">None, straight swap</option>
+              {/* The English bracket sits BELOW the automatic places, so it
+                  needs at least one of them to sit below. At a single place the
+                  only bracket available would be positions 1-4, which takes
+                  promotion off the champion. */}
+              <option value="english" disabled={promoSpotsOf(resolved) < 2}>
+                English, four-club bracket
+              </option>
+              <option value="german">German, v the club above</option>
             </select>
           </div>
         )}

@@ -37,9 +37,14 @@ function rosterFile(match: string, clubs: number): RosterFile {
  * caller), so a raw throw surfaces as a failure regardless of the boundaries
  * App and Layout install.
  */
+// Opened, because every test below is about what the editor CONTAINS. The card
+// ships collapsed on the New League page (the club picker is what that page is
+// for), and a closed card renders only its summary header — so rendering shut
+// would assert nothing about the controls these tests exist to pin. The
+// "the card can be collapsed" block at the bottom covers the shut state itself.
 function render(entries: WorldEntry[]): string {
   return renderToStaticMarkup(
-    createElement(WorldSetup, { entries, onChange: () => {} }),
+    createElement(WorldSetup, { entries, onChange: () => {}, defaultOpen: true }),
   );
 }
 
@@ -69,7 +74,7 @@ describe("WorldSetup renders", () => {
     for (const country of ["England", "Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey"]) {
       expect(html).toContain(country);
     }
-    expect(html).toContain("12 leagues, 420 clubs");
+    expect(html).toContain("12 countries, 24 divisions, 420 clubs");
     expect(html).not.toContain("alert-warning");
   });
 
@@ -80,7 +85,7 @@ describe("WorldSetup renders", () => {
     expect(html).toContain("Money");
     expect(html).toContain("Continental Cup places");
     expect(html).toContain("Continental Shield places");
-    expect(html).toContain("13 leagues, 460 clubs");
+    expect(html).toContain("13 countries, 26 divisions, 460 clubs");
   });
 
   it("keeps the shipped rows collapsed, so eight panels don't bury the checkboxes", () => {
@@ -138,14 +143,14 @@ describe("WorldSetup renders", () => {
   it("renders a world with countries switched off", () => {
     const entries = defaultWorldEntries().map((e, i) => ({ ...e, included: i < 2 }));
     const html = render(entries);
-    expect(html).toContain("2 leagues, 80 clubs");
+    expect(html).toContain("2 countries, 4 divisions, 80 clubs");
     // Two countries can't field the Continental Cup, and it says so.
     expect(html).toContain("Continental Cup");
   });
 
   it("renders an empty world without throwing", () => {
     const html = render(defaultWorldEntries().map((e) => ({ ...e, included: false })));
-    expect(html).toContain("0 leagues, 0 clubs");
+    expect(html).toContain("0 countries, 0 divisions, 0 clubs");
     expect(html).toContain("at least one league");
   });
 
@@ -439,5 +444,46 @@ describe("a shipped league's settings panel", () => {
       expect(spec.nationalities).toBeUndefined();
     }
     expect(buildCompetitions(includedSpecs(defaultWorldEntries()))).toEqual(worldCompetitions());
+  });
+});
+
+describe("the card can be collapsed", () => {
+  /** Shut, which is how the New League page ships it. */
+  function renderShut(entries: WorldEntry[]): string {
+    return renderToStaticMarkup(
+      createElement(WorldSetup, { entries, onChange: () => {} }),
+    );
+  }
+
+  it("shows the world it would build without being opened", () => {
+    // The whole case for collapsing rests on this line. Without it the player
+    // has to open a twelve-row card to find out what they are about to get.
+    const html = renderShut(defaultWorldEntries());
+    expect(html).toContain("12 countries, 24 divisions, 420 clubs");
+    expect(html).toContain("World setup");
+  });
+
+  it("keeps its controls out of the page until it is opened", () => {
+    const html = renderShut(defaultWorldEntries());
+    expect(html).not.toContain("Add a league");
+    expect(html).not.toContain("Pick which countries your world has");
+    expect(html).toContain('aria-expanded="false"');
+  });
+
+  it("counts a tuning warning on the header, so shutting the card can't hide one", () => {
+    // worldTuningWarnings is advisory and renders inside the body. Collapsed,
+    // that body is gone — so the count is what stops the advice disappearing
+    // with it.
+    const entries = withAddedLeague();
+    const added = entries[entries.length - 1];
+    // Weaker than every shipped league while being richer than all of them:
+    // the inversion the warning exists to report.
+    added.spec = { ...added.spec, strengthOffset: 20, budgetScale: 2 };
+    const html = renderShut(entries);
+    expect(html).toContain("badge text-bg-warning");
+  });
+
+  it("says nothing about warnings when there are none", () => {
+    expect(renderShut(defaultWorldEntries())).not.toContain("badge text-bg-warning");
   });
 });

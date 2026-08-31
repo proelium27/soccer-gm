@@ -20,6 +20,7 @@ import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
 import type { PlayedMatch } from "../../src/core/standings.js";
 import { englandCompetitions } from "../../src/core/competitions.js";
 import { emptyManagerState } from "../../src/core/manager/types.js";
+import { emptyNationalManagerState } from "../../src/core/nationalManager/types.js";
 
 function makeLeagueStore(seed: number): LeagueStore {
   const rng = mulberry32(seed);
@@ -86,11 +87,13 @@ function makeLeagueStore(seed: number): LeagueStore {
     shieldHistory: [],
     domesticCups: [],
     domesticCupHistory: [],
+    promotionPlayoffs: [],
     international: { qualifying: null, tournament: null, confederationCups: [], history: [], qualifyingHistory: [], confederationCupHistory: [], powerRankings: [], stage: null, stageInjuries: [] },
     powerRankingHistory: [],
     godMode: false,
     difficulty: "normal",
     manager: emptyManagerState(0, 1),
+    nationalManager: emptyNationalManagerState(),
   };
 }
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import { SKILL_KEYS, POSITIONS, type Position, type PlayerRatings } from "../../core/players/types.js";
@@ -9,16 +9,18 @@ import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentit
 import type { NewPlayerSpec } from "../../core/godMode.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 import { BackLink } from "../components/BackLink.js";
+import { ClubCrest } from "../components/ClubCrest.js";
+import { currencyCompact } from "../format.js";
 
 const NATION_NAMES = Object.keys(NATIONALITIES);
 const flatRatings = (v: number): PlayerRatings =>
   Object.fromEntries(SKILL_KEYS.map((k) => [k, v])) as PlayerRatings;
 
-type Tab = "create" | "roster" | "finance";
+type Tab = "club" | "create" | "roster" | "finance";
 
 export function GodMode() {
   const league = useLeague().league;
-  const [tab, setTab] = useState<Tab>("create");
+  const [tab, setTab] = useState<Tab>("club");
   if (!league || !league.godMode) return null;
 
   return (
@@ -32,15 +34,18 @@ export function GodMode() {
       </p>
 
       <ul className="nav nav-tabs mb-3">
-        {(["create", "roster", "finance"] as Tab[]).map((t) => (
+        {(["club", "create", "roster", "finance"] as Tab[]).map((t) => (
           <li key={t} className="nav-item">
             <button className={`nav-link ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
-              {t === "create" ? "Create Player" : t === "roster" ? "Roster Builder" : "Club Finances"}
+              {t === "club" ? "Switch Club"
+                : t === "create" ? "Create Player"
+                : t === "roster" ? "Roster Builder" : "Club Finances"}
             </button>
           </li>
         ))}
       </ul>
 
+      {tab === "club" && <SwitchClub />}
       {tab === "create" && <CreatePlayer />}
       {tab === "roster" && <RosterBuilder />}
       {tab === "finance" && <ClubFinances />}
@@ -48,7 +53,129 @@ export function GodMode() {
   );
 }
 
-// --- Section A: Create Player ---
+// --- Section A: Switch Club ---
+/**
+ * Take charge of any club in the world, immediately.
+ *
+ * This is the job-offer flow with its two gates removed — that a club asked,
+ * and that it is the offseason — and nothing else. It deliberately routes
+ * through the same `switchClub` handover rather than just reassigning
+ * `meta.userTid`, because several `StoredTeam` fields are user-only by
+ * convention (the youth academy above all) and a club handed to the AI with
+ * them still populated ends up in a state nothing in the game unwinds.
+ */
+function SwitchClub() {
+  const { league, godModeSwitchClubAction, simming } = useLeague();
+  const navigate = useNavigate();
+  const [tid, setTid] = useState<number | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  // Clubs grouped under their competition: a picker over 400-odd clubs sorted
+  // by name alone gives no sense of which league a club plays in, which is the
+  // first thing you'd want to know before taking the job.
+  const byComp = useMemo(() => {
+    if (!league) return [];
+    return league.competitions.map((c) => ({
+      comp: c,
+      clubs: league.teams
+        .filter((t) => t.compId === c.id)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    })).filter((g) => g.clubs.length > 0);
+  }, [league]);
+
+  if (!league) return null;
+
+  const current = league.teams.find((t) => t.tid === league.meta.userTid);
+  const target = tid === null ? null : league.teams.find((t) => t.tid === tid) ?? null;
+  const compName = (compId: number) =>
+    league.competitions.find((c) => c.id === compId)?.name ?? "Unknown league";
+
+  const take = async () => {
+    if (target === null) return;
+    await godModeSwitchClubAction(target.tid);
+    navigate("/roster");
+  };
+
+  return (
+    <div>
+      <div className="d-flex align-items-center gap-2 mb-3">
+        {current && (
+          <ClubCrest tid={current.tid} colors={[...current.colors] as [string, string]} size={28} />
+        )}
+        <div>
+          <div className="fw-semibold">{current?.name ?? "No club"}</div>
+          <div className="text-muted small">
+            {current ? compName(current.compId) : ""}, the club you manage now
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-3" style={{ maxWidth: 420 }}>
+        <label className="form-label form-label-sm">Take charge of</label>
+        <select
+          className="form-select form-select-sm"
+          value={tid ?? ""}
+          onChange={(e) => {
+            setTid(e.target.value === "" ? null : Number(e.target.value));
+            setConfirming(false);
+          }}
+        >
+          <option value="">Pick a club…</option>
+          {byComp.map((g) => (
+            <optgroup key={g.comp.id} label={g.comp.name}>
+              {g.clubs.map((t) => (
+                <option key={t.tid} value={t.tid} disabled={t.tid === league.meta.userTid}>
+                  {t.name}{t.tid === league.meta.userTid ? " (current club)" : ""}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+
+      {target && target.tid !== league.meta.userTid && (
+        <div className="gm-panel" style={{ maxWidth: 560 }}>
+          <div className="gm-panel-title d-flex align-items-center gap-2">
+            <ClubCrest tid={target.tid} colors={[...target.colors] as [string, string]} size={22} />
+            {target.name}
+          </div>
+          <div className="text-muted small mb-2">
+            {compName(target.compId)}, {target.roster.length} players,{" "}
+            {currencyCompact.format(target.budget)} in the bank, hype {Math.round(target.hype)}
+          </div>
+          <ul className="small text-secondary mb-3">
+            <li>{current?.name ?? "Your club"} goes straight to the AI, and its youth academy graduates onto the senior squad on the way out.</li>
+            <li>You know what these players are but not what they&apos;ll become: the squad turns up unscouted, same as any new job.</li>
+            <li>Any transfer talks, incoming bids and loan listings you were holding are dropped.</li>
+            {league.phase !== "offseason" && (
+              <li>The season is under way, so you pick up {target.name} mid-campaign and the board judges you on how it finishes.</li>
+            )}
+          </ul>
+          {confirming ? (
+            <div className="d-flex align-items-center gap-2">
+              <button className="btn btn-sm btn-warning" disabled={simming} onClick={take}>
+                Yes, take over {target.name}
+              </button>
+              <button className="btn btn-sm btn-outline-secondary" onClick={() => setConfirming(false)}>
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn btn-sm btn-warning"
+              disabled={simming}
+              onClick={() => setConfirming(true)}
+            >
+              Take over this club
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Section B: Create Player ---
 function CreatePlayer() {
   const { league, createPlayerAction } = useLeague();
   // Starts empty, with "New Player" as a placeholder rather than a value. It
@@ -166,7 +293,7 @@ function CreatePlayer() {
   );
 }
 
-// --- Section B: Roster Builder ---
+// --- Section C: Roster Builder ---
 function RosterBuilder() {
   const { league, movePlayerToClubAction, releasePlayerGodModeAction } = useLeague();
   const [tid, setTid] = useState<number | null>(null);
@@ -280,7 +407,7 @@ function RosterBuilder() {
   );
 }
 
-// --- Section C: Club Finances & Identity ---
+// --- Section D: Club Finances & Identity ---
 function ClubFinances() {
   const { league, setClubFinancesAction, customizeTeamsAction } = useLeague();
   const [tid, setTid] = useState<number | null>(null);
