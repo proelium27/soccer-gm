@@ -56,6 +56,12 @@ export interface GameEvents {
   formation_changed: { formation: string };
   /** The user clicked "Best XI" to auto-pick the strongest formation + lineup. */
   best_xi_auto_picked: { formation: string };
+  /**
+   * The user took charge of a national team. A rare, deliberate moment — once
+   * every few seasons at most — and the only signal for whether anyone manages
+   * a country at all, which is the one thing worth knowing about the feature.
+   */
+  national_job_accepted: Record<string, never>;
   /** The user listed one of their players for loan. */
   player_loaned_out: { seasons: 1 | 2 | 3 };
   /** The user released a player from their senior roster. */

@@ -5,6 +5,7 @@ import { unpackPositionChange, type NewsEvent, type NewsEventType } from "../../
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { seasonAwardNews, type AwardNews } from "../../core/awardNews.js";
 import { trophyNewsBySeason } from "../../core/trophyNews.js";
+import { promotionNewsBySeason } from "../../core/promotionNews.js";
 import { seasonContinentalNews } from "../../core/continentalNews.js";
 import { TOTS_SLOTS } from "../../core/awards.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
@@ -153,6 +154,14 @@ export function NewsFeed() {
       ]),
     );
 
+    // Promotion playoffs, from the same two places the page itself reads them:
+    // the set the season just ended decided (not yet rolled into history) and
+    // everything already archived onto a season entry.
+    const promotionsBySeason = promotionNewsBySeason([
+      ...(league?.promotionPlayoffs ?? []),
+      ...(league?.seasonHistory ?? []).flatMap((h) => h.promotionPlayoffs ?? []),
+    ]);
+
     const out = new Map<number, FeedItem[]>();
     const seasons = new Set([
       ...transfersBySeason.keys(),
@@ -160,6 +169,7 @@ export function NewsFeed() {
       ...awardsBySeason.keys(),
       ...trophiesBySeason.keys(),
       ...continentalBySeason.keys(),
+      ...promotionsBySeason.keys(),
     ]);
     for (const season of seasons) {
       const comps = historyBySeason.get(season) ?? liveComps;
@@ -170,6 +180,7 @@ export function NewsFeed() {
         awardsBySeason.get(season) ?? [],
         trophiesBySeason.get(season) ?? [],
         continentalBySeason.get(season) ?? [],
+        promotionsBySeason.get(season) ?? [],
       ));
     }
     return out;
@@ -363,6 +374,23 @@ export function NewsFeed() {
                                   : <NationName nation={t.nation ?? ""} />}
                               </td>
                               <td className="text-end stat-num">{t.score ?? ""}</td>
+                            </tr>
+                          );
+                        }
+                        if (item.kind === "promotion") {
+                          const p = item.data;
+                          return (
+                            <tr key={`p-${p.d2CompId}-${season}-${i}`}
+                                className={highlighted ? "team-highlight" : undefined}>
+                              <td className="small">
+                                Promotion playoff
+                                <span className="text-muted"> (from {ordinal(p.position)})</span>
+                              </td>
+                              <td className="text-muted small">
+                                beat {teamCell(p.runnerUpTid, season)}
+                              </td>
+                              <td>{teamCell(p.tid, season)}</td>
+                              <td className="text-end stat-num">{p.score}</td>
                             </tr>
                           );
                         }

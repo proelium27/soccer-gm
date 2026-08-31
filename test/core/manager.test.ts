@@ -147,6 +147,20 @@ describe("switchClub handover", () => {
     expect(after.manager.offers).toEqual([]);
   });
 
+  it("opens the new stint on the season given, for a mid-season takeover", () => {
+    // God Mode can hand the user a club with the season already under way. The
+    // default (season + 1) is the offseason-boundary reading and would date the
+    // stint a year into the future, leaving the career table claiming the user
+    // was nowhere while they were picking that squad.
+    const league = makeLeague(USER, 11);
+    const after = switchClub(league, OTHER, "left", league.season);
+
+    expect(after.manager.stints[0]).toMatchObject({ tid: USER, endSeason: league.season });
+    expect(after.manager.stints[1]).toMatchObject({
+      tid: OTHER, startSeason: league.season, endSeason: null, seasons: 0,
+    });
+  });
+
   it("is a no-op for a switch to the same club or an unknown tid", () => {
     const league = makeLeague(USER, 11);
     expect(switchClub(league, USER, "left")).toBe(league);

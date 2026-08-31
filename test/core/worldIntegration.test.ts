@@ -7,6 +7,7 @@ import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { buildCompetitionSchedule, type LeagueStore } from "../../src/core/leagueState.js";
 import { emptyManagerState } from "../../src/core/manager/types.js";
+import { emptyNationalManagerState } from "../../src/core/nationalManager/types.js";
 
 function buildWorldLeague(seed: number): LeagueStore {
   const rng = mulberry32(seed);
@@ -46,11 +47,13 @@ function buildWorldLeague(seed: number): LeagueStore {
     shieldHistory: [],
     domesticCups: [],
     domesticCupHistory: [],
+    promotionPlayoffs: [],
     international: { qualifying: null, tournament: null, confederationCups: [], history: [], qualifyingHistory: [], confederationCupHistory: [], powerRankings: [], stage: null, stageInjuries: [] },
     powerRankingHistory: [],
     godMode: false,
     difficulty: "normal",
     manager: emptyManagerState(0, 1),
+    nationalManager: emptyNationalManagerState(),
   };
 }
 
@@ -72,6 +75,10 @@ describe("world integration (generateWorld through the real season/offseason pip
     let league = buildWorldLeague(101);
     league = simThrough(league, "season", rng);
     const beforeCompByTid = new Map(league.teams.map((t) => [t.tid, t.compId]));
+    // The season's end settles every country's promotion playoff, before the
+    // offseason consumes it (see simThrough's offseason transition).
+    const playoffs = league.promotionPlayoffs;
+    expect(playoffs.length).toBeGreaterThan(0);
     league = simOffseason(league, rng);
     expect(league.teams).toHaveLength(420);
     // Every competition still has its own club count after the swap — divisions
@@ -89,6 +96,21 @@ describe("world integration (generateWorld through the real season/offseason pip
       if (beforeCompByTid.get(t.tid) !== t.compId) anySwapped = true;
     }
     expect(anySwapped).toBe(true);
+
+    // Every playoff winner is a club that actually went up, and the record is
+    // copied onto the season it decided and cleared off the live field — the
+    // two halves of "transient, not history". If the winner were ever left in
+    // the second division the world would still balance (someone else went up
+    // in his place), so this is the assertion that catches a swap that ignored
+    // the playoff.
+    const compAfter = new Map(league.teams.map((t) => [t.tid, t.compId]));
+    for (const p of playoffs) {
+      expect(p.winnerTid).not.toBeNull();
+      expect(compAfter.get(p.winnerTid!)).toBe(p.d1CompId);
+    }
+    expect(league.promotionPlayoffs).toHaveLength(0);
+    const archived = league.seasonHistory.at(-1)!.promotionPlayoffs;
+    expect(archived).toEqual(playoffs);
   });
 
   it("the Division-2 ceiling sweep moves a qualifying player to tier 1 in ANY country, not just England", () => {

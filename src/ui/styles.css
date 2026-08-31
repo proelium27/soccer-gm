@@ -322,6 +322,32 @@ a:hover {
   margin-top: 0.35rem;
 }
 
+/* God Mode's section of the nav, in the same warn-gold the God Mode toggle and
+   every guardrail-free button already use. Every other link in this column is
+   ordinary football; this one ignores fees, budgets, the roster cap and the
+   depth floor, and it is the only place a save can be edited into a state the
+   sim would never produce. Colouring it says that from every screen rather than
+   only once you have opened it, and it reuses the existing accent rather than
+   introducing a second yellow. The section only renders while God Mode is on,
+   so it can't shout at a player who never turned it on. */
+.sidebar .nav-section--god {
+  color: var(--sg-warn);
+}
+.sidebar .nav-link--god {
+  color: var(--sg-warn);
+}
+.sidebar .nav-link--god:hover {
+  color: var(--sg-warn);
+  /* Lighter than --sg-warn-wash: that is the *active* fill, and matching it on
+     hover would make a hovered link look like the page you are already on. */
+  background-color: oklch(0.80 0.13 80 / 0.10);
+}
+.sidebar .nav-link--god.active {
+  color: var(--sg-warn);
+  background-color: var(--sg-warn-wash);
+  border-left-color: var(--sg-warn);
+}
+
 /* Detached scrolling. Above the drawer breakpoint the nav column pins itself
    under the top bar and scrolls its own overflow, so the page's scroll no
    longer drags the nav out of view: the nav is ~1290px of links against a
@@ -545,6 +571,66 @@ a:hover {
   box-shadow: inset 2px 0 0 var(--sg-green);
 }
 
+/* Two columns of rows once the page is wide enough to hold them, on the club
+   and nation pickers of the New League screen. A top flight runs to 20 clubs,
+   which stacked one per line is most of a screen of scrolling, while a row at
+   that page's desktop width holds a crest and a short name with half its
+   length left over. Below the breakpoint the page is a single narrow column
+   anyway, so it stays the stock stacked list.
+
+   The frame moves to the container and the rows keep only the rules between
+   them, so this stays one surface divided up rather than a field of separate
+   boxes: rounding and outlining each row turns a list into a card grid, which
+   is the wrong component and reads as a different app next to the joined
+   segmented controls above it. */
+@media (min-width: 768px) {
+  .picker-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border: 1px solid var(--sg-border);
+    border-radius: var(--sg-radius);
+    /* Clips the square-cornered rows to the frame's corners. The nation list
+       sets overflow-y inline to stay scrollable, which wins over this
+       shorthand for that axis alone and leaves the horizontal clip intact. */
+    overflow: hidden;
+  }
+  .picker-columns > .list-group-item {
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid var(--sg-border);
+  }
+  /* Row-major flow, so the odd children are the left column: that is where the
+     rule between the two columns goes, and the top pair sits against the
+     frame with nothing to be divided from. */
+  .picker-columns > .list-group-item:nth-child(odd) {
+    border-right: 1px solid var(--sg-border);
+  }
+  .picker-columns > .list-group-item:nth-child(-n + 2) {
+    border-top: 0;
+  }
+  /* A row that is a message rather than a choice (the nation list's no-match
+     line) takes the full width, so it can't be mistaken for one of a pair. */
+  .picker-columns > .picker-columns-full {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+  /* An outline is painted outside the element and the frame above clips what
+     leaves it, so a row against any edge would show half a focus ring. Drawn
+     inside the row instead, where nothing can crop it. */
+  .picker-columns > .list-group-item:focus-visible {
+    outline: 2px solid var(--sg-green-bright);
+    outline-offset: -2px;
+  }
+}
+
+/* The New League page is wider than a line of text wants to be, and the
+   controls on it are full-width bars, so nothing else holds its prose to a
+   readable measure. Every explanation on the page is one of these paragraphs,
+   so capping them here beats tagging each one. */
+.new-league-page p {
+  max-width: 74ch;
+}
+
 /* =========================================================================
    Cards & surfaces — flat, tonal, no drop shadow by default.
    ========================================================================= */
@@ -620,6 +706,55 @@ a:hover {
 .btn-link {
   --bs-btn-color: var(--sg-green-bright);
   --bs-btn-hover-color: var(--sg-green-hover);
+}
+
+/* =========================================================================
+   Segmented pickers — a row of joined buttons where one is chosen, as on New
+   League (difficulty, country, division).
+   =========================================================================
+   These are .btn-outline-secondary, which is the one outline variant never
+   themed, so they came out in stock Bootstrap: a #6c757d outline at rest and
+   a solid #6c757d fill with #fff text when picked. That is the Bootstrap
+   default look PRODUCT.md names as an anti-reference, it breaks the rule
+   against #fff and untinted neutrals, and on New League it put two different
+   "this one is selected" languages on one screen, since the list pickers
+   below already answer that question in green.
+
+   Scoped to a class rather than fixing .btn-outline-secondary itself: 23
+   files use that class, nearly all for ordinary Cancel-and-secondary
+   actions, and a picked-segment treatment is wrong for those.
+
+   A picked segment takes the same green wash the list rows take, plus an
+   edge marker, rather than a solid green fill: solid green is the primary
+   action (Start League sits at the bottom of this very page) and a segmented
+   control saying "Normal" must not outshout it. The marker runs along the
+   bottom, where a row of tabs reads it as an indicator, rather than the
+   leading edge a stacked list row uses. */
+/* Sized to their labels rather than stretched across the page. Bootstrap grows
+   every child of a .btn-group (flex: 1 1 auto), which on a 900px page turned
+   four difficulty choices into four 235px slabs. Wrapping is what makes
+   dropping the stretch safe at any width: without it a long division name on a
+   phone would push the group off the side of the screen instead of onto a
+   second line. */
+.segmented {
+  flex-wrap: wrap;
+}
+.segmented > .btn {
+  flex: 0 0 auto;
+  --bs-btn-color: var(--sg-text-muted);
+  --bs-btn-border-color: var(--sg-border);
+  --bs-btn-bg: transparent;
+  --bs-btn-hover-bg: var(--sg-surface-2);
+  --bs-btn-hover-border-color: var(--sg-border);
+  --bs-btn-hover-color: var(--sg-text);
+  --bs-btn-active-bg: var(--sg-green-wash);
+  --bs-btn-active-border-color: var(--sg-border);
+  --bs-btn-active-color: var(--sg-green-bright);
+  --bs-btn-active-shadow: none;
+}
+.segmented > .btn.active {
+  font-weight: var(--sg-weight-semibold);
+  box-shadow: inset 0 -2px 0 var(--sg-green);
 }
 
 /* Scouting-spend slider tracks the brand. */

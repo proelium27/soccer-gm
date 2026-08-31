@@ -107,6 +107,51 @@ export const DIVISION_2_REFUSAL_OVR_THRESHOLD = 70;
 export const PROMOTION_RELEGATION_COUNT = 3;
 
 /**
+ * How many semi-finals a promotion playoff has, i.e. it is contested by twice
+ * this many clubs. Two (a four-club bracket) is the English shape and the only
+ * one the code seeds; changing it changes how many places below the automatic
+ * ones are worth playing for, and `promotionPlayoffFields` will simply seat
+ * that many clubs — but nothing else has been measured at another value.
+ */
+export const PROMOTION_PLAYOFF_SEMI_FINALS = 2;
+
+/**
+ * How a country decides its last promotion place.
+ *
+ *  - `english` — the top N-1 go up on the table and the four clubs below them
+ *    contest two-legged semi-finals and a neutral-ground final for the last
+ *    place. Self-contained in tier 2: no top-flight club is at risk.
+ *  - `german` — N-1 go up **and** N-1 go down on the table, then tier 2's next
+ *    club plays tier 1's lowest safe club over two legs for the remaining
+ *    place. A top-flight club can save itself, and when it does, one fewer club
+ *    goes up *and* one fewer goes down — so the divisions still balance.
+ *  - `none` — the straight top-N/bottom-N swap, which is how the game worked
+ *    before playoffs existed.
+ */
+export type PlayoffFormat = "english" | "german" | "none";
+
+/**
+ * What each shipped country plays, absent a per-league override.
+ *
+ * These are the real systems: the Bundesliga settles its last place with a
+ * relegation playoff against 2. Bundesliga's third, while the rest of the
+ * shipped world runs the English four-club bracket. Anything not listed falls
+ * back to `DEFAULT_PLAYOFF_FORMAT`, which covers every country a player invents.
+ *
+ * A country promoting fewer than two clubs has no automatic place to sit below,
+ * so `english` is not available to it and `promotionPlayoffFields` returns no
+ * bracket — Scotland promotes one and is listed as `none` to say so plainly
+ * rather than relying on that fallback.
+ */
+export const COUNTRY_PLAYOFF_FORMAT: Record<string, PlayoffFormat> = {
+  Germany: "german",
+  Scotland: "none",
+};
+
+/** What a country not in COUNTRY_PLAYOFF_FORMAT plays, including invented ones. */
+export const DEFAULT_PLAYOFF_FORMAT: PlayoffFormat = "english";
+
+/**
  * The most clubs an added league can be set to promote and relegate. Held below
  * half that league's own division size as well (see WorldSetup), so the ceiling
  * that actually applies is often lower — this is the point past which the number
@@ -3864,3 +3909,91 @@ export const MANAGER_REP_SEASON_WEIGHT = 0.8;
 /** Seasons past this stop adding experience credit — longevity isn't a career on its own. */
 export const MANAGER_REP_SEASON_CAP = 15;
 export const MANAGER_REP_SACKING_PENALTY = 8;
+
+// --- National team management -------------------------------------------
+//
+// The federation's counterpart to the club board above. Deliberately a second
+// set of constants rather than a reuse of the MANAGER_* block: the two jobs are
+// judged on different things at different cadences (a club board rules once a
+// season, a federation once per campaign, which is three times in a four-year
+// cycle at most), and folding them together would mean a club-side retune
+// silently moving who gets sacked by their country. Same argument, and the same
+// answer, as WORLD_AWARD_OVR_WEIGHT next to AWARD_OVR_WEIGHT.
+
+/** Federation confidence a new appointment starts on, 0-100. */
+export const NATIONAL_START_CONFIDENCE = 65;
+
+/**
+ * How far confidence moves for a whole field's worth of over- or
+ * underachievement — the national twin of MANAGER_CONFIDENCE_SWING.
+ *
+ * Lower than the club figure (70) on purpose. A federation judges roughly three
+ * times per four-year cycle where a board judges four times, but the *spread* of
+ * a tournament result is far wider than a league finish: a 32-nation field means
+ * one bad draw can cost a favourite two thirds of the field in placement terms,
+ * where a league season regresses to the squad over 38 games. At the club swing
+ * a single group-stage exit would end most reigns outright.
+ */
+export const NATIONAL_CONFIDENCE_SWING = 46;
+
+/** Confidence drifts this far back toward NATIONAL_START_CONFIDENCE per verdict. */
+export const NATIONAL_CONFIDENCE_RECOVERY = 0.1;
+
+/** Winning the World Cup. The one unambiguous triumph in international football. */
+export const NATIONAL_TITLE_CONFIDENCE = 40;
+/** Winning your confederation's championship (the Euro, Copa América, AFCON…). */
+export const NATIONAL_CONTINENTAL_CONFIDENCE = 22;
+/**
+ * Reaching the World Cup finals at all. Flat, not scaled by demand: qualifying
+ * is the job for most of the world, and damping it toward nothing for a strong
+ * nation would leave the campaign that decides your whole cycle worth nothing.
+ */
+export const NATIONAL_QUALIFICATION_CONFIDENCE = 14;
+/** Missing out. The single worst thing that can happen to an international manager. */
+export const NATIONAL_MISSED_QUALIFICATION_CONFIDENCE = -22;
+
+/** A demanding federation amplifies failure and damps success, exactly as a big club's board does. */
+export const NATIONAL_DEMAND_PENALTY_SCALE = 0.8;
+export const NATIONAL_DEMAND_REWARD_DAMPING = 0.45;
+
+/**
+ * Campaigns you must have seen through before the federation can dismiss you.
+ * Two rather than the club board's one: a cycle's first campaign is qualifying,
+ * and being sacked before you have managed a single tournament is no test at all.
+ */
+export const NATIONAL_GRACE_CAMPAIGNS = 2;
+/** Confidence at or below this ends the appointment. */
+export const NATIONAL_SACK_THRESHOLD = 0;
+
+/** How many nations will approach you at once. */
+export const NATIONAL_MAX_OFFERS = 4;
+/** How far from your reputation a nation can sit and still come calling, [0,1]. */
+export const NATIONAL_OFFER_BAND = 0.25;
+/**
+ * Per-nation chance of an approach in any given offseason while you already
+ * hold a national job. Deliberately low: international jobs turn over slowly,
+ * and a fresh list every summer would make the appointment feel weightless.
+ */
+export const NATIONAL_OFFER_BASE_CHANCE = 0.14;
+/**
+ * The same chance for a manager with no nation. Much higher, because this is the
+ * only route back in — an unemployed international manager who is never
+ * approached has simply lost the feature.
+ */
+export const NATIONAL_OFFER_UNEMPLOYED_CHANCE = 0.55;
+/** How much last campaign's over-performance moves that chance. */
+export const NATIONAL_OFFER_FORM_WEIGHT = 0.7;
+export const NATIONAL_OFFER_MAX_CHANCE = 0.85;
+/** Losing a job drops the calibre of nation that will take you next. */
+export const NATIONAL_SACKED_PRESTIGE_PENALTY = 0.2;
+
+/** Reputation as an international manager, 0-100, derived from the stint record. */
+export const NATIONAL_REP_BASE = 30;
+export const NATIONAL_REP_TITLE_WEIGHT = 22;
+export const NATIONAL_REP_CONTINENTAL_WEIGHT = 11;
+export const NATIONAL_REP_QUALIFICATION_WEIGHT = 3;
+export const NATIONAL_REP_OVERPERFORMANCE_WEIGHT = 8;
+export const NATIONAL_REP_CAMPAIGN_WEIGHT = 1.2;
+/** Campaigns past this stop adding experience credit. */
+export const NATIONAL_REP_CAMPAIGN_CAP = 12;
+export const NATIONAL_REP_SACKING_PENALTY = 9;

@@ -13,13 +13,15 @@ import { Flag } from "./Flag.js";
  * sanitizeNationalityWeights drops it on the way in besides, for tables that
  * arrive from a hand-edited roster file rather than from this control.
  */
-const PICKABLE = [
+export const PICKABLE_NATIONALITIES = [
   ...new Set([
     ...Object.keys(NATIONALITIES),
     ...Object.keys(OTHER_NATIONS),
     ...Object.keys(UNLISTED_NATIONALITIES),
   ]),
 ].sort((a, b) => a.localeCompare(b));
+
+const PICKABLE = PICKABLE_NATIONALITIES;
 
 /**
  * The table a league starts with when nobody has touched it: everything in the

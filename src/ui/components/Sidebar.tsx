@@ -21,6 +21,7 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
       <NavLink to="/cup" className="nav-link" onClick={onNavigate}>Continental Cup</NavLink>
       <NavLink to="/shield" className="nav-link" onClick={onNavigate}>Continental Shield</NavLink>
       <NavLink to="/domestic-cup" className="nav-link" onClick={onNavigate}>Domestic Cup</NavLink>
+      <NavLink to="/promotion-playoffs" className="nav-link" onClick={onNavigate}>Promotion Playoffs</NavLink>
       <NavLink to="/power-rankings" className="nav-link" onClick={onNavigate}>Power Rankings</NavLink>
       <NavLink to="/schedule" className="nav-link" onClick={onNavigate}>Schedule</NavLink>
       <NavLink to="/leaders" className="nav-link" onClick={onNavigate}>Stat Leaders</NavLink>
@@ -43,6 +44,9 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
       <NavLink to="/academy" className="nav-link" onClick={onNavigate}>Academy</NavLink>
 
       <div className="nav-section">National Teams</div>
+      <NavLink to="/national-teams/my-squad" className="nav-link" onClick={onNavigate}>My Squad</NavLink>
+      <NavLink to="/national-teams/player-pool" className="nav-link" onClick={onNavigate}>Player Pool</NavLink>
+      <NavLink to="/national-teams/federation" className="nav-link" onClick={onNavigate}>Federation</NavLink>
       <NavLink to="/national-teams/world-cup" className="nav-link" onClick={onNavigate}>World Cup</NavLink>
       <NavLink to="/national-teams/qualifying" className="nav-link" onClick={onNavigate}>Qualifying</NavLink>
       <NavLink to="/national-teams/confederation-cups" className="nav-link" onClick={onNavigate}>Confederation Cups</NavLink>
@@ -54,8 +58,8 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
 
       {league?.godMode && (
         <>
-          <div className="nav-section">God Mode</div>
-          <NavLink to="/god-mode" className="nav-link" onClick={onNavigate}>Sandbox Tools</NavLink>
+          <div className="nav-section nav-section--god">God Mode</div>
+          <NavLink to="/god-mode" className="nav-link nav-link--god" onClick={onNavigate}>Sandbox Tools</NavLink>
         </>
       )}
 

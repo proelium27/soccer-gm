@@ -13,11 +13,18 @@ import { SCOUTING_SPEND_MAX, RATING_LEADER_QUALIFY_FRACTION } from "../../core/c
 import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
 import { domesticFinalists } from "../../core/domesticCup/cup.js";
-import { isIntlStagePending, roundsRemaining } from "../../core/international/index.js";
+import { isIntlStagePending, editableSquad } from "../../core/international/index.js";
+import {
+  intlStageButton,
+  intlStageHeadline,
+  intlStageLink,
+  intlStageSkipLabel,
+  intlStageThroughLabel,
+  type PlayableStage,
+} from "../intlStageLabels.js";
 import { confidenceMood, confidenceLabel } from "../../core/manager/confidence.js";
 import { cachedExpectations } from "../../core/manager/expectation.js";
-import type { IntlConfederationCup, IntlTournament } from "../../core/international/index.js";
-import { INTL_TOURNAMENT_NAME, INTL_QUAL_LEGS, qualifyingLeg } from "../../core/constants.js";
+import { qualifyingLeg } from "../../core/constants.js";
 
 /** Bootstrap bar colour per board mood — kept beside the Manager page's copy of the same map. */
 const BOARD_MOOD_CLASS: Record<string, string> = {
@@ -26,11 +33,11 @@ const BOARD_MOOD_CLASS: Record<string, string> = {
   uneasy: "bg-warning",
   danger: "bg-danger",
 };
-import type { IntlStage } from "../../core/international/index.js";
 import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { unpackPositionChange } from "../../core/newsEvents.js";
 import { seasonAwardNews } from "../../core/awardNews.js";
 import { trophyNewsBySeason } from "../../core/trophyNews.js";
+import { promotionNewsBySeason } from "../../core/promotionNews.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { currency, ordinal, seasonYear } from "../format.js";
 import { Flag } from "../components/Flag.js";
@@ -38,118 +45,41 @@ import { ClubCrest } from "../components/ClubCrest.js";
 import type { Player, SeasonStats } from "../../core/players/types.js";
 import { isSuspended, matchesLabel } from "../../core/suspensions.js";
 
-/** A pending staged international stage — every IntlStage that still has play left. */
-type PlayableStage = Exclude<IntlStage, null | "done">;
-
-/** True for either of the confederation cup stages. */
-function isConfederationCupStage(stage: IntlStage): boolean {
-  return stage === "confederation-groups" || stage === "confederation-ko";
-}
-
-/** Where the "follow it here" link points for the stage being played. */
-function intlStageLink(stage: PlayableStage): string {
-  if (stage === "qualifying") return "/national-teams/qualifying";
-  if (isConfederationCupStage(stage)) return "/national-teams/confederation-cups";
-  return "/national-teams/world-cup";
-}
-
 /**
- * The confederation cups this offseason is staging, written out as prose
- * ("the European Championship, Copa América and the Africa Cup of Nations").
- * Empty string when there are none.
- */
-function confederationCupLabel(tournaments: IntlConfederationCup[]): string {
-  const names = tournaments.map((t) => t.name);
-  if (names.length === 0) return "";
-  if (names.length === 1) return names[0];
-  return `${names.slice(0, -1).join(", ")} and the ${names[names.length - 1]}`;
-}
-
-/**
- * What to call a knockout round that has `roundsLeft` rounds still to play,
- * counting backwards from the final. Backwards because bracket depth varies —
- * four rounds for the World Cup's 32-nation field, three for a 16-nation
- * confederation cup, one for a tournament that is only a final — so a round's
- * name follows from how much is left, never from a fixed position.
- */
-function knockoutRoundName(roundsLeft: number): string {
-  if (roundsLeft >= 4) return "round of 16";
-  if (roundsLeft === 3) return "quarterfinals";
-  if (roundsLeft === 2) return "semifinals";
-  return "final";
-}
-
-/**
- * What the next confederation cup knockout stage is called. The cups are
- * aligned on their finals (see core/international/confederationCup.ts), so the
- * round is however many the deepest one has left — and since several finish
- * together the last one is plural: "the finals", not "the final".
- */
-function confederationCupRoundName(tournaments: IntlConfederationCup[]): string {
-  const name = knockoutRoundName(Math.max(0, ...tournaments.map(roundsRemaining)));
-  return name === "final" ? "finals" : name;
-}
-
-/** What the next World Cup knockout round is called, read off its own bracket. */
-function worldCupRoundName(tournament: IntlTournament | null): string {
-  return knockoutRoundName(tournament ? roundsRemaining(tournament) : 1);
-}
-
-/** The button label for playing the next staged international stage. `qualRound` is 1-based. */
-function intlStageButton(
-  stage: PlayableStage,
-  qualRound: number,
-  confederationCups: IntlConfederationCup[],
-  tournament: IntlTournament | null,
-): string {
-  switch (stage) {
-    case "qualifying":
-      return `Play qualifying (round ${qualRound} of ${INTL_QUAL_LEGS})`;
-    case "groups":
-      return "Play the group stage";
-    case "knockout":
-      return `Play the ${worldCupRoundName(tournament)}`;
-    case "confederation-groups":
-      return "Play the group stage";
-    case "confederation-ko":
-      return `Play the ${confederationCupRoundName(confederationCups)}`;
-  }
-}
-
-/**
- * A one-line status for the staged international campaign on the Dashboard.
+ * One job's standing, as a single line: who you answer to, a thin bar, and
+ * where you stand with them.
  *
- * The World Cup knockout is one repeating stage, so its line is built from the
- * bracket rather than written per round: the lead-in comes from whether any tie
- * has been played yet, which stays true whatever depth the bracket is (an old
- * save mid-tournament still has the three-round one).
+ * Both meters share this so the club board and the federation can't drift into
+ * looking like two different things — they are the same relationship from two
+ * chairs, and the Manager and Federation pages already mirror each other.
+ *
+ * `value` null means there is no bar to draw: a manager being courted by
+ * countries while managing none has a standing with nobody, and a meter sitting
+ * at its starting value would invent one.
  */
-function intlStageHeadline(
-  stage: PlayableStage,
-  qualRound: number,
-  confederationCups: IntlConfederationCup[],
-  tournament: IntlTournament | null,
-): string {
-  switch (stage) {
-    case "qualifying":
-      return qualRound < INTL_QUAL_LEGS
-        ? `World Cup qualifying is on, round ${qualRound} of ${INTL_QUAL_LEGS}. Play it to move the campaign along.`
-        : `The final round of World Cup qualifying, ${qualRound} of ${INTL_QUAL_LEGS}. Play it to lock in who reaches the finals.`;
-    case "groups":
-      return `The ${INTL_TOURNAMENT_NAME} is here. Play the group stage to get things underway.`;
-    case "knockout": {
-      const round = worldCupRoundName(tournament);
-      if (round === "final") return "Two nations left. It's the final.";
-      const lead = (tournament?.ties.length ?? 0) === 0 ? "The group stage is done. " : "";
-      return `${lead}The ${round} ${round === "round of 16" ? "is" : "are"} next.`;
-    }
-    case "confederation-groups":
-      return `Qualifying is done for the summer. Now for the ${confederationCupLabel(confederationCups)}: play the group stage to get things underway.`;
-    case "confederation-ko":
-      return confederationCupRoundName(confederationCups) === "finals"
-        ? "Every cup is down to two. The finals are next."
-        : `The ${confederationCupRoundName(confederationCups)} are next.`;
-  }
+function ConfidenceLine({ label, mood, value, note, to }: {
+  label: string;
+  mood: string;
+  value: number | null;
+  note: string;
+  to: string;
+}) {
+  return (
+    <div className="d-flex align-items-center gap-2">
+      <Link to={to} className="small text-body text-decoration-none flex-shrink-0">{label}</Link>
+      {value !== null && (
+        <div className="progress flex-grow-1" style={{ height: 4, minWidth: 40 }}>
+          <div
+            className={`progress-bar ${BOARD_MOOD_CLASS[mood] ?? "bg-secondary"}`}
+            style={{ width: `${Math.round(value)}%` }}
+          />
+        </div>
+      )}
+      <span className={`small text-nowrap ${value === null ? "flex-grow-1" : "flex-shrink-0"} text-muted`}>
+        {note}
+      </span>
+    </div>
+  );
 }
 
 const STANDINGS_TOP_N = 8;
@@ -330,16 +260,34 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
       ...(trophies.get(league.season) ?? []),
     ];
 
+    // The promotion playoffs the season just ended decided. They live on
+    // `promotionPlayoffs` only between the final whistle and the advance, and
+    // are stamped with the season that has just finished — so during the
+    // offseason that is `league.season`, and once the clock has moved on the
+    // record has moved to the history entry and this is empty. Either way the
+    // panel shows it beside the trophies, which ride the rollover the same way.
+    const promotions = promotionNewsBySeason([
+      ...league.promotionPlayoffs,
+      ...(league.played.length === 0
+        ? (league.seasonHistory.find((h) => h.season === league.season - 1)?.promotionPlayoffs ?? [])
+        : []),
+    ]);
+    const shownPromotions = [
+      ...(promotions.get(league.season) ?? []),
+      ...(promotions.get(league.season - 1) ?? []),
+    ];
+
     const newsTimeline = buildSeasonTimeline(currentSeasonTransfers, currentSeasonEvents, {
       userTid,
       userCompId: comps[userTid],
       compOf: (tid) => comps[tid],
-    }, lastSeasonHonours, shownTrophies);
+    }, lastSeasonHonours, shownTrophies, [], shownPromotions);
     return [...newsTimeline].slice(-NEWS_TOP_N).reverse();
   }, [
     league.transfers, league.newsEvents, league.season, league.played,
     league.meta.userTid, league.teams, league.seasonHistory,
     league.cup, league.cupHistory, league.shield, league.shieldHistory, league.international,
+    league.promotionPlayoffs,
   ]);
 
   const teamByTid = useMemo(() => new Map(league.teams.map((t) => [t.tid, t])), [league.teams]);
@@ -383,6 +331,12 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
         ? teamByTid.get(t.tid)?.name ?? "A club"
         : t.nation ?? "A nation";
       return <>{winner} win the {t.name}</>;
+    }
+    if (item.kind === "promotion") {
+      const p = item.data;
+      const up = teamByTid.get(p.tid)?.name ?? "A club";
+      const beaten = teamByTid.get(p.runnerUpTid)?.name ?? "the other finalist";
+      return <>{up} win the promotion playoff final {p.score} against {beaten}</>;
     }
     if (item.kind === "award") {
       const a = item.data;
@@ -489,7 +443,10 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
       .sort((a, b) => b.suspension!.matchesRemaining - a.suspension!.matchesRemaining);
   }, [league.players, userTeam.roster]);
 
-  const disableSim = simming || league.phase === "offseason";
+  // The matchday buttons only render in season now (the Simulation card
+  // swaps to the offseason controls otherwise), so a sim in flight is the
+  // only thing left to disable them for.
+  const disableSim = simming;
   const boardMood = confidenceMood(league.manager.confidence, league.manager.sackingEnabled);
   // Memoized on the league object (fresh per commit), since the expectation pass
   // walks every club in the world.
@@ -497,6 +454,12 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
     () => cachedExpectations(league).get(league.meta.userTid) ?? null,
     [league],
   );
+  const nationMood = confidenceMood(
+    league.nationalManager.confidence, league.nationalManager.sackingEnabled,
+  );
+  // Your country is in the campaign this stage belongs to, so there is a team to
+  // pick before the next click plays it.
+  const myNationPlaying = editableSquad(league.international, league.nationalManager.nation) !== null;
   // The matchday the club is standing on, and the last one left this season —
   // the bounds the "sim to matchday" box accepts.
   const nextMd = nextMatchday(league);
@@ -507,12 +470,62 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
   return (
     <div className="container-fluid p-3">
       {/* Team header */}
+      {/*
+        The club, and beside it how your two employers rate you.
+
+        Here rather than in a card of their own because that is what these are:
+        a property of the job, read at a glance on the way past, not a section.
+        Up at the top rather than at the foot of the page because the whole point
+        of a visible meter is that trouble is something you watch build — at the
+        bottom you meet it on the way out, which is too late to be a warning.
+      */}
       <div className="card mb-3">
         <div className="card-body">
-          <h4 className="card-title d-flex align-items-center gap-2">
-            <ClubCrest tid={userTeam.tid} colors={userTeam.colors} size={32} />
-            {userTeam.name}
-          </h4>
+          <div className="d-flex flex-wrap align-items-center gap-3">
+            <h4 className="card-title d-flex align-items-center gap-2 mb-0">
+              <ClubCrest tid={userTeam.tid} colors={userTeam.colors} size={32} />
+              {userTeam.name}
+            </h4>
+            <div className="d-flex flex-wrap gap-3 ms-auto">
+              {/*
+                The note carries where the board expects you to finish, kept
+                from the larger card this line replaced. An offer to leave is
+                the more urgent thing to say in the same space, so it takes the
+                slot whenever there is one.
+              */}
+              <div style={{ minWidth: 190 }}>
+                <ConfidenceLine
+                  label="Board"
+                  mood={boardMood}
+                  value={league.manager.confidence}
+                  to="/manager"
+                  note={league.manager.offers.length > 0
+                    ? `${league.manager.offers.length} club${league.manager.offers.length === 1 ? "" : "s"} want you`
+                    : boardExpectation
+                      ? `${confidenceLabel(boardMood)} · ${ordinal(boardExpectation.expectedRank)} of ${boardExpectation.clubs} expected`
+                      : confidenceLabel(boardMood)}
+                />
+              </div>
+              {/*
+                Only when there is a country or somebody asking: a manager who
+                has never taken an international job should not be shown a meter
+                for a job they don't have.
+              */}
+              {(league.nationalManager.nation || league.nationalManager.offers.length > 0) && (
+                <div style={{ minWidth: 190 }}>
+                  <ConfidenceLine
+                    label={league.nationalManager.nation ?? "Federation"}
+                    mood={nationMood}
+                    value={league.nationalManager.nation ? league.nationalManager.confidence : null}
+                    to="/national-teams/federation"
+                    note={league.nationalManager.offers.length > 0
+                      ? `${league.nationalManager.offers.length} countr${league.nationalManager.offers.length === 1 ? "y wants" : "ies want"} you`
+                      : confidenceLabel(nationMood)}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -539,60 +552,169 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
         </div>
       )}
 
-      {/* Sim controls */}
+      {/* Sim controls. Phase-aware: in season these play matchdays, in the
+          offseason they play the offseason, so the buttons that move time
+          forward always sit in the same card instead of moving down the page
+          when the season ends. */}
       <div className="card mb-3">
         <div className="card-body">
           <h5 className="card-title">Simulation</h5>
-          {/* One row: the fixed jumps and the live viewer, then the
-              pick-your-own control, so the card doesn't leave a band of empty
-              space to their right. */}
-          <div className="d-flex align-items-start gap-2 flex-wrap">
-            <button
-              className="btn btn-primary"
-              disabled={disableSim}
-              onClick={() => simAction("game")}
-            >
-              Sim One Game
-            </button>
-            {/*
-              Same matchday, watched instead of skipped. Deliberately its own
-              button rather than a saved preference: watching is a mood, and
-              a setting you have to go and flip is worse than a second button
-              you can ignore.
-            */}
-            <button
-              className="btn btn-primary"
-              disabled={disableSim}
-              title="Watch your club's match play out minute by minute"
-              onClick={() => simLiveAction()}
-            >
-              Watch Next Game
-            </button>
-            <button
-              className="btn btn-primary"
-              disabled={disableSim}
-              onClick={() => simAction("season")}
-            >
-              Sim to End of Season
-            </button>
-            {nextMd !== null && lastMd !== null && (
-              <SimTargetForm
-                current={nextMd}
-                last={lastMd}
-                disabled={disableSim}
-                onSim={(matchday) => simAction({ matchday })}
-              />
-            )}
-          </div>
+          {league.phase === "offseason" ? (
+            <>
+              {league.manager.sacked ? (
+                <>
+                  <p className="card-text">
+                    The board has seen enough. You're out of a job, and the season
+                    can't move on until you've found a new one.
+                  </p>
+                  <button className="btn btn-danger" onClick={() => navigate("/manager")}>
+                    See who'll have you
+                  </button>
+                </>
+              ) : isIntlStagePending(league.international) ? (
+                <>
+                  <p className="card-text">
+                    {intlStageHeadline(
+                      league.international.stage as PlayableStage,
+                      qualifyingLeg(league.season) + 1,
+                      league.international.confederationCups,
+                      league.international.tournament,
+                    )}{" "}
+                    Follow it on the{" "}
+                    <Link to={intlStageLink(league.international.stage as PlayableStage)}>
+                      National Teams
+                    </Link>{" "}
+                    pages. You'll advance to {seasonYear(league.season + 1)} once it wraps up, or you
+                    can skip it and go straight to the offseason.
+                  </p>
+                  {/*
+                    Your own country is in this one, so there is a team to pick
+                    before the next click plays it. Placed here rather than left
+                    to the sidebar because the stage button is the thing about to
+                    make the decision permanent.
+                  */}
+                  {myNationPlaying && (
+                    <p className="card-text">
+                      <strong>{league.nationalManager.nation}</strong> are in it, and you pick
+                      the team.{" "}
+                      <Link to="/national-teams/my-squad">Name your squad</Link> before you
+                      play the next round.
+                    </p>
+                  )}
+                  <div className="d-flex flex-wrap gap-2">
+                    <button
+                      className="btn btn-primary"
+                      disabled={simming}
+                      onClick={() => intlStageAction("stage")}
+                    >
+                      {intlStageButton(
+                        league.international.stage as PlayableStage,
+                        qualifyingLeg(league.season) + 1,
+                        league.international.confederationCups,
+                        league.international.tournament,
+                      )}
+                    </button>
+                    {league.international.stage !== "qualifying" && (
+                      <button
+                        className="btn btn-outline-primary"
+                        disabled={simming}
+                        onClick={() => intlStageAction("through")}
+                      >
+                        {intlStageThroughLabel(league.international.stage as PlayableStage)}
+                      </button>
+                    )}
+                    {/*
+                      Skip: go straight to the offseason without watching any of
+                      this. Nothing is thrown away — the advance itself plays out
+                      every stage the user left unplayed (simOffseason opens with
+                      simThroughInternational), on the same seeded streams, so the
+                      results are identical to having clicked through them and are
+                      waiting on the National Teams pages afterwards.
+                    */}
+                    <button
+                      className="btn btn-outline-secondary"
+                      disabled={simming}
+                      onClick={() => navigate("/set-scouting")}
+                    >
+                      {intlStageSkipLabel(league.international.stage as PlayableStage)}
+                    </button>
+                  </div>
+                  <p className="card-text text-muted small mt-2 mb-0">
+                    Skipping still plays the games out, you just don't watch them. The results will be
+                    on the National Teams pages when you get there.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="card-text">
+                    {seasonYear(league.season)} is complete. First you'll set your
+                    scouting budget for the new season, then advancing runs player
+                    progression, retirements, AI free agency, and youth intake, and
+                    starts {seasonYear(league.season + 1)}.
+                  </p>
+                  <button
+                    className="btn btn-success"
+                    disabled={simming}
+                    onClick={() => navigate("/set-scouting")}
+                  >
+                    Advance to {seasonYear(league.season + 1)}
+                  </button>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {/* One row: the fixed jumps and the live viewer, then the
+                  pick-your-own control, so the card doesn't leave a band of empty
+                  space to their right. */}
+              <div className="d-flex align-items-start gap-2 flex-wrap">
+                <button
+                  className="btn btn-primary"
+                  disabled={disableSim}
+                  onClick={() => simAction("game")}
+                >
+                  Sim One Game
+                </button>
+                {/*
+                  Same matchday, watched instead of skipped. Deliberately its own
+                  button rather than a saved preference: watching is a mood, and
+                  a setting you have to go and flip is worse than a second button
+                  you can ignore.
+                */}
+                <button
+                  className="btn btn-primary"
+                  disabled={disableSim}
+                  title="Watch your club's match play out minute by minute"
+                  onClick={() => simLiveAction()}
+                >
+                  Watch Next Game
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={disableSim}
+                  onClick={() => simAction("season")}
+                >
+                  Sim to End of Season
+                </button>
+                {nextMd !== null && lastMd !== null && (
+                  <SimTargetForm
+                    current={nextMd}
+                    last={lastMd}
+                    disabled={disableSim}
+                    onSim={(matchday) => simAction({ matchday })}
+                  />
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/*
-        Jump ahead. Its own card rather than a fifth button in Simulation: that
-        card plays matchdays of the season you're managing and is dead in the
-        offseason, while this hands the club over entirely and works from either
-        phase. Putting them together would make the two read as the same kind of
-        thing, and they are not.
+        Jump ahead. Its own card rather than another button in Simulation: that
+        card advances the season you're managing a step at a time, while this
+        hands the club over to the AI entirely for years. Putting them together
+        would make the two read as the same kind of thing, and they are not.
       */}
       <div className="card mb-3">
         <div className="card-body">
@@ -654,137 +776,6 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
         </div>
       )}
 
-      {/* Offseason */}
-      {/*
-        Board confidence, always on screen rather than tucked away on the Manager
-        page: the whole point of a visible meter is that trouble is something you
-        can see building and act on, not a verdict that arrives out of nowhere.
-      */}
-      <div className="card mb-3">
-        <div className="card-body">
-          <div className="d-flex justify-content-between align-items-baseline mb-2">
-            <h5 className="card-title mb-0">Board confidence</h5>
-            <button
-              className="btn btn-link btn-sm p-0"
-              onClick={() => navigate("/manager")}
-            >
-              {league.manager.offers.length > 0
-                ? `${league.manager.offers.length} club${league.manager.offers.length === 1 ? "" : "s"} want you`
-                : "Manager"}
-            </button>
-          </div>
-          <div className="progress" style={{ height: 8 }}>
-            <div
-              className={`progress-bar ${BOARD_MOOD_CLASS[boardMood] ?? "bg-secondary"}`}
-              style={{ width: `${Math.round(league.manager.confidence)}%` }}
-            />
-          </div>
-          <div className="text-muted small mt-1">
-            {confidenceLabel(boardMood)}
-            {boardExpectation && (
-              <> · they expect around {ordinal(boardExpectation.expectedRank)} of {boardExpectation.clubs}</>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {league.phase === "offseason" && (
-        <div className="card mb-3">
-          <div className="card-body">
-            <h5 className="card-title">Offseason</h5>
-            {league.manager.sacked ? (
-              <>
-                <p className="card-text">
-                  The board has seen enough. You're out of a job, and the season
-                  can't move on until you've found a new one.
-                </p>
-                <button className="btn btn-danger" onClick={() => navigate("/manager")}>
-                  See who'll have you
-                </button>
-              </>
-            ) : isIntlStagePending(league.international) ? (
-              <>
-                <p className="card-text">
-                  {intlStageHeadline(
-                    league.international.stage as PlayableStage,
-                    qualifyingLeg(league.season) + 1,
-                    league.international.confederationCups,
-                    league.international.tournament,
-                  )}{" "}
-                  Follow it on the{" "}
-                  <Link to={intlStageLink(league.international.stage as PlayableStage)}>
-                    National Teams
-                  </Link>{" "}
-                  pages. You'll advance to {seasonYear(league.season + 1)} once it wraps up, or you
-                  can skip it and go straight to the offseason.
-                </p>
-                <div className="d-flex flex-wrap gap-2">
-                  <button
-                    className="btn btn-primary"
-                    disabled={simming}
-                    onClick={() => intlStageAction("stage")}
-                  >
-                    {intlStageButton(
-                      league.international.stage as PlayableStage,
-                      qualifyingLeg(league.season) + 1,
-                      league.international.confederationCups,
-                      league.international.tournament,
-                    )}
-                  </button>
-                  {league.international.stage !== "qualifying" && (
-                    <button
-                      className="btn btn-outline-primary"
-                      disabled={simming}
-                      onClick={() => intlStageAction("through")}
-                    >
-                      Sim through the {isConfederationCupStage(league.international.stage) ? "the cups" : INTL_TOURNAMENT_NAME}
-                    </button>
-                  )}
-                  {/*
-                    Skip: go straight to the offseason without watching any of
-                    this. Nothing is thrown away — the advance itself plays out
-                    every stage the user left unplayed (simOffseason opens with
-                    simThroughInternational), on the same seeded streams, so the
-                    results are identical to having clicked through them and are
-                    waiting on the National Teams pages afterwards.
-                  */}
-                  <button
-                    className="btn btn-outline-secondary"
-                    disabled={simming}
-                    onClick={() => navigate("/set-scouting")}
-                  >
-                    {league.international.stage === "qualifying"
-                      ? "Skip qualifying"
-                      : isConfederationCupStage(league.international.stage)
-                        ? "Skip the cups"
-                        : `Skip the ${INTL_TOURNAMENT_NAME}`}
-                  </button>
-                </div>
-                <p className="card-text text-muted small mt-2 mb-0">
-                  Skipping still plays the games out, you just don't watch them. The results will be
-                  on the National Teams pages when you get there.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="card-text">
-                  {seasonYear(league.season)} is complete. First you'll set your
-                  scouting budget for the new season, then advancing runs player
-                  progression, retirements, AI free agency, and youth intake, and
-                  starts {seasonYear(league.season + 1)}.
-                </p>
-                <button
-                  className="btn btn-success"
-                  disabled={simming}
-                  onClick={() => navigate("/set-scouting")}
-                >
-                  Advance to {seasonYear(league.season + 1)}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Standings | Record + Next Match | News headlines */}
       <div className="row g-3 mb-3">
@@ -968,6 +959,7 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
           <Link to="/leaders" className="small">Full stat leaders</Link>
         </div>
       </div>
+
     </div>
   );
 }

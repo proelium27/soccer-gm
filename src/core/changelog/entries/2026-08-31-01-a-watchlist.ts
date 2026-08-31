@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from "../types.js";
 
 const entry: ChangelogEntry = {
-  date: "2026-08-30",
+  date: "2026-08-31",
   title: "A watchlist, for the players you're keeping an eye on",
   items: [
     "There's a star beside every player's name now: on his profile, in the transfer search, and on the Free Agents and Incoming Talent lists. Click it and he goes on your **Watchlist**, which is a new page under Team in the sidebar.",
