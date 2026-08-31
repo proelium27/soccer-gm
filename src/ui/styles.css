@@ -571,24 +571,64 @@ a:hover {
   box-shadow: inset 2px 0 0 var(--sg-green);
 }
 
-/* Two columns of clubs once the page is wide enough to hold them. A top flight
-   runs to 20 clubs, which stacked one per line is most of a screen of
-   scrolling, while a row at the picker's desktop width holds a crest and a
-   short name with half its length left over. Below the breakpoint the page is
-   a single narrow column anyway, so it stays the stock stacked list. */
+/* Two columns of rows once the page is wide enough to hold them, on the club
+   and nation pickers of the New League screen. A top flight runs to 20 clubs,
+   which stacked one per line is most of a screen of scrolling, while a row at
+   that page's desktop width holds a crest and a short name with half its
+   length left over. Below the breakpoint the page is a single narrow column
+   anyway, so it stays the stock stacked list.
+
+   The frame moves to the container and the rows keep only the rules between
+   them, so this stays one surface divided up rather than a field of separate
+   boxes: rounding and outlining each row turns a list into a card grid, which
+   is the wrong component and reads as a different app next to the joined
+   segmented controls above it. */
 @media (min-width: 768px) {
-  .club-picker-list {
+  .picker-columns {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 2px 0.5rem;
-  }
-  /* A list-group collapses the border between neighbours, which assumes they
-     are stacked: in a grid that edge is no longer shared, so every row carries
-     its own full border and its own corners. */
-  .club-picker-list > .list-group-item {
-    border-top-width: 1px;
+    border: 1px solid var(--sg-border);
     border-radius: var(--sg-radius);
+    /* Clips the square-cornered rows to the frame's corners. The nation list
+       sets overflow-y inline to stay scrollable, which wins over this
+       shorthand for that axis alone and leaves the horizontal clip intact. */
+    overflow: hidden;
   }
+  .picker-columns > .list-group-item {
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid var(--sg-border);
+  }
+  /* Row-major flow, so the odd children are the left column: that is where the
+     rule between the two columns goes, and the top pair sits against the
+     frame with nothing to be divided from. */
+  .picker-columns > .list-group-item:nth-child(odd) {
+    border-right: 1px solid var(--sg-border);
+  }
+  .picker-columns > .list-group-item:nth-child(-n + 2) {
+    border-top: 0;
+  }
+  /* A row that is a message rather than a choice (the nation list's no-match
+     line) takes the full width, so it can't be mistaken for one of a pair. */
+  .picker-columns > .picker-columns-full {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+  /* An outline is painted outside the element and the frame above clips what
+     leaves it, so a row against any edge would show half a focus ring. Drawn
+     inside the row instead, where nothing can crop it. */
+  .picker-columns > .list-group-item:focus-visible {
+    outline: 2px solid var(--sg-green-bright);
+    outline-offset: -2px;
+  }
+}
+
+/* The New League page is wider than a line of text wants to be, and the
+   controls on it are full-width bars, so nothing else holds its prose to a
+   readable measure. Every explanation on the page is one of these paragraphs,
+   so capping them here beats tagging each one. */
+.new-league-page p {
+  max-width: 74ch;
 }
 
 /* =========================================================================

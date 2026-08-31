@@ -600,7 +600,7 @@ export function NewLeague() {
         600 a desktop window was mostly empty either side of it. `.container`
         still goes full width below its own breakpoints, so this only widens
         the page on a screen that has the room. */}
-    <div className="container py-4" style={{ maxWidth: 900 }}>
+    <div className="container py-4 new-league-page" style={{ maxWidth: 900 }}>
       <h2 className="mb-3">{rosterMode ? "Import Custom League" : "New League"}</h2>
       {/*
         The country is deliberately not named here. It used to read "choose your
@@ -708,7 +708,10 @@ export function NewLeague() {
         list, which put two save-wide decisions after the most specific one on
         the page.
       */}
-      <div className="d-flex gap-2 mb-2 flex-wrap align-items-end">
+      {/* Capped rather than left to fill the page: a field's width is a hint at
+          how much to type into it, and a club name in an 800px box reads as
+          the wrong control. */}
+      <div className="d-flex gap-2 mb-2 flex-wrap align-items-end" style={{ maxWidth: 560 }}>
         <div className="flex-grow-1" style={{ minWidth: 190 }}>
           <label
             htmlFor="league-name"
@@ -822,7 +825,7 @@ export function NewLeague() {
             {divisionName(activeCountry, 1)}
           </h6>
         )}
-        <div className="list-group club-picker-list">
+        <div className="list-group picker-columns">
           {shownClubs.map(({ tid, name, colors, squad }) => (
             <button
               key={tid}
@@ -875,10 +878,14 @@ export function NewLeague() {
           flag SVG. Same list-group the club picker above uses, so the two
           choices on this page look like the same kind of choice.
         */}
+        {/* Two columns like the club picker above it. At 340 wide this was a
+            narrow rail with most of the page empty beside it, and the country
+            list is the one place on the page where more rows in view is worth
+            real money: there are over a hundred of them. */}
         <div
-          className="list-group"
+          className="list-group picker-columns"
           ref={nationListRef}
-          style={{ maxWidth: 340, maxHeight: 260, overflowY: "auto" }}
+          style={{ maxHeight: 260, overflowY: "auto" }}
         >
           <button
             type="button"
@@ -899,7 +906,9 @@ export function NewLeague() {
             </button>
           ))}
           {shownNations.length === 0 && (
-            <div className="list-group-item text-muted small">No country by that name.</div>
+            <div className="list-group-item picker-columns-full text-muted small">
+              No country by that name.
+            </div>
           )}
         </div>
         {nationError && (
