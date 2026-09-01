@@ -3465,21 +3465,90 @@ export const DOMESTIC_CUP_MATCHDAYS = [5, 9, 13, 21, 26, 36] as const;
  *
  * At zero the cup pays nothing, `creditPrizes` is never called, no club's budget
  * is touched, and a dynasty is therefore **bit-identical** to one without
- * domestic cups at all — which is what makes shipping the competition itself
- * provably safe. Re-enabling is this one table plus the runner-up below, and
- * needs its own tuning pass measured the same way.
+ * domestic cups at all — which is what made shipping the competition itself
+ * provably safe.
+ *
+ * ── Re-enabled 2026-08-31, at roughly a FIFTH of the numbers above ──────────
+ *
+ * **A real domestic cup is small money, and the rejected attempt was not.** The
+ * whole FA Cup prize fund is ~£16M and winning the thing pays ~£3.9M, against a
+ * Premier League title's merit payment of ~£60M — so a cup win is ~6% of a
+ * league title, not the ~30% the old table's £12M implied against PRIZE_CHAMPION.
+ * Sized on that ratio instead: a winner's run is **~£3.3M** and a country's whole
+ * pot is **~£11.7M** before scaling, against the old ~£62M. The shape roughly
+ * doubles per round, which is also the FA Cup's (£41k → £67.5k → £105k → £120k →
+ * £225k → £450k → £1M → £2M).
+ *
+ * **What actually makes a cup run valuable here is NOT this table**, and that is
+ * true to life: the winner takes a Continental Shield place (see
+ * `allocateContinentalPlaces`), which is worth `SHIELD_PRIZE_PARTICIPATION` plus
+ * a run at more — comfortably more than the trophy's own cheque. The prize money
+ * is a supporting detail, so it is sized like one; anyone re-tuning it upward
+ * should ask whether they actually want the *place* to be worth less by
+ * comparison.
+ *
+ * **Scaled by COUNTRY but deliberately flat across TIERS** — see
+ * `domesticCupScaleFor`, which is why this needs its own scale function rather
+ * than `financeScaleFor`. A domestic cup is sold by domestic broadcasters, so
+ * England's paying more than Serbia's is both realistic and the direction that
+ * keeps the strength ladder safe (it is what the old attempt already got right).
+ * But the FA Cup pays a fourth-tier club exactly what it pays Manchester City
+ * for the same round, and that flatness is the entire financial romance of the
+ * competition: this cup fields both divisions, so a second-division run is the
+ * real-world case, and taxing it by `DIVISION_2_BUDGET_SCALE` would delete the
+ * one thing worth modelling. Safe because `clampBudget` still caps a tier-2
+ * club's savings at the full tier-scaled ceiling, so the money can be spent but
+ * not hoarded, and `enforceDivision2Ceiling` sweeps a strong tier-2 squad
+ * regardless of how it was paid for.
  */
 export const DOMESTIC_CUP_PRIZE_BY_ROUNDS_FROM_FINAL: readonly number[] = [
-  0, // lift the trophy
-  0, // win a semi-final
-  0, // win a quarter-final
-  0, // win a round-of-16 tie
-  0, // win a round-of-32 tie
-  0, // win a preliminary tie
+  1_500_000, // lift the trophy
+  800_000, // win a semi-final
+  500_000, // win a quarter-final
+  300_000, // win a round-of-16 tie
+  175_000, // win a round-of-32 tie
+  90_000, // win a preliminary tie
 ];
 
-/** Runner-up cheque, zero for the same measured reason as the table above. */
-export const DOMESTIC_CUP_PRIZE_RUNNER_UP = 0;
+/**
+ * **Paid to the SMALLER club in any tie between the two divisions, win or lose
+ * (2026-08-31, user call).** The prize table above is what a cup pays; this is
+ * what a cup run is actually *worth* to a second-division club, and without it
+ * the competition is a lottery — measured before it existed, the median tier-2
+ * club that won anything took **0.3% of its season**, while the one or two who
+ * won their cup outright took 20-27% via the Continental Shield place it earns.
+ * One jackpot a year is not the same thing as lower-division clubs being able to
+ * make money, which is what this competition is for.
+ *
+ * Modelled on the one real mechanism that does it: **gate receipts from a
+ * glamour tie.** A lower-league club's cup payday in real football is not the
+ * prize, it is drawing a giant — a full house, the television cameras, and it
+ * pays whether they win or lose, which is why this is credited to both sides of
+ * the result rather than to the winner.
+ *
+ * **Only the smaller club is paid, and that is deliberate rather than a
+ * simplification.** A cup gate is a rounding error to a top-flight club, so
+ * paying both sides would double the money entering the world to buy no
+ * gameplay at all — and this world already runs its poorest leagues within
+ * ~£0.01M of zero (see `DOMESTIC_CUP_PRIZE_BY_ROUNDS_FROM_FINAL`'s audit note).
+ * Targeting the payment is what lets it be large enough to matter.
+ *
+ * Country-scaled and tier-flat like every other domestic cup payment (see
+ * `domesticCupScaleFor`). **A caveat worth keeping:** this game's second
+ * division earns 60% of its top flight (`DIVISION_2_BUDGET_SCALE`) where real
+ * football's earns ~2%, so a realistic cup cheque can never mean to these clubs
+ * what it means to a real one. This lifts a decent run from ~0.3% of a season to
+ * ~2-3% — a signing, not a revolution — and going much beyond that starts
+ * pricing the cup above the league places it sits beside.
+ */
+export const DOMESTIC_CUP_GLAMOUR_TIE_BONUS = 600_000;
+
+/**
+ * The beaten finalist's cheque — the only losing side that is paid, matching the
+ * Continental Cup. Below the trophy but above a semi-final win, so reaching the
+ * final and losing it still beats going out one round earlier.
+ */
+export const DOMESTIC_CUP_PRIZE_RUNNER_UP = 700_000;
 
 /**
  * Country -> the adjective its cup is named with ("England" -> "English Cup").

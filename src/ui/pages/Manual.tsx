@@ -1104,14 +1104,32 @@ export function Manual() {
             Cup, if you reach the final the sim <strong>stops just before it</strong> so you can
             take a look at your lineup first.
           </p>
-          <p className="text-muted small">
-            One thing the domestic cup doesn't do yet: <strong>pay you</strong>. The Continental Cup
-            hands out prize money per round, and this one was built the same way, but when I
-            measured a 20-season dynasty against one without it, the extra money pushed two of four
-            test worlds' poorest clubs into the red late on. The weaker leagues run on thin margins
-            and I'd rather a new trophy didn't quietly break their finances, so the payouts are
-            switched off until I've tuned them properly. Everything else about the cup works, and
-            it costs you nothing to go on a run.
+          <p>
+            The cup pays, and it's built for the smaller clubs. Every round you win is worth money,
+            from $90k for a preliminary tie up to $1.5M for lifting it, with $700k for losing the
+            final. That's deliberately modest: a full run to the trophy is about $3.3M, well under a
+            top-half league finish, because a real domestic cup is a useful season's bonus rather
+            than a jackpot.
+          </p>
+          <p>
+            The part that matters if you're in the second division is the{" "}
+            <strong>glamour tie</strong>. Draw a top-flight club and you bank an extra{" "}
+            <strong>$600k</strong> whatever the score, win or lose, because a full house and the
+            cameras are worth more to you than the tie itself. It's the one payment in the game that
+            only goes to the smaller club, and it's why a cup run is worth chasing from the second
+            tier: most second-division clubs earn something from the cup in a given season, and a
+            good run is worth around a tenth of your year's income.
+          </p>
+          <p>
+            Every payment here is scaled to your country, so an English cup run pays more than a
+            Serbian one, but it is <strong>not</strong> scaled down for the second division. You
+            get the same cheque for the same round a top-flight club would, which is how the real
+            ones work.
+          </p>
+          <p>
+            And the biggest prize still isn't the money. Winning the thing puts you in Europe, and a
+            Shield place is worth several times the trophy's own cheque — for a second-division
+            winner it can be a quarter of a season's income.
           </p>
           <p className="text-muted small">
             Saves started before domestic cups existed pick them up at the next offseason, so

@@ -10,9 +10,17 @@ import {
 import { playDomesticRound } from "../../src/core/domesticCup/simCup.js";
 import {
   DOMESTIC_CUP_MATCHDAYS, DOMESTIC_CUP_PRIZE_RUNNER_UP,
+  DOMESTIC_CUP_PRIZE_BY_ROUNDS_FROM_FINAL, PRIZE_TOP_10, DOMESTIC_CUP_GLAMOUR_TIE_BONUS,
 } from "../../src/core/constants.js";
+import { domesticCupScaleFor } from "../../src/core/finance/budget.js";
 
 const comps = worldCompetitions();
+const tierById = new Map(comps.map((c) => [c.id, c.tier]));
+/** Which division a club is in, for the glamour-tie gate receipts. */
+function tierOfFrom(teams: { tid: number; compId: number }[]): (tid: number) => number {
+  const byTid = new Map(teams.map((t) => [t.tid, tierById.get(t.compId) ?? 1]));
+  return (tid) => byTid.get(tid) ?? 1;
+}
 
 // Sized from the table rather than a flat 20+20: divisions are different sizes
 // per country now, and a cup's whole shape (rounds, byes, which matchday it
@@ -125,24 +133,86 @@ describe("domestic cup prize money", () => {
    * If you re-enable the prizes, this test fails — which is the point. Re-run
    * `scripts/weakLeaguesAudit.ts` against the merge base before you do.
    */
-  it("credits nothing, so no club's budget is touched by a cup run", () => {
-    let cup = buildDomesticCup("England", comps, worldTeams(), new Map(), 1)!;
+  it("pays every tie's winner, and of the losers only the beaten finalist", () => {
+    const teams = worldTeams();
+    const tierOf = tierOfFrom(teams);
+    let cup = buildDomesticCup("England", comps, teams, new Map(), 1)!;
+    const totals = new Map<number, number>();
+    let pot = 0;
+    let championRun = 0;
+    let crossTierTies = 0;
     for (let r = 0; r < cup.totalRounds; r++) {
-      const played = playDomesticRound(cup, comps, noMatchData, 0, () => 1);
-      expect(played.ties.length).toBeGreaterThan(0);
-      expect(played.prizes.size).toBe(0);
-      expect(domesticPrizeForRound(cup, r)).toBe(0);
+      const played = playDomesticRound(cup, comps, noMatchData, 0, () => 1, tierOf);
+      const winPrize = domesticPrizeForRound(cup, r);
+      expect(winPrize).toBeGreaterThan(0); // every round pays something
+      const isFinal = played.ties.length === 1;
+      crossTierTies += played.ties.filter((t) => tierOf(t.home) !== tierOf(t.away)).length;
+      for (const tie of played.ties) {
+        const loser = tie.winner === tie.home ? tie.away : tie.home;
+        expect(played.prizes.get(tie.winner)).toBeGreaterThanOrEqual(winPrize);
+        // A beaten side is paid only as the finalist, or as the smaller club in
+        // a cross-tier tie (gate receipts are taken on the day, win or lose).
+        const crossTier = tierOf(tie.home) !== tierOf(tie.away);
+        const smaller = tierOf(tie.home) > tierOf(tie.away) ? tie.home : tie.away;
+        const expected =
+          (isFinal ? DOMESTIC_CUP_PRIZE_RUNNER_UP : 0) +
+          (crossTier && loser === smaller ? DOMESTIC_CUP_GLAMOUR_TIE_BONUS : 0);
+        expect(played.prizes.get(loser) ?? 0).toBe(expected);
+      }
+      for (const [tid, v] of played.prizes) {
+        totals.set(tid, (totals.get(tid) ?? 0) + v);
+        pot += v;
+      }
       cup = played.cup;
     }
-    expect(DOMESTIC_CUP_PRIZE_RUNNER_UP).toBe(0);
+    championRun = totals.get(cup.championTid!)!;
+
+    // The pot is what the table says it is, derived from the ties actually
+    // played rather than written as a number, so a reshaped bracket can't
+    // silently change what the competition costs.
+    expect(pot).toBe(
+      cup.rounds.reduce(
+        (sum, round, r) => sum + round.pairings.length * domesticPrizeForRound(cup, r),
+        0,
+      ) +
+        DOMESTIC_CUP_PRIZE_RUNNER_UP +
+        crossTierTies * DOMESTIC_CUP_GLAMOUR_TIE_BONUS,
+    );
+    // Winning it is worth every round he won, and it is deliberately SMALL --
+    // a real cup run is a supporting income, not a title's worth (see the
+    // constant's comment). The Shield place it earns is the actual prize.
+    expect(championRun).toBeGreaterThan(DOMESTIC_CUP_PRIZE_BY_ROUNDS_FROM_FINAL[0]);
+    expect(championRun).toBeLessThan(PRIZE_TOP_10);
     expect(cup.championTid).not.toBeNull();
   });
 
+  it("pays a second-division club exactly what it pays a top-flight one", () => {
+    // The flatness across tiers is the whole real-world point (see
+    // domesticCupScaleFor) -- a cup run has to be worth the same to a small club.
+    const teams = worldTeams();
+    const d1 = comps.find((c) => c.country === "England" && c.tier === 1)!;
+    const d2 = comps.find((c) => c.country === "England" && c.tier === 2)!;
+    const userTid = -1;
+    const scaleOf = (tid: number): number => {
+      const compId = teams.find((t) => t.tid === tid)!.compId;
+      return domesticCupScaleFor(comps, compId, tid, userTid, "normal");
+    };
+    const topFlight = teams.find((t) => t.compId === d1.id)!.tid;
+    const second = teams.find((t) => t.compId === d2.id)!.tid;
+    expect(scaleOf(second)).toBe(scaleOf(topFlight));
+    // ...and it is still the country's scale, not a flat 1.
+    const serbia = comps.find((c) => c.country === "Serbia" && c.tier === 1)!;
+    const serbTid = teams.find((t) => t.compId === serbia.id)!.tid;
+    expect(scaleOf(serbTid)).toBeLessThan(scaleOf(topFlight));
+  });
+
   it("still resolves every tie to exactly one winner, prizes or not", () => {
-    let cup = buildDomesticCup("England", comps, worldTeams(), new Map(), 1)!;
+    const teams = worldTeams();
+    const tierOf = tierOfFrom(teams);
+    let cup = buildDomesticCup("England", comps, teams, new Map(), 1)!;
     let survivors = cup.teams.length;
     for (let r = 0; r < cup.totalRounds; r++) {
-      const played = playDomesticRound(cup, comps, noMatchData, 0, () => 1);
+      const played = playDomesticRound(cup, comps, noMatchData, 0, () => 1, tierOf);
       for (const tie of played.ties) expect([tie.home, tie.away]).toContain(tie.winner);
       survivors -= played.ties.length; // one club eliminated per tie
       cup = played.cup;
