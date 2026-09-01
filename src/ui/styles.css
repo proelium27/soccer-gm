@@ -775,6 +775,46 @@ a:hover {
   box-shadow: 0 0 0 0.2rem var(--sg-green-wash);
 }
 
+/* Checkboxes, radios and switches.
+
+   Remapping --bs-primary (up top) does NOT reach these: Bootstrap compiles the
+   checked colour into .form-check-input:checked as a literal #0d6efd rather
+   than reading a variable, so every checkbox and switch in the game rendered in
+   stock Bootstrap blue on a green-tinted dark surface. That is what this block
+   is for, and it is worth knowing before adding another control and wondering
+   why it comes out blue.
+
+   The two background images ARE variables in Bootstrap 5.3 (--bs-form-check-bg-image
+   for the tick, --bs-form-switch-bg for the switch knob), so they can be themed
+   without restating the selectors' own rules.
+
+   The unchecked switch knob is the other half of the problem: Bootstrap draws it
+   at rgba(255,255,255,.25), which is aimed at a light page and reads as an empty
+   pill on this one. It is lifted to a muted-but-visible circle so an "off"
+   switch looks off rather than broken. */
+.form-check-input {
+  background-color: var(--sg-surface-2);
+  border-color: var(--sg-border-strong);
+}
+.form-check-input:checked {
+  background-color: var(--sg-green);
+  border-color: var(--sg-green);
+}
+.form-check-input:focus {
+  border-color: var(--sg-green);
+  box-shadow: 0 0 0 0.2rem var(--sg-green-wash);
+}
+/* The knob when off. Checked, Bootstrap's own white circle sits on the green
+   and needs no help. */
+.form-switch .form-check-input {
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%28255, 255, 255, 0.55%29'/%3e%3c/svg%3e");
+}
+.form-switch .form-check-input:focus:not(:checked) {
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%28255, 255, 255, 0.8%29'/%3e%3c/svg%3e");
+}
+.form-check-input:disabled { opacity: 0.45; }
+.form-check-label { color: var(--sg-text); }
+
 /* Bootstrap text-utility remaps so muted/secondary read on the dark surface. */
 .text-muted { color: var(--sg-text-muted) !important; }
 .text-danger { color: var(--sg-loss) !important; }

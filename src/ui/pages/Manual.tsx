@@ -275,10 +275,10 @@ export function Manual() {
         <Section id="spectator" title="Spectating: A Save With Nobody in Charge">
           <p>
             You don't have to manage anyone. Above the club picker on the New League screen there's
-            a <strong>Your role</strong> choice with two options:{" "}
-            <strong>Manage a club</strong>, which is the game the rest of this manual describes, and{" "}
-            <strong>Spectate</strong>, which builds the same world and then leaves every club in it
-            to the AI. You still run time. You just don't run a team.
+            a <strong>Spectator mode</strong> switch. Leave it off and you get the game the rest of
+            this manual describes. Turn it on and the same world gets built and then left entirely
+            to the AI, with no club picker and no club of your own. You still run time. You just
+            don't run a team.
           </p>
           <p>
             <strong>It's fixed for the life of the save.</strong> A spectator save isn't handed a

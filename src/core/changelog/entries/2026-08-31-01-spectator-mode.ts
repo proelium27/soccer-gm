@@ -4,7 +4,7 @@ const entry: ChangelogEntry = {
   date: "2026-08-31",
   title: "You can start a save with no club at all",
   items: [
-    "There's a **Your role** switch on the New League screen now, sitting above the club picker. Leave it on **Manage a club** and nothing about your game changes. Flip it to **Spectate** and you don't take a club: every club in the world is run by the AI, and you're there to watch what they do with it.",
+    "There's a **Spectator mode** switch on the New League screen now, sitting above the club picker. Leave it off and nothing about your game changes. Turn it on and you don't take a club at all: every club in the world is run by the AI, and you're there to watch what they do with it.",
     "Jump ahead already hands your club to the AI while it plays the seasons out, and I'd catch myself jumping ten years just to see who'd climbed and who'd fallen apart. This is that, kept permanently, with no club waiting at the other end.",
     "You still run the clock: one matchday, the rest of the season, sim to whatever matchday you fancy, on through the offseason and the summer's international football, and jump ahead up to 25 seasons at a go.",
     "Everything worth reading is still there. Standings, both continental competitions, domestic cups, promotion playoffs, power rankings, awards, club history, the all-time lists, the national teams, and every player and club page in the game. The **Watchlist** comes along too, moved up into the League part of the sidebar, since following somebody else's teenager for fifteen years is about the most spectator thing there is.",

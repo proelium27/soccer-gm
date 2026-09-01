@@ -844,29 +844,29 @@ export function NewLeague() {
         it is fixed for the save's lifetime like the difficulty above it.
       */}
       <div className="mb-3">
-        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Your role</h6>
-        <div className="btn-group segmented" role="group" aria-label="Choose a role">
-          <button
-            type="button"
-            className={`btn btn-outline-secondary${spectate ? "" : " active"}`}
-            aria-pressed={!spectate}
-            onClick={() => setSpectate(false)}
-          >
-            Manage a club
-          </button>
-          <button
-            type="button"
-            className={`btn btn-outline-secondary${spectate ? " active" : ""}`}
-            aria-pressed={spectate}
-            onClick={() => setSpectate(true)}
-          >
-            Spectate
-          </button>
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Spectator mode</h6>
+        {/*
+          One switch rather than a "Manage a club / Spectate" pair. Managing is
+          what the whole page is already for, so the second option was naming the
+          default back at you; the only thing worth a control is the departure
+          from it.
+        */}
+        <div className="form-check form-switch">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            id="spectator-mode"
+            checked={spectate}
+            onChange={(e) => setSpectate(e.target.checked)}
+          />
+          <label className="form-check-label" htmlFor="spectator-mode">
+            Watch the world instead of managing a club
+          </label>
         </div>
         <p className="text-muted small mt-2 mb-0">
           {spectate
             ? "You won't manage anyone. Every club is run by the AI and you're free to sim as far ahead as you like and watch what the world does with itself. You can't switch to managing later, so start a new save if you change your mind."
-            : "You take charge of one club, pick the team and run its transfers. You can't switch to spectating later."}
+            : "Leave this off to take charge of a club yourself. You can't switch to spectating later."}
         </p>
       </div>
 
@@ -1039,7 +1039,7 @@ export function NewLeague() {
             way. Turn it off and the places stay exactly as the world was built.
           </HelpHint>
         </h6>
-        <div className="form-check">
+        <div className="form-check form-switch">
           <input
             type="checkbox"
             className="form-check-input"
@@ -1072,7 +1072,7 @@ export function NewLeague() {
       {/* Redundant when you arrived through Customize Teams, which always
           opens the editor. */}
       {!customize && (
-        <div className="form-check mb-3">
+        <div className="form-check form-switch mb-3">
           <input
             type="checkbox"
             className="form-check-input"
