@@ -1970,6 +1970,16 @@ export function Manual() {
             scouting money now buys you something beyond a clearer view of a player's ceiling.
           </p>
           <p>
+            You can also tell your scouts <strong>where to look</strong>. Pick up to three countries
+            on the Youth Intake page and they'll turn up most of next summer's group between them,
+            with the rest still coming from around your own league. It takes effect at your next
+            intake, not the one already on your desk. Be clear about what it does, though: your
+            scouts find you <em>different</em> players, not better ones. Where a player is from
+            decides his name and which country is allowed to pick him, and nothing else. It has no
+            bearing on how good he is or could become. That eligibility part is the reason to bother
+            with it, if you'd like to build a national team out of players you developed yourself.
+          </p>
+          <p>
             Unsigned players of any age, youngsters included, live on the <strong>Free Agents</strong>{" "}
             page. Don't expect to find a future star there: clubs keep their best young players now,
             so what reaches it is genuinely what nobody wanted. Your own academy is the reliable

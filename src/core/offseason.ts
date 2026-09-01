@@ -8,6 +8,9 @@ import { packPositionChange, type NewsEvent } from "./newsEvents.js";
 import { generateYouthIntake } from "./players/youth.js";
 import { computeAcademyFormModifiers } from "./players/academyForm.js";
 import { academyFacilitiesBonus } from "./players/academyFacilities.js";
+import { sanitizeScoutingRegions, scoutedNationalityWeights } from "./scouting/scoutingRegions.js";
+import { pickNationality, LEAGUE_NATIONALITY_WEIGHTS } from "./players/nationalities.js";
+import { generateName } from "./players/names.js";
 import { cullFreeAgentPoolReporting } from "./players/freeAgentCull.js";
 import { summarizeRetirements } from "./players/retirements.js";
 import { clearSuspension } from "./suspensions.js";
@@ -640,6 +643,37 @@ export function simOffseasonReporting(
       nextPid = afterExtras;
       userYouth = [...userYouth, ...extraYouth];
     }
+
+    // 5.3. Send the scouts where the user told them to look.
+    //
+    // Applied POST-HOC, re-drawing each trialist's nationality and name on the
+    // trial stream rather than handing a different table to generateYouthIntake,
+    // and that is a requirement rather than a style choice. The user's ordinary
+    // intake is generated inside the loop above on the SHARED rng, and
+    // `drawFrom` spends one draw normally but two when the roll lands in the
+    // rest-of-world bucket — so a different table there would change the shared
+    // draw count and shift every club's generation after it. Re-drawing
+    // afterwards on our own stream cannot.
+    //
+    // Sound because nationality is rating-neutral: it feeds the name and
+    // international eligibility and nothing else, so a player re-nationalised
+    // here is the same footballer with a different passport. It covers the
+    // whole group, ordinary intake included, because "my scouts are in Brazil"
+    // should describe everyone they turned up, not just the last few.
+    const regions = userTeam ? sanitizeScoutingRegions(userTeam.scoutingRegions) : [];
+    if (userTeam && regions.length > 0) {
+      const comp = competitionOf(league.competitions, userTeam.compId);
+      const table = scoutedNationalityWeights(
+        competitionNationalities(comp) ?? LEAGUE_NATIONALITY_WEIGHTS[comp.country]
+          ?? LEAGUE_NATIONALITY_WEIGHTS.England,
+        regions,
+      );
+      userYouth = userYouth.map((p) => {
+        const nationality = pickNationality(trialRng, comp.country, table);
+        return { ...p, nationality, name: generateName(trialRng, nationality) };
+      });
+    }
+
     players.push(...userYouth);
   }
   // Assigned unconditionally, and it REPLACES rather than appends: last year's

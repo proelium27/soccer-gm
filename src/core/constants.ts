@@ -4098,3 +4098,23 @@ export const YOUTH_TRIAL_STREAM = 88;
  */
 export const YOUTH_TRIAL_SCOUTING_SWING = 3;
 export const YOUTH_TRIAL_HYPE_SWING = 3;
+
+/**
+ * "Send your scouts here": how many countries the user can point his youth
+ * scouting at, and how much of the trial group they supply between them.
+ *
+ * **Rating-neutral by construction**, so this is flavour and a national-team
+ * hook rather than a balance lever: nationality feeds `generateName` and
+ * international eligibility and nothing else, and ratings are drawn
+ * independently of it (CLAUDE.md verifies this by regenerating a world after
+ * changing the nationality tables — every country's starter mean OVR identical
+ * to the decimal). The hook is that a player's nationality decides who can cap
+ * him, so scouting a country deepens that nation's pool.
+ *
+ * 0.6 is a blend, not an override: the home mix keeps a real share, so the
+ * group still reads as the club's own and no setting can manufacture a
+ * single-nationality academy. Three targets is enough to express a plan
+ * ("South America") without the share per country thinning to nothing.
+ */
+export const SCOUTING_REGION_MAX = 3;
+export const SCOUTING_REGION_SHARE = 0.6;

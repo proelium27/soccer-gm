@@ -550,6 +550,18 @@ export interface StoredTeam {
    * by any other route. Optional; `migrate.ts` backfills 0.
    */
   youthTrialSignings?: number;
+  /**
+   * Countries the user has sent his youth scouts to, capped at
+   * SCOUTING_REGION_MAX. They supply SCOUTING_REGION_SHARE of his trial group
+   * between them; his league's own nationality mix supplies the rest.
+   *
+   * **User's club only** — an AI club's intake is drawn from its league's mix
+   * as it always was. Rating-neutral either way: nationality decides a player's
+   * name and who can cap him, never how good he is.
+   *
+   * Optional; `migrate.ts` backfills `[]` (absent = scouts stay home).
+   */
+  scoutingRegions?: string[];
   /** Funds available to spend on wages, transfers, and scouting. */
   budget: number;
   /** Fame/popularity, 0-100; drives a damped ticket/jersey revenue channel. */
@@ -733,6 +745,7 @@ export function assignIdentities(
       // The first real trial group arrives at the first offseason.
       youthTrialists: [],
       youthTrialSignings: 0,
+      scoutingRegions: [],
       budget,
       hype: HYPE_INITIAL,
       scoutingSpend: clampScoutingSpend(SCOUTING_SPEND_DEFAULT, budget),

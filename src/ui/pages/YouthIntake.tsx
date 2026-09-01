@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { PotHelp } from "../components/HelpHint.js";
@@ -10,7 +11,10 @@ import { trialSigningsLeft } from "../../core/freeAgency.js";
 import {
   academyFacilitiesBonus, ACADEMY_FACILITIES_MAX,
 } from "../../core/players/academyFacilities.js";
-import { ACADEMY_ROSTER_CAP, YOUTH_TRIAL_SIGN_LIMIT } from "../../core/constants.js";
+import {
+  ACADEMY_ROSTER_CAP, YOUTH_TRIAL_SIGN_LIMIT, SCOUTING_REGION_MAX,
+} from "../../core/constants.js";
+import { PICKABLE_NATIONALITIES } from "../components/NationalityEditor.js";
 
 type IntakeSortKey = "name" | "pos" | "ovr" | "pot";
 
@@ -67,6 +71,8 @@ export function YouthIntake() {
         +{ACADEMY_FACILITIES_MAX.toFixed(1)}. Their ceilings are estimates, same as anywhere else,
         and better scouting narrows them.
       </p>
+
+      <ScoutingRegions />
 
       {trialists.length === 0 ? (
         <p>
@@ -142,6 +148,92 @@ export function YouthIntake() {
           </table>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * "Send your scouts here": up to SCOUTING_REGION_MAX countries the academy
+ * goes looking in, which supply most of next summer's trial group between them.
+ *
+ * Deliberately says what it does NOT do — the scouts find you different
+ * players, not better ones — because a control sitting next to a quality bonus
+ * invites exactly that reading, and a player who believed it would be tuning
+ * something that cannot move. What it genuinely changes is who can cap them,
+ * which is the reason to care.
+ */
+function ScoutingRegions() {
+  const { league, setScoutingRegionsAction, simming } = useLeague();
+  const [open, setOpen] = useState(false);
+  if (!league) return null;
+
+  const team = league.teams.find((t) => t.tid === league.meta.userTid);
+  const picked = team?.scoutingRegions ?? [];
+  const full = picked.length >= SCOUTING_REGION_MAX;
+
+  const drop = (c: string) => setScoutingRegionsAction(picked.filter((x) => x !== c));
+  const add = (c: string) => {
+    if (!c || full || picked.includes(c)) return;
+    setScoutingRegionsAction([...picked, c]);
+  };
+
+  return (
+    <div className="card mb-3">
+      <div className="card-body py-2">
+        <div className="d-flex flex-wrap align-items-center gap-2">
+          <strong className="me-1">Send your scouts to</strong>
+          {picked.length === 0 ? (
+            <span className="text-muted">
+              nowhere in particular. Your academy looks close to home.
+            </span>
+          ) : (
+            picked.map((c) => (
+              <span key={c} className="badge text-bg-secondary d-inline-flex align-items-center gap-1">
+                <Flag nationality={c} /> {c}
+                <button
+                  type="button"
+                  className="btn-close btn-close-white ms-1"
+                  style={{ fontSize: "0.6em" }}
+                  aria-label={`Stop scouting ${c}`}
+                  disabled={simming}
+                  onClick={() => void drop(c)}
+                />
+              </span>
+            ))
+          )}
+          {!full && (
+            <select
+              className="form-select form-select-sm w-auto"
+              value=""
+              disabled={simming}
+              onChange={(e) => void add(e.target.value)}
+              aria-label="Add a country to scout"
+            >
+              <option value="">Add a country...</option>
+              {PICKABLE_NATIONALITIES.filter((c) => !picked.includes(c)).map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          )}
+          <button
+            type="button"
+            className="btn btn-sm btn-link text-decoration-none ms-auto"
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? "Hide" : "What does this do?"}
+          </button>
+        </div>
+        {open && (
+          <p className="text-muted small mb-0 mt-2" style={{ maxWidth: "48rem" }}>
+            Pick up to {SCOUTING_REGION_MAX} countries and they'll turn up most of next summer's
+            trial group between them, with the rest still coming from around your own league. It
+            takes effect at your next intake, not this one. Your scouts find you{" "}
+            <em>different</em> players, not better ones: where a kid is from decides his name and
+            which country can pick him, never how good he is. That last part is the point, though,
+            if you fancy stocking a national team with players you brought through yourself.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

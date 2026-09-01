@@ -10,6 +10,7 @@ import {
   signFreeAgent, releasePlayer, signToAcademy, promoteFromAcademy, releaseAcademyPlayer,
   signTrialist, releaseTrialist,
 } from "../../core/freeAgency.js";
+import { sanitizeScoutingRegions } from "../../core/scouting/scoutingRegions.js";
 import { clampScoutingSpend } from "../../core/finance/scouting.js";
 import { makeTransferOffer, acceptCounterOffer, FREE_AGENT_TID } from "../../core/transfers/negotiation.js";
 import { freeAgentSigningWindow } from "../../core/transfers/window.js";
@@ -74,6 +75,8 @@ interface LeagueContextValue {
   signTrialistAction: (pid: number) => Promise<void>;
   /** Turn a youth trialist down; he becomes a free agent. */
   releaseTrialistAction: (pid: number) => Promise<void>;
+  /** Send the youth scouts to these countries (see SCOUTING_REGION_MAX). */
+  setScoutingRegionsAction: (regions: string[]) => Promise<void>;
   promoteFromAcademyAction: (pid: number) => Promise<void>;
   releaseAcademyPlayerAction: (pid: number) => Promise<void>;
   extendAcademyContractAction: (pid: number) => Promise<void>;
@@ -628,6 +631,21 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     };
   }), [mutate]);
 
+  const setScoutingRegionsAction = useCallback((regions: string[]) => mutate((l) => {
+    const clean = sanitizeScoutingRegions(regions);
+    const team = l.teams.find((t) => t.tid === l.meta.userTid);
+    if (!team) return null;
+    const same = (team.scoutingRegions ?? []).length === clean.length
+      && (team.scoutingRegions ?? []).every((c, i) => c === clean[i]);
+    if (same) return null;
+    return {
+      ...l,
+      teams: l.teams.map((t) =>
+        t.tid === l.meta.userTid ? { ...t, scoutingRegions: clean } : t,
+      ),
+    };
+  }), [mutate]);
+
   const releaseTrialistAction = useCallback((pid: number) => mutate((l) => {
     const teams = releaseTrialist(l.teams, l.meta.userTid, pid);
     if (teams === l.teams) return null;
@@ -994,6 +1012,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     signToAcademyAction,
     signTrialistAction,
     releaseTrialistAction,
+    setScoutingRegionsAction,
     promoteFromAcademyAction,
     releaseAcademyPlayerAction,
     extendAcademyContractAction,
@@ -1037,6 +1056,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     customizeTeamsAction, simAction, simLiveAction, jumpSeasonsAction, offseasonAction,
     intlStageAction, signFreeAgentAction,
     releasePlayerAction, signToAcademyAction, signTrialistAction, releaseTrialistAction,
+    setScoutingRegionsAction,
     promoteFromAcademyAction,
     releaseAcademyPlayerAction, extendAcademyContractAction, setScoutingSpendAction,
     makeOfferAction, acceptCounterAction, acceptInboundOfferAction,
