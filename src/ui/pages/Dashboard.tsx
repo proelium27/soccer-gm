@@ -8,7 +8,6 @@ import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings, type StandingsRow } from "../../core/standings.js";
 import { nextMatchday, transferWindowState } from "../../core/transfers/window.js";
 import { SimTargetForm } from "../components/SimTargetForm.js";
-import { useSimHint } from "../components/useSimHint.js";
 import { SCOUTING_SPEND_MAX, RATING_LEADER_QUALIFY_FRACTION } from "../../core/constants.js";
 import { wageBill } from "../../core/finance/budget.js";
 import { cupFinalists, isCupComplete } from "../../core/cup/cup.js";
@@ -177,8 +176,6 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
     simAction, simLiveAction, setScoutingSpendAction, intlStageAction, simming,
   } = useLeague();
   const navigate = useNavigate();
-  // Held here so the Simulation card can draw it on its heading line.
-  const simHint = useSimHint();
   // Slider position while dragging; persisted (and clamped) only on release
   // so we don't write to IndexedDB on every drag tick.
   const [scoutingDraft, setScoutingDraft] = useState<number | null>(null);
@@ -489,12 +486,7 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
           when the season ends. */}
       <div className="card mb-3">
         <div className="card-body">
-          {/* The sim-target hint rides the heading line so the controls below
-              can share one row with the sim buttons. */}
-          <div className="d-flex align-items-baseline justify-content-between gap-3 flex-wrap">
-            <h5 className="card-title mb-2">Simulation</h5>
-            {simHint.node}
-          </div>
+          <h5 className="card-title">Simulation</h5>
           {league.phase === "offseason" ? (
             <>
               {league.manager.sacked ? (
@@ -603,7 +595,10 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
               {/* One row: the fixed jumps and the live viewer, then the
                   pick-your-own control, so the card doesn't leave a band of empty
                   space to their right. */}
-              <div className="d-flex align-items-start gap-2 flex-wrap">
+              {/* Bottom-aligned: the sim-target form is two lines tall (its hint sits
+                  above its controls), and aligning to the bottom puts the buttons
+                  beside those controls rather than beside the hint. */}
+              <div className="d-flex align-items-end gap-2 flex-wrap">
                 <button
                   className="btn btn-primary"
                   disabled={disableSim}
@@ -638,7 +633,6 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
                     last={lastMd}
                     disabled={disableSim}
                     onSim={(matchday) => simAction({ matchday })}
-                    onHintChange={simHint.onHintChange}
                   />
                 )}
               </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   maxValue, minValue, simTargetHint, targetMatchday, type SimTargetMode,
 } from "../simTarget.js";
@@ -13,16 +13,6 @@ interface SimTargetFormProps {
   onSim: (matchday: number) => void;
   /** Menu variant: stacks tighter and drops the "Sim" wording to fit a dropdown. */
   compact?: boolean;
-  /**
-   * Take the hint ("Plays matchdays 1-4...") and render it yourself.
-   *
-   * The Dashboard puts it on the card's heading line, beside "Simulation", so
-   * the select, the number and the Sim button can share one row with the sim
-   * buttons instead of being pushed into a column of their own. Supplying this
-   * suppresses the copy this component would otherwise draw under the
-   * controls, so the hint is never in two places at once.
-   */
-  onHintChange?: (hint: string, valid: boolean) => void;
 }
 
 /** Default target: about a month of football, clamped to the run-in. */
@@ -40,9 +30,7 @@ function defaultValue(mode: SimTargetMode, current: number, last: number): numbe
  * the suggestion tracks the calendar as the season moves, and it resets after
  * each sim rather than leaving a now-past matchday sitting in the box.
  */
-export function SimTargetForm({
-  current, last, disabled, onSim, compact, onHintChange,
-}: SimTargetFormProps) {
+export function SimTargetForm({ current, last, disabled, onSim, compact }: SimTargetFormProps) {
   const [mode, setMode] = useState<SimTargetMode>("to");
   const [raw, setRaw] = useState<string | null>(null);
 
@@ -54,13 +42,6 @@ export function SimTargetForm({
   const valid = Number.isInteger(value) && value >= lo && value <= hi;
   const hint = simTargetHint(mode, value, current, last);
 
-  // Reported rather than lifted: the mode and the number are this component's
-  // own business, and hoisting them into two dashboards to place one line of
-  // text would put the same state in three places.
-  useEffect(() => {
-    onHintChange?.(hint, valid);
-  }, [hint, valid, onHintChange]);
-
   function submit() {
     if (!valid || disabled) return;
     onSim(targetMatchday(mode, value, current));
@@ -71,6 +52,12 @@ export function SimTargetForm({
     // A dropdown menu is only 10rem wide by default, which wraps the hint into a
     // narrow column; the menu grows to fit this instead.
     <div className={compact ? "px-3 py-2" : ""} style={compact ? { minWidth: "18rem" } : undefined}>
+      {/* Directly above the controls it describes, so it starts where the "sim
+          to matchday" select does rather than trailing off to the right of the
+          card. The row this sits in aligns to the bottom, which lifts this line
+          up level with the card's heading and leaves the sim buttons beside the
+          controls rather than beside the text. */}
+      <div className={`small mb-1 ${valid ? "text-muted" : "text-danger"}`}>{hint}</div>
       <div className="d-flex align-items-center gap-2 flex-wrap">
         <select
           // Full-size controls inline on the Dashboard so this row lines up
@@ -116,12 +103,6 @@ export function SimTargetForm({
           Sim
         </button>
       </div>
-      {/* Only when nobody upstream asked to place it. The Dashboard puts it on
-          the card's heading line so the controls can share one row with the
-          sim buttons; a dropdown has no heading line, so it keeps it here. */}
-      {!onHintChange && (
-        <div className={`small mt-1 ${valid ? "text-muted" : "text-danger"}`}>{hint}</div>
-      )}
     </div>
   );
 }
