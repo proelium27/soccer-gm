@@ -18,12 +18,12 @@ import { computePowerRankingSnapshot } from "../../core/teams/powerRanking.js";
 import { koRoundsOf, cupRoundName, isCupComplete } from "../../core/cup/cup.js";
 import { leaguePhaseTable } from "../../core/cup/leaguePhase.js";
 import { koRoundName, NationName } from "./nationalTeams/shared.js";
-import { isTournamentSeason, isConfederationCupSeason } from "../../core/constants.js";
+import {
+  isTournamentSeason, isConfederationCupSeason, cupKnockoutPlan,
+} from "../../core/constants.js";
 
 /** How many clubs the power-ranking panel lists before pointing at the full board. */
 const POWER_TOP_N = 10;
-/** How many league-phase rows to show while a cup is still in that stage. */
-const LEAGUE_PHASE_TOP_N = 4;
 
 function Panel({ title, link, linkLabel, children }: {
   title: string;
@@ -92,6 +92,52 @@ export function PowerRankingPanel({ league, highlightTid }: {
   );
 }
 
+/**
+ * The clubs still alive in a cup's league phase, with the qualification cut
+ * drawn on.
+ *
+ * How many rows is **derived, not chosen**: everyone who advances, which is
+ * `directQF + playoffTeams` from the field's own `cupKnockoutPlan`. A fixed
+ * slice was wrong twice over — it left the card two-thirds empty (these sit in
+ * a row with the ten-row power board, and `h-100` stretches them all to the
+ * tallest), and cutting at an arbitrary line hid the only thing a league-phase
+ * table is about, which is who is going through. A smaller competition sends
+ * fewer through and this shrinks with it.
+ *
+ * The zone classes and their colours are the ones `/cup` already uses, so the
+ * shading means the same thing in both places.
+ */
+function LeaguePhaseTop({ table, cup }: {
+  table: ReturnType<typeof leaguePhaseTable>;
+  cup: CupState;
+}) {
+  const { directQF, playoffTeams } = cupKnockoutPlan(table.length);
+  const advancing = directQF + playoffTeams;
+  const opener = cupRoundName(0, koRoundsOf(cup)).toLowerCase();
+
+  return (
+    <>
+      <div className="text-muted text-uppercase fw-semibold mini-bracket-round">League phase</div>
+      <table className="table table-sm mb-1">
+        <tbody>
+          {table.slice(0, advancing).map((r, i) => (
+            <tr key={r.tid} className={i < directQF ? "cup-lp-direct" : "cup-lp-playoff"}>
+              <td className="text-muted" style={{ width: "1.5rem" }}>{i + 1}</td>
+              <td><ClubLink tid={r.tid} crest /></td>
+              <td className="text-end">{r.points}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="small text-muted">
+        {directQF > 0 && <>Top {directQF} to the {opener}. </>}
+        {playoffTeams > 0 && <>{directQF > 0 ? "Next" : "Top"} {playoffTeams} to a playoff. </>}
+        {table.length > advancing && <>{table.length - advancing} others out.</>}
+      </div>
+    </>
+  );
+}
+
 /** Turn a cup's played knockout ties into bracket lines, drawn as clubs. */
 function cupTies(cup: CupState): MiniBracketTie[] {
   return cup.ties.map((t): MiniBracketTie => ({
@@ -149,22 +195,7 @@ export function CupBracketPanel({ cup, title, href }: {
         played === 0 ? (
           <p className="text-muted small mb-0">Drawn. The league phase kicks off shortly.</p>
         ) : (
-          <>
-            <div className="text-muted text-uppercase fw-semibold mini-bracket-round">
-              League phase
-            </div>
-            <table className="table table-sm mb-0">
-              <tbody>
-                {lp.slice(0, LEAGUE_PHASE_TOP_N).map((r, i) => (
-                  <tr key={r.tid}>
-                    <td className="text-muted" style={{ width: "1.5rem" }}>{i + 1}</td>
-                    <td><ClubLink tid={r.tid} crest /></td>
-                    <td className="text-end">{r.points}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
+          <LeaguePhaseTop table={lp} cup={cup} />
         )
       ) : (
         <MiniBracket

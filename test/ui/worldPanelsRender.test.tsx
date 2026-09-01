@@ -8,6 +8,7 @@ import type { CupState, CupTie } from "../../src/core/cup/types.js";
 import type { IntlTournament } from "../../src/core/international/types.js";
 import { SPECTATOR_TID } from "../../src/core/spectator.js";
 import { computePowerRankingSnapshot } from "../../src/core/teams/powerRanking.js";
+import { cupKnockoutPlan } from "../../src/core/constants.js";
 
 // `ClubLink` resolves a club through the league context, so the panels can't
 // render without one.
@@ -103,22 +104,35 @@ describe("world panels: a continental competition", () => {
    * A cup spends most of the season in its Swiss league phase, so a panel that
    * only knew how to draw a bracket would be empty from August to March.
    */
-  it("shows the league-phase leaders before the knockout", () => {
+  /**
+   * How many rows is derived from the field, not chosen. A fixed slice left the
+   * card two-thirds empty (these sit beside the ten-row power board and stretch
+   * to match it) and cut across the only thing a league-phase table is about,
+   * which is who is going through.
+   */
+  it("shows everyone still alive in the league phase, and where the cut is", () => {
+    // A real Shield field. `cupKnockoutPlan(24)` sends 4 straight through and
+    // 8 to a playoff, so 12 rows and 12 clubs left out.
+    const teams = Array.from({ length: 24 }, (_, i) => i);
+    const { directQF, playoffTeams } = cupKnockoutPlan(teams.length);
     const cup = cupWith({
+      teams: [0, 1, 2, 3, 4, 5, 6, 7],
       leaguePhase: {
-        teams: [0, 1, 2, 3],
-        matches: [
-          { home: 0, away: 1, homeGoals: 3, awayGoals: 0, played: true, round: 0 },
-          { home: 2, away: 3, homeGoals: 1, awayGoals: 0, played: true, round: 0 },
-        ],
+        teams,
+        matches: [{ home: 0, away: 1, homeGoals: 3, awayGoals: 0, played: true, round: 0 }],
       } as CupState["leaguePhase"],
-      seeds: { 0: 1, 1: 2, 2: 3, 3: 4 },
+      seeds: Object.fromEntries(teams.map((t) => [t, t + 1])),
     });
     const html = render(createElement(CupBracketPanel, {
       cup, title: "Continental Cup", href: "/cup",
     }), base);
+
     expect(html).toContain("League phase");
-    expect(html).not.toContain("Quarter-finals");
+    expect(html.match(/<tr/g)?.length).toBe(directQF + playoffTeams);
+    // The cut is drawn on, using the same zone colours /cup uses.
+    expect(html.match(/cup-lp-direct/g)?.length).toBe(directQF);
+    expect(html.match(/cup-lp-playoff/g)?.length).toBe(playoffTeams);
+    expect(html).toContain(`${teams.length - directQF - playoffTeams} others out`);
   });
 
   it("draws the bracket once the knockout is under way, newest round last", () => {
