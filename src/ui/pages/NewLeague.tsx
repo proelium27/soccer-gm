@@ -844,12 +844,16 @@ export function NewLeague() {
         it is fixed for the save's lifetime like the difficulty above it.
       */}
       <div className="mb-3">
-        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Spectator mode</h6>
         {/*
           One switch rather than a "Manage a club / Spectate" pair. Managing is
           what the whole page is already for, so the second option was naming the
           default back at you; the only thing worth a control is the departure
           from it.
+
+          Named by its own label rather than by a section heading above it, the
+          same shape "Name the clubs yourself" uses further down — a heading
+          reading SPECTATOR MODE over a switch reading "spectator mode" is the
+          same words twice.
         */}
         <div className="form-check form-switch">
           <input
@@ -860,14 +864,23 @@ export function NewLeague() {
             onChange={(e) => setSpectate(e.target.checked)}
           />
           <label className="form-check-label" htmlFor="spectator-mode">
-            Watch the world instead of managing a club
+            Spectator mode
+            <span className="text-muted small d-block">
+              Watch the world instead of managing clubs.
+            </span>
           </label>
         </div>
-        <p className="text-muted small mt-2 mb-0">
-          {spectate
-            ? "You won't manage anyone. Every club is run by the AI and you're free to sim as far ahead as you like and watch what the world does with itself. You can't switch to managing later, so start a new save if you change your mind."
-            : "Leave this off to take charge of a club yourself. You can't switch to spectating later."}
-        </p>
+        {/*
+          The one thing worth saying twice, and only while it is switched on:
+          this cannot be undone in ordinary play, and it is the choice a player
+          would most regret making without knowing that.
+        */}
+        {spectate && (
+          <p className="text-muted small mt-2 mb-0">
+            Every club is run by the AI. You can't switch to managing later, so start a new
+            save if you change your mind.
+          </p>
+        )}
       </div>
 
       {!spectate && (
