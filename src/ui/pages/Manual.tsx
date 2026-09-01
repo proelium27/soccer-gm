@@ -324,10 +324,18 @@ export function Manual() {
           <p>
             Your Dashboard is a page of its own: the season and matchday with a Spectating badge,
             the sim controls, Jump ahead, a league table with a dropdown for any competition in the
-            world, and an "Around the world" news panel. And the News
-            Feed carries world-level news only, so the big transfers, the trophies, the awards and
-            who went up and who went down. It normally works out what to show you by which league
-            is yours, and here none of them is.
+            world, and an "Around the world" news panel. Along the bottom are the ten
+            best clubs anywhere by power ranking, and the Continental Cup and Continental Shield,
+            each showing its league phase table until the knockout starts and its bracket after
+            that. And the News Feed carries world-level news only, so the big transfers, the
+            trophies, the awards and who went up and who went down. It normally works out what to
+            show you by which league is yours, and here none of them is.
+          </p>
+          <p>
+            In the offseason, any summer with a tournament in it gets its own panel up near the sim
+            controls: the World Cup bracket every fourth year, and the confederation championships
+            two years after that, all of them side by side. The other two summers are qualifying
+            only, so there's no panel for them.
           </p>
         </Section>
 

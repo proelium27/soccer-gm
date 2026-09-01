@@ -40,6 +40,9 @@ import { trophyNewsBySeason } from "../../core/trophyNews.js";
 import { promotionNewsBySeason } from "../../core/promotionNews.js";
 import { seasonYear } from "../format.js";
 import { qualifyingLeg } from "../../core/constants.js";
+import {
+  PowerRankingPanel, CupBracketPanel, InternationalBracketPanel,
+} from "./worldPanels.js";
 
 /** How many standings rows the table snippet shows before pointing at /standings. */
 const STANDINGS_TOP_N = 8;
@@ -258,6 +261,16 @@ export function SpectatorDashboard({ league }: { league: LeagueStore }) {
         </div>
       </div>
 
+      {/*
+        The summer's international football, and only in the offseasons that
+        have some — a World Cup or the confederation championships, alternating
+        years. It sits above the club panels because during an offseason it is
+        the only football being played.
+      */}
+      <div className="mb-3">
+        <InternationalBracketPanel league={league} />
+      </div>
+
       <div className="row g-3">
         <div className="col-lg-6">
           <div className="card h-100">
@@ -332,6 +345,20 @@ export function SpectatorDashboard({ league }: { league: LeagueStore }) {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* The world's clubs measured against each other, and the two continental
+          competitions they're measured in. */}
+      <div className="row g-3 mt-0">
+        <div className="col-lg-4">
+          <PowerRankingPanel league={league} />
+        </div>
+        <div className="col-lg-4">
+          <CupBracketPanel cup={league.cup} title="Continental Cup" href="/cup" />
+        </div>
+        <div className="col-lg-4">
+          <CupBracketPanel cup={league.shield} title="Continental Shield" href="/shield" />
         </div>
       </div>
     </div>

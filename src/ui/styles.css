@@ -815,6 +815,16 @@ a:hover {
 .form-check-input:disabled { opacity: 0.45; }
 .form-check-label { color: var(--sg-text); }
 
+/* The compact knockout bracket in a dashboard panel (see MiniBracket.tsx).
+   Only the round heading needs anything: it is a label above a couple of
+   score lines, so it wants to be smaller and quieter than the card title
+   without being another <small> in the markup. */
+.mini-bracket-round {
+  font-size: var(--sg-text-xs);
+  letter-spacing: 0.04em;
+  margin-top: 0.25rem;
+}
+
 /* Progress bars, for the same reason as the checkboxes above: Bootstrap's
    --bs-progress-bar-bg defaults to its own blue rather than following
    --bs-primary. The bars that carry a mood (the club board's and the
