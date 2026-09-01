@@ -485,6 +485,53 @@ describe("expectations resist a teardown", () => {
     // Bottom half of its new division, not top of it.
     expect(mine.expectedRank).toBeGreaterThan(mine.clubs / 2);
   });
+
+  it("does not expect a THIRD-division champion to win the second", () => {
+    // The same claim one division deeper, and it did not hold: seasonStanding
+    // scaled tier 2 into a lower band and sent every OTHER tier into the
+    // top-flight one, so a third-division season was scored as if it were the
+    // top flight — winning it read 1.000, exactly like winning the league, and
+    // finishing bottom of it outscored mid-table in the second division.
+    const d2 = league.competitions.find((c) => c.country === comp.country && c.tier === 2);
+    const d3 = league.competitions.find((c) => c.country === comp.country && c.tier === 3);
+    if (!d2 || !d3) return;
+    const d2Members = league.teams.filter((t) => t.compId === d2.id).map((t) => t.tid);
+    const d3Members = league.teams.filter((t) => t.compId === d3.id).map((t) => t.tid);
+    const champion = d3Members[0];
+
+    const rows = (tids: number[]) =>
+      tids.map((tid, i) => ({
+        tid, played: 38, won: 38 - i, drawn: 0, lost: i,
+        gf: 80 - i, ga: 20 + i, gd: 60 - 2 * i, points: 114 - 3 * i,
+      }));
+
+    // Every division present, so the promoted club is ranked against real
+    // second-division histories rather than against nothing.
+    const history = [1, 2, 3].map((n) => {
+      const entry = historyEntry(n, members.map((t) => t.tid));
+      return {
+        ...entry,
+        table: [...entry.table, ...rows(d2Members), ...rows(d3Members)],
+        compsByTid: {
+          ...entry.compsByTid,
+          ...Object.fromEntries(d2Members.map((tid) => [tid, d2.id])),
+          ...Object.fromEntries(d3Members.map((tid) => [tid, d3.id])),
+        },
+      } as SeasonHistoryEntry;
+    });
+
+    // Promote him into the SECOND division, as the offseason would.
+    const promoted: LeagueStore = {
+      ...league,
+      teams: league.teams.map((t) => (t.tid === champion ? { ...t, compId: d2.id } : t)),
+    };
+    const exp = deriveExpectations(
+      promoted.teams, promoted.players, promoted.competitions, history,
+    );
+    const mine = exp.get(champion)!;
+    expect(mine.compId).toBe(d2.id);
+    expect(mine.expectedRank).toBeGreaterThan(mine.clubs / 2);
+  });
 });
 
 
