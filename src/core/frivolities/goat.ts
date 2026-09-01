@@ -284,6 +284,30 @@ export function scorePlayer(career: CareerRow, honours: PlayerHonours): PlayerGo
   };
 }
 
+/**
+ * Score a set of careers against each other, pid -> score.
+ *
+ * The board below is the same thing over the whole world; this exists for
+ * callers holding a handful of careers they want ranked by caliber rather than
+ * by a single-season number — the Season Preview's farewell list, which would
+ * otherwise rank a fading legend below whichever unsigned 24-year-old happened
+ * to retire at a higher rating.
+ *
+ * `league` decides which honours count, so pass the league as of the *end* of
+ * the season being scored: `computeHonours` reads honours off `seasonHistory`
+ * and the cup histories, and mid-offseason neither has taken the season that
+ * just finished yet.
+ */
+export function goatScores(
+  league: LeagueStore,
+  careers: readonly CareerRow[],
+): Map<number, number> {
+  const honours = computeHonours(league, careers);
+  return new Map(
+    careers.map((c) => [c.pid, scorePlayer(c, honours.get(c.pid) ?? emptyHonours()).score]),
+  );
+}
+
 /** The player GOAT board, best first. */
 export function playerGoatRanking(
   league: LeagueStore,

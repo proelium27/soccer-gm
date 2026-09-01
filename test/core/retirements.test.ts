@@ -2,8 +2,22 @@ import { describe, expect, it } from "vitest";
 import { summarizeRetirements, farewellIndex } from "../../src/core/players/retirements.js";
 import { RETIREMENT_NOTABLE_LIMIT } from "../../src/core/constants.js";
 import { emptySeasonStats, type Player } from "../../src/core/players/types.js";
+import type { LeagueStore } from "../../src/core/leagueState.js";
+import type { SeasonHistoryEntry } from "../../src/core/standings.js";
 
 const SEASON = 2030;
+
+/**
+ * The least league that can score a career: honours are read off the season
+ * history and the three cup histories, and nothing else here is touched.
+ */
+function leagueWith(seasonHistory: SeasonHistoryEntry[] = []): LeagueStore {
+  return {
+    seasonHistory, cupHistory: [], shieldHistory: [], domesticCupHistory: [],
+  } as unknown as LeagueStore;
+}
+
+const LEAGUE = leagueWith();
 
 interface Over {
   pid: number;
@@ -36,7 +50,7 @@ describe("summarizeRetirements", () => {
     // More retirees than the cap, ovr ascending with pid so the expected order is known.
     const retirees = Array.from({ length: RETIREMENT_NOTABLE_LIMIT + 20 }, (_, i) =>
       makePlayer({ pid: i + 1, ovr: 40 + i }));
-    const summary = summarizeRetirements(retirees, SEASON, new Map(), 0);
+    const summary = summarizeRetirements(retirees, SEASON, new Map(), 0, LEAGUE);
 
     expect(summary.total).toBe(RETIREMENT_NOTABLE_LIMIT + 20);
     expect(summary.notable).toHaveLength(RETIREMENT_NOTABLE_LIMIT);
@@ -49,7 +63,7 @@ describe("summarizeRetirements", () => {
   it("separates who a club had on its books from who was unsigned", () => {
     const retirees = [makePlayer({ pid: 1 }), makePlayer({ pid: 2 }), makePlayer({ pid: 3 })];
     // pid 3 is in nobody's squad.
-    const summary = summarizeRetirements(retirees, SEASON, new Map([[1, 7], [2, 9]]), 0);
+    const summary = summarizeRetirements(retirees, SEASON, new Map([[1, 7], [2, 9]]), 0, LEAGUE);
 
     expect(summary.total).toBe(3);
     expect(summary.rostered).toBe(2);
@@ -66,10 +80,10 @@ describe("summarizeRetirements", () => {
     const tids = new Map<number, number>([[1, 4]]);
     for (let i = 0; i < 30; i++) tids.set(100 + i, 11);
 
-    const summary = summarizeRetirements(retirees, SEASON, tids, 4);
+    const summary = summarizeRetirements(retirees, SEASON, tids, 4, LEAGUE);
 
     expect(summary.notable.map((r) => r.pid)).toContain(1);
-    // Still bounded, and still ranked by ovr rather than pinning his to the top.
+    // Still bounded, and still ranked by caliber rather than pinning his to the top.
     expect(summary.notable).toHaveLength(RETIREMENT_NOTABLE_LIMIT);
     expect(summary.notable.at(-1)!.pid).toBe(1);
   });
@@ -79,7 +93,7 @@ describe("summarizeRetirements", () => {
       makePlayer({ pid: i + 1, ovr: 50 + i }));
     const tids = new Map(retirees.map((p) => [p.pid, 4]));
 
-    const summary = summarizeRetirements(retirees, SEASON, tids, 4);
+    const summary = summarizeRetirements(retirees, SEASON, tids, 4, LEAGUE);
 
     expect(summary.notable).toHaveLength(RETIREMENT_NOTABLE_LIMIT);
     expect(summary.total).toBe(RETIREMENT_NOTABLE_LIMIT + 5);
@@ -93,7 +107,7 @@ describe("summarizeRetirements", () => {
       lines: [[2027, 30, 18, 6], [2028, 0, 0, 0], [2029, 22, 9, 11]],
     });
 
-    const [row] = summarizeRetirements([player], SEASON, new Map([[1, 3]]), 0).notable;
+    const [row] = summarizeRetirements([player], SEASON, new Map([[1, 3]]), 0, LEAGUE).notable;
 
     expect(row).toMatchObject({
       pid: 1, name: "Player 1", nationality: "eng", pos: "ST",
@@ -110,17 +124,48 @@ describe("summarizeRetirements", () => {
       season: SEASON - 1, ratings: player.ratings, ovr: 80, potential: 80, academy: false, pos: player.pos,
     }];
 
-    const [row] = summarizeRetirements([player], SEASON, new Map(), 0).notable;
+    const [row] = summarizeRetirements([player], SEASON, new Map(), 0, LEAGUE).notable;
     expect(row.ovr).toBe(80);
   });
 
   it("reports zero caps for a player who was never called up", () => {
-    const [row] = summarizeRetirements([makePlayer({ pid: 1 })], SEASON, new Map(), 0).notable;
+    const [row] = summarizeRetirements([makePlayer({ pid: 1 })], SEASON, new Map(), 0, LEAGUE).notable;
     expect(row.caps).toBe(0);
   });
 
+  it("ranks the bigger career above the higher final rating", () => {
+    // A twelve-year forward bowing out at 68 against a journeyman who drifted
+    // out of the game at 78. Sorting on the rating each retired at puts the
+    // journeyman first, which is exactly backwards for a list of the biggest
+    // names to go.
+    const legend = makePlayer({
+      pid: 1, ovr: 68, age: 37,
+      lines: Array.from({ length: 12 }, (_, i): [number, number, number, number] =>
+        [SEASON - 12 + i, 30, 15, 8]),
+    });
+    const journeyman = makePlayer({ pid: 2, ovr: 78, age: 30 });
+
+    const summary = summarizeRetirements([journeyman, legend], SEASON, new Map(), 0, LEAGUE);
+
+    expect(summary.notable.map((r) => r.pid)).toEqual([1, 2]);
+  });
+
+  it("counts the honours a retiree won, not just what he played at", () => {
+    // Nothing separates these two on the pitch — the decorated one is the
+    // weaker player by his final rating — so a Ballon d'Or is the whole case.
+    const decorated = makePlayer({ pid: 1, ovr: 60, age: 36 });
+    const better = makePlayer({ pid: 2, ovr: 78, age: 30 });
+    const league = leagueWith([
+      { season: SEASON - 4, world: { ballonDOr: [{ pid: 1 }] } } as unknown as SeasonHistoryEntry,
+    ]);
+
+    const summary = summarizeRetirements([better, decorated], SEASON, new Map(), 0, league);
+
+    expect(summary.notable.map((r) => r.pid)).toEqual([1, 2]);
+  });
+
   it("handles an offseason where nobody retired", () => {
-    expect(summarizeRetirements([], SEASON, new Map(), 0))
+    expect(summarizeRetirements([], SEASON, new Map(), 0, LEAGUE))
       .toEqual({ total: 0, rostered: 0, notable: [] });
   });
 });

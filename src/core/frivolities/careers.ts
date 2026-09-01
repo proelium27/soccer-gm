@@ -54,7 +54,17 @@ export function statOf(row: CareerRow, key: AllTimeStatKey): number {
   return row.totals[key];
 }
 
-function rowFromArchived(a: ArchivedPlayer): CareerRow {
+/**
+ * One archived career as a `CareerRow`.
+ *
+ * Exported because the farewell list ranks a player the *instant* he retires,
+ * before he is anywhere the boards can see him: `archivePlayer` already reduces
+ * a live retiree to exactly this shape off his stored career summary, so
+ * composing the two is how a retiree gets scored without walking his seasons —
+ * which by then may be a worker-side window rather than his whole career (see
+ * players/careerSummary.ts).
+ */
+export function rowFromArchived(a: ArchivedPlayer): CareerRow {
   return {
     pid: a.pid,
     name: a.name,
