@@ -35,10 +35,9 @@ describe("AI prospect retention", () => {
   /**
    * The target club with its own young high-potential players stripped out.
    *
-   * A generated squad can already contain prospects, and they now count against
-   * AI_PROSPECT_SLOTS (the allowance is "at most N prospects", not "N on top of
-   * whatever the depth chart happened to keep"). Isolating the fixture is what
-   * makes these assertions about the retention rule rather than about how many
+   * A generated squad can already contain prospects of its own, which makes
+   * "did the allowance keep MY prospects" ambiguous. Isolating the fixture keeps
+   * these assertions about the retention rule rather than about how many
    * wonderkids seed 1 happened to hand this club.
    */
   const cleanTarget = (league: ReturnType<typeof makeLeague>) => {
@@ -112,27 +111,28 @@ describe("AI prospect retention", () => {
     expect(survivors.map((p) => p.pid)).not.toContain(prospects[0].pid);
   });
 
-  it("counts prospects the depth chart already kept against the allowance", () => {
-    // "At most AI_PROSPECT_SLOTS prospects", not "N on top of however many the
-    // depth chart happened to keep". The two have to agree, because the free
-    // agency pass counts EVERY young high-potential player on the roster when
-    // deciding whether a club is full — counting only the extras here let a
-    // club whose chart already held five retain five more and carry double the
-    // documented number, while free agency thought it was full and signed none.
+  it("does NOT spend a slot on a prospect the depth chart keeps on merit", () => {
+    // The allowance is N prospects *beyond* the chart, so a club rich in them
+    // carries more than the bare constant. Counting the chart's own against it
+    // was tried and reverted: it agrees with the free-agency pass arithmetically
+    // but retains fewer of the cheapest players in the game, and the dynasty
+    // audit measured deficits going 1 of 4 seeds to 2 of 4 for it.
     const league = makeLeague(0, 1);
     const season = league.season;
     const target = cleanTarget(league);
 
-    // Prospects good enough that the ovr depth chart keeps them on merit, plus
-    // more that only the allowance could save.
-    const starters = Array.from({ length: AI_PROSPECT_SLOTS }, (_, i) => ({
+    // Exactly as many as the CB depth chart holds, so every one is kept on
+    // merit and none spills into the allowance. (Sizing this by
+    // AI_PROSPECT_SLOTS instead was wrong: the chart holds ROSTER_COMPOSITION.CB
+    // of them, so the surplus fell through and spent a slot.)
+    const onMerit = Array.from({ length: ROSTER_COMPOSITION.CB }, (_, i) => ({
       ...makeProspect(9_500_000 + i, season, AI_PROSPECT_MIN_POT + 10),
       ovr: 90,
     }));
-    const extras = Array.from({ length: AI_PROSPECT_SLOTS }, (_, i) =>
+    const spares = Array.from({ length: AI_PROSPECT_SLOTS }, (_, i) =>
       makeProspect(9_600_000 + i, season, AI_PROSPECT_MIN_POT + 1),
     );
-    const added = [...starters, ...extras];
+    const added = [...onMerit, ...spares];
     const players = [...league.players, ...added];
     const teams = league.teams.map((t) =>
       t.tid === target.tid
@@ -143,17 +143,9 @@ describe("AI prospect retention", () => {
     const roster = new Set(
       trimRosterSurplus(teams, players, -1, season).find((t) => t.tid === target.tid)!.roster,
     );
-    const pmap = new Map(players.map((p) => [p.pid, p]));
-    const heldProspects = [...roster].filter((pid) => {
-      const p = pmap.get(pid);
-      return p != null
-        && season - p.born <= AI_PROSPECT_MAX_AGE
-        && p.potential >= AI_PROSPECT_MIN_POT;
-    });
-    expect(heldProspects.length).toBeLessThanOrEqual(AI_PROSPECT_SLOTS);
-    // The good ones are kept on merit by the depth chart; the spare ones are
-    // what the exhausted allowance drops.
-    for (const p of starters) expect(roster.has(p.pid)).toBe(true);
+    for (const p of onMerit) expect(roster.has(p.pid)).toBe(true);
+    // ...and the full allowance is still available to the spares on top.
+    expect(spares.filter((p) => roster.has(p.pid))).toHaveLength(AI_PROSPECT_SLOTS);
   });
 
   it("leaves an ordinary low-potential youngster to be released", () => {

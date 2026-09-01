@@ -362,21 +362,36 @@ export function trimRosterSurplus(
     // (then ovr, then pid — a total order, so the choice can't depend on
     // roster array order) among the young players the chart didn't already
     // keep. Rng-free, like the rest of this function.
-    const isProspect = (p: Player) =>
-      season - p.born <= AI_PROSPECT_MAX_AGE && p.potential >= AI_PROSPECT_MIN_POT;
-    const all = [...byPos.values()].flat();
-    // Prospects the depth chart ALREADY kept count against the allowance, so
-    // "at most AI_PROSPECT_SLOTS prospects" means the same thing here as it
-    // does in free agency, which counts every young high-potential player on
-    // the roster. Counting only the extras let a club whose chart happened to
-    // hold five of them retain five more and carry double the documented
-    // number, while free agency thought it was full and signed none.
-    const already = all.filter((p) => kept.has(p.pid) && isProspect(p)).length;
-    const room = Math.max(0, AI_PROSPECT_SLOTS - already);
-    const prospects = all
-      .filter((p) => !kept.has(p.pid) && isProspect(p))
+    // The allowance is AI_PROSPECT_SLOTS prospects **beyond** the depth chart.
+    // A prospect good enough for the chart is kept on merit and does not spend
+    // a slot, so a club rich in them can carry more than the bare constant.
+    //
+    // **That is deliberate, and counting the chart's own prospects against the
+    // allowance was tried and reverted (2026-09-01).** It makes this agree
+    // arithmetically with the free-agency pass, which counts every young
+    // high-potential player on the roster when deciding whether a club is full
+    // — but it also retains fewer prospects, and prospects are the cheapest
+    // players in the game (wages are cubic in ovr). Releasing them means
+    // refilling the squad from the market with older, dearer players, and the
+    // dynasty audit measured the cost: deficits went **1 of 4 seeds (worst
+    // −£0.2M) to 2 of 4 (worst −£2.0M)** with nothing else in the sim changed.
+    // The finance column is the one that fails first here, so a real deficit is
+    // not worth paying to make a comment tidy.
+    //
+    // The two passes therefore differ on purpose, and the difference is
+    // conservative in the safe direction: free agency's count is an
+    // over-estimate, so a prospect-rich club stops shopping early rather than
+    // over-signing.
+    const prospects = [...byPos.values()]
+      .flat()
+      .filter(
+        (p) =>
+          !kept.has(p.pid)
+          && season - p.born <= AI_PROSPECT_MAX_AGE
+          && p.potential >= AI_PROSPECT_MIN_POT,
+      )
       .sort((a, b) => b.potential - a.potential || b.ovr - a.ovr || a.pid - b.pid);
-    for (const p of prospects.slice(0, room)) kept.add(p.pid);
+    for (const p of prospects.slice(0, AI_PROSPECT_SLOTS)) kept.add(p.pid);
 
     return { ...t, roster: t.roster.filter((pid) => kept.has(pid) || onLoan.has(pid)) };
   });
