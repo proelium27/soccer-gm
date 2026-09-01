@@ -3,7 +3,7 @@ import { makeLeague } from "../helpers/league.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { trimRosterSurplus, runAIFreeAgency } from "../../src/core/freeAgency.js";
 import {
-  ROSTER_COMPOSITION, AI_PROSPECT_SLOTS, AI_PROSPECT_MIN_POT,
+  ROSTER_COMPOSITION, AI_PROSPECT_SLOTS, AI_PROSPECT_MIN_POT, AI_PROSPECT_MAX_AGE,
 } from "../../src/core/constants.js";
 import type { Player } from "../../src/core/players/types.js";
 
@@ -32,10 +32,31 @@ describe("AI prospect retention", () => {
       stats: [],
     }) as unknown as Player;
 
+  /**
+   * The target club with its own young high-potential players stripped out.
+   *
+   * A generated squad can already contain prospects, and they now count against
+   * AI_PROSPECT_SLOTS (the allowance is "at most N prospects", not "N on top of
+   * whatever the depth chart happened to keep"). Isolating the fixture is what
+   * makes these assertions about the retention rule rather than about how many
+   * wonderkids seed 1 happened to hand this club.
+   */
+  const cleanTarget = (league: ReturnType<typeof makeLeague>) => {
+    const pmap = new Map(league.players.map((p) => [p.pid, p]));
+    const isProspect = (pid: number) => {
+      const p = pmap.get(pid);
+      return p != null
+        && league.season - p.born <= AI_PROSPECT_MAX_AGE
+        && p.potential >= AI_PROSPECT_MIN_POT;
+    };
+    const t = league.teams[1];
+    return { ...t, roster: t.roster.filter((pid) => !isProspect(pid)) };
+  };
+
   it("keeps a club's wonderkids through the trim, without displacing the depth chart", () => {
     const league = makeLeague(0, 1);
     const season = league.season;
-    const target = league.teams[1];
+    const target = cleanTarget(league);
 
     // Who the ovr depth chart keeps at CB, measured before the prospects exist.
     const pmap = new Map(league.players.map((p) => [p.pid, p]));
@@ -51,7 +72,9 @@ describe("AI prospect retention", () => {
     );
     const players = [...league.players, ...prospects];
     const teams = league.teams.map((t) =>
-      t.tid === target.tid ? { ...t, roster: [...t.roster, ...prospects.map((p) => p.pid)] } : t,
+      t.tid === target.tid
+        ? { ...target, roster: [...target.roster, ...prospects.map((p) => p.pid)] }
+        : t,
     );
 
     const roster = trimRosterSurplus(teams, players, /* userTid */ -1, season)
@@ -66,7 +89,7 @@ describe("AI prospect retention", () => {
   it("retains at most AI_PROSPECT_SLOTS of them, best potential first", () => {
     const league = makeLeague(0, 1);
     const season = league.season;
-    const target = league.teams[1];
+    const target = cleanTarget(league);
 
     // One more prospect than there are slots, each a point better than the last.
     const prospects = Array.from({ length: AI_PROSPECT_SLOTS + 1 }, (_, i) =>
@@ -74,7 +97,9 @@ describe("AI prospect retention", () => {
     );
     const players = [...league.players, ...prospects];
     const teams = league.teams.map((t) =>
-      t.tid === target.tid ? { ...t, roster: [...t.roster, ...prospects.map((p) => p.pid)] } : t,
+      t.tid === target.tid
+        ? { ...target, roster: [...target.roster, ...prospects.map((p) => p.pid)] }
+        : t,
     );
 
     const roster = new Set(
@@ -85,6 +110,50 @@ describe("AI prospect retention", () => {
     // The one dropped is the weakest, not whoever happened to come last in the
     // roster array — the sort is a total order for exactly this reason.
     expect(survivors.map((p) => p.pid)).not.toContain(prospects[0].pid);
+  });
+
+  it("counts prospects the depth chart already kept against the allowance", () => {
+    // "At most AI_PROSPECT_SLOTS prospects", not "N on top of however many the
+    // depth chart happened to keep". The two have to agree, because the free
+    // agency pass counts EVERY young high-potential player on the roster when
+    // deciding whether a club is full — counting only the extras here let a
+    // club whose chart already held five retain five more and carry double the
+    // documented number, while free agency thought it was full and signed none.
+    const league = makeLeague(0, 1);
+    const season = league.season;
+    const target = cleanTarget(league);
+
+    // Prospects good enough that the ovr depth chart keeps them on merit, plus
+    // more that only the allowance could save.
+    const starters = Array.from({ length: AI_PROSPECT_SLOTS }, (_, i) => ({
+      ...makeProspect(9_500_000 + i, season, AI_PROSPECT_MIN_POT + 10),
+      ovr: 90,
+    }));
+    const extras = Array.from({ length: AI_PROSPECT_SLOTS }, (_, i) =>
+      makeProspect(9_600_000 + i, season, AI_PROSPECT_MIN_POT + 1),
+    );
+    const added = [...starters, ...extras];
+    const players = [...league.players, ...added];
+    const teams = league.teams.map((t) =>
+      t.tid === target.tid
+        ? { ...target, roster: [...target.roster, ...added.map((p) => p.pid)] }
+        : t,
+    );
+
+    const roster = new Set(
+      trimRosterSurplus(teams, players, -1, season).find((t) => t.tid === target.tid)!.roster,
+    );
+    const pmap = new Map(players.map((p) => [p.pid, p]));
+    const heldProspects = [...roster].filter((pid) => {
+      const p = pmap.get(pid);
+      return p != null
+        && season - p.born <= AI_PROSPECT_MAX_AGE
+        && p.potential >= AI_PROSPECT_MIN_POT;
+    });
+    expect(heldProspects.length).toBeLessThanOrEqual(AI_PROSPECT_SLOTS);
+    // The good ones are kept on merit by the depth chart; the spare ones are
+    // what the exhausted allowance drops.
+    for (const p of starters) expect(roster.has(p.pid)).toBe(true);
   });
 
   it("leaves an ordinary low-potential youngster to be released", () => {

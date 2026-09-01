@@ -30,7 +30,7 @@ type IntakeSortKey = "name" | "pos" | "ovr" | "pot";
  * Agents page with everyone else nobody wanted.
  */
 export function YouthIntake() {
-  const { league, signTrialistAction, releaseTrialistAction, simming } = useLeague();
+  const { league, signTrialistAction, simming } = useLeague();
   const { sort, toggle } = useTableSort<IntakeSortKey>("pot", "desc");
 
   if (!league) {
@@ -60,9 +60,9 @@ export function YouthIntake() {
       <h4>Youth Intake</h4>
       <p className="text-muted" style={{ maxWidth: "48rem" }}>
         Every summer your academy turns up a group of 16-year-olds on trial. You can offer a
-        contract to {YOUTH_TRIAL_SIGN_LIMIT} of them; the rest leave and are free for anyone else
-        to sign, so passing on one can come back to haunt you. Nobody here is signed until you say
-        so, and whoever's left when you start the next season has gone.
+        contract to {YOUTH_TRIAL_SIGN_LIMIT} of them. Nobody here is signed until you say so, and
+        whoever you haven't signed when the next season starts leaves for good, free for anyone
+        else to pick up, so passing on the right one can come back to haunt you.
       </p>
       <p className="text-muted" style={{ maxWidth: "48rem" }}>
         How good the group is comes down to your academy's standing, how the club's been finishing,
@@ -132,13 +132,6 @@ export function YouthIntake() {
                         onClick={() => signTrialistAction(p.pid)}
                       >
                         Offer contract
-                      </button>
-                      <button
-                        className="btn btn-sm btn-outline-secondary text-nowrap"
-                        disabled={simming}
-                        onClick={() => releaseTrialistAction(p.pid)}
-                      >
-                        Release
                       </button>
                     </div>
                   </td>

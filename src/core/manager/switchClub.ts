@@ -15,6 +15,7 @@ import type { StoredTeam } from "../teams/clubs.js";
 import type { Player } from "../players/types.js";
 import { contractTerms } from "../contracts.js";
 import { chooseBestFormation } from "../lineup/formations.js";
+import { FREE_AGENT_TID } from "../transfers/negotiation.js";
 import { reconcileScoutingObserved } from "../scouting/potentialFog.js";
 import { ensureUserRosterSafety } from "../freeAgency.js";
 import { MANAGER_START_CONFIDENCE } from "../constants.js";
@@ -74,6 +75,19 @@ function handToAI(team: StoredTeam, players: Player[]): StoredTeam {
     starters: null,
     transferListed: [],
     moreMinutes: [],
+    // Dropped rather than graduated, unlike the academy above: a trialist was
+    // never signed, holds no contract and sits on no roster, so releasing the
+    // pid is all it takes to make him an ordinary free agent anyone can sign.
+    //
+    // It has to happen HERE or the group is stranded for the life of the save.
+    // The offseason only resets the group belonging to the current userTid, and
+    // freeAgentPids counts trialists as rostered — so a group left on a club the
+    // AI now runs is invisible to every signing path, never plays again, and
+    // (being high-potential) escapes the free-agent cull too. Same permanent
+    // zombie an unmanaged academyRoster would be, which is why dissolveAcademy
+    // exists directly above.
+    youthTrialists: [],
+    youthTrialSignings: 0,
     scoutingObserved: {},
     nextScoutingSpend: team.scoutingSpend,
     formation: roster.length > 0 ? chooseBestFormation(roster) : team.formation,
@@ -174,6 +188,17 @@ export function switchClub(
     teams,
     players,
     manager,
+    // The safety backstop above can call a player up off the open market, which
+    // is a real arrival and needs the same fee-0 sentinel record an ordinary
+    // free signing gets — club-by-season history is rebuilt from the transfer
+    // log alone, so without it he keeps showing his previous club.
+    transfers: [
+      ...league.transfers,
+      ...safe.marketSignings.map((pid) => ({
+        pid, fromTid: FREE_AGENT_TID, toTid: oldTid, fee: 0,
+        season: league.season, window: "summer" as const,
+      })),
+    ],
     // Every one of these is implicitly "the user's": talks the old club was
     // holding, bids for the old club's players, and loan business the old club
     // had open. Carried over they'd read as the new club's, and acting on one

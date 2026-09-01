@@ -8,7 +8,7 @@ import { setSeasonStartYear } from "../format.js";
 import { exportLeagueJSON, importLeagueJSON } from "../../db/exportImport.js";
 import {
   signFreeAgent, releasePlayer, signToAcademy, promoteFromAcademy, releaseAcademyPlayer,
-  signTrialist, releaseTrialist,
+  signTrialist,
 } from "../../core/freeAgency.js";
 import { sanitizeScoutingRegions } from "../../core/scouting/scoutingRegions.js";
 import { clampScoutingSpend } from "../../core/finance/scouting.js";
@@ -73,8 +73,6 @@ interface LeagueContextValue {
   signToAcademyAction: (pid: number) => Promise<void>;
   /** Sign one of this year's youth trialists into the academy. */
   signTrialistAction: (pid: number) => Promise<void>;
-  /** Turn a youth trialist down; he becomes a free agent. */
-  releaseTrialistAction: (pid: number) => Promise<void>;
   /** Send the youth scouts to these countries (see SCOUTING_REGION_MAX). */
   setScoutingRegionsAction: (regions: string[]) => Promise<void>;
   promoteFromAcademyAction: (pid: number) => Promise<void>;
@@ -612,7 +610,9 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   }), [mutate]);
 
   const signTrialistAction = useCallback((pid: number) => mutate((l) => {
-    const { teams, players } = signTrialist(l.teams, l.players, l.meta.userTid, pid, l.season);
+    const { teams, players } = signTrialist(
+      l.teams, l.players, l.meta.userTid, pid, l.season, l.phase,
+    );
     if (teams === l.teams && players === l.players) return null;
     // Reuses the academy event rather than adding one: the analytics set is
     // deliberately "a handful of meaningful moments, not one event per click"
@@ -644,14 +644,6 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         t.tid === l.meta.userTid ? { ...t, scoutingRegions: clean } : t,
       ),
     };
-  }), [mutate]);
-
-  const releaseTrialistAction = useCallback((pid: number) => mutate((l) => {
-    const teams = releaseTrialist(l.teams, l.meta.userTid, pid);
-    if (teams === l.teams) return null;
-    // No transfer record: he was never signed, so there is no move to log. He
-    // simply stops being held and is a free agent from here.
-    return { ...l, teams };
   }), [mutate]);
 
   const promoteFromAcademyAction = useCallback((pid: number) => mutate((l) => {
@@ -1011,7 +1003,6 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     releasePlayerAction,
     signToAcademyAction,
     signTrialistAction,
-    releaseTrialistAction,
     setScoutingRegionsAction,
     promoteFromAcademyAction,
     releaseAcademyPlayerAction,
@@ -1055,7 +1046,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     league, loadingActiveLeague, setLeague, loadLeagueAction, switchLeagueAction,
     customizeTeamsAction, simAction, simLiveAction, jumpSeasonsAction, offseasonAction,
     intlStageAction, signFreeAgentAction,
-    releasePlayerAction, signToAcademyAction, signTrialistAction, releaseTrialistAction,
+    releasePlayerAction, signToAcademyAction, signTrialistAction,
     setScoutingRegionsAction,
     promoteFromAcademyAction,
     releaseAcademyPlayerAction, extendAcademyContractAction, setScoutingSpendAction,

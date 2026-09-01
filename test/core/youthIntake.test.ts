@@ -4,9 +4,11 @@ import { createLeagueState } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import {
-  freeAgentPids, signTrialist, releaseTrialist, trialSigningsLeft, ensureUserRosterSafety,
+  freeAgentPids, signTrialist, trialSigningsLeft, ensureUserRosterSafety,
 } from "../../src/core/freeAgency.js";
 import { academyFacilitiesBonus } from "../../src/core/players/academyFacilities.js";
+import { switchClub } from "../../src/core/manager/switchClub.js";
+import { beginAutopilot } from "../../src/core/autopilot.js";
 import {
   YOUTH_TRIAL_GROUP_MIN, YOUTH_TRIAL_GROUP_MAX, YOUTH_TRIAL_SIGN_LIMIT,
   SCOUTING_SPEND_MAX, HYPE_MAX, YOUTH_AGE, ROSTER_SAFETY_FLOOR,
@@ -71,15 +73,18 @@ describe("youth trial group", () => {
     expect(signed.hist.every((h) => h.academy)).toBe(true);
   });
 
-  it("makes a released trialist an ordinary free agent", () => {
+  it("keeps an undecided trialist out of the free-agent pool, so the sign limit holds", () => {
+    // There is deliberately no "release" action. One existed and was the way
+    // round the limit: a declined trialist became a free agent immediately and
+    // Free Agents no longer filters by age, so you could sign five to the
+    // academy and the other seven straight to the senior roster the same day.
+    // Undecided trialists simply stay held until the next rollover.
     const rng = mulberry32(4);
     const league = advance(createLeagueState(0, rng), rng);
     const tid = league.meta.userTid;
-    const pid = league.teams.find((t) => t.tid === tid)!.youthTrialists![0];
-
-    const teams = releaseTrialist(league.teams, tid, pid);
-    expect(teams.find((t) => t.tid === tid)!.youthTrialists).not.toContain(pid);
-    expect(freeAgentPids(teams, league.players, league.activeLoans).has(pid)).toBe(true);
+    const group = league.teams.find((t) => t.tid === tid)!.youthTrialists!;
+    const fa = freeAgentPids(league.teams, league.players, league.activeLoans);
+    for (const pid of group) expect(fa.has(pid)).toBe(false);
   });
 
   it("replaces an undecided group at the next offseason rather than accumulating", () => {
@@ -205,5 +210,92 @@ describe("academyFacilitiesBonus", () => {
   it("caps rather than extrapolating past the top of each range", () => {
     expect(academyFacilitiesBonus(team(SCOUTING_SPEND_MAX * 10, HYPE_MAX * 10)))
       .toBeCloseTo(6, 5);
+  });
+});
+
+describe("a trial group is never stranded on a club the user leaves", () => {
+  // The failure this guards is silent and permanent: freeAgentPids counts
+  // trialists as rostered, and the offseason only resets the group belonging to
+  // the CURRENT userTid. A group left behind is invisible to every signing path
+  // for the life of the save, never plays again, and (being high-potential)
+  // escapes the free-agent cull too.
+  it("clears them when the club is handed to the AI", () => {
+    const rng = mulberry32(4);
+    const league = advance(createLeagueState(0, rng), rng);
+    const oldTid = league.meta.userTid;
+    const newTid = league.teams.find((t) => t.tid !== oldTid)!.tid;
+    const stranded = league.teams.find((t) => t.tid === oldTid)!.youthTrialists!;
+    expect(stranded.length).toBeGreaterThan(0);
+
+    const after = switchClub(league, newTid, "left");
+    const left = after.teams.find((t) => t.tid === oldTid)!;
+    expect(left.youthTrialists ?? []).toEqual([]);
+    expect(left.youthTrialSignings ?? 0).toBe(0);
+    // ...and they are signable again rather than locked away forever.
+    const fa = freeAgentPids(after.teams, after.players, after.activeLoans);
+    expect(stranded.some((pid) => fa.has(pid))).toBe(true);
+  });
+
+  it("clears them when the club goes on autopilot", () => {
+    // During a jump meta.userTid is AUTOPILOT_TID, so the offseason's reset
+    // matches no team and the group would survive the whole jump — the user
+    // coming back to a page offering 26-year-old "16-year-olds on trial".
+    const rng = mulberry32(4);
+    const league = advance(createLeagueState(0, rng), rng);
+    const tid = league.meta.userTid;
+    expect(league.teams.find((t) => t.tid === tid)!.youthTrialists!.length).toBeGreaterThan(0);
+
+    const club = beginAutopilot(league).teams.find((t) => t.tid === tid)!;
+    expect(club.youthTrialists ?? []).toEqual([]);
+    expect(club.youthTrialSignings ?? 0).toBe(0);
+  });
+});
+
+describe("an emergency call-up off the market is recorded like any other signing", () => {
+  it("reports the market arrivals and puts them under the transfer hold", () => {
+    // Club-by-season history is rebuilt from league.transfers alone, so an
+    // unrecorded free arrival keeps displaying whichever club last had a record
+    // for him — the bug the FREE_AGENT_TID sentinel record exists to prevent.
+    const rng = mulberry32(4);
+    let league = advance(createLeagueState(0, rng), rng);
+    const tid = league.meta.userTid;
+    league = {
+      ...league,
+      teams: league.teams.map((t) =>
+        t.tid === tid
+          ? { ...t, roster: t.roster.slice(0, 3), academyRoster: [], youthTrialists: [] }
+          : t,
+      ),
+    };
+
+    const { teams, players, marketSignings } = ensureUserRosterSafety(
+      league.teams, league.players, tid, league.season, league.activeLoans,
+    );
+    expect(marketSignings.length).toBeGreaterThan(0);
+    expect(teams.find((t) => t.tid === tid)!.roster.length)
+      .toBeGreaterThanOrEqual(ROSTER_SAFETY_FLOOR);
+    for (const pid of marketSignings) {
+      expect(players.find((p) => p.pid === pid)!.faSignedSeason).toBe(league.season);
+    }
+  });
+
+  it("does not report a player called up from inside the club", () => {
+    const rng = mulberry32(4);
+    const league = advance(createLeagueState(0, rng), rng);
+    const tid = league.meta.userTid;
+    const trial = league.teams.find((t) => t.tid === tid)!.youthTrialists!;
+    const thin = {
+      ...league,
+      teams: league.teams.map((t) =>
+        t.tid === tid ? { ...t, roster: t.roster.slice(0, 16) } : t,
+      ),
+    };
+
+    const { marketSignings } = ensureUserRosterSafety(
+      thin.teams, thin.players, tid, thin.season, thin.activeLoans,
+    );
+    // Own players go first, and they need no transfer record: same club, so the
+    // owner such a record would establish is already correct.
+    for (const pid of marketSignings) expect(trial).not.toContain(pid);
   });
 });

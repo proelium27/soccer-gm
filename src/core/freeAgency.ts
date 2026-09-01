@@ -362,16 +362,21 @@ export function trimRosterSurplus(
     // (then ovr, then pid — a total order, so the choice can't depend on
     // roster array order) among the young players the chart didn't already
     // keep. Rng-free, like the rest of this function.
-    const prospects = [...byPos.values()]
-      .flat()
-      .filter(
-        (p) =>
-          !kept.has(p.pid)
-          && season - p.born <= AI_PROSPECT_MAX_AGE
-          && p.potential >= AI_PROSPECT_MIN_POT,
-      )
+    const isProspect = (p: Player) =>
+      season - p.born <= AI_PROSPECT_MAX_AGE && p.potential >= AI_PROSPECT_MIN_POT;
+    const all = [...byPos.values()].flat();
+    // Prospects the depth chart ALREADY kept count against the allowance, so
+    // "at most AI_PROSPECT_SLOTS prospects" means the same thing here as it
+    // does in free agency, which counts every young high-potential player on
+    // the roster. Counting only the extras let a club whose chart happened to
+    // hold five of them retain five more and carry double the documented
+    // number, while free agency thought it was full and signed none.
+    const already = all.filter((p) => kept.has(p.pid) && isProspect(p)).length;
+    const room = Math.max(0, AI_PROSPECT_SLOTS - already);
+    const prospects = all
+      .filter((p) => !kept.has(p.pid) && isProspect(p))
       .sort((a, b) => b.potential - a.potential || b.ovr - a.ovr || a.pid - b.pid);
-    for (const p of prospects.slice(0, AI_PROSPECT_SLOTS)) kept.add(p.pid);
+    for (const p of prospects.slice(0, room)) kept.add(p.pid);
 
     return { ...t, roster: t.roster.filter((pid) => kept.has(pid) || onLoan.has(pid)) };
   });
@@ -588,9 +593,9 @@ export function ensureUserRosterSafety(
   userTid: number,
   season: number,
   activeLoans: ActiveLoan[] = [],
-): { teams: StoredTeam[]; players: Player[] } {
+): { teams: StoredTeam[]; players: Player[]; marketSignings: number[] } {
   const team = teams.find((t) => t.tid === userTid);
-  if (!team) return { teams, players };
+  if (!team) return { teams, players, marketSignings: [] };
 
   const playerMap = new Map(players.map((p) => [p.pid, p]));
   const roster = [...team.roster];
@@ -598,10 +603,28 @@ export function ensureUserRosterSafety(
   let trialists = [...(team.youthTrialists ?? [])];
   const promoted = new Map<number, Player>();
 
+  // Who came from the open market rather than from inside the club. The caller
+  // logs these as fee-0 arrivals from FREE_AGENT_TID: club-by-season history is
+  // reconstructed from `league.transfers` alone (teamForSeason, the OVR chart's
+  // club colours), so an unrecorded free arrival is attributed to whichever club
+  // last had a record for him — the exact bug that sentinel record exists to
+  // prevent. A promotion from the academy or the trial list needs no record: it
+  // is the same club, so the owner the record would establish is already right.
+  const marketSignings: number[] = [];
+
   function promote(pid: number): void {
     const p = playerMap.get(pid)!;
     const terms = contractTerms(p, season);
-    promoted.set(pid, { ...p, contract: { salary: terms.salary, expiresSeason: terms.expiresSeason } });
+    const fromMarket = !academy.includes(pid) && !trialists.includes(pid);
+    promoted.set(pid, {
+      ...p,
+      contract: { salary: terms.salary, expiresSeason: terms.expiresSeason },
+      // Signed off the market, so he takes the same one-season transfer hold any
+      // free-agent signing does — otherwise an emergency call-up could be listed
+      // and sold in the same window.
+      ...(fromMarket ? { faSignedSeason: season } : {}),
+    });
+    if (fromMarket) marketSignings.push(pid);
     roster.push(pid);
     academy = academy.filter((q) => q !== pid);
     trialists = trialists.filter((q) => q !== pid);
@@ -666,7 +689,7 @@ export function ensureUserRosterSafety(
     promote(best.pid);
   }
 
-  if (promoted.size === 0) return { teams, players };
+  if (promoted.size === 0) return { teams, players, marketSignings: [] };
 
   return {
     teams: teams.map((t) =>
@@ -675,6 +698,7 @@ export function ensureUserRosterSafety(
         : t,
     ),
     players: players.map((p) => promoted.get(p.pid) ?? p),
+    marketSignings,
   };
 }
 
@@ -717,12 +741,22 @@ export function signTrialist(
   tid: number,
   pid: number,
   season: number,
+  phase: "regular" | "offseason" = "offseason",
 ): { teams: StoredTeam[]; players: Player[] } {
   const team = teams.find((t) => t.tid === tid);
   if (!team || !(team.youthTrialists ?? []).includes(pid)) return { teams, players };
   if (trialSigningsLeft(team) <= 0) return { teams, players };
 
   const terms = academyContractTerms(season);
+  // Wages are charged up front at season start, so a signing made mid-season
+  // has to pay this season's stipend on the spot — exactly as signToAcademy
+  // does for the same player by the other route. The group is normally
+  // resolved in the offseason, where the season-start charge is still to come
+  // and picks him up with everyone else, but nothing stops the page being
+  // opened in March: the trial list survives until the next rollover.
+  const wageCharge = phase === "regular" ? terms.salary : 0;
+  if (wageCharge > team.budget) return { teams, players };
+
   return {
     teams: teams.map((t) =>
       t.tid === tid
@@ -731,6 +765,7 @@ export function signTrialist(
             youthTrialists: (t.youthTrialists ?? []).filter((x) => x !== pid),
             academyRoster: [...t.academyRoster, pid],
             youthTrialSignings: (t.youthTrialSignings ?? 0) + 1,
+            budget: t.budget - wageCharge,
           }
         : t,
     ),
@@ -748,20 +783,3 @@ export function signTrialist(
   };
 }
 
-/**
- * Turn a trialist down. He leaves the trial list and, holding no contract and
- * sitting on no roster, is a free agent from that moment — so an AI club can
- * sign him, which is the point: a prospect you passed on should be able to
- * come back to haunt you.
- */
-export function releaseTrialist(
-  teams: StoredTeam[],
-  tid: number,
-  pid: number,
-): StoredTeam[] {
-  return teams.map((t) =>
-    t.tid === tid
-      ? { ...t, youthTrialists: (t.youthTrialists ?? []).filter((x) => x !== pid) }
-      : t,
-  );
-}

@@ -689,8 +689,22 @@ export function simOffseasonReporting(
       : t,
   );
 
-  // 5.5. Emergency call-up for the user's own roster.
-  ({ teams, players } = ensureUserRosterSafety(teams, players, league.meta.userTid, nextSeason, activeLoans));
+  // 5.5. Emergency call-up for the user's own roster. Anyone taken off the open
+  //      market is logged as a fee-0 arrival from the sentinel, exactly as an AI
+  //      free signing is at step 4 — club-by-season history is rebuilt from the
+  //      transfer log alone, so an unrecorded arrival keeps showing his old club.
+  let safetySignings: number[];
+  ({ teams, players, marketSignings: safetySignings } = ensureUserRosterSafety(
+    teams, players, league.meta.userTid, nextSeason, activeLoans,
+  ));
+  ceilingTransfers = [
+    ...ceilingTransfers,
+    ...safetySignings.map((pid) => ({
+      pid, fromTid: FREE_AGENT_TID, toTid: league.meta.userTid, fee: 0,
+      season: faWindow.season ?? nextSeason,
+      window: faWindow.window ?? ("summer" as const),
+    })),
+  ];
 
   // 6. Trim AI squads back down to target composition. Loaned-in players are
   //    left in place (owned by their parent — see trimRosterSurplus) so
