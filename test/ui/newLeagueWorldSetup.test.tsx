@@ -6,6 +6,7 @@ import { ROSTER_FILE_FORMAT, type RosterFile } from "../../src/core/teams/roster
 import { setPendingRoster } from "../../src/ui/pendingRoster.js";
 import { NewLeague } from "../../src/ui/pages/NewLeague.js";
 import { clubIdentitiesFor } from "../../src/core/teams/clubs.js";
+import { worldCompetitions, competitionTeamCount } from "../../src/core/competitions.js";
 
 /**
  * The world editor has to be reachable from the roster-import flow, not just the
@@ -78,9 +79,16 @@ function renderNewLeague(
  * a second describe block.
  */
 describe("the club picker shows one division at a time", () => {
-  // The same lookup the page uses. England's slots are its tier-1 block then its
-  // tier-2 block, so index 0 is a first-division club and index 20 a second.
-  const england = clubIdentitiesFor("England", 40);
+  // The same lookup the page uses. England's slots are its divisions in tier
+  // order, so index 0 is a first-division club, index 20 a second, and the
+  // last entry a third — sized off the real table rather than a literal, which
+  // is what let this fixture keep passing while a whole division went missing.
+  const england = clubIdentitiesFor(
+    "England",
+    worldCompetitions()
+      .filter((c) => c.country === "England")
+      .reduce((n, c) => n + competitionTeamCount(c), 0),
+  );
 
   it("lists the first division and not the second", () => {
     const html = renderNewLeague("/new-league");
@@ -90,11 +98,35 @@ describe("the club picker shows one division at a time", () => {
     expect(html).not.toContain(england[20].name);
   });
 
-  it("offers both divisions as tabs, so the other one is reachable", () => {
+  it("offers every division as a tab, so the others are reachable", () => {
     const html = renderNewLeague("/new-league");
-    expect(html).toContain("English Division 1");
-    expect(html).toContain("English Division 2");
     expect(html).toContain('aria-label="Choose a division"');
+    // One tab per division the COUNTRY runs, derived from its clubs rather than
+    // from a fixed pair. The third division was invisible here when this was
+    // hardcoded to two: its clubs exist, and no tab reached them.
+    for (const comp of worldCompetitions().filter((c) => c.country === "England")) {
+      expect(html).toContain(comp.name);
+    }
+  });
+
+  it("draws one tab per division, not a fixed two", () => {
+    // The count is the assertion. Three names could all appear while only two
+    // were clickable — which is exactly the state this was in, since the tabs
+    // were a literal [1, 2] and the third division's clubs were filtered out
+    // of the list with no way to reach them. There is no DOM here to click a
+    // tab with, so the tab COUNT is what stands in for reachability.
+    const html = renderNewLeague("/new-league");
+    // Scoped to the division group: the page carries aria-pressed buttons for
+    // the country tabs and the difficulty picker too, and counting all of them
+    // reads 19 rather than 3.
+    const group = html.slice(
+      html.indexOf('aria-label="Choose a division"'),
+      html.indexOf("list-group picker-columns"),
+    );
+    const tabs = (group.match(/aria-pressed=/g) ?? []).length;
+    const divisions = worldCompetitions().filter((c) => c.country === "England").length;
+    expect(divisions).toBe(3);
+    expect(tabs).toBe(divisions);
   });
 });
 
