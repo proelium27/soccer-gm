@@ -25,14 +25,15 @@ import {
 /** How many clubs the power-ranking panel lists before pointing at the full board. */
 const POWER_TOP_N = 10;
 
-function Panel({ title, link, linkLabel, children }: {
+function Panel({ title, link, linkLabel, className, children }: {
   title: string;
   link?: string;
   linkLabel?: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="card h-100">
+    <div className={`card h-100${className ? ` ${className}` : ""}`}>
       <div className="card-body">
         <div className="d-flex justify-content-between align-items-baseline gap-2 mb-2">
           <h5 className="card-title mb-0">{title}</h5>
@@ -329,7 +330,7 @@ export function InternationalBracketPanel({ league }: { league: LeagueStore }) {
   if (worldCup) {
     const t = league.international.tournament;
     return (
-      <Panel title="World Cup" link="/national-teams/world-cup" linkLabel="Full bracket">
+      <Panel title="World Cup" link="/national-teams/world-cup" linkLabel="Full bracket" className="mb-3">
         {!t ? (
           <p className="text-muted small mb-0">Waiting on the draw.</p>
         ) : (
@@ -354,7 +355,7 @@ export function InternationalBracketPanel({ league }: { league: LeagueStore }) {
 
   const cups = league.international.confederationCups ?? [];
   return (
-    <Panel title="Confederation cups" link="/national-teams/confederation-cups" linkLabel="All of them">
+    <Panel title="Confederation cups" link="/national-teams/confederation-cups" linkLabel="All of them" className="mb-3">
       {cups.length === 0 ? (
         <p className="text-muted small mb-0">Waiting on the draws.</p>
       ) : (

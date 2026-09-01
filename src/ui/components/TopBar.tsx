@@ -16,6 +16,7 @@ import { seasonYear } from "../format.js";
 import { buildImportPromptText } from "../../core/teams/rosterAiPrompt.js";
 import { Dropdown } from "./Dropdown.js";
 import { SimTargetForm } from "./SimTargetForm.js";
+import { JumpSeasonsForm } from "./JumpSeasonsForm.js";
 import { LOGO_URL } from "../publicAsset.js";
 
 interface TopBarProps {
@@ -24,9 +25,11 @@ interface TopBarProps {
 }
 
 export function TopBar({ onToggleNav }: TopBarProps) {
-  const { league, simAction, simLiveAction, intlStageAction, simming, exportJSON, importJSON, switchLeagueAction, setGodModeAction } = useLeague();
+  const {
+    league, simAction, simLiveAction, intlStageAction, jumpSeasonsAction, simming,
+    exportJSON, switchLeagueAction, setGodModeAction,
+  } = useLeague();
   const { brand } = useSportName();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   // Shared with the Dashboard's Advance button so the two can't route a given
   // save differently — a spectator has no scouting budget to stop at.
@@ -34,7 +37,6 @@ export function TopBar({ onToggleNav }: TopBarProps) {
   // No club, so no match of yours to watch live and no board to be sacked by.
   const spectating = !!league && isSpectator(league);
   const [promptCopied, setPromptCopied] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
 
   // The sidebar pins itself directly beneath this bar (see `.sidebar` in
   // styles.css), which needs the bar's real height rather than a guess: it runs
@@ -107,28 +109,6 @@ export function TopBar({ onToggleNav }: TopBarProps) {
   if (league) {
     statusText = `${seasonYear(league.season)}`;
     statusText += currentMatchday === null ? " — Offseason" : ` — Matchday ${currentMatchday}`;
-  }
-
-  function handleImportClick() {
-    fileInputRef.current?.click();
-  }
-
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    // Reset so the same file can be re-imported
-    e.target.value = "";
-    if (!file) return;
-    setImportError(null);
-    try {
-      await importJSON(file);
-    } catch (err) {
-      // A rejected import used to surface nowhere but the browser console, so a
-      // bad file read as "the button does nothing".
-      setImportError(err instanceof Error ? err.message : String(err));
-      // The banner renders under the (sticky) top bar, so on a page scrolled
-      // down it would appear off-screen and still read as nothing happening.
-      window.scrollTo({ top: 0 });
-    }
   }
 
   return (
@@ -263,6 +243,29 @@ export function TopBar({ onToggleNav }: TopBarProps) {
           )}
         </Dropdown>
 
+        {/*
+          Jump ahead, reachable from every page rather than only the Dashboard.
+
+          Its own control beside Sim rather than another item inside it, for the
+          reason the Dashboard card it replaced spelled out: Sim advances the
+          season a step at a time, while this hands a managed club to the AI for
+          years. Folding them together would make the two read as the same kind
+          of thing, and they are not. It carries the form, and the form still
+          confirms in place before it runs.
+        */}
+        <Dropdown label="Jump" alignEnd disabled={simDisabled}>
+          <li className="px-3 py-2 topbar-jump">
+            {league && (
+              <JumpSeasonsForm
+                season={league.season}
+                disabled={simDisabled}
+                spectating={spectating}
+                onJump={(seasons) => jumpSeasonsAction(seasons)}
+              />
+            )}
+          </li>
+        </Dropdown>
+
         {/* Wide windows: the save controls sit inline. The threshold is xl
             (1200px), not md, because the inline row needs ~1020px alongside the
             brand and season label — below that it wrapped onto a second line,
@@ -272,9 +275,6 @@ export function TopBar({ onToggleNav }: TopBarProps) {
         <div className="d-none d-xl-flex align-items-center gap-2">
           <button className="btn btn-outline-light btn-sm" onClick={exportJSON} disabled={!league}>
             Export
-          </button>
-          <button className="btn btn-outline-light btn-sm" onClick={handleImportClick}>
-            Import
           </button>
           <button className="btn btn-outline-light btn-sm" onClick={handleSwitchLeague}>
             Switch League
@@ -311,11 +311,6 @@ export function TopBar({ onToggleNav }: TopBarProps) {
             </button>
           </li>
           <li>
-            <button className="dropdown-item" onClick={handleImportClick}>
-              Import Save
-            </button>
-          </li>
-          <li>
             <button className="dropdown-item" onClick={handleSwitchLeague}>
               Switch League
             </button>
@@ -335,31 +330,8 @@ export function TopBar({ onToggleNav }: TopBarProps) {
             </button>
           </li>
         </Dropdown>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          className="d-none"
-          onChange={handleFileChange}
-        />
       </div>
     </nav>
-
-    {importError && (
-      <div className="alert alert-danger rounded-0 mb-0 py-2 px-3 d-flex align-items-start gap-3" role="alert">
-        <div className="flex-grow-1">
-          <div>Couldn't import that file.</div>
-          <div className="small">{importError}</div>
-        </div>
-        <button
-          type="button"
-          className="btn-close"
-          aria-label="Dismiss"
-          onClick={() => setImportError(null)}
-        />
-      </div>
-    )}
     </>
   );
 }

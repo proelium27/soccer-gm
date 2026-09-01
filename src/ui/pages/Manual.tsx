@@ -300,7 +300,7 @@ export function Manual() {
           <p>
             You keep the whole sim card: one matchday, the rest of the season, sim to a matchday you
             pick, the offseason, each stage of the summer's international football, and{" "}
-            <strong>Jump ahead</strong> for up to 25 seasons at a time. Everything about the world
+            the top bar's <strong>Jump</strong> menu for up to 25 seasons at a time. Everything about the world
             stays open too. Standings, all three cup competitions, the promotion playoffs, Power
             Rankings, Schedule, Stat Leaders, Awards, Club History, Frivolities, Season Preview, the
             News Feed, every National Teams page, and the profile of every player and every club in
@@ -323,7 +323,7 @@ export function Manual() {
           </p>
           <p>
             Your Dashboard is a page of its own: the season and matchday with a Spectating badge,
-            the sim controls, Jump ahead, a league table with a dropdown for any competition in the
+            the sim controls, a league table with a dropdown for any competition in the
             world, and that league's latest matchday beside it, every game with the score
             once it's been played. Along the bottom are the ten
             best clubs anywhere by power ranking, and the Continental Cup and Continental Shield,
@@ -546,7 +546,7 @@ export function Manual() {
             rollover starts the new season fit.
           </p>
           <p>
-            <strong>Jumping ahead.</strong> The <strong>Jump ahead</strong> card on the Dashboard
+            <strong>Jumping ahead.</strong> The <strong>Jump</strong> menu in the top bar, next to Sim,
             plays whole seasons at once &mdash; up to 25 &mdash; with the AI running your club
             while they go by. It's for seeing where a world ends up, or for skipping past a
             rebuild you don't fancy managing. It works mid-season too: it finishes the season

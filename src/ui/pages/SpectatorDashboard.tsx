@@ -24,7 +24,6 @@ import { ClubLink } from "../components/ClubLink.js";
 import { computeStandings } from "../../core/standings.js";
 import { nextMatchday } from "../../core/transfers/window.js";
 import { SimTargetForm } from "../components/SimTargetForm.js";
-import { JumpSeasonsForm } from "../components/JumpSeasonsForm.js";
 import { isIntlStagePending } from "../../core/international/index.js";
 import {
   intlStageButton,
@@ -44,7 +43,7 @@ import {
 const STANDINGS_TOP_N = 8;
 
 export function SpectatorDashboard({ league }: { league: LeagueStore }) {
-  const { simAction, jumpSeasonsAction, intlStageAction, simming } = useLeague();
+  const { simAction, intlStageAction, simming } = useLeague();
   const advanceOffseason = useOffseasonAdvance();
 
   // Which league's table to show. A view, not save state — a spectator has no
@@ -187,27 +186,15 @@ export function SpectatorDashboard({ league }: { league: LeagueStore }) {
         </div>
       </div>
 
-      <div className="card mb-3">
-        <div className="card-body">
-          <h5 className="card-title">Jump ahead</h5>
-          <JumpSeasonsForm
-            season={league.season}
-            disabled={simming}
-            spectating
-            onJump={(seasons) => jumpSeasonsAction(seasons)}
-          />
-        </div>
-      </div>
-
       {/*
         The summer's international football, and only in the offseasons that
         have some — a World Cup or the confederation championships, alternating
         years. It sits above the club panels because during an offseason it is
-        the only football being played.
+        the only football being played. Unwrapped, because the panel renders
+        nothing at all in the other three offseasons and a wrapper would leave
+        an empty spacer behind.
       */}
-      <div className="mb-3">
-        <InternationalBracketPanel league={league} />
-      </div>
+      <InternationalBracketPanel league={league} />
 
       <div className="row g-3">
         <div className="col-lg-6">

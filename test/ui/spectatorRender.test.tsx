@@ -57,7 +57,9 @@ describe("spectator: rendering without a club", () => {
     // The controls that move time forward are the point of the page.
     expect(html).toContain("Sim One Matchday");
     expect(html).toContain("Sim to End of Season");
-    expect(html).toContain("Jump ahead");
+    // Jump ahead is a top-bar control, not a card on this page — see
+    // topBarSimMenu.test.tsx.
+    expect(html).not.toContain("Jump ahead");
   });
 
   it("does not offer the live viewer, which needs a club's match", () => {

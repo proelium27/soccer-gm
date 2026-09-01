@@ -815,6 +815,15 @@ a:hover {
 .form-check-input:disabled { opacity: 0.45; }
 .form-check-label { color: var(--sg-text); }
 
+/* The jump-ahead form lives in a top-bar dropdown, which sizes itself to its
+   content — and the content here is a paragraph of confirmation prose, not a
+   menu item. Without a width it wraps to a sliver; with one it reads as the
+   panel it replaced on the Dashboard. */
+.topbar-jump {
+  width: min(26rem, calc(100vw - 2rem));
+  white-space: normal;
+}
+
 /* The compact knockout bracket in a dashboard panel (see MiniBracket.tsx).
    Only the round heading needs anything: it is a label above a couple of
    score lines, so it wants to be smaller and quieter than the card title
