@@ -51,6 +51,12 @@ export function SimTargetForm({ current, last, disabled, onSim, compact }: SimTa
     // A dropdown menu is only 10rem wide by default, which wraps the hint into a
     // narrow column; the menu grows to fit this instead.
     <div className={compact ? "px-3 py-2" : ""} style={compact ? { minWidth: "18rem" } : undefined}>
+      {/* Above the controls, not below: it describes what the Sim button is
+          about to do, so it should be read before the button is pressed rather
+          than found underneath it afterwards. */}
+      <div className={`small mb-1 ${valid ? "text-muted" : "text-danger"}`}>
+        {simTargetHint(mode, value, current, last)}
+      </div>
       <div className="d-flex align-items-center gap-2 flex-wrap">
         <select
           // Full-size controls inline on the Dashboard so this row lines up
@@ -95,9 +101,6 @@ export function SimTargetForm({ current, last, disabled, onSim, compact }: SimTa
         >
           Sim
         </button>
-      </div>
-      <div className={`small mt-1 ${valid ? "text-muted" : "text-danger"}`}>
-        {simTargetHint(mode, value, current, last)}
       </div>
     </div>
   );
