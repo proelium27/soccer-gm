@@ -15,6 +15,7 @@ import { useSportName } from "../sportName.js";
 const SECTIONS: [id: string, title: string][] = [
   ["overview", "Overview"],
   ["difficulty", "Difficulty"],
+  ["spectator", "Spectating: A Save With Nobody in Charge"],
   ["manager", "Your Job: Confidence, Offers & Sackings"],
   ["pages", "The Pages"],
   ["season", "The Season & Simming"],
@@ -87,6 +88,12 @@ export function Manual() {
             league. You pick the starting XI, buy and sell players, haggle over transfers, deal
             with contracts and the wage bill, and try to build a squad that actually wins. This
             season, or three seasons out. Your call.
+          </p>
+          <p>
+            If you'd rather not run anybody, you don't have to. A save can be started as a{" "}
+            <a href="#spectator">spectator</a>, with every club in the world left to the AI and you
+            watching what it does with them. That's a choice you make when you create the save, and
+            it can't be changed afterwards.
           </p>
           <p>
             The other 19 clubs are run by AI managers doing all the same stuff you are. They value
@@ -265,6 +272,74 @@ export function Manual() {
           </p>
         </Section>
 
+        <Section id="spectator" title="Spectating: A Save With Nobody in Charge">
+          <p>
+            You don't have to manage anyone. Above the club picker on the New League screen there's
+            a <strong>Spectator mode</strong> switch. Leave it off and you get the game the rest of
+            this manual describes. Turn it on and the same world gets built and then left entirely
+            to the AI, with no club picker and no club of your own. You still run time. You just
+            don't run a team.
+          </p>
+          <p>
+            <strong>It's fixed for the life of the save.</strong> A spectator save isn't handed a
+            club later, and a save with a club can't give one up. Normal play has no switch for it
+            either way, so if you get twenty seasons in and decide you'd rather be managing
+            somebody, that means a new save. The one exception is <a href="#godmode">God Mode</a>,
+            which will let you walk in and take charge of any club the same way it lets you do
+            anything else, and that's a one-way trip. Worth being sure before you press Start
+            Watching.
+          </p>
+          <p>
+            None of the football changes. The AI already runs every club except yours, and
+            spectating just takes away the exception. It's the same handover the{" "}
+            <a href="#season">jump ahead</a> button makes while you're away, kept permanently.
+            Transfers, free agency, contract renewals, squad trimming, formations, promotion and
+            relegation all carry on exactly as they would have, so what you're watching is the
+            world this game would have produced anyway.
+          </p>
+          <p>
+            You keep the whole sim card: one matchday, the rest of the season, sim to a matchday you
+            pick, the offseason, each stage of the summer's international football, and{" "}
+            the top bar's <strong>Jump</strong> menu for up to 25 seasons at a time. Everything about the world
+            stays open too. Standings, all three cup competitions, the promotion playoffs, Power
+            Rankings, Schedule, Stat Leaders, Awards, Club History, Frivolities, Season Preview, the
+            News Feed, every National Teams page, and the profile of every player and every club in
+            the world. The <a href="#pages">Watchlist</a> comes with you as well, moved up into the
+            League part of the sidebar, which is a good way to follow a sixteen-year-old you've
+            spotted in somebody's academy and find out what becomes of him.
+          </p>
+          <p>
+            What's gone is everything that needed a squad of your own: Roster, Transfers, Incoming
+            Offers, Loans, Finance, Incoming Talent, Free Agents, the Academy, the scouting slider
+            and the Manager page. They're dropped from the sidebar rather than greyed out, since
+            there's never going to be a club behind them, and an old bookmark to one of them lands
+            on a short note saying you're spectating. There's no board, no confidence bar, no
+            sackings and no job offers, so <a href="#manager">Your Job</a> doesn't apply to you at
+            all. National teams go the same way: you can watch every World Cup, qualifying campaign
+            and confederation cup, but you don't manage a country and no federation ever gets in
+            touch, because a spectator holds no jobs of any kind. And there's no{" "}
+            <strong>Watch Next Game</strong>, since that plays out your own club's match and you
+            haven't got one.
+          </p>
+          <p>
+            Your Dashboard is a page of its own: the season and matchday with a Spectating badge,
+            the sim controls, a league table with a dropdown for any competition in the
+            world, and that league's latest matchday beside it, every game with the score
+            once it's been played. Along the bottom are the ten
+            best clubs anywhere by power ranking, and the Continental Cup and Continental Shield,
+            each showing its league phase table until the knockout starts and its bracket after
+            that. And the News Feed carries world-level news only, so the big transfers, the
+            trophies, the awards and who went up and who went down. It normally works out what to
+            show you by which league is yours, and here none of them is.
+          </p>
+          <p>
+            In the offseason, any summer with a tournament in it gets its own panel up near the sim
+            controls: the World Cup bracket every fourth year, and the confederation championships
+            two years after that, all of them side by side. The other two summers are qualifying
+            only, so there's no panel for them.
+          </p>
+        </Section>
+
         <Section id="manager" title="Your Job: Confidence, Offers & Sackings">
           <p>
             You're a manager, not an owner. The club you start at is a job you can lose, and other
@@ -356,7 +431,7 @@ export function Manual() {
           <p>Every screen in the game and what it's for:</p>
           <ul>
             <li><strong>Manager</strong>. Your job: how the board feels about you, any clubs that want to hire you, and the record of every club you've managed. Also where the "never sack me" switch lives.</li>
-            <li><strong>Dashboard</strong>. Your current W/D/L record and next fixture front and center, with your division's standings on the left and the latest news headlines on the right. Below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim controls.</li>
+            <li><strong>Dashboard</strong>. Your current W/D/L record and next fixture front and center, with your division's standings on the left and the latest news headlines on the right. Below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim controls. Right at the bottom, away from all of that, sit three panels about the rest of the world: the ten best clubs anywhere by power ranking with your own picked out, and the Continental Cup and Continental Shield, each showing its league phase table until the knockout starts and its bracket after that. In the offseason a fourth joins them whenever there's a tournament on, which is the World Cup every fourth year and the confederation championships two years after that.</li>
             <li><strong>Standings</strong>. The league table, plus each club's current OVR/POT. A season dropdown lets you pull up any past season&apos;s final table next to the current one. The champion&apos;s row is highlighted, and the <a href="#cup">Continental Cup</a> and <a href="#shield">Continental Shield</a> qualification places are shaded.</li>
             <li><strong>Continental Cup</strong>. The live league-phase table and knockout bracket for the current season, plus past winners via a season dropdown. More in <a href="#cup">The Continental Cup</a>.</li>
             <li><strong>Continental Shield</strong>. The same page for the second competition, for clubs finishing just below the Cup places. More in <a href="#shield">The Continental Shield</a>.</li>
@@ -471,7 +546,7 @@ export function Manual() {
             rollover starts the new season fit.
           </p>
           <p>
-            <strong>Jumping ahead.</strong> The <strong>Jump ahead</strong> card on the Dashboard
+            <strong>Jumping ahead.</strong> The <strong>Jump</strong> menu in the top bar, next to Sim,
             plays whole seasons at once &mdash; up to 25 &mdash; with the AI running your club
             while they go by. It's for seeing where a world ends up, or for skipping past a
             rebuild you don't fancy managing. It works mid-season too: it finishes the season
@@ -893,10 +968,19 @@ export function Manual() {
             highlighted; each two-legged tie lists both leg scores beneath it.
           </p>
           <p>
-            Prize money is real and it's paid as you go. Every club banks a participation fee for
-            reaching the league phase, winning a playoff tie pays more, and each knockout round you
-            win pays more than the last. Going all the way is worth a serious chunk on top of your
-            normal league finances, enough to reshape a transfer budget.
+            Prize money is real, it's paid as you go, and the biggest single cheque is for{" "}
+            <strong>getting there at all</strong>. Qualifying for the league phase banks $10M on its
+            own, half of what finishing in the top quarter of your league pays, and it lands whether
+            you go on to win a game or not. After that every league-phase result is worth
+            money too: $1.5M for a win, $500k each for a draw. Six games, six chances to earn.
+          </p>
+          <p>
+            Going deep pays more on top. A playoff win is $3M, the quarter-final $6M, the semi-final
+            $9M, and lifting the trophy $14M, with $5M for losing the final. Win the lot from the
+            playoff round and you'll clear $40M across the campaign. That shape is deliberate, and
+            it's the one real continental football has: simply being in it is transformative,
+            especially for a club from a smaller league, and a deep run is a bonus rather than the
+            only thing worth having. Qualifying is a season's work and it's paid like one.
           </p>
           <p>
             Cup matches are their own thing. Goals, assists and appearances there are tracked{" "}
@@ -957,11 +1041,12 @@ export function Manual() {
             reaches the final the sim stops just before it.
           </p>
           <p>
-            The money is real but smaller: participation, a playoff win and each knockout round all
-            pay, at roughly <strong>40%</strong> of the Cup's rates. Winning the whole thing is worth
-            about what a decent cup run is, not what winning the Cup is. That's the point of it —
-            finishing 5th now has something to play for, and a mid-table club can put a trophy in the
-            cabinet, without it ever rivalling the Cup.
+            The money is real but smaller, at roughly <strong>40%</strong> of the Cup's rates, and
+            it's front-loaded the same way: $4M for qualifying, $600k a win and $200k a draw in the
+            league phase, then $1.5M for a playoff win and $2.5M / $3.5M / $5.5M through the
+            knockout. Winning the whole thing is worth about what a decent cup run is, not what
+            winning the Cup is. That's the point of it: finishing 5th now has something to play for,
+            and a mid-table club can put a trophy in the cabinet, without it ever rivalling the Cup.
           </p>
           <p>
             Shield stats are tracked the same way cup stats are, separately from your league season,
@@ -2275,6 +2360,7 @@ export function Manual() {
 
         <Section id="faq" title="FAQ & Known Quirks">
           <p><strong>How do I win?</strong> You don't, the game never ends. Set your own goal: a title, a decade of dominance, an all-academy XI.</p>
+          <p><strong>Can I take over a club in a spectator save, or give mine up in a normal one?</strong> Not in normal play. Which of the two a save is gets decided when you create it and it's fixed from there, so changing your mind usually means starting again. <a href="#godmode">God Mode</a> will let a spectator take charge of a club, since it lets you do most things, but it doesn't work the other way round. See <a href="#spectator">Spectating</a>.</p>
           <p><strong>Where can I see that a player is injured?</strong> Injured players show a red cross on your Roster (on the pitch chip and next to their name in the tables) and on their profile, and your Dashboard has an Injuries list of everyone currently out and roughly how long. They sit out on their own until they're fit.</p>
           <p><strong>Can I change formation?</strong> Yep. Pick from sixteen shapes (4-3-3, 4-4-2, 3-5-2, 5-3-2, 4-2-3-1, 4-5-1, 3-4-3, 5-4-1, 4-3-1-2, 4-4-1-1, 4-3-2-1, 4-2-2-2, 3-4-2-1, 3-5-1-1, 5-2-3, 5-2-1-2) in the dropdown above the pitch on the Roster page. It changes which eleven you field (and so your match strength), and resets your Starting XI to the best fit for the new shape. Or just click <strong>Best XI</strong> next to the dropdown to let the game pick the shape that fields your strongest eleven and fill the lineup for you. Each AI club automatically uses whichever shape fields its own strongest eleven, refreshed at the end of each transfer window (summer and winter).</p>
           <p><strong>Can I go into debt?</strong> AI clubs are tuned never to. You can, by hoarding elite wages past what the base allocation covers. The Finance page shows you the shortfall before it hits. There are no debt consequences yet beyond the number itself.</p>

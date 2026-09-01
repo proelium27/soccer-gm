@@ -3090,17 +3090,42 @@ export const CUP_ROUNDS = CUP_ROUND_MATCHDAYS.length;
 /** Round index of the final — the round the user's sim halts before if their club is a finalist. */
 export const CUP_FINAL_ROUND = CUP_ROUNDS - 1;
 
-/* Prize money (£), credited to a club's budget as each round is played and
- * clamped to MAX_BUDGET like any other income. Tuned "title-ish": a champion
- * nets ~£48M in total (participation + every round win), a runner-up ~£24M,
- * a semi-finalist ~£10M — meaningful for squad-building without dwarfing the
- * league's own prize tiers. Verified against a dynasty audit for AI solvency. */
-export const CUP_PRIZE_PARTICIPATION = 2_000_000;
+/* Prize money (£), credited to a club's budget as each stage is played and
+ * clamped to MAX_BUDGET like any other income.
+ *
+ * **Qualifying is the biggest single payment, and that is the shape real
+ * continental football has (2026-08-31).** These shipped "title-ish" — a
+ * participation fee of £2M against £30M for lifting the trophy — which made a
+ * six-game league-phase campaign against the best clubs in the world worth a
+ * *tenth* of finishing fifth in your own division (PRIZE_TOP_5, £20M), and made
+ * the whole competition a lottery ticket rather than the thing a club builds a
+ * season around. Real football is the other way up: UEFA's starting fee is
+ * roughly what reaching the final pays, so simply being there is transformative
+ * and going deep is a bonus on top. So participation carries the weight, the
+ * league phase pays per result, and the trophy prize comes down to meet them.
+ *
+ * **The champion's total is almost unchanged, and that is the point.** A club
+ * that wins it from the playoff round banks ~£46M against the ~£48M the old
+ * tiers paid — the money moved to the front rather than out of the competition.
+ * What moved is the ratio that actually matters, participation against the
+ * league's own prize tiers: a club that qualifies and goes out in the league
+ * phase now banks £10.5-14.5M against PRIZE_TOP_5's £20M, real money for a season's
+ * work, where £2M was a rounding error.
+ *
+ * **Deliberately NOT scaled by financeScale** (user call): UEFA pays a Belgian
+ * club exactly what it pays an English one, and that flatness is the whole
+ * reason European qualification matters more to a small club than a big one.
+ * It is also the risk — a rich weak-league club climbing the strength ladder is
+ * the documented tripwire — so any retune here must be measured with
+ * scripts/weakLeaguesAudit.ts against the same script run on the merge base. */
+export const CUP_PRIZE_PARTICIPATION = 10_000_000; // qualify for the league phase
+export const CUP_PRIZE_LP_WIN = 1_500_000; // per league-phase win
+export const CUP_PRIZE_LP_DRAW = 500_000; // per league-phase draw
 export const CUP_PRIZE_WIN_R16 = 3_000_000; // advance to the quarter-final
-export const CUP_PRIZE_WIN_QF = 5_000_000; // advance to the semi-final
-export const CUP_PRIZE_WIN_SF = 8_000_000; // advance to the final
-export const CUP_PRIZE_WIN_FINAL = 30_000_000; // lift the trophy
-export const CUP_PRIZE_RUNNER_UP = 6_000_000; // lose the final
+export const CUP_PRIZE_WIN_QF = 6_000_000; // advance to the semi-final
+export const CUP_PRIZE_WIN_SF = 9_000_000; // advance to the final
+export const CUP_PRIZE_WIN_FINAL = 14_000_000; // lift the trophy
+export const CUP_PRIZE_RUNNER_UP = 5_000_000; // lose the final
 
 /** Legacy per-round prize for winning a tie in that round, indexed like CUP_ROUND_MATCHDAYS. */
 export const CUP_PRIZE_WIN_BY_ROUND = [
@@ -3133,6 +3158,10 @@ export type CupCompetitionId = "continental" | "shield";
 export interface CupPrizes {
   /** Paid once, on entry to the league phase (or the legacy bracket). */
   participation: number;
+  /** Per league-phase win. Zero on the legacy bracket, which has no league phase. */
+  leaguePhaseWin: number;
+  /** Per league-phase draw, to BOTH clubs. */
+  leaguePhaseDraw: number;
   /** Winning a league-phase playoff tie and reaching the knockout. */
   playoffWin: number;
   /** Legacy format only: winning a preliminary play-in tie. */
@@ -3207,16 +3236,28 @@ export const SHIELD_WEAK_LEAGUE_SLOTS = 2;
 export const SHIELD_LEAGUE_PHASE_SIZE = 24;
 
 /* Prize money (£). Sized at roughly 40% of the Continental Cup's, so a Shield
- * run is worth chasing without rivalling the Cup: a champion nets ~£19.5M
- * against the Cup's ~£48M, a runner-up ~£10.5M against ~£24M. Deliberately kept
- * well clear of the Cup's tiers — finishing 5th and winning the Shield must not
- * out-earn finishing 4th and going out of the Cup's league phase. */
-export const SHIELD_PRIZE_PARTICIPATION = 1_000_000;
+ * run is worth chasing without rivalling the Cup, and reshaped alongside it
+ * (2026-08-31) so that qualifying — not the trophy — is the biggest single
+ * payment here too. A champion nets ~£19M against the Cup's ~£47M.
+ *
+ * The relationship these were sized to hold is that finishing 5th and winning
+ * the Shield must not out-earn finishing 4th and going out of the Cup's league
+ * phase. **That was false as shipped and is merely closer now**: the Shield
+ * champion took ~£21M against the Cup league-phase exit's £2M, because the
+ * exit paid almost nothing. Front-loading both competitions narrows it to ~£20M
+ * against ~£14M — still inverted, but a Shield title is now a deep run in a real
+ * competition rather than a way to out-earn the Cup by losing six games in it.
+ * Closing it completely would mean paying a Cup league-phase exit more than a
+ * Shield champion, which is a separate call about how far apart the two
+ * competitions should sit. */
+export const SHIELD_PRIZE_PARTICIPATION = 4_000_000;
+export const SHIELD_PRIZE_LP_WIN = 600_000;
+export const SHIELD_PRIZE_LP_DRAW = 200_000;
 export const SHIELD_PRIZE_WIN_PLAYOFF = 1_500_000;
 export const SHIELD_PRIZE_WIN_QF = 2_500_000;
-export const SHIELD_PRIZE_WIN_SF = 4_000_000;
-export const SHIELD_PRIZE_WIN_FINAL = 12_000_000;
-export const SHIELD_PRIZE_RUNNER_UP = 3_000_000;
+export const SHIELD_PRIZE_WIN_SF = 3_500_000;
+export const SHIELD_PRIZE_WIN_FINAL = 5_500_000;
+export const SHIELD_PRIZE_RUNNER_UP = 2_000_000;
 
 /** Shield per-win knockout prize, indexed by round (0 = QF, 1 = SF, 2 = Final). */
 export const SHIELD_KO_PRIZE_WIN_BY_ROUND = [
@@ -3234,6 +3275,8 @@ export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
     drawSeed: 0x51533,
     prizes: {
       participation: CUP_PRIZE_PARTICIPATION,
+      leaguePhaseWin: CUP_PRIZE_LP_WIN,
+      leaguePhaseDraw: CUP_PRIZE_LP_DRAW,
       playoffWin: CUP_PRIZE_WIN_PLAYOFF,
       playInWin: CUP_PRIZE_WIN_PLAYIN,
       runnerUp: CUP_PRIZE_RUNNER_UP,
@@ -3254,6 +3297,8 @@ export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
     drawSeed: 0x5348_4C44, // "SHLD"
     prizes: {
       participation: SHIELD_PRIZE_PARTICIPATION,
+      leaguePhaseWin: SHIELD_PRIZE_LP_WIN,
+      leaguePhaseDraw: SHIELD_PRIZE_LP_DRAW,
       playoffWin: SHIELD_PRIZE_WIN_PLAYOFF,
       runnerUp: SHIELD_PRIZE_RUNNER_UP,
       koByRound: SHIELD_KO_PRIZE_WIN_BY_ROUND,

@@ -775,6 +775,123 @@ a:hover {
   box-shadow: 0 0 0 0.2rem var(--sg-green-wash);
 }
 
+/* Checkboxes, radios and switches.
+
+   Remapping --bs-primary (up top) does NOT reach these: Bootstrap compiles the
+   checked colour into .form-check-input:checked as a literal #0d6efd rather
+   than reading a variable, so every checkbox and switch in the game rendered in
+   stock Bootstrap blue on a green-tinted dark surface. That is what this block
+   is for, and it is worth knowing before adding another control and wondering
+   why it comes out blue.
+
+   The two background images ARE variables in Bootstrap 5.3 (--bs-form-check-bg-image
+   for the tick, --bs-form-switch-bg for the switch knob), so they can be themed
+   without restating the selectors' own rules.
+
+   The unchecked switch knob is the other half of the problem: Bootstrap draws it
+   at rgba(255,255,255,.25), which is aimed at a light page and reads as an empty
+   pill on this one. It is lifted to a muted-but-visible circle so an "off"
+   switch looks off rather than broken. */
+.form-check-input {
+  background-color: var(--sg-surface-2);
+  border-color: var(--sg-border-strong);
+}
+.form-check-input:checked {
+  background-color: var(--sg-green);
+  border-color: var(--sg-green);
+}
+.form-check-input:focus {
+  border-color: var(--sg-green);
+  box-shadow: 0 0 0 0.2rem var(--sg-green-wash);
+}
+/* The knob when off. Checked, Bootstrap's own white circle sits on the green
+   and needs no help. */
+.form-switch .form-check-input {
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%28255, 255, 255, 0.55%29'/%3e%3c/svg%3e");
+}
+.form-switch .form-check-input:focus:not(:checked) {
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%28255, 255, 255, 0.8%29'/%3e%3c/svg%3e");
+}
+.form-check-input:disabled { opacity: 0.45; }
+.form-check-label { color: var(--sg-text); }
+
+/* The Simulation card's in-season layout.
+
+   Two things have to be true at once and they pull in different directions:
+   the sim-target hint belongs on the card heading's line, and it belongs
+   directly over the "sim to matchday" select it describes. Stacking cannot do
+   both, and hand-positioning it would mean hard-coding the combined width of
+   two buttons whose labels change.
+
+   A two-column grid does it by construction. Column 1 holds the heading and
+   the sim buttons, column 2 the hint and the select row, so row 1 is
+   heading + hint and row 2 is buttons + controls, aligned on both axes with no
+   measured offsets. SimTargetForm's wrapper goes `display: contents` so its
+   two children land in the grid rather than the wrapper taking one cell. */
+.sim-grid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.5rem;
+  row-gap: 0.5rem;
+}
+.sim-grid .sim-grid-title {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: baseline;
+  margin-bottom: 0;
+}
+.sim-grid .sim-grid-buttons { grid-column: 1; grid-row: 2; }
+.sim-grid > .sim-target { display: contents; }
+/* Scoped to the grid: outside it (the top bar's Sim menu) these two just stack,
+   which is what a dropdown wants. */
+.sim-grid .sim-target-hint {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: baseline;
+  margin-bottom: 0;
+}
+.sim-grid .sim-target-controls { grid-column: 2; grid-row: 2; }
+
+/* Narrow: one column, in reading order. Side by side the two columns would
+   each be too tight for their own contents to stop wrapping. */
+@media (max-width: 767.98px) {
+  .sim-grid { grid-template-columns: minmax(0, 1fr); }
+  .sim-grid .sim-grid-title,
+  .sim-grid .sim-grid-buttons,
+  .sim-grid .sim-target-hint,
+  .sim-grid .sim-target-controls {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+/* The jump-ahead form lives in a top-bar dropdown, which sizes itself to its
+   content — and the content here is a paragraph of confirmation prose, not a
+   menu item. Without a width it wraps to a sliver; with one it reads as the
+   panel it replaced on the Dashboard. */
+.topbar-jump {
+  width: min(26rem, calc(100vw - 2rem));
+  white-space: normal;
+}
+
+/* The compact knockout bracket in a dashboard panel (see MiniBracket.tsx).
+   Only the round heading needs anything: it is a label above a couple of
+   score lines, so it wants to be smaller and quieter than the card title
+   without being another <small> in the markup. */
+.mini-bracket-round {
+  font-size: var(--sg-text-xs);
+  letter-spacing: 0.04em;
+  margin-top: 0.25rem;
+}
+
+/* Progress bars, for the same reason as the checkboxes above: Bootstrap's
+   --bs-progress-bar-bg defaults to its own blue rather than following
+   --bs-primary. The bars that carry a mood (the club board's and the
+   federation's, which append bg-success/bg-info/bg-warning/bg-danger) override
+   this and are unaffected; what it fixes is the two bare ones, the sim and jump
+   overlays — which are the bars anyone watching a long sim actually stares at. */
+.progress-bar { background-color: var(--sg-green); }
+
 /* Bootstrap text-utility remaps so muted/secondary read on the dark surface. */
 .text-muted { color: var(--sg-text-muted) !important; }
 .text-danger { color: var(--sg-loss) !important; }

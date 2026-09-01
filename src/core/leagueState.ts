@@ -27,6 +27,7 @@ import { SEASON_MATCHDAYS } from "./calendar.js";
 import { worldCompetitions } from "./competitions.js";
 import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
 import { DEFAULT_DIFFICULTY, type Difficulty } from "./constants.js";
+import { isSpectatorTid } from "./spectator.js";
 
 export type { StoredTeam } from "./teams/clubs.js";
 export type { ScheduleGame } from "./schedule.js";
@@ -311,6 +312,14 @@ export interface LeagueStore {
 }
 
 export function createLeagueState(
+  /**
+   * The club the user manages, or `SPECTATOR_TID` for a save nobody manages.
+   *
+   * A spectator tid needs no special handling in here: it matches no club, so
+   * the identity/formation passes skip it exactly as they already skip an
+   * unmatched tid, the fog-of-war stamp is guarded on finding a team, and
+   * `emptyManagerState` opens no stint. See `core/spectator.ts`.
+   */
   userTid: number,
   rng: () => number,
   seed = 0,
@@ -385,8 +394,13 @@ export function createLeagueState(
     godMode: false,
     manager: emptyManagerState(userTid, 1),
     // Chosen on the New League screen, and legitimately null: managing a country
-    // is opt-in, and declining is not a lesser save.
-    nationalManager: emptyNationalManagerState(userNation, 1),
+    // is opt-in, and declining is not a lesser save. Forced null when nobody
+    // manages a club, so the invariant "a spectator manages nothing" holds
+    // against every caller rather than only against the one screen that offers
+    // the choice.
+    nationalManager: emptyNationalManagerState(
+      isSpectatorTid(userTid) ? null : userNation, 1,
+    ),
     difficulty,
     // Same value the old derived `max(pid) + 1` produced at first use, so a
     // fresh world generates identically to before.
