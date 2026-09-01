@@ -49,8 +49,8 @@ export function JumpSeasonsForm({ season, disabled, onJump, spectating }: JumpSe
         <p className="mb-2">
           {spectating ? (
             <>
-              The world plays {value} more {value === 1 ? "season" : "seasons"} without stopping —
-              every match, transfer window, cup and offseason — and you pick it back up in{" "}
+              The world plays {value} more {value === 1 ? "season" : "seasons"} without stopping.
+              Every match, transfer window, cup and offseason, and you pick it back up in{" "}
               {seasonYear(season + value)}.
             </>
           ) : (
