@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from "../types.js";
 
 const entry: ChangelogEntry = {
-  date: "2026-08-30",
+  date: "2026-09-01",
   title: "Every country now has a third division",
   items: [
     "The world goes from 24 leagues to **36**, and from 420 clubs to **626**. Every country picks up a third tier below the two it already had, with its own table, its own promotion and relegation, and its clubs in the domestic cup like anyone else.",
