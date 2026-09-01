@@ -6,6 +6,7 @@ import { useRouteSeo } from "./seo.js";
 import { Layout } from "./components/Layout.js";
 import { AnnouncementBanner } from "./components/AnnouncementBanner.js";
 import { ErrorBoundary } from "./components/ErrorBoundary.js";
+import { ClubOnly } from "./components/ClubOnly.js";
 import { Leagues } from "./pages/Leagues.js";
 import { NewLeague } from "./pages/NewLeague.js";
 import { Dashboard } from "./pages/Dashboard.js";
@@ -147,7 +148,10 @@ export function App() {
             {/* Old single International page → the World Cup tab of the new section. */}
             <Route path="/international" element={<Navigate to="/national-teams/world-cup" replace />} />
             <Route path="/power-rankings" element={<PowerRankings />} />
-            <Route path="/schedule" element={<Schedule />} />
+            {/* Club-only despite living under League in the sidebar: the page
+                is your club's fixture list and nothing else, so without a club
+                it is an empty table rather than a world schedule. */}
+            <Route path="/schedule" element={<ClubOnly><Schedule /></ClubOnly>} />
             <Route path="/news" element={<NewsFeed />} />
             <Route path="/awards" element={<Awards />} />
             <Route path="/history" element={<ClubHistory />} />
@@ -155,19 +159,25 @@ export function App() {
             <Route path="/club/:tid/:season" element={<ClubSeason />} />
             <Route path="/frivolities" element={<Frivolities />} />
             <Route path="/season-preview" element={<SeasonPreview />} />
-            <Route path="/set-scouting" element={<SetScouting />} />
+            <Route path="/set-scouting" element={<ClubOnly><SetScouting /></ClubOnly>} />
             <Route path="/box-score/:matchIndex" element={<BoxScore />} />
-            <Route path="/roster" element={<Roster />} />
+            {/* Club-only. A spectator reaches these by URL alone (the sidebar
+                drops them), and ClubOnly answers with "you're spectating"
+                rather than the "Team not found." each page would otherwise
+                show. The watchlist is deliberately NOT in here: it is a note
+                about players anywhere in the world, not an instruction to a
+                club, which is the same reason switchClub keeps it. */}
+            <Route path="/roster" element={<ClubOnly><Roster /></ClubOnly>} />
             <Route path="/leaders" element={<Leaders />} />
-            <Route path="/incoming-talent" element={<IncomingTalent />} />
-            <Route path="/free-agents" element={<FreeAgents />} />
-            <Route path="/academy" element={<Academy />} />
-            <Route path="/transfers" element={<Transfers />} />
+            <Route path="/incoming-talent" element={<ClubOnly><IncomingTalent /></ClubOnly>} />
+            <Route path="/free-agents" element={<ClubOnly><FreeAgents /></ClubOnly>} />
+            <Route path="/academy" element={<ClubOnly><Academy /></ClubOnly>} />
+            <Route path="/transfers" element={<ClubOnly><Transfers /></ClubOnly>} />
             <Route path="/watchlist" element={<Watchlist />} />
-            <Route path="/incoming-offers" element={<IncomingOffers />} />
-            <Route path="/loans" element={<Loans />} />
-            <Route path="/finance" element={<Finance />} />
-            <Route path="/manager" element={<Manager />} />
+            <Route path="/incoming-offers" element={<ClubOnly><IncomingOffers /></ClubOnly>} />
+            <Route path="/loans" element={<ClubOnly><Loans /></ClubOnly>} />
+            <Route path="/finance" element={<ClubOnly><Finance /></ClubOnly>} />
+            <Route path="/manager" element={<ClubOnly><Manager /></ClubOnly>} />
             <Route path="/god-mode" element={<GodMode />} />
             <Route path="/player/:pid" element={<PlayerProfile />} />
           </Route>

@@ -15,6 +15,7 @@ import { useSportName } from "../sportName.js";
 const SECTIONS: [id: string, title: string][] = [
   ["overview", "Overview"],
   ["difficulty", "Difficulty"],
+  ["spectator", "Spectating: A Save With Nobody in Charge"],
   ["manager", "Your Job: Confidence, Offers & Sackings"],
   ["pages", "The Pages"],
   ["season", "The Season & Simming"],
@@ -87,6 +88,12 @@ export function Manual() {
             league. You pick the starting XI, buy and sell players, haggle over transfers, deal
             with contracts and the wage bill, and try to build a squad that actually wins. This
             season, or three seasons out. Your call.
+          </p>
+          <p>
+            If you'd rather not run anybody, you don't have to. A save can be started as a{" "}
+            <a href="#spectator">spectator</a>, with every club in the world left to the AI and you
+            watching what it does with them. That's a choice you make when you create the save, and
+            it can't be changed afterwards.
           </p>
           <p>
             The other 19 clubs are run by AI managers doing all the same stuff you are. They value
@@ -262,6 +269,65 @@ export function Manual() {
             your scouting is stuck at zero while you're overdrawn, which makes potential even harder
             to read. It's recoverable, but you recover by selling. On Brutal that's less a warning
             than a description of the job.
+          </p>
+        </Section>
+
+        <Section id="spectator" title="Spectating: A Save With Nobody in Charge">
+          <p>
+            You don't have to manage anyone. Above the club picker on the New League screen there's
+            a <strong>Your role</strong> choice with two options:{" "}
+            <strong>Manage a club</strong>, which is the game the rest of this manual describes, and{" "}
+            <strong>Spectate</strong>, which builds the same world and then leaves every club in it
+            to the AI. You still run time. You just don't run a team.
+          </p>
+          <p>
+            <strong>It's fixed for the life of the save.</strong> A spectator save isn't handed a
+            club later, and a save with a club can't give one up. Normal play has no switch for it
+            either way, so if you get twenty seasons in and decide you'd rather be managing
+            somebody, that means a new save. The one exception is <a href="#godmode">God Mode</a>,
+            which will let you walk in and take charge of any club the same way it lets you do
+            anything else, and that's a one-way trip. Worth being sure before you press Start
+            Watching.
+          </p>
+          <p>
+            None of the football changes. The AI already runs every club except yours, and
+            spectating just takes away the exception. It's the same handover the{" "}
+            <a href="#season">jump ahead</a> button makes while you're away, kept permanently.
+            Transfers, free agency, contract renewals, squad trimming, formations, promotion and
+            relegation all carry on exactly as they would have, so what you're watching is the
+            world this game would have produced anyway.
+          </p>
+          <p>
+            You keep the whole sim card: one matchday, the rest of the season, sim to a matchday you
+            pick, the offseason, each stage of the summer's international football, and{" "}
+            <strong>Jump ahead</strong> for up to 25 seasons at a time. Everything about the world
+            stays open too. Standings, all three cup competitions, the promotion playoffs, Power
+            Rankings, Schedule, Stat Leaders, Awards, Club History, Frivolities, Season Preview, the
+            News Feed, every National Teams page, and the profile of every player and every club in
+            the world. The <a href="#pages">Watchlist</a> comes with you as well, moved up into the
+            League part of the sidebar, which is a good way to follow a sixteen-year-old you've
+            spotted in somebody's academy and find out what becomes of him.
+          </p>
+          <p>
+            What's gone is everything that needed a squad of your own: Roster, Transfers, Incoming
+            Offers, Loans, Finance, Incoming Talent, Free Agents, the Academy, the scouting slider
+            and the Manager page. They're dropped from the sidebar rather than greyed out, since
+            there's never going to be a club behind them, and an old bookmark to one of them lands
+            on a short note saying you're spectating. There's no board, no confidence bar, no
+            sackings and no job offers, so <a href="#manager">Your Job</a> doesn't apply to you at
+            all. National teams go the same way: you can watch every World Cup, qualifying campaign
+            and confederation cup, but you don't manage a country and no federation ever gets in
+            touch, because a spectator holds no jobs of any kind. And there's no{" "}
+            <strong>Watch Next Game</strong>, since that plays out your own club's match and you
+            haven't got one.
+          </p>
+          <p>
+            Your Dashboard is a page of its own: the season and matchday with a Spectating badge,
+            the sim controls, Jump ahead, a league table with a dropdown for any competition in the
+            world, and an "Around the world" news panel. And the News
+            Feed carries world-level news only, so the big transfers, the trophies, the awards and
+            who went up and who went down. It normally works out what to show you by which league
+            is yours, and here none of them is.
           </p>
         </Section>
 
@@ -2254,6 +2320,7 @@ export function Manual() {
 
         <Section id="faq" title="FAQ & Known Quirks">
           <p><strong>How do I win?</strong> You don't, the game never ends. Set your own goal: a title, a decade of dominance, an all-academy XI.</p>
+          <p><strong>Can I take over a club in a spectator save, or give mine up in a normal one?</strong> Not in normal play. Which of the two a save is gets decided when you create it and it's fixed from there, so changing your mind usually means starting again. <a href="#godmode">God Mode</a> will let a spectator take charge of a club, since it lets you do most things, but it doesn't work the other way round. See <a href="#spectator">Spectating</a>.</p>
           <p><strong>Where can I see that a player is injured?</strong> Injured players show a red cross on your Roster (on the pitch chip and next to their name in the tables) and on their profile, and your Dashboard has an Injuries list of everyone currently out and roughly how long. They sit out on their own until they're fit.</p>
           <p><strong>Can I change formation?</strong> Yep. Pick from sixteen shapes (4-3-3, 4-4-2, 3-5-2, 5-3-2, 4-2-3-1, 4-5-1, 3-4-3, 5-4-1, 4-3-1-2, 4-4-1-1, 4-3-2-1, 4-2-2-2, 3-4-2-1, 3-5-1-1, 5-2-3, 5-2-1-2) in the dropdown above the pitch on the Roster page. It changes which eleven you field (and so your match strength), and resets your Starting XI to the best fit for the new shape. Or just click <strong>Best XI</strong> next to the dropdown to let the game pick the shape that fields your strongest eleven and fill the lineup for you. Each AI club automatically uses whichever shape fields its own strongest eleven, refreshed at the end of each transfer window (summer and winter).</p>
           <p><strong>Can I go into debt?</strong> AI clubs are tuned never to. You can, by hoarding elite wages past what the base allocation covers. The Finance page shows you the shortfall before it hits. There are no debt consequences yet beyond the number itself.</p>

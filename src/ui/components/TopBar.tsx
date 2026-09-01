@@ -10,6 +10,8 @@ import {
   type PlayableStage,
 } from "../intlStageLabels.js";
 import { useSportName } from "../sportName.js";
+import { useOffseasonAdvance } from "../useOffseasonAdvance.js";
+import { isSpectator } from "../../core/spectator.js";
 import { seasonYear } from "../format.js";
 import { buildImportPromptText } from "../../core/teams/rosterAiPrompt.js";
 import { Dropdown } from "./Dropdown.js";
@@ -26,6 +28,11 @@ export function TopBar({ onToggleNav }: TopBarProps) {
   const { brand } = useSportName();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  // Shared with the Dashboard's Advance button so the two can't route a given
+  // save differently — a spectator has no scouting budget to stop at.
+  const advanceOffseason = useOffseasonAdvance();
+  // No club, so no match of yours to watch live and no board to be sacked by.
+  const spectating = !!league && isSpectator(league);
   const [promptCopied, setPromptCopied] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
 
@@ -194,7 +201,7 @@ export function TopBar({ onToggleNav }: TopBarProps) {
                   <li>
                     <button
                       className="dropdown-item"
-                      onClick={() => navigate("/set-scouting")}
+                      onClick={advanceOffseason}
                       disabled={simDisabled}
                     >
                       {intlStageSkipLabel(league.international.stage as PlayableStage)}
@@ -205,7 +212,7 @@ export function TopBar({ onToggleNav }: TopBarProps) {
                 <li>
                   <button
                     className="dropdown-item"
-                    onClick={() => navigate("/set-scouting")}
+                    onClick={advanceOffseason}
                     disabled={simDisabled}
                   >
                     Advance to {seasonYear(league.season + 1)}
@@ -225,11 +232,14 @@ export function TopBar({ onToggleNav }: TopBarProps) {
                 here as well as on the Dashboard because this dropdown is the sim
                 control that's reachable from every page.
               */}
-              <li>
-                <button className="dropdown-item" onClick={() => simLiveAction()} disabled={simDisabled}>
-                  Watch Next Game
-                </button>
-              </li>
+              {/* Needs a club: the live viewer replays *your* match. */}
+              {!spectating && (
+                <li>
+                  <button className="dropdown-item" onClick={() => simLiveAction()} disabled={simDisabled}>
+                    Watch Next Game
+                  </button>
+                </li>
+              )}
               <li>
                 <button className="dropdown-item" onClick={() => simAction("season")} disabled={simDisabled}>
                   Sim to End of Season

@@ -7,6 +7,7 @@
  * career that spans clubs rather than a single permanent appointment.
  */
 import { MANAGER_START_CONFIDENCE } from "../constants.js";
+import { isSpectatorTid } from "../spectator.js";
 import type { SeasonVerdict } from "./confidence.js";
 
 /**
@@ -102,8 +103,14 @@ export interface ManagerState {
   offers: JobOffer[];
   /**
    * You've been dismissed and must accept one of `offers` before the save can go
-   * on. `offers` is guaranteed non-empty whenever this is true — there is no
-   * unemployed state, by design: every page in the game assumes you have a club.
+   * on. `offers` is guaranteed non-empty whenever this is true — a *managed*
+   * save has no unemployed state, by design: every club page assumes you have a
+   * club, so the career can never strand you between two of them.
+   *
+   * A spectator save (`meta.userTid === SPECTATOR_TID`) is the separate case
+   * where nobody manages anything, and it is never reached from here — it is
+   * chosen at creation and never changes. `stints` is empty there, so this can
+   * never become true. See `core/spectator.ts`.
    */
   sacked: boolean;
   /**
@@ -119,7 +126,17 @@ export interface ManagerState {
   lastVerdict: ManagerVerdictRecord | null;
 }
 
-/** The manager state a brand-new save starts with: one open-ended stint, full honeymoon. */
+/**
+ * The manager state a brand-new save starts with: one open-ended stint, full
+ * honeymoon.
+ *
+ * A spectator save gets **no stint at all**, the same shape
+ * `emptyNationalManagerState` produces for a declined country — there is no
+ * club, so there is no job to have started. That is what keeps the rest of the
+ * career machinery quiet without a single extra branch: `currentStint` returns
+ * undefined, so `reviewSeason` takes the early out it already has, no
+ * confidence moves, no verdict is recorded and no offer is ever drawn.
+ */
 export function emptyManagerState(
   userTid: number,
   season: number,
@@ -127,7 +144,7 @@ export function emptyManagerState(
 ): ManagerState {
   return {
     confidence: MANAGER_START_CONFIDENCE,
-    stints: [newStint(userTid, season)],
+    stints: isSpectatorTid(userTid) ? [] : [newStint(userTid, season)],
     offers: [],
     sacked: false,
     sackingEnabled,

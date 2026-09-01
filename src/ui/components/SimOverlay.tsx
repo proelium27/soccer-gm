@@ -5,6 +5,7 @@ import type { PlayedMatch } from "../../core/standings.js";
 import type { CupTie } from "../../core/cup/types.js";
 import { cupRoundName } from "../../core/cup/cup.js";
 import { CUP_NAME } from "../../core/constants.js";
+import { isSpectatorTid } from "../../core/spectator.js";
 
 interface SimOverlayProps {
   open: boolean;
@@ -140,7 +141,15 @@ export function SimOverlay({ open, teams, queue, done, userTid, onComplete }: Si
           </div>
           <div className="sim-overlay-ticker" ref={tickerRef}>
             {revealedItems.length === 0 && (
-              <div className="text-muted small">Kicking off...</div>
+              // The ticker is built entirely out of *your* club's results, so a
+              // spectator save has nothing to put in it and "Kicking off..."
+              // would sit there for a whole season. The progress bar above is
+              // doing the real work either way. Showing world results here
+              // instead would need a rule for which of ~200 a matchday are
+              // worth surfacing, which is its own feature.
+              <div className="text-muted small">
+                {isSpectatorTid(userTid) ? "Playing the world's matches..." : "Kicking off..."}
+              </div>
             )}
             {revealedItems.map((item) => {
               if (item.kind === "league") {

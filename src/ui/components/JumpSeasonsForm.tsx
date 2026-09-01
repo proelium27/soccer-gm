@@ -7,6 +7,11 @@
  * something else: several seasons of your club's life happen without you, and
  * the squad you get back is not the one you left. A jump you meant to be three
  * seasons and typed as thirteen is a dynasty you don't recognise.
+ *
+ * On a spectator save the mechanic is identical and the warning is not: there
+ * is no club being handed over and nothing of yours to lose, only years of
+ * world history passing at speed. `spectating` swaps the copy for that reading
+ * rather than the control, because the button really is doing the same thing.
  */
 import { useState } from "react";
 import { MAX_JUMP_SEASONS } from "../../core/autopilot.js";
@@ -17,6 +22,8 @@ interface JumpSeasonsFormProps {
   season: number;
   disabled?: boolean;
   onJump: (seasons: number) => void;
+  /** Nobody manages a club in this save, so nothing is being handed over. */
+  spectating?: boolean;
 }
 
 /** Rough wall-clock per season, measured on the 320-club world (~10s of matches, ~7s of offseason). */
@@ -28,7 +35,7 @@ function durationHint(seasons: number): string {
   return `roughly ${Math.round(total / 60)} minutes`;
 }
 
-export function JumpSeasonsForm({ season, disabled, onJump }: JumpSeasonsFormProps) {
+export function JumpSeasonsForm({ season, disabled, onJump, spectating }: JumpSeasonsFormProps) {
   const [raw, setRaw] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
@@ -40,10 +47,20 @@ export function JumpSeasonsForm({ season, disabled, onJump }: JumpSeasonsFormPro
     return (
       <div>
         <p className="mb-2">
-          The AI will run your club for {value} {value === 1 ? "season" : "seasons"} — it picks the
-          team, buys and sells, renews contracts and trims the squad, and your club can be bought
-          from and relegated like any other. Your lineup, transfer listings and any talks you have
-          open are cleared. You take over again in {seasonYear(season + value)}.
+          {spectating ? (
+            <>
+              The world plays {value} more {value === 1 ? "season" : "seasons"} without stopping —
+              every match, transfer window, cup and offseason — and you pick it back up in{" "}
+              {seasonYear(season + value)}.
+            </>
+          ) : (
+            <>
+              The AI will run your club for {value} {value === 1 ? "season" : "seasons"} — it picks the
+              team, buys and sells, renews contracts and trims the squad, and your club can be bought
+              from and relegated like any other. Your lineup, transfer listings and any talks you have
+              open are cleared. You take over again in {seasonYear(season + value)}.
+            </>
+          )}
         </p>
         <p className="text-muted small mb-3">
           This takes {durationHint(value)} to play out and there's no way back to{" "}
@@ -60,7 +77,7 @@ export function JumpSeasonsForm({ season, disabled, onJump }: JumpSeasonsFormPro
               onJump(value);
             }}
           >
-            Hand the club over
+            {spectating ? "Play it out" : "Hand the club over"}
           </button>
           <button
             type="button"
@@ -110,7 +127,9 @@ export function JumpSeasonsForm({ season, disabled, onJump }: JumpSeasonsFormPro
       </div>
       <div className={`small mt-1 ${valid ? "text-muted" : "text-danger"}`}>
         {valid
-          ? `The AI runs your club until ${seasonYear(season + value)}, then hands it back.`
+          ? spectating
+            ? `The world plays on to ${seasonYear(season + value)} without stopping.`
+            : `The AI runs your club until ${seasonYear(season + value)}, then hands it back.`
           : `Pick a number of seasons between 1 and ${MAX_JUMP_SEASONS}.`}
       </div>
     </div>

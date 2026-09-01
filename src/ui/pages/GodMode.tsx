@@ -104,8 +104,15 @@ function SwitchClub() {
         )}
         <div>
           <div className="fw-semibold">{current?.name ?? "No club"}</div>
+          {/* A spectator save has no club to name, and this is the one way into
+              one — God Mode is guardrail-free by definition, so it is also the
+              single exception to "a spectator save never gets a club". Taking
+              one here is safe: `switchClub` guards the handover on finding a
+              departing club, so with none there is simply nothing to unwind. */}
           <div className="text-muted small">
-            {current ? compName(current.compId) : ""}, the club you manage now
+            {current
+              ? `${compName(current.compId)}, the club you manage now`
+              : "You're spectating. Taking a club here ends that for good."}
           </div>
         </div>
       </div>
