@@ -152,8 +152,8 @@ export function NewLeague() {
   // A chosen country the generated world turned out not to be able to field a
   // squad for. Reported rather than silently dropped — see handleStart.
   const [nationError, setNationError] = useState<string | null>(null);
-  // Filter box for the country list. 108 countries is too many to scroll for a
-  // specific one, and too few to be worth paginating.
+  // Filter box for the country list. 211 countries is far too many to scroll
+  // for a specific one, and still too few to be worth paginating.
   const [nationFilter, setNationFilter] = useState("");
   // The world's generation seed, drawn once and reused — see buildLeague.
   const seedRef = useRef<number | null>(null);
@@ -268,7 +268,7 @@ export function NewLeague() {
     return q ? manageableNations.filter((n) => n.toLowerCase().includes(q)) : manageableNations;
   }, [manageableNations, nationFilter]);
 
-  // Keep the chosen country on screen. The list is 108 rows in a 260px box, so
+  // Keep the chosen country on screen. The list is 211 rows in a 260px box, so
   // typing a filter and then clearing it leaves the selection scrolled far out
   // of view and the list looks like nothing is picked.
   //

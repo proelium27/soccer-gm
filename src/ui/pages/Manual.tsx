@@ -826,11 +826,12 @@ export function Manual() {
             used to be before this panel existed.
           </p>
           <p>
-            There are 108 nations to choose from, covering every confederation, so a league can be
-            Gulf, east African, south-east Asian or Oceanian rather than only European. Fifteen of
-            the newer ones have no flag art and show a plain swatch next to the name instead, which
-            is deliberate: their flags are Arabic script or a coat of arms, and a wrong flag reads
-            worse than none.
+            There are 211 nations to choose from, which is every country that plays international
+            football. So a league can be Taiwanese, Icelandic, Haitian, Nepalese or Samoan, not just
+            European, and every one of them brings its own pool of about three thousand names rather
+            than borrowing somebody else's. About half of them have no flag art and show a plain
+            swatch next to the name instead, which is deliberate: those flags are Arabic script, a
+            coat of arms or a dragon, and a wrong flag reads worse than none.
           </p>
           <p>
             A roster file can carry the mix too, as a <code>nationalities</code> block. Loading one

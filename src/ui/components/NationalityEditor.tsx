@@ -7,11 +7,13 @@ import {
 import { Flag } from "./Flag.js";
 
 /**
- * Every nation a league can be told to produce: the ones the game ships names
- * and flag art for. Anything outside this list would generate players with
- * synthesized nonsense names and an empty flag, so it is not offered — and
- * sanitizeNationalityWeights drops it on the way in besides, for tables that
- * arrive from a hand-edited roster file rather than from this control.
+ * Every nation a league can be told to produce, which since 2026-09-01 is all
+ * 211 FIFA members. The bar is a NAME POOL, not flag art: a nation with no pool
+ * generates synthesized nonsense names, so it is not offered here and
+ * sanitizeNationalityWeights drops it on the way in besides (for tables that
+ * arrive from a hand-edited roster file rather than from this control). About
+ * half have no flag art and render <Flag>'s neutral swatch, which is a
+ * deliberate call rather than a gap — see FLAG_CODES.
  */
 export const PICKABLE_NATIONALITIES = [
   ...new Set([
