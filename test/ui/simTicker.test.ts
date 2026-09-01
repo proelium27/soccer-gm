@@ -116,9 +116,12 @@ describe("sim ticker — a save with no club", () => {
     ]), SPECTATOR_TID);
     expect(byGoals[0].kind === "result" && byGoals[0].game.home).toBe(3);
 
-    const byTid = withResults([match(7, 8, 3, 0), match(2, 9, 3, 0)]);
-    expect(tickerItemsFor(byTid, SPECTATOR_TID)[0].kind === "result"
-      && tickerItemsFor(byTid, SPECTATOR_TID)[0].game.home).toBe(2);
+    // Held in a const: narrowing `kind` does not carry across two separate
+    // calls, so `[0].game` off a second call is a type error.
+    const byTid = tickerItemsFor(
+      withResults([match(7, 8, 3, 0), match(2, 9, 3, 0)]), SPECTATOR_TID,
+    );
+    expect(byTid[0].kind === "result" && byTid[0].game.home).toBe(2);
   });
 
   it("still marks the cup round being played that day", () => {
