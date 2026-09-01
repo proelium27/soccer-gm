@@ -1,3 +1,8 @@
+// Every remaining FIFA member's name pool, merged into UNLISTED_NATIONALITIES
+// below. It imports only the `NationalityDef` TYPE back from here, so there is
+// no runtime import cycle.
+import { WORLD_NATIONALITIES } from "./worldNationalities.js";
+
 // Premier League nationality distribution + per-country name pools.
 // Weights are relative (not percentages): a country with weight 300 appears
 // ~2x as often as weight 150.
@@ -1480,6 +1485,17 @@ export const NATIONALITIES: Record<string, NationalityDef> = {
  * they were ever graduated.
  */
 export const UNLISTED_NATIONALITIES: Record<string, NationalityDef> = {
+  // Every FIFA member that no shipped league's real breakdown happens to name.
+  // They live here, and NOT in OTHER_NATIONS, for exactly the reason the block
+  // comment above gives: TAIL_BASE is built from NATIONALITIES + OTHER_NATIONS,
+  // so a nation there is drawn by every league's rest-of-world roll and would
+  // change generated players in every existing save. Here they are reachable
+  // only from a table that names them — which is what lets a player build, say,
+  // a Taiwanese league without a hundred obscure nations leaking into the
+  // Premier League's tail. Spread FIRST so a hand-curated entry below wins any
+  // name collision. See src/core/players/worldNationalities.ts.
+  ...WORLD_NATIONALITIES,
+
   // Curacao and Suriname are here for the Eredivisie, where the real breakdown
   // puts them at 1.4% each. Spelled ASCII ("Curacao", not "Curaçao") because
   // every other nationality key is, and the same anglicizing that makes Côte

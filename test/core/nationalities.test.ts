@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   LEAGUE_NATIONALITY_WEIGHTS, NATIONALITIES, OTHER_NATIONS, UNLISTED_NATIONALITIES,
-  namePoolFor, pickNationality,
+  namePoolFor, pickNationality, sanitizeNationalityWeights,
 } from "../../src/core/players/nationalities.js";
+import { WORLD_NATIONALITIES } from "../../src/core/players/worldNationalities.js";
+import { confederationOf } from "../../src/core/international/confederations.js";
 import { flagCodeFor } from "../../src/core/players/flags.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 
@@ -111,6 +113,59 @@ describe("name pools", () => {
       const pool = namePoolFor(home)!;
       expect(pool.first.length, `${home} first names`).toBeGreaterThanOrEqual(80);
       expect(pool.last.length, `${home} last names`).toBeGreaterThanOrEqual(80);
+    }
+  });
+});
+
+describe("the full FIFA nationality set", () => {
+  // Every nation a league can be told to produce. The point of the set is that
+  // it is COMPLETE — any country can be the home nation of a league the player
+  // builds — so the assertions below are about coverage, not about the pools.
+  const ALL = new Set([
+    ...Object.keys(NATIONALITIES),
+    ...Object.keys(OTHER_NATIONS),
+    ...Object.keys(UNLISTED_NATIONALITIES),
+  ]);
+
+  it("covers all 211 FIFA members, split exactly as the real confederations are", () => {
+    // These six counts ARE FIFA's membership (UEFA 55, CAF 54, AFC 46,
+    // CONCACAF 35, OFC 11, CONMEBOL 10). Pinning them rather than the total
+    // catches the likelier mistake: a nation filed under the continent it sits
+    // on instead of the confederation it plays in — Guyana and Guam both look
+    // wrong and are right, and a typo in either moves two counts at once.
+    const counts: Record<string, number> = {};
+    for (const nation of ALL) {
+      const conf = confederationOf(nation);
+      expect(conf, `${nation} has a name pool but no confederation`).not.toBeNull();
+      counts[conf!] = (counts[conf!] ?? 0) + 1;
+    }
+    expect(counts).toEqual({
+      Europe: 55,
+      Africa: 54,
+      Asia: 46,
+      "North America": 35,
+      Oceania: 11,
+      "South America": 10,
+    });
+    expect(ALL.size).toBe(211);
+  });
+
+  it("adds no name that shadows a hand-curated pool", () => {
+    // UNLISTED_NATIONALITIES spreads WORLD_NATIONALITIES in first so a curated
+    // entry wins a collision — but a collision would still mean two people
+    // maintaining one nation's names in two places, which drifts silently.
+    const curated = new Set([...Object.keys(NATIONALITIES), ...Object.keys(OTHER_NATIONS)]);
+    const collisions = Object.keys(WORLD_NATIONALITIES).filter((n) => curated.has(n));
+    expect(collisions).toEqual([]);
+  });
+
+  it("keeps every nation pickable, i.e. sanitize accepts it as a league's own mix", () => {
+    // A league's authored table goes through sanitizeNationalityWeights, which
+    // drops any nation with no name pool. That drop is silent, so a nation
+    // offered by the world editor but refused here would look like the editor
+    // was broken.
+    for (const nation of ALL) {
+      expect(sanitizeNationalityWeights({ [nation]: 10 }), nation).toEqual({ [nation]: 10 });
     }
   });
 });
