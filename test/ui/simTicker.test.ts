@@ -3,6 +3,8 @@ import { tickerItemsFor } from "../../src/ui/components/SimOverlay.js";
 import type { SimProgress } from "../../src/ui/useSimWorker.js";
 import type { CupTie } from "../../src/core/cup/types.js";
 import type { DomesticTieResult } from "../../src/core/simThrough.js";
+import type { PlayedMatch } from "../../src/core/standings.js";
+import { SPECTATOR_TID } from "../../src/core/spectator.js";
 
 const USER = 120; // a German club, in this fixture
 
@@ -65,5 +67,80 @@ describe("sim ticker — domestic cup labelling", () => {
   it("is unbothered by a matchday with no domestic ties", () => {
     expect(() => tickerItemsFor(progress([]), USER)).not.toThrow();
     expect(tickerItemsFor(progress([]), USER)).toEqual([]);
+  });
+});
+
+/**
+ * A spectator save has no club, so the ticker's whole premise — your league
+ * match, your cup tie — comes up empty and the strip sat on a placeholder for
+ * the length of a season sim. It shows the matchday's standout result instead.
+ */
+describe("sim ticker — a save with no club", () => {
+  function match(home: number, away: number, homeGoals: number, awayGoals: number): PlayedMatch {
+    return { matchday: 9, home, away, homeGoals, awayGoals } as PlayedMatch;
+  }
+
+  function withResults(results: PlayedMatch[]): SimProgress {
+    return { matchday: 9, matchdayIndex: 0, totalMatchdays: 38, results, cupTies: [], domesticTies: [] };
+  }
+
+  it("leads with the widest winning margin", () => {
+    const items = tickerItemsFor(withResults([
+      match(1, 2, 1, 0),
+      match(3, 4, 5, 0),   // margin 5
+      match(5, 6, 4, 3),   // more goals, smaller margin
+    ]), SPECTATOR_TID);
+
+    const card = items.find((i) => i.kind === "result");
+    expect(card).toBeDefined();
+    expect(card!.kind === "result" && card!.game.home).toBe(3);
+  });
+
+  it("counts an away thrashing too", () => {
+    const items = tickerItemsFor(withResults([
+      match(1, 2, 2, 0),
+      match(3, 4, 0, 4),
+    ]), SPECTATOR_TID);
+    const card = items.find((i) => i.kind === "result");
+    expect(card!.kind === "result" && card!.game.home).toBe(3);
+  });
+
+  /**
+   * Two identical margins must always resolve the same way, or the same simmed
+   * matchday shows a different card each time it is replayed.
+   */
+  it("breaks a tie on goals, then on tid, so a replay shows the same match", () => {
+    const byGoals = tickerItemsFor(withResults([
+      match(1, 2, 3, 0),
+      match(3, 4, 4, 1),  // same margin, more goals
+    ]), SPECTATOR_TID);
+    expect(byGoals[0].kind === "result" && byGoals[0].game.home).toBe(3);
+
+    const byTid = withResults([match(7, 8, 3, 0), match(2, 9, 3, 0)]);
+    expect(tickerItemsFor(byTid, SPECTATOR_TID)[0].kind === "result"
+      && tickerItemsFor(byTid, SPECTATOR_TID)[0].game.home).toBe(2);
+  });
+
+  it("still marks the cup round being played that day", () => {
+    const md = withResults([match(1, 2, 1, 0)]);
+    md.cupTies = [tie(3, 4)];
+    const items = tickerItemsFor(md, SPECTATOR_TID);
+    expect(items.some((i) => i.kind === "result")).toBe(true);
+    expect(items.some((i) => i.kind === "cup-marker")).toBe(true);
+  });
+
+  it("shows nothing rather than throwing on a matchday with no matches", () => {
+    expect(tickerItemsFor(withResults([]), SPECTATOR_TID)).toEqual([]);
+  });
+
+  it("leaves the managed case alone", () => {
+    const items = tickerItemsFor(withResults([
+      match(1, 2, 6, 0),        // a bigger result than the user's
+      match(USER, 4, 1, 1),
+    ]), USER);
+    // His own match, not the standout, and drawn as his.
+    expect(items[0].kind).toBe("league");
+    expect(items[0].kind === "league" && items[0].game.home).toBe(USER);
+    expect(items.some((i) => i.kind === "result")).toBe(false);
   });
 });

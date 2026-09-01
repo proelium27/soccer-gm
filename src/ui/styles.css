@@ -815,6 +815,14 @@ a:hover {
 .form-check-input:disabled { opacity: 0.45; }
 .form-check-label { color: var(--sg-text); }
 
+/* Progress bars, for the same reason as the checkboxes above: Bootstrap's
+   --bs-progress-bar-bg defaults to its own blue rather than following
+   --bs-primary. The bars that carry a mood (the club board's and the
+   federation's, which append bg-success/bg-info/bg-warning/bg-danger) override
+   this and are unaffected; what it fixes is the two bare ones, the sim and jump
+   overlays — which are the bars anyone watching a long sim actually stares at. */
+.progress-bar { background-color: var(--sg-green); }
+
 /* Bootstrap text-utility remaps so muted/secondary read on the dark surface. */
 .text-muted { color: var(--sg-text-muted) !important; }
 .text-danger { color: var(--sg-loss) !important; }

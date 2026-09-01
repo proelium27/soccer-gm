@@ -27,11 +27,43 @@ function userGame(md: SimProgress | undefined, userTid: number): PlayedMatch | u
 
 // One card in the ticker: the user's league match, the user's cup tie, or — when
 // a cup round is played on a matchday the user's club isn't in — a compact
-// marker so the tournament is still visible in the animation.
+// marker so the tournament is still visible in the animation. `result` is the
+// club-less variant of `league`: the same card with neither side framed as
+// "yours", which is the only way to draw one when nobody is.
 export type TickerItem =
   | { kind: "league"; game: PlayedMatch }
+  | { kind: "result"; game: PlayedMatch }
   | { kind: "cup"; tie: CupTie; label: string; sub: string }
   | { kind: "cup-marker"; label: string; sub: string; matchday: number };
+
+/**
+ * The matchday's standout result, for a save with no club of its own.
+ *
+ * The whole ticker is otherwise built out of *your* results, so a spectator got
+ * an empty strip and a placeholder line for the length of a season sim. There
+ * is no "yours" to fall back on, so this picks the widest winning margin, the
+ * rule a highlights show leads with — deterministic (margin, then goals, then
+ * tid, so a tie between two 5-0s always resolves the same way), one card per
+ * matchday like the managed case, and no new constant.
+ *
+ * It is deliberately the *only* world result shown. Surfacing more would mean
+ * ranking ~200 matches a matchday by interest, which is a real feature and not
+ * one to guess at inside an animation.
+ */
+function standoutResult(md: SimProgress | undefined): PlayedMatch | undefined {
+  let best: PlayedMatch | undefined;
+  for (const r of md?.results ?? []) {
+    if (!best) { best = r; continue; }
+    const margin = Math.abs(r.homeGoals - r.awayGoals);
+    const bestMargin = Math.abs(best.homeGoals - best.awayGoals);
+    if (margin !== bestMargin) { if (margin > bestMargin) best = r; continue; }
+    const goals = r.homeGoals + r.awayGoals;
+    const bestGoals = best.homeGoals + best.awayGoals;
+    if (goals !== bestGoals) { if (goals > bestGoals) best = r; continue; }
+    if (r.home < best.home) best = r;
+  }
+  return best;
+}
 
 /**
  * What the ticker shows for one simmed matchday. Exported for tests: the
@@ -40,8 +72,16 @@ export type TickerItem =
  */
 export function tickerItemsFor(md: SimProgress, userTid: number): TickerItem[] {
   const items: TickerItem[] = [];
-  const league = userGame(md, userTid);
-  if (league) items.push({ kind: "league", game: league });
+  if (isSpectatorTid(userTid)) {
+    // No club, so no match of yours to lead with. The cup markers below still
+    // apply unchanged: they were already the "your club isn't in this one"
+    // case, which is now every case.
+    const standout = standoutResult(md);
+    if (standout) items.push({ kind: "result", game: standout });
+  } else {
+    const league = userGame(md, userTid);
+    if (league) items.push({ kind: "league", game: league });
+  }
 
   const userTie = md.cupTies.find((t) => t.home === userTid || t.away === userTid);
   if (userTie) {
@@ -141,12 +181,6 @@ export function SimOverlay({ open, teams, queue, done, userTid, onComplete }: Si
           </div>
           <div className="sim-overlay-ticker" ref={tickerRef}>
             {revealedItems.length === 0 && (
-              // The ticker is built entirely out of *your* club's results, so a
-              // spectator save has nothing to put in it and "Kicking off..."
-              // would sit there for a whole season. The progress bar above is
-              // doing the real work either way. Showing world results here
-              // instead would need a rule for which of ~200 a matchday are
-              // worth surfacing, which is its own feature.
               <div className="text-muted small">
                 {isSpectatorTid(userTid) ? "Playing the world's matches..." : "Kicking off..."}
               </div>
@@ -172,6 +206,28 @@ export function SimOverlay({ open, teams, queue, done, userTid, onComplete }: Si
                     <div className="sim-ticker-row">
                       <span className="sim-ticker-team">{teamLabel(teams, oppTid)}</span>
                       <span className="sim-ticker-score">{oppGoals}</span>
+                    </div>
+                  </div>
+                );
+              }
+
+              // The same card with nobody's side taken: home on top, away
+              // below, and no win/loss tint, because with no club of your own
+              // there is no result here to be pleased or annoyed about.
+              if (item.kind === "result") {
+                const g = item.game;
+                return (
+                  <div
+                    key={`r-${g.matchday}-${g.home}-${g.away}`}
+                    className="sim-ticker-card sim-ticker-draw"
+                  >
+                    <div className="sim-ticker-row">
+                      <span className="sim-ticker-team">{teamLabel(teams, g.home)}</span>
+                      <span className="sim-ticker-score">{g.homeGoals}</span>
+                    </div>
+                    <div className="sim-ticker-row">
+                      <span className="sim-ticker-team">{teamLabel(teams, g.away)}</span>
+                      <span className="sim-ticker-score">{g.awayGoals}</span>
                     </div>
                   </div>
                 );

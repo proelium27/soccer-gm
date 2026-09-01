@@ -684,7 +684,7 @@ export function LeagueSettings({
         display={resolved.budgetScale.toFixed(2)}
         onChange={(v) => onSpec({ budgetScale: v })}
       />
-      <div className="form-check small mb-2">
+      <div className="form-check form-switch small mb-2">
         <input
           type="checkbox"
           className="form-check-input"
