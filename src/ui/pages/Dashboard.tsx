@@ -37,6 +37,9 @@ import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
 import { newsHeadlineNode } from "../components/NewsHeadline.js";
 import { isSpectator } from "../../core/spectator.js";
 import { SpectatorDashboard } from "./SpectatorDashboard.js";
+import {
+  PowerRankingPanel, CupBracketPanel, InternationalBracketPanel,
+} from "./worldPanels.js";
 import { seasonAwardNews } from "../../core/awardNews.js";
 import { trophyNewsBySeason } from "../../core/trophyNews.js";
 import { promotionNewsBySeason } from "../../core/promotionNews.js";
@@ -883,6 +886,27 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
             </div>
           </div>
           <Link to="/leaders" className="small">Full stat leaders</Link>
+        </div>
+      </div>
+
+      {/*
+        The world outside your club. Appended at the very bottom rather than
+        worked into the page above, deliberately: everything higher up is about
+        the club you manage and is where a returning player expects it, so these
+        add a row instead of moving one. Same panels the spectator dashboard
+        carries — they read nothing user-specific — except that the power board
+        picks your club out of the world's top ten.
+      */}
+      <InternationalBracketPanel league={league} />
+      <div className="row g-3 mt-0">
+        <div className="col-lg-4">
+          <PowerRankingPanel league={league} highlightTid={league.meta.userTid} />
+        </div>
+        <div className="col-lg-4">
+          <CupBracketPanel cup={league.cup} title="Continental Cup" href="/cup" />
+        </div>
+        <div className="col-lg-4">
+          <CupBracketPanel cup={league.shield} title="Continental Shield" href="/shield" />
         </div>
       </div>
 

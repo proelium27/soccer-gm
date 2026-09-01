@@ -52,7 +52,15 @@ function Panel({ title, link, linkLabel, children }: {
  * be the same question twice. This is the one place a spectator can see all 24
  * divisions measured against each other.
  */
-export function PowerRankingPanel({ league }: { league: LeagueStore }) {
+export function PowerRankingPanel({ league, highlightTid }: {
+  league: LeagueStore;
+  /**
+   * Shade this club's row, the same `.team-highlight` Standings and the full
+   * Power Rankings board use. Passed only by the managed dashboard: a spectator
+   * has no club to pick out, and shading nothing is the honest reading.
+   */
+  highlightTid?: number;
+}) {
   // Walks every club in the world building team ratings, so it is memoized on
   // the league object (fresh per commit) rather than recomputed per render.
   const rows = useMemo(
@@ -67,7 +75,7 @@ export function PowerRankingPanel({ league }: { league: LeagueStore }) {
       <table className="table table-sm mb-0">
         <tbody>
           {rows.map((r, i) => (
-            <tr key={r.tid}>
+            <tr key={r.tid} className={r.tid === highlightTid ? "team-highlight" : undefined}>
               <td className="text-muted" style={{ width: "1.5rem" }}>{i + 1}</td>
               <td><ClubLink tid={r.tid} crest /></td>
               {/* The power score, not OVR. The board is ordered by power (squad

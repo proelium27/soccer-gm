@@ -73,6 +73,21 @@ describe("spectator: rendering without a club", () => {
     expect(html).not.toContain(">Spectating<");
   });
 
+  /**
+   * The world panels read nothing user-specific, so both dashboards carry them.
+   * On the managed one they are appended below everything about your own club,
+   * which is why this asserts they coexist with the club half rather than
+   * replacing any of it.
+   */
+  it("carries the world panels on both dashboards", () => {
+    for (const league of [spectatorLeague(), makeLeague(0, 1)]) {
+      const html = render(league, createElement(Dashboard));
+      expect(html).toContain("Power rankings");
+      expect(html).toContain("Continental Cup");
+      expect(html).toContain("Continental Shield");
+    }
+  });
+
   it("explains itself on a club-only route instead of showing an error", () => {
     const html = render(
       spectatorLeague(),

@@ -7,6 +7,7 @@ import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { CupState, CupTie } from "../../src/core/cup/types.js";
 import type { IntlTournament } from "../../src/core/international/types.js";
 import { SPECTATOR_TID } from "../../src/core/spectator.js";
+import { computePowerRankingSnapshot } from "../../src/core/teams/powerRanking.js";
 
 // `ClubLink` resolves a club through the league context, so the panels can't
 // render without one.
@@ -56,6 +57,26 @@ describe("world panels: power rankings", () => {
     for (let i = 1; i < scores.length; i++) {
       expect(scores[i - 1]).toBeGreaterThanOrEqual(scores[i]);
     }
+  });
+
+  /**
+   * A manager wants to find themselves in a world board; a spectator has no
+   * club to find, and shading nothing is the honest reading rather than an
+   * oversight.
+   */
+  it("picks a club out only when there is one to pick out", () => {
+    const league = makeLeague(SPECTATOR_TID, 1);
+    const top = computePowerRankingSnapshot(
+      league.teams, league.players, league.played, league.season, 0,
+    ).rows[0].tid;
+
+    const managed = render(
+      createElement(PowerRankingPanel, { league, highlightTid: top }), league,
+    );
+    expect(managed).toContain("team-highlight");
+
+    const spectating = render(createElement(PowerRankingPanel, { league }), league);
+    expect(spectating).not.toContain("team-highlight");
   });
 });
 
