@@ -277,7 +277,11 @@ describe("difficulty", () => {
       const before = new Set(base.players.map((p) => p.pid));
       const after = simOffseason({ ...base, difficulty }, mulberry32(777));
       const team = after.teams.find((t) => t.tid === tid)!;
-      const fresh = [...team.roster, ...team.academyRoster]
+      // youthTrialists is where the USER's intake lands now: it arrives
+      // unsigned and he chooses (see YOUTH_TRIAL_*). An AI club's still goes
+      // straight to the roster, so covering all three keeps one helper honest
+      // for both callers below.
+      const fresh = [...team.roster, ...team.academyRoster, ...(team.youthTrialists ?? [])]
         .filter((pid) => !before.has(pid))
         .map((pid) => after.players.find((p) => p.pid === pid))
         .filter((p): p is Player => p !== undefined);
