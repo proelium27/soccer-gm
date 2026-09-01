@@ -12,6 +12,7 @@ import { ClubCrest } from "../components/ClubCrest.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { PlayerRefLink } from "../components/PlayerRefLink.js";
 import { seasonYear, ordinal } from "../format.js";
+import { isSpectator } from "../../core/spectator.js";
 
 /** A small inline trophy mark — no emoji in the UI (icons are hand-drawn SVG). */
 function TrophyIcon({ size = 18 }: { size?: number }) {
@@ -105,9 +106,13 @@ export function ClubHistory() {
     return <p className="p-3">Loading...</p>;
   }
 
-  const userTid = league.meta.userTid;
+  // Your own club is the sensible landing spot — unless nobody manages one, in
+  // which case it is a tid no club owns and would land the page on nothing.
+  // First club in the world instead, which is at least a real page you can then
+  // navigate away from with the picker.
+  const userTid = isSpectator(league) ? league.teams[0]?.tid ?? -1 : league.meta.userTid;
   // A tid the save doesn't know (a hand-edited URL, or a link from a save that
-  // has since changed) falls back to your own club rather than an empty page.
+  // has since changed) falls back to that rather than an empty page.
   const tid = league.teams.some((t) => t.tid === tidParam) ? tidParam : userTid;
   const team = league.teams.find((t) => t.tid === tid);
   const currentComp = team ? competitionOf(league.competitions, team.compId) : undefined;

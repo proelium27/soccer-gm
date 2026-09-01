@@ -18,6 +18,7 @@
 import type { LeagueStore } from "../leagueState.js";
 import { difficultyProfile } from "../constants.js";
 import { AUTOPILOT_TID } from "../autopilot.js";
+import { isSpectator } from "../spectator.js";
 import { nationExpectations, fieldExpectation } from "./expectation.js";
 import { judgeCampaign, type CampaignVerdict } from "./confidence.js";
 import { concludedCampaigns, tournamentPlacement, qualifyingPlacement } from "./outcome.js";
@@ -45,6 +46,12 @@ export function reviewNationalCampaign(league: LeagueStore): LeagueStore {
   // weren't picking the team, so you can't be sacked for it — and it also stops
   // a jump ending with a country lost to campaigns the user never saw.
   if (league.meta.userTid === AUTOPILOT_TID) return league;
+
+  // A spectator manages nobody, so no federation comes calling. Without this
+  // the offer pass below would still run (it does not depend on holding a job —
+  // that is how an unemployed national manager gets back in) and would hand a
+  // save whose whole premise is watching a country to run.
+  if (isSpectator(league)) return league;
 
   const state = league.nationalManager;
   const snapshot = league.international.powerRankings[league.international.powerRankings.length - 1];
