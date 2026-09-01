@@ -815,6 +815,56 @@ a:hover {
 .form-check-input:disabled { opacity: 0.45; }
 .form-check-label { color: var(--sg-text); }
 
+/* The Simulation card's in-season layout.
+
+   Two things have to be true at once and they pull in different directions:
+   the sim-target hint belongs on the card heading's line, and it belongs
+   directly over the "sim to matchday" select it describes. Stacking cannot do
+   both, and hand-positioning it would mean hard-coding the combined width of
+   two buttons whose labels change.
+
+   A two-column grid does it by construction. Column 1 holds the heading and
+   the sim buttons, column 2 the hint and the select row, so row 1 is
+   heading + hint and row 2 is buttons + controls, aligned on both axes with no
+   measured offsets. SimTargetForm's wrapper goes `display: contents` so its
+   two children land in the grid rather than the wrapper taking one cell. */
+.sim-grid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.5rem;
+  row-gap: 0.5rem;
+}
+.sim-grid .sim-grid-title {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: baseline;
+  margin-bottom: 0;
+}
+.sim-grid .sim-grid-buttons { grid-column: 1; grid-row: 2; }
+.sim-grid > .sim-target { display: contents; }
+/* Scoped to the grid: outside it (the top bar's Sim menu) these two just stack,
+   which is what a dropdown wants. */
+.sim-grid .sim-target-hint {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: baseline;
+  margin-bottom: 0;
+}
+.sim-grid .sim-target-controls { grid-column: 2; grid-row: 2; }
+
+/* Narrow: one column, in reading order. Side by side the two columns would
+   each be too tight for their own contents to stop wrapping. */
+@media (max-width: 767.98px) {
+  .sim-grid { grid-template-columns: minmax(0, 1fr); }
+  .sim-grid .sim-grid-title,
+  .sim-grid .sim-grid-buttons,
+  .sim-grid .sim-target-hint,
+  .sim-grid .sim-target-controls {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
 /* The jump-ahead form lives in a top-bar dropdown, which sizes itself to its
    content — and the content here is a paragraph of confirmation prose, not a
    menu item. Without a width it wraps to a sliver; with one it reads as the

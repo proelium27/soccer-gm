@@ -51,14 +51,19 @@ export function SimTargetForm({ current, last, disabled, onSim, compact }: SimTa
   return (
     // A dropdown menu is only 10rem wide by default, which wraps the hint into a
     // narrow column; the menu grows to fit this instead.
-    <div className={compact ? "px-3 py-2" : ""} style={compact ? { minWidth: "18rem" } : undefined}>
-      {/* Directly above the controls it describes, so it starts where the "sim
-          to matchday" select does rather than trailing off to the right of the
-          card. The row this sits in aligns to the bottom, which lifts this line
-          up level with the card's heading and leaves the sim buttons beside the
-          controls rather than beside the text. */}
-      <div className={`small mb-1 ${valid ? "text-muted" : "text-danger"}`}>{hint}</div>
-      <div className="d-flex align-items-center gap-2 flex-wrap">
+    <div
+      className={`sim-target${compact ? " px-3 py-2" : ""}`}
+      style={compact ? { minWidth: "18rem" } : undefined}
+    >
+      {/* Stacked above the controls it describes by default, which is what a
+          dropdown wants. Inside `.sim-grid` (the Dashboard's Simulation card)
+          these two are lifted out by `display: contents` and dropped into the
+          grid's second column, which is what puts the hint on the card
+          heading's line *and* directly over the select. */}
+      <div className={`sim-target-hint small mb-1 ${valid ? "text-muted" : "text-danger"}`}>
+        {hint}
+      </div>
+      <div className="sim-target-controls d-flex align-items-center gap-2 flex-wrap">
         <select
           // Full-size controls inline on the Dashboard so this row lines up
           // with the green sim buttons beside it; small ones in the menu.

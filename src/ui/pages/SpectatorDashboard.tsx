@@ -93,8 +93,11 @@ export function SpectatorDashboard({ league }: { league: LeagueStore }) {
           match of yours to watch) and the sacked-manager gate (a spectator has
           no board and no stint, so it can never fire). */}
       <div className="card mb-3">
-        <div className="card-body">
-          <h5 className="card-title">Simulation</h5>
+        {/* In season the body is a two-column grid so the sim-target hint can
+            sit on the heading's line and over the select at once; the offseason
+            branch is ordinary prose and buttons, so it stays in normal flow. */}
+        <div className={`card-body${league.phase === "offseason" ? "" : " sim-grid"}`}>
+          <h5 className="card-title sim-grid-title">Simulation</h5>
           {league.phase === "offseason" ? (
             isIntlStagePending(league.international) ? (
               <>
@@ -158,24 +161,26 @@ export function SpectatorDashboard({ league }: { league: LeagueStore }) {
               </>
             )
           ) : (
-            // Bottom-aligned: the sim-target form is two lines tall (its hint
-            // sits above its controls), and aligning to the bottom puts the
-            // buttons beside those controls rather than beside the hint.
-            <div className="d-flex align-items-end gap-2 flex-wrap">
-              <button
-                className="btn btn-primary"
-                disabled={simming}
-                onClick={() => simAction("game")}
-              >
-                Sim One Matchday
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={simming}
-                onClick={() => simAction("season")}
-              >
-                Sim to End of Season
-              </button>
+            // The buttons take column 1, under the heading; the sim-target form
+            // takes column 2, which puts its hint on the heading's line and
+            // directly over the select. See `.sim-grid` in styles.css.
+            <>
+              <div className="sim-grid-buttons d-flex align-items-center gap-2 flex-wrap">
+                <button
+                  className="btn btn-primary"
+                  disabled={simming}
+                  onClick={() => simAction("game")}
+                >
+                  Sim One Matchday
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={simming}
+                  onClick={() => simAction("season")}
+                >
+                  Sim to End of Season
+                </button>
+              </div>
               {nextMd !== null && lastMd !== null && (
                 <SimTargetForm
                   current={nextMd}
@@ -184,7 +189,7 @@ export function SpectatorDashboard({ league }: { league: LeagueStore }) {
                   onSim={(matchday) => simAction({ matchday })}
                 />
               )}
-            </div>
+            </>
           )}
         </div>
       </div>
