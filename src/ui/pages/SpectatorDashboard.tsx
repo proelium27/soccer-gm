@@ -11,11 +11,12 @@
  *
  * What survives is the part that was never about your club: the controls that
  * move time forward, and the world they move. So this page is the sim controls
- * plus a league table you choose, and it leans on the existing world pages for
- * the rest rather than rebuilding them.
+ * plus a league table you choose, the matchday that table came from, and the
+ * competitions the world is playing for, leaning on the existing pages for the
+ * rest rather than rebuilding them.
  */
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { useOffseasonAdvance } from "../useOffseasonAdvance.js";
 import type { LeagueStore } from "../../core/leagueState.js";
@@ -33,26 +34,18 @@ import {
   intlStageThroughLabel,
   type PlayableStage,
 } from "../intlStageLabels.js";
-import { buildSeasonTimeline, type FeedItem } from "../newsFeedTimeline.js";
-import { newsHeadlineNode } from "../components/NewsHeadline.js";
-import { seasonAwardNews } from "../../core/awardNews.js";
-import { trophyNewsBySeason } from "../../core/trophyNews.js";
-import { promotionNewsBySeason } from "../../core/promotionNews.js";
 import { seasonYear } from "../format.js";
 import { qualifyingLeg } from "../../core/constants.js";
 import {
-  PowerRankingPanel, CupBracketPanel, InternationalBracketPanel,
+  PowerRankingPanel, CupBracketPanel, InternationalBracketPanel, MatchdayPanel,
 } from "./worldPanels.js";
 
 /** How many standings rows the table snippet shows before pointing at /standings. */
 const STANDINGS_TOP_N = 8;
-/** How many headlines the news panel shows. */
-const NEWS_TOP_N = 8;
 
 export function SpectatorDashboard({ league }: { league: LeagueStore }) {
   const { simAction, jumpSeasonsAction, intlStageAction, simming } = useLeague();
   const advanceOffseason = useOffseasonAdvance();
-  const navigate = useNavigate();
 
   // Which league's table to show. A view, not save state — a spectator has no
   // home division, so this is simply the last one they looked at.
@@ -71,61 +64,6 @@ export function SpectatorDashboard({ league }: { league: LeagueStore }) {
       league.played.filter((m) => tidSet.has(m.home)),
     );
   }, [league.teams, league.played, competition]);
-
-  // The same world feed the News Feed builds. The audience is the spectator
-  // themselves: `userTid` matches no club and there is no `userCompId`, so
-  // `buildSeasonTimeline` keeps only its world tier — which is exactly right
-  // here, since a spectator has no league of their own for the middle tier to
-  // mean anything about.
-  const headlines = useMemo(() => {
-    const comps: Record<number, number> = {};
-    for (const t of league.teams) comps[t.tid] = t.compId;
-
-    const lastSeasonHonours = league.played.length === 0
-      ? seasonAwardNews(league.seasonHistory.find((h) => h.season === league.season - 1))
-      : [];
-
-    const trophies = trophyNewsBySeason({
-      cup: league.cup,
-      cupHistory: league.cupHistory,
-      shield: league.shield,
-      shieldHistory: league.shieldHistory,
-      international: league.international,
-    });
-    const shownTrophies = [
-      ...(league.played.length === 0 ? trophies.get(league.season - 1) ?? [] : []),
-      ...(trophies.get(league.season) ?? []),
-    ];
-
-    const promotions = promotionNewsBySeason([
-      ...league.promotionPlayoffs,
-      ...(league.played.length === 0
-        ? (league.seasonHistory.find((h) => h.season === league.season - 1)?.promotionPlayoffs ?? [])
-        : []),
-    ]);
-    const shownPromotions = [
-      ...(promotions.get(league.season) ?? []),
-      ...(promotions.get(league.season - 1) ?? []),
-    ];
-
-    const timeline = buildSeasonTimeline(
-      league.transfers.filter((t) => t.season === league.season),
-      league.newsEvents.filter((e) => e.season === league.season),
-      { userTid: league.meta.userTid, userCompId: undefined, compOf: (tid) => comps[tid] },
-      lastSeasonHonours, shownTrophies, [], shownPromotions,
-    );
-    return [...timeline].slice(-NEWS_TOP_N).reverse();
-  }, [
-    league.transfers, league.newsEvents, league.season, league.played,
-    league.meta.userTid, league.teams, league.seasonHistory,
-    league.cup, league.cupHistory, league.shield, league.shieldHistory, league.international,
-    league.promotionPlayoffs,
-  ]);
-
-  const teamByTid = useMemo(() => new Map(league.teams.map((t) => [t.tid, t])), [league.teams]);
-  const playerByPid = useMemo(() => new Map(league.players.map((p) => [p.pid, p])), [league.players]);
-  const headlineNode = (item: FeedItem): React.ReactNode =>
-    newsHeadlineNode(item, { teamByTid, playerByPid, competitions: league.competitions });
 
   const nextMd = nextMatchday(league);
   const lastMd = league.schedule.length > 0
@@ -319,32 +257,14 @@ export function SpectatorDashboard({ league }: { league: LeagueStore }) {
           </div>
         </div>
 
+        {/*
+          The games themselves, for the competition the picker above selects —
+          one dropdown governs the whole row, so the table and the matchday it
+          came from are always the same league. The panel names that league
+          itself so the pairing can't be read as a coincidence.
+        */}
         <div className="col-lg-6">
-          <div className="card h-100">
-            <div className="card-body">
-              <h5 className="card-title">Around the world</h5>
-              {headlines.length === 0 ? (
-                <p className="text-muted mb-3">Nothing has happened yet this season.</p>
-              ) : (
-                <ul className="list-unstyled small mb-3">
-                  {headlines.map((item, i) => (
-                    <li key={i} className="mb-2">{headlineNode(item)}</li>
-                  ))}
-                </ul>
-              )}
-              <div className="d-flex flex-wrap gap-2">
-                <button className="btn btn-sm btn-outline-secondary" onClick={() => navigate("/news")}>
-                  News feed
-                </button>
-                <button className="btn btn-sm btn-outline-secondary" onClick={() => navigate("/power-rankings")}>
-                  Power rankings
-                </button>
-                <button className="btn btn-sm btn-outline-secondary" onClick={() => navigate("/leaders")}>
-                  Stat leaders
-                </button>
-              </div>
-            </div>
-          </div>
+          <MatchdayPanel league={league} compId={competition?.id ?? 0} />
         </div>
       </div>
 

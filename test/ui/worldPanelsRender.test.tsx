@@ -6,6 +6,7 @@ import { makeLeague } from "../helpers/league.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { CupState, CupTie } from "../../src/core/cup/types.js";
 import type { IntlTournament } from "../../src/core/international/types.js";
+import type { PlayedMatch } from "../../src/core/standings.js";
 import { SPECTATOR_TID } from "../../src/core/spectator.js";
 import { computePowerRankingSnapshot } from "../../src/core/teams/powerRanking.js";
 import { cupKnockoutPlan } from "../../src/core/constants.js";
@@ -18,7 +19,7 @@ vi.mock("../../src/ui/context/LeagueContext.js", () => ({
 }));
 
 const {
-  PowerRankingPanel, CupBracketPanel, InternationalBracketPanel,
+  PowerRankingPanel, CupBracketPanel, InternationalBracketPanel, MatchdayPanel,
 } = await import("../../src/ui/pages/worldPanels.js");
 
 /**
@@ -81,6 +82,74 @@ describe("world panels: power rankings", () => {
   });
 });
 
+describe("world panels: a matchday", () => {
+  const base = makeLeague(SPECTATOR_TID, 1);
+  const comp = base.competitions[0];
+  const compTids = base.teams.filter((t) => t.compId === comp.id).map((t) => t.tid);
+  const otherComp = base.competitions.find((c) => c.id !== comp.id)!;
+  const otherTids = base.teams.filter((t) => t.compId === otherComp.id).map((t) => t.tid);
+
+  // The panel reads scores and nothing else, so the box score is a stub. It is
+  // not optional on PlayedMatch, which is why this is cast rather than nulled.
+  function result(
+    matchday: number, home: number, away: number, hg: number, ag: number,
+  ): PlayedMatch {
+    return {
+      matchday, home, away, homeGoals: hg, awayGoals: ag, possessionHome: 0.5,
+      boxScore: { home: [], away: [], events: [] } as unknown as PlayedMatch["boxScore"],
+    };
+  }
+
+  it("opens on the fixtures before a ball is kicked", () => {
+    const html = render(
+      createElement(MatchdayPanel, { league: base, compId: comp.id }), base,
+    );
+    expect(html).toContain("Matchday 1");
+    expect(html).toContain(comp.name);
+    // Fixtures, not scores.
+    expect(html).toContain(">v<");
+  });
+
+  /**
+   * Results are the payoff of the sim button above this card. Showing the next
+   * fixtures once a round has been played would mean the scorelines appear
+   * nowhere on the page, and a column of "v" says little the table beside it
+   * doesn't already.
+   */
+  it("prefers the last round played over the next one to come", () => {
+    const league = {
+      ...base,
+      played: [
+        result(1, compTids[0], compTids[1], 4, 0),
+        result(2, compTids[2], compTids[3], 1, 1),
+      ],
+    } as LeagueStore;
+    const html = render(createElement(MatchdayPanel, { league, compId: comp.id }), league);
+    expect(html).toContain("Matchday 2");
+    expect(html).toContain("1-1");
+    expect(html).not.toContain("4-0");
+  });
+
+  it("shows only the competition it was given", () => {
+    const league = {
+      ...base,
+      played: [
+        result(1, compTids[0], compTids[1], 4, 0),
+        result(1, otherTids[0], otherTids[1], 2, 2),
+      ],
+    } as LeagueStore;
+    const html = render(createElement(MatchdayPanel, { league, compId: comp.id }), league);
+    expect(html).toContain("4-0");
+    expect(html).not.toContain("2-2");
+  });
+
+  it("says so rather than throwing when a competition has no games at all", () => {
+    const league = { ...base, played: [], schedule: [] } as LeagueStore;
+    const html = render(createElement(MatchdayPanel, { league, compId: comp.id }), league);
+    expect(html).toContain("No fixtures");
+  });
+});
+
 describe("world panels: a continental competition", () => {
   const base = makeLeague(SPECTATOR_TID, 1);
 
@@ -103,8 +172,7 @@ describe("world panels: a continental competition", () => {
   /**
    * A cup spends most of the season in its Swiss league phase, so a panel that
    * only knew how to draw a bracket would be empty from August to March.
-   */
-  /**
+   *
    * How many rows is derived from the field, not chosen. A fixed slice left the
    * card two-thirds empty (these sit beside the ten-row power board and stretch
    * to match it) and cut across the only thing a league-phase table is about,

@@ -324,7 +324,8 @@ export function Manual() {
           <p>
             Your Dashboard is a page of its own: the season and matchday with a Spectating badge,
             the sim controls, Jump ahead, a league table with a dropdown for any competition in the
-            world, and an "Around the world" news panel. Along the bottom are the ten
+            world, and that league's latest matchday beside it, every game with the score
+            once it's been played. Along the bottom are the ten
             best clubs anywhere by power ranking, and the Continental Cup and Continental Shield,
             each showing its league phase table until the knockout starts and its bracket after
             that. And the News Feed carries world-level news only, so the big transfers, the

@@ -70,10 +70,11 @@ describe("sim ticker — domestic cup labelling", () => {
   });
 });
 
+
 /**
  * A spectator save has no club, so the ticker's whole premise — your league
  * match, your cup tie — comes up empty and the strip sat on a placeholder for
- * the length of a season sim. It shows the matchday's standout result instead.
+ * the length of a season sim. It counts the matchday instead.
  */
 describe("sim ticker — a save with no club", () => {
   function match(home: number, away: number, homeGoals: number, awayGoals: number): PlayedMatch {
@@ -84,51 +85,30 @@ describe("sim ticker — a save with no club", () => {
     return { matchday: 9, matchdayIndex: 0, totalMatchdays: 38, results, cupTies: [], domesticTies: [] };
   }
 
-  it("leads with the widest winning margin", () => {
+  /**
+   * Showing one world match was tried and rejected: whichever rule picks it —
+   * widest margin, most goals — the answer is a game between two clubs the
+   * viewer has no stake in. The whole round is a sum rather than a choice.
+   */
+  it("counts the round rather than picking a game out of it", () => {
     const items = tickerItemsFor(withResults([
       match(1, 2, 1, 0),
-      match(3, 4, 5, 0),   // margin 5
-      match(5, 6, 4, 3),   // more goals, smaller margin
+      match(3, 4, 5, 0),
+      match(5, 6, 4, 3),
     ]), SPECTATOR_TID);
 
-    const card = items.find((i) => i.kind === "result");
-    expect(card).toBeDefined();
-    expect(card!.kind === "result" && card!.game.home).toBe(3);
-  });
-
-  it("counts an away thrashing too", () => {
-    const items = tickerItemsFor(withResults([
-      match(1, 2, 2, 0),
-      match(3, 4, 0, 4),
-    ]), SPECTATOR_TID);
-    const card = items.find((i) => i.kind === "result");
-    expect(card!.kind === "result" && card!.game.home).toBe(3);
-  });
-
-  /**
-   * Two identical margins must always resolve the same way, or the same simmed
-   * matchday shows a different card each time it is replayed.
-   */
-  it("breaks a tie on goals, then on tid, so a replay shows the same match", () => {
-    const byGoals = tickerItemsFor(withResults([
-      match(1, 2, 3, 0),
-      match(3, 4, 4, 1),  // same margin, more goals
-    ]), SPECTATOR_TID);
-    expect(byGoals[0].kind === "result" && byGoals[0].game.home).toBe(3);
-
-    // Held in a const: narrowing `kind` does not carry across two separate
-    // calls, so `[0].game` off a second call is a type error.
-    const byTid = tickerItemsFor(
-      withResults([match(7, 8, 3, 0), match(2, 9, 3, 0)]), SPECTATOR_TID,
-    );
-    expect(byTid[0].kind === "result" && byTid[0].game.home).toBe(2);
+    expect(items).toHaveLength(1);
+    const card = items[0];
+    expect(card.kind).toBe("tally");
+    expect(card.kind === "tally" && card.games).toBe(3);
+    expect(card.kind === "tally" && card.goals).toBe(13);
   });
 
   it("still marks the cup round being played that day", () => {
     const md = withResults([match(1, 2, 1, 0)]);
     md.cupTies = [tie(3, 4)];
     const items = tickerItemsFor(md, SPECTATOR_TID);
-    expect(items.some((i) => i.kind === "result")).toBe(true);
+    expect(items.some((i) => i.kind === "tally")).toBe(true);
     expect(items.some((i) => i.kind === "cup-marker")).toBe(true);
   });
 
@@ -138,12 +118,12 @@ describe("sim ticker — a save with no club", () => {
 
   it("leaves the managed case alone", () => {
     const items = tickerItemsFor(withResults([
-      match(1, 2, 6, 0),        // a bigger result than the user's
+      match(1, 2, 6, 0),
       match(USER, 4, 1, 1),
     ]), USER);
-    // His own match, not the standout, and drawn as his.
+    // His own match, drawn as his, and no world tally beside it.
     expect(items[0].kind).toBe("league");
     expect(items[0].kind === "league" && items[0].game.home).toBe(USER);
-    expect(items.some((i) => i.kind === "result")).toBe(false);
+    expect(items.some((i) => i.kind === "tally")).toBe(false);
   });
 });

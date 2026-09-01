@@ -138,6 +138,83 @@ function LeaguePhaseTop({ table, cup }: {
   );
 }
 
+/**
+ * One matchday of one competition: the fixtures if it hasn't been played, the
+ * scores if it has.
+ *
+ * Which matchday is deliberately not a setting, and it is the **most recently
+ * played** one wherever there is one. Results are the payoff of the click in
+ * the card above: showing the next fixtures instead means the scorelines never
+ * appear anywhere on the page, and a column of "v" says little the table beside
+ * it doesn't. Before a ball is kicked there is nothing to report, so it opens
+ * on the fixtures, and during an offseason it holds the season's last round
+ * (`played` is emptied when the new season starts, not when the old one ends).
+ * The heading names the matchday and the league, so which of the two you are
+ * looking at is never ambiguous.
+ *
+ * Full club names rather than the abbreviations the brackets use: a bracket is
+ * a wide grid of short cells where the shape carries the meaning, and this is a
+ * list of ten lines with room to say who is playing.
+ */
+export function MatchdayPanel({ league, compId }: { league: LeagueStore; compId: number }) {
+  const comp = league.competitions.find((c) => c.id === compId);
+
+  const { matchday, games, played } = useMemo(() => {
+    const tids = new Set(
+      league.teams.filter((t) => t.compId === compId).map((t) => t.tid),
+    );
+    // A fixture and a result are both "home v away"; only the score differs, so
+    // they are normalized here and the row below draws one shape.
+    const done = league.played.filter((m) => tids.has(m.home));
+    if (done.length > 0) {
+      const md = Math.max(...done.map((m) => m.matchday));
+      return { matchday: md, played: true, games: done.filter((m) => m.matchday === md) };
+    }
+    const upcoming = league.schedule.filter((g) => tids.has(g.home));
+    if (upcoming.length === 0) return { matchday: null, played: false, games: [] };
+    const md = Math.min(...upcoming.map((g) => g.matchday));
+    return {
+      matchday: md,
+      played: false,
+      games: upcoming
+        .filter((g) => g.matchday === md)
+        .map((g) => ({ home: g.home, away: g.away, homeGoals: 0, awayGoals: 0 })),
+    };
+  }, [league.schedule, league.played, league.teams, compId]);
+
+  return (
+    <div className="card h-100">
+      <div className="card-body">
+        <div className="d-flex justify-content-between align-items-baseline gap-2 mb-2">
+          <h5 className="card-title mb-0">
+            {matchday === null ? "Matchday" : `Matchday ${matchday}`}
+          </h5>
+          <span className="text-muted small text-truncate">{comp?.name}</span>
+        </div>
+        {games.length === 0 ? (
+          <p className="text-muted small mb-0">No fixtures.</p>
+        ) : (
+          <table className="table table-sm mb-0">
+            <tbody>
+              {games.map((g, i) => (
+                <tr key={i}>
+                  <td className="text-end"><ClubLink tid={g.home} /></td>
+                  <td className="text-center text-nowrap" style={{ width: "3.5rem" }}>
+                    {played
+                      ? <span className="fw-semibold">{g.homeGoals}-{g.awayGoals}</span>
+                      : <span className="text-muted">v</span>}
+                  </td>
+                  <td><ClubLink tid={g.away} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Turn a cup's played knockout ties into bracket lines, drawn as clubs. */
 function cupTies(cup: CupState): MiniBracketTie[] {
   return cup.ties.map((t): MiniBracketTie => ({
