@@ -24,6 +24,7 @@ import { ClubLink } from "../components/ClubLink.js";
 import { computeStandings } from "../../core/standings.js";
 import { nextMatchday } from "../../core/transfers/window.js";
 import { SimTargetForm } from "../components/SimTargetForm.js";
+import { useSimHint } from "../components/useSimHint.js";
 import { isIntlStagePending } from "../../core/international/index.js";
 import {
   intlStageButton,
@@ -45,6 +46,8 @@ const STANDINGS_TOP_N = 8;
 export function SpectatorDashboard({ league }: { league: LeagueStore }) {
   const { simAction, intlStageAction, simming } = useLeague();
   const advanceOffseason = useOffseasonAdvance();
+  // Held here so the Simulation card can draw it on its heading line.
+  const simHint = useSimHint();
 
   // Which league's table to show. A view, not save state — a spectator has no
   // home division, so this is simply the last one they looked at.
@@ -94,7 +97,12 @@ export function SpectatorDashboard({ league }: { league: LeagueStore }) {
           no board and no stint, so it can never fire). */}
       <div className="card mb-3">
         <div className="card-body">
-          <h5 className="card-title">Simulation</h5>
+          {/* The sim-target hint rides the heading line so the controls below
+              can share one row with the sim buttons. */}
+          <div className="d-flex align-items-baseline justify-content-between gap-3 flex-wrap">
+            <h5 className="card-title mb-2">Simulation</h5>
+            {simHint.node}
+          </div>
           {league.phase === "offseason" ? (
             isIntlStagePending(league.international) ? (
               <>
@@ -179,6 +187,7 @@ export function SpectatorDashboard({ league }: { league: LeagueStore }) {
                   last={lastMd}
                   disabled={simming}
                   onSim={(matchday) => simAction({ matchday })}
+                  onHintChange={simHint.onHintChange}
                 />
               )}
             </div>
