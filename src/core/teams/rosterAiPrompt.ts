@@ -1,13 +1,25 @@
-import type { LeagueStore } from "../leagueState.js";
 import { POSITIONS, SKILL_KEYS } from "../players/types.js";
-import { ROSTER_FILE_FORMAT, ROSTER_FILE_VERSION } from "./rosterFile.js";
+import { ROSTER_FILE_FORMAT, ROSTER_FILE_VERSION, type RosterSlotWorld } from "./rosterFile.js";
 
 /**
  * Build a ready-to-paste instruction block that teaches an AI assistant the
- * exact roster-file format, tailored to a specific save. The importer maps
- * clubs to competitions *by name*, so the prompt must list this world's real
- * competition names and slot counts — a generic prompt would produce a file
- * whose competitions don't match and silently apply nothing.
+ * exact roster-file format, tailored to one world. The importer maps clubs to
+ * competitions *by name*, so the prompt must list that world's real competition
+ * names and slot counts — a generic prompt would produce a file whose
+ * competitions don't match and silently apply nothing.
+ *
+ * It takes a RosterSlotWorld rather than a LeagueStore, which is the same shape
+ * resolveRosterSlots aims a file with. A save satisfies it structurally, so the
+ * in-league TopBar button is unchanged; what it buys is the two screens where a
+ * roster file is actually imported — /leagues and /new-league, both of which sit
+ * outside Layout and so have no TopBar — being able to hand out the prompt for a
+ * world that does not exist yet (worldTeamSlots, competitions.ts). Before that,
+ * the only copy of the prompt lived in a loaded save's top bar while importing
+ * was creation-only, so anyone starting a fresh save with real rosters had to
+ * either already have a save open or write the file without the spec. Files
+ * built without it turned up in the wild breaking several of the rules below at
+ * once (2026-09-02: no country/tier, real-world division sizes rather than this
+ * world's, invented competitions, reconstructed rather than copied names).
  *
  * **Both ways that goes wrong fail SILENTLY, which is why the prompt spends so
  * many words on them.** resolveRosterSlots pushes a warning and carries on: an
@@ -31,10 +43,22 @@ import { ROSTER_FILE_FORMAT, ROSTER_FILE_VERSION } from "./rosterFile.js";
  * reads back as Scotland's top flight. The prompt still asks for the name to be
  * copied, and now asks for the country and tier beside it, because a file that
  * carries all three cannot be aimed wrongly by either route.
+ *
+ * The prompt also spends words on `colors`, which is the one FATAL mistake it
+ * has seen in the wild rather than a quiet one. parseRosterFile requires
+ * exactly two hex strings and throws on anything else, and a throw rejects the
+ * whole file — so a single club is enough to cost an author every other one.
+ * Reported 2026-09-02: a 232-club, 5,873-player all-time-teams file failed
+ * outright because two Brazilian clubs (Fluminense, Bahia) listed their real
+ * three colours. That is the trap worth naming explicitly — the author was not
+ * being careless, they were being ACCURATE, and accuracy is what produced the
+ * broken file. Hence both a rule and a checklist line, and hence the note that
+ * the three rules above fail quietly while the field shapes below do not: an AI
+ * told everything degrades gracefully will not re-read a field shape.
  */
-export function buildImportPromptText(league: LeagueStore): string {
-  const slotsOf = (id: number) => league.teams.filter((t) => t.compId === id).length;
-  const comps = league.competitions.map(
+export function buildImportPromptText(world: RosterSlotWorld): string {
+  const slotsOf = (id: number) => world.teams.filter((t) => t.compId === id).length;
+  const comps = world.competitions.map(
     (c) =>
       `  - "${c.name}" — country "${c.country}", tier ${c.tier} — ${slotsOf(c.id)} club slots`,
   );
@@ -46,14 +70,14 @@ export function buildImportPromptText(league: LeagueStore): string {
   const follows = (c: { name: string; country: string }) =>
     c.name.toLowerCase().startsWith(c.country.toLowerCase());
   const odd =
-    league.competitions.find((c) => c.tier === 1 && !follows(c)) ??
-    league.competitions.find((c) => !follows(c));
+    world.competitions.find((c) => c.tier === 1 && !follows(c)) ??
+    world.competitions.find((c) => !follows(c));
   const nameWarning = odd
     ? `Most of them are NOT their country's name with "Division" after it: this world calls ${odd.country}'s top division "${odd.name}".`
     : `Take the whole string from the list, including any wording you would not have guessed.`;
 
   const sizeNote =
-    new Set(league.competitions.map((c) => slotsOf(c.id))).size > 1
+    new Set(world.competitions.map((c) => slotsOf(c.id))).size > 1
       ? " The divisions are deliberately different sizes — they follow the real leagues — so read each one's number instead of assuming they all hold 20."
       : "";
 
@@ -62,9 +86,9 @@ export function buildImportPromptText(league: LeagueStore): string {
     formatVersion: ROSTER_FILE_VERSION,
     competitions: [
       {
-        match: league.competitions[0]?.name ?? "English Division 1",
-        country: league.competitions[0]?.country ?? "England",
-        tier: league.competitions[0]?.tier ?? 1,
+        match: world.competitions[0]?.name ?? "English Division 1",
+        country: world.competitions[0]?.country ?? "England",
+        tier: world.competitions[0]?.tier ?? 1,
         clubs: [
           {
             name: "Example City",
@@ -94,7 +118,7 @@ export function buildImportPromptText(league: LeagueStore): string {
     "These are the only competitions my save has. Give each one its `match` name EXACTLY as written here, plus the `country` and `tier` shown beside it.",
     ...comps,
     "",
-    "Three rules about that list. They are in the order people get them wrong, and getting any of them wrong fails QUIETLY — the file still imports, it just doesn't do what you meant.",
+    "Three rules about that list. They are in the order people get them wrong, and getting any of THESE THREE wrong fails QUIETLY — the file still imports, it just doesn't do what you meant. (Mistakes in the field shapes further down are the opposite: they are fatal and they take the whole file with them. Both kinds are worth avoiding, for different reasons.)",
     `1. COPY each name from the list; never build one out of the country's name. ${nameWarning} ALWAYS include \`country\` and \`tier\` as well: that pair is what actually finds the league, and it keeps working if I rename my divisions later, whereas a \`match\` name that matches nothing and has no country beside it is skipped with no error — that whole competition is dropped and not one of its clubs is applied.`,
     `2. NEVER list more clubs than a competition's slot count.${sizeNote} Anything past the count is thrown away from the END of your list, so you would silently lose whichever clubs you happened to put last. If the real league you are copying is bigger than the slot count, you decide which clubs to leave out — drop the weakest — and list only the ones that fit.`,
     "3. Don't invent a competition. If I ask for a league that isn't on the list, do the ones that are and then TELL me the rest aren't in this world, so I can add them before importing. A plausible-looking name for a league I don't have is worse than no entry at all, because it looks like it worked.",
@@ -103,6 +127,7 @@ export function buildImportPromptText(league: LeagueStore): string {
     "If I ask for more leagues than you can fit in one answer, do as many as you can fit properly and tell me which ones are left, rather than thinning out the squads to cram them all in. The game loads several roster files into one league, so I can come back for the rest and import them together.",
     "",
     "== File shape ==",
+    "Every field below has to have exactly the shape described. Unlike the three rules above, a field of the wrong shape is a HARD error: the game refuses the file outright and not one club of the hundreds you wrote is imported. It is worth a moment re-reading this section before you answer.",
     "{",
     `  "format": "${ROSTER_FILE_FORMAT}",`,
     `  "formatVersion": ${ROSTER_FILE_VERSION},`,
@@ -112,6 +137,7 @@ export function buildImportPromptText(league: LeagueStore): string {
     "",
     "A <club> is:",
     '  { "name": string, "abbrev": string (2-4 letters), "colors": [primaryHex, secondaryHex], "players"?: [ <player>, ... ] }',
+    "- `colors` is EXACTLY TWO hex strings, a primary and a secondary — never one, never three. Plenty of real clubs wear three — Fluminense and Bahia both do — so pick the two that identify them best and drop the rest. This is the single most common way a roster file is rejected, precisely because listing all three feels more accurate.",
     "- Omit `players` to change only the club's name/abbrev/colors and keep its existing squad.",
     "- Include `players` to give it a squad of your own. That REPLACES the club's current players, so do this on a fresh save.",
     "- You don't have to list a full squad — whatever positions you leave short are auto-filled with lower-rated reserves so the team is always playable. A first XI plus a few subs is plenty.",
@@ -135,6 +161,7 @@ export function buildImportPromptText(league: LeagueStore): string {
     "== Check these before you answer ==",
     "- Every `match` string appears, character for character, in the competition list above.",
     "- No competition lists more clubs than its slot count.",
+    "- Every club's `colors` is an array of exactly two hex strings.",
     "- The answer is one JSON object and nothing else — no markdown fences, no commentary around it.",
     "",
     "== What I want ==",
