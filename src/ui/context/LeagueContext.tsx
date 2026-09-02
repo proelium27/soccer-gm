@@ -10,7 +10,7 @@ import {
   signFreeAgent, releasePlayer, signToAcademy, promoteFromAcademy, releaseAcademyPlayer,
   signTrialist,
 } from "../../core/freeAgency.js";
-import { sanitizeScoutingRegions } from "../../core/scouting/scoutingRegions.js";
+import { scoutDirectionsOf, type ScoutDirections } from "../../core/scouting/scoutDirections.js";
 import { clampScoutingSpend } from "../../core/finance/scouting.js";
 import { makeTransferOffer, acceptCounterOffer, FREE_AGENT_TID } from "../../core/transfers/negotiation.js";
 import { freeAgentSigningWindow } from "../../core/transfers/window.js";
@@ -76,8 +76,12 @@ interface LeagueContextValue {
   signToAcademyAction: (pid: number) => Promise<void>;
   /** Sign one of this year's youth trialists into the academy. */
   signTrialistAction: (pid: number) => Promise<void>;
-  /** Send the youth scouts to these countries (see SCOUTING_REGION_MAX). */
-  setScoutingRegionsAction: (regions: string[]) => Promise<void>;
+  /**
+   * Set what the youth scouts have been told — countries, positions, the kind
+   * of player — as a partial, so a panel can change one without restating the
+   * other two. See ScoutDirections.
+   */
+  setScoutDirectionsAction: (next: Partial<ScoutDirections>) => Promise<void>;
   promoteFromAcademyAction: (pid: number) => Promise<void>;
   releaseAcademyPlayerAction: (pid: number) => Promise<void>;
   extendAcademyContractAction: (pid: number) => Promise<void>;
@@ -641,18 +645,36 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     };
   }), [mutate]);
 
-  const setScoutingRegionsAction = useCallback((regions: string[]) => mutate((l) => {
-    const clean = sanitizeScoutingRegions(regions);
+  const setScoutDirectionsAction = useCallback((next: Partial<ScoutDirections>) => mutate((l) => {
     const team = l.teams.find((t) => t.tid === l.meta.userTid);
     if (!team) return null;
-    const same = (team.scoutingRegions ?? []).length === clean.length
-      && (team.scoutingRegions ?? []).every((c, i) => c === clean[i]);
-    if (same) return null;
+    // Sanitized here rather than trusted from the panel, for the same reason
+    // the offseason sanitizes on the way out: this is persisted state, and a
+    // save can reach it from an older build or a hand edit.
+    const current = scoutDirectionsOf(team);
+    const clean = scoutDirectionsOf({
+      scoutingRegions: next.regions ?? current.regions,
+      scoutingPositions: next.positions ?? current.positions,
+      // `profile` is nullable, so `??` would swallow a deliberate clear —
+      // "no preference" is a real choice and has to survive the merge.
+      scoutingProfile: "profile" in next ? next.profile : current.profile,
+    });
+    const sameList = (a: readonly string[], b: readonly string[]) =>
+      a.length === b.length && a.every((x, i) => x === b[i]);
+    // Every mutate writes the whole save, so a no-op change must not.
+    if (sameList(current.regions, clean.regions)
+      && sameList(current.positions, clean.positions)
+      && current.profile === clean.profile) return null;
     return {
       ...l,
-      teams: l.teams.map((t) =>
-        t.tid === l.meta.userTid ? { ...t, scoutingRegions: clean } : t,
-      ),
+      teams: l.teams.map((t) => (t.tid === l.meta.userTid
+        ? {
+          ...t,
+          scoutingRegions: clean.regions,
+          scoutingPositions: clean.positions,
+          scoutingProfile: clean.profile,
+        }
+        : t)),
     };
   }), [mutate]);
 
@@ -1029,7 +1051,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     releasePlayerAction,
     signToAcademyAction,
     signTrialistAction,
-    setScoutingRegionsAction,
+    setScoutDirectionsAction,
     promoteFromAcademyAction,
     releaseAcademyPlayerAction,
     extendAcademyContractAction,
@@ -1075,7 +1097,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     customizeTeamsAction, simAction, simLiveAction, jumpSeasonsAction, offseasonAction,
     intlStageAction, signFreeAgentAction,
     releasePlayerAction, signToAcademyAction, signTrialistAction,
-    setScoutingRegionsAction,
+    setScoutDirectionsAction,
     promoteFromAcademyAction,
     releaseAcademyPlayerAction, extendAcademyContractAction, setScoutingSpendAction,
     makeOfferAction, acceptCounterAction, acceptInboundOfferAction,

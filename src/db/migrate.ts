@@ -377,9 +377,13 @@ function migrateFields(league: LeagueStore): LeagueStore {
         // decision to reconstruct. The next offseason lays out a real group.
         youthTrialists: t.youthTrialists ?? [],
         youthTrialSignings: t.youthTrialSignings ?? 0,
-        // Where the youth scouts are sent (added 2026-09-01). Empty is exact:
-        // an old save's scouts were always looking close to home.
+        // Scout directions (added 2026-09-01). Empty is exact rather than a
+        // guess: an old save's scouts had nothing to go on, so they looked
+        // close to home for whoever the academy happened to turn up — which is
+        // precisely what an empty set of directions still produces.
         scoutingRegions: t.scoutingRegions ?? [],
+        scoutingPositions: t.scoutingPositions ?? [],
+        scoutingProfile: t.scoutingProfile ?? null,
         compId,
         divisionConvergence: t.divisionConvergence ?? null,
         transferListed: t.transferListed ?? [],

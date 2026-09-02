@@ -14,8 +14,15 @@ import {
 } from "../../core/players/academyFacilities.js";
 import {
   ACADEMY_ROSTER_CAP, YOUTH_TRIAL_SIGN_LIMIT, SCOUTING_REGION_MAX,
+  SCOUT_POSITION_MAX,
 } from "../../core/constants.js";
 import { PICKABLE_NATIONALITIES } from "../components/NationalityEditor.js";
+import { POSITIONS } from "../../core/players/types.js";
+import type { Position } from "../../core/players/types.js";
+import { scoutDirectionsOf } from "../../core/scouting/scoutDirections.js";
+import {
+  SCOUT_PROFILES, SCOUT_PROFILE_LABELS, type ScoutProfile,
+} from "../../core/scouting/scoutProfile.js";
 
 type IntakeSortKey = "name" | "pos" | "ovr" | "pot";
 
@@ -73,7 +80,7 @@ export function YouthIntake() {
         and better scouting narrows them.
       </p>
 
-      <ScoutingRegions />
+      <ScoutDirections />
 
       {trialists.length === 0 ? (
         <p>
@@ -161,59 +168,60 @@ export function YouthIntake() {
  * something that cannot move. What it genuinely changes is who can cap them,
  * which is the reason to care.
  */
-function ScoutingRegions() {
-  const { league, setScoutingRegionsAction, simming } = useLeague();
+/** One removable chip in a directions row. */
+function Chip(
+  { label, flag, onRemove, disabled }:
+  { label: string; flag?: string; onRemove: () => void; disabled: boolean },
+) {
+  return (
+    <span className="badge text-bg-secondary d-inline-flex align-items-center gap-1">
+      {flag ? <Flag nationality={flag} /> : null} {label}
+      <button
+        type="button"
+        className="btn-close btn-close-white ms-1"
+        style={{ fontSize: "0.6em" }}
+        aria-label={`Remove ${label}`}
+        disabled={disabled}
+        onClick={onRemove}
+      />
+    </span>
+  );
+}
+
+/**
+ * What the user has told his youth scouts: where to look, which positions to
+ * look for, and what kind of player.
+ *
+ * **The three deliberately do not reach equally far, and the copy says so
+ * rather than glossing it.** Where they look is re-drawn over the whole trial
+ * group, because nationality decides a name and an international eligibility
+ * and nothing else, so it can be relabelled after the fact for free. What they
+ * look for can only shape the players the scouts themselves turn up: a position
+ * and a profile both change how a player is generated, and the rest of the
+ * group is generated on the shared rng, where a different draw would re-roll
+ * every club in the world. Saying "most of the group" is honest and costs
+ * nothing; implying all of it would be a promise the numbers don't keep.
+ */
+function ScoutDirections() {
+  const { league, setScoutDirectionsAction, simming } = useLeague();
   const [open, setOpen] = useState(false);
   if (!league) return null;
 
   const team = league.teams.find((t) => t.tid === league.meta.userTid);
-  const picked = team?.scoutingRegions ?? [];
-  const full = picked.length >= SCOUTING_REGION_MAX;
+  const { regions, positions, profile } = scoutDirectionsOf(team);
+  const countriesFull = regions.length >= SCOUTING_REGION_MAX;
+  const positionsFull = positions.length >= SCOUT_POSITION_MAX;
 
-  const drop = (c: string) => setScoutingRegionsAction(picked.filter((x) => x !== c));
-  const add = (c: string) => {
-    if (!c || full || picked.includes(c)) return;
-    setScoutingRegionsAction([...picked, c]);
-  };
+  const setRegions = (next: string[]) => void setScoutDirectionsAction({ regions: next });
+  const setPositions = (next: Position[]) => void setScoutDirectionsAction({ positions: next });
+  const setProfile = (next: ScoutProfile | null) => void setScoutDirectionsAction({ profile: next });
 
   return (
     <div className="card mb-3">
       <div className="card-body py-2">
-        <div className="d-flex flex-wrap align-items-center gap-2">
-          <strong className="me-1">Send your scouts to</strong>
-          {picked.length === 0 ? (
-            <span className="text-muted">
-              nowhere in particular. Your academy looks close to home.
-            </span>
-          ) : (
-            picked.map((c) => (
-              <span key={c} className="badge text-bg-secondary d-inline-flex align-items-center gap-1">
-                <Flag nationality={c} /> {c}
-                <button
-                  type="button"
-                  className="btn-close btn-close-white ms-1"
-                  style={{ fontSize: "0.6em" }}
-                  aria-label={`Stop scouting ${c}`}
-                  disabled={simming}
-                  onClick={() => void drop(c)}
-                />
-              </span>
-            ))
-          )}
-          {!full && (
-            <select
-              className="form-select form-select-sm w-auto"
-              value=""
-              disabled={simming}
-              onChange={(e) => void add(e.target.value)}
-              aria-label="Add a country to scout"
-            >
-              <option value="">Add a country...</option>
-              {PICKABLE_NATIONALITIES.filter((c) => !picked.includes(c)).map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          )}
+        <div className="d-flex align-items-center gap-2 mb-2">
+          <strong>Scout directions</strong>
+          <span className="text-muted small">for next summer's intake</span>
           <button
             type="button"
             className="btn btn-sm btn-link text-decoration-none ms-auto"
@@ -222,15 +230,121 @@ function ScoutingRegions() {
             {open ? "Hide" : "What does this do?"}
           </button>
         </div>
+
+        <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+          <span className="text-muted" style={{ minWidth: "6.5rem" }}>Countries</span>
+          {regions.length === 0 && (
+            <span className="text-muted fst-italic">anywhere close to home</span>
+          )}
+          {regions.map((c) => (
+            <Chip
+              key={c}
+              label={c}
+              flag={c}
+              disabled={simming}
+              onRemove={() => setRegions(regions.filter((x) => x !== c))}
+            />
+          ))}
+          {!countriesFull && (
+            <select
+              className="form-select form-select-sm w-auto"
+              value=""
+              disabled={simming}
+              onChange={(e) => e.target.value && setRegions([...regions, e.target.value])}
+              aria-label="Add a country to scout"
+            >
+              <option value="">Add a country...</option>
+              {PICKABLE_NATIONALITIES.filter((c) => !regions.includes(c)).map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+          <span className="text-muted" style={{ minWidth: "6.5rem" }}>Positions</span>
+          {positions.length === 0 && (
+            <span className="text-muted fst-italic">whoever they turn up</span>
+          )}
+          {positions.map((pos) => (
+            <Chip
+              key={pos}
+              label={pos}
+              disabled={simming}
+              onRemove={() => setPositions(positions.filter((x) => x !== pos))}
+            />
+          ))}
+          {!positionsFull && (
+            <select
+              className="form-select form-select-sm w-auto"
+              value=""
+              disabled={simming}
+              onChange={(e) => e.target.value && setPositions([...positions, e.target.value as Position])}
+              aria-label="Add a position to scout for"
+            >
+              <option value="">Add a position...</option>
+              {POSITIONS.filter((pos) => !positions.includes(pos)).map((pos) => (
+                <option key={pos} value={pos}>{pos}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className="d-flex flex-wrap align-items-center gap-2">
+          <span className="text-muted" style={{ minWidth: "6.5rem" }}>Type of player</span>
+          <div className="btn-group btn-group-sm" role="group" aria-label="Scouting profile">
+            <button
+              type="button"
+              className={`btn ${profile === null ? "btn-primary" : "btn-outline-secondary"}`}
+              disabled={simming}
+              onClick={() => setProfile(null)}
+            >
+              No preference
+            </button>
+            {SCOUT_PROFILES.map((key) => (
+              <button
+                key={key}
+                type="button"
+                className={`btn ${profile === key ? "btn-primary" : "btn-outline-secondary"}`}
+                disabled={simming}
+                title={SCOUT_PROFILE_LABELS[key].blurb}
+                onClick={() => setProfile(key)}
+              >
+                {SCOUT_PROFILE_LABELS[key].name}
+              </button>
+            ))}
+          </div>
+          {profile && (
+            <span className="text-muted small">{SCOUT_PROFILE_LABELS[profile].blurb}</span>
+          )}
+        </div>
+
         {open && (
-          <p className="text-muted small mb-0 mt-2" style={{ maxWidth: "48rem" }}>
-            Pick up to {SCOUTING_REGION_MAX} countries and they'll turn up most of next summer's
-            trial group between them, with the rest still coming from around your own league. It
-            takes effect at your next intake, not this one. Your scouts find you{" "}
-            <em>different</em> players, not better ones: where a kid is from decides his name and
-            which country can pick him, never how good he is. That last part is the point, though,
-            if you fancy stocking a national team with players you brought through yourself.
-          </p>
+          <div className="text-muted small mt-3" style={{ maxWidth: "48rem" }}>
+            <p className="mb-2">
+              All of this takes effect at your <em>next</em> intake, not the group below.
+            </p>
+            <p className="mb-2">
+              <strong>Countries</strong> change where the whole group is from — up to{" "}
+              {SCOUTING_REGION_MAX} of them, supplying most of it between them while the rest
+              still comes from around your own league. Your scouts find you <em>different</em>{" "}
+              players here, never better ones: where a kid is from decides his name and which
+              country can pick him, and nothing else. That's the point of it, though, if you
+              fancy stocking a national team with players you brought through yourself.
+            </p>
+            <p className="mb-2">
+              <strong>Positions</strong> (up to {SCOUT_POSITION_MAX}) and{" "}
+              <strong>type of player</strong> shape the ones your scouts actually go out and
+              find, which is most of the group but not all of it — the handful your academy
+              turned up on its own arrive as they are. Neither is a filter: ask for strikers and
+              you'll get a lot of strikers, not eleven of them.
+            </p>
+            <p className="mb-0">
+              A type of player is a trade, not an upgrade. Ask for athletes and they come in
+              quicker and stronger, and give back exactly as much everywhere else — the players
+              you get are worth the same as the ones you'd have got, they just play differently.
+            </p>
+          </div>
         )}
       </div>
     </div>

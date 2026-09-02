@@ -4227,3 +4227,42 @@ export const YOUTH_TRIAL_HYPE_SWING = 3;
  */
 export const SCOUTING_REGION_MAX = 3;
 export const SCOUTING_REGION_SHARE = 0.6;
+
+/**
+ * How many positions the user can tell his scouts to look for, and how much of
+ * the SCOUTED part of the trial group they take between them.
+ *
+ * **The share is higher than SCOUTING_REGION_SHARE on purpose, and the reason
+ * is a hard constraint rather than a taste call.** A country is re-drawn
+ * post-hoc over the whole group, because nationality is rating-neutral and the
+ * relabel costs no rng draw. A position cannot be: ratings are rolled from that
+ * position's own tier row, so changing it means generating a different player —
+ * and the user's ORDINARY intake is generated on the shared `rng`, where
+ * `rollRating` spends one draw for an `ABS` tier and two for every other, so a
+ * keeper costs 23 rating draws against an outfielder's 27. Re-weighting that
+ * draw would shift the shared stream by four and re-roll every club generated
+ * after his. So positions reach only the extras, which are drawn on the trial
+ * stream — and the share is raised so the skew the user actually SEES across
+ * the whole group lands in the same place a country's does.
+ */
+export const SCOUT_POSITION_MAX = 3;
+export const SCOUT_POSITION_SHARE = 0.75;
+
+/**
+ * How far a scouting profile tilts a scouted player's ratings, in raw rating
+ * points added to each of the profile's own skills.
+ *
+ * **Zero-sum against that position's OVR weights, so it changes the KIND of
+ * player and never the quality of one** (`applyProfileTilt`): whatever is added
+ * to the profile's skills is taken back off the rest in exact proportion to
+ * what OVR pays for them. That is the same device `POSITION_OVR_CALIBRATION`
+ * uses to shift positions without moving the world mean, and it is what lets
+ * this ship without a dynasty audit — a lever that cannot move OVR cannot move
+ * wages, valuation, the ladder or the solvency column.
+ *
+ * 8 is sized to be legible on the ratings tooltip (a physical striker really is
+ * visibly quicker than a technical one) while staying small enough that the
+ * compensating side rarely reaches the rating floor on a weak academy, where
+ * the tilt is scaled down to whatever headroom exists rather than clamping.
+ */
+export const SCOUT_PROFILE_TILT = 8;

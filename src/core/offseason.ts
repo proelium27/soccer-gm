@@ -8,7 +8,7 @@ import { packPositionChange, type NewsEvent } from "./newsEvents.js";
 import { generateYouthIntake } from "./players/youth.js";
 import { computeAcademyFormModifiers } from "./players/academyForm.js";
 import { academyFacilitiesBonus } from "./players/academyFacilities.js";
-import { sanitizeScoutingRegions, scoutedNationalityWeights } from "./scouting/scoutingRegions.js";
+import { scoutDirectionsOf, scoutedNationalityWeights } from "./scouting/scoutDirections.js";
 import { pickNationality, LEAGUE_NATIONALITY_WEIGHTS } from "./players/nationalities.js";
 import { generateName } from "./players/names.js";
 import { cullFreeAgentPoolReporting } from "./players/freeAgentCull.js";
@@ -633,6 +633,7 @@ export function simOffseasonReporting(
     const groupSize = YOUTH_TRIAL_GROUP_MIN
       + Math.floor(trialRng() * (YOUTH_TRIAL_GROUP_MAX - YOUTH_TRIAL_GROUP_MIN + 1));
     const extras = Math.max(0, groupSize - userYouth.length);
+    const directions = scoutDirectionsOf(userTeam);
     if (userTeam && extras > 0) {
       const comp = competitionOf(league.competitions, userTeam.compId);
       const { players: extraYouth, nextPid: afterExtras } = generateYouthIntake(
@@ -644,6 +645,14 @@ export function simOffseasonReporting(
         nextSeason, nextPid, hashInts(league.lid, nextSeason, YOUTH_TRIAL_STREAM),
         comp.country, competitionNationalities(comp),
         extras,
+        // What the scouts were told to look for reaches ONLY these extras, and
+        // only because they are drawn on the trial stream. The user's ordinary
+        // intake above came off the shared `rng`, where a position decides
+        // which tier row the ratings are rolled from and `rollRating` spends
+        // one draw for an ABS tier against two for every other — so a keeper
+        // costs 23 rating draws and an outfielder 27. Steering that draw would
+        // shift the shared stream and re-roll every club generated after his.
+        { positions: directions.positions, profile: directions.profile },
       );
       nextPid = afterExtras;
       userYouth = [...userYouth, ...extraYouth];
@@ -665,7 +674,7 @@ export function simOffseasonReporting(
     // here is the same footballer with a different passport. It covers the
     // whole group, ordinary intake included, because "my scouts are in Brazil"
     // should describe everyone they turned up, not just the last few.
-    const regions = userTeam ? sanitizeScoutingRegions(userTeam.scoutingRegions) : [];
+    const regions = directions.regions;
     if (userTeam && regions.length > 0) {
       const comp = competitionOf(league.competitions, userTeam.compId);
       const table = scoutedNationalityWeights(

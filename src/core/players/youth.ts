@@ -5,8 +5,9 @@ import type { NationalityWeights } from "./nationalities.js";
 import {
   YOUTH_AGE, YOUTH_INTAKE_MIN, YOUTH_INTAKE_MAX, YOUTH_BASE_OFFSET,
   YOUTH_CONTRACT_LENGTH, ROSTER_COMPOSITION,
-  YOUTH_BASE_FLOOR, YOUTH_BASE_SOFTNESS,
+  YOUTH_BASE_FLOOR, YOUTH_BASE_SOFTNESS, SCOUT_POSITION_SHARE,
 } from "../constants.js";
+import type { ScoutProfile } from "../scouting/scoutProfile.js";
 
 /**
  * The strength base a club's youth are generated around: its academy anchor
@@ -48,12 +49,53 @@ const POSITION_CDF: { pos: Position; cum: number }[] = (() => {
   });
 })();
 
-/** Draw a position weighted by ROSTER_COMPOSITION, consuming one rng() draw. */
-function weightedPosition(r: number): Position {
-  for (const { pos, cum } of POSITION_CDF) {
+/** Draw a position from a cumulative table, consuming one rng() draw. */
+function weightedPosition(r: number, cdf = POSITION_CDF): Position {
+  for (const { pos, cum } of cdf) {
     if (r < cum) return pos;
   }
-  return POSITION_CDF[POSITION_CDF.length - 1].pos; // fp guard on the last bin
+  return cdf[cdf.length - 1].pos; // fp guard on the last bin
+}
+
+/**
+ * The position table for a club whose scouts have been told what to look for:
+ * the targets take SCOUT_POSITION_SHARE of the draw between them, and
+ * ROSTER_COMPOSITION supplies the rest.
+ *
+ * **A skew, not a filter**, for the same reason the country blend is one — an
+ * intake of nothing but strikers reads as a bug rather than a plan, and would
+ * leave the academy unable to feed the positions the user isn't thinking about
+ * this year. The targets split their share evenly: he picked them, and ranking
+ * them for him would be a number he cannot see.
+ *
+ * Still exactly ONE rng draw, as the plain table is, so a caller that passes
+ * targets advances the stream identically to one that doesn't. That is what
+ * would allow this anywhere — though it deliberately is not used anywhere but
+ * the trial extras, because the position decides which TIER ROW the ratings are
+ * rolled from and those draw counts differ. See SCOUT_POSITION_SHARE.
+ */
+function targetedPositionCdf(targets: readonly Position[]): { pos: Position; cum: number }[] {
+  const wanted = new Set(targets);
+  if (wanted.size === 0) return POSITION_CDF;
+
+  const perTarget = SCOUT_POSITION_SHARE / wanted.size;
+  // What is left goes to everyone else, spread by roster demand as usual.
+  const restTotal = POSITIONS
+    .filter((pos) => !wanted.has(pos))
+    .reduce((sum, pos) => sum + ROSTER_COMPOSITION[pos], 0);
+
+  let running = 0;
+  return POSITIONS.map((pos) => {
+    running += wanted.has(pos)
+      ? perTarget
+      // restTotal is 0 only if every position is a target, which the picker's
+      // SCOUT_POSITION_MAX cap makes unreachable; guarded so it degrades to an
+      // even spread rather than dividing by zero.
+      : restTotal > 0
+        ? (1 - SCOUT_POSITION_SHARE) * (ROSTER_COMPOSITION[pos] / restTotal)
+        : (1 - SCOUT_POSITION_SHARE) / POSITIONS.length;
+    return { pos, cum: running };
+  });
 }
 
 /**
@@ -81,17 +123,28 @@ export function generateYouthIntake(
    * on its own stream rather than the shared one.
    */
   countOverride?: number,
+  /**
+   * The user's scout directions, and ONLY ever for his trial group's scouted
+   * extras. Neither changes the rng draw COUNT — a position is still one draw
+   * off a cumulative table, and the profile is arithmetic on ratings already
+   * rolled — but both change which player comes out, and a position changes
+   * which tier row his ratings are rolled from, whose draw counts differ. So
+   * passing these anywhere that runs on the shared stream re-rolls the world.
+   */
+  directions?: { positions?: readonly Position[]; profile?: ScoutProfile | null },
 ): { players: Player[]; nextPid: number } {
   const count = countOverride ?? YOUTH_INTAKE_MIN
     + Math.floor(rng() * (YOUTH_INTAKE_MAX - YOUTH_INTAKE_MIN + 1));
   const base = youthGenerationBase(academyBase);
+  const cdf = targetedPositionCdf(directions?.positions ?? []);
+  const profile = directions?.profile ?? null;
 
   const players: Player[] = [];
   let pid = nextPid;
   for (let i = 0; i < count; i++) {
-    const pos = weightedPosition(rng());
+    const pos = weightedPosition(rng(), cdf);
     const p = generatePlayer(
-      rng, pos, base, pid++, YOUTH_AGE, season, genSeed, homeCountry, nationalities,
+      rng, pos, base, pid++, YOUTH_AGE, season, genSeed, homeCountry, nationalities, profile,
     );
     p.contract.expiresSeason = season + YOUTH_CONTRACT_LENGTH;
     players.push(p);

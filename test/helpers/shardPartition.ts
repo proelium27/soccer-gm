@@ -106,6 +106,14 @@ export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
   // shard some spare capacity, while under-weighting it overloads the shard,
   // and the ordering these two need against each other holds either way. Don't
   // chase this discrepancy; it is the measurement moving, not the file.
+  // The youth trial group and the scout directions beside it. Both were on the
+  // 10s default while each one runs several full season-plus-offseason cycles —
+  // the same mis-pack the two below were entered to fix, and by some distance
+  // the worst of it. Measured solo (664s and 192s) and entered at the ~1.57x
+  // contended figure this table holds; youthIntake is now the suite's slowest
+  // single file, which is the number CI's wall-clock floor is set by.
+  "test/core/youthIntake.test.ts": 1043,
+  "test/core/scoutDirections.test.ts": 301,
   "test/core/worldIntegration.test.ts": 249,
   "test/db/migrate.test.ts": 201,
   // Almost entirely the one case that takes a real world through two full

@@ -4,7 +4,8 @@ import { competitionOf, countryClubRanges, worldCompetitions } from "../competit
 import { generateClubIdentities } from "./clubNames.js";
 import type { FormationId } from "../lineup/formations.js";
 import { chooseBestFormation } from "../lineup/formations.js";
-import type { Player } from "../players/types.js";
+import type { Player, Position } from "../players/types.js";
+import type { ScoutProfile } from "../scouting/scoutProfile.js";
 import {
   HYPE_INITIAL, SCOUTING_SPEND_DEFAULT, difficultyProfile, type Difficulty,
 } from "../constants.js";
@@ -780,6 +781,34 @@ export interface StoredTeam {
    * Optional; `migrate.ts` backfills `[]` (absent = scouts stay home).
    */
   scoutingRegions?: string[];
+  /**
+   * Positions the user has told his youth scouts to look for, capped at
+   * SCOUT_POSITION_MAX. They take SCOUT_POSITION_SHARE of the SCOUTED part of
+   * his trial group between them; roster demand supplies the rest.
+   *
+   * **Reaches less of the group than `scoutingRegions` does, and that is a
+   * constraint rather than a decision** — a country is relabelled onto the
+   * whole group after the fact because nationality is rating-neutral, while a
+   * position decides which tier row a player's ratings are rolled from, so it
+   * can only apply where the ratings are still being rolled on a private
+   * stream. See SCOUT_POSITION_SHARE.
+   *
+   * **User's club only.** Optional; `migrate.ts` backfills `[]`.
+   */
+  scoutingPositions?: Position[];
+  /**
+   * What the user has told his youth scouts to look for in a player —
+   * athletes, ball players, readers of the game — or absent for no preference.
+   *
+   * Tilts a scouted prospect's ratings toward that profile and takes the cost
+   * back out of the rest, weighted so his OVR is exactly unchanged
+   * (`applyProfileTilt`). So it decides the KIND of player the academy turns
+   * up and never how good he is, which is what keeps it clear of wages,
+   * valuation and every balance gate.
+   *
+   * **User's club only.** Optional; `migrate.ts` backfills `null`.
+   */
+  scoutingProfile?: ScoutProfile | null;
   /** Funds available to spend on wages, transfers, and scouting. */
   budget: number;
   /** Fame/popularity, 0-100; drives a damped ticket/jersey revenue channel. */
@@ -964,6 +993,8 @@ export function assignIdentities(
       youthTrialists: [],
       youthTrialSignings: 0,
       scoutingRegions: [],
+      scoutingPositions: [],
+      scoutingProfile: null,
       budget,
       hype: HYPE_INITIAL,
       scoutingSpend: clampScoutingSpend(SCOUTING_SPEND_DEFAULT, budget),
