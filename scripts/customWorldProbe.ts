@@ -20,7 +20,7 @@ import { createLeagueState, type LeagueStore } from "../src/core/leagueState.js"
 import { simThrough } from "../src/core/simThrough.js";
 import { simOffseason } from "../src/core/offseason.js";
 import {
-  buildCompetitions, worldLeagueSpecs, worldTuningWarnings, tier1Pairs,
+  buildCompetitions, worldLeagueSpecs, worldTuningWarnings, countryDivisions,
   competitionOf, type LeagueSpec,
 } from "../src/core/competitions.js";
 import { cupSlotRange, CUP_STAGE_LEAGUE_PHASE } from "../src/core/cup/cup.js";
@@ -143,7 +143,7 @@ function main(): void {
 
   // Continental fields must be disjoint per league.
   console.log("\nQualification bands (Cup / Shield):");
-  for (const { d1 } of tier1Pairs(league.competitions)) {
+  for (const { divisions: [d1] } of countryDivisions(league.competitions)) {
     const cup = cupSlotRange(d1, CONTINENTAL_CUP_FORMAT);
     const shield = cupSlotRange(d1, SHIELD_FORMAT);
     const overlap = shield[0] <= cup[1];

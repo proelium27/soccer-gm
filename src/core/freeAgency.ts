@@ -122,7 +122,7 @@ export function freeAgencySigningOrder(
  * Mutates neither input; returns updated teams and players.
  *
  * Has no Division 2 concept of its own — Division 2's strength ceiling is
- * enforced separately and deterministically by enforceDivision2Ceiling
+ * enforced separately and deterministically by enforceDivisionCeilings
  * (offseason.ts), so a strong player who lands as a free agent from a
  * Division 2 club can be signed by anyone here without undoing that.
  */

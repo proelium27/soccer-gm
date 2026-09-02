@@ -17,8 +17,22 @@ import { competitionOf, competitionBudgetScale } from "../competitions.js";
  * every finance function takes — call sites pass financeScale(competitions,
  * compId) wherever they used to pass a bare tier.
  */
-function tierScale(tier: 1 | 2): number {
-  return tier === 1 ? 1 : DIVISION_2_BUDGET_SCALE;
+/**
+ * One step of DIVISION_2_BUDGET_SCALE per tier below the top, so the D1-to-D2
+ * money gap that constant was tuned for repeats between D2 and D3. Tier 1 is
+ * exactly 1 and tier 2 exactly DIVISION_2_BUDGET_SCALE, so no existing world's
+ * finances move.
+ *
+ * Tier 3 therefore lands at 0.36, which is UNAUDITED and is the number most
+ * likely to move: the original pass found 0.5 put AI clubs into real deficit at
+ * the widened DIVISION_2_OFFSET, and 0.6 was the value that held. A third tier
+ * has cheaper squads to pay for (wages are cubic in ovr), which is the same
+ * argument that keeps the weak countries solvent on scales this low — but it is
+ * an argument, not a measurement. `scripts/weakLeaguesAudit.ts` settles it, and
+ * per this repo's own history the finance column fails before the ladder does.
+ */
+function tierScale(tier: number): number {
+  return DIVISION_2_BUDGET_SCALE ** Math.max(0, tier - 1);
 }
 
 export function financeScale(competitions: Competition[], compId: number): number {

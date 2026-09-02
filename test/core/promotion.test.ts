@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence,
 } from "../../src/core/promotion.js";
-import { englandCompetitions } from "../../src/core/competitions.js";
+import { englandCompetitions, buildCompetitions } from "../../src/core/competitions.js";
 import type { StandingsRow } from "../../src/core/standings.js";
 import type { StoredTeam } from "../../src/core/teams/clubs.js";
 import { academyBaseCenter, ACADEMY_BASE_CONVERGENCE_SEASONS } from "../../src/core/constants.js";
@@ -31,6 +31,42 @@ describe("computeCountrySwaps", () => {
     expect(swaps).toHaveLength(1);
     expect(swaps[0].promoted).toEqual([20, 21, 22]);
     expect(swaps[0].relegated).toEqual([2, 3, 4]);
+  });
+
+  it("produces one swap per adjacent pair in a three-division country", () => {
+    const comps = buildCompetitions([
+      { country: "Deepland", divisions: 3, d1Teams: 8, d2Teams: 8, d3Teams: 8, promotionSpots: 2 },
+    ]);
+    const table = (base: number) =>
+      Array.from({ length: 8 }, (_, i) => row(base + i, 100 - i));
+    const swaps = computeCountrySwaps(
+      comps,
+      new Map([[0, table(0)], [1, table(10)], [2, table(20)]]),
+    );
+    expect(swaps).toHaveLength(2);
+    expect(swaps[0]).toMatchObject({ promoted: [10, 11], relegated: [6, 7] });
+    expect(swaps[1]).toMatchObject({ promoted: [20, 21], relegated: [16, 17] });
+  });
+
+  it("a club is never both promoted and relegated in the same season", () => {
+    // A middle division is promoted out of at the top AND relegated out of at
+    // the bottom, so an over-large swap count would put the same club in both
+    // slices — 5 up and 5 down out of 8 overlaps by two. Half the division in
+    // each direction is the ceiling, and it applies only to middle divisions.
+    const comps = buildCompetitions([
+      { country: "Deepland", divisions: 3, d1Teams: 8, d2Teams: 8, d3Teams: 8, promotionSpots: 5 },
+    ]);
+    const table = (base: number) =>
+      Array.from({ length: 8 }, (_, i) => row(base + i, 100 - i));
+    const swaps = computeCountrySwaps(
+      comps,
+      new Map([[0, table(0)], [1, table(10)], [2, table(20)]]),
+    );
+    const promoted = new Set(swaps.flatMap((s) => s.promoted));
+    const relegated = new Set(swaps.flatMap((s) => s.relegated));
+    expect([...promoted].filter((tid) => relegated.has(tid))).toEqual([]);
+    // Clamped to 4, not the 5 asked for.
+    expect(swaps[0].promoted).toHaveLength(4);
   });
 
   it("swaps as many clubs as the league was set up to swap", () => {

@@ -34,12 +34,14 @@ import { takePendingRoster } from "../pendingRoster.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
 import { ClubCrest, CrestArtProvider } from "../components/ClubCrest.js";
 import { CountryFlag } from "../components/CountryFlag.js";
+import { HelpHint } from "../components/HelpHint.js";
 import { trackEvent } from "../analytics.js";
 import {
   SEASON_START_YEAR, MIN_START_YEAR, MAX_START_YEAR, normalizeStartYear,
 } from "../format.js";
 import { ROSTER_DOWNLOAD_URL } from "../rosterDownload.js";
 import { createGate, yieldToPaint } from "../singleFlight.js";
+import { SPECTATOR_TID, isSpectatorTid } from "../../core/spectator.js";
 
 /**
  * Everything the picker needs to describe a world that doesn't exist yet: the
@@ -110,7 +112,7 @@ export function NewLeague() {
   const world = useMemo(() => describeWorld(includedSpecs(worldEntries)), [worldEntries]);
 
   /** Competition name for a country's given tier (e.g. "English Division 1"). */
-  function divisionName(countryName: string, tier: 1 | 2): string {
+  function divisionName(countryName: string, tier: number): string {
     return (
       world.competitions.find((c) => c.country === countryName && c.tier === tier)?.name ??
       `Division ${tier}`
@@ -119,10 +121,21 @@ export function NewLeague() {
 
   const [country, setCountry] = useState<string>(() => countriesOf(buildCompetitions(includedSpecs(defaultWorldEntries())))[0]);
   const [selectedTid, setSelectedTid] = useState<number | null>(null);
+  /**
+   * Whether this save has a manager at all. Fixed for its lifetime, like the
+   * difficulty — there is no route from one to the other, which is what keeps
+   * the club handover `switchClub` exists to manage out of the picture
+   * entirely (see core/spectator.ts).
+   *
+   * The club pick is deliberately *kept* while spectating rather than cleared,
+   * so toggling back doesn't lose it — the same reason changing division
+   * doesn't discard a selection.
+   */
+  const [spectate, setSpectate] = useState(false);
   // Which division's clubs the picker is showing. A view, not part of the save:
   // picking a club is what matters, and the tier it plays in is read off its tid
   // (tierForTid) rather than from here.
-  const [tier, setTier] = useState<1 | 2>(1);
+  const [tier, setTier] = useState(1);
   // Fixed for the save's lifetime once it's created, so it is chosen here and
   // nowhere else (see the DIFFICULTIES block in core/constants.ts).
   const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
@@ -139,8 +152,8 @@ export function NewLeague() {
   // A chosen country the generated world turned out not to be able to field a
   // squad for. Reported rather than silently dropped — see handleStart.
   const [nationError, setNationError] = useState<string | null>(null);
-  // Filter box for the country list. 108 countries is too many to scroll for a
-  // specific one, and too few to be worth paginating.
+  // Filter box for the country list. 211 countries is far too many to scroll
+  // for a specific one, and still too few to be worth paginating.
   const [nationFilter, setNationFilter] = useState("");
   // The world's generation seed, drawn once and reused — see buildLeague.
   const seedRef = useRef<number | null>(null);
@@ -255,7 +268,7 @@ export function NewLeague() {
     return q ? manageableNations.filter((n) => n.toLowerCase().includes(q)) : manageableNations;
   }, [manageableNations, nationFilter]);
 
-  // Keep the chosen country on screen. The list is 108 rows in a 260px box, so
+  // Keep the chosen country on screen. The list is 211 rows in a 260px box, so
   // typing a filter and then clearing it leaves the selection scrolled far out
   // of view and the list looks like nothing is picked.
   //
@@ -286,7 +299,7 @@ export function NewLeague() {
   // Which tier the chosen club plays in. Read off the slot layout rather than
   // assumed from position in the country's block, because divisions can be
   // different sizes and a country can have only one of them.
-  function tierForTid(tid: number): 1 | 2 {
+  function tierForTid(tid: number): number {
     const compId = world.slotWorld.teams.find((t) => t.tid === tid)?.compId;
     return world.competitions.find((c) => c.id === compId)?.tier ?? 1;
   }
@@ -302,6 +315,11 @@ export function NewLeague() {
     const generated = createLeagueState(
       tid, rng, seed, difficulty, world.competitions, rollingCoefficients, userNation,
     );
+    // A roster import is orthogonal to who manages: it replaces squads, and a
+    // spectator watching real clubs is exactly as sensible as managing one.
+    // `applyRosterFileToNewLeague` takes the user's tid only to leave that
+    // club's own slot alone where it matters, and a tid nobody owns is a tid it
+    // never matches — the same way every other consumer treats it.
     const league = activeRoster
       ? applyRosterFileToNewLeague(generated, activeRoster.file, tid).league
       : generated;
@@ -311,11 +329,16 @@ export function NewLeague() {
         ...league.meta,
         // A name the player typed wins; otherwise the save is named after
         // whatever the user's club ended up being called — the imported name
-        // when a roster replaced it, else the fictional one. Every tid in the
-        // world has a team, so the fallback is only a guard.
+        // when a roster replaced it, else the fictional one. A spectator has no
+        // club to be named after, so it falls back to the world instead. Every
+        // tid in the world has a team, so the last fallback is only a guard.
         name:
           leagueName.trim() ||
-          league.teams.find((t) => t.tid === tid)?.name ||
+          (isSpectatorTid(tid)
+            ? (world.countries.length === 1
+                ? world.countries[0]
+                : `${world.countries.length} countries`)
+            : league.teams.find((t) => t.tid === tid)?.name) ||
           `Club ${tid}`,
         // Display only: seasons stay a 1-based counter, this just decides which
         // year the UI calls season 1. The Start button is disabled while the
@@ -325,15 +348,29 @@ export function NewLeague() {
     };
   }
 
+  /**
+   * The tid this save will be built with, or null when it isn't ready to build.
+   *
+   * A spectator save needs no pick and can't have one, so it is always ready;
+   * a managed one is not until a club is chosen. Both Start handlers and the
+   * Start button's disabled state read this, so the button can never be live
+   * for a state the handler would refuse.
+   */
+  const buildTid: number | null = spectate ? SPECTATOR_TID : selectedTid;
+  // Analytics only. A spectator picked no club, so there is no tier to report;
+  // `tierForTid` would happily answer 1 for a tid it can't find, which would
+  // quietly overstate top-flight starts.
+  const startTier = spectate || selectedTid === null ? null : tierForTid(selectedTid);
+
   async function handleStart() {
-    if (selectedTid === null) return;
+    if (buildTid === null) return;
     await gate.run(async () => {
       setSaving(true);
       // Let the button repaint as disabled before the world generation locks the
       // thread, so the wait looks like the game working rather than a dead page.
       await yieldToPaint();
       try {
-        const league = buildLeague(selectedTid);
+        const league = buildLeague(buildTid);
         // Whether a country can enter international football at all depends on
         // the world that just got generated (INTL_MIN_POOL players and a
         // keeper), and there is no way to know before building it. A pick that
@@ -351,7 +388,7 @@ export function NewLeague() {
           setPending(league);
           return;
         }
-        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!activeRoster, difficulty, rollingCoefficients });
+        trackEvent("league_created", { country, tier: startTier, spectate, roster: !!activeRoster, difficulty, rollingCoefficients });
         await setLeague(league);
         navigate("/dashboard");
       } finally {
@@ -361,11 +398,11 @@ export function NewLeague() {
   }
 
   async function handleSaveCustomized(teams: EditableTeam[]) {
-    if (!pending || selectedTid === null) return;
+    if (!pending || buildTid === null) return;
     await gate.run(async () => {
       setSaving(true);
       try {
-        trackEvent("league_created", { country, tier: tierForTid(selectedTid), roster: !!activeRoster, difficulty, rollingCoefficients });
+        trackEvent("league_created", { country, tier: startTier, spectate, roster: !!activeRoster, difficulty, rollingCoefficients });
         await setLeague(applyTeamIdentities(pending, teams));
         navigate("/dashboard");
       } finally {
@@ -441,7 +478,7 @@ export function NewLeague() {
 
   if (pending) {
     return (
-      <div className="container py-4" style={{ maxWidth: 700 }}>
+      <div className="container py-4" style={{ maxWidth: 900 }}>
         <h2 className="mb-1">Customize Teams</h2>
         <p className="text-muted mb-3">
           Rename any club, change its abbreviation or colors, then start your league.
@@ -477,11 +514,13 @@ export function NewLeague() {
 
         {ROSTER_DOWNLOAD_URL && (
           <div className="border rounded p-3 mb-3">
-            <div className="fw-semibold mb-1">Don't have one yet?</div>
+            <div className="d-flex align-items-center gap-2 mb-1">
+              <span className="fw-semibold">Don't have one yet?</span>
+              <span className="badge bg-success">Updated for EA FC 27</span>
+            </div>
             <p className="text-muted small mb-2">
-              Grab the ready-made file covering every league in the game, save it
-              somewhere you'll find it, then load it below. It's a separate download
-              rather than part of the game itself.
+              A ready-made file covering every league in the game. Save it, then load
+              it below. It was rebuilt from the EA FC 27 ratings on 30 August 2026.
             </p>
             <a
               className="btn btn-outline-primary btn-sm"
@@ -495,28 +534,23 @@ export function NewLeague() {
           </div>
         )}
 
-        <p className="text-muted">
-          A roster file is a plain text (JSON) file listing clubs by league, each one
-          optionally carrying a squad. You can write one yourself, or generate one with
-          the "Copy AI Prompt to Customize" button in the top bar of any save, which hands
-          you a ready-made prompt to paste into ChatGPT or Claude.
-        </p>
-        <p className="text-muted">
-          You can pick several files at once, or add more after the first, and they'll all
-          go into the same league. That's the easy way to do a whole world: one file per
-          league is a much more manageable thing to ask an AI for than every league at
-          once.
-        </p>
-        <p className="text-muted">
-          Roster files can only be loaded while a league is being created, here or on the
-          New League screen. Bringing real squads into a save already in progress would
-          wipe out the careers and stats of everyone they replaced.
-        </p>
-        <p className="text-muted">
-          On the next step you can also reshape the world itself: rename a league, add one
-          of your own, or switch one off. If your file names a league this world hasn't
-          got, adding it there is what makes the file apply.
-        </p>
+        {/* The detail matters to anyone writing their own file and to nobody
+            else, so it folds away rather than standing between the reader and
+            the button they came here to press. */}
+        <details className="mb-3">
+          <summary className="text-muted small" style={{ cursor: "pointer" }}>
+            What's a roster file?
+          </summary>
+          <p className="text-muted small mt-2 mb-0">
+            A plain text (JSON) file listing clubs by league, each one optionally
+            carrying a squad. Write one yourself, or use "Copy AI Prompt to Customize"
+            in the top bar of any save to get a prompt you can paste into ChatGPT or
+            Claude. Load as many as you like — one file per league is a far easier ask
+            than a whole world at once. They only load while a league is being created:
+            replacing squads in a save already going would wipe out the careers of
+            everyone they replaced.
+          </p>
+        </details>
 
         {rosterError && (
           <div className="alert alert-danger py-2" role="alert">
@@ -568,22 +602,30 @@ export function NewLeague() {
       squad: imported?.players?.length ?? 0,
     };
   });
-  // Split by the tier each slot actually belongs to. A country can have one
-  // division or two, and they need not be the same size.
-  const d1Clubs = countryClubs.filter((c) => tierForTid(c.tid) === 1);
-  const d2Clubs = countryClubs.filter((c) => tierForTid(c.tid) === 2);
+  // Grouped by the tier each slot actually belongs to. Derived from the clubs
+  // present rather than from a fixed pair: a country runs anywhere from one to
+  // MAX_DIVISIONS divisions, and they need not be the same size. A hardcoded
+  // d1/d2 split silently filtered every third-division club out of the picker.
+  const clubsByTier = new Map<number, typeof countryClubs>();
+  for (const c of countryClubs) {
+    const t = tierForTid(c.tid);
+    const list = clubsByTier.get(t);
+    if (list) list.push(c);
+    else clubsByTier.set(t, [c]);
+  }
+  const tiers = [...clubsByTier.keys()].sort((a, b) => a - b);
   // Shown as the League name placeholder, so the default the save would take is
   // visible rather than merely described. Safe to look up in the active
   // country's clubs alone: selecting a country clears the club (selectCountry),
   // so a selection is always one of these.
   const selectedClubName =
     selectedTid === null ? null : (countryClubs.find((c) => c.tid === selectedTid)?.name ?? null);
-  // A country can have one division or two, so the tab the picker is on has to
-  // fall back rather than show an empty list — the same shape as activeCountry
-  // falling back when a country is switched off underneath the picker.
-  const hasSecondDivision = d2Clubs.length > 0;
-  const shownTier = hasSecondDivision ? tier : 1;
-  const shownClubs = shownTier === 1 ? d1Clubs : d2Clubs;
+  // A country need not have the division the picker is currently on — it can be
+  // switched to a shallower pyramid, or switched off, underneath the tab — so
+  // the shown tier falls back rather than showing an empty list, the same shape
+  // as activeCountry falling back when a country is switched off.
+  const shownTier = clubsByTier.has(tier) ? tier : (tiers[0] ?? 1);
+  const shownClubs = clubsByTier.get(shownTier) ?? [];
 
   function selectCountry(c: string) {
     setCountry(c);
@@ -595,7 +637,12 @@ export function NewLeague() {
     // the same crests the league itself will — otherwise a club shows a badge
     // here and a colour swatch the moment the save opens.
     <CrestArtProvider tids={activeRoster ? [...activeRoster.byTid.keys()] : []}>
-    <div className="container py-4" style={{ maxWidth: 600 }}>
+    {/* Wider than the prose screens either side of it: this one is a stack of
+        controls and a club list, not something you read left to right, and at
+        600 a desktop window was mostly empty either side of it. `.container`
+        still goes full width below its own breakpoints, so this only widens
+        the page on a screen that has the room. */}
+    <div className="container py-4 new-league-page" style={{ maxWidth: 900 }}>
       <h2 className="mb-3">{rosterMode ? "Import Custom League" : "New League"}</h2>
       {/*
         The country is deliberately not named here. It used to read "choose your
@@ -604,15 +651,17 @@ export function NewLeague() {
         form ("your English club") is not available, since a league the player
         added has whatever name they typed and no demonym to derive.
       */}
-      <p className="text-muted">
-        Flip through each country and division to browse the clubs, then pick the one you
-        want to manage.
-        {worldRoster
-          ? " Every club the file didn't cover keeps its original name and squad."
-          : customize
-            ? " You'll get to customize every club before the save starts."
-            : ""}
-      </p>
+      {/* The club list below is self-explanatory, so this says nothing at all
+          in the ordinary case and appears only when there is something the
+          page cannot show: what an import left alone, or that an editor is
+          coming after this screen. */}
+      {(worldRoster || customize) && (
+        <p className="text-muted">
+          {worldRoster
+            ? "Every club the file didn't cover keeps its original name and squad."
+            : "You'll get to customize every club before the save starts."}
+        </p>
+      )}
 
       {worldRoster && (
         <div className="alert alert-secondary py-2">
@@ -631,11 +680,13 @@ export function NewLeague() {
           )}
           {/* The commonest reason a file lands nowhere is that the world hasn't
               got the league it was written for, which the editor below can fix —
-              so say so here, next to the warning that reports it. */}
-          <div className="small text-muted mt-1">
-            A league your file names that this world hasn't got is skipped. Rename a
-            league to match it, or add one, in World setup below.
-          </div>
+              so say so next to the warning that reports it, and only then. A
+              clean import needs no cure and shouldn't be handed one. */}
+          {worldRoster.warnings.length > 0 && (
+            <div className="small text-muted mt-1">
+              Rename a league to match, or add one, in World setup below.
+            </div>
+          )}
           <div className="d-flex gap-3 mt-1">
             <button
               type="button"
@@ -672,8 +723,7 @@ export function NewLeague() {
             Load roster files
           </button>
           <p className="text-muted small mt-2 mb-0">
-            Optional. Roster files put real (or invented) clubs and squads into the
-            leagues they name, in place of the fictional ones.
+            Optional. Real or invented clubs and squads, in place of the fictional ones.
           </p>
           {rosterError && <div className="small text-danger mt-1">{rosterError}</div>}
         </div>
@@ -703,7 +753,10 @@ export function NewLeague() {
         list, which put two save-wide decisions after the most specific one on
         the page.
       */}
-      <div className="d-flex gap-2 mb-2 flex-wrap align-items-end">
+      {/* Capped rather than left to fill the page: a field's width is a hint at
+          how much to type into it, and a club name in an 800px box reads as
+          the wrong control. */}
+      <div className="d-flex gap-2 mb-2 flex-wrap align-items-end" style={{ maxWidth: 560 }}>
         <div className="flex-grow-1" style={{ minWidth: 190 }}>
           <label
             htmlFor="league-name"
@@ -726,7 +779,11 @@ export function NewLeague() {
             htmlFor="start-year"
             className="text-muted text-uppercase small fw-semibold mb-2 d-block"
           >
-            Start year
+            Start year{" "}
+            <HelpHint label="What does the start year do?">
+              Cosmetic. The game counts seasons from 1 whatever you pick, so this only
+              decides what year they're labelled with.
+            </HelpHint>
           </label>
           <input
             type="number"
@@ -742,17 +799,28 @@ export function NewLeague() {
       <p className="text-muted small mb-3">
         {parsedStartYear === null
           ? `Pick a year between ${MIN_START_YEAR} and ${MAX_START_YEAR}.`
-          : `Your first season is ${parsedStartYear}-${String((parsedStartYear + 1) % 100).padStart(2, "0")}. Just for looks — every season after counts up from there.`}
+          : `Your first season is ${parsedStartYear}-${String((parsedStartYear + 1) % 100).padStart(2, "0")}.`}
       </p>
 
       <div className="mb-3">
-        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Difficulty</h6>
-        <div className="btn-group w-100" role="group" aria-label="Choose a difficulty">
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">
+          Difficulty{" "}
+          <HelpHint label="What does difficulty change?">
+            It only changes things for your club: the money you get, what your academy
+            turns out, what you pay for players and who'll sell to you. Every other club
+            plays by the same rules whichever setting you pick.
+          </HelpHint>
+        </h6>
+        <div className="btn-group segmented" role="group" aria-label="Choose a difficulty">
           {DIFFICULTY_ORDER.map((d) => (
             <button
               key={d}
               type="button"
               className={`btn btn-outline-secondary${d === difficulty ? " active" : ""}`}
+              // The picked segment is otherwise a CSS class and nothing more, so
+              // a screen reader announces four identical buttons with no way to
+              // tell which one is the current choice.
+              aria-pressed={d === difficulty}
               onClick={() => setDifficulty(d)}
             >
               {DIFFICULTIES[d].label}
@@ -760,8 +828,11 @@ export function NewLeague() {
           ))}
         </div>
         <p className="text-muted small mt-2 mb-0">
-          {DIFFICULTIES[difficulty].blurb} It only changes things for your club, and you
-          can't change it later, so pick one you'll want to live with.
+          {/* The per-setting blurb stays on screen because it changes as you
+              click, so it is feedback on the choice rather than an explanation
+              of it. Only the permanence is worth keeping beside it; what the
+              lever actually touches moved to the hint on the heading. */}
+          {DIFFICULTIES[difficulty].blurb} You can't change it later.
         </p>
       </div>
 
@@ -775,7 +846,53 @@ export function NewLeague() {
         defaultOpen={!!worldRoster}
       />
 
-      <div className="btn-group mb-3 flex-wrap" role="group" aria-label="Choose a league">
+      {/*
+        Who you are in this world. Sits directly above the club picker because
+        it decides whether that picker is a choice you need to make at all, and
+        it is fixed for the save's lifetime like the difficulty above it.
+      */}
+      <div className="mb-3">
+        {/*
+          One switch rather than a "Manage a club / Spectate" pair. Managing is
+          what the whole page is already for, so the second option was naming the
+          default back at you; the only thing worth a control is the departure
+          from it.
+
+          Named by its own label rather than by a section heading above it, the
+          same shape "Name the clubs yourself" uses further down — a heading
+          reading SPECTATOR MODE over a switch reading "spectator mode" is the
+          same words twice.
+        */}
+        <div className="form-check form-switch">
+          <input
+            type="checkbox"
+            className="form-check-input"
+            id="spectator-mode"
+            checked={spectate}
+            onChange={(e) => setSpectate(e.target.checked)}
+          />
+          <label className="form-check-label" htmlFor="spectator-mode">
+            Spectator mode
+            <span className="text-muted small d-block">
+              Watch the world instead of managing clubs.
+            </span>
+          </label>
+        </div>
+        {/*
+          The one thing worth saying twice, and only while it is switched on:
+          this cannot be undone in ordinary play, and it is the choice a player
+          would most regret making without knowing that.
+        */}
+        {spectate && (
+          <p className="text-muted small mt-2 mb-0">
+            Every club is run by the AI. You can't switch to managing later, so start a new
+            save if you change your mind.
+          </p>
+        )}
+      </div>
+
+      {!spectate && (
+      <div className="btn-group segmented mb-3" role="group" aria-label="Choose a league">
         {world.countries.map((c) => (
           <button
             key={c}
@@ -783,6 +900,7 @@ export function NewLeague() {
             className={`btn btn-outline-secondary d-inline-flex align-items-center gap-2${
               c === activeCountry ? " active" : ""
             }`}
+            aria-pressed={c === activeCountry}
             onClick={() => selectCountry(c)}
           >
             <CountryFlag country={c} fallback={abbrevForCountry(c)} />
@@ -790,6 +908,7 @@ export function NewLeague() {
           </button>
         ))}
       </div>
+      )}
 
       {/*
         One division at a time. Both stacked is forty club rows for a big
@@ -798,14 +917,16 @@ export function NewLeague() {
         per division, so this reads as the same kind of choice as the country
         tabs directly above it.
       */}
+      {!spectate && (
       <div className="mb-3">
-        {hasSecondDivision ? (
-          <div className="btn-group w-100 mb-2" role="group" aria-label="Choose a division">
-            {([1, 2] as const).map((t) => (
+        {tiers.length > 1 ? (
+          <div className="btn-group segmented mb-2" role="group" aria-label="Choose a division">
+            {tiers.map((t) => (
               <button
                 key={t}
                 type="button"
                 className={`btn btn-outline-secondary${t === shownTier ? " active" : ""}`}
+                aria-pressed={t === shownTier}
                 onClick={() => setTier(t)}
               >
                 {divisionName(activeCountry, t)}
@@ -814,10 +935,10 @@ export function NewLeague() {
           </div>
         ) : (
           <h6 className="text-muted text-uppercase small fw-semibold mb-2">
-            {divisionName(activeCountry, 1)}
+            {divisionName(activeCountry, shownTier)}
           </h6>
         )}
-        <div className="list-group">
+        <div className="list-group picker-columns">
           {shownClubs.map(({ tid, name, colors, squad }) => (
             <button
               key={tid}
@@ -844,17 +965,33 @@ export function NewLeague() {
         {selectedTid !== null && !shownClubs.some((c) => c.tid === selectedTid) && (
           <p className="text-muted small mt-2 mb-0">
             You've picked {selectedClubName}, over in{" "}
-            {divisionName(activeCountry, shownTier === 1 ? 2 : 1)}.
+            {divisionName(activeCountry, tierForTid(selectedTid))}.
           </p>
         )}
       </div>
+      )}
 
+      {/* Managing a country is a job too, and a spectator holds none —
+          createLeagueState forces it null for them, so offering it here would
+          be offering something the save will discard. */}
+      {!spectate && (
       <div className="mb-3">
-        <h6 className="text-muted text-uppercase small fw-semibold mb-2">National team</h6>
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">
+          National team{" "}
+          <HelpHint label="What does managing a country involve?">
+            You pick the squad and the eleven for qualifying, the World Cup and their
+            continental championship, on top of your club job, and the federation judges
+            you every campaign. A country needs enough players born into your world to
+            field a squad at all, so you'll be told if the one you pick can't.
+          </HelpHint>
+        </h6>
+        {/* The squad-eligibility rule used to be spelled out here as well, which
+            was explaining an error before it happened: the nationError alert
+            below already says it in full, and only in the case where it's true. */}
         <p className="text-muted small mb-2">
           {userNation
-            ? `You'll pick ${userNation}'s squad and their eleven for qualifying, the World Cup and their continental championship, on top of your club job. The federation judges you every campaign.`
-            : "Managing a country is optional, and you can still take a job later if one comes in. A country needs enough players born into your world to enter anything, so you'll be told if the one you pick can't field a squad."}
+            ? `You'll pick ${userNation}'s squad and their eleven, on top of your club job.`
+            : "Optional. You can always take the job later if one comes in."}
         </p>
         <input
           type="search"
@@ -870,10 +1007,14 @@ export function NewLeague() {
           flag SVG. Same list-group the club picker above uses, so the two
           choices on this page look like the same kind of choice.
         */}
+        {/* Two columns like the club picker above it. At 340 wide this was a
+            narrow rail with most of the page empty beside it, and the country
+            list is the one place on the page where more rows in view is worth
+            real money: there are over a hundred of them. */}
         <div
-          className="list-group"
+          className="list-group picker-columns"
           ref={nationListRef}
-          style={{ maxWidth: 340, maxHeight: 260, overflowY: "auto" }}
+          style={{ maxHeight: 260, overflowY: "auto" }}
         >
           <button
             type="button"
@@ -894,7 +1035,9 @@ export function NewLeague() {
             </button>
           ))}
           {shownNations.length === 0 && (
-            <div className="list-group-item text-muted small">No country by that name.</div>
+            <div className="list-group-item picker-columns-full text-muted small">
+              No country by that name.
+            </div>
           )}
         </div>
         {nationError && (
@@ -905,10 +1048,19 @@ export function NewLeague() {
           </div>
         )}
       </div>
+      )}
 
       <div className="mb-3">
-        <h6 className="text-muted text-uppercase small fw-semibold mb-2">Continental Cup places</h6>
-        <div className="form-check">
+        <h6 className="text-muted text-uppercase small fw-semibold mb-2">
+          Continental Cup places{" "}
+          <HelpHint label="How do Cup places move?">
+            Each country's places are re-earned on how its clubs have done in Europe over
+            the last few seasons: go deep and your league sends more, go out early for
+            years and it sends fewer. The Shield gives every league the same two either
+            way. Turn it off and the places stay exactly as the world was built.
+          </HelpHint>
+        </h6>
+        <div className="form-check form-switch">
           <input
             type="checkbox"
             className="form-check-input"
@@ -920,11 +1072,14 @@ export function NewLeague() {
             Cup places can move between countries
           </label>
         </div>
+        {/* One line either way, saying which of the two you're getting. How the
+            mechanic works is on the heading's hint, next to the label that
+            names it. */}
         <p className="text-muted small mt-2 mb-0">
           {rollingCoefficients
-            ? "How many clubs each country sends to the Continental Cup depends on how its clubs have done in Europe over the last few seasons. Do well and your league sends more; go out early for years and it sends fewer. The Shield gives every league the same two either way."
-            : "Every country keeps the same number of Cup places forever, however its clubs do in Europe."}{" "}
-          This is fixed once the save is created.
+            ? "Your league sends more clubs when they do well in Europe, fewer when they don't."
+            : "Every country keeps the same number of places forever."}{" "}
+          Fixed once you start.
         </p>
       </div>
 
@@ -938,7 +1093,7 @@ export function NewLeague() {
       {/* Redundant when you arrived through Customize Teams, which always
           opens the editor. */}
       {!customize && (
-        <div className="form-check mb-3">
+        <div className="form-check form-switch mb-3">
           <input
             type="checkbox"
             className="form-check-input"
@@ -949,8 +1104,7 @@ export function NewLeague() {
           <label className="form-check-label" htmlFor="name-clubs">
             Name the clubs yourself
             <span className="text-muted small d-block">
-              Opens an editor after the world is built, where you can rename any club
-              and set its colours. Nothing is saved until you're done.
+              Rename any club and set its colours, on the next screen.
             </span>
           </label>
         </div>
@@ -959,14 +1113,16 @@ export function NewLeague() {
       <div className="d-flex gap-2 align-items-center">
         <button
           className="btn btn-primary"
-          disabled={selectedTid === null || saving || parsedStartYear === null}
+          disabled={buildTid === null || saving || parsedStartYear === null}
           onClick={handleStart}
         >
           {saving
             ? "Building your world..."
             : customize || nameClubs
               ? "Next: Name Your Clubs"
-              : "Start League"}
+              : spectate
+                ? "Start Watching"
+                : "Start League"}
         </button>
 
         {/* Loading a previously exported save, which has nothing to do with the
@@ -996,8 +1152,7 @@ export function NewLeague() {
           about the wait making sense, not about preventing anything. */}
       {saving && (
         <p className="text-muted small mt-2 mb-0">
-          Filling 240 clubs with players. This takes a few seconds, and the page
-          will sit still while it happens.
+          Filling 240 clubs with players. The page will sit still for a few seconds.
         </p>
       )}
     </div>

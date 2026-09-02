@@ -27,6 +27,7 @@ import { SEASON_MATCHDAYS } from "./calendar.js";
 import { worldCompetitions } from "./competitions.js";
 import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
 import { DEFAULT_DIFFICULTY, type Difficulty } from "./constants.js";
+import { isSpectatorTid } from "./spectator.js";
 
 export type { StoredTeam } from "./teams/clubs.js";
 export type { ScheduleGame } from "./schedule.js";
@@ -158,6 +159,23 @@ export interface LeagueStore {
   loanListings: LoanListing[];
   /** Incoming loan offers the user has turned down this window (see loans.ts's loanOfferCandidates). */
   loanRejections: LoanRejection[];
+  /**
+   * Players the user has starred to keep an eye on — a shortlist, in the order
+   * they were added. Read by `/watchlist`; see core/watchlist.ts.
+   *
+   * Stored as bare pids because everything else about a watched player (club,
+   * rating, price, whether he's buyable) is a question about the world *now*,
+   * not about the day he was starred, so it is all derived on read.
+   *
+   * The other league-level user lists beside it here are their club's business
+   * and are dropped when the user takes a new job; this one deliberately isn't
+   * (see manager/switchClub.ts) — it's the manager's own notebook, not the
+   * club's. Scrubbed when a watched player retires or is culled, since a pid
+   * that names nobody can never be un-starred through the UI.
+   *
+   * Migrated to `[]`, which is what every save written before it means.
+   */
+  watchlist: number[];
   /**
    * The Continental Cup being played during the current season, or null when
    * none runs (season 1 always — no prior-season table to qualify from — and
@@ -294,6 +312,14 @@ export interface LeagueStore {
 }
 
 export function createLeagueState(
+  /**
+   * The club the user manages, or `SPECTATOR_TID` for a save nobody manages.
+   *
+   * A spectator tid needs no special handling in here: it matches no club, so
+   * the identity/formation passes skip it exactly as they already skip an
+   * unmatched tid, the fog-of-war stamp is guarded on finding a team, and
+   * `emptyManagerState` opens no stint. See `core/spectator.ts`.
+   */
   userTid: number,
   rng: () => number,
   seed = 0,
@@ -350,6 +376,7 @@ export function createLeagueState(
     activeLoans: [],
     loanListings: [],
     loanRejections: [],
+    watchlist: [],
     // No cup in season 1: it's seeded from the previous season's final tables,
     // and there is none yet. The first Continental Cup runs in season 2.
     cup: null,
@@ -367,8 +394,13 @@ export function createLeagueState(
     godMode: false,
     manager: emptyManagerState(userTid, 1),
     // Chosen on the New League screen, and legitimately null: managing a country
-    // is opt-in, and declining is not a lesser save.
-    nationalManager: emptyNationalManagerState(userNation, 1),
+    // is opt-in, and declining is not a lesser save. Forced null when nobody
+    // manages a club, so the invariant "a spectator manages nothing" holds
+    // against every caller rather than only against the one screen that offers
+    // the choice.
+    nationalManager: emptyNationalManagerState(
+      isSpectatorTid(userTid) ? null : userNation, 1,
+    ),
     difficulty,
     // Same value the old derived `max(pid) + 1` produced at first use, so a
     // fresh world generates identically to before.

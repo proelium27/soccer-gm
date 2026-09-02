@@ -104,6 +104,37 @@ const FLAG_CODES: Record<string, string> = {
   Thailand: "th",
   "Trinidad and Tobago": "tt",
   Vietnam: "vn",
+  // Added 2026-09-01 with the full FIFA nationality set. Only the flags that
+  // are exactly reproducible as plain geometry — bands, a disc, a triangle, a
+  // star — got art. The rest of that set (a coat of arms, Arabic calligraphy,
+  // a dragon, Nepal's double pennon) is deliberately left to <Flag>'s neutral
+  // swatch, for the reason the block above gives: a wrong flag reads worse
+  // than none.
+  Armenia: "am",
+  Bangladesh: "bd",
+  Botswana: "bw",
+  Chad: "td",
+  Congo: "cg",
+  Djibouti: "dj",
+  Estonia: "ee",
+  Kuwait: "kw",
+  Laos: "la",
+  Latvia: "lv",
+  Liberia: "lr",
+  Lithuania: "lt",
+  Luxembourg: "lu",
+  Madagascar: "mg",
+  Mauritius: "mu",
+  Myanmar: "mm",
+  Niger: "ne",
+  "North Korea": "kp",
+  Palestine: "ps",
+  "Sierra Leone": "sl",
+  Somalia: "so",
+  "South Sudan": "ss",
+  Syria: "sy",
+  Taiwan: "tw",
+  Yemen: "ye",
 };
 
 /** ISO country code (flag-art filename) for a nationality, or null if unknown. */

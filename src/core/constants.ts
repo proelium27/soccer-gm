@@ -64,6 +64,31 @@ export const NUM_TEAMS_D2 = 20;
 export const DIVISION_2_TARGET_D1_RANK = 16;
 export const DIVISION_2_OFFSET =
   ((DIVISION_2_TARGET_D1_RANK - 1) / (NUM_TEAMS - 1)) * 2 * TEAM_STRENGTH_SPREAD;
+
+/** Third division team count. Only a country that opts into three tiers has one. */
+export const NUM_TEAMS_D3 = 20;
+
+/**
+ * How far below Division 1 a tier's strength band sits — the number generation
+ * subtracts from every club's target, and the number academyBaseCenter walks a
+ * promoted or relegated club toward.
+ *
+ * One step per tier, so the D1/D2 relationship DIVISION_2_OFFSET was tuned for
+ * (D2's strongest club lands at D1's rank-16 target) repeats between D2 and D3.
+ * Stated as a formula rather than a table because that is what makes a third
+ * tier free of a second tuning pass AND keeps tiers 1 and 2 arithmetically
+ * identical to what shipped: tier 1 is 0 and tier 2 is exactly
+ * DIVISION_2_OFFSET, so no existing world moves by a float.
+ *
+ * The honest caveat, and it is why the third tier needs its own audit rather
+ * than inheriting this one's: at tier 3 the resulting academy anchor lands in
+ * the saturated part of YOUTH_BASE_FLOOR's softplus, the same regime the
+ * weakest shipped second divisions already sit in. Playable, measured, and
+ * flatter than a tier higher up the pyramid.
+ */
+export function divisionStrengthOffset(tier: number): number {
+  return Math.max(0, tier - 1) * DIVISION_2_OFFSET;
+}
 /**
  * Division 2's money-in scale (2026-07-15 retune): both the income rate
  * (see divisionScale in finance/budget.ts) and, as of the same retune, the
@@ -95,6 +120,41 @@ export const DIVISION_2_BUDGET_SCALE = 0.6;
  * the season-30 drift) or too tight (empties Division 2 of anyone decent).
  */
 export const DIVISION_2_REFUSAL_OVR_THRESHOLD = 70;
+
+/**
+ * The same bar for a pyramid deeper than two, keyed by tier. A third-tier club
+ * has to lose its good players to the SECOND division, not straight to the top
+ * flight, so the bar has to fall as you go down or the tiers stop meaning
+ * anything relative to each other.
+ *
+ * Tier 2 is DIVISION_2_REFUSAL_OVR_THRESHOLD by reference, not by a copied
+ * literal, so the shipped two-division world cannot drift from the constant it
+ * was tuned against. Tier 3's 62 is a STARTING VALUE and has not been audited —
+ * `scripts/divisionAudit.ts` is what settles it, and the failure modes to watch
+ * are the documented pair: too loose barely dents long-dynasty drift, too tight
+ * empties the division of anyone worth watching.
+ *
+ * A tier with no entry falls back to the deepest one listed, so a fourth tier
+ * would inherit the third's bar rather than silently keeping everybody.
+ */
+const DIVISION_REFUSAL_OVR_BY_TIER: Record<number, number> = {
+  2: DIVISION_2_REFUSAL_OVR_THRESHOLD,
+  3: 62,
+};
+
+/**
+ * OVR at or above which an AI player refuses to stay in this tier. Tier 1 has
+ * no ceiling — there is nothing above it — so it returns Infinity rather than a
+ * number, which is what makes every call site's `ovr >= threshold` test
+ * correctly false for a top-flight club without needing a tier check of its own.
+ */
+export function divisionRefusalOvr(tier: number): number {
+  if (tier <= 1) return Infinity;
+  const listed = DIVISION_REFUSAL_OVR_BY_TIER[tier];
+  if (listed !== undefined) return listed;
+  const deepest = Math.max(...Object.keys(DIVISION_REFUSAL_OVR_BY_TIER).map(Number));
+  return DIVISION_REFUSAL_OVR_BY_TIER[deepest];
+}
 
 /**
  * Straight automatic swap each offseason: bottom N of D1 <-> top N of D2.
@@ -274,8 +334,8 @@ export function countryBudgetScale(country: string): number {
  * relegation swap — its new tier's band within its own country, so a promoted
  * French club rises toward French D1's (handicapped) level, not England's.
  */
-export function academyBaseCenter(country: string, tier: 1 | 2): number {
-  return LEAGUE_BASE - countryStrengthOffset(country) - (tier === 2 ? DIVISION_2_OFFSET : 0);
+export function academyBaseCenter(country: string, tier: number): number {
+  return LEAGUE_BASE - countryStrengthOffset(country) - divisionStrengthOffset(tier);
 }
 
 /**
@@ -3030,17 +3090,42 @@ export const CUP_ROUNDS = CUP_ROUND_MATCHDAYS.length;
 /** Round index of the final — the round the user's sim halts before if their club is a finalist. */
 export const CUP_FINAL_ROUND = CUP_ROUNDS - 1;
 
-/* Prize money (£), credited to a club's budget as each round is played and
- * clamped to MAX_BUDGET like any other income. Tuned "title-ish": a champion
- * nets ~£48M in total (participation + every round win), a runner-up ~£24M,
- * a semi-finalist ~£10M — meaningful for squad-building without dwarfing the
- * league's own prize tiers. Verified against a dynasty audit for AI solvency. */
-export const CUP_PRIZE_PARTICIPATION = 2_000_000;
+/* Prize money (£), credited to a club's budget as each stage is played and
+ * clamped to MAX_BUDGET like any other income.
+ *
+ * **Qualifying is the biggest single payment, and that is the shape real
+ * continental football has (2026-08-31).** These shipped "title-ish" — a
+ * participation fee of £2M against £30M for lifting the trophy — which made a
+ * six-game league-phase campaign against the best clubs in the world worth a
+ * *tenth* of finishing fifth in your own division (PRIZE_TOP_5, £20M), and made
+ * the whole competition a lottery ticket rather than the thing a club builds a
+ * season around. Real football is the other way up: UEFA's starting fee is
+ * roughly what reaching the final pays, so simply being there is transformative
+ * and going deep is a bonus on top. So participation carries the weight, the
+ * league phase pays per result, and the trophy prize comes down to meet them.
+ *
+ * **The champion's total is almost unchanged, and that is the point.** A club
+ * that wins it from the playoff round banks ~£46M against the ~£48M the old
+ * tiers paid — the money moved to the front rather than out of the competition.
+ * What moved is the ratio that actually matters, participation against the
+ * league's own prize tiers: a club that qualifies and goes out in the league
+ * phase now banks £10.5-14.5M against PRIZE_TOP_5's £20M, real money for a season's
+ * work, where £2M was a rounding error.
+ *
+ * **Deliberately NOT scaled by financeScale** (user call): UEFA pays a Belgian
+ * club exactly what it pays an English one, and that flatness is the whole
+ * reason European qualification matters more to a small club than a big one.
+ * It is also the risk — a rich weak-league club climbing the strength ladder is
+ * the documented tripwire — so any retune here must be measured with
+ * scripts/weakLeaguesAudit.ts against the same script run on the merge base. */
+export const CUP_PRIZE_PARTICIPATION = 10_000_000; // qualify for the league phase
+export const CUP_PRIZE_LP_WIN = 1_500_000; // per league-phase win
+export const CUP_PRIZE_LP_DRAW = 500_000; // per league-phase draw
 export const CUP_PRIZE_WIN_R16 = 3_000_000; // advance to the quarter-final
-export const CUP_PRIZE_WIN_QF = 5_000_000; // advance to the semi-final
-export const CUP_PRIZE_WIN_SF = 8_000_000; // advance to the final
-export const CUP_PRIZE_WIN_FINAL = 30_000_000; // lift the trophy
-export const CUP_PRIZE_RUNNER_UP = 6_000_000; // lose the final
+export const CUP_PRIZE_WIN_QF = 6_000_000; // advance to the semi-final
+export const CUP_PRIZE_WIN_SF = 9_000_000; // advance to the final
+export const CUP_PRIZE_WIN_FINAL = 14_000_000; // lift the trophy
+export const CUP_PRIZE_RUNNER_UP = 5_000_000; // lose the final
 
 /** Legacy per-round prize for winning a tie in that round, indexed like CUP_ROUND_MATCHDAYS. */
 export const CUP_PRIZE_WIN_BY_ROUND = [
@@ -3073,6 +3158,10 @@ export type CupCompetitionId = "continental" | "shield";
 export interface CupPrizes {
   /** Paid once, on entry to the league phase (or the legacy bracket). */
   participation: number;
+  /** Per league-phase win. Zero on the legacy bracket, which has no league phase. */
+  leaguePhaseWin: number;
+  /** Per league-phase draw, to BOTH clubs. */
+  leaguePhaseDraw: number;
   /** Winning a league-phase playoff tie and reaching the knockout. */
   playoffWin: number;
   /** Legacy format only: winning a preliminary play-in tie. */
@@ -3147,16 +3236,28 @@ export const SHIELD_WEAK_LEAGUE_SLOTS = 2;
 export const SHIELD_LEAGUE_PHASE_SIZE = 24;
 
 /* Prize money (£). Sized at roughly 40% of the Continental Cup's, so a Shield
- * run is worth chasing without rivalling the Cup: a champion nets ~£19.5M
- * against the Cup's ~£48M, a runner-up ~£10.5M against ~£24M. Deliberately kept
- * well clear of the Cup's tiers — finishing 5th and winning the Shield must not
- * out-earn finishing 4th and going out of the Cup's league phase. */
-export const SHIELD_PRIZE_PARTICIPATION = 1_000_000;
+ * run is worth chasing without rivalling the Cup, and reshaped alongside it
+ * (2026-08-31) so that qualifying — not the trophy — is the biggest single
+ * payment here too. A champion nets ~£19M against the Cup's ~£47M.
+ *
+ * The relationship these were sized to hold is that finishing 5th and winning
+ * the Shield must not out-earn finishing 4th and going out of the Cup's league
+ * phase. **That was false as shipped and is merely closer now**: the Shield
+ * champion took ~£21M against the Cup league-phase exit's £2M, because the
+ * exit paid almost nothing. Front-loading both competitions narrows it to ~£20M
+ * against ~£14M — still inverted, but a Shield title is now a deep run in a real
+ * competition rather than a way to out-earn the Cup by losing six games in it.
+ * Closing it completely would mean paying a Cup league-phase exit more than a
+ * Shield champion, which is a separate call about how far apart the two
+ * competitions should sit. */
+export const SHIELD_PRIZE_PARTICIPATION = 4_000_000;
+export const SHIELD_PRIZE_LP_WIN = 600_000;
+export const SHIELD_PRIZE_LP_DRAW = 200_000;
 export const SHIELD_PRIZE_WIN_PLAYOFF = 1_500_000;
 export const SHIELD_PRIZE_WIN_QF = 2_500_000;
-export const SHIELD_PRIZE_WIN_SF = 4_000_000;
-export const SHIELD_PRIZE_WIN_FINAL = 12_000_000;
-export const SHIELD_PRIZE_RUNNER_UP = 3_000_000;
+export const SHIELD_PRIZE_WIN_SF = 3_500_000;
+export const SHIELD_PRIZE_WIN_FINAL = 5_500_000;
+export const SHIELD_PRIZE_RUNNER_UP = 2_000_000;
 
 /** Shield per-win knockout prize, indexed by round (0 = QF, 1 = SF, 2 = Final). */
 export const SHIELD_KO_PRIZE_WIN_BY_ROUND = [
@@ -3174,6 +3275,8 @@ export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
     drawSeed: 0x51533,
     prizes: {
       participation: CUP_PRIZE_PARTICIPATION,
+      leaguePhaseWin: CUP_PRIZE_LP_WIN,
+      leaguePhaseDraw: CUP_PRIZE_LP_DRAW,
       playoffWin: CUP_PRIZE_WIN_PLAYOFF,
       playInWin: CUP_PRIZE_WIN_PLAYIN,
       runnerUp: CUP_PRIZE_RUNNER_UP,
@@ -3194,6 +3297,8 @@ export const CUP_FORMATS: Record<CupCompetitionId, CupFormat> = {
     drawSeed: 0x5348_4C44, // "SHLD"
     prizes: {
       participation: SHIELD_PRIZE_PARTICIPATION,
+      leaguePhaseWin: SHIELD_PRIZE_LP_WIN,
+      leaguePhaseDraw: SHIELD_PRIZE_LP_DRAW,
       playoffWin: SHIELD_PRIZE_WIN_PLAYOFF,
       runnerUp: SHIELD_PRIZE_RUNNER_UP,
       koByRound: SHIELD_KO_PRIZE_WIN_BY_ROUND,

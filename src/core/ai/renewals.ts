@@ -30,7 +30,7 @@ import { mulberry32, hashInts } from "../../engine/rng.js";
  * no way to renew at all, so he quietly ran his deal down while away and left
  * on a free the moment he got home.
  *
- * No Division 2 refusal check needed here: enforceDivision2Ceiling
+ * No Division 2 refusal check needed here: enforceDivisionCeilings
  * (offseason.ts) moves any Division 2 player above the OVR line to
  * Division 1 regardless of contract length, so an AI club renewing him
  * first doesn't block that move — it just means he changes clubs with a

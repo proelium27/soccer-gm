@@ -40,6 +40,7 @@ function buildWorldLeague(seed: number): LeagueStore {
     activeLoans: [],
     loanListings: [],
     loanRejections: [],
+    watchlist: [],
     cup: null,
     cupHistory: [],
     shield: null,
@@ -79,7 +80,7 @@ describe("world integration (generateWorld through the real season/offseason pip
     const playoffs = league.promotionPlayoffs;
     expect(playoffs.length).toBeGreaterThan(0);
     league = simOffseason(league, rng);
-    expect(league.teams).toHaveLength(420);
+    expect(league.teams).toHaveLength(626);
     // Every competition still has its own club count after the swap — divisions
     // are different sizes now, and promotion must preserve each one exactly.
     for (const comp of league.competitions) {
@@ -118,7 +119,8 @@ describe("world integration (generateWorld through the real season/offseason pip
     league = simThrough(league, "season", rng);
     // Force a non-English tier-2 (Spain D1's partner, i.e. Spain D2, compId 3)
     // AI player to a qualifying OVR.
-    const spainD2Team = league.teams.find((t) => t.compId === 3 && t.tid !== league.meta.userTid)!;
+    const spainD2 = league.competitions.find((c) => c.country === "Spain" && c.tier === 2)!;
+    const spainD2Team = league.teams.find((t) => t.compId === spainD2.id && t.tid !== league.meta.userTid)!;
     const targetPid = spainD2Team.roster[0];
     // A qualifying player needs genuinely high underlying ratings, not just a
     // forced `ovr`: simOffseason's progression step recomputes ovr from

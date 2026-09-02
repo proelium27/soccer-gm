@@ -9,6 +9,7 @@ import { contractTerms } from "../../core/contracts.js";
 import { formatWeeklyWage } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
+import { WatchToggle } from "../components/WatchToggle.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 import { ROSTER_CAP, PROSPECT_AGE_MAX } from "../../core/constants.js";
@@ -126,6 +127,7 @@ export function FreeAgents() {
         <table className="table table-striped table-sm">
           <thead>
             <tr>
+              <th></th>
               <SortableTh sortKey="name" sort={sort} onSort={toggle} defaultDir="asc">Name</SortableTh>
               <SortableTh sortKey="pos" sort={sort} onSort={toggle} defaultDir="asc">Pos</SortableTh>
               <SortableTh sortKey="ovr" sort={sort} onSort={toggle} className="text-end">OVR</SortableTh>
@@ -140,6 +142,7 @@ export function FreeAgents() {
               const unaffordable = midSeason && terms.salary > (userTeam?.budget ?? 0);
               return (
                 <tr key={p.pid}>
+                  <td><WatchToggle pid={p.pid} name={p.name} /></td>
                   <td>
                     <PlayerRatingsTooltip player={p}>
                       <Link to={`/player/${p.pid}`}>{p.name}</Link>

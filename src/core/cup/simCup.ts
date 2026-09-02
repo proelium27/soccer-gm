@@ -391,9 +391,10 @@ export function playKnockoutLeg(
  * Play the Swiss league-phase matches due on `matchday` in full: each is a 90'
  * game (no extra time — it may end level) resolved on the round's own seeded rng
  * and written back into the league phase with its box score. On the first
- * league-phase matchday every qualifier collects the participation fee. Once the
- * final matchday completes the league phase, the knockout bracket + playoff are
- * seeded from the table (see seedKnockoutFromLeaguePhase).
+ * league-phase matchday every qualifier collects the participation fee, and every
+ * matchday pays each club for its own result. Once the final matchday completes
+ * the league phase, the knockout bracket + playoff are seeded from the table
+ * (see seedKnockoutFromLeaguePhase).
  */
 export function playLeaguePhaseRound(
   cup: CupState,
@@ -413,6 +414,7 @@ export function playLeaguePhaseRound(
 
   if (round === 0) for (const tid of lp.teams) addPrize(tid, cupFormat(cup).prizes.participation);
 
+  const { leaguePhaseWin, leaguePhaseDraw } = cupFormat(cup).prizes;
   const matches = lp.matches.map((m) => {
     if (m.played || m.matchday !== matchday) return m;
     const hd = matchData.get(m.home);
@@ -421,6 +423,16 @@ export function playLeaguePhaseRound(
     const result = simMatchDetailed(rng, hd.composites, ad.composites, hd.xi, ad.xi, hd.bench, ad.bench, {
       recompute: { home: hd.recompute, away: ad.recompute },
     });
+    // Performance money, as real continental football pays it: a result in the
+    // league phase is worth something on its own, so six games are six chances
+    // to earn rather than a toll on the way to the knockout. Pure arithmetic on
+    // a result the sim just produced — no rng draw, so stream order is untouched.
+    if (result.home > result.away) addPrize(m.home, leaguePhaseWin);
+    else if (result.away > result.home) addPrize(m.away, leaguePhaseWin);
+    else {
+      addPrize(m.home, leaguePhaseDraw);
+      addPrize(m.away, leaguePhaseDraw);
+    }
     return { ...m, played: true, homeGoals: result.home, awayGoals: result.away, boxScore: result.boxScore };
   });
 
