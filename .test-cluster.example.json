@@ -8,7 +8,7 @@
   "capacityLocal": 1,
   "capacityRemote": 1,
 
-  "_workers": "Empty means vitest's default (cores - 1). On a memory-limited machine that default oversubscribes: measured on 8GB, four concurrent heavy files already cost 1.57x their solo time. Lowering this can make the run faster, not slower.",
+  "_workers": "Empty means the cap vite.config.ts works out for the machine, which is the lower of half the cores and what its RAM can hold (WORKER_PEAK_GB/HOST_RESERVE_GB there) -- normally leave it empty. Since the 626-club world a worker on a heavy sim file peaks at 2-3GB and keeps it, so 8GB earns 1 worker and 16GB earns 4; setting a number here passes --maxWorkers and OVERRIDES that memory cap, so only do it to go lower.",
   "localMaxWorkers": "",
   "remoteMaxWorkers": "",
 
