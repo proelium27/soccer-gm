@@ -34,7 +34,7 @@ import { playDomesticRound } from "./domesticCup/simCup.js";
 import { dueCupRound, dueCupLeg, cupFinalists, playInDue, playoffDue, koFinalRound } from "./cup/cup.js";
 import { leaguePhaseDue } from "./cup/leaguePhase.js";
 import { playKnockoutLeg, playPlayIn, playLeaguePhaseRound, playPlayoff } from "./cup/simCup.js";
-import { clampBudget, financeScaleFor } from "./finance/budget.js";
+import { clampBudget, financeScaleFor, domesticCupScaleFor } from "./finance/budget.js";
 import { initInternationalCampaign } from "./international/index.js";
 import { reviewSeason, tablesByCompetition } from "./manager/index.js";
 import { playPromotionPlayoffs } from "./promotionPlayoff.js";
@@ -487,18 +487,29 @@ export function simThrough(
         // Same scale the prize is then clamped against (creditPrizes), so the
         // user's difficulty multiplier applies to a cup run exactly as it does
         // to every other way his budget can grow.
+        // domesticCupScaleFor, NOT financeScaleFor: a domestic cup pays by
+        // country but flat across divisions, so a second-division run is worth
+        // what a top-flight one is. See its doc comment.
         const scaleByTid = new Map(
           countryTeams.map((t) => [
             t.tid,
-            financeScaleFor(
+            domesticCupScaleFor(
               league.competitions, t.compId, t.tid, league.meta.userTid, league.difficulty,
             ),
+          ]),
+        );
+        // Which division each club is in, for the glamour-tie gate receipts.
+        const tierByTid = new Map(
+          countryTeams.map((t) => [
+            t.tid,
+            league.competitions.find((c) => c.id === t.compId)?.tier ?? 1,
           ]),
         );
         const roundName = domesticRoundName(dc, pendingRound(dc)!.round);
         const played = playDomesticRound(
           dc, league.competitions, dcMatchData, league.lid,
           (tid) => scaleByTid.get(tid) ?? 1,
+          (tid) => tierByTid.get(tid) ?? 1,
         );
         advanced.push(played.cup);
         creditPrizes(played.prizes);

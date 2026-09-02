@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { ClubLink } from "../components/ClubLink.js";
@@ -6,6 +6,7 @@ import { usePlayerMap } from "../usePlayerMap.js";
 import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings } from "../../core/standings.js";
 import { seasonRevenue, wageBill, financeScaleFor } from "../../core/finance/budget.js";
+import { seasonPrizeIncome } from "../../core/finance/prizeIncome.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { competitionOf, competitionTeamCount } from "../../core/competitions.js";
 import { SCOUTING_SPEND_MAX, difficultyProfile } from "../../core/constants.js";
@@ -34,6 +35,17 @@ export function Finance() {
   const salaryMap = useMemo(
     () => new Map((league?.players ?? []).map((p) => [p.pid, p.contract.salary])),
     [league?.players],
+  );
+  // Cup prize money banked so far. Derived rather than stored (see
+  // prizeIncome.ts), and memoized for the same reason everything else here is:
+  // this walks the cup states, and a scouting-slider drag re-renders the page
+  // on every tick.
+  const prizeIncome = useMemo(
+    () =>
+      league
+        ? seasonPrizeIncome(league, league.meta.userTid)
+        : { sources: [], total: 0 },
+    [league],
   );
   // The user's league position, which sets the prize tier in the estimate below.
   const rank = useMemo(() => {
@@ -252,6 +264,49 @@ export function Finance() {
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Cup prize money banked so far this season */}
+      <div className="card mb-3">
+        <div className="card-body">
+          <h5 className="card-title">Cup Prize Money</h5>
+          {prizeIncome.total === 0 ? (
+            <p className="text-secondary mb-0">
+              Nothing yet this season. Cup prize money is paid as you go, so it lands in your
+              budget the day you play the tie rather than at season end.
+            </p>
+          ) : (
+            <>
+              <table className="table table-sm w-auto align-middle mb-2">
+                <tbody>
+                  {prizeIncome.sources.map((source) => (
+                    <Fragment key={source.competition}>
+                      <tr>
+                        <td className="fw-bold" colSpan={2}>
+                          {source.competition}
+                        </td>
+                      </tr>
+                      {source.lines.map((line) => (
+                        <tr key={`${source.competition}-${line.label}`}>
+                          <td className="ps-4">{line.label}</td>
+                          <td className="text-end">{currency.format(line.amount)}</td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  ))}
+                  <tr className="fw-bold">
+                    <td>Total banked this season</td>
+                    <td className="text-end">{currency.format(prizeIncome.total)}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="text-secondary small mb-0">
+                Already in your budget. This is paid during the season, unlike league prize money,
+                which settles in the offseason above.
+              </p>
+            </>
+          )}
         </div>
       </div>
 
