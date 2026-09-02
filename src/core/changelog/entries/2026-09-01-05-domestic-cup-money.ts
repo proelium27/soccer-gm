@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from "../types.js";
 
 const entry: ChangelogEntry = {
-  date: "2026-08-31",
+  date: "2026-09-01",
   title: "The domestic cup pays now, and it pays the small clubs",
   items: [
     "The domestic cups have never handed out a penny. I built them with prize money and then switched it off, because a 20-season test put two of four worlds' poorest clubs in the red and I'd rather ship a trophy that works than one that quietly breaks a league's finances. It's on now, tuned properly.",
