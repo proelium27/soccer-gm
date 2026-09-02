@@ -223,6 +223,66 @@ for (let s = 0; s < seasons; s++) {
     );
   }
 
+  // Is a country's domestic cup money proportional to its SIZE? The knockout
+  // bracket is capped at 32 clubs whatever the field, so every country's
+  // R32-onward prizes are the same cash -- a smaller country splits an identical
+  // pot among fewer clubs. That is invisible to domesticCupScaleFor, which
+  // scales by country wealth and not by country size, and it is the suspected
+  // cause of the 2026-09-02 Turkey->Greece ladder inversion.
+  const domByCountry = new Map<string, { total: number; clubs: number; scale: number }>();
+  for (const [tid, v] of domByTid) {
+    const comp = byId.get(compOf.get(tid) ?? 0);
+    if (!comp) continue;
+    const row = domByCountry.get(comp.country) ?? {
+      total: 0, clubs: 0, scale: competitionBudgetScale(comp),
+    };
+    row.total += v;
+    domByCountry.set(comp.country, row);
+  }
+  for (const comp of league.competitions) {
+    const row = domByCountry.get(comp.country);
+    if (row) row.clubs += league.teams.filter((t) => t.compId === comp.id).length;
+  }
+  // The ladder gate measures TIER-1 mean OVR, so the number that can move it is
+  // money per top-flight club, not money per club. The late rounds pay a fixed
+  // count of ties (1 final, 2 semis, 4 quarters) whatever the field size, and
+  // they are mostly won by top-flight clubs -- so a country with a SMALLER top
+  // flight concentrates the same late money on fewer of the clubs the gate reads.
+  const t1ByCountry = new Map<string, { total: number; clubs: number; scale: number }>();
+  for (const [tid, v] of domByTid) {
+    const comp = byId.get(compOf.get(tid) ?? 0);
+    if (!comp || comp.tier !== 1) continue;
+    const row = t1ByCountry.get(comp.country) ?? {
+      total: 0, clubs: 0, scale: competitionBudgetScale(comp),
+    };
+    row.total += v;
+    t1ByCountry.set(comp.country, row);
+  }
+  for (const comp of league.competitions.filter((c) => c.tier === 1)) {
+    const row = t1ByCountry.get(comp.country);
+    if (row) row.clubs += league.teams.filter((t) => t.compId === comp.id).length;
+  }
+  console.log("  DOMESTIC money per TOP-FLIGHT club, scale-adjusted (what the ladder gate reads):");
+  for (const [country, row] of [...t1ByCountry].sort(
+    (a, b) => b[1].total / b[1].clubs / b[1].scale - a[1].total / a[1].clubs / a[1].scale,
+  )) {
+    const per = row.total / row.clubs / row.scale;
+    console.log(
+      `    ${country.padEnd(12)} ${String(row.clubs).padStart(2)} top-flight clubs  ${M(per)}/club before country scale`,
+    );
+  }
+
+  console.log("  DOMESTIC cup money per club in the country, scale-adjusted (flat = size-neutral):");
+  for (const [country, row] of [...domByCountry].sort(
+    (a, b) => b[1].total / b[1].clubs / b[1].scale - a[1].total / a[1].clubs / a[1].scale,
+  )) {
+    const perClub = row.total / row.clubs;
+    console.log(
+      `    ${country.padEnd(12)} ${String(row.clubs).padStart(3)} clubs  ${M(perClub)}/club` +
+        `  = ${M(perClub / row.scale)} before country scale`,
+    );
+  }
+
   const byCountry = new Map<string, { total: number; clubs: number; scale: number }>();
   for (const [tid, v] of allByTid) {
     const comp = byId.get(compOf.get(tid) ?? 0);

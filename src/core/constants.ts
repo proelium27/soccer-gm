@@ -3551,8 +3551,27 @@ export const DOMESTIC_CUP_PRIZE_BY_ROUNDS_FROM_FINAL: readonly number[] = [
  * real one. This lifts a decent run from ~0.3% of a season into the low single
  * digits — a signing, not a revolution — and going much beyond that starts
  * pricing the cup above the league places it sits beside.
+ *
+ * **Halved 600k -> 300k on 2026-09-02 because the first version FAILED the
+ * ladder audit**: `Turkey→Greece` inverted on the 4-seed mean (-1.71 against a
+ * -1 gate) where the baseline passes, negative on all four seeds, i.e. the
+ * weaker-but-richer tripwire tripped by this feature's own money. Two candidate
+ * mechanisms were measured and neither held (see CLAUDE.md), so magnitude is the
+ * only lever established by evidence rather than by story. If a retune ever
+ * wants this number back up, the thing to measure first is *why* one weak league
+ * climbs and not another — not whether a bigger cheque still passes.
+ *
+ * **The halving cost the feature its headline result, which is the trade to know
+ * before touching this again.** At 600k the money per earning club ran tier 1
+ * 0.54M / tier 2 0.60M / tier 3 0.66M — the third division genuinely out-earned
+ * the top flight. At 300k it reverses to roughly 0.50M / 0.39M / 0.37M. The
+ * prize table rewards going deep (top-flight clubs) and this bonus rewards being
+ * small; halving it handed the balance back to the prize table. So the shipped
+ * state buys breadth — ~300 lower-division clubs earning something instead of one
+ * lottery winner — but not tilt. Recovering the tilt means a *smaller prize
+ * table at this glamour*, which is untested and needs its own 4-seed audit.
  */
-export const DOMESTIC_CUP_GLAMOUR_TIE_BONUS = 600_000;
+export const DOMESTIC_CUP_GLAMOUR_TIE_BONUS = 300_000;
 
 /**
  * The beaten finalist's cheque — the only losing side that is paid, matching the

@@ -1117,18 +1117,20 @@ export function Manual() {
           <p>
             The part that matters if you're below the top flight is the{" "}
             <strong>glamour tie</strong>. Draw a club from a higher division and you bank an extra{" "}
-            <strong>$600k per division between you</strong>, whatever the score, win or lose,
+            <strong>$300k per division between you</strong>, whatever the score, win or lose,
             because a full house and the cameras are worth more to you than the tie itself. So a
-            second-tier club drawing the top flight gets $600k, and a third-tier club drawing them
-            gets <strong>$1.2M</strong>. It's the one payment in the game that only goes to the
+            second-tier club drawing the top flight gets $300k, and a third-tier club drawing them
+            gets <strong>$600k</strong>. It's the one payment in the game that only goes to the
             smaller club.
           </p>
           <p>
-            That's what makes a cup run worth chasing from the lower divisions, and it adds up to
-            more down there than it does at the top: a third-division club plays more of these ties
-            than anyone, so across a season the third tier earns <em>more</em> cup money per club
-            than the top flight does. A good run is worth a few percent of your year, and a deep one
-            in a smaller country can be worth a sixth of it.
+            That's what makes a cup run worth chasing from the lower divisions. It won't make you
+            rich: a typical run is worth about <strong>1%</strong> of your season, and the top flight
+            still collects a bit more cup money per club than you do, because they're the ones who
+            go deep. What it does is spread the money around instead of handing it all to one club —
+            roughly <strong>300</strong> clubs below the top flight bank something from the cup every
+            season. A deep run in a smaller country is worth far more than that, up to a quarter of
+            your year if you go all the way.
           </p>
           <p>
             Every payment here is scaled to your country, so an English cup run pays more than a
