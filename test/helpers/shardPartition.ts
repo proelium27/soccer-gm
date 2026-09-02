@@ -38,6 +38,15 @@
  * still, the lever is the shard count in `.github/workflows/ci.yml`, not
  * further splitting.
  *
+ * **That has stopped being true, and the next person to raise the shard count
+ * should know it.** The 626-club world (#308) grew the sim files by roughly the
+ * same 49% the world grew, and the slowest single file,
+ * `test/core/offseasonRetirement.test.ts`, now runs ~1359s on CI against a
+ * per-shard wall clock of ~1394s at six shards with the weights below. So the
+ * one-file floor is within ~3% of the six-shard floor: a seventh shard buys
+ * essentially nothing, and the lever is splitting that file (or making its
+ * seven cases share a world) rather than adding runners.
+ *
  * Note CI runners are ~1.5x slower than a dev machine here
  * (`offseason.test.ts` was ~1276s locally against ~1933s on CI), so the weights
  * below are local seconds. That is fine: uniform scaling doesn't change how the
@@ -49,15 +58,32 @@
  * is big enough to matter. Everything absent is assumed to cost
  * `DEFAULT_WEIGHT_SECONDS`.
  *
- * Treat these as an ordering, not as measurements. They were timed on a dev
- * machine, and a machine running full-world sims back to back thermally
- * throttles — the same file measured 234s and 557s an hour apart. That is fine
- * for the purpose (relative size is what packs the shards) but it means you
- * should not read them as CI seconds, and should not chase a small discrepancy.
+ * **This whole table was rebuilt from one CI run on 2026-09-02**, because the
+ * world grew 49% (420 -> 626 clubs, #308) and the old numbers were 420-club
+ * measurements. That is worse than it sounds: the growth is not uniform, so
+ * this is not a case where a stale table still sorts correctly. A file that
+ * builds a world and sims seasons roughly tripled, while a pure-derivation file
+ * did not move at all — and fourteen files that had crossed the ~30s bar were
+ * still sitting on the 10s default, `cupIntegration.test.ts` at 743s of CI time
+ * against a weight of 10. Measured against the packing the old table produced,
+ * the slowest shard ran 1.37x the even share (1911s against 1394s) while the
+ * model believed it had balanced them to within 1%.
+ *
+ * The source is a single full CI run's per-file `tests` durations
+ * (run 33580546751, six shards, all green), divided by the ~1.5x CI-to-dev
+ * factor documented above so the table keeps its stated basis of local seconds.
+ * Taking every number from ONE contended run is the point: these are internally
+ * consistent with each other, which is what packing needs, where the previous
+ * table mixed measurements from different months and different worlds.
+ *
+ * Treat these as an ordering, not as measurements. A machine running full-world
+ * sims back to back thermally throttles — the same file measured 234s and 557s
+ * an hour apart — which is fine for the purpose but means you should not read
+ * them as seconds anywhere, and should not chase a small discrepancy.
  *
  * **A file timed on its own is not the same number as the same file timed
  * during a full run, and the gap is large.** Measured on an 8GB MacBook:
- * `offseasonFinance.test.ts` takes 156s alone and 244s alongside three other
+ * `offseasonFinance.test.ts` took 156s alone and 244s alongside three other
  * heavy files — 1.57x, at only four workers on eight cores, so it is not CPU
  * contention but memory bandwidth and thermals. Parallel efficiency across
  * those four files was ~55%. The entries here are full-run numbers, which is
@@ -76,51 +102,52 @@
  * `shardPartition.test.ts`). So an unlisted new file is safe — it just lands
  * somewhere by default weight.
  *
- * Refresh a number by timing the file on its own:
- *   npx vitest run <file> --reporter=basic
- * and add an entry whenever a new file runs longer than ~30s.
+ * **Refresh the whole table after a world-size change, not one entry at a
+ * time.** The cheapest source is a green CI run, which reports every file's
+ * duration in one internally consistent contended sample:
+ *   gh run view <id> --log | grep -oE '\S+\.test\.tsx? \([0-9]+ tests?\) [0-9]+ms'
+ * For a single new file, time it in a full local run and add an entry whenever
+ * it runs longer than ~30s.
  */
 export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
-  "test/core/offseasonFinance.test.ts": 490,
-  "test/core/internationalPlayerRecord.test.ts": 450,
-  "test/core/internationalCampaign.test.ts": 443,
-  "test/core/internationalEquivalence.test.ts": 245,
-  "test/core/internationalConfederationCups.test.ts": 240,
-  "test/core/offseasonRetirement.test.ts": 237,
-  "test/validation/m4-multiseason.test.ts": 220,
-  "test/validation/m4-multiseason-integrity.test.ts": 199,
-  "test/core/offseasonSquads.test.ts": 196,
-  "test/core/offseason.test.ts": 208,
-  "test/validation/m3-top-scorer.test.ts": 173,
-  "test/core/offseasonSolvency.test.ts": 128,
-  // These two were sitting on the 10s default while really costing minutes,
-  // which is exactly the mis-packing this table exists to prevent. Measured in
-  // contended parallel runs, not solo — see the cluster runner's note on why a
-  // solo number must not be pasted in here.
-  //
-  // Both were then re-measured a few hours later and came in at roughly HALF
-  // (worldIntegration 249s -> 126s, migrate 201s -> 109s) on the same machine
-  // and against a *larger* world, which is the thermal drift documented one
-  // level up — the same file has read 234s and 557s an hour apart. The higher
-  // figures are kept deliberately: over-weighting a heavy file only costs that
-  // shard some spare capacity, while under-weighting it overloads the shard,
-  // and the ordering these two need against each other holds either way. Don't
-  // chase this discrepancy; it is the measurement moving, not the file.
-  "test/core/worldIntegration.test.ts": 249,
-  "test/db/migrate.test.ts": 201,
-  // Almost entirely the one case that takes a real world through two full
-  // season/offseason cycles to watch a super cup be seeded, played and filed.
-  "test/core/superCup.test.ts": 142,
-  "test/core/simThrough.test.ts": 81,
-  "test/core/nationalManager.test.ts": 35,
-  // Two full season-plus-offseason runs of the same world, to prove a spectated
-  // season is bit-identical to an autopiloted one. Measured at 101s solo and
-  // entered at the ~1.57x contended figure this table holds (see the note above
-  // about not pasting solo numbers in).
-  "test/core/spectator.test.ts": 160,
-  "test/ui/transfersRender.test.tsx": 65,
-  "test/helpers/fixtureFidelity.test.ts": 31,
-  "test/validation/m1-benchmarks.test.ts": 20,
+  "test/core/offseasonRetirement.test.ts": 906,
+  "test/core/internationalCampaign.test.ts": 845,
+  "test/core/offseason.test.ts": 835,
+  "test/core/offseasonSquads.test.ts": 642,
+  "test/core/offseasonFinance.test.ts": 625,
+  "test/core/internationalConfederationCups.test.ts": 542,
+  "test/core/internationalEquivalence.test.ts": 530,
+  "test/core/cupIntegration.test.ts": 495,
+  "test/core/internationalPlayerRecord.test.ts": 455,
+  "test/validation/m4-multiseason-integrity.test.ts": 442,
+  "test/core/worldIntegration.test.ts": 428,
+  "test/validation/m3-top-scorer.test.ts": 424,
+  "test/validation/m4-multiseason.test.ts": 413,
+  "test/db/migrate.test.ts": 355,
+  "test/core/superCup.test.ts": 353,
+  "test/core/loans.test.ts": 353,
+  "test/ui/transfersRender.test.tsx": 339,
+  "test/core/offseasonSolvency.test.ts": 335,
+  "test/core/spectator.test.ts": 311,
+  "test/core/loanContracts.test.ts": 304,
+  "test/core/difficulty.test.ts": 257,
+  "test/core/transfers/recommendations.test.ts": 217,
+  "test/core/simArchive.test.ts": 189,
+  "test/core/simThrough.test.ts": 180,
+  "test/core/positionChange.test.ts": 167,
+  "test/core/transfers/inboundOffers.test.ts": 154,
+  "test/core/generate.test.ts": 149,
+  "test/core/autopilot.test.ts": 141,
+  "test/core/nationalManager.test.ts": 114,
+  "test/core/ai/transferMarket.test.ts": 108,
+  "test/db/leagueDb.test.ts": 107,
+  "test/core/transfers/searchWorldPlayers.test.ts": 107,
+  "test/core/careerSummary.test.ts": 69,
+  "test/validation/m1-table-spread.test.ts": 65,
+  "test/helpers/fixtureFidelity.test.ts": 37,
+  "test/core/peakOvr.test.ts": 36,
+  "test/core/domesticCupIntegration.test.ts": 34,
+  "test/core/transfers/negotiation.test.ts": 32,
 };
 
 /**
