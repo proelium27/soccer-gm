@@ -7,6 +7,7 @@ import type { IntlTournament, IntlQualifyingCampaign, NationSquad } from "../../
 import {
   initInternationalCampaign, buildSquads, nationMatchData, editableSquad,
   displaySquad, writeSquad, isValidNationSquad, selectSquad, nationPools,
+  isEligibleNation, manageableNations,
 } from "../../src/core/international/index.js";
 import { FORMATIONS } from "../../src/core/lineup/formations.js";
 import {
@@ -355,6 +356,36 @@ describe("national manager: taking and leaving a job", () => {
     expect(squad.starters).toBeNull();
     // The squad itself is untouched — a successor picks a team from it.
     expect(squad.pids.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The list God Mode's Switch Country tab offers, and the list its action gates
+ * on. They have to be the same list: a picker that offers a country the gate
+ * then silently refuses reads as a broken button.
+ */
+describe("manageableNations", () => {
+  const league = makeLeague(0, 1);
+  const nations = manageableNations(league.players);
+
+  it("names every country this world can field a team for, and only those", () => {
+    const pools = nationPools(league.players);
+    for (const [nation, pool] of pools) {
+      expect(nations.includes(nation)).toBe(isEligibleNation(nation, pool));
+    }
+    expect(nations.length).toBeGreaterThan(0);
+  });
+
+  it("agrees with the field the sim itself draws", () => {
+    // buildSquads qualifies nations by the identical rule, so every country the
+    // picker offers is one that really turns up in a campaign.
+    const drawn = buildSquads(league.players).map((s) => s.nation).sort();
+    expect([...nations].sort()).toEqual(drawn);
+  });
+
+  it("is alphabetical and free of duplicates", () => {
+    expect(nations).toEqual([...nations].sort((a, b) => a.localeCompare(b)));
+    expect(new Set(nations).size).toBe(nations.length);
   });
 });
 

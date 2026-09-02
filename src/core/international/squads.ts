@@ -31,6 +31,23 @@ export function isEligibleNation(nation: string, pool: Player[]): boolean {
   return pool.filter((p) => p.pos === "GK").length >= INTL_MIN_KEEPERS;
 }
 
+/**
+ * Every nation this world could actually field a team for, alphabetically.
+ *
+ * The same `isEligibleNation` rule the sim itself qualifies nations by, applied
+ * to the live pool — so a picker built from this can only offer countries that
+ * will really turn up, and the gate behind it can be the identical call. Two
+ * surfaces answering "can I manage Wales" differently is exactly the drift one
+ * shared derivation exists to prevent.
+ */
+export function manageableNations(players: Player[]): string[] {
+  const out: string[] = [];
+  for (const [nation, pool] of nationPools(players)) {
+    if (isEligibleNation(nation, pool)) out.push(nation);
+  }
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
 /** Ovr descending, pid ascending — a total order, so squad picks are deterministic. */
 function byStrength(a: Player, b: Player): number {
   return b.ovr - a.ovr || a.pid - b.pid;
