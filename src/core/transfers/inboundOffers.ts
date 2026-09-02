@@ -19,7 +19,7 @@ import {
   INBOUND_OFFERS_MAX, LISTED_FOR_TRANSFER_MIN_SURPLUS,
   NEGOTIATION_LOWBALL_FACTOR, NEGOTIATION_MAX_ROUNDS,
   COUNTER_PADDING_START, COUNTER_PADDING_DECAY,
-  DIVISION_2_REFUSAL_OVR_THRESHOLD,
+  divisionRefusalOvr,
 } from "../constants.js";
 
 /**
@@ -160,14 +160,13 @@ export function inboundOfferCandidates(league: LeagueStore): InboundOfferCandida
       if (!buyerCtx) continue;
 
       const rawCeiling = perceivedValueToClub(player, buyerCtx, jitter);
-      // A tier-2 club never bids on a player at or above the Division 2
-      // ceiling threshold — same prevention rule as the AI↔AI market (the
+      // A club below the top flight never bids on a player at or above its own
+      // tier's ceiling threshold — same prevention rule as the AI↔AI market (the
       // sweep would confiscate him from the buyer anyway). Placed AFTER the
       // jitter draw so filtered buyers still consume their draw and don't
       // shift later buyers' jitter (RNG-stream-order lesson).
       if (
-        tierOf(league.competitions, buyer.compId) === 2 &&
-        player.ovr >= DIVISION_2_REFUSAL_OVR_THRESHOLD
+        player.ovr >= divisionRefusalOvr(tierOf(league.competitions, buyer.compId))
       ) continue;
       // A buyer only shows up as a candidate if it can actually pay a fair
       // fee without dipping into its cash reserve — otherwise the offer

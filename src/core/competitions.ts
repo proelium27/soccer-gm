@@ -38,10 +38,10 @@
  * Cup. Add countries in pairs.
  */
 import {
-  COUNTRY_STRENGTH_OFFSET, COUNTRY_BUDGET_SCALE, LEAGUE_BASE, DIVISION_2_OFFSET,
+  COUNTRY_STRENGTH_OFFSET, COUNTRY_BUDGET_SCALE, LEAGUE_BASE, divisionStrengthOffset,
   CUP_STRONG_LEAGUE_SLOTS, CUP_WEAK_LEAGUE_SLOTS, CUP_MIN_FIELD,
   SHIELD_STRONG_LEAGUE_SLOTS, SHIELD_WEAK_LEAGUE_SLOTS, largestValidCupField,
-  NUM_TEAMS, NUM_TEAMS_D2, PROMOTION_RELEGATION_COUNT,
+  NUM_TEAMS, NUM_TEAMS_D2, NUM_TEAMS_D3, PROMOTION_RELEGATION_COUNT,
   COUNTRY_PLAYOFF_FORMAT, DEFAULT_PLAYOFF_FORMAT, type PlayoffFormat,
 } from "./constants.js";
 import {
@@ -51,7 +51,16 @@ import {
 export interface Competition {
   id: number;
   country: string;
-  tier: 1 | 2;
+  /**
+   * Depth in this country's pyramid: 1 is the top flight, 2 the division below
+   * it, and so on. A plain number rather than a union, because the pyramid's
+   * depth is a per-country choice (see LeagueSpec.divisions) and the sim's
+   * tier-keyed values are formulas over it rather than a two-entry table.
+   *
+   * Only ever compare tiers WITHIN a country. Across countries it says nothing:
+   * a tier-1 club in the weakest league is far below a tier-2 club in England.
+   */
+  tier: number;
   name: string;
   /* ── Per-league tuning ─────────────────────────────────────────────────────
    * Every knob below is OPTIONAL and falls back to the per-country tables in
@@ -118,7 +127,7 @@ export interface Competition {
    * Written to BOTH divisions of a country, because buildCompetitions builds
    * the pair from one spec and they cannot drift; either one answers the
    * question. Meaningless on a one-division country, which has no partner to
-   * swap with — tier1Pairs drops it before this is ever read.
+   * swap with — promotionLinks emits no link for it, so this is never read.
    *
    * Resolve through competitionPromotionSpots, never the field: it also holds
    * the number inside what the divisions can supply.
@@ -195,7 +204,9 @@ export function competitionAbbrev(comp: Competition): string {
 
 /** How many clubs play in this division. See Competition.teamCount. */
 export function competitionTeamCount(comp: Competition): number {
-  return comp.teamCount ?? (comp.tier === 1 ? NUM_TEAMS : NUM_TEAMS_D2);
+  if (comp.teamCount !== undefined) return comp.teamCount;
+  if (comp.tier === 1) return NUM_TEAMS;
+  return comp.tier === 2 ? NUM_TEAMS_D2 : NUM_TEAMS_D3;
 }
 
 /**
@@ -220,15 +231,6 @@ export function competitionPromotionSpots(comp: Competition, partner: Competitio
 }
 
 /**
- * How many clubs actually swap between these two divisions, once the requested
- * count is clamped to what the two tables can supply.
- *
- * Split out because the promotion playoff and the swap itself must agree on N
- * to the club: the playoff seats the four clubs below the automatic places, and
- * "the automatic places" is N-1. If they read different Ns the bracket and the
- * table slice overlap and a club is promoted twice.
- */
-/**
  * How this country settles its last promotion place.
  *
  * Reads either division's override (they are written together), else the
@@ -246,13 +248,54 @@ export function competitionPlayoffFormat(
   return COUNTRY_PLAYOFF_FORMAT[d1.country] ?? DEFAULT_PLAYOFF_FORMAT;
 }
 
+/**
+ * The most clubs a division can send in ONE direction without the two ends of
+ * its own table overlapping.
+ *
+ * Only a MIDDLE division is ever at risk, and only once a pyramid is three
+ * deep: it is promoted out of at the top and relegated out of at the bottom in
+ * the same season, so a count past half its size puts one club in both slices,
+ * and applyCompetitionSwaps silently keeps whichever it wrote last. A top
+ * flight only goes down and a bottom division only goes up, so neither has
+ * anything to overlap and both take Infinity — which is what keeps a
+ * two-division country reading exactly as it did before pyramids went N deep.
+ */
+function swapLimitOf(competitions: Competition[], comp: Competition | null): number {
+  if (!comp) return Infinity;
+  const chain = divisionsOf(competitions, comp.country);
+  const i = chain.findIndex((c) => c.id === comp.id);
+  const isMiddle = i > 0 && i < chain.length - 1;
+  return isMiddle ? Math.floor(competitionTeamCount(comp) / 2) : Infinity;
+}
+
+/**
+ * How many clubs actually swap between these two divisions, once the requested
+ * count is clamped to what the two tables can supply and to what a middle
+ * division can give up at both ends at once.
+ *
+ * Split out because the promotion playoff and the swap itself must agree on N
+ * to the club: the playoff seats the four clubs below the automatic places, and
+ * "the automatic places" is N-1. If they read different Ns the bracket and the
+ * table slice overlap and a club is promoted twice.
+ *
+ * That is also exactly why the middle-division clamp belongs HERE rather than
+ * in computeCountrySwaps, where it was first written: a clamp only the swap can
+ * see IS the disagreement this function exists to prevent. It cannot bite in
+ * the shipped world (the smallest middle division is 10 clubs against at most 3
+ * places) but a hand-built one can reach it — MIN_DIVISION_TEAMS is 8 and
+ * MAX_PROMOTION_SPOTS is 6.
+ */
 export function effectivePromotionSpots(
+  competitions: Competition[],
   d1: Competition,
   d2: Competition | null,
   d1TableLength: number,
   d2TableLength: number,
 ): number {
-  return Math.min(competitionPromotionSpots(d1, d2), d1TableLength, d2TableLength);
+  return Math.min(
+    competitionPromotionSpots(d1, d2), d1TableLength, d2TableLength,
+    swapLimitOf(competitions, d1), swapLimitOf(competitions, d2),
+  );
 }
 
 /** This league's money multiplier, before the tier scale. See Competition.budgetScale. */
@@ -289,7 +332,7 @@ export function isWeakLeague(comp: Competition): boolean {
  * French club rises toward French D1's (handicapped) level, not England's.
  */
 export function academyBaseCenterOf(comp: Competition): number {
-  return LEAGUE_BASE - competitionAcademyOffset(comp) - (comp.tier === 2 ? DIVISION_2_OFFSET : 0);
+  return LEAGUE_BASE - competitionAcademyOffset(comp) - divisionStrengthOffset(comp.tier);
 }
 
 export function englandCompetitions(): Competition[] {
@@ -302,28 +345,54 @@ export function englandCompetitions(): Competition[] {
 export function worldCompetitions(): Competition[] {
   return [
     ...englandCompetitions(),
-    { id: 2, country: "Spain", tier: 1, name: "Spanish Division 1" },
-    { id: 3, country: "Spain", tier: 2, name: "Spanish Division 2" },
-    { id: 4, country: "Italy", tier: 1, name: "Italian Division 1" },
-    { id: 5, country: "Italy", tier: 2, name: "Italian Division 2" },
-    { id: 6, country: "Germany", tier: 1, name: "German Division 1", teamCount: 18 },
-    { id: 7, country: "Germany", tier: 2, name: "German Division 2", teamCount: 18 },
-    { id: 8, country: "France", tier: 1, name: "French Division 1", teamCount: 18 },
-    { id: 9, country: "France", tier: 2, name: "French Division 2", teamCount: 18 },
-    { id: 10, country: "Portugal", tier: 1, name: "Portuguese Division 1", teamCount: 18, promotionSpots: 2 },
-    { id: 11, country: "Portugal", tier: 2, name: "Portuguese Division 2", teamCount: 18, promotionSpots: 2 },
-    { id: 12, country: "Belgium", tier: 1, name: "Belgian Division 1", teamCount: 16, promotionSpots: 2 },
-    { id: 13, country: "Belgium", tier: 2, name: "Belgian Division 2", teamCount: 16, promotionSpots: 2 },
-    { id: 14, country: "Turkey", tier: 1, name: "Turkish Division 1", teamCount: 18 },
-    { id: 15, country: "Turkey", tier: 2, name: "Turkish Division 2" },
-    { id: 16, country: "Netherlands", tier: 1, name: "Dutch Division 1", teamCount: 18, promotionSpots: 2 },
-    { id: 17, country: "Netherlands", tier: 2, name: "Dutch Division 2", promotionSpots: 2 },
-    { id: 18, country: "Scotland", tier: 1, name: "Scottish Division 1", teamCount: 12, promotionSpots: 1 },
-    { id: 19, country: "Scotland", tier: 2, name: "Scottish Division 2", teamCount: 10, promotionSpots: 1 },
-    { id: 20, country: "Greece", tier: 1, name: "Greek Division 1", teamCount: 14, promotionSpots: 2 },
-    { id: 21, country: "Greece", tier: 2, name: "Greek Division 2", teamCount: 16, promotionSpots: 2 },
-    { id: 22, country: "Serbia", tier: 1, name: "Serbian Division 1", teamCount: 16, promotionSpots: 2 },
-    { id: 23, country: "Serbia", tier: 2, name: "Serbian Division 2", teamCount: 16, promotionSpots: 2 },
+    // EVERY country runs three divisions, and the symmetry is load-bearing
+    // rather than cosmetic. Giving a third tier to only some countries makes
+    // those countries STRONGER over a dynasty — more clubs means more talent
+    // generated and developed there, and enforceDivisionCeilings pumps the best
+    // of it upward, so a three-tier country drains 60 clubs where a two-tier one
+    // drains 40. Measured: with only the big four three deep, their top flights
+    // ended a 20-season dynasty ~2.7 OVR stronger and BIG4->France widened from
+    // +2.74 to +7.35 against a design target of ~+3.4, which dried up the weak
+    // leagues' transfer receipts and put 3 of 4 audit seeds into deficit.
+    //
+    // The big four's third tiers take NUM_TEAMS_D3 (20) by omission — the real
+    // size of a German 3. Liga even though the two divisions above it hold 18,
+    // and the cap for England/Spain/Italy, whose real third tiers are bigger
+    // than the 38-matchday calendar can seat (see MAX_DIVISION_TEAMS).
+    { id: 2, country: "England", tier: 3, name: "English Division 3" },
+    { id: 3, country: "Spain", tier: 1, name: "Spanish Division 1" },
+    { id: 4, country: "Spain", tier: 2, name: "Spanish Division 2" },
+    { id: 5, country: "Spain", tier: 3, name: "Spanish Division 3" },
+    { id: 6, country: "Italy", tier: 1, name: "Italian Division 1" },
+    { id: 7, country: "Italy", tier: 2, name: "Italian Division 2" },
+    { id: 8, country: "Italy", tier: 3, name: "Italian Division 3" },
+    { id: 9, country: "Germany", tier: 1, name: "German Division 1", teamCount: 18 },
+    { id: 10, country: "Germany", tier: 2, name: "German Division 2", teamCount: 18 },
+    { id: 11, country: "Germany", tier: 3, name: "German Division 3" },
+    { id: 12, country: "France", tier: 1, name: "French Division 1", teamCount: 18 },
+    { id: 13, country: "France", tier: 2, name: "French Division 2", teamCount: 18 },
+    { id: 14, country: "France", tier: 3, name: "French Division 3", teamCount: 18 },
+    { id: 15, country: "Portugal", tier: 1, name: "Portuguese Division 1", teamCount: 18, promotionSpots: 2 },
+    { id: 16, country: "Portugal", tier: 2, name: "Portuguese Division 2", teamCount: 18, promotionSpots: 2 },
+    { id: 17, country: "Portugal", tier: 3, name: "Portuguese Division 3", teamCount: 18, promotionSpots: 2 },
+    { id: 18, country: "Belgium", tier: 1, name: "Belgian Division 1", teamCount: 16, promotionSpots: 2 },
+    { id: 19, country: "Belgium", tier: 2, name: "Belgian Division 2", teamCount: 16, promotionSpots: 2 },
+    { id: 20, country: "Belgium", tier: 3, name: "Belgian Division 3", teamCount: 16, promotionSpots: 2 },
+    { id: 21, country: "Turkey", tier: 1, name: "Turkish Division 1", teamCount: 18 },
+    { id: 22, country: "Turkey", tier: 2, name: "Turkish Division 2" },
+    { id: 23, country: "Turkey", tier: 3, name: "Turkish Division 3", teamCount: 18 },
+    { id: 24, country: "Netherlands", tier: 1, name: "Dutch Division 1", teamCount: 18, promotionSpots: 2 },
+    { id: 25, country: "Netherlands", tier: 2, name: "Dutch Division 2", promotionSpots: 2 },
+    { id: 26, country: "Netherlands", tier: 3, name: "Dutch Division 3", teamCount: 18, promotionSpots: 2 },
+    { id: 27, country: "Scotland", tier: 1, name: "Scottish Division 1", teamCount: 12, promotionSpots: 1 },
+    { id: 28, country: "Scotland", tier: 2, name: "Scottish Division 2", teamCount: 10, promotionSpots: 1 },
+    { id: 29, country: "Scotland", tier: 3, name: "Scottish Division 3", teamCount: 10, promotionSpots: 1 },
+    { id: 30, country: "Greece", tier: 1, name: "Greek Division 1", teamCount: 14, promotionSpots: 2 },
+    { id: 31, country: "Greece", tier: 2, name: "Greek Division 2", teamCount: 16, promotionSpots: 2 },
+    { id: 32, country: "Greece", tier: 3, name: "Greek Division 3", teamCount: 12, promotionSpots: 2 },
+    { id: 33, country: "Serbia", tier: 1, name: "Serbian Division 1", teamCount: 16, promotionSpots: 2 },
+    { id: 34, country: "Serbia", tier: 2, name: "Serbian Division 2", teamCount: 16, promotionSpots: 2 },
+    { id: 35, country: "Serbia", tier: 3, name: "Serbian Division 3", teamCount: 16, promotionSpots: 2 },
   ];
 }
 
@@ -346,20 +415,27 @@ export function worldCompetitions(): Competition[] {
 export interface LeagueSpec {
   country: string;
   /**
-   * One or two divisions. Two is the default and the shape everything else
-   * assumes; one is a country with a single professional league and therefore no
-   * promotion or relegation of its own. Deliberately not three — a third tier
-   * would need its own promotion chain, ceiling sweep and finance band.
+   * How deep this country's pyramid runs. Two is the default and the shape the
+   * shipped world uses; one is a country with a single professional league and
+   * therefore no promotion or relegation of its own; three adds a link below.
+   *
+   * Depth is genuinely per-country rather than a world-wide setting, because the
+   * knob that makes a third tier worth having — a real lower-league climb — is
+   * only wanted where the country has the clubs to fill it.
    */
-  divisions?: 1 | 2;
+  divisions?: 1 | 2 | 3;
   /** Three-letter country code, used where a flag would go. See Competition.abbrev. */
   abbrev?: string;
   /** Clubs per division. Even, and at most MAX_DIVISION_TEAMS. */
   d1Teams?: number;
   d2Teams?: number;
-  /** Defaults to "<country> Division 1" / "... 2". */
+  /** Ignored unless `divisions` is 3. */
+  d3Teams?: number;
+  /** Defaults to "<country> Division 1" / "... 2" / "... 3". */
   d1Name?: string;
   d2Name?: string;
+  /** Ignored unless `divisions` is 3. */
+  d3Name?: string;
   strengthOffset?: number;
   academyOffset?: number;
   budgetScale?: number;
@@ -384,6 +460,14 @@ export interface LeagueSpec {
    */
   nationalities?: NationalityWeights;
 }
+
+/**
+ * The deepest pyramid a country can be built with — the upper bound on both
+ * `LeagueSpec.divisions` and any `Competition.tier`. Exported so the roster
+ * file's tier validation reads the same bound the world builder enforces
+ * instead of carrying its own copy of the number.
+ */
+export const MAX_DIVISIONS = 3;
 
 /** Drop keys whose value is undefined, so an untouched knob stays *absent*. */
 function withDefined<T extends object>(obj: T): T {
@@ -410,28 +494,26 @@ export function buildCompetitions(specs: LeagueSpec[]): Competition[] {
       nationalities: spec.nationalities,
       continentalSlots: Object.keys(slots).length > 0 ? slots : undefined,
     });
-    out.push({
-      id: out.length,
-      country: spec.country,
-      tier: 1,
-      // Trimmed, and an all-whitespace name counts as none: the name box is a
-      // free-text field the player can empty, and a blank league name reads as
-      // a broken game rather than as a choice.
-      name: spec.d1Name?.trim() || `${spec.country} Division 1`,
-      ...shared,
-      ...withDefined({ teamCount: spec.d1Teams }),
-    });
-    // A one-division country simply has no tier-2 competition. Everything that
-    // walks "each country's divisions" goes through tier1Pairs, which returns a
-    // null partner rather than throwing.
-    if ((spec.divisions ?? 2) === 2) {
+    // One competition per tier the country asked for, top flight first — which
+    // is also the order generateWorld hands out tids in, so a country's clubs
+    // occupy one contiguous block with its divisions in pyramid order inside it.
+    //
+    // A country with fewer divisions simply emits fewer competitions. Everything
+    // that walks "each country's divisions" goes through countryDivisions, which
+    // returns however many there are rather than assuming a pair.
+    const names = [spec.d1Name, spec.d2Name, spec.d3Name];
+    const counts = [spec.d1Teams, spec.d2Teams, spec.d3Teams];
+    for (let tier = 1; tier <= (spec.divisions ?? 2); tier++) {
       out.push({
         id: out.length,
         country: spec.country,
-        tier: 2,
-        name: spec.d2Name?.trim() || `${spec.country} Division 2`,
+        tier,
+        // Trimmed, and an all-whitespace name counts as none: the name box is a
+        // free-text field the player can empty, and a blank league name reads as
+        // a broken game rather than as a choice.
+        name: names[tier - 1]?.trim() || `${spec.country} Division ${tier}`,
         ...shared,
-        ...withDefined({ teamCount: spec.d2Teams }),
+        ...withDefined({ teamCount: counts[tier - 1] }),
       });
     }
   }
@@ -456,11 +538,12 @@ export function buildCompetitions(specs: LeagueSpec[]): Competition[] {
  * worlds.
  */
 export interface ResolvedLeagueSpec {
-  divisions: 1 | 2;
+  divisions: 1 | 2 | 3;
   strengthOffset: number;
   budgetScale: number;
   d1Teams: number;
   d2Teams: number;
+  d3Teams: number;
   promotionSpots: number;
   playoffFormat: PlayoffFormat;
   cupSlots: number;
@@ -481,6 +564,7 @@ export function resolveLeagueSpec(spec: LeagueSpec): ResolvedLeagueSpec {
     budgetScale: spec.budgetScale ?? COUNTRY_BUDGET_SCALE[spec.country] ?? 1,
     d1Teams: spec.d1Teams ?? NUM_TEAMS,
     d2Teams: spec.d2Teams ?? NUM_TEAMS_D2,
+    d3Teams: spec.d3Teams ?? NUM_TEAMS_D3,
     promotionSpots: spec.promotionSpots ?? PROMOTION_RELEGATION_COUNT,
     playoffFormat: spec.playoffFormat
       ?? COUNTRY_PLAYOFF_FORMAT[spec.country] ?? DEFAULT_PLAYOFF_FORMAT,
@@ -610,17 +694,26 @@ export function worldTuningWarnings(specs: LeagueSpec[]): string[] {
  * worldCompetitions() — pinned by a test.
  */
 export function worldLeagueSpecs(): LeagueSpec[] {
-  return tier1Pairs(worldCompetitions()).map(({ d1, d2 }) => ({
-    country: d1.country,
-    d1Name: d1.name,
-    // Only carried when actually set, so a country on the shipped defaults still
-    // round-trips to a competition with the field absent rather than spelled out.
-    ...(d1.teamCount === undefined ? {} : { d1Teams: d1.teamCount }),
-    ...(d2?.teamCount === undefined ? {} : { d2Teams: d2.teamCount }),
-    ...(d1.promotionSpots === undefined ? {} : { promotionSpots: d1.promotionSpots }),
-    ...(d1.playoffFormat === undefined ? {} : { playoffFormat: d1.playoffFormat }),
-    ...(d2 ? { d2Name: d2.name } : { divisions: 1 as const }),
-  }));
+  return countryDivisions(worldCompetitions()).map(({ country, divisions }) => {
+    const [d1, d2, d3] = divisions;
+    return {
+      country,
+      d1Name: d1.name,
+      // Only carried when actually set, so a country on the shipped defaults still
+      // round-trips to a competition with the field absent rather than spelled out.
+      ...(d1.teamCount === undefined ? {} : { d1Teams: d1.teamCount }),
+      ...(d2?.teamCount === undefined ? {} : { d2Teams: d2.teamCount }),
+      ...(d3?.teamCount === undefined ? {} : { d3Teams: d3.teamCount }),
+      ...(d1.promotionSpots === undefined ? {} : { promotionSpots: d1.promotionSpots }),
+      ...(d1.playoffFormat === undefined ? {} : { playoffFormat: d1.playoffFormat }),
+      ...(d2 ? { d2Name: d2.name } : {}),
+      ...(d3 ? { d3Name: d3.name } : {}),
+      // Two is the default, so only a country that differs spells it out — which
+      // is what keeps buildCompetitions(worldLeagueSpecs()) byte-identical to
+      // worldCompetitions() for every shipped country.
+      ...(divisions.length === 2 ? {} : { divisions: divisions.length as 1 | 2 | 3 }),
+    };
+  });
 }
 
 export function competitionOf(competitions: Competition[], compId: number): Competition {
@@ -629,53 +722,93 @@ export function competitionOf(competitions: Competition[], compId: number): Comp
   return comp;
 }
 
-export function tierOf(competitions: Competition[], compId: number): 1 | 2 {
+export function tierOf(competitions: Competition[], compId: number): number {
   return competitionOf(competitions, compId).tier;
 }
 
 /**
- * The other tier's competition in the same country, or null when the country has
- * only one division. Nullable rather than throwing because a one-division
- * country is now a legitimate shape: it has nothing to be promoted to or
- * relegated into, and callers have to answer that question rather than crash.
+ * One country's divisions, top flight first.
+ *
+ * THE primitive for anything that walks a pyramid, and it replaced a
+ * `partnerOrNull` that asked for "the other competition in this country". That
+ * question has no answer past two divisions — the old implementation returned
+ * whichever same-country competition came first in the table, which is right by
+ * luck in a two-tier world and silently wrong in a three-tier one. Ask for the
+ * chain, or for the specific neighbour you mean (divisionAbove/divisionBelow).
  */
-export function partnerOrNull(
+export function divisionsOf(competitions: Competition[], country: string): Competition[] {
+  return competitions
+    .filter((c) => c.country === country)
+    .sort((a, b) => a.tier - b.tier || a.id - b.id);
+}
+
+/**
+ * The division a club is promoted INTO, or null when it is already in the top
+ * flight. Adjacent by tier rather than "the other one", so the middle division
+ * of a three-tier country resolves upward correctly.
+ */
+export function divisionAbove(
   competitions: Competition[],
   compId: number,
 ): Competition | null {
   const comp = competitionOf(competitions, compId);
-  return competitions.find((c) => c.country === comp.country && c.id !== comp.id) ?? null;
+  const chain = divisionsOf(competitions, comp.country);
+  const i = chain.findIndex((c) => c.id === comp.id);
+  return i > 0 ? chain[i - 1] : null;
 }
 
-/** The D1<->D2 partner, for callers that already know the country has both. */
-export function partnerOf(competitions: Competition[], compId: number): Competition {
-  const partner = partnerOrNull(competitions, compId);
-  if (!partner) throw new Error(`No partner competition for compId ${compId}`);
-  return partner;
+/** The division a club is relegated INTO, or null when it is already the bottom one. */
+export function divisionBelow(
+  competitions: Competition[],
+  compId: number,
+): Competition | null {
+  const comp = competitionOf(competitions, compId);
+  const chain = divisionsOf(competitions, comp.country);
+  const i = chain.findIndex((c) => c.id === comp.id);
+  return i >= 0 && i < chain.length - 1 ? chain[i + 1] : null;
+}
+
+/** Every country's divisions, top flight first, in the table's tier-1 order. */
+export interface CountryDivisions {
+  country: string;
+  /** At least one, top flight first. A one-division country has exactly one. */
+  divisions: Competition[];
+}
+
+/**
+ * Every country's division chain, derived from the table rather than assumed
+ * from array position — shared by every caller that walks "each country's
+ * divisions" (world generation, tid layout, promotion and relegation) so the
+ * ordering rule has exactly one implementation to keep correct.
+ */
+export function countryDivisions(competitions: Competition[]): CountryDivisions[] {
+  return competitions
+    .filter((c) => c.tier === 1)
+    .map((d1) => ({ country: d1.country, divisions: divisionsOf(competitions, d1.country) }));
+}
+
+/** One promotion and relegation link: clubs swap between these two divisions. */
+export interface PromotionLink {
+  upper: Competition;
+  lower: Competition;
+}
+
+/**
+ * Every adjacent pair of divisions in the world, top-down within each country.
+ *
+ * A one-division country contributes none, which is what gives it no promotion
+ * or relegation for free. A three-division country contributes two, and the
+ * top-down order matters to callers that apply them in sequence.
+ */
+export function promotionLinks(competitions: Competition[]): PromotionLink[] {
+  return countryDivisions(competitions).flatMap(({ divisions }) =>
+    divisions.slice(0, -1).map((upper, i) => ({ upper, lower: divisions[i + 1] })),
+  );
 }
 
 /** Unique country names, in table order. */
 export function countriesOf(competitions: Competition[]): string[] {
   return [...new Set(competitions.map((c) => c.country))];
-}
-
-/** One D1/D2 pair per country, in the table's tier-1 order. */
-export interface Tier1Pair {
-  d1: Competition;
-  /** Null for a one-division country. */
-  d2: Competition | null;
-}
-
-/**
- * Every country's tier-1/tier-2 pair, derived from the table rather than
- * assumed from array position — shared by every caller that needs to walk
- * "each country's two divisions" (promotion/relegation, world generation)
- * so the pairing rule only has one implementation to keep correct.
- */
-export function tier1Pairs(competitions: Competition[]): Tier1Pair[] {
-  return competitions
-    .filter((c) => c.tier === 1)
-    .map((d1) => ({ d1, d2: partnerOrNull(competitions, d1.id) }));
 }
 
 export interface CountryClubRange {
@@ -694,8 +827,8 @@ export interface TeamSlot {
 
 /**
  * Every club slot a fresh world will have, tid -> competition, laid out exactly
- * the way generateWorld() assigns tids (tier1Pairs() order, a country's tier-1
- * block then its tier-2 block). Lets a caller reason about the slot structure
+ * the way generateWorld() assigns tids (countryDivisions() order, and within a
+ * country its divisions top flight first). Lets a caller reason about the slot structure
  * of a save that doesn't exist yet — the new-league roster-file preview needs
  * to know which competition each tid belongs to before paying the cost of
  * generating 6000 players.
@@ -703,8 +836,8 @@ export interface TeamSlot {
 export function worldTeamSlots(competitions: Competition[]): TeamSlot[] {
   const slots: TeamSlot[] = [];
   let tid = 0;
-  for (const { d1, d2 } of tier1Pairs(competitions)) {
-    for (const comp of d2 ? [d1, d2] : [d1]) {
+  for (const { divisions } of countryDivisions(competitions)) {
+    for (const comp of divisions) {
       for (let i = 0; i < competitionTeamCount(comp); i++) {
         slots.push({ tid: tid++, compId: comp.id });
       }
@@ -715,17 +848,17 @@ export function worldTeamSlots(competitions: Competition[]): TeamSlot[] {
 
 /**
  * The tid/CLUBS-index range each country occupies, derived the same way
- * generateWorld() assigns tids (tier1Pairs() order, tier-1 block then tier-2
- * block per country) rather than a hardcoded "40 per country" literal — so a
- * country added to the table, one with a single division, or one with a
- * different number of clubs is all picked up automatically.
+ * generateWorld() assigns tids (countryDivisions() order, each country's
+ * divisions top flight first) rather than a hardcoded "40 per country" literal
+ * — so a country added to the table, one with a single division, one with a
+ * third, or one with a different number of clubs is all picked up automatically.
  */
 export function countryClubRanges(competitions: Competition[]): CountryClubRange[] {
   const ranges: CountryClubRange[] = [];
   let cursor = 0;
-  for (const { d1, d2 } of tier1Pairs(competitions)) {
-    const count = competitionTeamCount(d1) + (d2 ? competitionTeamCount(d2) : 0);
-    ranges.push({ country: d1.country, start: cursor, end: cursor + count });
+  for (const { country, divisions } of countryDivisions(competitions)) {
+    const count = divisions.reduce((sum, c) => sum + competitionTeamCount(c), 0);
+    ranges.push({ country, start: cursor, end: cursor + count });
     cursor += count;
   }
   return ranges;

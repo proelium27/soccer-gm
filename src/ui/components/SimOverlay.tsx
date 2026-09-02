@@ -5,6 +5,7 @@ import type { PlayedMatch } from "../../core/standings.js";
 import type { CupTie } from "../../core/cup/types.js";
 import { cupRoundName } from "../../core/cup/cup.js";
 import { CUP_NAME } from "../../core/constants.js";
+import { isSpectatorTid } from "../../core/spectator.js";
 
 interface SimOverlayProps {
   open: boolean;
@@ -26,11 +27,36 @@ function userGame(md: SimProgress | undefined, userTid: number): PlayedMatch | u
 
 // One card in the ticker: the user's league match, the user's cup tie, or — when
 // a cup round is played on a matchday the user's club isn't in — a compact
-// marker so the tournament is still visible in the animation.
+// marker so the tournament is still visible in the animation. `tally` is the
+// club-less variant: with no match of yours to report, the matchday itself is
+// what there is to say something about.
 export type TickerItem =
   | { kind: "league"; game: PlayedMatch }
+  | { kind: "tally"; matchday: number; games: number; goals: number }
   | { kind: "cup"; tie: CupTie; label: string; sub: string }
   | { kind: "cup-marker"; label: string; sub: string; matchday: number };
+
+/**
+ * What a matchday amounted to, for a save with no club of its own.
+ *
+ * The ticker is otherwise built out of *your* results, and there is no "yours"
+ * here. Showing one world match instead was tried and is wrong: whichever rule
+ * picks it — widest margin, most goals — the answer is a game between two clubs
+ * the viewer has no stake in, which is noise however it is chosen. Ranking ~200
+ * matches a matchday by how interesting they are is a real feature and not one
+ * to guess at inside an animation.
+ *
+ * The whole matchday is the thing a spectator actually has a stake in, so that
+ * is what this counts. It is never arbitrary, it moves every round, and it is a
+ * sum rather than a choice.
+ */
+function matchdayTally(md: SimProgress | undefined): { games: number; goals: number } | null {
+  const results = md?.results ?? [];
+  if (results.length === 0) return null;
+  let goals = 0;
+  for (const r of results) goals += r.homeGoals + r.awayGoals;
+  return { games: results.length, goals };
+}
 
 /**
  * What the ticker shows for one simmed matchday. Exported for tests: the
@@ -39,8 +65,16 @@ export type TickerItem =
  */
 export function tickerItemsFor(md: SimProgress, userTid: number): TickerItem[] {
   const items: TickerItem[] = [];
-  const league = userGame(md, userTid);
-  if (league) items.push({ kind: "league", game: league });
+  if (isSpectatorTid(userTid)) {
+    // No club, so no match of yours to lead with. The cup markers below still
+    // apply unchanged: they were already the "your club isn't in this one"
+    // case, which is now every case.
+    const tally = matchdayTally(md);
+    if (tally) items.push({ kind: "tally", matchday: md.matchday, ...tally });
+  } else {
+    const league = userGame(md, userTid);
+    if (league) items.push({ kind: "league", game: league });
+  }
 
   const userTie = md.cupTies.find((t) => t.home === userTid || t.away === userTid);
   if (userTie) {
@@ -140,7 +174,9 @@ export function SimOverlay({ open, teams, queue, done, userTid, onComplete }: Si
           </div>
           <div className="sim-overlay-ticker" ref={tickerRef}>
             {revealedItems.length === 0 && (
-              <div className="text-muted small">Kicking off...</div>
+              <div className="text-muted small">
+                {isSpectatorTid(userTid) ? "Playing the world's matches..." : "Kicking off..."}
+              </div>
             )}
             {revealedItems.map((item) => {
               if (item.kind === "league") {
@@ -163,6 +199,26 @@ export function SimOverlay({ open, teams, queue, done, userTid, onComplete }: Si
                     <div className="sim-ticker-row">
                       <span className="sim-ticker-team">{teamLabel(teams, oppTid)}</span>
                       <span className="sim-ticker-score">{oppGoals}</span>
+                    </div>
+                  </div>
+                );
+              }
+
+              // The same two-row card shape, counting the round rather than
+              // naming two clubs nobody following this save has a stake in.
+              if (item.kind === "tally") {
+                return (
+                  <div
+                    key={`t-${item.matchday}`}
+                    className="sim-ticker-card sim-ticker-draw"
+                  >
+                    <div className="sim-ticker-row">
+                      <span className="sim-ticker-team">Games</span>
+                      <span className="sim-ticker-score">{item.games}</span>
+                    </div>
+                    <div className="sim-ticker-row">
+                      <span className="sim-ticker-team">Goals</span>
+                      <span className="sim-ticker-score">{item.goals}</span>
                     </div>
                   </div>
                 );

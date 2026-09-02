@@ -34,8 +34,10 @@ export function DivisionBadge({ competitions, compId, rank }: DivisionBadgeProps
   return (
     <span
       className={
-        "division-badge "
-        + (comp.tier === 1 ? "division-badge--d1" : "division-badge--d2")
+        // One modifier per tier, so a deeper pyramid reads as a gradient
+        // rather than collapsing everything below the top flight into one
+        // colour. Anything past the deepest styled tier reuses its class.
+        `division-badge division-badge--d${Math.min(comp.tier, 3)}`
       }
       title={comp.name}
     >

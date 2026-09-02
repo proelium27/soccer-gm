@@ -10,9 +10,8 @@
 
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
-import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
-import { playFullSeason } from "../helpers/offseasonLeague.js";
+import { playFullSeason, playSeason } from "../helpers/offseasonLeague.js";
 
 describe("simOffseason — solvency over multiple seasons", () => {
   it("keeps every AI club solvent and grows the league's total budget each season", () => {
@@ -33,7 +32,7 @@ describe("simOffseason — solvency over multiple seasons", () => {
         if (team.tid !== userTid) expect(team.budget).toBeGreaterThanOrEqual(0);
       }
       expect(total(league)).toBeGreaterThan(totalBefore);
-      league = simThrough(league, "season", rng);
+      league = playSeason(league, rng);
     }
   });
 });

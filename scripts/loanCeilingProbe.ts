@@ -6,7 +6,7 @@
  * (transferMarket.ts, inboundOffers.ts). `loans.ts` does not — it never imports
  * DIVISION_2_REFUSAL_OVR_THRESHOLD at all.
  *
- * That would matter more than a normal leak, because `enforceDivision2Ceiling`
+ * That would matter more than a normal leak, because `enforceDivisionCeilings`
  * cannot clean it up: the sweep deliberately skips loaned pids (moving one would
  * leave processLoanReturns handing a copy back to the parent, i.e. the same pid
  * on two rosters), so a loaned-in 70+ player sits in Division 2 untouchable for

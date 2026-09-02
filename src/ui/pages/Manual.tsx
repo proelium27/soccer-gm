@@ -15,6 +15,7 @@ import { useSportName } from "../sportName.js";
 const SECTIONS: [id: string, title: string][] = [
   ["overview", "Overview"],
   ["difficulty", "Difficulty"],
+  ["spectator", "Spectating: A Save With Nobody in Charge"],
   ["manager", "Your Job: Confidence, Offers & Sackings"],
   ["pages", "The Pages"],
   ["season", "The Season & Simming"],
@@ -89,6 +90,12 @@ export function Manual() {
             season, or three seasons out. Your call.
           </p>
           <p>
+            If you'd rather not run anybody, you don't have to. A save can be started as a{" "}
+            <a href="#spectator">spectator</a>, with every club in the world left to the AI and you
+            watching what it does with them. That's a choice you make when you create the save, and
+            it can't be changed afterwards.
+          </p>
+          <p>
             The other 19 clubs are run by AI managers doing all the same stuff you are. They value
             players, buy, sell, renew contracts, and bring up youth, each one driven by its own
             situation rather than some script (there's a whole section on this: <a href="#ai">How
@@ -152,6 +159,14 @@ export function Manual() {
             would otherwise end up on the wrong team. Colors do carry over.
           </p>
           <p>
+            Every club in it carries a real name, but not every one carries a real squad, because
+            the source data doesn't reach that far down. Serbia, the second tiers of Portugal,
+            Belgium, Turkey, the Netherlands, Scotland and Greece, and most of the Greek top flight
+            get real names with generated players. Everywhere else has both. The file is rebuilt
+            when the ratings are, and the link never changes, so downloading it again is how you
+            get a newer one.
+          </p>
+          <p>
             You can hand it more than one file. Select as many as you like at once, or load one and
             then use "Add another file" on the club picker, and they all go into the same league. A
             file per league is usually the sane way to do it, since asking an AI for twelve leagues
@@ -184,6 +199,14 @@ export function Manual() {
             up entirely. Then save its reply as a <code>.json</code> file and start a league with it
             using "Import" on the Leagues screen. (If your browser blocks clipboard access, the button
             downloads the prompt as a text file instead.)
+          </p>
+          <p>
+            Two things the prompt now spells out for the AI, because both of them go wrong quietly.
+            It can only fill leagues your world actually has, so if you ask for one it hasn't got it
+            will say so rather than invent a name, which the importer would skip without a word. And
+            it has to keep each division inside its real size, since a division here can be anywhere
+            from ten clubs to twenty. Both are why the prompt carries your world's league names and
+            sizes rather than being the same text for everyone.
           </p>
           <p>
             England's and Spain's clubs all have real crest art that shows up wherever the club's
@@ -246,6 +269,74 @@ export function Manual() {
             your scouting is stuck at zero while you're overdrawn, which makes potential even harder
             to read. It's recoverable, but you recover by selling. On Brutal that's less a warning
             than a description of the job.
+          </p>
+        </Section>
+
+        <Section id="spectator" title="Spectating: A Save With Nobody in Charge">
+          <p>
+            You don't have to manage anyone. Above the club picker on the New League screen there's
+            a <strong>Spectator mode</strong> switch. Leave it off and you get the game the rest of
+            this manual describes. Turn it on and the same world gets built and then left entirely
+            to the AI, with no club picker and no club of your own. You still run time. You just
+            don't run a team.
+          </p>
+          <p>
+            <strong>It's fixed for the life of the save.</strong> A spectator save isn't handed a
+            club later, and a save with a club can't give one up. Normal play has no switch for it
+            either way, so if you get twenty seasons in and decide you'd rather be managing
+            somebody, that means a new save. The one exception is <a href="#godmode">God Mode</a>,
+            which will let you walk in and take charge of any club the same way it lets you do
+            anything else, and that's a one-way trip. Worth being sure before you press Start
+            Watching.
+          </p>
+          <p>
+            None of the football changes. The AI already runs every club except yours, and
+            spectating just takes away the exception. It's the same handover the{" "}
+            <a href="#season">jump ahead</a> button makes while you're away, kept permanently.
+            Transfers, free agency, contract renewals, squad trimming, formations, promotion and
+            relegation all carry on exactly as they would have, so what you're watching is the
+            world this game would have produced anyway.
+          </p>
+          <p>
+            You keep the whole sim card: one matchday, the rest of the season, sim to a matchday you
+            pick, the offseason, each stage of the summer's international football, and{" "}
+            the top bar's <strong>Jump</strong> menu for up to 25 seasons at a time. Everything about the world
+            stays open too. Standings, all three cup competitions, the promotion playoffs, Power
+            Rankings, Schedule, Stat Leaders, Awards, Club History, Frivolities, Season Preview, the
+            News Feed, every National Teams page, and the profile of every player and every club in
+            the world. The <a href="#pages">Watchlist</a> comes with you as well, moved up into the
+            League part of the sidebar, which is a good way to follow a sixteen-year-old you've
+            spotted in somebody's academy and find out what becomes of him.
+          </p>
+          <p>
+            What's gone is everything that needed a squad of your own: Roster, Transfers, Incoming
+            Offers, Loans, Finance, Incoming Talent, Free Agents, the Academy, the scouting slider
+            and the Manager page. They're dropped from the sidebar rather than greyed out, since
+            there's never going to be a club behind them, and an old bookmark to one of them lands
+            on a short note saying you're spectating. There's no board, no confidence bar, no
+            sackings and no job offers, so <a href="#manager">Your Job</a> doesn't apply to you at
+            all. National teams go the same way: you can watch every World Cup, qualifying campaign
+            and confederation cup, but you don't manage a country and no federation ever gets in
+            touch, because a spectator holds no jobs of any kind. And there's no{" "}
+            <strong>Watch Next Game</strong>, since that plays out your own club's match and you
+            haven't got one.
+          </p>
+          <p>
+            Your Dashboard is a page of its own: the season and matchday with a Spectating badge,
+            the sim controls, a league table with a dropdown for any competition in the
+            world, and that league's latest matchday beside it, every game with the score
+            once it's been played. Along the bottom are the ten
+            best clubs anywhere by power ranking, and the Continental Cup and Continental Shield,
+            each showing its league phase table until the knockout starts and its bracket after
+            that. And the News Feed carries world-level news only, so the big transfers, the
+            trophies, the awards and who went up and who went down. It normally works out what to
+            show you by which league is yours, and here none of them is.
+          </p>
+          <p>
+            In the offseason, any summer with a tournament in it gets its own panel up near the sim
+            controls: the World Cup bracket every fourth year, and the confederation championships
+            two years after that, all of them side by side. The other two summers are qualifying
+            only, so there's no panel for them.
           </p>
         </Section>
 
@@ -340,7 +431,7 @@ export function Manual() {
           <p>Every screen in the game and what it's for:</p>
           <ul>
             <li><strong>Manager</strong>. Your job: how the board feels about you, any clubs that want to hire you, and the record of every club you've managed. Also where the "never sack me" switch lives.</li>
-            <li><strong>Dashboard</strong>. Your current W/D/L record and next fixture front and center, with your division's standings on the left and the latest news headlines on the right. Below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim controls.</li>
+            <li><strong>Dashboard</strong>. Your current W/D/L record and next fixture front and center, with your division's standings on the left and the latest news headlines on the right. Below that, a Stat Leaders section splits league-wide leaders from your own squad's leaders across a few key stats, and below that a finances snapshot with the scouting-spend slider and the sim controls. Right at the bottom, away from all of that, sit three panels about the rest of the world: the ten best clubs anywhere by power ranking with your own picked out, and the Continental Cup and Continental Shield, each showing its league phase table until the knockout starts and its bracket after that. In the offseason a fourth joins them whenever there's a tournament on, which is the World Cup every fourth year and the confederation championships two years after that.</li>
             <li><strong>Standings</strong>. The league table, plus each club's current OVR/POT. A season dropdown lets you pull up any past season&apos;s final table next to the current one. The champion&apos;s row is highlighted, and the <a href="#cup">Continental Cup</a> and <a href="#shield">Continental Shield</a> qualification places are shaded.</li>
             <li><strong>Continental Cup</strong>. The live league-phase table and knockout bracket for the current season, plus past winners via a season dropdown. More in <a href="#cup">The Continental Cup</a>.</li>
             <li><strong>Continental Shield</strong>. The same page for the second competition, for clubs finishing just below the Cup places. More in <a href="#shield">The Continental Shield</a>.</li>
@@ -357,6 +448,7 @@ export function Manual() {
             <li><strong>News Feed</strong>. Transfers and player accomplishments woven into one timeline per season, with club and season filters, and your club's items highlighted. It's filtered by how much the story has to do with you, because the world is sixteen leagues across eight countries and reporting all of them equally buries you in news about clubs you'll never play. Your own club is always in, whatever it did &mdash; every transfer, loan, loan return and free signing, and every accomplishment. Your league is next: every deal (loans included) and every accomplishment in it. From the rest of the world you only get the big stories &mdash; a four-goal haul, a 100th career goal, a 35-goal season, the standout performance of the matchday, the Ballon d'Or, the World Team of the Year, Goalkeeper and Defender of the Year, and transfers over $40M. Accomplishments themselves are hat-tricks, one standout performance a matchday, career goal milestones at 50 and then every 50, season goal milestones at 25 and then every 5, and position changes for established players. <strong>Trophies and end-of-season awards land in the feed too</strong>, at the bottom of the season they belong to. Trophies first: who won the Continental Cup and the Continental Shield, and who won the World Cup and each confederation cup, with the final score. Then the honours: anything one of your players wins, plus your league's Player of the Season, Golden Boot and Team of the Season. All of it comes straight off the same records the Awards and cup pages read, so old saves show every trophy and honour they ever handed out, right back to season 1. Last of all comes what it changed: <strong>countries winning and losing Continental Cup places</strong>, saying which way the places went and what the counts went from and to. Those are always reported, wherever they happen, because a place changes hands well under once a season across the whole world and when it does it reshapes the competition everyone plays in. They're worked out from the cups your save already has on record too, so an old dynasty shows every place it ever won or lost. Trophies also reach your dashboard's news panel the moment they're won, and an honour won by one of your own players sits there until the new season kicks off.</li>
             <li><strong>Roster</strong>. Your squad: your Starting XI on a pitch view (with an optional Depth Chart overlay), a stats table for the XI, and a bench table (both with ratings, ages, contracts, and season stats, and goalkeepers also show goals against and xG against). Drag a bench player onto a pitch slot to swap him into the XI, drag one starter onto another to switch their positions, extend contracts, or release players.</li>
             <li><strong>Transfers</strong>. Recommended targets you can actually afford, plus your live negotiations. Make offers, read counter-offers, close deals.</li>
+            <li><strong>Watchlist</strong>. Players you&apos;ve starred to keep an eye on. Click the star beside anyone&apos;s name &mdash; on his profile, in the transfer search, or on the Free Agents and Incoming Talent lists &mdash; and he shows up here with his club, this season&apos;s form, his wage, when his contract runs out, what your scouts think he&apos;s worth, and whether his club would entertain an offer at all. It&apos;s a shortlist and nothing more: watching a player doesn&apos;t scout him, doesn&apos;t tell his club anything, and doesn&apos;t change what he costs. Everything on it is worked out fresh each time you open it, so a name you starred three seasons ago shows the club he&apos;s at today at today&apos;s price. He drops off on his own if he retires.</li>
             <li><strong>Incoming Offers</strong>. AI clubs bidding for <em>your</em> players. Accept, reject, or counter to push the fee upward.</li>
             <li><strong>Loans</strong>. List your own players for a fixed-length loan, look over AI clubs' incoming loan offers, and keep track of who's currently out on loan.</li>
             <li><strong>Finance</strong>. Budget, the full wage-bill table, a projected (or final) season settlement, your transfer history, and a league-wide money table.</li>
@@ -454,7 +546,7 @@ export function Manual() {
             rollover starts the new season fit.
           </p>
           <p>
-            <strong>Jumping ahead.</strong> The <strong>Jump ahead</strong> card on the Dashboard
+            <strong>Jumping ahead.</strong> The <strong>Jump</strong> menu in the top bar, next to Sim,
             plays whole seasons at once &mdash; up to 25 &mdash; with the AI running your club
             while they go by. It's for seeing where a world ends up, or for skipping past a
             rebuild you don't fancy managing. It works mid-season too: it finishes the season
@@ -484,9 +576,19 @@ export function Manual() {
             <strong>Spain</strong>, <strong>Italy</strong>, <strong>Germany</strong>,{" "}
             <strong>France</strong>, the <strong>Netherlands</strong>, <strong>Portugal</strong>,{" "}
             <strong>Belgium</strong>, <strong>Turkey</strong>, <strong>Greece</strong>,{" "}
-            <strong>Scotland</strong> and <strong>Serbia</strong>), each with its own two-division
-            pyramid, for 24 leagues and 420 clubs total. You pick any club in any country and
+            <strong>Scotland</strong> and <strong>Serbia</strong>), each with its own league
+            pyramid, for 36 leagues and 626 clubs total. You pick any club in any country and
             division when you start.
+          </p>
+          <p>
+            <strong>Every country runs three divisions.</strong> Sizes vary — England, Spain and
+            Italy field 20 in every tier, down to Scotland's 10 in its bottom two — and the third
+            tier works like any other division: its own table, its own promotion and relegation with
+            the division above, its clubs in the domestic cup. Starting down there is the longest
+            climb the game offers. Be warned that it's a genuinely different game: third-division
+            money is a fraction of top-flight money, and a youth academy that deep produces very
+            little, so you'll be building out of the transfer market and out of whoever you can keep
+            hold of.
           </p>
           <p>
             <strong>Leagues are the size they are in real life</strong>, not all the same. England,
@@ -502,7 +604,9 @@ export function Manual() {
             <strong>Promotion and relegation scale with that.</strong> Most countries swap three
             clubs each way, but Portugal, Belgium, the Netherlands, Greece and Serbia swap two, and
             Scotland only one — three up out of a 10-club second division would turn over a third
-            of it every season.
+            of it every season. Where there's a third division the same count applies to both
+            links, and each is settled on its own final table, so you can only ever move one
+            division a season.
           </p>
           <p>
             <strong>The last promotion place is a playoff, and there are two systems.</strong>{" "}
@@ -578,7 +682,7 @@ export function Manual() {
             ones, with the last place up decided by a playoff) runs on its
             own within each country at the end of every season, so a rough season in Spain's top
             flight doesn't touch any other country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
-            grouped by country, so you can browse any of the 24 leagues. It defaults to
+            grouped by country, so you can browse any of the 36 leagues. It defaults to
             whichever one your own club is currently in.
           </p>
           <p>
@@ -616,13 +720,22 @@ export function Manual() {
             added ones alike. Leave one empty and it goes back to following the country's name.
           </p>
           <p>
-            This matters for more than flavour: a world-wide roster file names the competition it
-            fills, and it finds it <em>by that name</em>. So a file written for the Eredivisie fills
-            nothing until this world has a league called the Eredivisie, which you get by renaming
-            one, or by adding one and naming it. The Import Custom League screen tells you which of
-            your file's leagues it couldn't place, and World setup sits directly underneath so you
-            can fix it and watch the count of matched clubs change. If two divisions end up with the
-            same name the panel warns you, because a file aimed at that name can only fill one.
+            <strong>Renaming won't break a roster file.</strong> A world-wide roster file names the
+            competition it fills, but the name isn't the only thing it's found by: if the name
+            doesn't match anything, the game reads it as the country and division it describes and
+            looks there instead. So a file written for "English Division 1" still fills your top
+            flight after you've renamed it to the Premier League, and the real-rosters download
+            keeps working however much of the world you've renamed. Countries can't be renamed on
+            shipped leagues, which is what makes that reliable.
+          </p>
+          <p>
+            The name still does real work in the other direction: a file written for a league this
+            world doesn't have — the Eredivisie, say, if you've switched the Netherlands off —
+            fills nothing until you rename a league to it or add one and name it. The Import Custom
+            League screen tells you which of your file's leagues it couldn't place, and World setup
+            sits directly underneath so you can fix it and watch the count of matched clubs change.
+            If two divisions end up with the same name the panel warns you, because a file aimed at
+            that name can only fill one.
           </p>
           <p>
             You also choose a league's <strong>shape</strong>: one division or two, how many clubs
@@ -725,11 +838,12 @@ export function Manual() {
             used to be before this panel existed.
           </p>
           <p>
-            There are 108 nations to choose from, covering every confederation, so a league can be
-            Gulf, east African, south-east Asian or Oceanian rather than only European. Fifteen of
-            the newer ones have no flag art and show a plain swatch next to the name instead, which
-            is deliberate: their flags are Arabic script or a coat of arms, and a wrong flag reads
-            worse than none.
+            There are 211 nations to choose from, which is every country that plays international
+            football. So a league can be Taiwanese, Icelandic, Haitian, Nepalese or Samoan, not just
+            European, and every one of them brings its own pool of about three thousand names rather
+            than borrowing somebody else's. About half of them have no flag art and show a plain
+            swatch next to the name instead, which is deliberate: those flags are Arabic script, a
+            coat of arms or a dragon, and a wrong flag reads worse than none.
           </p>
           <p>
             A roster file can carry the mix too, as a <code>nationalities</code> block. Loading one
@@ -855,10 +969,19 @@ export function Manual() {
             highlighted; each two-legged tie lists both leg scores beneath it.
           </p>
           <p>
-            Prize money is real and it's paid as you go. Every club banks a participation fee for
-            reaching the league phase, winning a playoff tie pays more, and each knockout round you
-            win pays more than the last. Going all the way is worth a serious chunk on top of your
-            normal league finances, enough to reshape a transfer budget.
+            Prize money is real, it's paid as you go, and the biggest single cheque is for{" "}
+            <strong>getting there at all</strong>. Qualifying for the league phase banks $10M on its
+            own, half of what finishing in the top quarter of your league pays, and it lands whether
+            you go on to win a game or not. After that every league-phase result is worth
+            money too: $1.5M for a win, $500k each for a draw. Six games, six chances to earn.
+          </p>
+          <p>
+            Going deep pays more on top. A playoff win is $3M, the quarter-final $6M, the semi-final
+            $9M, and lifting the trophy $14M, with $5M for losing the final. Win the lot from the
+            playoff round and you'll clear $40M across the campaign. That shape is deliberate, and
+            it's the one real continental football has: simply being in it is transformative,
+            especially for a club from a smaller league, and a deep run is a bonus rather than the
+            only thing worth having. Qualifying is a season's work and it's paid like one.
           </p>
           <p>
             Cup matches are their own thing. Goals, assists and appearances there are tracked{" "}
@@ -919,11 +1042,12 @@ export function Manual() {
             reaches the final the sim stops just before it.
           </p>
           <p>
-            The money is real but smaller: participation, a playoff win and each knockout round all
-            pay, at roughly <strong>40%</strong> of the Cup's rates. Winning the whole thing is worth
-            about what a decent cup run is, not what winning the Cup is. That's the point of it —
-            finishing 5th now has something to play for, and a mid-table club can put a trophy in the
-            cabinet, without it ever rivalling the Cup.
+            The money is real but smaller, at roughly <strong>40%</strong> of the Cup's rates, and
+            it's front-loaded the same way: $4M for qualifying, $600k a win and $200k a draw in the
+            league phase, then $1.5M for a playoff win and $2.5M / $3.5M / $5.5M through the
+            knockout. Winning the whole thing is worth about what a decent cup run is, not what
+            winning the Cup is. That's the point of it: finishing 5th now has something to play for,
+            and a mid-table club can put a trophy in the cabinet, without it ever rivalling the Cup.
           </p>
           <p>
             Shield stats are tracked the same way cup stats are, separately from your league season,
@@ -1626,6 +1750,15 @@ export function Manual() {
             <li><strong>Winter</strong>. Matchdays 18&ndash;22 (mid-December to late January). Matchday 22 is <strong>deadline day</strong>, and simming to matchday 21 lands you on it with the window still open.</li>
           </ul>
           <p>
+            <strong>Keeping a shortlist.</strong> The star beside a player's name puts him on your{" "}
+            <strong>Watchlist</strong>, which is just a list of names you're keeping an eye on. It
+            shows each of them with his club, his form this season, his wage and contract, what your
+            scouts reckon he's worth, and whether his club would take an offer &mdash; so you can
+            line targets up in October and act on them when the window opens. It changes nothing
+            about the player: he isn't scouted any harder, his club never finds out, and his price
+            doesn't move.
+          </p>
+          <p>
             <strong>Market value.</strong> A player's value climbs steeply with OVR (an average
             starter runs $35&ndash;45M, an elite player can top $150M), then gets multiplied by age
             (youth is a premium here, since you're buying years of control and resale value, so value
@@ -2260,6 +2393,7 @@ export function Manual() {
 
         <Section id="faq" title="FAQ & Known Quirks">
           <p><strong>How do I win?</strong> You don't, the game never ends. Set your own goal: a title, a decade of dominance, an all-academy XI.</p>
+          <p><strong>Can I take over a club in a spectator save, or give mine up in a normal one?</strong> Not in normal play. Which of the two a save is gets decided when you create it and it's fixed from there, so changing your mind usually means starting again. <a href="#godmode">God Mode</a> will let a spectator take charge of a club, since it lets you do most things, but it doesn't work the other way round. See <a href="#spectator">Spectating</a>.</p>
           <p><strong>Where can I see that a player is injured?</strong> Injured players show a red cross on your Roster (on the pitch chip and next to their name in the tables) and on their profile, and your Dashboard has an Injuries list of everyone currently out and roughly how long. They sit out on their own until they're fit.</p>
           <p><strong>Can I change formation?</strong> Yep. Pick from sixteen shapes (4-3-3, 4-4-2, 3-5-2, 5-3-2, 4-2-3-1, 4-5-1, 3-4-3, 5-4-1, 4-3-1-2, 4-4-1-1, 4-3-2-1, 4-2-2-2, 3-4-2-1, 3-5-1-1, 5-2-3, 5-2-1-2) in the dropdown above the pitch on the Roster page. It changes which eleven you field (and so your match strength), and resets your Starting XI to the best fit for the new shape. Or just click <strong>Best XI</strong> next to the dropdown to let the game pick the shape that fields your strongest eleven and fill the lineup for you. Each AI club automatically uses whichever shape fields its own strongest eleven, refreshed at the end of each transfer window (summer and winter).</p>
           <p><strong>Can I go into debt?</strong> AI clubs are tuned never to. You can, by hoarding elite wages past what the base allocation covers. The Finance page shows you the shortfall before it hits. There are no debt consequences yet beyond the number itself.</p>

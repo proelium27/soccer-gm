@@ -136,15 +136,32 @@ function seasonStanding(
 
   const percentile = 1 - index / (rows.length - 1);
   const tier = competitions.find((c) => c.id === compId)?.tier ?? 1;
-  // One continuous world scale with the divisions meeting at the seam: tier 1
-  // occupies [seam, 1] and tier 2 [0, seam], so a second-division title and a
-  // last-place top-flight finish come out equal. Scaling only tier 2 (the first
-  // version) left tier-1 strugglers *below* mid-table tier-2 clubs, which had
-  // relegated sides expected to finish near the bottom of the division they had
-  // just dropped into.
-  return tier === 2
-    ? percentile * MANAGER_EXPECTATION_TIER_SEAM
-    : MANAGER_EXPECTATION_TIER_SEAM + percentile * (1 - MANAGER_EXPECTATION_TIER_SEAM);
+  // One continuous world scale with the divisions meeting at the seams: tier 1
+  // occupies [seam, 1] and every tier below it takes a band of width `seam`
+  // under that, so tier 2 is [0, seam], tier 3 is [-seam, 0], and so on. A
+  // second-division title and a last-place top-flight finish come out equal,
+  // and so do a third-division title and a last-place second-division finish.
+  // Scaling only tier 2 (the first version) left tier-1 strugglers *below*
+  // mid-table tier-2 clubs, which had relegated sides expected to finish near
+  // the bottom of the division they had just dropped into.
+  //
+  // **Going negative is fine, and that is the whole reason a third division
+  // needs no retune of the two above it.** The only consumer of this number
+  // feeds it through normalizeWithinComp, which min-max rescales each
+  // competition against its own observed range — so nothing reads the absolute
+  // value and the scale is not bounded to [0, 1]. Tiers 1 and 2 keep exactly
+  // the numbers they had; the deeper bands are simply appended below.
+  //
+  // The bug this replaces: `tier === 2 ? low : high` sent EVERY other tier into
+  // the top-flight band, so winning the third division scored 1.000 — identical
+  // to winning the top flight — and finishing bottom of it outscored mid-table
+  // in the second. A third-division manager was judged on top-flight standards.
+  if (tier <= 1) {
+    return MANAGER_EXPECTATION_TIER_SEAM
+      + percentile * (1 - MANAGER_EXPECTATION_TIER_SEAM);
+  }
+  const bandTop = MANAGER_EXPECTATION_TIER_SEAM * (3 - tier);
+  return bandTop - (1 - percentile) * MANAGER_EXPECTATION_TIER_SEAM;
 }
 
 /**

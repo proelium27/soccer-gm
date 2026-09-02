@@ -3,6 +3,8 @@ import { tickerItemsFor } from "../../src/ui/components/SimOverlay.js";
 import type { SimProgress } from "../../src/ui/useSimWorker.js";
 import type { CupTie } from "../../src/core/cup/types.js";
 import type { DomesticTieResult } from "../../src/core/simThrough.js";
+import type { PlayedMatch } from "../../src/core/standings.js";
+import { SPECTATOR_TID } from "../../src/core/spectator.js";
 
 const USER = 120; // a German club, in this fixture
 
@@ -65,5 +67,63 @@ describe("sim ticker — domestic cup labelling", () => {
   it("is unbothered by a matchday with no domestic ties", () => {
     expect(() => tickerItemsFor(progress([]), USER)).not.toThrow();
     expect(tickerItemsFor(progress([]), USER)).toEqual([]);
+  });
+});
+
+
+/**
+ * A spectator save has no club, so the ticker's whole premise — your league
+ * match, your cup tie — comes up empty and the strip sat on a placeholder for
+ * the length of a season sim. It counts the matchday instead.
+ */
+describe("sim ticker — a save with no club", () => {
+  function match(home: number, away: number, homeGoals: number, awayGoals: number): PlayedMatch {
+    return { matchday: 9, home, away, homeGoals, awayGoals } as PlayedMatch;
+  }
+
+  function withResults(results: PlayedMatch[]): SimProgress {
+    return { matchday: 9, matchdayIndex: 0, totalMatchdays: 38, results, cupTies: [], domesticTies: [] };
+  }
+
+  /**
+   * Showing one world match was tried and rejected: whichever rule picks it —
+   * widest margin, most goals — the answer is a game between two clubs the
+   * viewer has no stake in. The whole round is a sum rather than a choice.
+   */
+  it("counts the round rather than picking a game out of it", () => {
+    const items = tickerItemsFor(withResults([
+      match(1, 2, 1, 0),
+      match(3, 4, 5, 0),
+      match(5, 6, 4, 3),
+    ]), SPECTATOR_TID);
+
+    expect(items).toHaveLength(1);
+    const card = items[0];
+    expect(card.kind).toBe("tally");
+    expect(card.kind === "tally" && card.games).toBe(3);
+    expect(card.kind === "tally" && card.goals).toBe(13);
+  });
+
+  it("still marks the cup round being played that day", () => {
+    const md = withResults([match(1, 2, 1, 0)]);
+    md.cupTies = [tie(3, 4)];
+    const items = tickerItemsFor(md, SPECTATOR_TID);
+    expect(items.some((i) => i.kind === "tally")).toBe(true);
+    expect(items.some((i) => i.kind === "cup-marker")).toBe(true);
+  });
+
+  it("shows nothing rather than throwing on a matchday with no matches", () => {
+    expect(tickerItemsFor(withResults([]), SPECTATOR_TID)).toEqual([]);
+  });
+
+  it("leaves the managed case alone", () => {
+    const items = tickerItemsFor(withResults([
+      match(1, 2, 6, 0),
+      match(USER, 4, 1, 1),
+    ]), USER);
+    // His own match, drawn as his, and no world tally beside it.
+    expect(items[0].kind).toBe("league");
+    expect(items[0].kind === "league" && items[0].game.home).toBe(USER);
+    expect(items.some((i) => i.kind === "tally")).toBe(false);
   });
 });

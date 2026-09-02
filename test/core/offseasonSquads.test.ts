@@ -77,7 +77,7 @@ describe("simOffseason — youth intake and free agency", () => {
     const rng = mulberry32(31);
     // Deliberately runs a *second* season before checking. After only one
     // season nobody's contract has expired and nobody has retired, so the free
-    // pool's only source is collateral from enforceDivision2Ceiling releasing a
+    // pool's only source is collateral from enforceDivisionCeilings releasing a
     // club's weakest man to make room. That used to be plentiful because the
     // transfer market kept selling good players into Division 2 for the sweep
     // to confiscate back; now that stars no longer pour downhill (playerWill.ts

@@ -6,7 +6,7 @@ import {
 import { computeCountrySwaps } from "../../src/core/promotion.js";
 import {
   englandCompetitions, buildCompetitions, competitionPlayoffFormat, worldCompetitions,
-  tier1Pairs,
+  countryDivisions,
 } from "../../src/core/competitions.js";
 import type { StandingsRow } from "../../src/core/standings.js";
 import type { CupTie } from "../../src/core/cup/types.js";
@@ -38,7 +38,8 @@ function country(format: PlayedPlayoffFormat | "none", spots = 3, d1 = 20, d2 = 
 describe("competitionPlayoffFormat", () => {
   it("gives each shipped country its own real system", () => {
     const byCountry = new Map(
-      tier1Pairs(worldCompetitions()).map(({ d1, d2 }) => [d1.country, competitionPlayoffFormat(d1, d2)]),
+      countryDivisions(worldCompetitions())
+        .map(({ country, divisions }) => [country, competitionPlayoffFormat(divisions[0], divisions[1] ?? null)]),
     );
     // The Bundesliga settles its last place against 2. Bundesliga's third.
     expect(byCountry.get("Germany")).toBe("german");

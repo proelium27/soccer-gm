@@ -31,6 +31,7 @@ import { usePlayerRefs } from "../components/PlayerRefLink.js";
 import { ClubLink } from "../components/ClubLink.js";
 import { Flag } from "../components/Flag.js";
 import { currency, seasonYear } from "../format.js";
+import { isSpectator } from "../../core/spectator.js";
 
 type Tab = "goat" | "awards" | "records" | "leaders" | "international" | "bios" | "clubs";
 
@@ -631,7 +632,11 @@ export function AwardsTab() {
   );
   if (!league || !trivia) return null;
 
-  const shownTid = xiTid ?? league.meta.userTid;
+  // Whose all-time XI to open on. Your own club, or — with nobody managing one
+  // — the first in the world, since the user's tid owns no squad to build one
+  // from and the board would open on a permanently empty pitch.
+  const shownTid = xiTid
+    ?? (isSpectator(league) ? league.teams[0]?.tid ?? -1 : league.meta.userTid);
 
   if (trivia.seasonsRecorded === 0) {
     return (
@@ -860,7 +865,7 @@ function teamSeasonCells(r: TeamSeasonRecord): ReactNode[] {
   return [
     <ClubCell tid={r.tid} season={r.season} />,
     seasonYear(r.season),
-    r.tier === 2 ? "D2" : "D1",
+    `D${r.tier}`,
     `${r.row.won}-${r.row.drawn}-${r.row.lost}`,
     r.row.points,
     r.ppg.toFixed(2),

@@ -3,6 +3,7 @@ import type { TeamIdentityEdit } from "./customize.js";
 import type { PlayerRatings, Position } from "../players/types.js";
 import { POSITIONS, SKILL_KEYS } from "../players/types.js";
 import { sanitizeNationalityWeights, type NationalityWeights } from "../players/nationalities.js";
+import { worldCompetitions, MAX_DIVISIONS } from "../competitions.js";
 
 /**
  * A compact, human/AI-authorable file describing clubs to overlay onto an
@@ -52,8 +53,27 @@ export interface RosterFileClub {
 }
 
 export interface RosterFileCompetition {
-  /** The name of the competition to overlay (e.g. "English Division 1"). Matched case-insensitively against league.competitions. */
+  /**
+   * The name of the competition to overlay (e.g. "English Division 1"), matched
+   * case-insensitively against league.competitions.
+   *
+   * A name is a WEAK identifier, because division names are the player's to
+   * change: someone who renames England's top flight to "Premier League" would
+   * otherwise find every file written for "English Division 1" silently
+   * skipped. So a name matching nothing falls back to the country and tier it
+   * describes — see competitionRef and resolveRosterSlots.
+   */
   match: string;
+  /**
+   * Which country's league this is, as the game names it ("England",
+   * "Netherlands"). Optional, and the STRONGEST identifier of the three: a
+   * shipped country's name is fixed and unrenameable, so a file that states one
+   * keeps landing however the divisions are renamed. Absent, it is derived from
+   * `match` where that reads as a division name.
+   */
+  country?: string;
+  /** Which division of `country`: 1 = top flight, 2 = second, 3 = third. Defaults to 1. */
+  tier?: number;
   /** Clubs in slot order; up to the competition's team count. Extra entries are ignored (with a warning). */
   clubs: RosterFileClub[];
 }
@@ -118,8 +138,73 @@ export function isRosterFileFormat(value: unknown): value is RosterFileFormat {
  * without generating a world first.
  */
 export interface RosterSlotWorld {
-  competitions: { id: number; name: string }[];
+  competitions: { id: number; name: string; country: string; tier: number }[];
   teams: { tid: number; compId: number }[];
+}
+
+/** Which league a file competition claims, independent of what it is called. */
+export interface CompetitionRef {
+  country: string;
+  tier: number;
+}
+
+const normName = (s: string) => s.trim().toLowerCase();
+const refKey = (country: string, tier: number) => `${normName(country)}\0${tier}`;
+
+/**
+ * The shipped competitions' own names, read back as the country and tier they
+ * stand for ("english division 1" -> England, tier 1).
+ *
+ * Built from worldCompetitions() rather than from a hand-written demonym table,
+ * so the two cannot drift: every name the game has ever shipped a league under
+ * is by construction in here, and adding a country puts its name in for free.
+ * Lazily built and cached — the table is a pure constant, and resolving a
+ * roster file is on the new-league render path.
+ */
+let shippedRefsCache: Map<string, CompetitionRef> | null = null;
+function shippedNameRefs(): Map<string, CompetitionRef> {
+  if (!shippedRefsCache) {
+    shippedRefsCache = new Map(
+      worldCompetitions().map((c) => [normName(c.name), { country: c.country, tier: c.tier }]),
+    );
+  }
+  return shippedRefsCache;
+}
+
+/**
+ * Read a competition NAME back as the league it describes, so a file written
+ * for a division that has since been renamed can still find it.
+ *
+ * Two forms are understood, and between them they cover every name the game
+ * itself has ever put on a division:
+ *
+ *  - a shipped competition's name, whose country is a demonym rather than the
+ *    country ("Dutch Division 1" is the Netherlands', "English Division 2"
+ *    England's). Resolved through the shipped table above.
+ *  - "<country> Division <n>", which is what a league the player ADDS is called
+ *    until they name it something else.
+ *
+ * Anything else — a real-world name like "Eredivisie", or an invented one —
+ * returns null and is left to match by name alone, which is right: nothing in
+ * the string says which country it belongs to. That is what the optional
+ * `country` field on a file competition is for.
+ */
+export function competitionRefFromName(name: string): CompetitionRef | null {
+  const shipped = shippedNameRefs().get(normName(name));
+  if (shipped) return shipped;
+  const m = /^(.+?)\s+division\s+([12])$/i.exec(name.trim());
+  return m ? { country: m[1]!.trim(), tier: Number(m[2]) } : null;
+}
+
+/**
+ * Which league a file competition claims, preferring what it says outright over
+ * what its name implies.
+ */
+export function competitionRef(comp: RosterFileCompetition): CompetitionRef | null {
+  if (comp.country && comp.country.trim() !== "") {
+    return { country: comp.country, tier: comp.tier ?? 1 };
+  }
+  return competitionRefFromName(comp.match);
 }
 
 /** The competition's teams, in the game's stable slot order (ascending tid). */
@@ -150,6 +235,11 @@ export function buildRosterFile(league: LeagueStore): RosterFile {
     formatVersion: ROSTER_FILE_VERSION,
     competitions: league.competitions.map((comp) => ({
       match: comp.name,
+      // Stated outright as well as named, so a template survives the divisions
+      // being renamed after it was exported — the name is the label, the
+      // country and tier are the address.
+      country: comp.country,
+      tier: comp.tier,
       // Same filter/sort as teamsInCompetition, but over the full StoredTeams —
       // the template needs each club's identity, not just its slot.
       clubs: league.teams
@@ -262,6 +352,19 @@ export function parseRosterFile(text: string): RosterFile {
     if (typeof comp.match !== "string" || comp.match.trim() === "") {
       throw new Error(`Invalid roster file: competitions[${ci}].match must be a non-empty string.`);
     }
+    if (
+      comp.country !== undefined
+      && (typeof comp.country !== "string" || comp.country.trim() === "")
+    ) {
+      throw new Error(`Invalid roster file: competitions[${ci}].country must be a non-empty string.`);
+    }
+    if (comp.tier !== undefined
+      && (typeof comp.tier !== "number" || !Number.isInteger(comp.tier)
+        || comp.tier < 1 || comp.tier > MAX_DIVISIONS)) {
+      throw new Error(
+        `Invalid roster file: competitions[${ci}].tier must be 1 to ${MAX_DIVISIONS}.`,
+      );
+    }
     if (!Array.isArray(comp.clubs)) {
       throw new Error(`Invalid roster file: competitions[${ci}].clubs must be an array.`);
     }
@@ -298,7 +401,15 @@ export function parseRosterFile(text: string): RosterFile {
         players,
       };
     });
-    return { match: comp.match, clubs };
+    return {
+      match: comp.match,
+      // Absent stays absent rather than being filled in from the name here:
+      // resolveRosterSlots derives it when it needs it, and a parsed file that
+      // invented a country would then state one it was never given.
+      ...(comp.country !== undefined ? { country: comp.country as string } : {}),
+      ...(comp.tier !== undefined ? { tier: comp.tier as number } : {}),
+      clubs,
+    };
   });
 
   const nationalities = parseNationalities(obj.nationalities);
@@ -382,7 +493,12 @@ export function retargetRosterFile(
       );
       return;
     }
-    competitions.push({ ...comp, match });
+    // Any country/tier the file states is DROPPED, not carried over. It is the
+    // strongest identifier resolveRosterSlots has, so leaving a file's original
+    // "England, tier 1" on an entry now aimed at Neverland's top flight would
+    // send it back to England — the exact opposite of retargeting.
+    const { country: _country, tier: _tier, ...rest } = comp;
+    competitions.push({ ...rest, match });
   });
 
   // `...file` carries the top-level nationality block through unchanged:
@@ -449,26 +565,61 @@ export interface RosterSlotResolution {
 }
 
 /**
- * Resolve every file club to the save tid it overlays. Each file competition is
- * matched to an existing competition by name (case-insensitive); its clubs map
+ * Resolve every file club to the save tid it overlays. Its clubs then map
  * positionally onto that competition's teams in slot order. Anything that can't
  * be mapped cleanly becomes a warning rather than an error, so a mostly-good
  * file still applies what it can. Shared by both the identity-edit path and the
  * roster-replacement path so the "which club goes where" rule lives once.
+ *
+ * **A file competition is matched three ways, most authoritative first**, and
+ * the order is what makes a renamed division still importable:
+ *
+ *  1. an explicit `country`/`tier` on the file entry. A shipped country's name
+ *     is fixed — the player can rename its divisions but not the country — so
+ *     this is the one identifier nothing in World setup can invalidate.
+ *  2. the competition's NAME, case-insensitively. Still first among the two
+ *     name-shaped routes: if the world really does have a division called that,
+ *     that is the division the file meant.
+ *  3. the country and tier its name DESCRIBES (competitionRefFromName). This is
+ *     what carries an untouched file — including every one the EA FC converter
+ *     has ever written, which names competitions "English Division 1" — onto a
+ *     league the player has since renamed to "Premier League".
+ *
+ * Each competition can be claimed once. Two entries landing on the same
+ * division would otherwise both write their clubs onto the same slots, with the
+ * later one silently winning; the first claim holds and the collision is
+ * reported, since it now takes two *different* names to collide.
  */
 export function resolveRosterSlots(world: RosterSlotWorld, file: RosterFile): RosterSlotResolution {
-  const byName = new Map(
-    world.competitions.map((c) => [c.name.trim().toLowerCase(), c.id]),
-  );
+  const byName = new Map(world.competitions.map((c) => [normName(c.name), c.id]));
+  const byRef = new Map(world.competitions.map((c) => [refKey(c.country, c.tier), c.id]));
+  const claimedBy = new Map<number, string>();
   const slots: RosterSlot[] = [];
   const warnings: string[] = [];
 
+  const idFor = (ref: CompetitionRef | null) =>
+    ref ? byRef.get(refKey(ref.country, ref.tier)) : undefined;
+
   for (const fc of file.competitions) {
-    const compId = byName.get(fc.match.trim().toLowerCase());
+    const stated = fc.country && fc.country.trim() !== ""
+      ? { country: fc.country, tier: fc.tier ?? 1 }
+      : null;
+    const compId =
+      idFor(stated)
+      ?? byName.get(normName(fc.match))
+      ?? idFor(competitionRefFromName(fc.match));
     if (compId === undefined) {
       warnings.push(`No competition named "${fc.match}" in this save — skipped.`);
       continue;
     }
+    const claimed = claimedBy.get(compId);
+    if (claimed !== undefined) {
+      warnings.push(
+        `"${fc.match}" and "${claimed}" both point at the same division, so only "${claimed}" was used.`,
+      );
+      continue;
+    }
+    claimedBy.set(compId, fc.match);
     const targets = teamsInCompetition(world, compId);
     if (fc.clubs.length > targets.length) {
       warnings.push(

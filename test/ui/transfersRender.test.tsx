@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+import { playSeason } from "../helpers/offseasonLeague.js";
 import { makeLeague } from "../helpers/league.js";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { createLeagueState, type LeagueStore } from "../../src/core/leagueState.js";
-import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { transferWindowState } from "../../src/core/transfers/window.js";
@@ -73,7 +73,7 @@ function simmedSnapshot(): LeagueStore {
   const rng = mulberry32(4242);
   let league = createLeagueState(0, rng);
   for (let i = 0; i < SIMMED_SEASONS; i++) {
-    league = simThrough(league, "season", rng);
+    league = playSeason(league, rng);
     league = simOffseason(league, rng);
   }
   simmedCache = { ...league, phase: "offseason" };

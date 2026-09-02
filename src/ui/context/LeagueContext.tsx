@@ -18,6 +18,7 @@ import {
   acceptInboundOffer, rejectInboundOffer, counterInboundOffer, setTransferListed,
 } from "../../core/transfers/inboundOffers.js";
 import { setMoreMinutes } from "../../core/lineup/moreMinutes.js";
+import { toggleWatched } from "../../core/watchlist.js";
 import { extendContract, extendAcademyContract } from "../../core/contracts.js";
 import type { RenewalGroup } from "../../core/contractRenewal.js";
 import { renewalsDue, extendAllContracts } from "../../core/contractRenewal.js";
@@ -92,6 +93,8 @@ interface LeagueContextValue {
   rejectLoanOfferAction: (pid: number) => Promise<void>;
   setTransferListedAction: (pid: number, listed: boolean) => Promise<void>;
   setMoreMinutesAction: (pid: number, enabled: boolean) => Promise<void>;
+  /** Star or unstar any player in the world — the /watchlist shortlist. */
+  toggleWatchedAction: (pid: number) => Promise<void>;
   setLineupAction: (starters: number[]) => Promise<void>;
   setFormationAction: (formation: FormationId) => Promise<void>;
   autoPickBestXIAction: () => Promise<void>;
@@ -580,6 +583,10 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     (l) => setMoreMinutes(l, pid, enabled),
   ), [mutate]);
 
+  const toggleWatchedAction = useCallback((pid: number) => mutate(
+    (l) => toggleWatched(l, pid),
+  ), [mutate]);
+
   const releasePlayerAction = useCallback((pid: number) => mutate((l) => {
     const teams = releasePlayer(l.teams, l.players, l.meta.userTid, pid);
     if (teams === l.teams) return null;
@@ -1021,6 +1028,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     rejectLoanOfferAction,
     setTransferListedAction,
     setMoreMinutesAction,
+    toggleWatchedAction,
     setLineupAction,
     setFormationAction,
     autoPickBestXIAction,
@@ -1054,7 +1062,8 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     rejectInboundOfferAction, counterInboundOfferAction, extendContractAction,
     extendAllContractsAction,
     listPlayerForLoanAction, unlistPlayerForLoanAction, acceptLoanOfferAction,
-    rejectLoanOfferAction, setTransferListedAction, setMoreMinutesAction, setLineupAction, setFormationAction,
+    rejectLoanOfferAction, setTransferListedAction, setMoreMinutesAction, toggleWatchedAction,
+    setLineupAction, setFormationAction,
     autoPickBestXIAction,
     setGodModeAction, movePlayerToClubAction, releasePlayerGodModeAction,
     godModeSwitchClubAction,

@@ -571,6 +571,66 @@ a:hover {
   box-shadow: inset 2px 0 0 var(--sg-green);
 }
 
+/* Two columns of rows once the page is wide enough to hold them, on the club
+   and nation pickers of the New League screen. A top flight runs to 20 clubs,
+   which stacked one per line is most of a screen of scrolling, while a row at
+   that page's desktop width holds a crest and a short name with half its
+   length left over. Below the breakpoint the page is a single narrow column
+   anyway, so it stays the stock stacked list.
+
+   The frame moves to the container and the rows keep only the rules between
+   them, so this stays one surface divided up rather than a field of separate
+   boxes: rounding and outlining each row turns a list into a card grid, which
+   is the wrong component and reads as a different app next to the joined
+   segmented controls above it. */
+@media (min-width: 768px) {
+  .picker-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border: 1px solid var(--sg-border);
+    border-radius: var(--sg-radius);
+    /* Clips the square-cornered rows to the frame's corners. The nation list
+       sets overflow-y inline to stay scrollable, which wins over this
+       shorthand for that axis alone and leaves the horizontal clip intact. */
+    overflow: hidden;
+  }
+  .picker-columns > .list-group-item {
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid var(--sg-border);
+  }
+  /* Row-major flow, so the odd children are the left column: that is where the
+     rule between the two columns goes, and the top pair sits against the
+     frame with nothing to be divided from. */
+  .picker-columns > .list-group-item:nth-child(odd) {
+    border-right: 1px solid var(--sg-border);
+  }
+  .picker-columns > .list-group-item:nth-child(-n + 2) {
+    border-top: 0;
+  }
+  /* A row that is a message rather than a choice (the nation list's no-match
+     line) takes the full width, so it can't be mistaken for one of a pair. */
+  .picker-columns > .picker-columns-full {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+  /* An outline is painted outside the element and the frame above clips what
+     leaves it, so a row against any edge would show half a focus ring. Drawn
+     inside the row instead, where nothing can crop it. */
+  .picker-columns > .list-group-item:focus-visible {
+    outline: 2px solid var(--sg-green-bright);
+    outline-offset: -2px;
+  }
+}
+
+/* The New League page is wider than a line of text wants to be, and the
+   controls on it are full-width bars, so nothing else holds its prose to a
+   readable measure. Every explanation on the page is one of these paragraphs,
+   so capping them here beats tagging each one. */
+.new-league-page p {
+  max-width: 74ch;
+}
+
 /* =========================================================================
    Cards & surfaces — flat, tonal, no drop shadow by default.
    ========================================================================= */
@@ -648,6 +708,55 @@ a:hover {
   --bs-btn-hover-color: var(--sg-green-hover);
 }
 
+/* =========================================================================
+   Segmented pickers — a row of joined buttons where one is chosen, as on New
+   League (difficulty, country, division).
+   =========================================================================
+   These are .btn-outline-secondary, which is the one outline variant never
+   themed, so they came out in stock Bootstrap: a #6c757d outline at rest and
+   a solid #6c757d fill with #fff text when picked. That is the Bootstrap
+   default look PRODUCT.md names as an anti-reference, it breaks the rule
+   against #fff and untinted neutrals, and on New League it put two different
+   "this one is selected" languages on one screen, since the list pickers
+   below already answer that question in green.
+
+   Scoped to a class rather than fixing .btn-outline-secondary itself: 23
+   files use that class, nearly all for ordinary Cancel-and-secondary
+   actions, and a picked-segment treatment is wrong for those.
+
+   A picked segment takes the same green wash the list rows take, plus an
+   edge marker, rather than a solid green fill: solid green is the primary
+   action (Start League sits at the bottom of this very page) and a segmented
+   control saying "Normal" must not outshout it. The marker runs along the
+   bottom, where a row of tabs reads it as an indicator, rather than the
+   leading edge a stacked list row uses. */
+/* Sized to their labels rather than stretched across the page. Bootstrap grows
+   every child of a .btn-group (flex: 1 1 auto), which on a 900px page turned
+   four difficulty choices into four 235px slabs. Wrapping is what makes
+   dropping the stretch safe at any width: without it a long division name on a
+   phone would push the group off the side of the screen instead of onto a
+   second line. */
+.segmented {
+  flex-wrap: wrap;
+}
+.segmented > .btn {
+  flex: 0 0 auto;
+  --bs-btn-color: var(--sg-text-muted);
+  --bs-btn-border-color: var(--sg-border);
+  --bs-btn-bg: transparent;
+  --bs-btn-hover-bg: var(--sg-surface-2);
+  --bs-btn-hover-border-color: var(--sg-border);
+  --bs-btn-hover-color: var(--sg-text);
+  --bs-btn-active-bg: var(--sg-green-wash);
+  --bs-btn-active-border-color: var(--sg-border);
+  --bs-btn-active-color: var(--sg-green-bright);
+  --bs-btn-active-shadow: none;
+}
+.segmented > .btn.active {
+  font-weight: var(--sg-weight-semibold);
+  box-shadow: inset 0 -2px 0 var(--sg-green);
+}
+
 /* Scouting-spend slider tracks the brand. */
 .form-range::-webkit-slider-thumb { background-color: var(--sg-green); }
 .form-range::-moz-range-thumb { background-color: var(--sg-green); border: none; }
@@ -665,6 +774,123 @@ a:hover {
   border-color: var(--sg-green);
   box-shadow: 0 0 0 0.2rem var(--sg-green-wash);
 }
+
+/* Checkboxes, radios and switches.
+
+   Remapping --bs-primary (up top) does NOT reach these: Bootstrap compiles the
+   checked colour into .form-check-input:checked as a literal #0d6efd rather
+   than reading a variable, so every checkbox and switch in the game rendered in
+   stock Bootstrap blue on a green-tinted dark surface. That is what this block
+   is for, and it is worth knowing before adding another control and wondering
+   why it comes out blue.
+
+   The two background images ARE variables in Bootstrap 5.3 (--bs-form-check-bg-image
+   for the tick, --bs-form-switch-bg for the switch knob), so they can be themed
+   without restating the selectors' own rules.
+
+   The unchecked switch knob is the other half of the problem: Bootstrap draws it
+   at rgba(255,255,255,.25), which is aimed at a light page and reads as an empty
+   pill on this one. It is lifted to a muted-but-visible circle so an "off"
+   switch looks off rather than broken. */
+.form-check-input {
+  background-color: var(--sg-surface-2);
+  border-color: var(--sg-border-strong);
+}
+.form-check-input:checked {
+  background-color: var(--sg-green);
+  border-color: var(--sg-green);
+}
+.form-check-input:focus {
+  border-color: var(--sg-green);
+  box-shadow: 0 0 0 0.2rem var(--sg-green-wash);
+}
+/* The knob when off. Checked, Bootstrap's own white circle sits on the green
+   and needs no help. */
+.form-switch .form-check-input {
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%28255, 255, 255, 0.55%29'/%3e%3c/svg%3e");
+}
+.form-switch .form-check-input:focus:not(:checked) {
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%28255, 255, 255, 0.8%29'/%3e%3c/svg%3e");
+}
+.form-check-input:disabled { opacity: 0.45; }
+.form-check-label { color: var(--sg-text); }
+
+/* The Simulation card's in-season layout.
+
+   Two things have to be true at once and they pull in different directions:
+   the sim-target hint belongs on the card heading's line, and it belongs
+   directly over the "sim to matchday" select it describes. Stacking cannot do
+   both, and hand-positioning it would mean hard-coding the combined width of
+   two buttons whose labels change.
+
+   A two-column grid does it by construction. Column 1 holds the heading and
+   the sim buttons, column 2 the hint and the select row, so row 1 is
+   heading + hint and row 2 is buttons + controls, aligned on both axes with no
+   measured offsets. SimTargetForm's wrapper goes `display: contents` so its
+   two children land in the grid rather than the wrapper taking one cell. */
+.sim-grid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.5rem;
+  row-gap: 0.5rem;
+}
+.sim-grid .sim-grid-title {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: baseline;
+  margin-bottom: 0;
+}
+.sim-grid .sim-grid-buttons { grid-column: 1; grid-row: 2; }
+.sim-grid > .sim-target { display: contents; }
+/* Scoped to the grid: outside it (the top bar's Sim menu) these two just stack,
+   which is what a dropdown wants. */
+.sim-grid .sim-target-hint {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: baseline;
+  margin-bottom: 0;
+}
+.sim-grid .sim-target-controls { grid-column: 2; grid-row: 2; }
+
+/* Narrow: one column, in reading order. Side by side the two columns would
+   each be too tight for their own contents to stop wrapping. */
+@media (max-width: 767.98px) {
+  .sim-grid { grid-template-columns: minmax(0, 1fr); }
+  .sim-grid .sim-grid-title,
+  .sim-grid .sim-grid-buttons,
+  .sim-grid .sim-target-hint,
+  .sim-grid .sim-target-controls {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+/* The jump-ahead form lives in a top-bar dropdown, which sizes itself to its
+   content — and the content here is a paragraph of confirmation prose, not a
+   menu item. Without a width it wraps to a sliver; with one it reads as the
+   panel it replaced on the Dashboard. */
+.topbar-jump {
+  width: min(26rem, calc(100vw - 2rem));
+  white-space: normal;
+}
+
+/* The compact knockout bracket in a dashboard panel (see MiniBracket.tsx).
+   Only the round heading needs anything: it is a label above a couple of
+   score lines, so it wants to be smaller and quieter than the card title
+   without being another <small> in the markup. */
+.mini-bracket-round {
+  font-size: var(--sg-text-xs);
+  letter-spacing: 0.04em;
+  margin-top: 0.25rem;
+}
+
+/* Progress bars, for the same reason as the checkboxes above: Bootstrap's
+   --bs-progress-bar-bg defaults to its own blue rather than following
+   --bs-primary. The bars that carry a mood (the club board's and the
+   federation's, which append bg-success/bg-info/bg-warning/bg-danger) override
+   this and are unaffected; what it fixes is the two bare ones, the sim and jump
+   overlays — which are the bars anyone watching a long sim actually stares at. */
+.progress-bar { background-color: var(--sg-green); }
 
 /* Bootstrap text-utility remaps so muted/secondary read on the dark surface. */
 .text-muted { color: var(--sg-text-muted) !important; }
@@ -924,6 +1150,13 @@ a:hover {
   color: var(--sg-text-muted);
   background: var(--sg-surface-2);
   border: 1px solid var(--sg-border);
+}
+/* Third tier: quieter still than D2, so the three read as a pyramid at a
+   glance rather than as two states plus an odd one out. */
+.division-badge--d3 {
+  color: var(--sg-text-faint, var(--sg-text-muted));
+  background: transparent;
+  border: 1px dashed var(--sg-border);
 }
 
 /* Nationality flag (SVG image, sized by the Flag component's `size` prop) */
@@ -1555,6 +1788,41 @@ a:hover {
 .suspension-badge {
   vertical-align: text-bottom;
   margin-left: 0.25em;
+}
+
+/*
+ * The watchlist star (WatchToggle). A bare button rather than an icon inside a
+ * wrapper, so adding it to a table costs one element per row — see the DOM
+ * weight note on ClubLink for why that matters on the dense pages.
+ */
+.watch-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 1;
+  color: var(--sg-text-muted);
+  /*
+   * Centred on the line box rather than sat on the baseline, because this sits
+   * in text of very different sizes: a table row's 14px name and the player
+   * profile's h4. text-bottom looks right beside small text and visibly low
+   * next to a heading, where the line box is twice the icon's height.
+   */
+  vertical-align: middle;
+  cursor: pointer;
+}
+.watch-star:hover:not(:disabled),
+.watch-star:focus-visible {
+  color: var(--sg-warn);
+}
+.watch-star.watched {
+  color: var(--sg-warn);
+}
+.watch-star:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 .pitch-chip .player-ratings-tooltip-anchor {
   border-bottom: none;

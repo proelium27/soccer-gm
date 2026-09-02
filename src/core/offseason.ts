@@ -28,7 +28,7 @@ import { FREE_AGENT_TID, isFreeAgentTid } from "./transfers/negotiation.js";
 import { transferWindowState } from "./transfers/window.js";
 import { protectedStarPids } from "./transfers/protectedStars.js";
 import { runAIContractRenewals } from "./ai/renewals.js";
-import { enforceDivision2Ceiling } from "./ai/divisionCeiling.js";
+import { enforceDivisionCeilings } from "./ai/divisionCeiling.js";
 import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
 import { processLoanReturns, runAILoanMarket } from "./loans.js";
 import { computeStandings, computeTeamSeasonStats, type StandingsRow, type TeamSeasonStats } from "./standings.js";
@@ -385,6 +385,10 @@ export function simOffseasonReporting(
     inboundOffers: league.inboundOffers.filter((o) => !retiredPids.has(o.pid)),
     loanListings: league.loanListings.filter((l) => !retiredPids.has(l.pid)),
     loanRejections: league.loanRejections.filter((l) => !retiredPids.has(l.pid)),
+    // The watchlist is a shortlist of players to sign, and a retiree has
+    // stopped being one. Dropping him is also the only way he *can* leave it:
+    // his profile page goes with him, and that is where the star lives.
+    watchlist: league.watchlist.filter((pid) => !retiredPids.has(pid)),
   };
   league = { ...league, ...liveRefsScrubbed };
 
@@ -495,7 +499,7 @@ export function simOffseasonReporting(
   //      AI-controlled player at or above DIVISION_2_REFUSAL_OVR_THRESHOLD
   //      (most commonly a just-relegated club's existing squad) is moved to
   //      whichever (non-user) Division 1 club needs him most, no
-  //      market/affordability chance involved — see enforceDivision2Ceiling
+  //      market/affordability chance involved — see enforceDivisionCeilings
   //      for why a soft nudge isn't enough. Run here, before free agency, so
   //      a club that loses a player this way still gets a chance to backfill
   //      the hole below; run again after the summer market (step 6.45) to
@@ -503,7 +507,7 @@ export function simOffseasonReporting(
   //      surplus this same offseason (idempotent — a no-op if nothing
   //      qualifies either time).
   let ceilingTransfers = loanReturns.transfers;
-  ({ teams, transfers: ceilingTransfers } = enforceDivision2Ceiling(
+  ({ teams, transfers: ceilingTransfers } = enforceDivisionCeilings(
     teams, players, activeLoans, ceilingTransfers, nextSeason, league.meta.userTid, league.competitions,
   ));
 
@@ -733,11 +737,11 @@ export function simOffseasonReporting(
   //      catch that in the same offseason it happens, not wait a full cycle.
   //      Any AI-controlled player at or above DIVISION_2_REFUSAL_OVR_THRESHOLD
   //      is moved to whichever (non-user) Division 1 club needs him most, no
-  //      market/affordability chance involved (see enforceDivision2Ceiling
+  //      market/affordability chance involved (see enforceDivisionCeilings
   //      for why a soft nudge isn't enough — the dominant drift driver is
   //      relegated clubs simply keeping their existing strong rosters, not
   //      anything a market mechanic alone can fix).
-  const { teams: ceilingTeams, transfers: postCeilingTransfers } = enforceDivision2Ceiling(
+  const { teams: ceilingTeams, transfers: postCeilingTransfers } = enforceDivisionCeilings(
     teams, players, activeLoans, summerMarket.transfers, nextSeason, league.meta.userTid, league.competitions,
   );
   teams = ceilingTeams;

@@ -272,8 +272,7 @@ export function WorldSetup({ entries, onChange, defaultOpen = false }: Props) {
         {open && (
         <div id="world-setup-body" className="mt-2">
         <p className="text-muted small mb-3">
-          Pick which countries your world has, or add your own. This is fixed once the
-          save is created, so it's worth getting right now.
+          Pick which countries your world has, or add your own. Fixed once you start.
         </p>
 
         <ul className="list-unstyled mb-3">
@@ -388,9 +387,13 @@ export function WorldSetup({ entries, onChange, defaultOpen = false }: Props) {
 /**
  * What a league's divisions are called. Worth a control of its own rather than
  * being left to derive from the country, for two reasons: real leagues are not
- * called "<Country> Division 1", and a world-wide roster file finds the league
- * it fills BY THIS NAME — so renaming a league here is what makes a file written
- * for "Eredivisie" or "Premier League" land somewhere instead of being skipped.
+ * called "<Country> Division 1", and a world-wide roster file written for
+ * "Eredivisie" or "Premier League" finds the league it fills BY THAT NAME.
+ *
+ * Renaming here no longer BREAKS a file written for the old name, which it used
+ * to: resolveRosterSlots falls back to the country and tier the file's name
+ * describes, and a country is not renameable on a shipped league. So this is a
+ * way to make an oddly-named file land, not a thing to be careful with.
  *
  * Empty means "no name of my own": the default is shown as a placeholder and
  * stored as absent, so a name keeps following the country while it's untouched.
@@ -434,7 +437,8 @@ function DivisionNames({
         )}
       </div>
       <p className="text-muted small mb-2">
-        A roster file loaded for the whole world finds its league by this name.
+        Renaming is safe for roster files: one written for this country's old
+        division names still finds it.
       </p>
     </>
   );
@@ -506,10 +510,9 @@ function RosterPicker({
 
       {sources.length === 0 ? (
         <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
-          Leave this alone and the league gets invented clubs. Or load a roster file to
-          use your own, and its first competition fills the top division. You can also
-          name and colour every club by hand instead: tick <strong>Name the clubs
-          yourself</strong> further down this page.
+          Leave this alone and the league gets invented clubs. Or load a roster file for
+          your own, its first competition filling the top division. To only rename them,
+          tick <strong>Name the clubs yourself</strong> below.
         </p>
       ) : (
         <p className="text-muted mb-2" style={{ fontSize: "0.75rem" }}>
@@ -686,7 +689,7 @@ export function LeagueSettings({
         display={resolved.budgetScale.toFixed(2)}
         onChange={(v) => onSpec({ budgetScale: v })}
       />
-      <div className="form-check small mb-2">
+      <div className="form-check form-switch small mb-2">
         <input
           type="checkbox"
           className="form-check-input"
@@ -726,9 +729,13 @@ export function LeagueSettings({
             className="form-select form-select-sm"
             value={resolved.divisions}
             aria-label="Divisions"
-            onChange={(e) => onSpec({ divisions: Number(e.target.value) === 1 ? 1 : 2 })}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              onSpec({ divisions: n === 1 ? 1 : n === 3 ? 3 : 2 });
+            }}
           >
             <option value={2}>Two, with promotion</option>
+            <option value={3}>Three, with promotion</option>
             <option value={1}>One, no promotion</option>
           </select>
         </div>
@@ -739,11 +746,12 @@ export function LeagueSettings({
             value={resolved.d1Teams}
             aria-label="Clubs per division"
             onChange={(e) => {
-              // One control sets both divisions. The underlying fields are
+              // One control sets every division. The underlying fields are
               // separate, so splitting them later is a UI change rather than a
-              // data one.
+              // data one. The unused ones are harmless on a shallower pyramid:
+              // buildCompetitions only reads as many as `divisions` asks for.
               const n = Number(e.target.value);
-              onSpec({ d1Teams: n, d2Teams: n });
+              onSpec({ d1Teams: n, d2Teams: n, d3Teams: n });
             }}
           >
             {DIVISION_SIZES.map((n) => (
@@ -752,8 +760,9 @@ export function LeagueSettings({
           </select>
         </div>
         {/* Nothing to size in a one-division league: it has no second tier to
-            swap with. */}
-        {resolved.divisions === 2 && (
+            swap with. Anything deeper does, and the count applies to every link
+            in the chain — so this is a depth test, not an equality one. */}
+        {resolved.divisions >= 2 && (
           <div className="col">
             <label className="form-label small mb-1">Up and down</label>
             <select

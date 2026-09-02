@@ -24,9 +24,75 @@ describe("buildImportPromptText", () => {
     expect(prompt).toContain(`${slots} club slots`);
   });
 
+  // The name is the one identifier the player can invalidate by renaming a
+  // division, so the prompt asks for the country and tier alongside it — those
+  // survive a rename and are what resolveRosterSlots prefers.
+  it("gives each competition's country and tier, and asks for them back", () => {
+    for (const c of league.competitions) {
+      expect(prompt).toContain(`country "${c.country}", tier ${c.tier}`);
+    }
+    expect(prompt).toMatch(/ALWAYS include `country` and `tier`/);
+    expect(prompt).toContain('"country": "<country>"');
+  });
+
   it("documents every position and skill key so an AI can produce exact ratings", () => {
     for (const p of POSITIONS) expect(prompt).toContain(p);
     for (const k of SKILL_KEYS) expect(prompt).toContain(k);
+  });
+
+  // The two ways a roster file silently applies nothing, per resolveRosterSlots:
+  // an unrecognised `match` drops the whole competition, and an over-long club
+  // list truncates from the end. Both were hit for real on 2026-08-29, so the
+  // prompt has to warn about each by name.
+  it("warns that an unmatched competition name is dropped in silence", () => {
+    expect(prompt).toContain("never build one out of the country's name");
+    expect(prompt).toMatch(/skipped with no error/i);
+  });
+
+  it("names a real competition whose name is not its country's", () => {
+    // The warning is only convincing with an example, and it is taken from the
+    // world so it stays true for a custom one.
+    const odd = league.competitions.find(
+      (c) => !c.name.toLowerCase().startsWith(c.country.toLowerCase()),
+    );
+    expect(odd).toBeDefined();
+    expect(prompt).toContain(`this world calls ${odd!.country}'s top division "${odd!.name}"`);
+  });
+
+  it("caps the club list at the slot count and says what overflow costs", () => {
+    expect(prompt).toContain("NEVER list more clubs than a competition's slot count");
+    expect(prompt).toMatch(/thrown away from the END/);
+  });
+
+  it("says the divisions are different sizes when they are", () => {
+    const sizes = new Set(
+      league.competitions.map((c) => league.teams.filter((t) => t.compId === c.id).length),
+    );
+    expect(sizes.size).toBeGreaterThan(1);
+    expect(prompt).toMatch(/deliberately different sizes/);
+  });
+
+  it("tells the AI to report a missing league rather than invent a name for it", () => {
+    expect(prompt).toContain("Don't invent a competition");
+  });
+
+  // The regression test for the actual bug: three hand-authored files used
+  // "Scotland/Greece/Serbia Division 1" — the `<country> Division N` form a
+  // league ADDED in World setup gets — against shipped names like "Scottish
+  // Division 1", and resolved to zero clubs. The prompt must never put that
+  // form in front of an AI for a competition that isn't really called it.
+  it("never shows the <country> Division N form for a competition not named that", () => {
+    for (const c of league.competitions) {
+      const constructed = `${c.country} Division ${c.tier}`;
+      if (constructed.toLowerCase() === c.name.toLowerCase()) continue;
+      expect(prompt).not.toContain(constructed);
+    }
+  });
+
+  it("ends with a checklist covering both silent failures", () => {
+    const checklist = prompt.slice(prompt.indexOf("== Check these before you answer =="));
+    expect(checklist).toContain("character for character");
+    expect(checklist).toContain("more clubs than its slot count");
   });
 
   it("embeds an example that itself parses as a valid roster file", () => {

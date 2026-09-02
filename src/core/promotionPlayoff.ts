@@ -5,7 +5,7 @@ import type { Competition } from "./competitions.js";
 import type { TeamMatchData } from "./league/composites.js";
 import type { CupTie } from "./cup/types.js";
 import {
-  tier1Pairs, effectivePromotionSpots, competitionPlayoffFormat,
+  countryDivisions, effectivePromotionSpots, competitionPlayoffFormat,
 } from "./competitions.js";
 import { leagueMatchData } from "./league/composites.js";
 import { playFirstLeg, resolveTwoLeggedTie, resolveCupTie } from "./cup/simCup.js";
@@ -126,14 +126,26 @@ export function promotionPlayoffFields(
   competitions: Competition[],
   tablesByCompId: Map<number, StandingsRow[]>,
 ): PlayoffField[] {
-  return tier1Pairs(competitions).flatMap(({ d1, d2 }) => {
+  // The TOP link only, deliberately, even now a country can run three
+  // divisions: `tier1Pairs` used to say this by being the only thing on offer,
+  // and it has to be said out loud now that `promotionLinks` would hand back
+  // every boundary. A second playoff between the lower two is a real feature
+  // (England and Germany both hold one) but it is a feature, with its own page,
+  // news and changelog — not something a deeper pyramid should switch on by
+  // itself. computeCountrySwaps needs no matching guard: outcomes are keyed by
+  // the LOWER division's compId, so a lower link simply finds none and takes
+  // the plain top-N slice.
+  return countryDivisions(competitions).flatMap(({ divisions }) => {
+    const [d1, d2] = divisions;
     if (!d2) return [];
     const format = competitionPlayoffFormat(d1, d2);
     if (format === "none") return [];
     const d1Table = tablesByCompId.get(d1.id);
     const d2Table = tablesByCompId.get(d2.id);
     if (!d1Table || !d2Table) return [];
-    const spots = effectivePromotionSpots(d1, d2, d1Table.length, d2Table.length);
+    const spots = effectivePromotionSpots(
+      competitions, d1, d2, d1Table.length, d2Table.length,
+    );
     if (spots <= 0) return [];
     const base = { country: d1.country, d1CompId: d1.id, d2CompId: d2.id };
 

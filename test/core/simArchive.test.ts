@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
+import { playSeason } from "../helpers/offseasonLeague.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason, simOffseasonReporting } from "../../src/core/offseason.js";
@@ -46,7 +47,7 @@ describe("simArchive", () => {
     const rng = mulberry32(41);
     league = createLeagueState(0, rng, 0, "normal", englandCompetitions());
     for (let i = 0; i < 3; i++) {
-      league = simThrough(league, "season", rng);
+      league = playSeason(league, rng);
       league = simOffseason(league, rng);
     }
   }, 600_000);

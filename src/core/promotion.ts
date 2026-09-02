@@ -2,31 +2,40 @@ import type { StandingsRow } from "./standings.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import type { Competition } from "./competitions.js";
 import {
-  tier1Pairs, competitionOf, academyBaseCenterOf, effectivePromotionSpots,
+  promotionLinks, competitionOf, academyBaseCenterOf, effectivePromotionSpots,
 } from "./competitions.js";
 import type { PlayoffOutcome } from "./promotionPlayoff.js";
 import { ACADEMY_BASE_CONVERGENCE_SEASONS } from "./constants.js";
 
-/** One country's promotion/relegation swap between its tier-1 and tier-2 competitions. */
+/** One promotion/relegation swap, between an adjacent pair of a country's divisions. */
 export interface CompetitionSwap {
   d1CompId: number;
   d2CompId: number;
-  /** Tids moving from the tier-2 competition up to tier 1. */
+  /** Tids moving from the lower competition up into the upper one. */
   promoted: number[];
-  /** Tids moving from the tier-1 competition down to tier 2. */
+  /** Tids moving from the upper competition down into the lower one. */
   relegated: number[];
 }
 
 /**
- * For every country, the bottom N of its tier-1 final table swap with the top N
- * of its tier-2 final table, where N is that country's own
+ * For every adjacent pair of divisions in the world, the bottom N of the upper
+ * table swap with the top N of the lower one, where N is that country's own
  * `competitionPromotionSpots` (3 unless the league was added with a different
  * number on the New League screen). Every table in `tablesByCompId` must
  * already be sorted by computeStandings (points, then GD, then GF, then tid).
  *
- * `playoffOutcomes` (tier-2 compId -> outcome) is how a promotion playoff
- * reaches the swap. What it does depends on the country's format, which is why
- * it carries counts rather than a bare winner:
+ * One swap per LINK, not per country: a three-division country produces two
+ * independent swaps, and because each reads the final tables rather than the
+ * result of the other, a club can only ever move one division per season. That
+ * is the intended behaviour and it falls out of the shape — do not "fix" it by
+ * chaining the links, which would let a runaway second-tier club skip a level.
+ *
+ * A one-division country contributes no links at all, so it has no promotion or
+ * relegation without needing a special case here.
+ *
+ * `playoffOutcomes` (lower-division compId -> outcome) is how a promotion
+ * playoff reaches the swap. What it does depends on the country's format, which
+ * is why it carries counts rather than a bare winner:
  *
  *  - **English** — the top N-1 go up on the table and the playoff winner takes
  *    the last place. Relegation is untouched: N still go down.
@@ -39,20 +48,23 @@ export interface CompetitionSwap {
  *
  * Absent (a headless caller, a world with no eligible country, a save from
  * before playoffs existed) means the plain top-N slice, which is exactly the old
- * behaviour.
+ * behaviour. Playoffs are seated at the TOP link only, so on a three-division
+ * country the second link never finds an outcome and takes that plain slice —
+ * see promotionPlayoffFields.
  */
 export function computeCountrySwaps(
   competitions: Competition[],
   tablesByCompId: Map<number, StandingsRow[]>,
   playoffOutcomes?: Map<number, PlayoffOutcome>,
 ): CompetitionSwap[] {
-  return tier1Pairs(competitions).flatMap(({ d1, d2 }) => {
-    // Nothing to swap with: a one-division country has no tier 2 to send clubs
-    // down to, so it simply has no promotion or relegation.
-    if (!d2) return [];
+  const links = promotionLinks(competitions);
+
+  return links.flatMap(({ upper: d1, lower: d2 }) => {
     const d1Table = tablesByCompId.get(d1.id)!;
     const d2Table = tablesByCompId.get(d2.id)!;
-    const n = effectivePromotionSpots(d1, d2, d1Table.length, d2Table.length);
+    const n = effectivePromotionSpots(
+      competitions, d1, d2, d1Table.length, d2Table.length,
+    );
     // `slice(-0)` is `slice(0)` — the WHOLE table — so a league set to no
     // promotion or relegation would relegate every club in its division. The
     // early return is the only thing standing between that setting and a world

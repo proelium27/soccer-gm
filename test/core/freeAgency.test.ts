@@ -219,7 +219,12 @@ describe("runAIFreeAgency quality poaching", () => {
     // A pure extra free agent: a strong CM belonging to no roster, so no club
     // has a positional shortfall — only the poaching pass can pick him up.
     const star = { ...structuredClone(league.players[0]), pid: 999_001, pos: "CM" as const, ovr: 99 };
-    const scrub = { ...structuredClone(league.players[0]), pid: 999_002, pos: "CM" as const, ovr: 20 };
+    // RATING_MIN, so he is worse than any club's weakest CM by construction.
+    // He was ovr 20, which stopped being "worse than everyone" once every
+    // country gained a third division: those squads run well below that, so a
+    // third-tier club genuinely upgraded by signing him and the pool kept him
+    // no longer. Pinning him at the floor makes the premise world-independent.
+    const scrub = { ...structuredClone(league.players[0]), pid: 999_002, pos: "CM" as const, ovr: 1 };
     const players = [...league.players, star, scrub];
 
     const signingOrder = league.teams.map((t) => t.tid);

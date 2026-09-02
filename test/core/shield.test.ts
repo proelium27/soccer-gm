@@ -18,7 +18,8 @@ import {
   CUP_LEAGUE_PHASE_GAMES, CUP_KO_SIZE, cupKnockoutPlan,
   CUP_STRONG_LEAGUE_SLOTS, CUP_WEAK_LEAGUE_SLOTS,
   SHIELD_FORMAT, CONTINENTAL_CUP_FORMAT, SHIELD_LEAGUE_PHASE_SIZE,
-  SHIELD_PRIZE_PARTICIPATION, SHIELD_PRIZE_WIN_QF, SHIELD_PRIZE_WIN_PLAYOFF,
+  SHIELD_PRIZE_PARTICIPATION, SHIELD_PRIZE_LP_WIN, SHIELD_PRIZE_LP_DRAW,
+  SHIELD_PRIZE_WIN_QF, SHIELD_PRIZE_WIN_PLAYOFF,
   SHIELD_PRIZE_WIN_SF, SHIELD_PRIZE_WIN_FINAL, SHIELD_PRIZE_RUNNER_UP,
 } from "../../src/core/constants.js";
 
@@ -209,6 +210,11 @@ describe("full Shield: league phase → playoff → knockout", () => {
     ]);
     const pot =
       SHIELD_LEAGUE_PHASE_SIZE * SHIELD_PRIZE_PARTICIPATION +
+      shield.leaguePhase!.matches.reduce(
+        (sum, m) =>
+          sum + (m.homeGoals === m.awayGoals ? 2 * SHIELD_PRIZE_LP_DRAW : SHIELD_PRIZE_LP_WIN),
+        0,
+      ) +
       (plan.playoffTeams / 2) * SHIELD_PRIZE_WIN_PLAYOFF +
       4 * SHIELD_PRIZE_WIN_QF +
       2 * SHIELD_PRIZE_WIN_SF +
