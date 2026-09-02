@@ -10,13 +10,17 @@ import type { NewPlayerSpec } from "../../core/godMode.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 import { BackLink } from "../components/BackLink.js";
 import { ClubCrest } from "../components/ClubCrest.js";
+import { Flag } from "../components/Flag.js";
+import { manageableNations } from "../../core/international/index.js";
+import { isSpectator } from "../../core/spectator.js";
+import { NationName } from "./nationalTeams/shared.js";
 import { currencyCompact } from "../format.js";
 
 const NATION_NAMES = Object.keys(NATIONALITIES);
 const flatRatings = (v: number): PlayerRatings =>
   Object.fromEntries(SKILL_KEYS.map((k) => [k, v])) as PlayerRatings;
 
-type Tab = "club" | "create" | "roster" | "finance";
+type Tab = "club" | "nation" | "create" | "roster" | "finance";
 
 export function GodMode() {
   const league = useLeague().league;
@@ -34,10 +38,11 @@ export function GodMode() {
       </p>
 
       <ul className="nav nav-tabs mb-3">
-        {(["club", "create", "roster", "finance"] as Tab[]).map((t) => (
+        {(["club", "nation", "create", "roster", "finance"] as Tab[]).map((t) => (
           <li key={t} className="nav-item">
             <button className={`nav-link ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
               {t === "club" ? "Switch Club"
+                : t === "nation" ? "Switch Country"
                 : t === "create" ? "Create Player"
                 : t === "roster" ? "Roster Builder" : "Club Finances"}
             </button>
@@ -46,6 +51,7 @@ export function GodMode() {
       </ul>
 
       {tab === "club" && <SwitchClub />}
+      {tab === "nation" && <SwitchCountry />}
       {tab === "create" && <CreatePlayer />}
       {tab === "roster" && <RosterBuilder />}
       {tab === "finance" && <ClubFinances />}
@@ -176,6 +182,168 @@ function SwitchClub() {
               Take over this club
             </button>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Section A2: Switch Country ---
+/**
+ * Take charge of any national team in the world, immediately.
+ *
+ * The national twin of Switch Club above, and the same shape of thing: the
+ * federation flow with its one gate — that somebody asked — taken off. It is a
+ * much smaller operation than the club version for a structural reason, not by
+ * omission: a national team owns no money, no contracts and no academy, so
+ * there is nothing to hand over. `takeNationalJob` closes your old spell, hands
+ * that country's eleven back so the AI picks its own again, and opens a new
+ * spell here. Your club job is untouched either way.
+ *
+ * The list is built from `manageableNations`, so it only ever offers countries
+ * that can really field a squad in this world — the same call the action gates
+ * on, rather than a second opinion about who exists.
+ */
+function SwitchCountry() {
+  const { league, godModeTakeNationalJobAction, leaveNationalJobAction, simming } = useLeague();
+  const navigate = useNavigate();
+  const [filter, setFilter] = useState("");
+  const [picked, setPicked] = useState<string | null>(null);
+
+  // Every nation in the world with a deep enough pool, a keeper in it and a
+  // confederation to qualify through. Walks the whole player pool, so it is
+  // held behind a memo rather than recomputed as the search box is typed into.
+  const nations = useMemo(
+    () => (league ? manageableNations(league.players) : []),
+    [league],
+  );
+  const shown = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    return q ? nations.filter((n) => n.toLowerCase().includes(q)) : nations;
+  }, [nations, filter]);
+
+  if (!league) return null;
+
+  const current = league.nationalManager.nation;
+  // A spectator manages nobody at all, and a country taken here would never be
+  // judged by its federation — reviewNationalCampaign sits a spectator save out
+  // entirely. So this is refused rather than half-working, and the way in is
+  // the tab next door.
+  const spectating = isSpectator(league);
+
+  const take = async () => {
+    if (picked === null) return;
+    await godModeTakeNationalJobAction(picked);
+    navigate("/national-teams/federation");
+  };
+
+  const stepDown = async () => {
+    await leaveNationalJobAction();
+    setPicked(null);
+  };
+
+  if (spectating) {
+    return (
+      <div className="text-muted small" style={{ maxWidth: 560 }}>
+        You&apos;re spectating, so there&apos;s no manager here for a federation to appoint.
+        Take a club on the Switch Club tab first and the countries will open up.
+      </div>
+    );
+  }
+
+  if (nations.length === 0) {
+    return (
+      <div className="text-muted small" style={{ maxWidth: 560 }}>
+        No country in this world has enough players born into it to field a squad, so
+        there&apos;s no national job to take. Worlds with more leagues in them generate
+        deeper pools.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-3">
+        <div className="fw-semibold">
+          {current ? <NationName nation={current} /> : "No country"}
+        </div>
+        <div className="text-muted small">
+          {current
+            ? "The country you manage now, alongside your club"
+            : "You manage a club only. Take a country here without waiting to be asked."}
+        </div>
+      </div>
+
+      <input
+        type="search"
+        className="form-control form-control-sm mb-2"
+        style={{ maxWidth: 340 }}
+        placeholder="Search countries"
+        aria-label="Search countries"
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+      />
+      {/* A list rather than a <select>, for the reason New League's picker
+          gives: an <option> can't hold the flag. */}
+      <div className="list-group mb-3" style={{ maxWidth: 420, maxHeight: 260, overflowY: "auto" }}>
+        {shown.map((n) => (
+          <button
+            type="button"
+            key={n}
+            disabled={n === current}
+            className={`list-group-item list-group-item-action py-1 d-flex align-items-center gap-2${picked === n ? " active" : ""}`}
+            onClick={() => setPicked(n)}
+          >
+            <Flag nationality={n} tip={false} />
+            {n}
+            {n === current && <span className="ms-auto small">current</span>}
+          </button>
+        ))}
+        {shown.length === 0 && (
+          <div className="list-group-item text-muted small">No country by that name.</div>
+        )}
+      </div>
+
+      {picked !== null && picked !== current && (
+        <div className="gm-panel" style={{ maxWidth: 560 }}>
+          <div className="gm-panel-title">
+            <NationName nation={picked} />
+          </div>
+          <ul className="small text-secondary mb-3">
+            {current && (
+              <li>
+                Your spell with {current} closes there, and they pick their own eleven again
+                from the squad you named.
+              </li>
+            )}
+            <li>
+              {picked} starts you on a fresh slate with the federation, and the record goes
+              down as a spell like any other.
+            </li>
+            <li>
+              A campaign already under way is inherited as it stands. You take over the squad
+              they have, the way a real country changes manager mid-cycle.
+            </li>
+            <li>Nothing about your club job changes.</li>
+          </ul>
+          <button className="btn btn-sm btn-warning" disabled={simming} onClick={take}>
+            Take charge of {picked}
+          </button>
+        </div>
+      )}
+
+      {current && (
+        <div className="mt-3">
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            disabled={simming}
+            onClick={stepDown}
+          >
+            Step down as {current} manager
+          </button>
+          <div className="text-muted small mt-1">
+            Back to club football only. You can take a country again from here whenever you want.
+          </div>
         </div>
       )}
     </div>

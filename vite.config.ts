@@ -1,16 +1,34 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { copyFileSync } from "node:fs";
-import { cpus } from "node:os";
+import { cpus, totalmem } from "node:os";
 import { fileURLToPath } from "node:url";
 import CostAwareSequencer from "./test/helpers/shardSequencer.js";
+
+/**
+ * Peak resident size of ONE worker running one of the heavy full-world sim
+ * files, measured on the 626-club world (`npx vitest run
+ * test/core/spectator.test.ts` with a single worker, sampling `ps`): the worker
+ * peaks near 2.0GB and the whole node tree — parent included — near 3.1GB.
+ * Budgeted at 3 so the estimate covers the files heavier than the one measured.
+ */
+const WORKER_PEAK_GB = 3;
+
+/**
+ * Left for the OS, the vitest parent process, and whatever else the developer
+ * has open. macOS alone sits around 4GB on a 16GB machine before a browser.
+ */
+const HOST_RESERVE_GB = 4;
 
 /**
  * How many test workers to run locally.
  *
  * Vitest defaults to roughly one worker per core, and on this suite that is
- * measurably too many. The work is full-world multi-season sims, which are
- * heavy and sustained, and the machines running them are fanless laptops that
+ * measurably too many, for TWO independent reasons. Both are load-bearing and
+ * the second one is newer than the first.
+ *
+ * **1. Throughput.** The work is full-world multi-season sims, which are heavy
+ * and sustained, and the machines running them are fanless laptops that
  * throttle under exactly that load. Measured on an 8-core MacBook Air:
  *
  *   6 workers, 6 heavy files  -> 2025s wall, and the SUM of per-test times came
@@ -23,23 +41,45 @@ import CostAwareSequencer from "./test/helpers/shardSequencer.js";
  * two-machine runner measured capping workers as worth 1.96x on the full suite
  * (1117s -> 570s), which is the same effect from the other direction.
  *
- * Note the mechanism is NOT simply running out of RAM, which was the first
- * guess: peak resident size is ~445MB per worker, so even nine of them fit
- * comfortably. It is memory bandwidth and thermal throttling, and it gets worse
- * the longer the machine has been working -- the same three files that take
- * ~506s on a cool machine took 988s after six hours of back-to-back sims. That
- * is the same effect test/helpers/shardPartition.ts warns about when it says a
- * file "measured 234s and 557s an hour apart", one level up.
+ * **2. Memory. This is now a hard ceiling, and it did not used to be.** The
+ * comment here used to say, correctly at the time, that "the mechanism is NOT
+ * simply running out of RAM: peak resident size is ~445MB per worker, so even
+ * nine of them fit comfortably". Giving every country a third division (#308)
+ * took the world from 420 clubs / 7,092 fixtures to 626 / 10,538, and that
+ * measurement went with it. Measured on the same 16GB machine, one process:
  *
- * So: half the cores, which is deliberately conservative rather than tuned. The
- * exact optimum is machine- and temperature-dependent and could not be pinned
- * down through that much thermal drift, so this does not pretend to. Override
- * with VITEST_MAX_WORKERS when you know better for your machine.
+ *   world              2-division (420 clubs)   3-division (626 clubs)
+ *   fixtures a season  7,092                    10,538          (1.49x)
+ *   league.played      129MB of JSON            192MB           (1.49x)
+ *   peak heap, season  471MB                    1082MB          (2.30x)
+ *
+ * Note the peak grew 2.3x for a 1.49x world: a matchday's box scores are all
+ * live at once, so this is superlinear in world size rather than proportional
+ * to it. `league.played` is the bulk of it, and it is genuinely needed until
+ * the offseason clears it -- the offseason does drop live heap back to ~100MB,
+ * so nothing accumulates across seasons. What does NOT come back is resident
+ * size: across three seasons RSS ratcheted 1205 -> 1393 -> 1510MB while live
+ * heap sat at ~100MB, because V8 does not return freed pages to the OS.
+ *
+ * So a worker on a heavy file costs ~2-3GB and keeps it. Locally the sequencer
+ * inherits vitest's slowest-first `sort()` (`shard()` is a no-op without
+ * `--shard`), so a run STARTS by putting the heaviest sim files on every worker
+ * at once -- the worst case, by construction. At one worker per two cores that
+ * is 5 x ~2.6GB plus the parent on a 16GB machine, and the machine died: this
+ * block exists because the first full run after #308 exhausted memory and took
+ * the host down with it.
+ *
+ * Hence the cap is now the *lower* of the two limits, and the memory one binds
+ * first on a small machine. Both are deliberately conservative rather than
+ * tuned -- the throughput optimum is machine- and temperature-dependent and
+ * could not be pinned down through that much thermal drift, and the memory one
+ * would rather leave a core idle than swap a laptop to death. Override with
+ * VITEST_MAX_WORKERS when you know better for your machine.
  *
  * **CI is deliberately left alone.** Its runners are core-poor already (vitest's
  * default is 1-3 workers there), they are not the thermally-limited laptops this
- * is about, and CI is what gates merges -- so there is no upside to touching it
- * and a real downside if this guess is wrong for that hardware.
+ * is about, and 16GB serves that couple of workers fine -- so there is no upside
+ * to touching it and a real downside if this guess is wrong for that hardware.
  */
 const localMaxWorkers = (): number | undefined => {
   const override = process.env.VITEST_MAX_WORKERS;
@@ -51,7 +91,11 @@ const localMaxWorkers = (): number | undefined => {
     return n;
   }
   if (process.env.CI) return undefined; // vitest's own default
-  return Math.max(1, Math.floor(cpus().length / 2));
+  const byCores = Math.floor(cpus().length / 2);
+  const byMemory = Math.floor((totalmem() / 1024 ** 3 - HOST_RESERVE_GB) / WORKER_PEAK_GB);
+  // At least one, however small the machine: a serial run is slow, but refusing
+  // to run any tests at all is worse.
+  return Math.max(1, Math.min(byCores, byMemory));
 };
 
 /**
@@ -237,5 +281,29 @@ export default defineConfig(({ mode }) => ({
       const max = localMaxWorkers();
       return max === undefined ? {} : { minWorkers: 1, maxWorkers: max };
     })(),
+    // A per-worker heap ceiling, so that exhausting memory fails LOUDLY in one
+    // worker instead of quietly taking the whole machine down.
+    //
+    // Node's default ceiling here is ~4.3GB, which is the wrong shape for this
+    // suite: it bounds one worker without bounding the run, so N workers can
+    // collectively ask for far more than the host has and the OS starts
+    // swapping long before any single worker trips its own limit. That is
+    // exactly how the first post-#308 run went -- the machine died, and no test
+    // ever reported anything.
+    //
+    // Sized from the same WORKER_PEAK_GB the worker count is, so the two cannot
+    // drift: whatever budget we claim per worker is the budget a worker is
+    // actually held to, and maxWorkers * WORKER_PEAK_GB is then a real bound on
+    // the run rather than an assumption about it. Headroom is comfortable
+    // rather than tight -- the heaviest file measured on the 626-club world is
+    // internationalEquivalence at 1299MB (it holds two full leagues to compare
+    // them), against a 3072MB ceiling.
+    //
+    // CI keeps Node's default, for the same reason it keeps vitest's own worker
+    // count: it runs a couple of workers on a 16GB runner and was never the
+    // machine this is about.
+    ...(process.env.CI
+      ? {}
+      : { poolOptions: { forks: { execArgv: [`--max-old-space-size=${WORKER_PEAK_GB * 1024}`] } } }),
   },
 }));

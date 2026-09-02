@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { isIntlStagePending } from "../../core/international/index.js";
@@ -13,7 +13,7 @@ import { useSportName } from "../sportName.js";
 import { useOffseasonAdvance } from "../useOffseasonAdvance.js";
 import { isSpectator } from "../../core/spectator.js";
 import { seasonYear } from "../format.js";
-import { buildImportPromptText } from "../../core/teams/rosterAiPrompt.js";
+import { CopyAiPromptButton } from "./CopyAiPromptButton.js";
 import { Dropdown } from "./Dropdown.js";
 import { SimTargetForm } from "./SimTargetForm.js";
 import { JumpSeasonsForm } from "./JumpSeasonsForm.js";
@@ -36,7 +36,6 @@ export function TopBar({ onToggleNav }: TopBarProps) {
   const advanceOffseason = useOffseasonAdvance();
   // No club, so no match of yours to watch live and no board to be sacked by.
   const spectating = !!league && isSpectator(league);
-  const [promptCopied, setPromptCopied] = useState(false);
 
   // The sidebar pins itself directly beneath this bar (see `.sidebar` in
   // styles.css), which needs the bar's real height rather than a guess: it runs
@@ -65,28 +64,6 @@ export function TopBar({ onToggleNav }: TopBarProps) {
   function handleSwitchLeague() {
     switchLeagueAction();
     navigate("/leagues");
-  }
-
-  async function handleCopyPrompt() {
-    if (!league) return;
-    const prompt = buildImportPromptText(league);
-    try {
-      await navigator.clipboard.writeText(prompt);
-    } catch {
-      // Clipboard can be blocked (permissions/insecure context); fall back to a download.
-      const blob = new Blob([prompt], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "soccer-gm-ai-prompt.txt";
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-    setPromptCopied(true);
-    window.setTimeout(() => setPromptCopied(false), 2000);
   }
 
   const isOffseason = league?.phase === "offseason";
@@ -279,14 +256,11 @@ export function TopBar({ onToggleNav }: TopBarProps) {
           <button className="btn btn-outline-light btn-sm" onClick={handleSwitchLeague}>
             Switch League
           </button>
-          <button
+          <CopyAiPromptButton
+            world={league}
             className="btn btn-outline-light btn-sm"
-            onClick={handleCopyPrompt}
-            disabled={!league}
             title="Copy a paste-ready prompt that teaches an AI this save's team-import format"
-          >
-            {promptCopied ? "Copied!" : "Copy AI Prompt to Customize"}
-          </button>
+          />
           <button
             className={`btn btn-sm ${league?.godMode ? "btn-warning" : "btn-outline-light"}`}
             onClick={() => league && setGodModeAction(!league.godMode)}
@@ -316,9 +290,12 @@ export function TopBar({ onToggleNav }: TopBarProps) {
             </button>
           </li>
           <li>
-            <button className="dropdown-item" onClick={handleCopyPrompt} disabled={!league}>
-              {promptCopied ? "Copied AI Prompt!" : "Copy AI Prompt to Customize"}
-            </button>
+            <CopyAiPromptButton
+              world={league}
+              className="dropdown-item"
+              copiedLabel="Copied AI Prompt!"
+              title="Copy a paste-ready prompt that teaches an AI this save's team-import format"
+            />
           </li>
           <li>
             <button

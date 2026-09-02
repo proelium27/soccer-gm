@@ -41,6 +41,7 @@ import {
 } from "../format.js";
 import { ROSTER_DOWNLOAD_URL } from "../rosterDownload.js";
 import { createGate, yieldToPaint } from "../singleFlight.js";
+import { CopyAiPromptButton } from "../components/CopyAiPromptButton.js";
 import { SPECTATOR_TID, isSpectatorTid } from "../../core/spectator.js";
 
 /**
@@ -543,12 +544,13 @@ export function NewLeague() {
           </summary>
           <p className="text-muted small mt-2 mb-0">
             A plain text (JSON) file listing clubs by league, each one optionally
-            carrying a squad. Write one yourself, or use "Copy AI Prompt to Customize"
-            in the top bar of any save to get a prompt you can paste into ChatGPT or
-            Claude. Load as many as you like — one file per league is a far easier ask
-            than a whole world at once. They only load while a league is being created:
-            replacing squads in a save already going would wipe out the careers of
-            everyone they replaced.
+            carrying a squad. Write one yourself, or press "Copy AI Prompt to Customize"
+            below and paste that into ChatGPT or Claude — it describes the file format
+            and, importantly, the exact leagues and squad sizes of the world you're
+            building here, which an AI can't guess. Load as many files as you like — one
+            per league is a far easier ask than a whole world at once. They only load
+            while a league is being created: replacing squads in a save already going
+            would wipe out the careers of everyone they replaced.
           </p>
         </details>
 
@@ -558,7 +560,7 @@ export function NewLeague() {
           </div>
         )}
 
-        <div className="d-flex gap-2">
+        <div className="d-flex gap-2 flex-wrap">
           <button
             type="button"
             className="btn btn-primary"
@@ -566,6 +568,10 @@ export function NewLeague() {
           >
             Choose Roster Files
           </button>
+          {/* Built from the world as currently configured, not the shipped one,
+              so the competition names and slot counts it quotes are the ones a
+              file will actually be resolved against. */}
+          <CopyAiPromptButton world={world.slotWorld} className="btn btn-outline-secondary" />
           <button
             type="button"
             className="btn btn-outline-secondary"
@@ -715,15 +721,22 @@ export function NewLeague() {
           editor and the file loader are the same on both. */}
       {!worldRoster && !rosterMode && (
         <div className="mb-3">
-          <button
-            type="button"
-            className="btn btn-outline-secondary btn-sm"
-            onClick={() => rosterInputRef.current?.click()}
-          >
-            Load roster files
-          </button>
+          <div className="d-flex gap-2 flex-wrap">
+            <button
+              type="button"
+              className="btn btn-outline-secondary btn-sm"
+              onClick={() => rosterInputRef.current?.click()}
+            >
+              Load roster files
+            </button>
+            {/* Offered next to the loader rather than only on the roster screen,
+                because the prompt is what you need BEFORE you have a file. */}
+            <CopyAiPromptButton world={world.slotWorld} className="btn btn-outline-secondary btn-sm" />
+          </div>
           <p className="text-muted small mt-2 mb-0">
             Optional. Real or invented clubs and squads, in place of the fictional ones.
+            No file yet? "Copy AI Prompt to Customize" gives you one to paste into an AI,
+            describing this world's leagues and squad sizes.
           </p>
           {rosterError && <div className="small text-danger mt-1">{rosterError}</div>}
         </div>

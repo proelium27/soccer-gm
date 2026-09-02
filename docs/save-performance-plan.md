@@ -166,8 +166,8 @@ Two consequences worth planning around:
   back, and that user cannot open *any* save until you roll forward again. No data
   is lost — going back to the newer build restores everything — but the outage is
   total while it lasts.
-- **Two accounts share this repo**, so whoever is on the older branch will hit this
-  the moment they load a save after running the new build once.
+- **Several branches and worktrees are normally open at once here**, so whichever one is
+  on the older build will hit this the moment it loads a save after the new build has run once.
 
 Export JSON is the escape hatch and should be called out in the PR.
 

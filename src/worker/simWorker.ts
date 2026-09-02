@@ -39,6 +39,7 @@ self.onmessage = (e: MessageEvent<WorkerCommand>) => {
     const { league: result, report } = simOffseasonReporting(cmd.league, rng, {
       teamStats: cmd.teamStats,
       referencedPids: cmd.referencedPids ? new Set(cmd.referencedPids) : undefined,
+      cupChampions: cmd.cupChampions,
     });
     const response: WorkerResponse = {
       type: "offseasonResult",

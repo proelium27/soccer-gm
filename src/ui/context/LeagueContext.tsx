@@ -32,8 +32,9 @@ import {
 import { switchClub } from "../../core/manager/switchClub.js";
 import { takeNationalJob, leaveNationalJob } from "../../core/nationalManager/index.js";
 import {
-  editableSquad, writeSquad, isValidNationSquad, squadRating,
+  editableSquad, writeSquad, isValidNationSquad, squadRating, isEligibleNation,
 } from "../../core/international/index.js";
+import { isSpectator } from "../../core/spectator.js";
 import { isManagerDecisionPending } from "../../core/manager/index.js";
 import { isValidStarters } from "../../core/lineup/resolveXI.js";
 import { teamSlots, chooseBestFormation, FORMATIONS, FORMATION_IDS, type FormationId } from "../../core/lineup/formations.js";
@@ -124,6 +125,8 @@ interface LeagueContextValue {
    * and no offseason. Same handover as accepting a job offer.
    */
   godModeSwitchClubAction: (tid: number) => Promise<void>;
+  /** God Mode: take charge of any country, offer or not. */
+  godModeTakeNationalJobAction: (nation: string) => Promise<void>;
   movePlayerToClubAction: (pid: number, tid: number) => Promise<void>;
   releasePlayerGodModeAction: (pid: number) => Promise<void>;
   editPlayerAction: (pid: number, edit: PlayerEdit) => Promise<void>;
@@ -904,6 +907,35 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     [mutate],
   );
 
+  /**
+   * God Mode: hand the user any country in the world. The national counterpart
+   * of the club switch above, and it removes the same single gate — that a
+   * federation actually approached — by calling `takeNationalJob` directly
+   * rather than reassigning `nationalManager.nation` itself. That function
+   * already leaves the old job properly (closing the stint, handing the eleven
+   * back so the AI picks its own again) and it is already good at any point in
+   * the season, because a national team owns nothing that a mid-season handover
+   * could strand.
+   *
+   * Two things are still refused. A country that cannot field a squad in this
+   * world would be a job with no team attached, so it is checked with the very
+   * same `isEligibleNation` the picker builds its list from. And a spectator
+   * save is left alone: `reviewNationalCampaign` returns early for one, so a
+   * country taken there would never be judged, never be offered another job and
+   * never sack you — the whole federation career would be quietly inert. The
+   * way in is the Switch Club tab, which ends spectating for good.
+   */
+  const godModeTakeNationalJobAction = useCallback(
+    (nation: string) => mutate((l) => {
+      if (!l.godMode) return null;
+      if (isSpectator(l)) return null;
+      if (l.nationalManager.nation === nation) return null;
+      if (!isEligibleNation(nation, l.players.filter((p) => p.nationality === nation))) return null;
+      return takeNationalJob(l, nation);
+    }),
+    [mutate],
+  );
+
   const releasePlayerGodModeAction = useCallback(
     (pid: number) => mutate((l) => detachPlayer(l, pid)),
     [mutate],
@@ -1014,6 +1046,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     setNationalFormationAction, autoPickNationalXIAction,
     movePlayerToClubAction,
     godModeSwitchClubAction,
+    godModeTakeNationalJobAction,
     releasePlayerGodModeAction,
     editPlayerAction,
     createPlayerAction,
@@ -1041,6 +1074,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     playSuperCupsAction,
     setGodModeAction, movePlayerToClubAction, releasePlayerGodModeAction,
     godModeSwitchClubAction,
+    godModeTakeNationalJobAction,
     acceptJobOfferAction, declineJobOffersAction, setSackingEnabledAction,
     takeNationalJobAction, leaveNationalJobAction, declineNationalOffersAction,
     setNationalSackingEnabledAction, setNationalSquadAction, setNationalLineupAction,

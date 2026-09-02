@@ -6,7 +6,7 @@ the evidence, the root cause with line references, the shape of the fix, and wha
 true before it ships. Pick items off it independently — none of them depend on each other.
 
 Line references are as of **`8c90412`**. Confirm each one before editing; several files here
-are actively worked by two accounts.
+are actively worked across concurrent branches.
 
 ## What was audited
 

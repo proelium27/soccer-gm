@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listLeagues, deleteLeague, loadLeague } from "../../db/leagueDb.js";
 import { exportLeagueJSON, readLeagueFileText } from "../../db/exportImport.js";
@@ -8,6 +8,8 @@ import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentit
 import { parseRosterFile, isRosterFileFormat } from "../../core/teams/rosterFile.js";
 import { setPendingRoster } from "../pendingRoster.js";
 import { ROSTER_DOWNLOAD_URL } from "../rosterDownload.js";
+import { CopyAiPromptButton } from "../components/CopyAiPromptButton.js";
+import { worldCompetitions, worldTeamSlots } from "../../core/competitions.js";
 
 interface LeagueSummary {
   lid: number;
@@ -64,6 +66,11 @@ export function Leagues() {
   const [saving, setSaving] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  // Built once: it is a pure constant, and worldTeamSlots walks all 626 slots.
+  const defaultWorld = useMemo(() => {
+    const competitions = worldCompetitions();
+    return { competitions, teams: worldTeamSlots(competitions) };
+  }, []);
   const { loadLeagueAction, customizeTeamsAction, importJSON } = useLeague();
   const navigate = useNavigate();
   const { brand } = useSportName();
@@ -342,6 +349,16 @@ export function Leagues() {
             <span className="badge bg-success">Updated for EA FC 27</span>
           </span>
         )}
+        {/* This screen has no world of its own — a roster file imported from
+            here lands on a league that does not exist yet — so the prompt
+            describes the DEFAULT world, which is the one most saves are. Anyone
+            who then reshapes the world in World setup gets a prompt matching
+            what they actually built from the same button on /new-league. */}
+        <CopyAiPromptButton
+          world={defaultWorld}
+          className="btn btn-outline-secondary"
+          title="Copy a paste-ready prompt that teaches an AI the roster-file format, so you can have it write one"
+        />
         <input
           ref={importInputRef}
           type="file"
@@ -365,7 +382,10 @@ export function Leagues() {
             twelve countries instead of the first eight. If you grabbed it before then,
             download it again for the newer squads.
           </>
-        )}
+        )}{" "}
+        To make your own instead, "Copy AI Prompt to Customize" gives you a prompt to
+        paste into ChatGPT or Claude that spells out the format and the leagues it has to
+        fill. Files written without it usually import only partly, or not at all.
       </p>
     </div>
   );

@@ -157,7 +157,9 @@ export function Manual() {
             around 80 rather than 90, because ratings are rescaled onto the spread this game is
             tuned for and the ordering matters more than the absolute numbers; and imported clubs
             don't show a crest, since a crest belongs to a team slot rather than a club name and
-            would otherwise end up on the wrong team. Colors do carry over.
+            would otherwise end up on the wrong team. Colors do carry over. If you'd rather have a
+            file made to your own description, the "Copy AI Prompt to Customize" button beside it
+            is the other way in — see just below.
           </p>
           <p>
             Every club in it carries a real name, but not every one carries a real squad, because
@@ -192,22 +194,33 @@ export function Manual() {
           </p>
           <p>
             Writing all that JSON by hand is tedious, so the easiest route is to let an AI build it.
-            The "Copy AI Prompt to Customize" button in the top bar (once you're in a save) copies a ready-made
-            prompt to your clipboard, already filled in with your world's exact league names and sizes.
-            Paste it into ChatGPT or Claude and tell it what you want in there. Real present-day
-            leagues are the obvious use, but nothing about it is limited to that: ask for a 2004
-            throwback league, all-time national XIs, clubs from a show you like, or a world you made
-            up entirely. Then save its reply as a <code>.json</code> file and start a league with it
-            using "Import" on the Leagues screen. (If your browser blocks clipboard access, the button
-            downloads the prompt as a text file instead.)
+            The "Copy AI Prompt to Customize" button copies a ready-made prompt to your clipboard,
+            already filled in with your world's exact league names and sizes. It sits on the Leagues
+            screen next to Import, on the New League screen, and in the top bar of any save you have
+            open, so you can grab it whether or not you've started anything yet. Paste it into
+            ChatGPT or Claude and tell it what you want in there. Real present-day leagues are the
+            obvious use, but nothing about it is limited to that: ask for a 2004 throwback league,
+            all-time national XIs, clubs from a show you like, or a world you made up entirely. Then
+            save its reply as a <code>.json</code> file and start a league with it using "Import" on
+            the Leagues screen. (If your browser blocks clipboard access, the button downloads the
+            prompt as a text file instead.)
           </p>
           <p>
-            Two things the prompt now spells out for the AI, because both of them go wrong quietly.
-            It can only fill leagues your world actually has, so if you ask for one it hasn't got it
-            will say so rather than invent a name, which the importer would skip without a word. And
-            it has to keep each division inside its real size, since a division here can be anywhere
-            from ten clubs to twenty. Both are why the prompt carries your world's league names and
-            sizes rather than being the same text for everyone.
+            Press it on the New League screen rather than the Leagues screen if you've changed
+            anything about your world, since that's the one that describes the world you're actually
+            building — the leagues you added, the ones you renamed, the sizes you set. The Leagues
+            one describes the default world, which is what most saves are.
+          </p>
+          <p>
+            Three things the prompt spells out for the AI, because all three go wrong. Two go wrong
+            quietly: it can only fill leagues your world actually has, so if you ask for one it
+            hasn't got it will say so rather than invent a name, which the importer would skip
+            without a word; and it has to keep each division inside its real size, since a division
+            here can be anywhere from ten clubs to twenty. Both are why the prompt carries your
+            world's league names and sizes rather than being the same text for everyone. The third
+            goes wrong loudly: every club takes exactly two colors, and a club with three is enough
+            to make the game refuse the entire file. That one catches AIs out because plenty of real
+            clubs genuinely wear three, so being accurate is what breaks it.
           </p>
           <p>
             England's and Spain's clubs all have real crest art that shows up wherever the club's
@@ -1421,6 +1434,20 @@ export function Manual() {
             unsigned ones nobody would recognize.
           </p>
           <p>
+            Who counts as a big name is settled by the same score the GOAT rankings use, not by the
+            rating each player happened to retire at. That matters because great players leave the
+            game on the way down: a twelve-year forward with three Ballon d'Ors bowing out at 71
+            belongs above a journeyman who drifted out at 74, and the rating alone would tell you
+            the opposite. So the list reads as a ranking of careers, trophies and all.
+          </p>
+          <p>
+            The score itself is in the table, in the GOAT column, so you can see what separated
+            them instead of taking the order on trust. It's a snapshot taken the summer each player
+            went, and it counts the season he'd just finished, so a title won on the way out is on
+            his record. Lists from before the game started recording it leave that column blank:
+            those players are gone, and there's no career left to score.
+          </p>
+          <p>
             One thing to know: a retired player is gone from the game, not filed away somewhere.
             There's no career page to visit afterwards, and old transfer entries or news items about
             him lose his name. That Season Preview list is the record of his send-off.
@@ -2386,6 +2413,7 @@ export function Manual() {
           <p>What it unlocks while it's on:</p>
           <ul>
             <li><strong>Manage any club.</strong> The <em>God Mode</em> page (it shows up in the sidebar once the switch is on) opens on a Switch Club tab. Pick any club in the world and take charge of it on the spot, no job offer needed and no waiting for the offseason. The club you leave goes straight to the AI, its youth academy graduates onto the senior squad on the way out, and any transfer talks you were holding are dropped. You arrive at the new club knowing its players' ratings but not their ceilings, same as taking a job normally. It goes in your career record as a spell like any other, and the board there starts you on a fresh slate.</li>
+            <li><strong>Manage any country.</strong> The same page has a Switch Country tab. Take charge of any national team in the world without waiting for a federation to come calling, and step down again whenever you like. Only countries with enough players born into your world to name a squad are listed, since the rest have no team to manage. The country you leave goes back to the AI and picks its own eleven again from the squad you named, the new one starts you on a fresh slate with its federation, and your club job carries on untouched. If a campaign is already under way you inherit it as it stands. In a spectator save there's nobody for a federation to appoint, so take a club first.</li>
             <li><strong>Edit any player.</strong> Open any player's profile and hit <em>Edit</em>. Change every one of his 14 ratings (OVR recomputes as you go), his potential, name, nationality, age, position, height, and his contract wage and length. You can also clear an injury outright.</li>
             <li><strong>Move players freely.</strong> From a player's profile, send him to any club instantly, with no fee, no budget check, and no cap, or release him to free agency.</li>
             <li><strong>Create players.</strong> The <em>God Mode</em> page has a Create Player tool. Build a player from scratch and drop him onto any club or leave him a free agent.</li>
