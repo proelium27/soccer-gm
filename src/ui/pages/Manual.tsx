@@ -1421,6 +1421,20 @@ export function Manual() {
             unsigned ones nobody would recognize.
           </p>
           <p>
+            Who counts as a big name is settled by the same score the GOAT rankings use, not by the
+            rating each player happened to retire at. That matters because great players leave the
+            game on the way down: a twelve-year forward with three Ballon d'Ors bowing out at 71
+            belongs above a journeyman who drifted out at 74, and the rating alone would tell you
+            the opposite. So the list reads as a ranking of careers, trophies and all.
+          </p>
+          <p>
+            The score itself is in the table, in the GOAT column, so you can see what separated
+            them instead of taking the order on trust. It's a snapshot taken the summer each player
+            went, and it counts the season he'd just finished, so a title won on the way out is on
+            his record. Lists from before the game started recording it leave that column blank:
+            those players are gone, and there's no career left to score.
+          </p>
+          <p>
             One thing to know: a retired player is gone from the game, not filed away somewhere.
             There's no career page to visit afterwards, and old transfer entries or news items about
             him lose his name. That Season Preview list is the record of his send-off.

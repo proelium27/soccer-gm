@@ -85,6 +85,26 @@ describe("Season Preview retirements", () => {
     expect(html).toContain("46 of");
   });
 
+  it("shows the career score the list was ranked on", () => {
+    const html = render(leagueWithRetirements({
+      total: 400, rostered: 90,
+      notable: [retiree({ pid: GHOST_PID + 5, name: "Well Decorated", goat: 417 })],
+    }));
+    expect(html).toContain("GOAT");
+    expect(html).toContain("<strong>417</strong>");
+  });
+
+  it("leaves the score blank on a list written before it was recorded", () => {
+    // The score is stored, not derived, because the player is deleted moments
+    // after the row is written — so an older save's list has rows nothing can
+    // score, and the column has to say nothing rather than 0.
+    const html = render(leagueWithRetirements({
+      total: 400, rostered: 90, notable: [retiree({ pid: GHOST_PID + 6, name: "Long Gone" })],
+    }));
+    expect(html).toContain("Long Gone");
+    expect(html).toContain(">—<");
+  });
+
   it("marks an unsigned retiree as a free agent instead of blanking the club", () => {
     const html = render(leagueWithRetirements({
       total: 300, rostered: 0, notable: [retiree({ pid: GHOST_PID + 2, tid: null })],

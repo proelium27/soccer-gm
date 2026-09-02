@@ -12,6 +12,7 @@ import {
   detachTransfers, reattachTransfers,
 } from "../core/simArchive.js";
 import { referencedPids } from "../core/players/playerNames.js";
+import { honourSourcesOf } from "../core/frivolities/goat.js";
 import { computeTeamSeasonStats } from "../core/standings.js";
 
 export type SimProgress = {
@@ -197,6 +198,9 @@ export function useSimWorker() {
                 // extendPlayerNames walks the history we just held back, so the
                 // answer is worked out here instead. See detachNews.
                 referencedPids: [...referencedPids(command.league)],
+                // Read off the full league, before `detachNews` empties the cup
+                // histories on the way to the worker.
+                cupChampions: honourSourcesOf(command.league),
               }
             : { ...command, league: payload };
 

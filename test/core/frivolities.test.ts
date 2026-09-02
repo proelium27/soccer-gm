@@ -13,7 +13,7 @@ import {
   allTimeInternationalBoards, cappedNationalities, type IntlAllTimeKey,
 } from "../../src/core/frivolities/international.js";
 import {
-  computeHonours, playerGoatRanking, teamGoatRanking, pointsOf,
+  computeHonours, honourSourcesOf, playerGoatRanking, teamGoatRanking, pointsOf,
 } from "../../src/core/frivolities/goat.js";
 import { computeAwardTrivia, sortAwardRows, awardXIForClub } from "../../src/core/frivolities/honours.js";
 import { computePlayerHonors } from "../../src/core/playerHonors.js";
@@ -599,7 +599,7 @@ describe("GOAT rankings", () => {
       ];
       const store = makeStore({ players: [player], seasonHistory: history } as unknown as Partial<LeagueStore>);
 
-      const mine = computeHonours(store, allCareers(store)).get(1)!;
+      const mine = computeHonours(honourSourcesOf(store), allCareers(store)).get(1)!;
       const theirs = computePlayerHonors(player, history);
 
       expect(mine.leagueTitles).toBe(theirs.leagueTitles.length);
@@ -630,7 +630,7 @@ describe("GOAT rankings", () => {
         ],
       } as unknown as Partial<LeagueStore>);
 
-      const h = computeHonours(store, allCareers(store)).get(99)!;
+      const h = computeHonours(honourSourcesOf(store), allCareers(store)).get(99)!;
       expect(h.ballonDOr).toBe(1);
       expect(h.playerOfSeason).toBe(1);
       expect(h.teamOfSeason).toBe(1);
@@ -650,7 +650,7 @@ describe("GOAT rankings", () => {
           historyWithAwards(2029, [row(1, 38, 60), row(2, 38, 90)], { 1: 0, 2: 0 }, { champion: 2 }),
         ],
       } as unknown as Partial<LeagueStore>);
-      expect(computeHonours(store, allCareers(store)).get(1)!.leagueTitles).toBe(0);
+      expect(computeHonours(honourSourcesOf(store), allCareers(store)).get(1)!.leagueTitles).toBe(0);
     });
   });
 
