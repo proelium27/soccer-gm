@@ -3533,12 +3533,23 @@ export const DOMESTIC_CUP_PRIZE_BY_ROUNDS_FROM_FINAL: readonly number[] = [
  * ~£0.01M of zero (see `DOMESTIC_CUP_PRIZE_BY_ROUNDS_FROM_FINAL`'s audit note).
  * Targeting the payment is what lets it be large enough to matter.
  *
+ * **Multiplied by how many divisions separate the two clubs**, which is the
+ * whole reason it is a per-gap constant rather than a flat cheque (2026-09-01,
+ * when the world gained a third division). A third-tier club drawing a top-flight
+ * giant is the single most romantic tie the competition can produce, and paying
+ * it the same as a second-tier club drawing the division immediately above would
+ * price those two identically. A gap of one pays this; a gap of two pays double.
+ * It also lands the money where it is worth most: `tierScale` is
+ * `DIVISION_2_BUDGET_SCALE ** (tier - 1)`, so a third-tier club earns 36% of a
+ * top-flight one, and the same cheque is proportionally about twice the season
+ * to it that it is to a second-tier club.
+ *
  * Country-scaled and tier-flat like every other domestic cup payment (see
- * `domesticCupScaleFor`). **A caveat worth keeping:** this game's second
- * division earns 60% of its top flight (`DIVISION_2_BUDGET_SCALE`) where real
- * football's earns ~2%, so a realistic cup cheque can never mean to these clubs
- * what it means to a real one. This lifts a decent run from ~0.3% of a season to
- * ~2-3% — a signing, not a revolution — and going much beyond that starts
+ * `domesticCupScaleFor`). **A caveat worth keeping:** this game's lower divisions
+ * earn 60% and 36% of their top flight where real football's third tier earns
+ * ~1%, so a realistic cup cheque can never mean to these clubs what it means to a
+ * real one. This lifts a decent run from ~0.3% of a season into the low single
+ * digits — a signing, not a revolution — and going much beyond that starts
  * pricing the cup above the league places it sits beside.
  */
 export const DOMESTIC_CUP_GLAMOUR_TIE_BONUS = 600_000;

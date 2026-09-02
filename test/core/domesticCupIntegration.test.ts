@@ -3,7 +3,9 @@ import type { TeamMatchData } from "../../src/core/league/composites.js";
 import { makeLeague } from "../helpers/league.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { mulberry32 } from "../../src/engine/rng.js";
-import { worldCompetitions, competitionTeamCount } from "../../src/core/competitions.js";
+import {
+  worldCompetitions, worldTeamSlots,
+} from "../../src/core/competitions.js";
 import {
   buildDomesticCup, pendingRound, domesticRoundName, domesticPrizeForRound,
 } from "../../src/core/domesticCup/cup.js";
@@ -22,18 +24,13 @@ function tierOfFrom(teams: { tid: number; compId: number }[]): (tid: number) => 
   return (tid) => byTid.get(tid) ?? 1;
 }
 
-// Sized from the table rather than a flat 20+20: divisions are different sizes
-// per country now, and a cup's whole shape (rounds, byes, which matchday it
-// starts on) falls out of how many clubs its country actually has.
+// The real slot layout, not a hand-rolled one. This used to build tier 1 + tier 2
+// itself, which silently stopped describing the world when a third division was
+// added (2026-09-01) -- the cup fields EVERY division of a country, so a two-tier
+// fixture tests a competition the game no longer runs. worldTeamSlots is the
+// function generateWorld's tid layout is pinned against, so it cannot drift again.
 function worldTeams(): { tid: number; compId: number }[] {
-  const teams: { tid: number; compId: number }[] = [];
-  let tid = 0;
-  for (const c of comps.filter((x) => x.tier === 1)) {
-    const d2 = comps.find((x) => x.country === c.country && x.tier === 2)!;
-    for (let i = 0; i < competitionTeamCount(c); i++) teams.push({ tid: tid++, compId: c.id });
-    for (let i = 0; i < competitionTeamCount(d2); i++) teams.push({ tid: tid++, compId: d2.id });
-  }
-  return teams;
+  return worldTeamSlots(comps);
 }
 
 /**
@@ -140,23 +137,26 @@ describe("domestic cup prize money", () => {
     const totals = new Map<number, number>();
     let pot = 0;
     let championRun = 0;
-    let crossTierTies = 0;
+    let glamourGaps = 0;
     for (let r = 0; r < cup.totalRounds; r++) {
       const played = playDomesticRound(cup, comps, noMatchData, 0, () => 1, tierOf);
       const winPrize = domesticPrizeForRound(cup, r);
       expect(winPrize).toBeGreaterThan(0); // every round pays something
       const isFinal = played.ties.length === 1;
-      crossTierTies += played.ties.filter((t) => tierOf(t.home) !== tierOf(t.away)).length;
+      glamourGaps += played.ties.reduce(
+        (sum, t) => sum + Math.abs(tierOf(t.home) - tierOf(t.away)),
+        0,
+      );
       for (const tie of played.ties) {
         const loser = tie.winner === tie.home ? tie.away : tie.home;
         expect(played.prizes.get(tie.winner)).toBeGreaterThanOrEqual(winPrize);
         // A beaten side is paid only as the finalist, or as the smaller club in
         // a cross-tier tie (gate receipts are taken on the day, win or lose).
-        const crossTier = tierOf(tie.home) !== tierOf(tie.away);
+        const gap = Math.abs(tierOf(tie.home) - tierOf(tie.away));
         const smaller = tierOf(tie.home) > tierOf(tie.away) ? tie.home : tie.away;
         const expected =
           (isFinal ? DOMESTIC_CUP_PRIZE_RUNNER_UP : 0) +
-          (crossTier && loser === smaller ? DOMESTIC_CUP_GLAMOUR_TIE_BONUS : 0);
+          (gap > 0 && loser === smaller ? gap * DOMESTIC_CUP_GLAMOUR_TIE_BONUS : 0);
         expect(played.prizes.get(loser) ?? 0).toBe(expected);
       }
       for (const [tid, v] of played.prizes) {
@@ -176,7 +176,7 @@ describe("domestic cup prize money", () => {
         0,
       ) +
         DOMESTIC_CUP_PRIZE_RUNNER_UP +
-        crossTierTies * DOMESTIC_CUP_GLAMOUR_TIE_BONUS,
+        glamourGaps * DOMESTIC_CUP_GLAMOUR_TIE_BONUS,
     );
     // Winning it is worth every round he won, and it is deliberately SMALL --
     // a real cup run is a supporting income, not a title's worth (see the
@@ -200,6 +200,11 @@ describe("domestic cup prize money", () => {
     const topFlight = teams.find((t) => t.compId === d1.id)!.tid;
     const second = teams.find((t) => t.compId === d2.id)!.tid;
     expect(scaleOf(second)).toBe(scaleOf(topFlight));
+    // Every division of the country, however deep the pyramid gets.
+    for (const c of comps.filter((x) => x.country === "England")) {
+      const tid = teams.find((t) => t.compId === c.id)!.tid;
+      expect(scaleOf(tid)).toBe(scaleOf(topFlight));
+    }
     // ...and it is still the country's scale, not a flat 1.
     const serbia = comps.find((c) => c.country === "Serbia" && c.tier === 1)!;
     const serbTid = teams.find((t) => t.compId === serbia.id)!.tid;

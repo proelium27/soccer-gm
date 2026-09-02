@@ -71,13 +71,16 @@ export function playDomesticRound(
   for (const tie of ties) {
     credit(tie.winner, winPrize);
     // Glamour-tie gate receipts: the smaller club is paid for meeting a club
-    // from the division above, win or lose, because that is what a cup run is
-    // really worth to it. See DOMESTIC_CUP_GLAMOUR_TIE_BONUS for why only the
-    // smaller side is paid and why this is credited off the result.
+    // from a division above, win or lose, because that is what a cup run is
+    // really worth to it. Scaled by how many divisions separate them, so a
+    // third-tier club drawing the top flight is not priced the same as one
+    // drawing the division immediately above. See
+    // DOMESTIC_CUP_GLAMOUR_TIE_BONUS for why only the smaller side is paid.
     const homeTier = tierOf(tie.home);
     const awayTier = tierOf(tie.away);
-    if (homeTier !== awayTier) {
-      credit(homeTier > awayTier ? tie.home : tie.away, DOMESTIC_CUP_GLAMOUR_TIE_BONUS);
+    const gap = Math.abs(homeTier - awayTier);
+    if (gap > 0) {
+      credit(homeTier > awayTier ? tie.home : tie.away, gap * DOMESTIC_CUP_GLAMOUR_TIE_BONUS);
     }
     // The final's loser is the only beaten side that gets paid, matching the
     // Continental Cup's runner-up cheque.

@@ -161,8 +161,11 @@ for (let s = 0; s < seasons; s++) {
       ` max ${M(runs[runs.length - 1] ?? 0)}   (a top-half league finish pays ${M(PRIZE_TOP_10)})`,
   );
 
-  // The flat-across-tiers check: mean domestic earnings per PARTICIPATING club.
-  const perTier = [1, 2].map((tier) => {
+  // Per division, over however many the world has -- it grew a third on
+  // 2026-09-01 and a hardcoded [1, 2] would have quietly stopped reporting the
+  // clubs this feature exists for.
+  const tiers = [...new Set(league.competitions.map((c) => c.tier))].sort((a, b) => a - b);
+  const perTier = tiers.map((tier) => {
     const vals = [...domByTid].filter(([tid]) => byId.get(compOf.get(tid) ?? 0)?.tier === tier);
     const total = vals.reduce((a, [, v]) => a + v, 0);
     return { tier, clubs: vals.length, mean: vals.length ? total / vals.length : 0 };
@@ -193,19 +196,19 @@ for (let s = 0; s < seasons; s++) {
   // takes a Continental Shield place (allocateContinentalPlaces), and Shield
   // money is FLAT, so it is worth proportionally most to exactly these clubs.
   const tier2 = [...allByTid]
-    .filter(([tid]) => byId.get(compOf.get(tid) ?? 0)?.tier === 2)
+    .filter(([tid]) => (byId.get(compOf.get(tid) ?? 0)?.tier ?? 1) >= 2)
     .map(([tid, total]) => {
       const comp = byId.get(compOf.get(tid) ?? 0)!;
       const income = BASE_SEASON_BUDGET * financeScale(league.competitions, comp.id);
-      return { tid, country: comp.country, total, income, pct: (total / income) * 100 };
+      return { tid, country: comp.country, tier: comp.tier, total, income, pct: (total / income) * 100 };
     })
     .sort((a, b) => b.pct - a.pct);
   const domWinnersT2 = league.domesticCups
-    .filter((c) => c.championTid !== null && byId.get(compOf.get(c.championTid!) ?? 0)?.tier === 2)
-    .map((c) => c.country);
+    .filter((c) => c.championTid !== null && (byId.get(compOf.get(c.championTid!) ?? 0)?.tier ?? 1) >= 2)
+    .map((c) => `${c.country} (tier ${byId.get(compOf.get(c.championTid!) ?? 0)?.tier})`);
   const medT2 = tier2.length ? tier2[tier2.length >> 1] : null;
   console.log(
-    `  SECOND-DIVISION clubs earning anything: ${tier2.length}` +
+    `  LOWER-DIVISION clubs earning anything: ${tier2.length}` +
       `  | median ${medT2 ? `${M(medT2.total)} (${medT2.pct.toFixed(1)}% of its season)` : "-"}` +
       `  | best ${tier2[0] ? `${M(tier2[0].total)} = ${tier2[0].pct.toFixed(1)}% (${tier2[0].country})` : "-"}`,
   );
@@ -215,7 +218,9 @@ for (let s = 0; s < seasons; s++) {
       `   (a cup win takes a Continental Shield place)`,
   );
   for (const r of tier2.slice(0, 3)) {
-    console.log(`      ${r.country.padEnd(12)} ${M(r.total)} of a ${M(r.income)} season = ${r.pct.toFixed(1)}%`);
+    console.log(
+      `      ${r.country.padEnd(12)} tier ${r.tier}  ${M(r.total)} of a ${M(r.income)} season = ${r.pct.toFixed(1)}%`,
+    );
   }
 
   const byCountry = new Map<string, { total: number; clubs: number; scale: number }>();

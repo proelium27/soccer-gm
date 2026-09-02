@@ -1065,15 +1065,16 @@ export function Manual() {
         <Section id="domestic-cup" title="The Domestic Cup">
           <p>
             Every country also runs its own cup, and this one is open to{" "}
-            <strong>both divisions</strong> — all 40 clubs in the country, top flight and second
-            tier together. It's the trophy that lets a small club have the season of its life, and
+            <strong>every division</strong>, top flight to third tier together, which in England is
+            60 clubs. It's the trophy that lets a small club have the season of its life, and
             it's the third leg of the <strong>treble</strong>: win your league, the Continental Cup
             and your domestic cup in the same season and you've done the lot.
           </p>
           <p>
             Winning it also gets you into Europe. Your country's cup winner takes a{" "}
             <a href="#shield">Continental Shield</a> place next season, whatever he did in the
-            league — including a second-division club, who goes in as the bottom seed. See{" "}
+            league, including a club from the second or third division, who goes in as a bottom
+            seed. See{" "}
             <a href="#shield">The Continental Shield</a> for who makes way.
           </p>
           <p>
@@ -1083,19 +1084,21 @@ export function Manual() {
             once. The two best clubs in the country can meet in round one, and often do.
           </p>
           <p>
-            40 clubs doesn't divide neatly into a knockout, so the{" "}
-            <strong>16 lowest-placed clubs</strong> from last season play a preliminary round first
-            (matchday 5). The eight winners join the other 24 for a round of 32 (matchday 9), then
+            A country's club count doesn't divide neatly into a knockout, so the{" "}
+            <strong>lowest-placed clubs</strong> from last season play a preliminary round first
+            (matchday 5) and the winners join everyone else for a round of 32 (matchday 9). Then
             it's a round of 16 (13), quarter-finals (21), semi-finals (26) and the{" "}
-            <strong>final on matchday 36</strong>. None of those clash with a Continental Cup
-            matchday, and your cup fixtures appear on your <strong>Schedule</strong> page.
+            <strong>final on matchday 36</strong>. A country with fewer clubs simply skips the
+            early rounds, so every final lands on the same day. None of those clash with a
+            Continental Cup matchday, and your cup fixtures appear on your{" "}
+            <strong>Schedule</strong> page.
           </p>
           <p>
             Every tie is a <strong>single match</strong>. Level after 90 minutes goes to extra time,
             and still level goes to penalties, so somebody always goes through on the day. A
-            second-tier club really can knock you out: the cup measures both divisions against{" "}
+            lower-division club really can knock you out: the cup measures every division against{" "}
             <strong>one shared yardstick</strong> rather than grading each club against its own
-            league, so the gap between a top-flight side and a second-tier one is real — but it's a
+            league, so the gap between a top-flight side and a third-tier one is real, but it's a
             gap, not a wall, and over one match anything can happen.
           </p>
           <p>
@@ -1112,24 +1115,32 @@ export function Manual() {
             than a jackpot.
           </p>
           <p>
-            The part that matters if you're in the second division is the{" "}
-            <strong>glamour tie</strong>. Draw a top-flight club and you bank an extra{" "}
-            <strong>$600k</strong> whatever the score, win or lose, because a full house and the
-            cameras are worth more to you than the tie itself. It's the one payment in the game that
-            only goes to the smaller club, and it's why a cup run is worth chasing from the second
-            tier: most second-division clubs earn something from the cup in a given season, and a
-            good run is worth around a tenth of your year's income.
+            The part that matters if you're below the top flight is the{" "}
+            <strong>glamour tie</strong>. Draw a club from a higher division and you bank an extra{" "}
+            <strong>$600k per division between you</strong>, whatever the score, win or lose,
+            because a full house and the cameras are worth more to you than the tie itself. So a
+            second-tier club drawing the top flight gets $600k, and a third-tier club drawing them
+            gets <strong>$1.2M</strong>. It's the one payment in the game that only goes to the
+            smaller club.
+          </p>
+          <p>
+            That's what makes a cup run worth chasing from the lower divisions, and it adds up to
+            more down there than it does at the top: a third-division club plays more of these ties
+            than anyone, so across a season the third tier earns <em>more</em> cup money per club
+            than the top flight does. A good run is worth a few percent of your year, and a deep one
+            in a smaller country can be worth a sixth of it.
           </p>
           <p>
             Every payment here is scaled to your country, so an English cup run pays more than a
-            Serbian one, but it is <strong>not</strong> scaled down for the second division. You
-            get the same cheque for the same round a top-flight club would, which is how the real
-            ones work.
+            Serbian one, but it is <strong>not</strong> scaled down for being in a lower division.
+            You get the same cheque for the same round a top-flight club would, which is how the
+            real ones work, and it's worth far more to you than it is to them.
           </p>
           <p>
             And the biggest prize still isn't the money. Winning the thing puts you in Europe, and a
-            Shield place is worth several times the trophy's own cheque — for a second-division
-            winner it can be a quarter of a season's income.
+            Shield place is worth several times the trophy's own cheque. A lower-division club
+            really can win it and go: for one of those, the European place alone can be worth a
+            fifth of a season's income.
           </p>
           <p className="text-muted small">
             Saves started before domestic cups existed pick them up at the next offseason, so
