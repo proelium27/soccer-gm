@@ -13,6 +13,7 @@ import {
   NATIONAL_MAX_OFFERS,
   NATIONAL_OFFER_BAND,
   NATIONAL_OFFER_LATERAL_BAND,
+  NATIONAL_OFFER_CLUB_REP_WEIGHT,
   NATIONAL_OFFER_BASE_CHANCE,
   NATIONAL_OFFER_UNEMPLOYED_CHANCE,
   NATIONAL_OFFER_FORM_WEIGHT,
@@ -86,6 +87,13 @@ export interface NationOfferInputs {
   /** The federation dismissed you this offseason, so the nations that will take you are a rung down. */
   sacked: boolean;
   reputation: number;
+  /**
+   * The manager's *club* reputation, which federations can see a discounted
+   * fraction of (`NATIONAL_OFFER_CLUB_REP_WEIGHT`). It reaches the offer target
+   * and nothing else — never confidence, never a sacking, never the
+   * international reputation shown to the player.
+   */
+  clubReputation: number;
   /** Last campaign's placement-versus-expectation — a good tournament gets you noticed. */
   lastOverperformance: number;
 }
@@ -111,8 +119,16 @@ export interface NationOfferInputs {
  * moment you managed a country stronger than your reputation. Measured on a
  * 44-nation field, mean offers per offseason while employed: the strongest
  * nation's manager got **0.00 at every reputation from 30 to 100**, the third
- * strongest 0.33. Unemployed was never affected — `currentPrestige` is 0 with no
- * job, so the `max` is inert there and that path is untouched.
+ * strongest 0.33.
+ *
+ * **A discounted slice of the CLUB reputation is folded into the same target**,
+ * which is what the unemployed case needed — the `max` above is inert with no
+ * job (`currentPrestige` is 0), and international reputation cannot rise without
+ * holding a national job, so a manager who has never held one sits on
+ * `NATIONAL_REP_BASE` forever. Measured on a real 70-nation world, the best
+ * country that band could reach was **rank 33**, every offseason, whatever the
+ * club career. See `NATIONAL_OFFER_CLUB_REP_WEIGHT` for why it is discounted
+ * rather than counted in full.
  */
 export function generateNationOffers(input: NationOfferInputs): NationOffer[] {
   const { expectations, currentNation, sacked } = input;
@@ -124,7 +140,11 @@ export function generateNationOffers(input: NationOfferInputs): NationOffer[] {
     1,
     Math.max(
       0,
-      Math.max(input.reputation / 100, currentPrestige)
+      Math.max(
+        input.reputation / 100,
+        (input.clubReputation / 100) * NATIONAL_OFFER_CLUB_REP_WEIGHT,
+        currentPrestige,
+      )
       - (sacked ? NATIONAL_SACKED_PRESTIGE_PENALTY : 0),
     ),
   );

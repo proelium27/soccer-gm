@@ -1284,14 +1284,22 @@ export function Manual() {
             go back to club football until someone else asks.
           </p>
           <p>
-            Offers from other federations work the same way club offers do, and on a
-            <em>separate</em> reputation &mdash; what you've done in club football counts for
-            nothing here, and vice versa. While you hold a job you'll only hear from countries at
-            roughly your own level or better, and your international record is what lifts that
-            level. With no country at all the filter comes off entirely and approaches arrive far
-            more readily, because that's the only way back in. Approaches are rarer at the top:
-            manage one of the best teams in the world and only a handful of jobs are even a sideways
-            move, so it might be a few summers between calls.
+            Offers from other federations work the same way club offers do, but on a
+            <em>separate</em> reputation built only from what you've done with a country. While you
+            hold a job you'll only hear from nations at roughly your own level or better, and your
+            international record is what lifts that level. With no country at all the filter comes
+            off entirely and approaches arrive far more readily, because that's the only way back
+            in. Approaches are rarer at the top: manage one of the best teams in the world and only
+            a handful of jobs are even a sideways move, so it might be a few summers between calls.
+          </p>
+          <p>
+            Your club career isn't invisible to federations, but they discount it heavily. A big
+            trophy cabinet at club level gets you noticed by a decent country &mdash; somewhere
+            around the top quarter of the world, roughly the level of Wales or Serbia &mdash; and
+            never by one of the giants. It starts to count once your club reputation is up around
+            the high 40s, which is about one league title. The best national jobs stay behind an
+            international reputation you can only earn in the job, so the way to Spain or Brazil is
+            still to take a smaller country first and do well with it.
           </p>
           <p>
             International football is mostly a record, not a lever. Caps, goals, tournaments played

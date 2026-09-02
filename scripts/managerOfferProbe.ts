@@ -28,6 +28,7 @@ import { deriveExpectations } from "../src/core/manager/expectation.js";
 import { generateJobOffers, NO_MOVES } from "../src/core/manager/jobOffers.js";
 import { nationExpectations } from "../src/core/nationalManager/expectation.js";
 import { generateNationOffers } from "../src/core/nationalManager/offers.js";
+import { MANAGER_REP_BASE, NATIONAL_REP_BASE } from "../src/core/constants.js";
 import type { IntlPowerSnapshot } from "../src/core/international/types.js";
 
 const SEED = Number(process.env.SEED ?? 1);
@@ -96,25 +97,45 @@ function nationSnapshot(n = 44): IntlPowerSnapshot {
 function nationGrid(): void {
   const exp = nationExpectations(nationSnapshot());
   const all = [...exp.values()].sort((a, b) => a.rank - b.rank);
-  const run = (currentNation: string | null, reputation: number): number => {
+  const run = (
+    currentNation: string | null, reputation: number, clubReputation = MANAGER_REP_BASE,
+  ): { count: number; best: string } => {
     let total = 0;
+    let bestRank = Infinity;
     for (let season = 1; season <= SEASONS; season++) {
-      total += generateNationOffers({
+      const list = generateNationOffers({
         lid: 0, season, currentNation, expectations: exp,
-        sacked: false, reputation, lastOverperformance: 0,
-      }).length;
+        sacked: false, reputation, clubReputation, lastOverperformance: 0,
+      });
+      total += list.length;
+      for (const o of list) bestRank = Math.min(bestRank, o.rank);
     }
-    return total / SEASONS;
+    return { count: total / SEASONS, best: Number.isFinite(bestRank) ? `#${bestRank}` : "--" };
   };
 
   console.log(`\nNATIONAL OFFERS — ${all.length} nations`);
   console.log(`rank  prestige |${REPS.map((r) => pad(r, 6)).join("")}   <- reputation`);
   for (const rank of [1, 3, 8, 15, 22, 33, all.length]) {
     const me = all[rank - 1];
-    const cells = REPS.map((rep) => pad(run(me.nation, rep).toFixed(2), 6));
+    const cells = REPS.map((rep) => pad(run(me.nation, rep).count.toFixed(2), 6));
     console.log(`${pad(rank, 4)}  ${me.prestige.toFixed(3)}    |${cells.join("")}`);
   }
-  console.log(`  --  no job    |${REPS.map((rep) => pad(run(null, rep).toFixed(2), 6)).join("")}`);
+  console.log(`  --  no job    |${REPS.map((rep) => pad(run(null, rep).count.toFixed(2), 6)).join("")}`);
+
+  // A manager with no country cannot raise their international reputation --
+  // holding a job is the only way -- so without the club-reputation lift they
+  // sit on NATIONAL_REP_BASE forever and the best country reachable never moves.
+  // This row is what that lift buys, and it is the only place it shows up.
+  console.log(`\nbest nation offered to a manager with NO country, by CLUB reputation`);
+  console.log(`(international reputation pinned at ${NATIONAL_REP_BASE}, its floor -- holding a`);
+  console.log(` national job is the only way to raise it, so this is where a club manager sits)`);
+  console.log(`NOTE ranks here are of this ${all.length}-nation synthetic field. The shipped world`);
+  console.log(` has ~70 eligible nations, where club reputation 100 reaches about #18.`);
+  const clubReps = [MANAGER_REP_BASE, 45, 60, 75, 90, 100];
+  console.log(`clubRep       |${clubReps.map((r) => pad(r, 6)).join("")}`);
+  console.log(`best offered  |${clubReps.map(
+    (c) => pad(run(null, NATIONAL_REP_BASE, c).best, 6),
+  ).join("")}   of ${all.length}`);
 }
 
 clubGrid();
