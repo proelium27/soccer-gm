@@ -3996,6 +3996,19 @@ export const MANAGER_MAX_OFFERS = 4;
  * doesn't ring an unproven manager.
  */
 export const MANAGER_OFFER_BAND = 0.2;
+/**
+ * How far *below* your current club a job can be and still count as a step
+ * worth hearing about, on the same [0,1] prestige scale.
+ *
+ * Without it the step-up filter is `prestige >= currentPrestige`, which exactly
+ * one club in the world can never satisfy — prestige is min-max normalized, so
+ * the biggest club sits at 1.000 and its manager is offered nothing, forever,
+ * however decorated they are. A small allowance turns that into "your peers can
+ * come calling", which is how the top of real football works. Sized to reach
+ * roughly the top dozen clubs from the summit; wider and a superclub manager
+ * starts being offered mid-table jobs.
+ */
+export const MANAGER_OFFER_LATERAL_BAND = 0.05;
 /** Chance a matching club comes calling after an ordinary season. */
 export const MANAGER_OFFER_BASE_CHANCE = 0.22;
 /** How much a season spent beating expectation raises that chance. */
@@ -4078,6 +4091,54 @@ export const NATIONAL_SACK_THRESHOLD = 0;
 export const NATIONAL_MAX_OFFERS = 4;
 /** How far from your reputation a nation can sit and still come calling, [0,1]. */
 export const NATIONAL_OFFER_BAND = 0.25;
+/**
+ * How far below your current nation a job can sit and still be worth hearing
+ * about, [0,1]. The club side's `MANAGER_OFFER_LATERAL_BAND` word for word, and
+ * for the same reason: the strongest nation in the world sits at prestige 1.000
+ * and a strict step-up filter leaves its manager permanently unapproached.
+ *
+ * Wider than the club value because national prestige is read off *rank* rather
+ * than rating, so it is spread evenly over ~44 nations — a step of one place is
+ * about 0.023, and 0.05 would reach barely two of them.
+ */
+export const NATIONAL_OFFER_LATERAL_BAND = 0.08;
+/**
+ * How much of a manager's CLUB reputation federations can see, as a fraction.
+ *
+ * International reputation starts at `NATIONAL_REP_BASE` and the only way to
+ * raise it is to hold a national job, so without this a manager who has never
+ * held one is pinned at 30 forever — and on a real 70-nation world the best
+ * country the band could then reach was **rank 33**. The top five were
+ * structurally unreachable no matter how decorated the club career, which is
+ * not how the crossover works in real football.
+ *
+ * Swept against what is ACTUALLY OFFERED on the real 70-nation world rather
+ * than against the band arithmetic, because the two disagree and the arithmetic
+ * is the optimistic one: the band's ceiling at a target of `t` is `t + BAND`,
+ * but `pool.slice(0, NATIONAL_MAX_OFFERS * 4)` then keeps only the 16 nations
+ * *closest to the target*, so the top of the band is truncated away. At weight
+ * 0.5 the band reaches rank 18 and the best country ever offered over 20
+ * seasons is **rank 28**. Quote the offered number, not the reachable one.
+ *
+ * Best nation offered at club reputation 100, by weight, measured:
+ * 0.50 -> #28, 0.55 -> #25, 0.60 -> #21, **0.65 -> #18 (Wales)**, 0.70 -> #14,
+ * 0.75 -> #11 (Brazil). 0.65 is a good country and not an elite one; the top
+ * five are all still out of reach, and getting Spain still needs a national
+ * reputation near 75 earned in the job. The discount is what keeps the
+ * international ladder a ladder rather than something a domestic treble skips.
+ *
+ * It only bites above club reputation 47, because below that it lands under
+ * `NATIONAL_REP_BASE` and the `max` ignores it: an unproven manager is
+ * unaffected (base club reputation is 30), and roughly one league title is what
+ * starts opening it. A reward for a real club career rather than a freebie.
+ *
+ * Deliberately feeds the OFFER TARGET ONLY, never `nationalReputation` itself —
+ * that number is displayed to the player as their international standing and
+ * must keep meaning what it says, and it also drives nothing else. Confidence
+ * and sackings stay strictly on the national record, so a club-side retune can
+ * never change who a federation dismisses.
+ */
+export const NATIONAL_OFFER_CLUB_REP_WEIGHT = 0.65;
 /**
  * Per-nation chance of an approach in any given offseason while you already
  * hold a national job. Deliberately low: international jobs turn over slowly,

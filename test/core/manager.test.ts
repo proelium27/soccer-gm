@@ -9,6 +9,7 @@ import { emptyManagerState, type ManagerStint } from "../../src/core/manager/typ
 import { academyContractTerms } from "../../src/core/contracts.js";
 import {
   MANAGER_START_CONFIDENCE, MANAGER_GRACE_SEASONS, DIFFICULTIES,
+  MANAGER_OFFER_LATERAL_BAND, MANAGER_REP_BASE,
 } from "../../src/core/constants.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { SeasonHistoryEntry } from "../../src/core/standings.js";
@@ -294,11 +295,89 @@ describe("job offers", () => {
     });
     expect(sacked.every((o) => o.prestige <= current.prestige)).toBe(true);
 
+    // "A step up" allows a lateral move: an offer may sit up to
+    // MANAGER_OFFER_LATERAL_BAND below your current job, which is what lets the
+    // biggest club in the world be approached at all (a strict `>=` is
+    // unsatisfiable at the prestige 1.000 normalization hands exactly one club).
     const courted = generateJobOffers({
       lid: league.lid, season: 4, currentTid: USER, expectations,
       sacked: false, reputation: 90, lastOverperformance: 0.6,
     });
-    expect(courted.every((o) => o.prestige >= current.prestige)).toBe(true);
+    expect(courted.length).toBeGreaterThan(0);
+    expect(courted.every(
+      (o) => o.prestige >= current.prestige - MANAGER_OFFER_LATERAL_BAND,
+    )).toBe(true);
+  });
+
+  /**
+   * The bug this pair of bands exists to prevent, and it shipped for weeks: the
+   * band is an *absolute* window in world prestige centred on reputation, while
+   * the step-up filter is *relative* to the job you hold. Centred on reputation
+   * alone the two stop overlapping entirely once `currentPrestige` exceeds
+   * `reputation/100 + MANAGER_OFFER_BAND`, and the pool comes out empty.
+   *
+   * Both routes in are covered because they look unrelated from the outside and
+   * are the same arithmetic: the decorated manager who climbed to the summit,
+   * and the unproven one handed a big club on the base reputation. Measured on a
+   * fresh 626-club world, the world's biggest club got **0.00 offers a season at
+   * every reputation from 30 to 100** — the better you did, the fewer you got.
+   */
+  describe("a big job never leaves you unapproached", () => {
+    const ranked = [...expectations.values()].sort((a, b) => b.prestige - a.prestige);
+
+    /** Distinct clubs that came calling over 12 seeded seasons. */
+    const courtedOver = (tid: number, reputation: number): number => {
+      const seen = new Set<number>();
+      for (let season = 1; season <= 12; season++) {
+        for (const o of generateJobOffers({
+          lid: league.lid, season, currentTid: tid, expectations,
+          sacked: false, reputation, lastOverperformance: 0,
+        })) seen.add(o.tid);
+      }
+      return seen.size;
+    };
+
+    it("approaches the manager of the biggest club in the world", () => {
+      const biggest = ranked[0];
+      expect(biggest.prestige).toBe(1);
+      expect(courtedOver(biggest.tid, 100)).toBeGreaterThan(0);
+    });
+
+    it("approaches an unproven manager handed a big club", () => {
+      expect(courtedOver(ranked[2].tid, MANAGER_REP_BASE)).toBeGreaterThan(0);
+    });
+
+    it("approaches a manager at every rung of the pyramid", () => {
+      // The failure was a step function in club size, so sample across the range
+      // rather than at one point: a probe that only looked at mid-table clubs
+      // would have reported the feature healthy throughout.
+      for (const i of [0, 2, 9, 24, Math.floor(ranked.length / 2), ranked.length - 1]) {
+        for (const reputation of [MANAGER_REP_BASE, 60, 100]) {
+          expect(courtedOver(ranked[i].tid, reputation)).toBeGreaterThan(0);
+        }
+      }
+    });
+
+    /**
+     * Reputation still has to *do* something. It no longer caps how big a job
+     * may approach you, so what it buys is calibre: a small club's manager is
+     * offered clubs at their own level on the base reputation and the best in
+     * the world at 100.
+     */
+    it("still lets reputation raise the calibre of club that calls", () => {
+      const small = ranked[Math.floor(ranked.length * 0.75)];
+      const meanPrestige = (reputation: number): number => {
+        const all: number[] = [];
+        for (let season = 1; season <= 12; season++) {
+          for (const o of generateJobOffers({
+            lid: league.lid, season, currentTid: small.tid, expectations,
+            sacked: false, reputation, lastOverperformance: 0,
+          })) all.push(o.prestige);
+        }
+        return all.reduce((s, v) => s + v, 0) / all.length;
+      };
+      expect(meanPrestige(100)).toBeGreaterThan(meanPrestige(MANAGER_REP_BASE) + 0.2);
+    });
   });
 
   it("names the division a club will actually play in, not the one it's leaving", () => {
