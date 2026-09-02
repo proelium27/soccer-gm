@@ -94,12 +94,15 @@ describe("domestic cups through simThrough", () => {
       for (const tid of survivors) expect(through.has(tid)).toBe(true);
     }
 
-    // The big countries still reach a round of 32 off a preliminary round; the
-    // 32-club ones start there.
+    // A field that is not a power of two opens with a preliminary round; one
+    // that is starts at its first named round. England fields 60 clubs across
+    // three divisions, Scotland exactly 32 — which is why the power-of-two case
+    // moved here from Belgium when every country gained a third division and
+    // Belgium went to 48.
     const england = league.domesticCups.find((c) => c.country === "England")!;
     expect(domesticRoundName(england, england.rounds[0].round)).toBe("Preliminary round");
-    const belgium = league.domesticCups.find((c) => c.country === "Belgium")!;
-    expect(domesticRoundName(belgium, belgium.rounds[0].round)).toBe("Round of 32");
+    const scotland = league.domesticCups.find((c) => c.country === "Scotland")!;
+    expect(domesticRoundName(scotland, scotland.rounds[0].round)).toBe("Round of 32");
   });
 });
 

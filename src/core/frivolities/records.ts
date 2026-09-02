@@ -11,7 +11,7 @@ export interface TeamSeasonRecord {
   season: number;
   tid: number;
   compId: number;
-  tier: 1 | 2;
+  tier: number;
   row: StandingsRow;
   /** Points per game — the honest cross-format comparison when league sizes differ. */
   ppg: number;

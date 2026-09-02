@@ -26,7 +26,7 @@ import { createLeagueState } from "../src/core/leagueState.js";
 import { simThrough } from "../src/core/simThrough.js";
 import { simOffseason } from "../src/core/offseason.js";
 import { computeStandings } from "../src/core/standings.js";
-import { competitionOf, effectivePromotionSpots, partnerOrNull } from "../src/core/competitions.js";
+import { competitionOf, effectivePromotionSpots } from "../src/core/competitions.js";
 import {
   playPromotionPlayoffs, playoffOutcomes, PLAYOFF_ROUND_FINAL,
 } from "../src/core/promotionPlayoff.js";
@@ -83,7 +83,7 @@ for (let s = 0; s < SEASONS; s++) {
     const d2Table = tables.get(p.d2CompId)!;
     const d1Table = tables.get(p.d1CompId)!;
     const spots = effectivePromotionSpots(
-      d1, partnerOrNull(league.competitions, d1.id), d1Table.length, d2Table.length,
+      league.competitions, d1, d2, d1Table.length, d2Table.length,
     );
     formatCounts[p.format]++;
     if (p.ties.some((t) => t.boxScore !== null)) fail(`${d2.name}: a tie kept its box score`);
@@ -152,12 +152,20 @@ for (let s = 0; s < SEASONS; s++) {
   void scorelines;
 
   for (const comp of league.competitions.filter((c) => c.tier === 2)) {
-    const up = league.teams.filter((t) => compBefore.get(t.tid) === comp.id && t.compId !== comp.id);
     const d1 = league.competitions.find((c) => c.country === comp.country && c.tier === 1)!;
     const spots = effectivePromotionSpots(
-      d1, comp, tables.get(d1.id)!.length, tables.get(comp.id)!.length,
+      league.competitions, d1, comp, tables.get(d1.id)!.length, tables.get(comp.id)!.length,
     );
-    const down = league.teams.filter((t) => compBefore.get(t.tid) === d1.id && t.compId !== d1.id);
+    // Where a club LANDED, not merely that it left: a second division is a
+    // MIDDLE division once its country runs three, so it loses clubs downward
+    // as well as upward and "left this competition" would count a relegation to
+    // the third tier as a promotion to the first.
+    const up = league.teams.filter(
+      (t) => compBefore.get(t.tid) === comp.id && t.compId === d1.id,
+    );
+    const down = league.teams.filter(
+      (t) => compBefore.get(t.tid) === d1.id && t.compId === comp.id,
+    );
     const outcome = outcomes.get(comp.id);
     // The invariant that actually matters: whatever the format and whichever way
     // a tie went, the two counts match, or the divisions change size.

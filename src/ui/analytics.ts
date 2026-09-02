@@ -20,7 +20,21 @@ import posthog from "posthog-js";
 export interface GameEvents {
   /** A brand-new save was created. `roster` marks one started from a roster file. */
   league_created: {
-    country: string; tier: 1 | 2; roster?: boolean; difficulty?: string;
+    country: string;
+    /**
+     * Which division the user's club plays in, or **null** when they picked no
+     * club at all (`spectate`). Nullable rather than defaulted, because
+     * `tierForTid` answers 1 for a tid it cannot find and a default would
+     * quietly file every spectator save as a top-flight start.
+     *
+     * A plain number, not a literal union: every country runs three divisions
+     * and a custom one can be built shallower, so the value is 1 to
+     * MAX_DIVISIONS. Still low-cardinality, which is the rule that matters here.
+     */
+    tier: number | null;
+    /** The save has no manager: every club is AI-run (see core/spectator.ts). */
+    spectate?: boolean;
+    roster?: boolean; difficulty?: string;
     /** Whether Cup places are re-earned on the country coefficient (the default). */
     rollingCoefficients?: boolean;
   };

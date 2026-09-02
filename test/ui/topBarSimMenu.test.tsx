@@ -23,9 +23,9 @@ vi.mock("../../src/ui/context/LeagueContext.js", () => ({
     simAction: () => {},
     simLiveAction: () => {},
     intlStageAction: () => {},
+    jumpSeasonsAction: () => {},
     simming: false,
     exportJSON: () => {},
-    importJSON: async () => {},
     switchLeagueAction: () => {},
     setGodModeAction: () => {},
   }),
@@ -80,5 +80,32 @@ describe("the top bar's Sim menu", () => {
     const html = render({ ...makeLeague(0, 1), phase: "offseason" as const });
     const trigger = html.slice(html.indexOf("dropdown-toggle"), html.indexOf("dropdown-menu"));
     expect(trigger).not.toContain("disabled");
+  });
+});
+
+/**
+ * Jump ahead moved off the Dashboard and into the bar, so it is reachable from
+ * every page rather than only the one. Import came out of the bar entirely: the
+ * Leagues screen has its own, which handles roster files as well as saves, and
+ * that is the screen you go to to manage saves anyway.
+ */
+describe("the top bar's other controls", () => {
+  it("carries the jump form, in its own menu rather than inside Sim", () => {
+    const html = render(makeLeague(0, 1));
+    expect(html).toContain("topbar-jump");
+    expect(html).toContain("Seasons to jump");
+
+    // Its own control: Sim advances a step at a time, this hands a managed club
+    // to the AI for years, and folding them together would make the two read as
+    // the same kind of thing.
+    const simMenu = html.slice(html.indexOf("dropdown-menu"), html.indexOf("topbar-jump"));
+    expect(simMenu).not.toContain("Seasons to jump");
+  });
+
+  it("no longer offers Import anywhere in the bar", () => {
+    const html = render(makeLeague(0, 1));
+    expect(html).not.toContain("Import");
+    // Export stays: it is the half with no other home.
+    expect(html).toContain("Export");
   });
 });

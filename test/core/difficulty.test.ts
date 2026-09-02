@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { playSeason } from "../helpers/offseasonLeague.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
-import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { makeLeague } from "../helpers/league.js";
 import { financeScale, financeScaleFor } from "../../src/core/finance/budget.js";
@@ -124,7 +124,12 @@ describe("difficulty", () => {
     const played = (() => {
       const rng = mulberry32(21);
       let l = createLeagueState(0, rng, 21);
-      l = simThrough(l, "season", rng);
+      // playSeason, not simThrough: simThrough halts before the user's cup
+      // final, and simOffseason silently no-ops on any phase but "offseason" —
+      // which leaves no completed season for the gate to read, so every level
+      // reported zero protected stars and the "strictly more" check compared
+      // 0 against 0.
+      l = playSeason(l, rng);
       return simOffseason(l, rng);
     })();
 
@@ -269,8 +274,8 @@ describe("difficulty", () => {
     // so any gap in the intake is the academy lever and nothing else.
     const base = (() => {
       const rng = mulberry32(31);
-      let l = createLeagueState(0, rng, 31);
-      return simThrough(l, "season", rng);
+      const l = createLeagueState(0, rng, 31);
+      return playSeason(l, rng);
     })();
 
     function intakeOvr(difficulty: LeagueStore["difficulty"], tid: number): number {

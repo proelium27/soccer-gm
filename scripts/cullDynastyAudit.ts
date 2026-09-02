@@ -81,7 +81,7 @@ for (const seed of SEEDS) {
 
     // The user's club is unmanaged in a headless run, so it rots and produces
     // every extreme figure -- including a relegated user squad keeping 78-ovr
-    // players in tier 2 (enforceDivision2Ceiling deliberately never sweeps it),
+    // players in tier 2 (enforceDivisionCeilings deliberately never sweeps it),
     // which would read as a D2-ceiling breach every single season.
 
     const d1: number[] = [];
@@ -127,7 +127,7 @@ for (const seed of SEEDS) {
   // CLAUDE.md's anti-inflation notes); only flag a clear worsening beyond it.
   if (late - early > 6.0) failures.push(`seed ${seed}: ovr inflation drift +${(late - early).toFixed(2)}`);
 
-  // The mechanic to test is enforceDivision2Ceiling, which reassigns any
+  // The mechanic to test is enforceDivisionCeilings, which reassigns any
   // AI-controlled tier-2 player at or above DIVISION_2_REFUSAL_OVR_THRESHOLD.
   // (An earlier version of this check compared the best D2 player against the
   // tier-1 *full-roster* mean, which is ~57 and so "failed" every season on

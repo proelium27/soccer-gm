@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { playSeason } from "../helpers/offseasonLeague.js";
 import { makeLeague } from "../helpers/league.js";
 import {
   computeLoanFee, executeLoan, processLoanReturns, listPlayerForLoan,
@@ -8,7 +9,6 @@ import {
 import { createLeagueState, type LeagueStore } from "../../src/core/leagueState.js";
 import { trimRosterSurplus, freeAgentPids } from "../../src/core/freeAgency.js";
 import { makeTransferOffer } from "../../src/core/transfers/negotiation.js";
-import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { trueTransferValue } from "../../src/core/finance/valuation.js";
@@ -230,7 +230,7 @@ describe("no phantom players (loan + market/sweep interaction)", () => {
 
     // Sim across the loan's return (returnSeason = season + 2).
     for (let s = 0; s < 2; s++) {
-      league = simThrough(league, "season", rng);
+      league = playSeason(league, rng);
       league = simOffseason(league, rng);
       const count = new Map<number, number>();
       for (const t of league.teams) for (const r of t.roster) count.set(r, (count.get(r) ?? 0) + 1);
@@ -348,7 +348,7 @@ describe("runAILoanMarket", () => {
 
   it("never loans an over-threshold player in to a tier-2 club", () => {
     // The Division-2 ceiling's prevention guard, which the loan market was
-    // missing. It matters more here than on the buy paths: enforceDivision2Ceiling
+    // missing. It matters more here than on the buy paths: enforceDivisionCeilings
     // deliberately skips loaned pids (sweeping one would have processLoanReturns
     // duplicate him onto two rosters), so a loaned-in 70+ player sits illegally in
     // tier 2 for the loan's whole 1-3 seasons. Measured before the guard existed
