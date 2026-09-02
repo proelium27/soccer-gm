@@ -11,6 +11,7 @@ import { mulberry32, hashInts } from "../../engine/rng.js";
 import {
   MANAGER_MAX_OFFERS,
   MANAGER_OFFER_BAND,
+  MANAGER_OFFER_LATERAL_BAND,
   MANAGER_OFFER_BASE_CHANCE,
   MANAGER_OFFER_FORM_WEIGHT,
   MANAGER_OFFER_MAX_CHANCE,
@@ -113,15 +114,41 @@ export interface OfferInputs {
  * it's noise, and a list full of them makes the real ones hard to spot. Once
  * you're sacked the rule inverts — the clubs that will take you are a rung below
  * the one that let you go.
+ *
+ * **The band is centred on the bigger of your reputation and your current club,
+ * and that `max` is load-bearing rather than defensive.** The two filters below
+ * live on different scales — the band is an absolute window in world prestige,
+ * the step-up filter is relative to the job you hold — so centring the band on
+ * reputation alone made them stop overlapping the moment you managed a club
+ * bigger than your reputation "deserved". The intersection is empty whenever
+ * `currentPrestige > reputation/100 + MANAGER_OFFER_BAND`, which is reachable
+ * two ways and was reported from a real save both times: a *new* manager handed
+ * a big club (reputation 30, prestige 0.9) and, worse, a *decorated* one who had
+ * climbed to the top (reputation caps at 100, so the band tops out at 1.2 while
+ * the best club in the world sits at prestige 1.000). Measured on a fresh
+ * 626-club world, mean offers per season by club world rank at reputation 100:
+ * rank 1 **0.00**, rank 3 0.75, rank 10 2.83, rank 25 3.33. The better you did,
+ * the fewer offers you got, until they stopped.
+ *
+ * Reputation still does the job it exists for — it is what lets a small club's
+ * manager be offered the biggest jobs in the world — it simply no longer *caps*
+ * how big a job may approach you.
  */
 export function generateJobOffers(input: OfferInputs): JobOffer[] {
   const { expectations, currentTid, sacked } = input;
   const current = expectations.get(currentTid);
   const currentPrestige = current?.prestige ?? 0;
 
+  // A sacking is "a rung down" from where you were, so the penalty applies to
+  // the centred target rather than to reputation in isolation — measuring the
+  // drop against reputation is the same category error the band had.
   const target = Math.min(
     1,
-    Math.max(0, input.reputation / 100 - (sacked ? MANAGER_SACKED_PRESTIGE_PENALTY : 0)),
+    Math.max(
+      0,
+      Math.max(input.reputation / 100, currentPrestige)
+      - (sacked ? MANAGER_SACKED_PRESTIGE_PENALTY : 0),
+    ),
   );
 
   const others = [...expectations.values()].filter((e) => e.tid !== currentTid);
@@ -130,7 +157,12 @@ export function generateJobOffers(input: OfferInputs): JobOffer[] {
 
   let pool = others
     .filter((e) => Math.abs(e.prestige - target) <= MANAGER_OFFER_BAND)
-    .filter((e) => (sacked ? e.prestige <= currentPrestige : e.prestige >= currentPrestige))
+    // A strict `>=` is unsatisfiable for the one club normalization puts at
+    // 1.000, so a lateral allowance lets the summit hear from its peers. The
+    // sacked side needs none — it is already permissive downward.
+    .filter((e) => (sacked
+      ? e.prestige <= currentPrestige
+      : e.prestige >= currentPrestige - MANAGER_OFFER_LATERAL_BAND))
     .sort(byCloseness);
 
   const rng = mulberry32(hashInts(input.lid, input.season, MANAGER_OFFER_STREAM));

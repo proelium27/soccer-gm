@@ -17,6 +17,7 @@ import {
 } from "../../src/core/nationalManager/index.js";
 import {
   NATIONAL_START_CONFIDENCE, NATIONAL_GRACE_CAMPAIGNS, INTL_SQUAD_SIZE,
+  NATIONAL_OFFER_LATERAL_BAND, NATIONAL_REP_BASE,
 } from "../../src/core/constants.js";
 import { AUTOPILOT_TID } from "../../src/core/autopilot.js";
 
@@ -258,13 +259,58 @@ describe("national manager: reputation and offers", () => {
     ranks: Array.from({ length: 40 }, (_, i) => ({ nation: `N${i}`, rating: 80 - i })),
   });
 
-  it("offers nothing worse than your current job while you're employed", () => {
+  /**
+   * "Worse" means meaningfully worse: an offer may sit up to
+   * NATIONAL_OFFER_LATERAL_BAND below your current job, which is what lets the
+   * strongest nation in the world be approached at all. A strict `>=` is
+   * unsatisfiable at prestige 1.000, and pinning it here is what let that ship.
+   */
+  it("offers nothing more than a lateral move below your current job", () => {
     const offers = generateNationOffers({
       lid: 1, season: 5, currentNation: "N10", expectations,
       sacked: false, reputation: 75, lastOverperformance: 0.2,
     });
     const mine = expectations.get("N10")!.prestige;
-    for (const o of offers) expect(o.prestige).toBeGreaterThanOrEqual(mine);
+    expect(offers.length).toBeGreaterThan(0);
+    for (const o of offers) {
+      expect(o.prestige).toBeGreaterThanOrEqual(mine - NATIONAL_OFFER_LATERAL_BAND);
+    }
+  });
+
+  /**
+   * The bug this whole pair of bands exists to prevent: the band is an absolute
+   * window in prestige while the step-up filter is relative to the job you hold,
+   * so centring the band on reputation alone left them with no overlap the
+   * moment you managed a country stronger than your reputation. The strongest
+   * nation's manager was approached by nobody at any reputation.
+   */
+  it("still approaches the manager of the strongest nation in the world", () => {
+    const strongest = [...expectations.values()].sort((a, b) => a.rank - b.rank)[0];
+    expect(strongest.prestige).toBe(1);
+    const seen = new Set<string>();
+    for (let season = 1; season <= 12; season++) {
+      for (const o of generateNationOffers({
+        lid: 1, season, currentNation: strongest.nation, expectations,
+        sacked: false, reputation: 100, lastOverperformance: 0,
+      })) seen.add(o.nation);
+    }
+    expect(seen.size).toBeGreaterThan(0);
+  });
+
+  /**
+   * The other half of the same bug, and the one a *new* manager hits: handed a
+   * strong country on the base reputation, the band used to top out below their
+   * own nation and the pool came out empty.
+   */
+  it("approaches a low-reputation manager handed a strong nation", () => {
+    const seen = new Set<string>();
+    for (let season = 1; season <= 12; season++) {
+      for (const o of generateNationOffers({
+        lid: 1, season, currentNation: "N2", expectations,
+        sacked: false, reputation: NATIONAL_REP_BASE, lastOverperformance: 0,
+      })) seen.add(o.nation);
+    }
+    expect(seen.size).toBeGreaterThan(0);
   });
 
   /**

@@ -399,11 +399,19 @@ export function Manual() {
           </p>
           <h6>Job offers</h6>
           <p>
-            Beat expectations and clubs come calling in the offseason. Which clubs depends on your
-            reputation, which is built from the titles and cups you've won, how consistently you've
-            beaten what your squads were worth, and how long you've been at it &mdash; with a
-            sacking counting against you. While you're employed you'll only ever be offered jobs at
-            least as big as your current one, so the list is worth reading rather than noise.
+            Beat expectations and clubs come calling in the offseason. Two things decide which ones.
+            Your <strong>current club sets the floor</strong> &mdash; while you're employed you'll
+            never be offered a step down, only a lateral move or better, so the list is worth reading
+            rather than noise. Your <strong>reputation sets how far above it you can reach</strong>,
+            and it's built from the titles and cups you've won, how consistently you've beaten what
+            your squads were worth, and how long you've been at it, with a sacking counting against
+            you. Run a small club with nothing on your CV and you'll hear from clubs at roughly your
+            own level; win things and the biggest jobs in the world start ringing instead.
+          </p>
+          <p>
+            Being at the very top doesn't switch the offers off. If you're already at one of the
+            biggest clubs there is nowhere left to climb, so what you get instead are approaches from
+            your peers &mdash; fewer of them, and all from clubs in the same bracket as yours.
           </p>
           <p>
             Taking a job has real costs, and they're worth knowing before you click. Your current
@@ -1274,6 +1282,16 @@ export function Manual() {
             like the club version, including the "Never sack me" switch, and there's one important
             difference: being let go by a country is a perfectly ordinary place to end up. You just
             go back to club football until someone else asks.
+          </p>
+          <p>
+            Offers from other federations work the same way club offers do, and on a
+            <em>separate</em> reputation &mdash; what you've done in club football counts for
+            nothing here, and vice versa. While you hold a job you'll only hear from countries at
+            roughly your own level or better, and your international record is what lifts that
+            level. With no country at all the filter comes off entirely and approaches arrive far
+            more readily, because that's the only way back in. Approaches are rarer at the top:
+            manage one of the best teams in the world and only a handful of jobs are even a sideways
+            move, so it might be a few summers between calls.
           </p>
           <p>
             International football is mostly a record, not a lever. Caps, goals, tournaments played

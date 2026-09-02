@@ -12,6 +12,7 @@ import { mulberry32, hashInts } from "../../engine/rng.js";
 import {
   NATIONAL_MAX_OFFERS,
   NATIONAL_OFFER_BAND,
+  NATIONAL_OFFER_LATERAL_BAND,
   NATIONAL_OFFER_BASE_CHANCE,
   NATIONAL_OFFER_UNEMPLOYED_CHANCE,
   NATIONAL_OFFER_FORM_WEIGHT,
@@ -102,6 +103,16 @@ export interface NationOfferInputs {
  *
  * Unlike a sacked club manager, an empty list is a perfectly good answer here:
  * there is no unemployed state to rescue, so nothing is forced.
+ *
+ * **The band is centred on the bigger of your reputation and your current
+ * nation**, for the reason `generateJobOffers` spells out at length: the band is
+ * an absolute window in prestige while the step-up filter is relative to the job
+ * you hold, so centring on reputation alone left the two with no overlap the
+ * moment you managed a country stronger than your reputation. Measured on a
+ * 44-nation field, mean offers per offseason while employed: the strongest
+ * nation's manager got **0.00 at every reputation from 30 to 100**, the third
+ * strongest 0.33. Unemployed was never affected — `currentPrestige` is 0 with no
+ * job, so the `max` is inert there and that path is untouched.
  */
 export function generateNationOffers(input: NationOfferInputs): NationOffer[] {
   const { expectations, currentNation, sacked } = input;
@@ -111,7 +122,11 @@ export function generateNationOffers(input: NationOfferInputs): NationOffer[] {
 
   const target = Math.min(
     1,
-    Math.max(0, input.reputation / 100 - (sacked ? NATIONAL_SACKED_PRESTIGE_PENALTY : 0)),
+    Math.max(
+      0,
+      Math.max(input.reputation / 100, currentPrestige)
+      - (sacked ? NATIONAL_SACKED_PRESTIGE_PENALTY : 0),
+    ),
   );
 
   const others = [...expectations.values()].filter((e) => e.nation !== currentNation);
@@ -121,8 +136,12 @@ export function generateNationOffers(input: NationOfferInputs): NationOffer[] {
   const pool = others
     .filter((e) => Math.abs(e.prestige - target) <= NATIONAL_OFFER_BAND)
     // Only a manager already in a job insists on a step up. Sacked or
-    // unemployed, anything within the band is worth hearing.
-    .filter((e) => (employed && !sacked ? e.prestige >= currentPrestige : true))
+    // unemployed, anything within the band is worth hearing. The lateral
+    // allowance is what lets the world's strongest nation hear from its peers,
+    // since a strict `>=` is unsatisfiable at prestige 1.000.
+    .filter((e) => (employed && !sacked
+      ? e.prestige >= currentPrestige - NATIONAL_OFFER_LATERAL_BAND
+      : true))
     .sort(byCloseness);
 
   const rng = mulberry32(hashInts(input.lid, input.season, NATIONAL_OFFER_STREAM));

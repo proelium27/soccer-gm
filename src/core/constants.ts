@@ -3996,6 +3996,19 @@ export const MANAGER_MAX_OFFERS = 4;
  * doesn't ring an unproven manager.
  */
 export const MANAGER_OFFER_BAND = 0.2;
+/**
+ * How far *below* your current club a job can be and still count as a step
+ * worth hearing about, on the same [0,1] prestige scale.
+ *
+ * Without it the step-up filter is `prestige >= currentPrestige`, which exactly
+ * one club in the world can never satisfy — prestige is min-max normalized, so
+ * the biggest club sits at 1.000 and its manager is offered nothing, forever,
+ * however decorated they are. A small allowance turns that into "your peers can
+ * come calling", which is how the top of real football works. Sized to reach
+ * roughly the top dozen clubs from the summit; wider and a superclub manager
+ * starts being offered mid-table jobs.
+ */
+export const MANAGER_OFFER_LATERAL_BAND = 0.05;
 /** Chance a matching club comes calling after an ordinary season. */
 export const MANAGER_OFFER_BASE_CHANCE = 0.22;
 /** How much a season spent beating expectation raises that chance. */
@@ -4078,6 +4091,17 @@ export const NATIONAL_SACK_THRESHOLD = 0;
 export const NATIONAL_MAX_OFFERS = 4;
 /** How far from your reputation a nation can sit and still come calling, [0,1]. */
 export const NATIONAL_OFFER_BAND = 0.25;
+/**
+ * How far below your current nation a job can sit and still be worth hearing
+ * about, [0,1]. The club side's `MANAGER_OFFER_LATERAL_BAND` word for word, and
+ * for the same reason: the strongest nation in the world sits at prestige 1.000
+ * and a strict step-up filter leaves its manager permanently unapproached.
+ *
+ * Wider than the club value because national prestige is read off *rank* rather
+ * than rating, so it is spread evenly over ~44 nations — a step of one place is
+ * about 0.023, and 0.05 would reach barely two of them.
+ */
+export const NATIONAL_OFFER_LATERAL_BAND = 0.08;
 /**
  * Per-nation chance of an approach in any given offseason while you already
  * hold a national job. Deliberately low: international jobs turn over slowly,
