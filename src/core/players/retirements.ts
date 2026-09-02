@@ -37,6 +37,23 @@ export interface RetiredPlayer {
   assists: number;
   /** International caps, 0 if he was never called up. */
   caps: number;
+  /**
+   * The GOAT score this list ranked him on (see frivolities/goat.ts), so the
+   * table can show the number it sorted by rather than asking the reader to
+   * take the order on trust.
+   *
+   * Stored rather than derived, unlike every other GOAT score in the game: the
+   * player is deleted moments after this row is written, so by the time
+   * anything renders it there is no career left to score. That also makes it a
+   * reading taken at retirement — it is what his case looked like the summer he
+   * went, and later seasons cannot change it, which is what a farewell list
+   * should say anyway.
+   *
+   * Optional and never backfilled: a season that ran before this existed has
+   * rows for players it can no longer score, so the column shows nothing there
+   * rather than a number invented for it.
+   */
+  goat?: number;
 }
 
 /**
@@ -75,14 +92,16 @@ export interface RetirementSummary {
  * first tiebreak, so two players with nothing on their record still come out in
  * a sensible order, and pid breaks the rest so the list can't reorder between
  * renders.
+ *
+ * Reads the score off the row rather than a lookup, so a list re-sorted after
+ * it was stored — a save written before the field existed included — comes out
+ * in the order it is already in rather than collapsing to ovr.
  */
-function byCaliber(goat: ReadonlyMap<number, number>) {
-  const scoreOf = (r: RetiredPlayer) => goat.get(r.pid) ?? 0;
-  return (a: RetiredPlayer, b: RetiredPlayer): number =>
-    scoreOf(b) - scoreOf(a) || b.ovr - a.ovr || a.pid - b.pid;
+function byCaliber(a: RetiredPlayer, b: RetiredPlayer): number {
+  return (b.goat ?? 0) - (a.goat ?? 0) || b.ovr - a.ovr || a.pid - b.pid;
 }
 
-function snapshot(player: Player, season: number, tid: number | null): RetiredPlayer {
+function snapshot(player: Player, season: number, tid: number | null, goat: number): RetiredPlayer {
   // Off the stored summary, which by retirement (offseason step 3) already has
   // the season he just finished folded in at step 2. Summing his stat lines
   // instead would under-count once careers are windowed at the worker boundary,
@@ -110,6 +129,7 @@ function snapshot(player: Player, season: number, tid: number | null): RetiredPl
     goals: career.totals.goals,
     assists: career.totals.assists,
     caps: player.intl?.caps ?? 0,
+    goat,
   };
 }
 
@@ -149,19 +169,19 @@ export function summarizeRetirements(
   // may never be: most careers miss its quality gate) and while his own season
   // lines may be nothing but the worker-side window.
   const goat = goatScores(league, retirees.map((p) => rowFromArchived(archivePlayer(p, season))));
-  const rank = byCaliber(goat);
-  const rows = retirees.map((p) => snapshot(p, season, tidLastSeason.get(p.pid) ?? null));
-  const mine = rows.filter((r) => r.tid === userTid).sort(rank);
+  const rows = retirees.map((p) =>
+    snapshot(p, season, tidLastSeason.get(p.pid) ?? null, goat.get(p.pid) ?? 0));
+  const mine = rows.filter((r) => r.tid === userTid).sort(byCaliber);
   const theirs = rows
     .filter((r) => r.tid !== userTid)
-    .sort(rank)
+    .sort(byCaliber)
     .slice(0, Math.max(0, limit - mine.length));
   return {
     total: rows.length,
     rostered: rows.filter((r) => r.tid !== null).length,
     // Slice mine too: a user who somehow retires more than the cap in one
     // offseason still gets a bounded table, just entirely his own players.
-    notable: [...mine.slice(0, limit), ...theirs].sort(rank),
+    notable: [...mine.slice(0, limit), ...theirs].sort(byCaliber),
   };
 }
 

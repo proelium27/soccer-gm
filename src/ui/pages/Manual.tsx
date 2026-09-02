@@ -1296,6 +1296,13 @@ export function Manual() {
             the opposite. So the list reads as a ranking of careers, trophies and all.
           </p>
           <p>
+            The score itself is in the table, in the GOAT column, so you can see what separated
+            them instead of taking the order on trust. It's a snapshot taken the summer each player
+            went, and it counts the season he'd just finished, so a title won on the way out is on
+            his record. Lists from before the game started recording it leave that column blank:
+            those players are gone, and there's no career left to score.
+          </p>
+          <p>
             One thing to know: a retired player is gone from the game, not filed away somewhere.
             There's no career page to visit afterwards, and old transfer entries or news items about
             him lose his name. That Season Preview list is the record of his send-off.

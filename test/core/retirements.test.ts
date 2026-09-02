@@ -164,6 +164,22 @@ describe("summarizeRetirements", () => {
     expect(summary.notable.map((r) => r.pid)).toEqual([1, 2]);
   });
 
+  it("records the score it ranked on, since the player is about to be deleted", () => {
+    const decorated = makePlayer({ pid: 1, ovr: 60, age: 36 });
+    const nobody = makePlayer({ pid: 2, ovr: 60, age: 36 });
+    const league = leagueWith([
+      { season: SEASON - 4, world: { ballonDOr: [{ pid: 1 }] } } as unknown as SeasonHistoryEntry,
+    ]);
+
+    const { notable } = summarizeRetirements([decorated, nobody], SEASON, new Map(), 0, league);
+
+    // Every fresh row carries one, the Ballon d'Or is worth something, and the
+    // stored order is the order those scores put them in.
+    expect(notable.every((r) => r.goat !== undefined)).toBe(true);
+    expect(notable[0].goat!).toBeGreaterThan(notable[1].goat!);
+    expect(notable.map((r) => r.pid)).toEqual([1, 2]);
+  });
+
   it("handles an offseason where nobody retired", () => {
     expect(summarizeRetirements([], SEASON, new Map(), 0, LEAGUE))
       .toEqual({ total: 0, rostered: 0, notable: [] });
