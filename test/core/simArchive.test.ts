@@ -10,6 +10,7 @@ import {
 } from "../../src/core/simArchive.js";
 import { PLAYER_SETTLED_SEASONS } from "../../src/core/constants.js";
 import { referencedPids } from "../../src/core/players/playerNames.js";
+import { honourSourcesOf } from "../../src/core/frivolities/goat.js";
 import { computeTeamSeasonStats } from "../../src/core/standings.js";
 import { pruneRetireeArchive } from "../../src/core/players/archive.js";
 import type { ArchivedPlayer } from "../../src/core/players/archive.js";
@@ -309,11 +310,17 @@ describe("simArchive news and cup histories", () => {
     const full = simThrough(aged, "season", mulberry32(32));
     const whole = simOffseason(full, mulberry32(33));
 
-    // Exactly what the worker boundary does: hold the history back, hand in the
-    // referenced set, then scrub with the pids the worker reports.
+    // Exactly what the worker boundary does: hold the history back, hand in
+    // what the offseason still needs from it, then scrub with the pids the
+    // worker reports. Two things are handed in, and both are here because
+    // reading them off the emptied payload is silently wrong rather than an
+    // error: the referenced set (for `extendPlayerNames`) and the cup champions
+    // (for ranking the retirees, which would otherwise score a five-time
+    // Continental Cup winner as if he had won none). See useSimWorker's post().
     const { payload, news } = detachNews(full);
     const { league: result, report } = simOffseasonReporting(payload, mulberry32(33), {
       referencedPids: referencedPids(full),
+      cupChampions: honourSourcesOf(full),
     });
     const detached = reattachNews(result, news, report.culledPids);
 

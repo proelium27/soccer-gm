@@ -53,7 +53,50 @@ export function emptyHonours(): PlayerHonours {
 }
 
 /**
- * Count every player's honours in one pass over `seasonHistory` and `cupHistory`.
+ * The only thing an honours count needs from a cup: who won it, and when.
+ *
+ * A cup history row is mostly `statLines`, and the three of them are ~23 MB on
+ * a long save — which is exactly why `simArchive.detachNews` holds them back
+ * from the worker. This is the projection that survives that boundary: two
+ * numbers per cup per season, a few KB across a century.
+ */
+export interface CupChampion {
+  season: number;
+  championTid: number | null;
+}
+
+/**
+ * Everything `computeHonours` reads, and nothing else.
+ *
+ * Deliberately NOT a `LeagueStore`. Honours were counted straight off the
+ * league until 2026-09-02, and inside the offseason that is a silent bug: the
+ * worker is handed empty cup histories, so a retiree scored there lost every
+ * cup he had ever won, with no crash and no type error to say so (the failure
+ * mode `simArchive.ts` documents, caught by its deep-equality gate). Naming the
+ * two sources makes the dependency small enough to cross the worker boundary
+ * and visible enough that a caller has to think about where they came from.
+ */
+export interface HonourSources {
+  seasonHistory: readonly LeagueStore["seasonHistory"][number][];
+  cup: readonly CupChampion[];
+  shield: readonly CupChampion[];
+  domestic: readonly CupChampion[];
+}
+
+/** Honour sources off a whole league — correct anywhere the histories are attached. */
+export function honourSourcesOf(league: LeagueStore): HonourSources {
+  const champions = (cups: readonly { season: number; championTid: number | null }[] | undefined) =>
+    (cups ?? []).map((c) => ({ season: c.season, championTid: c.championTid }));
+  return {
+    seasonHistory: league.seasonHistory,
+    cup: champions(league.cupHistory),
+    shield: champions(league.shieldHistory),
+    domestic: champions(league.domesticCupHistory),
+  };
+}
+
+/**
+ * Count every player's honours in one pass over `seasonHistory` and the cups.
  *
  * Works identically for active players and archived retirees, which is the
  * whole point: awards are stored on the season-history entry by pid and never
@@ -65,7 +108,7 @@ export function emptyHonours(): PlayerHonours {
  * with thousands of careers would otherwise be a quadratic scan on every render.
  */
 export function computeHonours(
-  league: LeagueStore,
+  sources: HonourSources,
   careers: readonly CareerRow[],
 ): Map<number, PlayerHonours> {
   const out = new Map<number, PlayerHonours>();
@@ -75,7 +118,7 @@ export function computeHonours(
     return h;
   };
 
-  for (const h of league.seasonHistory) {
+  for (const h of sources.seasonHistory) {
     const winner = h.world?.ballonDOr?.[0]?.pid;
     if (winner != null) honoursFor(winner).ballonDOr += 1;
     for (const pid of h.world?.worldTeamOfYear ?? []) {
@@ -99,21 +142,21 @@ export function computeHonours(
   // Team trophies are credited to whoever was at the club that season, so they
   // need the club-per-season line rather than the award lists.
   const championsBySeason = new Map<number, Set<number>>();
-  for (const h of league.seasonHistory) {
+  for (const h of sources.seasonHistory) {
     championsBySeason.set(h.season, new Set(Object.values(h.championTidByCompId ?? {})));
   }
   const cupChampionBySeason = new Map<number, number>();
-  for (const cup of league.cupHistory ?? []) {
+  for (const cup of sources.cup) {
     if (cup.championTid != null) cupChampionBySeason.set(cup.season, cup.championTid);
   }
   const shieldChampionBySeason = new Map<number, number>();
-  for (const shield of league.shieldHistory ?? []) {
+  for (const shield of sources.shield) {
     if (shield.championTid != null) shieldChampionBySeason.set(shield.season, shield.championTid);
   }
   // Keyed by season AND tid, unlike the Continental Cup: eight countries each
   // crown a domestic champion in the same season, so a season maps to a set.
   const domesticChampions = new Set<string>();
-  for (const cup of league.domesticCupHistory ?? []) {
+  for (const cup of sources.domestic) {
     if (cup.championTid != null) domesticChampions.add(`${cup.season}:${cup.championTid}`);
   }
 
@@ -299,10 +342,10 @@ export function scorePlayer(career: CareerRow, honours: PlayerHonours): PlayerGo
  * just finished yet.
  */
 export function goatScores(
-  league: LeagueStore,
+  sources: HonourSources,
   careers: readonly CareerRow[],
 ): Map<number, number> {
-  const honours = computeHonours(league, careers);
+  const honours = computeHonours(sources, careers);
   return new Map(
     careers.map((c) => [c.pid, scorePlayer(c, honours.get(c.pid) ?? emptyHonours()).score]),
   );
@@ -314,7 +357,7 @@ export function playerGoatRanking(
   limit = GOAT_LIST_LIMIT,
 ): PlayerGoatRow[] {
   const careers = allCareers(league);
-  const honours = computeHonours(league, careers);
+  const honours = computeHonours(honourSourcesOf(league), careers);
   return careers
     .map((c) => scorePlayer(c, honours.get(c.pid) ?? emptyHonours()))
     .sort((a, b) => b.score - a.score || a.career.pid - b.career.pid)

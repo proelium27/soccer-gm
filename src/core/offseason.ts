@@ -9,6 +9,7 @@ import { generateYouthIntake } from "./players/youth.js";
 import { computeAcademyFormModifiers } from "./players/academyForm.js";
 import { cullFreeAgentPoolReporting } from "./players/freeAgentCull.js";
 import { summarizeRetirements } from "./players/retirements.js";
+import { honourSourcesOf, type HonourSources } from "./frivolities/goat.js";
 import { clearSuspension } from "./suspensions.js";
 import { extendRetireeArchive } from "./players/archive.js";
 import { withSeason, summaryOf, ovrLookup } from "./players/careerSummary.js";
@@ -103,6 +104,19 @@ export interface OffseasonInputs {
    * which is the only reason those have to reach the worker. See `detachNews`.
    */
   referencedPids?: Set<number>;
+  /**
+   * Who won each past Continental Cup, Shield and domestic cup — the two
+   * numbers per cup that `computeHonours` needs to credit a retiring player's
+   * trophies on the farewell list.
+   *
+   * Precomputed by the caller for the same reason `referencedPids` is: the
+   * worker is handed empty cup histories (`detachNews`), so reading them here
+   * would rank a five-time Continental Cup winner as if he had won nothing —
+   * silently, since an empty history is not an error. Absent means "read them
+   * off the league", which is right for every direct caller (tests, scripts,
+   * and `jump`, which is exempt from detaching).
+   */
+  cupChampions?: Pick<HonourSources, "cup" | "shield" | "domestic">;
 }
 
 /** What the offseason did that the caller cannot work out from the league alone. */
@@ -139,7 +153,11 @@ export function simOffseasonReporting(
   rng: () => number,
   inputs: OffseasonInputs = {},
 ): { league: LeagueStore; report: OffseasonReport } {
-  const { teamStats: precomputedTeamStats, referencedPids: precomputedReferenced } = inputs;
+  const {
+    teamStats: precomputedTeamStats,
+    referencedPids: precomputedReferenced,
+    cupChampions: precomputedChampions,
+  } = inputs;
   if (league.phase !== "offseason") {
     return { league, report: { culledPids: new Set<number>() } };
   }
@@ -479,14 +497,22 @@ export function simOffseasonReporting(
   //       him. The cups are appended live: this season's are archived further
   //       down, and an archived cup keeps its champion, so either form answers
   //       the only question asked of it here.
+  const pastChampions = precomputedChampions ?? honourSourcesOf(league);
+  const champion = (cup: { season: number; championTid: number | null } | null | undefined) =>
+    cup ? [{ season: cup.season, championTid: cup.championTid }] : [];
   const retirements = summarizeRetirements(
     retirees, endingSeason, tidLastSeason, league.meta.userTid,
     {
-      ...league,
       seasonHistory: [...league.seasonHistory, seasonEntry],
-      cupHistory: league.cup ? [...league.cupHistory, league.cup] : league.cupHistory,
-      shieldHistory: league.shield ? [...league.shieldHistory, league.shield] : league.shieldHistory,
-      domesticCupHistory: [...(league.domesticCupHistory ?? []), ...(league.domesticCups ?? [])],
+      // This season's cups are still live here — they are archived further
+      // down — and they are attached in the worker, so they are appended
+      // directly rather than coming through the precomputed past.
+      cup: [...pastChampions.cup, ...champion(league.cup)],
+      shield: [...pastChampions.shield, ...champion(league.shield)],
+      domestic: [
+        ...pastChampions.domestic,
+        ...(league.domesticCups ?? []).map((c) => ({ season: c.season, championTid: c.championTid })),
+      ],
     },
   );
 

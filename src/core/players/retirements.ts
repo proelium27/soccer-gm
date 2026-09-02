@@ -1,12 +1,11 @@
 import type { Player, Position } from "./types.js";
-import type { LeagueStore } from "../leagueState.js";
 import { ageOf } from "./progression.js";
 import { ovrDuringSeason } from "../awards.js";
 import { RETIREMENT_NOTABLE_LIMIT } from "../constants.js";
 import { careerOf } from "./careerSummary.js";
 import { archivePlayer } from "./archive.js";
 import { rowFromArchived } from "../frivolities/careers.js";
-import { goatScores } from "../frivolities/goat.js";
+import { goatScores, type HonourSources } from "../frivolities/goat.js";
 
 /**
  * One retiree, snapshotted at the moment he retires.
@@ -142,12 +141,17 @@ function snapshot(player: Player, season: number, tid: number | null, goat: numb
  * years as a free agent on his way out. Absent from the map = genuinely
  * unsigned last season.
  *
- * `league` decides which honours each career gets credit for, and it must be
- * the league **as of the end of `season`** — including that season's own
- * awards, champions and cups. Mid-offseason none of those have reached
- * `seasonHistory` or the cup histories yet, so scoring against the raw league
- * would quietly dock every retiree exactly the trophies he went out on. See
- * simOffseason, which assembles that view before calling this.
+ * `honours` decides which honours each career gets credit for, and it carries
+ * two requirements that are both silent when missed. It must describe the world
+ * **as of the end of `season`**, including that season's own awards, champions
+ * and cups — mid-offseason none of those have reached `seasonHistory` or the
+ * cup histories yet, so scoring against the raw league docks every retiree
+ * exactly the trophies he went out on. And its cup champions must be *real*:
+ * this runs inside the offseason, which the app runs in a worker that is handed
+ * empty cup histories (`simArchive.detachNews`), so reading them here scored a
+ * five-time Continental Cup winner as if he had won none. Both are why this
+ * takes a named source object rather than a `LeagueStore` — see simOffseason,
+ * which assembles it.
  *
  * The user's own retirees are never dropped from `notable` (his 34-year-old
  * captain hanging up his boots is the one entry he actually needs to see),
@@ -160,7 +164,7 @@ export function summarizeRetirements(
   season: number,
   tidLastSeason: Map<number, number>,
   userTid: number,
-  league: LeagueStore,
+  honours: HonourSources,
   limit = RETIREMENT_NOTABLE_LIMIT,
 ): RetirementSummary {
   // `archivePlayer` reduces a live retiree to the same shape an archived one
@@ -168,7 +172,7 @@ export function summarizeRetirements(
   // gets a GOAT score at the moment he leaves — before he is in the archive (he
   // may never be: most careers miss its quality gate) and while his own season
   // lines may be nothing but the worker-side window.
-  const goat = goatScores(league, retirees.map((p) => rowFromArchived(archivePlayer(p, season))));
+  const goat = goatScores(honours, retirees.map((p) => rowFromArchived(archivePlayer(p, season))));
   const rows = retirees.map((p) =>
     snapshot(p, season, tidLastSeason.get(p.pid) ?? null, goat.get(p.pid) ?? 0));
   const mine = rows.filter((r) => r.tid === userTid).sort(byCaliber);
