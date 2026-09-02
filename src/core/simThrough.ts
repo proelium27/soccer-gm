@@ -13,6 +13,7 @@ import {
 import { simMatchDetailed } from "../engine/matchSim.js";
 import { emptySeasonStats } from "./players/types.js";
 import { applyInjuries } from "./injuries.js";
+import { superCupsPending, playSuperCups } from "./superCup/superCup.js";
 import { applySuspensions, isSuspended } from "./suspensions.js";
 import { runAITransferMarket } from "./ai/transferMarket.js";
 import { protectedStarPids, lastCompletedSeason } from "./transfers/protectedStars.js";
@@ -172,6 +173,23 @@ export function simThrough(
   if (league.phase !== "regular" || league.schedule.length === 0) {
     return league;
   }
+
+  // The preseason super cups, if the user advanced straight past them. Played
+  // *lazily* here rather than blocking, which is the same arrangement the
+  // promotion playoff uses and it exists for the same reason: a hard gate would
+  // stall every caller that never sees the UI — autopilot's multi-season jump,
+  // the headless audits, the test harnesses — with no way to clear itself.
+  //
+  // Eager and lazy are the same match: the seed is derived from
+  // (lid, season, compId), not from when it is played. They can differ in
+  // *personnel*, because the summer window is open either side of a super cup
+  // and a user who signs someone first fields him. That is football rather than
+  // a determinism hole — the Community Shield is played mid-window too — and it
+  // is why nothing downstream may assume a super cup was played on any
+  // particular squad.
+  const superCups = superCupsPending(league.superCups ?? [])
+    ? playSuperCups(league.superCups, league.competitions, league.teams, league.players, league.lid)
+    : (league.superCups ?? []);
 
   const currentMatchday = Math.min(...league.schedule.map((g) => g.matchday));
 
@@ -649,5 +667,6 @@ export function simThrough(
     shield,
     domesticCups,
     promotionPlayoffs,
+    superCups,
   };
 }

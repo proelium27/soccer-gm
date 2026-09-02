@@ -13,6 +13,7 @@ import type { Competition } from "./competitions.js";
 import type { CupState } from "./cup/types.js";
 import type { DomesticCupState } from "./domesticCup/types.js";
 import type { PromotionPlayoff } from "./promotionPlayoff.js";
+import type { SuperCupTie } from "./superCup/types.js";
 import { buildDomesticCups } from "./domesticCup/cup.js";
 import type { InternationalState } from "./international/types.js";
 import { emptyInternationalState } from "./international/index.js";
@@ -224,6 +225,27 @@ export interface LeagueStore {
    */
   promotionPlayoffs: PromotionPlayoff[];
   /**
+   * This preseason's super cups — one per country between its league champions
+   * and its domestic cup winners, plus the one worldwide match between the
+   * Continental Cup and Shield winners.
+   *
+   * Seeded during the offseason roll, when every winner that contests them has
+   * just been decided, and played before the season's first matchday on the
+   * squads that will actually start it. They then sit here unchanged for the
+   * rest of the season so the page has something to show, and are copied onto
+   * the season's `seasonHistory` entry at the next rollover.
+   *
+   * `tie === null` on any of them is the preseason gate: `simThrough` will not
+   * start the season while one is unplayed. That is *derived* rather than a new
+   * `phase` value on purpose — a third phase would need migrating into every
+   * save and read by everything that switches on the field, for a state that
+   * lasts one click.
+   *
+   * Old saves backfill to empty and pick super cups up at their next rollover.
+   * See core/superCup.
+   */
+  superCups: SuperCupTie[];
+  /**
    * National-team football, played entirely inside the offseason on a two-year
    * cycle (odd seasons qualify, even seasons play the tournament). Starts empty
    * on a new save and fills from the first offseason onward; see
@@ -390,6 +412,8 @@ export function createLeagueState(
     domesticCups: buildDomesticCups(competitions, teams, new Map(), 1),
     domesticCupHistory: [],
     promotionPlayoffs: [],
+    // Season 1 has no super cups: nothing has been won yet to contest one.
+    superCups: [],
     international: emptyInternationalState(),
     godMode: false,
     manager: emptyManagerState(userTid, 1),

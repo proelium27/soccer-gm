@@ -93,6 +93,24 @@ export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
   "test/core/offseason.test.ts": 208,
   "test/validation/m3-top-scorer.test.ts": 173,
   "test/core/offseasonSolvency.test.ts": 128,
+  // These two were sitting on the 10s default while really costing minutes,
+  // which is exactly the mis-packing this table exists to prevent. Measured in
+  // contended parallel runs, not solo — see the cluster runner's note on why a
+  // solo number must not be pasted in here.
+  //
+  // Both were then re-measured a few hours later and came in at roughly HALF
+  // (worldIntegration 249s -> 126s, migrate 201s -> 109s) on the same machine
+  // and against a *larger* world, which is the thermal drift documented one
+  // level up — the same file has read 234s and 557s an hour apart. The higher
+  // figures are kept deliberately: over-weighting a heavy file only costs that
+  // shard some spare capacity, while under-weighting it overloads the shard,
+  // and the ordering these two need against each other holds either way. Don't
+  // chase this discrepancy; it is the measurement moving, not the file.
+  "test/core/worldIntegration.test.ts": 249,
+  "test/db/migrate.test.ts": 201,
+  // Almost entirely the one case that takes a real world through two full
+  // season/offseason cycles to watch a super cup be seeded, played and filed.
+  "test/core/superCup.test.ts": 142,
   "test/core/simThrough.test.ts": 81,
   "test/core/nationalManager.test.ts": 35,
   // Two full season-plus-offseason runs of the same world, to prove a spectated

@@ -44,6 +44,8 @@ import { LiveMatchOverlay } from "../components/LiveMatchOverlay.js";
 import { LiveMatchPicker } from "../components/LiveMatchPicker.js";
 import { JumpOverlay, type JumpResult } from "../components/JumpOverlay.js";
 import { liveCandidates, type LiveCandidate } from "../live/liveCandidates.js";
+import { playSuperCups, superCupsPending } from "../../core/superCup/superCup.js";
+import { superCupChampion } from "../../core/superCup/types.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import type { PlayedMatch } from "../../core/standings.js";
 import { trackEvent } from "../analytics.js";
@@ -98,6 +100,7 @@ interface LeagueContextValue {
   setLineupAction: (starters: number[]) => Promise<void>;
   setFormationAction: (formation: FormationId) => Promise<void>;
   autoPickBestXIAction: () => Promise<void>;
+  playSuperCupsAction: () => Promise<void>;
   // God Mode sandbox actions (no-ops in the UI unless league.godMode is true).
   setGodModeAction: (on: boolean) => Promise<void>;
   /** Take one of the jobs on the table, handing the current club to the AI. */
@@ -747,6 +750,22 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     };
   }), [mutate]);
 
+  // Play the preseason super cups. Cheap enough to run on the main thread — it
+  // is at most one match per country plus the continental one, against a
+  // matchday's several hundred — so it needs no worker round trip, and unlike a
+  // matchday it draws on its own seeded stream rather than the league's.
+  //
+  // The user is never *required* to come here: `simThrough` plays anything
+  // still pending on its way into the season, so this button is the chance to
+  // watch it happen rather than a gate that can trap a save.
+  const playSuperCupsAction = useCallback(() => mutate((l) => {
+    if (!superCupsPending(l.superCups ?? [])) return null;
+    const superCups = playSuperCups(l.superCups, l.competitions, l.teams, l.players, l.lid);
+    const won = superCups.some((sc) => superCupChampion(sc) === l.meta.userTid);
+    trackEvent("super_cups_played", { count: superCups.length, userWon: won });
+    return { ...l, superCups };
+  }), [mutate]);
+
   // --- God Mode sandbox actions ---
   // All routed through `mutate` like every other action, so they serialize and
   // can't lose a write. They bypass the realism guardrails on purpose; the UI
@@ -1032,6 +1051,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     setLineupAction,
     setFormationAction,
     autoPickBestXIAction,
+    playSuperCupsAction,
     setGodModeAction,
     acceptJobOfferAction, declineJobOffersAction, setSackingEnabledAction,
     takeNationalJobAction, leaveNationalJobAction, declineNationalOffersAction,
@@ -1065,6 +1085,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     rejectLoanOfferAction, setTransferListedAction, setMoreMinutesAction, toggleWatchedAction,
     setLineupAction, setFormationAction,
     autoPickBestXIAction,
+    playSuperCupsAction,
     setGodModeAction, movePlayerToClubAction, releasePlayerGodModeAction,
     godModeSwitchClubAction,
     acceptJobOfferAction, declineJobOffersAction, setSackingEnabledAction,

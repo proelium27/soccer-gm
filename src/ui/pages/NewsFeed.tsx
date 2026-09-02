@@ -136,6 +136,8 @@ export function NewsFeed() {
       cupHistory: league?.cupHistory ?? [],
       shield: league?.shield ?? null,
       shieldHistory: league?.shieldHistory ?? [],
+      superCups: league?.superCups ?? [],
+      superCupHistory: (league?.seasonHistory ?? []).flatMap((h) => h.superCups ?? []),
       international: league?.international ?? null,
     });
 
@@ -195,6 +197,7 @@ export function NewsFeed() {
     league?.shield,
     league?.shieldHistory,
     league?.international,
+    league?.superCups,
     league?.competitions,
   ]);
 

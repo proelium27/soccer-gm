@@ -41,6 +41,7 @@ import { domesticCupWinners } from "./cup/qualification.js";
 import { coefficientSlots } from "./cup/coefficients.js";
 import { buildDomesticCups } from "./domesticCup/cup.js";
 import { archiveDomesticCup } from "./domesticCup/archive.js";
+import { buildSuperCups } from "./superCup/superCup.js";
 import { computeCountrySwaps, applyCompetitionSwaps, stepAcademyBaseConvergence } from "./promotion.js";
 import {
   playPromotionPlayoffs, playoffOutcomes, playoffsForSeason,
@@ -904,6 +905,21 @@ export function simOffseasonReporting(
     // season's cup as a top-flight one, while the ranking that decides who has
     // to enter at the preliminary round comes from the tables just decided.
     domesticCups: buildDomesticCups(league.competitions, teams, tablesByCompId, nextSeason),
+    // Next preseason's super cups, seeded from everything the season just
+    // finished decided. Built here rather than at the season boundary because
+    // this is the last moment all four winners are readable at once — the cups
+    // that carry them are archived immediately below — and played later, before
+    // the new season's first matchday, so the match is contested by the squads
+    // that will actually start it. Pure and rng-free.
+    superCups: buildSuperCups({
+      competitions: league.competitions,
+      tablesByCompId,
+      championTidByCompId,
+      domesticCups: league.domesticCups ?? [],
+      cup: league.cup,
+      shield: league.shield,
+      season: nextSeason,
+    }),
     domesticCupHistory: [
       ...(league.domesticCupHistory ?? []),
       ...(league.domesticCups ?? []).map(archiveDomesticCup),
@@ -935,6 +951,11 @@ export function simOffseasonReporting(
         // world holds none, so a save that never plays one carries no empty
         // arrays through its whole history.
         promotionPlayoffs: promotionPlayoffs.length > 0 ? promotionPlayoffs : undefined,
+        // The super cups that *opened* this season, moved off the live field
+        // now that it is about to be reseeded for the next one. Unlike every
+        // other record on this entry these describe the season's first day
+        // rather than its last — see SeasonHistoryEntry.superCups.
+        superCups: (league.superCups ?? []).length > 0 ? league.superCups : undefined,
       },
     ],
   };

@@ -1,4 +1,6 @@
 import type { CupState } from "./cup/types.js";
+import type { SuperCupTie } from "./superCup/types.js";
+import { superCupChampion } from "./superCup/types.js";
 import type { IntlTournamentSummary } from "./international/types.js";
 
 /**
@@ -8,6 +10,7 @@ import type { IntlTournamentSummary } from "./international/types.js";
 export type TrophyNewsKind =
   | "continentalCup"
   | "continentalShield"
+  | "superCup"
   | "worldCup"
   | "confederationCup";
 
@@ -35,6 +38,13 @@ export interface TrophyRecords {
   cupHistory: CupState[];
   shield: CupState | null;
   shieldHistory: CupState[];
+  /**
+   * This preseason's super cups, plus every archived one. Both optional so a
+   * caller written before they existed still typechecks and simply reports
+   * none — the same contract the international block below has.
+   */
+  superCups?: SuperCupTie[];
+  superCupHistory?: SuperCupTie[];
   international: {
     history: IntlTournamentSummary[];
     confederationCupHistory: IntlTournamentSummary[];
@@ -81,6 +91,18 @@ export function trophyNewsBySeason(records: TrophyRecords): Map<number, TrophyNe
   for (const c of records.cupHistory) addCup(c, "continentalCup");
   addCup(records.shield, "continentalShield");
   for (const c of records.shieldHistory) addCup(c, "continentalShield");
+
+  // A super cup files under the season it *opened*, which is the season it
+  // carries. That is the same rule as everything else here — the season the
+  // match was played in — even though it is the only competition whose season
+  // starts rather than ends with it.
+  const addSuperCup = (sc: SuperCupTie): void => {
+    const champion = superCupChampion(sc);
+    if (champion === null) return;
+    add(sc.season, { kind: "superCup", name: sc.name, tid: champion });
+  };
+  for (const sc of records.superCups ?? []) addSuperCup(sc);
+  for (const sc of records.superCupHistory ?? []) addSuperCup(sc);
 
   const addTournament = (s: IntlTournamentSummary, kind: TrophyNewsKind): void => {
     const { champion, runnerUp } = s.finalScore;
