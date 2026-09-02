@@ -3495,6 +3495,10 @@ export const COUNTRY_CUP_ADJECTIVE: Readonly<Record<string, string>> = {
   Portugal: "Portuguese",
   Belgium: "Belgian",
   Turkey: "Turkish",
+  Netherlands: "Dutch",
+  Greece: "Greek",
+  Scotland: "Scottish",
+  Serbia: "Serbian",
 };
 
 /**
