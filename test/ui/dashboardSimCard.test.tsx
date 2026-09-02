@@ -38,13 +38,19 @@ function render(league: LeagueStore): string {
   return renderToStaticMarkup(createElement(MemoryRouter, null, createElement(Dashboard)));
 }
 
-/** The slice of markup between the Simulation heading and the card after it. */
+/**
+ * The slice of markup between the Simulation heading and the card after it.
+ *
+ * Ends at whichever card comes next rather than naming one: it used to end at
+ * "Jump ahead", which then moved to the top bar and took this helper's end
+ * marker with it. Every card on the page opens with a `card-title`, so the next
+ * one is the boundary whatever it happens to be.
+ */
 function simCard(html: string): string {
   const start = html.indexOf("Simulation</h5>");
-  const end = html.indexOf("Jump ahead</h5>");
   expect(start).toBeGreaterThan(-1);
-  expect(end).toBeGreaterThan(start);
-  return html.slice(start, end);
+  const next = html.indexOf('class="card-title', start + 1);
+  return next === -1 ? html.slice(start) : html.slice(start, next);
 }
 
 describe("the Dashboard's Simulation card", () => {

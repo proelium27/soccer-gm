@@ -106,7 +106,7 @@ export function buildImportPromptText(league: LeagueStore): string {
     "{",
     `  "format": "${ROSTER_FILE_FORMAT}",`,
     `  "formatVersion": ${ROSTER_FILE_VERSION},`,
-    '  "competitions": [ { "match": "<competition name>", "country": "<country>", "tier": 1 | 2, "clubs": [ <club>, ... ] }, ... ],',
+    '  "competitions": [ { "match": "<competition name>", "country": "<country>", "tier": 1 | 2 | 3, "clubs": [ <club>, ... ] }, ... ],',
     '  "nationalities"?: { "<nation>": number, ..., "__REST__": number }',
     "}",
     "",

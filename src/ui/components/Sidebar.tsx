@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
+import { isSpectator } from "../../core/spectator.js";
 
 interface SidebarProps {
   /** Drawer open state (only affects the mobile off-canvas presentation). */
@@ -10,6 +11,10 @@ interface SidebarProps {
 
 export function Sidebar({ open, onNavigate }: SidebarProps) {
   const { league } = useLeague();
+  // Nobody manages a club, so every link under Team is a page about a club that
+  // does not exist. They are hidden rather than disabled: a greyed-out Roster
+  // would imply a squad you could get to, and there is never going to be one.
+  const spectating = !!league && isSpectator(league);
   return (
     <nav
       className={`sidebar d-flex flex-column${open ? " open" : ""}`}
@@ -24,30 +29,58 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
       <NavLink to="/champions-cups" className="nav-link" onClick={onNavigate}>Champions Cups</NavLink>
       <NavLink to="/promotion-playoffs" className="nav-link" onClick={onNavigate}>Promotion Playoffs</NavLink>
       <NavLink to="/power-rankings" className="nav-link" onClick={onNavigate}>Power Rankings</NavLink>
-      <NavLink to="/schedule" className="nav-link" onClick={onNavigate}>Schedule</NavLink>
+      {/* Your club's fixture list, not the world's — so it has nothing to show
+          without a club, despite sitting under League. */}
+      {!spectating && (
+        <NavLink to="/schedule" className="nav-link" onClick={onNavigate}>Schedule</NavLink>
+      )}
       <NavLink to="/leaders" className="nav-link" onClick={onNavigate}>Stat Leaders</NavLink>
       <NavLink to="/awards" className="nav-link" onClick={onNavigate}>Awards</NavLink>
       <NavLink to="/history" className="nav-link" onClick={onNavigate}>Club History</NavLink>
       <NavLink to="/frivolities" className="nav-link" onClick={onNavigate}>Frivolities</NavLink>
       <NavLink to="/season-preview" className="nav-link" onClick={onNavigate}>Season Preview</NavLink>
       <NavLink to="/news" className="nav-link" onClick={onNavigate}>News Feed</NavLink>
+      {/*
+        The watchlist is a note to yourself about players anywhere in the world,
+        not an instruction to a club — which is why `switchClub` deliberately
+        keeps it across a move. It survives here too, and moves up into League,
+        since a spectator following prospects is exactly what it is for and the
+        section it normally lives in is about to disappear.
+      */}
+      {spectating && (
+        <NavLink to="/watchlist" className="nav-link" onClick={onNavigate}>Watchlist</NavLink>
+      )}
 
-      <div className="nav-section">Team</div>
-      <NavLink to="/manager" className="nav-link" onClick={onNavigate}>Manager</NavLink>
-      <NavLink to="/roster" className="nav-link" onClick={onNavigate}>Roster</NavLink>
-      <NavLink to="/transfers" className="nav-link" onClick={onNavigate}>Transfers</NavLink>
-      <NavLink to="/watchlist" className="nav-link" onClick={onNavigate}>Watchlist</NavLink>
-      <NavLink to="/incoming-offers" className="nav-link" onClick={onNavigate}>Incoming Offers</NavLink>
-      <NavLink to="/loans" className="nav-link" onClick={onNavigate}>Loans</NavLink>
-      <NavLink to="/finance" className="nav-link" onClick={onNavigate}>Finance</NavLink>
-      <NavLink to="/incoming-talent" className="nav-link" onClick={onNavigate}>Incoming Talent</NavLink>
-      <NavLink to="/free-agents" className="nav-link" onClick={onNavigate}>Free Agents</NavLink>
-      <NavLink to="/academy" className="nav-link" onClick={onNavigate}>Academy</NavLink>
+      {!spectating && (
+        <>
+          <div className="nav-section">Team</div>
+          <NavLink to="/manager" className="nav-link" onClick={onNavigate}>Manager</NavLink>
+          <NavLink to="/roster" className="nav-link" onClick={onNavigate}>Roster</NavLink>
+          <NavLink to="/transfers" className="nav-link" onClick={onNavigate}>Transfers</NavLink>
+          <NavLink to="/watchlist" className="nav-link" onClick={onNavigate}>Watchlist</NavLink>
+          <NavLink to="/incoming-offers" className="nav-link" onClick={onNavigate}>Incoming Offers</NavLink>
+          <NavLink to="/loans" className="nav-link" onClick={onNavigate}>Loans</NavLink>
+          <NavLink to="/finance" className="nav-link" onClick={onNavigate}>Finance</NavLink>
+          <NavLink to="/incoming-talent" className="nav-link" onClick={onNavigate}>Incoming Talent</NavLink>
+          <NavLink to="/free-agents" className="nav-link" onClick={onNavigate}>Free Agents</NavLink>
+          <NavLink to="/academy" className="nav-link" onClick={onNavigate}>Academy</NavLink>
+        </>
+      )}
 
       <div className="nav-section">National Teams</div>
-      <NavLink to="/national-teams/my-squad" className="nav-link" onClick={onNavigate}>My Squad</NavLink>
-      <NavLink to="/national-teams/player-pool" className="nav-link" onClick={onNavigate}>Player Pool</NavLink>
-      <NavLink to="/national-teams/federation" className="nav-link" onClick={onNavigate}>Federation</NavLink>
+      {/*
+        The first three run a country you manage; the rest are the world's
+        international football, which is as watchable as any league. A spectator
+        manages no country either (`createLeagueState` forces it null), so those
+        three go with the Team block.
+      */}
+      {!spectating && (
+        <>
+          <NavLink to="/national-teams/my-squad" className="nav-link" onClick={onNavigate}>My Squad</NavLink>
+          <NavLink to="/national-teams/player-pool" className="nav-link" onClick={onNavigate}>Player Pool</NavLink>
+          <NavLink to="/national-teams/federation" className="nav-link" onClick={onNavigate}>Federation</NavLink>
+        </>
+      )}
       <NavLink to="/national-teams/world-cup" className="nav-link" onClick={onNavigate}>World Cup</NavLink>
       <NavLink to="/national-teams/qualifying" className="nav-link" onClick={onNavigate}>Qualifying</NavLink>
       <NavLink to="/national-teams/confederation-cups" className="nav-link" onClick={onNavigate}>Confederation Cups</NavLink>

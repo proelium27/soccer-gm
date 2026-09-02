@@ -19,7 +19,7 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { playFullSeason } from "../helpers/offseasonLeague.js";
-import { worldCompetitions, competitionTeamCount } from "../../src/core/competitions.js";
+import { worldCompetitions, competitionTeamCount, promotionLinks } from "../../src/core/competitions.js";
 import {
   NUM_TEAMS, ROSTER_SAFETY_FLOOR,
 } from "../../src/core/constants.js";
@@ -41,7 +41,7 @@ describe("simOffseason", () => {
     expect(next.season).toBe(league.season + 1);
     expect(next.phase).toBe("regular");
     expect(next.played).toEqual([]);
-    expect(next.schedule).toHaveLength(7092);
+    expect(next.schedule).toHaveLength(10538);
   });
 
   it("every team stays at or above the roster safety floor after progression/retirement/FA/youth", () => {
@@ -105,9 +105,9 @@ describe("simOffseason", () => {
     const league = playFullSeason(rng);
 
     // The same played season, settled by two different pyramids. One up and one
-    // down moves exactly two clubs per country; a league set to none moves
-    // nobody, which is the case that would silently swap whole divisions if
-    // computeCountrySwaps ever went back to slicing by a zero count.
+    // down moves exactly two clubs per promotion link; a league set to none
+    // moves nobody, which is the case that would silently swap whole divisions
+    // if computeCountrySwaps ever went back to slicing by a zero count.
     // `playoffFormat: "none"` alongside, because this is a test about promotion
     // COUNTS and a playoff is a different axis: Germany runs the German format
     // even at a single place, where the top-flight club holding on means that
@@ -116,6 +116,14 @@ describe("simOffseason", () => {
     // count here depend on a simulated tie.
     const withSpots = (promotionSpots: number) => ({
       ...league,
+      // The playoffs ALSO have to be cleared, or the `none` below never takes
+      // effect: playFullSeason already played them under the countries' real
+      // formats, and simOffseason reuses a season's recorded outcomes rather
+      // than replaying them. Without this the count depends on how Germany's
+      // German-format tie happened to go — it moves two clubs when the
+      // challenger wins and none when the incumbent holds on — which is the
+      // one thing the comment above says this test must not measure.
+      promotionPlayoffs: [],
       competitions: league.competitions.map((c) => ({
         ...c, promotionSpots, playoffFormat: "none" as const,
       })),
@@ -127,7 +135,9 @@ describe("simOffseason", () => {
       const before = new Map(league.teams.map((t) => [t.tid, t.compId]));
       return next.teams.filter((t) => before.get(t.tid) !== t.compId).length;
     };
-    expect(moved(one)).toBe(2 * 12); // two clubs each, twelve countries
+    // Per LINK, not per country: every country runs three divisions and so
+    // contributes two links each.
+    expect(moved(one)).toBe(2 * promotionLinks(league.competitions).length);
     expect(moved(closed)).toBe(0);
     // Division sizes hold either way.
     expect(closed.teams.filter((t) => t.compId === 0)).toHaveLength(NUM_TEAMS);

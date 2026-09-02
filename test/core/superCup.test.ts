@@ -14,7 +14,7 @@ import type { LeagueStore } from "../../src/core/leagueState.js";
 import type { StandingsRow } from "../../src/core/standings.js";
 import type { DomesticCupState } from "../../src/core/domesticCup/types.js";
 import type { CupState } from "../../src/core/cup/types.js";
-import { worldCompetitions, tier1Pairs } from "../../src/core/competitions.js";
+import { worldCompetitions, countryDivisions } from "../../src/core/competitions.js";
 
 /** A minimal standings table: just tids in finishing order. */
 function table(tids: number[]): StandingsRow[] {
@@ -50,7 +50,7 @@ function seedFor(opts: {
   shield?: number | null;
 }): SuperCupSeed {
   const competitions = worldCompetitions();
-  const d1 = tier1Pairs(competitions)[0].d1;
+  const d1 = countryDivisions(competitions)[0].divisions[0];
   return {
     competitions: competitions.filter((c) => c.country === d1.country),
     tablesByCompId: new Map([[d1.id, table(opts.order ?? [opts.championTid, 999])]]),

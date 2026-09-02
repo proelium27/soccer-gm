@@ -6,7 +6,7 @@ import type { CupState } from "../cup/types.js";
 import type { DomesticCupState } from "../domesticCup/types.js";
 import type { TeamMatchData } from "../league/composites.js";
 import type { SuperCupTie, SuperCupRoute } from "./types.js";
-import { tier1Pairs } from "../competitions.js";
+import { countryDivisions } from "../competitions.js";
 import { leagueMatchData } from "../league/composites.js";
 import { resolveCupTie } from "../cup/simCup.js";
 import { teamSeasonFormDelta, applySeasonForm } from "../teamSeasonForm.js";
@@ -85,9 +85,10 @@ export interface SuperCupSeed {
  * league and its domestic cup would otherwise play itself, so the league
  * runner-up steps in — which is exactly what the FA Community Shield does, and
  * it always produces a match against a genuinely strong side. The alternative
- * convention (the beaten cup finalist) was considered and passed over because a
- * tier-2 club can reach a domestic cup final here, which would put a second
- * division side in the showpiece rather more often than reads right.
+ * convention (the beaten cup finalist) was considered and passed over because
+ * every one of a country's divisions enters the domestic cup here, so a lower-
+ * tier club can reach its final — which would put a second- or third-division
+ * side in the showpiece rather more often than reads right.
  *
  * A country with no domestic cup champion yet — season 1 has none, since the
  * cups are still being played — simply holds no super cup that preseason, and
@@ -101,7 +102,11 @@ export function buildSuperCups(seed: SuperCupSeed): SuperCupTie[] {
     if (dc.championTid !== null) cupWinnerByCountry.set(dc.country, dc.championTid);
   }
 
-  for (const { d1 } of tier1Pairs(seed.competitions)) {
+  // One super cup per country, contested by its TOP division's champion —
+  // `divisions` is ordered top flight first, so that is always [0] however many
+  // tiers a country runs. A lower division's champion is promoted, not crowned.
+  for (const { divisions } of countryDivisions(seed.competitions)) {
+    const d1 = divisions[0];
     const champion = seed.championTidByCompId[d1.id];
     const cupWinner = cupWinnerByCountry.get(d1.country);
     if (champion === undefined || cupWinner === undefined) continue;
@@ -166,10 +171,12 @@ function matchRng(lid: number, season: number, compId: number) {
  * the two contestants alone would be degenerate — every match would read as an
  * even one however far apart the sides really are. So:
  *
- *  - a **domestic** super cup pools its country's clubs, **both divisions**,
- *    exactly as the domestic cup does. It has to: a cup winner can be a
- *    second-division club, and measuring him against his own division alone
- *    would have him meet the champions as an equal.
+ *  - a **domestic** super cup pools its country's clubs across **every one of
+ *    its divisions**, exactly as the domestic cup does. It has to: the domestic
+ *    cup is open to all of them, so its winner can be a second- or third-tier
+ *    club, and measuring him against his own division alone would have him meet
+ *    the champions as an equal. Keyed off `country` rather than an enumerated
+ *    pair of tiers, so a country gaining a division needs no change here.
  *  - the **continental** one pools every **tier-1** club in the world. Both
  *    contestants are elite top-flight sides from different countries, and the
  *    world's top flights are the only baseline that means anything across

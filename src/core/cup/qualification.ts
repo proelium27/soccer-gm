@@ -203,6 +203,21 @@ export interface QualificationContext {
 const LOWER_DIVISION_SEED_BASE = 1000;
 
 /**
+ * A lower-division qualifier's seed: one whole band per tier below the top, so
+ * a second-division club always seeds above a third-division one and neither
+ * can outrank a top-flight club.
+ *
+ * The bands must not overlap, which is why this multiplies rather than adding a
+ * flat base: with one shared base, a third-division winner and a second-division
+ * one would land in the same range and the draw would rank them by league
+ * position alone — treating 3rd in the third tier as better than 8th in the
+ * second, which is exactly backwards.
+ */
+function lowerDivisionSeed(tier: number, rank: number): number {
+  return LOWER_DIVISION_SEED_BASE * (tier - 1) + rank;
+}
+
+/**
  * The domestic cup route's input: each country's cup champion, from the cups of
  * the season that just finished. A cup with no champion yet (still being
  * played, or abandoned mid-save) contributes nothing, which closes the route
@@ -255,7 +270,7 @@ export function allocateContinentalPlaces(
       country: comp.country,
       rank,
       route,
-      seedRank: comp.tier === 1 ? rank : LOWER_DIVISION_SEED_BASE + rank,
+      seedRank: comp.tier === 1 ? rank : lowerDivisionSeed(comp.tier, rank),
       points: row.points,
       gd: row.gd,
       gf: row.gf,

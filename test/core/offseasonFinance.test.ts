@@ -84,7 +84,7 @@ describe("simOffseason — finance and renewals", () => {
     const league = playFullSeason(rng);
     const userTid = league.meta.userTid;
     // Must be a safely mid-table-or-better Division 1 club: a bottom-3
-    // finisher would get relegated this offseason, and enforceDivision2Ceiling
+    // finisher would get relegated this offseason, and enforceDivisionCeilings
     // would then immediately move this test's boosted 90-OVR player off him
     // again (correctly, but that's a different, separately tested mechanism —
     // not what this test is checking).

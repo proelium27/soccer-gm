@@ -1,12 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { makeLeague } from "../../helpers/league.js";
-import { enforceDivision2Ceiling } from "../../../src/core/ai/divisionCeiling.js";
-import { ROSTER_CAP, DIVISION_2_REFUSAL_OVR_THRESHOLD } from "../../../src/core/constants.js";
-import { tierOf } from "../../../src/core/competitions.js";
+import { enforceDivisionCeilings } from "../../../src/core/ai/divisionCeiling.js";
+import {
+  ROSTER_CAP, DIVISION_2_REFUSAL_OVR_THRESHOLD, divisionRefusalOvr,
+} from "../../../src/core/constants.js";
+import { tierOf, buildCompetitions } from "../../../src/core/competitions.js";
+import { createLeagueState } from "../../../src/core/leagueState.js";
+import { mulberry32 } from "../../../src/engine/rng.js";
 
 const USER_TID = 0;
 
-describe("enforceDivision2Ceiling", () => {
+describe("enforceDivisionCeilings", () => {
   it("moves an AI Division 2 player at/above the OVR threshold to a Division 1 club", () => {
     const league = makeLeague(USER_TID, 1);
     const d2Team = league.teams.find((t) => t.compId === 1 && t.tid !== USER_TID)!;
@@ -14,7 +18,7 @@ describe("enforceDivision2Ceiling", () => {
     const star = { ...target, ovr: DIVISION_2_REFUSAL_OVR_THRESHOLD };
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
-    const { teams, transfers } = enforceDivision2Ceiling(
+    const { teams, transfers } = enforceDivisionCeilings(
       league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const newTeam = teams.find((t) => t.roster.includes(star.pid))!;
@@ -32,7 +36,7 @@ describe("enforceDivision2Ceiling", () => {
     const star = { ...target, ovr: DIVISION_2_REFUSAL_OVR_THRESHOLD };
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
-    const { teams, transfers } = enforceDivision2Ceiling(
+    const { teams, transfers } = enforceDivisionCeilings(
       league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const deal = transfers.find((t) => t.pid === star.pid)!;
@@ -59,7 +63,7 @@ describe("enforceDivision2Ceiling", () => {
       tierOf(league.competitions, t.compId) === 1 ? { ...t, budget: 1000 } : t,
     );
 
-    const { teams: updated, transfers } = enforceDivision2Ceiling(
+    const { teams: updated, transfers } = enforceDivisionCeilings(
       teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const deal = transfers.find((t) => t.pid === star.pid)!;
@@ -76,7 +80,7 @@ describe("enforceDivision2Ceiling", () => {
     const weak = { ...target, ovr: DIVISION_2_REFUSAL_OVR_THRESHOLD - 1 };
     const players = league.players.map((p) => (p.pid === target.pid ? weak : p));
 
-    const { teams } = enforceDivision2Ceiling(
+    const { teams } = enforceDivisionCeilings(
       league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const team = teams.find((t) => t.roster.includes(weak.pid))!;
@@ -92,7 +96,7 @@ describe("enforceDivision2Ceiling", () => {
     const star = { ...target, ovr: 95 };
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
-    const { teams: updated } = enforceDivision2Ceiling(
+    const { teams: updated } = enforceDivisionCeilings(
       teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const team = updated.find((t) => t.roster.includes(star.pid))!;
@@ -106,7 +110,7 @@ describe("enforceDivision2Ceiling", () => {
     const star = { ...target, ovr: 95 };
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
-    const { teams } = enforceDivision2Ceiling(
+    const { teams } = enforceDivisionCeilings(
       league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const userTeam = teams.find((t) => t.tid === USER_TID)!;
@@ -145,7 +149,7 @@ describe("enforceDivision2Ceiling", () => {
     );
     expect(teams.find((t) => t.tid === weakestD1Tid)!.roster.length).toBe(ROSTER_CAP);
 
-    const { teams: updated } = enforceDivision2Ceiling(
+    const { teams: updated } = enforceDivisionCeilings(
       teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     const buyer = updated.find((t) => t.roster.includes(star.pid))!;
@@ -167,7 +171,7 @@ describe("enforceDivision2Ceiling", () => {
       startSeason: league.season, seasons: 1 as const, returnSeason: league.season + 1, fee: 0,
     }];
 
-    const { teams, transfers } = enforceDivision2Ceiling(
+    const { teams, transfers } = enforceDivisionCeilings(
       league.teams, players, activeLoans, league.transfers, league.season, USER_TID, league.competitions,
     );
     expect(teams.find((t) => t.roster.includes(star.pid))!.tid).toBe(d2Team.tid);
@@ -181,8 +185,72 @@ describe("enforceDivision2Ceiling", () => {
     const star = { ...target, ovr: 88 };
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
-    const a = enforceDivision2Ceiling(league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions);
-    const b = enforceDivision2Ceiling(league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions);
+    const a = enforceDivisionCeilings(league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions);
+    const b = enforceDivisionCeilings(league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions);
     expect(a.teams).toEqual(b.teams);
+  });
+
+  // A three-division world, deliberately tiny (8 clubs a division) so the whole
+  // case costs a fraction of a second rather than a full world generation.
+  function threeTierLeague() {
+    const competitions = buildCompetitions([
+      { country: "Deepland", divisions: 3, d1Teams: 8, d2Teams: 8, d3Teams: 8 },
+    ]);
+    return createLeagueState(USER_TID, mulberry32(7), 7, "normal", competitions);
+  }
+
+  it("sweeps a third-division player one division up, not straight to the top flight", () => {
+    const league = threeTierLeague();
+    const d3 = league.competitions.find((c) => c.tier === 3)!;
+    const d3Team = league.teams.find((t) => t.compId === d3.id && t.tid !== USER_TID)!;
+    const target = league.players.find((p) => d3Team.roster.includes(p.pid))!;
+    // Over tier 3's bar but under tier 2's, so exactly one hop is warranted.
+    const ovr = Math.floor((divisionRefusalOvr(3) + divisionRefusalOvr(2)) / 2);
+    expect(ovr).toBeGreaterThanOrEqual(divisionRefusalOvr(3));
+    expect(ovr).toBeLessThan(divisionRefusalOvr(2));
+    const star = { ...target, ovr };
+    const players = league.players.map((p) => (p.pid === target.pid ? star : p));
+
+    const { teams } = enforceDivisionCeilings(
+      league.teams, players, league.activeLoans, league.transfers, league.season,
+      USER_TID, league.competitions,
+    );
+    const landed = teams.find((t) => t.roster.includes(star.pid))!;
+    expect(tierOf(league.competitions, landed.compId)).toBe(2);
+  });
+
+  it("carries a player over EVERY tier's bar all the way up in one pass", () => {
+    const league = threeTierLeague();
+    const d3 = league.competitions.find((c) => c.tier === 3)!;
+    const d3Team = league.teams.find((t) => t.compId === d3.id && t.tid !== USER_TID)!;
+    const target = league.players.find((p) => d3Team.roster.includes(p.pid))!;
+    const star = { ...target, ovr: divisionRefusalOvr(2) };
+    const players = league.players.map((p) => (p.pid === target.pid ? star : p));
+
+    const { teams } = enforceDivisionCeilings(
+      league.teams, players, league.activeLoans, league.transfers, league.season,
+      USER_TID, league.competitions,
+    );
+    // This is what the deepest-first pass order buys. Shallowest-first would
+    // leave him in tier 2 for a whole extra season, which is the drift the
+    // ceiling exists to prevent.
+    const landed = teams.find((t) => t.roster.includes(star.pid))!;
+    expect(tierOf(league.competitions, landed.compId)).toBe(1);
+  });
+
+  it("leaves a third-division player below his own tier's bar where he is", () => {
+    const league = threeTierLeague();
+    const d3 = league.competitions.find((c) => c.tier === 3)!;
+    const d3Team = league.teams.find((t) => t.compId === d3.id && t.tid !== USER_TID)!;
+    const target = league.players.find((p) => d3Team.roster.includes(p.pid))!;
+    const star = { ...target, ovr: divisionRefusalOvr(3) - 1 };
+    const players = league.players.map((p) => (p.pid === target.pid ? star : p));
+
+    const { teams } = enforceDivisionCeilings(
+      league.teams, players, league.activeLoans, league.transfers, league.season,
+      USER_TID, league.competitions,
+    );
+    const landed = teams.find((t) => t.roster.includes(star.pid))!;
+    expect(landed.tid).toBe(d3Team.tid);
   });
 });

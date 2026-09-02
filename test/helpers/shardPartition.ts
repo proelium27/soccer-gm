@@ -106,6 +106,11 @@ export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
   "test/core/superCup.test.ts": 142,
   "test/core/simThrough.test.ts": 81,
   "test/core/nationalManager.test.ts": 35,
+  // Two full season-plus-offseason runs of the same world, to prove a spectated
+  // season is bit-identical to an autopiloted one. Measured at 101s solo and
+  // entered at the ~1.57x contended figure this table holds (see the note above
+  // about not pasting solo numbers in).
+  "test/core/spectator.test.ts": 160,
   "test/ui/transfersRender.test.tsx": 65,
   "test/helpers/fixtureFidelity.test.ts": 31,
   "test/validation/m1-benchmarks.test.ts": 20,

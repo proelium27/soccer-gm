@@ -5,12 +5,13 @@ import { generatePlayer } from "../players/generate.js";
 import { hashInts } from "../../engine/rng.js";
 import type { Competition } from "../competitions.js";
 import {
-  worldCompetitions, tier1Pairs, competitionStrengthOffset, competitionAcademyOffset,
+  worldCompetitions, countryDivisions, competitionStrengthOffset, competitionAcademyOffset,
   competitionTeamCount, competitionNationalities,
 } from "../competitions.js";
 import type { NationalityWeights } from "../players/nationalities.js";
 import {
   NUM_TEAMS, NUM_TEAMS_D2, LEAGUE_BASE, TEAM_STRENGTH_SPREAD, DIVISION_2_OFFSET,
+  divisionStrengthOffset,
   ROSTER_COMPOSITION, INITIAL_AGE_MIN, INITIAL_AGE_MAX,
   CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
 } from "../constants.js";
@@ -186,7 +187,7 @@ export function generateTwoDivisionLeague(rng: () => number, seed = 0): League {
  * England's block is therefore byte-identical to a plain
  * generateTwoDivisionLeague call for the same seed. Equal-sibling by
  * construction: every country uses the identical strength bands
- * (strengthOffset 0 for tier 1, DIVISION_2_OFFSET for tier 2) — no
+ * (divisionStrengthOffset by tier: 0 for tier 1, DIVISION_2_OFFSET for tier 2) — no
  * per-country tuning.
  */
 export function generateWorld(
@@ -200,35 +201,30 @@ export function generateWorld(
   let tidCursor = 0;
   const teams: LeagueTeam[] = [];
   const players: Player[] = [];
-  for (const { d1, d2 } of tier1Pairs(comps)) {
-    // Per-country strength handicap stacked onto the tier offset (0 for the
-    // big four, so England stays byte-identical). Changing a player's `base`
-    // doesn't alter rng-stream consumption, and the weak leagues are generated
-    // last, so this can't perturb any other country's players.
-    const d1Result = generateDivisionTeams(
-      rng, tidCursor, competitionTeamCount(d1),
-      competitionStrengthOffset(d1), competitionAcademyOffset(d1),
-      d1.id, genSeed, pid, d1.country, competitionNationalities(d1),
-    );
-    pid = d1Result.nextPid;
-    tidCursor += competitionTeamCount(d1);
-    teams.push(...d1Result.teams);
-    players.push(...d1Result.players);
-    // A one-division country stops here. Its clubs still occupy a contiguous
-    // tid block, so every later country shifts up by exactly the division it
-    // doesn't have — which is why club identities key off position within the
-    // country rather than the absolute tid.
-    if (!d2) continue;
-    const d2Result = generateDivisionTeams(
-      rng, tidCursor, competitionTeamCount(d2),
-      DIVISION_2_OFFSET + competitionStrengthOffset(d2),
-      DIVISION_2_OFFSET + competitionAcademyOffset(d2),
-      d2.id, genSeed, pid, d2.country, competitionNationalities(d2),
-    );
-    pid = d2Result.nextPid;
-    tidCursor += competitionTeamCount(d2);
-    teams.push(...d2Result.teams);
-    players.push(...d2Result.players);
+  for (const { divisions } of countryDivisions(comps)) {
+    // Each country's divisions in pyramid order, top flight first, one
+    // contiguous tid block per country. A country with fewer (or more)
+    // divisions than another simply contributes a shorter (or longer) block, so
+    // every later country shifts — which is why club identities key off position
+    // WITHIN the country rather than the absolute tid.
+    //
+    // Per-country strength handicap stacked onto the tier offset (0 for the big
+    // four's top flight, so England stays byte-identical). Changing a player's
+    // `base` doesn't alter rng-stream consumption, so the tier loop consumes the
+    // stream in exactly the order the old d1-then-d2 pair did.
+    for (const comp of divisions) {
+      const tierOffset = divisionStrengthOffset(comp.tier);
+      const result = generateDivisionTeams(
+        rng, tidCursor, competitionTeamCount(comp),
+        tierOffset + competitionStrengthOffset(comp),
+        tierOffset + competitionAcademyOffset(comp),
+        comp.id, genSeed, pid, comp.country, competitionNationalities(comp),
+      );
+      pid = result.nextPid;
+      tidCursor += competitionTeamCount(comp);
+      teams.push(...result.teams);
+      players.push(...result.players);
+    }
   }
   return { teams, players };
 }
