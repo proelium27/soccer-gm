@@ -68,6 +68,41 @@ export function financeScaleFor(
 }
 
 /**
+ * The money scale for **domestic cup prize money**: the club's country, WITHOUT
+ * its tier, plus the user's difficulty lever.
+ *
+ * **The missing `tierScale` is the whole point, not an oversight.** A domestic
+ * cup fields both of a country's divisions, and the real ones pay a fourth-tier
+ * club exactly what they pay a champion for reaching the same round — which is
+ * why a cup run is transformative for a small club and a rounding error for a
+ * big one. Running these prizes through `financeScale` instead taxes the very
+ * clubs the money is supposed to matter to, by `DIVISION_2_BUDGET_SCALE`, and
+ * deletes the one part of the competition worth modelling.
+ *
+ * The country half is kept because a domestic cup is sold by domestic
+ * broadcasters, so England's paying more than Serbia's is realistic — and it is
+ * the direction that protects the strength ladder, since a flat payment would
+ * be worth proportionally most to the poorest leagues (the documented
+ * weaker-but-richer tripwire). That is the opposite call from the continental
+ * competitions, which pay flat precisely because UEFA does; see
+ * CUP_PRIZE_PARTICIPATION.
+ *
+ * Takes the difficulty multiplier for the user's club on the same terms as
+ * `financeScaleFor`, because **every** site where the user's budget can grow
+ * must, or a difficulty level silently stops applying to one income stream.
+ */
+export function domesticCupScaleFor(
+  competitions: Competition[],
+  compId: number,
+  tid: number,
+  userTid: number,
+  difficulty: Difficulty | undefined,
+): number {
+  const base = competitionBudgetScale(competitionOf(competitions, compId));
+  return tid === userTid ? base * difficultyProfile(difficulty).budgetScale : base;
+}
+
+/**
  * The savings ceiling for a club, scaled by its fame (hype, 0-100) between
  * MAX_BUDGET_FLOOR (a nobody club) and MAX_BUDGET (a famous, successful one),
  * then by its competition's money scale. So a big club can bank/spend a bigger

@@ -7,6 +7,7 @@ import type { IntlTournament, IntlQualifyingCampaign, NationSquad } from "../../
 import {
   initInternationalCampaign, buildSquads, nationMatchData, editableSquad,
   displaySquad, writeSquad, isValidNationSquad, selectSquad, nationPools,
+  isEligibleNation, manageableNations,
 } from "../../src/core/international/index.js";
 import { FORMATIONS } from "../../src/core/lineup/formations.js";
 import {
@@ -17,6 +18,8 @@ import {
 } from "../../src/core/nationalManager/index.js";
 import {
   NATIONAL_START_CONFIDENCE, NATIONAL_GRACE_CAMPAIGNS, INTL_SQUAD_SIZE,
+  NATIONAL_OFFER_LATERAL_BAND, NATIONAL_REP_BASE, MANAGER_REP_BASE,
+  NATIONAL_OFFER_CLUB_REP_WEIGHT,
 } from "../../src/core/constants.js";
 import { AUTOPILOT_TID } from "../../src/core/autopilot.js";
 
@@ -258,13 +261,59 @@ describe("national manager: reputation and offers", () => {
     ranks: Array.from({ length: 40 }, (_, i) => ({ nation: `N${i}`, rating: 80 - i })),
   });
 
-  it("offers nothing worse than your current job while you're employed", () => {
+  /**
+   * "Worse" means meaningfully worse: an offer may sit up to
+   * NATIONAL_OFFER_LATERAL_BAND below your current job, which is what lets the
+   * strongest nation in the world be approached at all. A strict `>=` is
+   * unsatisfiable at prestige 1.000, and pinning it here is what let that ship.
+   */
+  it("offers nothing more than a lateral move below your current job", () => {
     const offers = generateNationOffers({
       lid: 1, season: 5, currentNation: "N10", expectations,
-      sacked: false, reputation: 75, lastOverperformance: 0.2,
+      sacked: false, reputation: 75, clubReputation: MANAGER_REP_BASE, lastOverperformance: 0.2,
     });
     const mine = expectations.get("N10")!.prestige;
-    for (const o of offers) expect(o.prestige).toBeGreaterThanOrEqual(mine);
+    expect(offers.length).toBeGreaterThan(0);
+    for (const o of offers) {
+      expect(o.prestige).toBeGreaterThanOrEqual(mine - NATIONAL_OFFER_LATERAL_BAND);
+    }
+  });
+
+  /**
+   * The bug this whole pair of bands exists to prevent: the band is an absolute
+   * window in prestige while the step-up filter is relative to the job you hold,
+   * so centring the band on reputation alone left them with no overlap the
+   * moment you managed a country stronger than your reputation. The strongest
+   * nation's manager was approached by nobody at any reputation.
+   */
+  it("still approaches the manager of the strongest nation in the world", () => {
+    const strongest = [...expectations.values()].sort((a, b) => a.rank - b.rank)[0];
+    expect(strongest.prestige).toBe(1);
+    const seen = new Set<string>();
+    for (let season = 1; season <= 12; season++) {
+      for (const o of generateNationOffers({
+        lid: 1, season, currentNation: strongest.nation, expectations,
+        sacked: false, reputation: 100, clubReputation: MANAGER_REP_BASE, lastOverperformance: 0,
+      })) seen.add(o.nation);
+    }
+    expect(seen.size).toBeGreaterThan(0);
+  });
+
+  /**
+   * The other half of the same bug, and the one a *new* manager hits: handed a
+   * strong country on the base reputation, the band used to top out below their
+   * own nation and the pool came out empty.
+   */
+  it("approaches a low-reputation manager handed a strong nation", () => {
+    const seen = new Set<string>();
+    for (let season = 1; season <= 12; season++) {
+      for (const o of generateNationOffers({
+        lid: 1, season, currentNation: "N2", expectations,
+        sacked: false, reputation: NATIONAL_REP_BASE,
+        clubReputation: MANAGER_REP_BASE, lastOverperformance: 0,
+      })) seen.add(o.nation);
+    }
+    expect(seen.size).toBeGreaterThan(0);
   });
 
   /**
@@ -275,15 +324,58 @@ describe("national manager: reputation and offers", () => {
   it("approaches an unemployed manager readily", () => {
     const offers = generateNationOffers({
       lid: 1, season: 5, currentNation: null, expectations,
-      sacked: false, reputation: 55, lastOverperformance: 0,
+      sacked: false, reputation: 55, clubReputation: MANAGER_REP_BASE, lastOverperformance: 0,
     });
     expect(offers.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * International reputation cannot rise without holding a national job, so a
+   * club manager who has never held one sits on NATIONAL_REP_BASE forever. On
+   * the real 70-nation world that left rank 33 as the best country the band
+   * could ever reach, and 100 club reputation changed it by nothing: federations
+   * could not see a club career at all.
+   */
+  describe("federations can see a discounted slice of the club career", () => {
+    const bestRankOffered = (clubReputation: number): number => {
+      let best = Infinity;
+      for (let season = 1; season <= 20; season++) {
+        for (const o of generateNationOffers({
+          lid: 1, season, currentNation: null, expectations,
+          sacked: false, reputation: NATIONAL_REP_BASE, clubReputation,
+          lastOverperformance: 0,
+        })) best = Math.min(best, o.rank);
+      }
+      return best;
+    };
+
+    it("offers a decorated club manager better countries than an unproven one", () => {
+      expect(bestRankOffered(100)).toBeLessThan(bestRankOffered(MANAGER_REP_BASE));
+    });
+
+    it("is inert for an unproven manager, who is on the base club reputation", () => {
+      // MANAGER_REP_BASE * WEIGHT lands under NATIONAL_REP_BASE / 100, so the
+      // `max` ignores it entirely and this path is exactly what it always was.
+      expect((MANAGER_REP_BASE / 100) * NATIONAL_OFFER_CLUB_REP_WEIGHT)
+        .toBeLessThan(NATIONAL_REP_BASE / 100);
+      expect(bestRankOffered(MANAGER_REP_BASE)).toBe(bestRankOffered(0));
+    });
+
+    /**
+     * The ladder this must not let anyone skip. A club career buys a good
+     * country, never an elite one: the strongest nations stay behind a national
+     * reputation that can only be earned in the job.
+     */
+    it("does not put the strongest nations in reach on a club career alone", () => {
+      const nations = [...expectations.values()].length;
+      expect(bestRankOffered(100)).toBeGreaterThan(nations * 0.1);
+    });
   });
 
   it("is stable for the same save and season", () => {
     const args = {
       lid: 3, season: 7, currentNation: null, expectations,
-      sacked: false, reputation: 60, lastOverperformance: 0,
+      sacked: false, reputation: 60, clubReputation: MANAGER_REP_BASE, lastOverperformance: 0,
     };
     expect(generateNationOffers(args)).toEqual(generateNationOffers(args));
   });
@@ -355,6 +447,36 @@ describe("national manager: taking and leaving a job", () => {
     expect(squad.starters).toBeNull();
     // The squad itself is untouched — a successor picks a team from it.
     expect(squad.pids.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The list God Mode's Switch Country tab offers, and the list its action gates
+ * on. They have to be the same list: a picker that offers a country the gate
+ * then silently refuses reads as a broken button.
+ */
+describe("manageableNations", () => {
+  const league = makeLeague(0, 1);
+  const nations = manageableNations(league.players);
+
+  it("names every country this world can field a team for, and only those", () => {
+    const pools = nationPools(league.players);
+    for (const [nation, pool] of pools) {
+      expect(nations.includes(nation)).toBe(isEligibleNation(nation, pool));
+    }
+    expect(nations.length).toBeGreaterThan(0);
+  });
+
+  it("agrees with the field the sim itself draws", () => {
+    // buildSquads qualifies nations by the identical rule, so every country the
+    // picker offers is one that really turns up in a campaign.
+    const drawn = buildSquads(league.players).map((s) => s.nation).sort();
+    expect([...nations].sort()).toEqual(drawn);
+  });
+
+  it("is alphabetical and free of duplicates", () => {
+    expect(nations).toEqual([...nations].sort((a, b) => a.localeCompare(b)));
+    expect(new Set(nations).size).toBe(nations.length);
   });
 });
 

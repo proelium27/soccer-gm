@@ -12,6 +12,8 @@ import { mulberry32, hashInts } from "../../engine/rng.js";
 import {
   NATIONAL_MAX_OFFERS,
   NATIONAL_OFFER_BAND,
+  NATIONAL_OFFER_LATERAL_BAND,
+  NATIONAL_OFFER_CLUB_REP_WEIGHT,
   NATIONAL_OFFER_BASE_CHANCE,
   NATIONAL_OFFER_UNEMPLOYED_CHANCE,
   NATIONAL_OFFER_FORM_WEIGHT,
@@ -85,6 +87,13 @@ export interface NationOfferInputs {
   /** The federation dismissed you this offseason, so the nations that will take you are a rung down. */
   sacked: boolean;
   reputation: number;
+  /**
+   * The manager's *club* reputation, which federations can see a discounted
+   * fraction of (`NATIONAL_OFFER_CLUB_REP_WEIGHT`). It reaches the offer target
+   * and nothing else — never confidence, never a sacking, never the
+   * international reputation shown to the player.
+   */
+  clubReputation: number;
   /** Last campaign's placement-versus-expectation — a good tournament gets you noticed. */
   lastOverperformance: number;
 }
@@ -102,6 +111,24 @@ export interface NationOfferInputs {
  *
  * Unlike a sacked club manager, an empty list is a perfectly good answer here:
  * there is no unemployed state to rescue, so nothing is forced.
+ *
+ * **The band is centred on the bigger of your reputation and your current
+ * nation**, for the reason `generateJobOffers` spells out at length: the band is
+ * an absolute window in prestige while the step-up filter is relative to the job
+ * you hold, so centring on reputation alone left the two with no overlap the
+ * moment you managed a country stronger than your reputation. Measured on a
+ * 44-nation field, mean offers per offseason while employed: the strongest
+ * nation's manager got **0.00 at every reputation from 30 to 100**, the third
+ * strongest 0.33.
+ *
+ * **A discounted slice of the CLUB reputation is folded into the same target**,
+ * which is what the unemployed case needed — the `max` above is inert with no
+ * job (`currentPrestige` is 0), and international reputation cannot rise without
+ * holding a national job, so a manager who has never held one sits on
+ * `NATIONAL_REP_BASE` forever. Measured on a real 70-nation world, the best
+ * country that band could reach was **rank 33**, every offseason, whatever the
+ * club career. See `NATIONAL_OFFER_CLUB_REP_WEIGHT` for why it is discounted
+ * rather than counted in full.
  */
 export function generateNationOffers(input: NationOfferInputs): NationOffer[] {
   const { expectations, currentNation, sacked } = input;
@@ -111,7 +138,15 @@ export function generateNationOffers(input: NationOfferInputs): NationOffer[] {
 
   const target = Math.min(
     1,
-    Math.max(0, input.reputation / 100 - (sacked ? NATIONAL_SACKED_PRESTIGE_PENALTY : 0)),
+    Math.max(
+      0,
+      Math.max(
+        input.reputation / 100,
+        (input.clubReputation / 100) * NATIONAL_OFFER_CLUB_REP_WEIGHT,
+        currentPrestige,
+      )
+      - (sacked ? NATIONAL_SACKED_PRESTIGE_PENALTY : 0),
+    ),
   );
 
   const others = [...expectations.values()].filter((e) => e.nation !== currentNation);
@@ -121,8 +156,12 @@ export function generateNationOffers(input: NationOfferInputs): NationOffer[] {
   const pool = others
     .filter((e) => Math.abs(e.prestige - target) <= NATIONAL_OFFER_BAND)
     // Only a manager already in a job insists on a step up. Sacked or
-    // unemployed, anything within the band is worth hearing.
-    .filter((e) => (employed && !sacked ? e.prestige >= currentPrestige : true))
+    // unemployed, anything within the band is worth hearing. The lateral
+    // allowance is what lets the world's strongest nation hear from its peers,
+    // since a strict `>=` is unsatisfiable at prestige 1.000.
+    .filter((e) => (employed && !sacked
+      ? e.prestige >= currentPrestige - NATIONAL_OFFER_LATERAL_BAND
+      : true))
     .sort(byCloseness);
 
   const rng = mulberry32(hashInts(input.lid, input.season, NATIONAL_OFFER_STREAM));

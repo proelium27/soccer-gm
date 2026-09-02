@@ -13,6 +13,7 @@ import { pickNationality, LEAGUE_NATIONALITY_WEIGHTS } from "./players/nationali
 import { generateName } from "./players/names.js";
 import { cullFreeAgentPoolReporting } from "./players/freeAgentCull.js";
 import { summarizeRetirements } from "./players/retirements.js";
+import { honourSourcesOf, type HonourSources } from "./frivolities/goat.js";
 import { clearSuspension } from "./suspensions.js";
 import { extendRetireeArchive } from "./players/archive.js";
 import { withSeason, summaryOf, ovrLookup } from "./players/careerSummary.js";
@@ -31,7 +32,7 @@ import { runAIContractRenewals } from "./ai/renewals.js";
 import { enforceDivisionCeilings } from "./ai/divisionCeiling.js";
 import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
 import { processLoanReturns, runAILoanMarket } from "./loans.js";
-import { computeStandings, computeTeamSeasonStats, type StandingsRow, type TeamSeasonStats } from "./standings.js";
+import { computeStandings, computeTeamSeasonStats, type SeasonHistoryEntry, type StandingsRow, type TeamSeasonStats } from "./standings.js";
 import { computeSeasonAwards, type SeasonAwards } from "./awards.js";
 import { computeWorldAwards } from "./worldAwards.js";
 import { snapshotAwardWinners } from "./awardWinners.js";
@@ -110,6 +111,19 @@ export interface OffseasonInputs {
    * which is the only reason those have to reach the worker. See `detachNews`.
    */
   referencedPids?: Set<number>;
+  /**
+   * Who won each past Continental Cup, Shield and domestic cup — the two
+   * numbers per cup that `computeHonours` needs to credit a retiring player's
+   * trophies on the farewell list.
+   *
+   * Precomputed by the caller for the same reason `referencedPids` is: the
+   * worker is handed empty cup histories (`detachNews`), so reading them here
+   * would rank a five-time Continental Cup winner as if he had won nothing —
+   * silently, since an empty history is not an error. Absent means "read them
+   * off the league", which is right for every direct caller (tests, scripts,
+   * and `jump`, which is exempt from detaching).
+   */
+  cupChampions?: Pick<HonourSources, "cup" | "shield" | "domestic">;
 }
 
 /** What the offseason did that the caller cannot work out from the league alone. */
@@ -146,7 +160,11 @@ export function simOffseasonReporting(
   rng: () => number,
   inputs: OffseasonInputs = {},
 ): { league: LeagueStore; report: OffseasonReport } {
-  const { teamStats: precomputedTeamStats, referencedPids: precomputedReferenced } = inputs;
+  const {
+    teamStats: precomputedTeamStats,
+    referencedPids: precomputedReferenced,
+    cupChampions: precomputedChampions,
+  } = inputs;
   if (league.phase !== "offseason") {
     return { league, report: { culledPids: new Set<number>() } };
   }
@@ -348,13 +366,15 @@ export function simOffseasonReporting(
   const retirees = players.filter((p) =>
     rollRetirement(rng, p, endingSeason, !unrosteredLastSeason.has(p.pid)));
   const retiredPids = new Set(retirees.map((p) => p.pid));
-  const retirements = summarizeRetirements(
-    retirees, endingSeason, tidLastSeason, league.meta.userTid,
-  );
-  // The permanent half of the same snapshot. `retirements` above is a capped
-  // per-season farewell notice; this is the career record the all-time
-  // frivolities lists read, quality-gated and hard-capped so it can't grow the
-  // save forever (see players/archive.ts). Pure — consumes no rng.
+  // The farewell notice itself is built at step 3.66, once this season's awards
+  // and champions exist to rank the retirees by — see there. What is kept here
+  // is `retirees` itself, because these players are about to be deleted from
+  // the save entirely and nothing can be looked up afterwards.
+  //
+  // The permanent half of that snapshot. The farewell notice is a capped
+  // per-season list; this is the career record the all-time frivolities lists
+  // read, quality-gated and hard-capped so it can't grow the save forever (see
+  // players/archive.ts). Pure — consumes no rng.
   // `?? []` for saves and hand-built stores predating the field; migrate.ts
   // backfills it, but simOffseason is also called directly by tests and tooling.
   const retiredPlayers = extendRetireeArchive(
@@ -452,6 +472,63 @@ export function simOffseasonReporting(
   //       still the pool both award passes scored, before progression and
   //       retirement have touched anyone. Pure, no rng. See awardWinners.ts.
   const awardWinners = snapshotAwardWinners(league.players, endingSeason, { awards, world });
+
+  // 3.66. The season's record, assembled once and pushed onto `seasonHistory`
+  //       at the bottom of this function. Built here rather than there because
+  //       the farewell list below has to be *scored against it*: a retiree's
+  //       GOAT score counts the honours on `seasonHistory` and the cup
+  //       histories, and this season has reached neither yet — so ranking the
+  //       year's retirees against the raw league would dock every one of them
+  //       exactly the trophies he went out on. Assembling the entry once is
+  //       also what stops the scored view and the stored one drifting apart.
+  const seasonEntry: Omit<SeasonHistoryEntry, "retirements"> = {
+    season: endingSeason,
+    table: standings,
+    teamStats,
+    awards,
+    world,
+    compsByTid,
+    championTidByCompId,
+    // An award winner outlives his own record by decades, so his name travels
+    // with the award (step 3.65 above).
+    awardWinners,
+    // The playoffs this season's tier-2 tables sent to. Left absent when a
+    // world holds none, so a save that never plays one carries no empty arrays
+    // through its whole history.
+    promotionPlayoffs: promotionPlayoffs.length > 0 ? promotionPlayoffs : undefined,
+    // The super cups that *opened* this season, moved off the live field now
+    // that it is about to be reseeded for the next one. Unlike every other
+    // record on this entry these describe the season's first day rather than
+    // its last — see SeasonHistoryEntry.superCups. Read here rather than at the
+    // return below because the entry is assembled once; `league` is not
+    // reassigned after this point, so the two read the same thing.
+    superCups: (league.superCups ?? []).length > 0 ? league.superCups : undefined,
+  };
+
+  //       The retirees, ranked by how big a career each of them was rather than
+  //       by the rating he happened to leave on — a great player retires
+  //       *declining*, so his final rating is the number that says least about
+  //       him. The cups are appended live: this season's are archived further
+  //       down, and an archived cup keeps its champion, so either form answers
+  //       the only question asked of it here.
+  const pastChampions = precomputedChampions ?? honourSourcesOf(league);
+  const champion = (cup: { season: number; championTid: number | null } | null | undefined) =>
+    cup ? [{ season: cup.season, championTid: cup.championTid }] : [];
+  const retirements = summarizeRetirements(
+    retirees, endingSeason, tidLastSeason, league.meta.userTid,
+    {
+      seasonHistory: [...league.seasonHistory, seasonEntry],
+      // This season's cups are still live here — they are archived further
+      // down — and they are attached in the worker, so they are appended
+      // directly rather than coming through the precomputed past.
+      cup: [...pastChampions.cup, ...champion(league.cup)],
+      shield: [...pastChampions.shield, ...champion(league.shield)],
+      domestic: [
+        ...pastChampions.domestic,
+        ...(league.domesticCups ?? []).map((c) => ({ season: c.season, championTid: c.championTid })),
+      ],
+    },
+  );
 
   const settle = (rows: StandingsRow[], compId: number): void => {
     const defaultRank = rows.length;
@@ -940,33 +1017,10 @@ export function simOffseasonReporting(
     promotionPlayoffs: [],
     nextPid,
     retiredPlayers,
-    seasonHistory: [
-      ...league.seasonHistory,
-      {
-        season: endingSeason,
-        table: standings,
-        teamStats,
-        awards,
-        world,
-        compsByTid,
-        championTidByCompId,
-        // Snapshotted at step 3 above, because the players it names no longer
-        // exist by the time anything renders it.
-        retirements,
-        // Same reason, one step further out: an award winner outlives his own
-        // record by decades, so his name travels with the award (step 3.65).
-        awardWinners,
-        // The playoffs this season's tier-2 tables sent to. Left absent when a
-        // world holds none, so a save that never plays one carries no empty
-        // arrays through its whole history.
-        promotionPlayoffs: promotionPlayoffs.length > 0 ? promotionPlayoffs : undefined,
-        // The super cups that *opened* this season, moved off the live field
-        // now that it is about to be reseeded for the next one. Unlike every
-        // other record on this entry these describe the season's first day
-        // rather than its last — see SeasonHistoryEntry.superCups.
-        superCups: (league.superCups ?? []).length > 0 ? league.superCups : undefined,
-      },
-    ],
+    // Assembled at step 3.66, where the farewell list is also scored against
+    // it. `retirements` names players who no longer exist by the time anything
+    // renders this, which is why it is a snapshot rather than a list of pids.
+    seasonHistory: [...league.seasonHistory, { ...seasonEntry, retirements }],
   };
 
   // Dead last, deliberately. The cull consumes no rng, but it removes entries

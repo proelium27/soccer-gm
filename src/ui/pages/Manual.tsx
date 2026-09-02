@@ -157,7 +157,9 @@ export function Manual() {
             around 80 rather than 90, because ratings are rescaled onto the spread this game is
             tuned for and the ordering matters more than the absolute numbers; and imported clubs
             don't show a crest, since a crest belongs to a team slot rather than a club name and
-            would otherwise end up on the wrong team. Colors do carry over.
+            would otherwise end up on the wrong team. Colors do carry over. If you'd rather have a
+            file made to your own description, the "Copy AI Prompt to Customize" button beside it
+            is the other way in — see just below.
           </p>
           <p>
             Every club in it carries a real name, but not every one carries a real squad, because
@@ -192,22 +194,33 @@ export function Manual() {
           </p>
           <p>
             Writing all that JSON by hand is tedious, so the easiest route is to let an AI build it.
-            The "Copy AI Prompt to Customize" button in the top bar (once you're in a save) copies a ready-made
-            prompt to your clipboard, already filled in with your world's exact league names and sizes.
-            Paste it into ChatGPT or Claude and tell it what you want in there. Real present-day
-            leagues are the obvious use, but nothing about it is limited to that: ask for a 2004
-            throwback league, all-time national XIs, clubs from a show you like, or a world you made
-            up entirely. Then save its reply as a <code>.json</code> file and start a league with it
-            using "Import" on the Leagues screen. (If your browser blocks clipboard access, the button
-            downloads the prompt as a text file instead.)
+            The "Copy AI Prompt to Customize" button copies a ready-made prompt to your clipboard,
+            already filled in with your world's exact league names and sizes. It sits on the Leagues
+            screen next to Import, on the New League screen, and in the top bar of any save you have
+            open, so you can grab it whether or not you've started anything yet. Paste it into
+            ChatGPT or Claude and tell it what you want in there. Real present-day leagues are the
+            obvious use, but nothing about it is limited to that: ask for a 2004 throwback league,
+            all-time national XIs, clubs from a show you like, or a world you made up entirely. Then
+            save its reply as a <code>.json</code> file and start a league with it using "Import" on
+            the Leagues screen. (If your browser blocks clipboard access, the button downloads the
+            prompt as a text file instead.)
           </p>
           <p>
-            Two things the prompt now spells out for the AI, because both of them go wrong quietly.
-            It can only fill leagues your world actually has, so if you ask for one it hasn't got it
-            will say so rather than invent a name, which the importer would skip without a word. And
-            it has to keep each division inside its real size, since a division here can be anywhere
-            from ten clubs to twenty. Both are why the prompt carries your world's league names and
-            sizes rather than being the same text for everyone.
+            Press it on the New League screen rather than the Leagues screen if you've changed
+            anything about your world, since that's the one that describes the world you're actually
+            building — the leagues you added, the ones you renamed, the sizes you set. The Leagues
+            one describes the default world, which is what most saves are.
+          </p>
+          <p>
+            Three things the prompt spells out for the AI, because all three go wrong. Two go wrong
+            quietly: it can only fill leagues your world actually has, so if you ask for one it
+            hasn't got it will say so rather than invent a name, which the importer would skip
+            without a word; and it has to keep each division inside its real size, since a division
+            here can be anywhere from ten clubs to twenty. Both are why the prompt carries your
+            world's league names and sizes rather than being the same text for everyone. The third
+            goes wrong loudly: every club takes exactly two colors, and a club with three is enough
+            to make the game refuse the entire file. That one catches AIs out because plenty of real
+            clubs genuinely wear three, so being accurate is what breaks it.
           </p>
           <p>
             England's and Spain's clubs all have real crest art that shows up wherever the club's
@@ -399,11 +412,19 @@ export function Manual() {
           </p>
           <h6>Job offers</h6>
           <p>
-            Beat expectations and clubs come calling in the offseason. Which clubs depends on your
-            reputation, which is built from the titles and cups you've won, how consistently you've
-            beaten what your squads were worth, and how long you've been at it &mdash; with a
-            sacking counting against you. While you're employed you'll only ever be offered jobs at
-            least as big as your current one, so the list is worth reading rather than noise.
+            Beat expectations and clubs come calling in the offseason. Two things decide which ones.
+            Your <strong>current club sets the floor</strong> &mdash; while you're employed you'll
+            never be offered a step down, only a lateral move or better, so the list is worth reading
+            rather than noise. Your <strong>reputation sets how far above it you can reach</strong>,
+            and it's built from the titles and cups you've won, how consistently you've beaten what
+            your squads were worth, and how long you've been at it, with a sacking counting against
+            you. Run a small club with nothing on your CV and you'll hear from clubs at roughly your
+            own level; win things and the biggest jobs in the world start ringing instead.
+          </p>
+          <p>
+            Being at the very top doesn't switch the offers off. If you're already at one of the
+            biggest clubs there is nowhere left to climb, so what you get instead are approaches from
+            your peers &mdash; fewer of them, and all from clubs in the same bracket as yours.
           </p>
           <p>
             Taking a job has real costs, and they're worth knowing before you click. Your current
@@ -1066,15 +1087,16 @@ export function Manual() {
         <Section id="domestic-cup" title="The Domestic Cup">
           <p>
             Every country also runs its own cup, and this one is open to{" "}
-            <strong>both divisions</strong> — all 40 clubs in the country, top flight and second
-            tier together. It's the trophy that lets a small club have the season of its life, and
+            <strong>every division</strong>, top flight to third tier together, which in England is
+            60 clubs. It's the trophy that lets a small club have the season of its life, and
             it's the third leg of the <strong>treble</strong>: win your league, the Continental Cup
             and your domestic cup in the same season and you've done the lot.
           </p>
           <p>
             Winning it also gets you into Europe. Your country's cup winner takes a{" "}
             <a href="#shield">Continental Shield</a> place next season, whatever he did in the
-            league — including a second-division club, who goes in as the bottom seed. See{" "}
+            league, including a club from the second or third division, who goes in as a bottom
+            seed. See{" "}
             <a href="#shield">The Continental Shield</a> for who makes way.
           </p>
           <p>
@@ -1084,19 +1106,21 @@ export function Manual() {
             once. The two best clubs in the country can meet in round one, and often do.
           </p>
           <p>
-            40 clubs doesn't divide neatly into a knockout, so the{" "}
-            <strong>16 lowest-placed clubs</strong> from last season play a preliminary round first
-            (matchday 5). The eight winners join the other 24 for a round of 32 (matchday 9), then
+            A country's club count doesn't divide neatly into a knockout, so the{" "}
+            <strong>lowest-placed clubs</strong> from last season play a preliminary round first
+            (matchday 5) and the winners join everyone else for a round of 32 (matchday 9). Then
             it's a round of 16 (13), quarter-finals (21), semi-finals (26) and the{" "}
-            <strong>final on matchday 36</strong>. None of those clash with a Continental Cup
-            matchday, and your cup fixtures appear on your <strong>Schedule</strong> page.
+            <strong>final on matchday 36</strong>. A country with fewer clubs simply skips the
+            early rounds, so every final lands on the same day. None of those clash with a
+            Continental Cup matchday, and your cup fixtures appear on your{" "}
+            <strong>Schedule</strong> page.
           </p>
           <p>
             Every tie is a <strong>single match</strong>. Level after 90 minutes goes to extra time,
             and still level goes to penalties, so somebody always goes through on the day. A
-            second-tier club really can knock you out: the cup measures both divisions against{" "}
+            lower-division club really can knock you out: the cup measures every division against{" "}
             <strong>one shared yardstick</strong> rather than grading each club against its own
-            league, so the gap between a top-flight side and a second-tier one is real — but it's a
+            league, so the gap between a top-flight side and a third-tier one is real, but it's a
             gap, not a wall, and over one match anything can happen.
           </p>
           <p>
@@ -1105,14 +1129,42 @@ export function Manual() {
             Cup, if you reach the final the sim <strong>stops just before it</strong> so you can
             take a look at your lineup first.
           </p>
-          <p className="text-muted small">
-            One thing the domestic cup doesn't do yet: <strong>pay you</strong>. The Continental Cup
-            hands out prize money per round, and this one was built the same way, but when I
-            measured a 20-season dynasty against one without it, the extra money pushed two of four
-            test worlds' poorest clubs into the red late on. The weaker leagues run on thin margins
-            and I'd rather a new trophy didn't quietly break their finances, so the payouts are
-            switched off until I've tuned them properly. Everything else about the cup works, and
-            it costs you nothing to go on a run.
+          <p>
+            The cup pays, and it's built for the smaller clubs. Every round you win is worth money,
+            from $90k for a preliminary tie up to $1.5M for lifting it, with $700k for losing the
+            final. That's deliberately modest: a full run to the trophy is about $3.3M, well under a
+            top-half league finish, because a real domestic cup is a useful season's bonus rather
+            than a jackpot.
+          </p>
+          <p>
+            The part that matters if you're below the top flight is the{" "}
+            <strong>glamour tie</strong>. Draw a club from a higher division and you bank an extra{" "}
+            <strong>$300k per division between you</strong>, whatever the score, win or lose,
+            because a full house and the cameras are worth more to you than the tie itself. So a
+            second-tier club drawing the top flight gets $300k, and a third-tier club drawing them
+            gets <strong>$600k</strong>. It's the one payment in the game that only goes to the
+            smaller club.
+          </p>
+          <p>
+            That's what makes a cup run worth chasing from the lower divisions. It won't make you
+            rich: a typical run is worth about <strong>1%</strong> of your season, and the top flight
+            still collects a bit more cup money per club than you do, because they're the ones who
+            go deep. What it does is spread the money around instead of handing it all to one club —
+            roughly <strong>300</strong> clubs below the top flight bank something from the cup every
+            season. A deep run in a smaller country is worth far more than that, up to a quarter of
+            your year if you go all the way.
+          </p>
+          <p>
+            Every payment here is scaled to your country, so an English cup run pays more than a
+            Serbian one, but it is <strong>not</strong> scaled down for being in a lower division.
+            You get the same cheque for the same round a top-flight club would, which is how the
+            real ones work, and it's worth far more to you than it is to them.
+          </p>
+          <p>
+            And the biggest prize still isn't the money. Winning the thing puts you in Europe, and a
+            Shield place is worth several times the trophy's own cheque. A lower-division club
+            really can win it and go: for one of those, the European place alone can be worth a
+            fifth of a season's income.
           </p>
           <p className="text-muted small">
             Saves started before domestic cups existed pick them up at the next offseason, so
@@ -1276,6 +1328,24 @@ export function Manual() {
             go back to club football until someone else asks.
           </p>
           <p>
+            Offers from other federations work the same way club offers do, but on a
+            <em>separate</em> reputation built only from what you've done with a country. While you
+            hold a job you'll only hear from nations at roughly your own level or better, and your
+            international record is what lifts that level. With no country at all the filter comes
+            off entirely and approaches arrive far more readily, because that's the only way back
+            in. Approaches are rarer at the top: manage one of the best teams in the world and only
+            a handful of jobs are even a sideways move, so it might be a few summers between calls.
+          </p>
+          <p>
+            Your club career isn't invisible to federations, but they discount it heavily. A big
+            trophy cabinet at club level gets you noticed by a decent country &mdash; somewhere
+            around the top quarter of the world, roughly the level of Wales or Serbia &mdash; and
+            never by one of the giants. It starts to count once your club reputation is up around
+            the high 40s, which is about one league title. The best national jobs stay behind an
+            international reputation you can only earn in the job, so the way to Spain or Brazil is
+            still to take a smaller country first and do well with it.
+          </p>
+          <p>
             International football is mostly a record, not a lever. Caps, goals, tournaments played
             and titles won show up on a player's profile and build over his career — confederation
             cups are counted separately from World Cups, so winning the Euro doesn't read
@@ -1419,6 +1489,20 @@ export function Manual() {
             career. Anyone your own club loses is always on that list. It only covers the biggest
             names, though, because most of the players who retire in any given offseason are
             unsigned ones nobody would recognize.
+          </p>
+          <p>
+            Who counts as a big name is settled by the same score the GOAT rankings use, not by the
+            rating each player happened to retire at. That matters because great players leave the
+            game on the way down: a twelve-year forward with three Ballon d'Ors bowing out at 71
+            belongs above a journeyman who drifted out at 74, and the rating alone would tell you
+            the opposite. So the list reads as a ranking of careers, trophies and all.
+          </p>
+          <p>
+            The score itself is in the table, in the GOAT column, so you can see what separated
+            them instead of taking the order on trust. It's a snapshot taken the summer each player
+            went, and it counts the season he'd just finished, so a title won on the way out is on
+            his record. Lists from before the game started recording it leave that column blank:
+            those players are gone, and there's no career left to score.
           </p>
           <p>
             One thing to know: a retired player is gone from the game, not filed away somewhere.
@@ -2070,6 +2154,13 @@ export function Manual() {
             it.
           </p>
           <p>
+            <strong>Cup prize money is separate, and it doesn't wait for the settlement.</strong>{" "}
+            Continental and domestic cup money is paid as you go, landing in your budget the day you
+            play the tie. The Finance page has its own Cup Prize Money card breaking down what
+            you've banked so far this season and which round it came from, across all three cups you
+            can be in at once. It's money you already have, not a projection.
+          </p>
+          <p>
             The Finance page shows all of it: current budget, hype, the wage-bill table, a
             settlement projection (final numbers once the season ends), your full transfer history,
             and a league-wide money table for comparison. A competition dropdown (grouped by country)
@@ -2444,6 +2535,7 @@ export function Manual() {
           <p>What it unlocks while it's on:</p>
           <ul>
             <li><strong>Manage any club.</strong> The <em>God Mode</em> page (it shows up in the sidebar once the switch is on) opens on a Switch Club tab. Pick any club in the world and take charge of it on the spot, no job offer needed and no waiting for the offseason. The club you leave goes straight to the AI, its youth academy graduates onto the senior squad on the way out, and any transfer talks you were holding are dropped. You arrive at the new club knowing its players' ratings but not their ceilings, same as taking a job normally. It goes in your career record as a spell like any other, and the board there starts you on a fresh slate.</li>
+            <li><strong>Manage any country.</strong> The same page has a Switch Country tab. Take charge of any national team in the world without waiting for a federation to come calling, and step down again whenever you like. Only countries with enough players born into your world to name a squad are listed, since the rest have no team to manage. The country you leave goes back to the AI and picks its own eleven again from the squad you named, the new one starts you on a fresh slate with its federation, and your club job carries on untouched. If a campaign is already under way you inherit it as it stands. In a spectator save there's nobody for a federation to appoint, so take a club first.</li>
             <li><strong>Edit any player.</strong> Open any player's profile and hit <em>Edit</em>. Change every one of his 14 ratings (OVR recomputes as you go), his potential, name, nationality, age, position, height, and his contract wage and length. You can also clear an injury outright.</li>
             <li><strong>Move players freely.</strong> From a player's profile, send him to any club instantly, with no fee, no budget check, and no cap, or release him to free agency.</li>
             <li><strong>Create players.</strong> The <em>God Mode</em> page has a Create Player tool. Build a player from scratch and drop him onto any club or leave him a free agent.</li>

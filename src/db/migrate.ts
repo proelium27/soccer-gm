@@ -442,7 +442,10 @@ function migrateFields(league: LeagueStore): LeagueStore {
     // player, so a season that ran before the record existed has no trace of
     // who left. It stays absent (the field is optional, and the `...h` spread
     // below carries it through where it exists) and the Season Preview says so
-    // rather than inventing a list.
+    // rather than inventing a list. Its rows' `goat` score is absent for the
+    // same reason one layer down: an older list names players who are long
+    // gone, so there is no career left to score, and the column shows nothing
+    // for them.
     seasonHistory: ((anyVersion.seasonHistory ?? []) as SeasonHistoryEntryAnyVersion[]).map((h) => {
       // Pre-second-division saves were always single-division: every team
       // that season was Division 1 (compId 0). Post-second-division,

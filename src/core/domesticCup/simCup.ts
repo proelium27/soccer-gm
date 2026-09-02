@@ -8,7 +8,7 @@ import {
   pendingRound, advanceDomesticCup, domesticPrizeForRound, roundsFromFinal,
   DOMESTIC_TIE_STREAM,
 } from "./cup.js";
-import { DOMESTIC_CUP_PRIZE_RUNNER_UP } from "../constants.js";
+import { DOMESTIC_CUP_PRIZE_RUNNER_UP, DOMESTIC_CUP_GLAMOUR_TIE_BONUS } from "../constants.js";
 
 /**
  * Play the round of `cup` that is due, then advance the cup (draw the next
@@ -29,6 +29,7 @@ export function playDomesticRound(
   matchData: Map<number, TeamMatchData>,
   lid: number,
   financeScaleOf: (tid: number) => number,
+  tierOf: (tid: number) => number,
 ): { cup: DomesticCupState; ties: CupTie[]; prizes: Map<number, number> } {
   const round = pendingRound(cup);
   if (!round) return { cup, ties: [], prizes: new Map() };
@@ -69,6 +70,18 @@ export function playDomesticRound(
   const winPrize = domesticPrizeForRound(cup, round.round);
   for (const tie of ties) {
     credit(tie.winner, winPrize);
+    // Glamour-tie gate receipts: the smaller club is paid for meeting a club
+    // from a division above, win or lose, because that is what a cup run is
+    // really worth to it. Scaled by how many divisions separate them, so a
+    // third-tier club drawing the top flight is not priced the same as one
+    // drawing the division immediately above. See
+    // DOMESTIC_CUP_GLAMOUR_TIE_BONUS for why only the smaller side is paid.
+    const homeTier = tierOf(tie.home);
+    const awayTier = tierOf(tie.away);
+    const gap = Math.abs(homeTier - awayTier);
+    if (gap > 0) {
+      credit(homeTier > awayTier ? tie.home : tie.away, gap * DOMESTIC_CUP_GLAMOUR_TIE_BONUS);
+    }
     // The final's loser is the only beaten side that gets paid, matching the
     // Continental Cup's runner-up cheque.
     if (roundsFromFinal(cup, round.round) === 0) {

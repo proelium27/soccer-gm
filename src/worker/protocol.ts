@@ -3,6 +3,7 @@ import type { SimThrough } from "../core/simThrough.js";
 import type { PlayedMatch, TeamSeasonStats } from "../core/standings.js";
 import type { CupTie } from "../core/cup/types.js";
 import type { DomesticTieResult } from "../core/simThrough.js";
+import type { OffseasonInputs } from "../core/offseason.js";
 
 // Re-exported rather than redeclared: the two used to be separate unions and
 // could drift apart silently, since the worker boundary erases types.
@@ -31,6 +32,12 @@ export type WorkerCommand =
        * Supplying it is what lets `detachNews` keep that history off the worker.
        */
       referencedPids?: number[];
+      /**
+       * Who won each past cup, for ranking the offseason's retirees by career.
+       * Same reason as `referencedPids`: `detachNews` empties the cup histories,
+       * and a retiree scored against an empty one loses every trophy he won.
+       */
+      cupChampions?: OffseasonInputs["cupChampions"];
     }
   | { type: "intl"; mode: IntlMode; league: LeagueStore }
   /** Play `seasons` whole seasons with the AI running the user's club (core/autopilot.ts). */

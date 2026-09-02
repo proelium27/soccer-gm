@@ -3,6 +3,9 @@ import { ageOf } from "./progression.js";
 import { ovrDuringSeason } from "../awards.js";
 import { RETIREMENT_NOTABLE_LIMIT } from "../constants.js";
 import { careerOf } from "./careerSummary.js";
+import { archivePlayer } from "./archive.js";
+import { rowFromArchived } from "../frivolities/careers.js";
+import { goatScores, type HonourSources } from "../frivolities/goat.js";
 
 /**
  * One retiree, snapshotted at the moment he retires.
@@ -33,6 +36,23 @@ export interface RetiredPlayer {
   assists: number;
   /** International caps, 0 if he was never called up. */
   caps: number;
+  /**
+   * The GOAT score this list ranked him on (see frivolities/goat.ts), so the
+   * table can show the number it sorted by rather than asking the reader to
+   * take the order on trust.
+   *
+   * Stored rather than derived, unlike every other GOAT score in the game: the
+   * player is deleted moments after this row is written, so by the time
+   * anything renders it there is no career left to score. That also makes it a
+   * reading taken at retirement — it is what his case looked like the summer he
+   * went, and later seasons cannot change it, which is what a farewell list
+   * should say anyway.
+   *
+   * Optional and never backfilled: a season that ran before this existed has
+   * rows for players it can no longer score, so the column shows nothing there
+   * rather than a number invented for it.
+   */
+  goat?: number;
 }
 
 /**
@@ -51,16 +71,36 @@ export interface RetirementSummary {
   total: number;
   /** How many of them a club actually had on its books last season. */
   rostered: number;
-  /** The best of them by ovr, capped at RETIREMENT_NOTABLE_LIMIT; the user's own are always here. */
+  /** The biggest careers of them, capped at RETIREMENT_NOTABLE_LIMIT; the user's own are always here. */
   notable: RetiredPlayer[];
 }
 
-/** Best first, pid as a stable tiebreak so the list can't reorder between renders. */
-function byOvr(a: RetiredPlayer, b: RetiredPlayer): number {
-  return b.ovr - a.ovr || a.pid - b.pid;
+/**
+ * Rank the year's retirees by whose career was the bigger one.
+ *
+ * The list used to sort on the rating he retired at, which is the one number
+ * that says least about a career: a rating is a snapshot of a player at his
+ * weakest, and a great one leaves the game *declining*. So a twelve-year club
+ * legend with three Ballon d'Ors, bowing out at 37 and OVR 71, was listed below
+ * whichever unsigned 24-year-old happened to drift out of the game at 74 — the
+ * exact inversion of "here are the biggest names to go".
+ *
+ * The GOAT score is what already answers "how big a career was that" everywhere
+ * else in the game (see frivolities/goat.ts), so the farewell list asks it
+ * rather than inventing a second, quieter answer. Final rating survives as the
+ * first tiebreak, so two players with nothing on their record still come out in
+ * a sensible order, and pid breaks the rest so the list can't reorder between
+ * renders.
+ *
+ * Reads the score off the row rather than a lookup, so a list re-sorted after
+ * it was stored — a save written before the field existed included — comes out
+ * in the order it is already in rather than collapsing to ovr.
+ */
+function byCaliber(a: RetiredPlayer, b: RetiredPlayer): number {
+  return (b.goat ?? 0) - (a.goat ?? 0) || b.ovr - a.ovr || a.pid - b.pid;
 }
 
-function snapshot(player: Player, season: number, tid: number | null): RetiredPlayer {
+function snapshot(player: Player, season: number, tid: number | null, goat: number): RetiredPlayer {
   // Off the stored summary, which by retirement (offseason step 3) already has
   // the season he just finished folded in at step 2. Summing his stat lines
   // instead would under-count once careers are windowed at the worker boundary,
@@ -88,6 +128,7 @@ function snapshot(player: Player, season: number, tid: number | null): RetiredPl
     goals: career.totals.goals,
     assists: career.totals.assists,
     caps: player.intl?.caps ?? 0,
+    goat,
   };
 }
 
@@ -100,31 +141,51 @@ function snapshot(player: Player, season: number, tid: number | null): RetiredPl
  * years as a free agent on his way out. Absent from the map = genuinely
  * unsigned last season.
  *
+ * `honours` decides which honours each career gets credit for, and it carries
+ * two requirements that are both silent when missed. It must describe the world
+ * **as of the end of `season`**, including that season's own awards, champions
+ * and cups — mid-offseason none of those have reached `seasonHistory` or the
+ * cup histories yet, so scoring against the raw league docks every retiree
+ * exactly the trophies he went out on. And its cup champions must be *real*:
+ * this runs inside the offseason, which the app runs in a worker that is handed
+ * empty cup histories (`simArchive.detachNews`), so reading them here scored a
+ * five-time Continental Cup winner as if he had won none. Both are why this
+ * takes a named source object rather than a `LeagueStore` — see simOffseason,
+ * which assembles it.
+ *
  * The user's own retirees are never dropped from `notable` (his 34-year-old
  * captain hanging up his boots is the one entry he actually needs to see),
  * which is the same guarantee the window-transfer list makes about his own
- * deals. They still sort by ovr among the rest rather than being pinned to the
- * top, so the table reads as a quality ranking either way.
+ * deals. They still take their place by caliber among the rest rather than
+ * being pinned to the top, so the table reads as a ranking either way.
  */
 export function summarizeRetirements(
   retirees: Player[],
   season: number,
   tidLastSeason: Map<number, number>,
   userTid: number,
+  honours: HonourSources,
   limit = RETIREMENT_NOTABLE_LIMIT,
 ): RetirementSummary {
-  const rows = retirees.map((p) => snapshot(p, season, tidLastSeason.get(p.pid) ?? null));
-  const mine = rows.filter((r) => r.tid === userTid).sort(byOvr);
+  // `archivePlayer` reduces a live retiree to the same shape an archived one
+  // has, off his stored career summary, so the two lines below are how a player
+  // gets a GOAT score at the moment he leaves — before he is in the archive (he
+  // may never be: most careers miss its quality gate) and while his own season
+  // lines may be nothing but the worker-side window.
+  const goat = goatScores(honours, retirees.map((p) => rowFromArchived(archivePlayer(p, season))));
+  const rows = retirees.map((p) =>
+    snapshot(p, season, tidLastSeason.get(p.pid) ?? null, goat.get(p.pid) ?? 0));
+  const mine = rows.filter((r) => r.tid === userTid).sort(byCaliber);
   const theirs = rows
     .filter((r) => r.tid !== userTid)
-    .sort(byOvr)
+    .sort(byCaliber)
     .slice(0, Math.max(0, limit - mine.length));
   return {
     total: rows.length,
     rostered: rows.filter((r) => r.tid !== null).length,
     // Slice mine too: a user who somehow retires more than the cap in one
     // offseason still gets a bounded table, just entirely his own players.
-    notable: [...mine.slice(0, limit), ...theirs].sort(byOvr),
+    notable: [...mine.slice(0, limit), ...theirs].sort(byCaliber),
   };
 }
 
