@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
-import { simThrough } from "../../src/core/simThrough.js";
+import { playSeason } from "../helpers/offseasonLeague.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import {
   sanitizeScoutingRegions, scoutedNationalityWeights,
@@ -88,7 +88,10 @@ describe("scouting regions through a real offseason", () => {
         t.tid === league.meta.userTid ? { ...t, scoutingRegions: regions } : t,
       ),
     };
-    league = simOffseason(simThrough(league, "season", rng), rng);
+    // playSeason, not one simThrough: it halts before the user's cup final, and
+    // a half-played season makes simOffseason a silent no-op — no trial group,
+    // and a failure that points at the wrong thing.
+    league = simOffseason(playSeason(league, rng), rng);
     const byPid = new Map(league.players.map((p) => [p.pid, p]));
     const group = league.teams.find((t) => t.tid === league.meta.userTid)!.youthTrialists ?? [];
     return { nationalities: group.map((pid) => byPid.get(pid)!.nationality), league };

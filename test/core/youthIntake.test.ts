@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { createLeagueState } from "../../src/core/leagueState.js";
-import { simThrough } from "../../src/core/simThrough.js";
+import { playSeason } from "../helpers/offseasonLeague.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import {
   freeAgentPids, signTrialist, trialSigningsLeft, ensureUserRosterSafety,
@@ -15,9 +15,18 @@ import {
 } from "../../src/core/constants.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 
-/** One season plus its offseason, which is what lays out a trial group. */
+/**
+ * One season plus its offseason, which is what lays out a trial group.
+ *
+ * Goes through `playSeason` rather than calling `simThrough` once: it HALTS
+ * before the user's own cup final, so a single call finishes a season only when
+ * his club happens not to reach one. Handed a league still in the regular
+ * phase, `simOffseason` silently does nothing and there is no trial group to
+ * assert on — a failure that reads as "the feature is broken" rather than "the
+ * season never ended". Third divisions made that reachable on these seeds.
+ */
 function advance(league: LeagueStore, rng: () => number): LeagueStore {
-  return simOffseason(simThrough(league, "season", rng), rng);
+  return simOffseason(playSeason(league, rng), rng);
 }
 
 describe("youth trial group", () => {
