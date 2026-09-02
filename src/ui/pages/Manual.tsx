@@ -2057,6 +2057,13 @@ export function Manual() {
             it.
           </p>
           <p>
+            <strong>Cup prize money is separate, and it doesn't wait for the settlement.</strong>{" "}
+            Continental and domestic cup money is paid as you go, landing in your budget the day you
+            play the tie. The Finance page has its own Cup Prize Money card breaking down what
+            you've banked so far this season and which round it came from, across all three cups you
+            can be in at once. It's money you already have, not a projection.
+          </p>
+          <p>
             The Finance page shows all of it: current budget, hype, the wage-bill table, a
             settlement projection (final numbers once the season ends), your full transfer history,
             and a league-wide money table for comparison. A competition dropdown (grouped by country)
