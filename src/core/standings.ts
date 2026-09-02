@@ -4,6 +4,7 @@ import type { WorldAwards } from "./worldAwards.js";
 import type { RetirementSummary } from "./players/retirements.js";
 import type { AwardWinner } from "./awardWinners.js";
 import type { PromotionPlayoff } from "./promotionPlayoff.js";
+import type { SuperCupTie } from "./superCup/types.js";
 
 export interface MatchScore {
   home: number;
@@ -99,6 +100,21 @@ export interface SeasonHistoryEntry {
    * alone, so absent is the truth about it rather than a gap.
    */
   promotionPlayoffs?: PromotionPlayoff[];
+  /**
+   * The super cups played in the preseason that **opened** this season — the
+   * one place they differ from every other record here, which describes the
+   * football that closed it.
+   *
+   * Filed this way because that is when they were played: the contestants were
+   * decided by season − 1, but the match belongs to the season it kicks off,
+   * the way a real Community Shield is a fixture of the new campaign. Copied
+   * here at the next rollover, off `LeagueStore.superCups`.
+   *
+   * Scorelines only — no box scores, for the reason `promotionPlayoffs` gives.
+   * Optional and never backfilled: a season that opened before the competition
+   * existed had no super cup, so absent is the truth about it rather than a gap.
+   */
+  superCups?: SuperCupTie[];
 }
 
 /** Sum each club's box-score lines across a season's played matches. */
