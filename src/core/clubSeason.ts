@@ -69,7 +69,7 @@ export interface ClubSeason {
    */
   awaitingRollover: boolean;
   compId: number;
-  tier: 1 | 2;
+  tier: number;
   /** 1-based finishing position in the club's own competition; the live table's order mid-season. */
   position: number;
   teamsInComp: number;

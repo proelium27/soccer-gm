@@ -129,8 +129,14 @@ export const LEAGUE_RULES: LeagueRule[] = [
  * league is not one this converter covers (the datasets carry 30+ leagues;
  * everything else is simply skipped).
  *
- * **Coverage is all twenty-four competitions across the game's twelve countries** —
- * see COVERED_COMPETITIONS, which is derived from the rules rather than listed.
+ * **Coverage is every FIRST and SECOND division across the game's twelve
+ * countries** — see COVERED_COMPETITIONS, which is derived from the rules rather
+ * than listed. The big four's THIRD divisions are deliberately not covered:
+ * rules for them would have to be written from real league names with no dataset
+ * checked against, which is exactly what put 12 Austrian clubs in the German top
+ * flight and every Scottish second-tier club in the English Championship. Cover
+ * them by running inspectLeagues.ts over a real export, confirming the ids, and
+ * minding the ORDER traps below — not by pattern-matching from memory.
  * Coverage is not the same as *presence*: no dataset checked so far carries
  * Portugal's, Belgium's or Turkey's second tier, and those divisions simply keep
  * their generated identities after an import, the same as any club a roster file

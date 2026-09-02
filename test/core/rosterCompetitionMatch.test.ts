@@ -164,7 +164,17 @@ describe("country and tier on the wire", () => {
 
   it("reject a wrong shape rather than guessing", () => {
     expect(() => parseRosterFile(withComp({ match: "X", country: 42, clubs: [] }))).toThrow(/country/);
-    expect(() => parseRosterFile(withComp({ match: "X", tier: 3, clubs: [] }))).toThrow(/tier/);
+    // Tier 3 is a real division now that every country runs a three-deep
+    // pyramid, so the bound moved rather than the rule: what must still be
+    // refused is a tier past the deepest the world builder will make, and a
+    // tier that is not a whole number at all.
+    expect(() => parseRosterFile(withComp({ match: "X", tier: 4, clubs: [] }))).toThrow(/tier/);
+    expect(() => parseRosterFile(withComp({ match: "X", tier: 0, clubs: [] }))).toThrow(/tier/);
+    expect(() => parseRosterFile(withComp({ match: "X", tier: 1.5, clubs: [] }))).toThrow(/tier/);
+    expect(() => parseRosterFile(withComp({ match: "X", tier: "2", clubs: [] }))).toThrow(/tier/);
+    // ...and tier 3 itself must now be accepted, or a roster file could never
+    // name a third division.
+    expect(() => parseRosterFile(withComp({ match: "X", tier: 3, clubs: [] }))).not.toThrow();
   });
 
   it("are emitted by buildRosterFile, so a template survives a later rename", () => {

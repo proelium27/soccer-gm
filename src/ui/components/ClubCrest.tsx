@@ -1,18 +1,53 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { worldCompetitions, countryClubRanges } from "../../core/competitions.js";
 
 // Crest art only exists for a subset of clubs (see src/ui/assets/crests/) —
-// every other club falls back to the existing two-color swatch pair, keyed
-// by tid since a club's name/abbrev can be changed via the Customize Teams
-// editor but tid never does.
+// every other club falls back to the existing two-color swatch pair.
 const crestModules = import.meta.glob("../assets/crests/*.png", {
   eager: true,
   import: "default",
 }) as Record<string, string>;
 
-const CREST_BY_TID: Record<number, string> = {};
+const CREST_FILES: Record<number, string> = {};
 for (const path in crestModules) {
   const match = path.match(/(\d+)\.png$/);
-  if (match) CREST_BY_TID[Number(match[1])] = crestModules[path];
+  if (match) CREST_FILES[Number(match[1])] = crestModules[path];
+}
+
+/**
+ * Crest art is ANCHORED TO A COUNTRY, never to a raw tid — the same rule
+ * `CLUBS` follows, and for the same reason.
+ *
+ * The files are named by the tid they were drawn for, and that layout was two
+ * divisions of 20 per country: England 0-39, then Spain 40-79. A raw tid
+ * lookup therefore breaks the moment the world's tid layout changes, and it
+ * did: giving every country a third division inserted 20 slots into each
+ * block, which slid England's third division onto Spain's top-flight art and
+ * Spain's top flight onto its own second division's. Sliced by country instead,
+ * each sheet stays with the country it was drawn for however the pyramid is
+ * reshaped, and a country the art does not reach shows colors.
+ *
+ * Two consequences worth knowing. A country's first `CRESTS_PER_COUNTRY` slots
+ * are its top two divisions, so **a third division always shows colors** —
+ * there is no art for it and inventing some by reusing another club's is worse
+ * than a swatch. And switching a country off in World setup no longer hands its
+ * crests to whoever inherits its tids, which the old keying did.
+ */
+const CREST_COUNTRIES = ["England", "Spain"] as const;
+const CRESTS_PER_COUNTRY = 40;
+
+const CREST_BY_TID: Record<number, string> = {};
+{
+  const ranges = countryClubRanges(worldCompetitions());
+  CREST_COUNTRIES.forEach((country, sheet) => {
+    const range = ranges.find((r) => r.country === country);
+    if (!range) return;
+    const base = sheet * CRESTS_PER_COUNTRY;
+    for (let i = 0; i < CRESTS_PER_COUNTRY && range.start + i < range.end; i++) {
+      const url = CREST_FILES[base + i];
+      if (url) CREST_BY_TID[range.start + i] = url;
+    }
+  });
 }
 
 /**

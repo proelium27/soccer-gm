@@ -149,7 +149,7 @@ export function runAITransferMarket(
       // to club-blind market value reintroduces exactly this bug.
       //
       // (Division 2's strength ceiling is enforced separately and
-      // deterministically — see enforceDivision2Ceiling — so this market
+      // deterministically — see enforceDivisionCeilings — so this market
       // doesn't need any Division-2-specific carve-out of its own.)
       const reservation =
         keepValueToClub(player, sellerCtx) * settledMultiplier(joined.get(pid), season);

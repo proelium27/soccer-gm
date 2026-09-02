@@ -246,11 +246,29 @@ describe("league mapping", () => {
     expect(mapLeague("NIFL Premiership")).toBeNull();
   });
 
-  it("covers every competition in the shipped world", () => {
+  it("covers every first and second division in the shipped world", () => {
     const uncovered = worldCompetitions()
+      .filter((c) => c.tier <= 2)
       .map((c) => c.name)
       .filter((n) => !COVERED_COMPETITIONS.includes(n));
     expect(uncovered).toEqual([]);
+  });
+
+  it("deliberately does not cover any third division", () => {
+    // Third tiers stay fictional after an import, and that is a decision rather
+    // than an omission. Writing rules for them would mean writing them from real
+    // league names without a dataset to check against, which is precisely what
+    // put 12 Austrian clubs in the German top flight and every Scottish
+    // second-tier club in the English Championship. Covering them is its own
+    // change: run scripts/eafc/inspectLeagues.ts over a real export, confirm the
+    // ids, and add them with the ORDER traps in LEAGUE_RULES in mind.
+    //
+    // An uncovered division behaves exactly like Portugal's, Belgium's and
+    // Turkey's second tiers already do — its clubs keep their generated
+    // identities, the same as any club a roster file does not name.
+    const thirds = worldCompetitions().filter((c) => c.tier === 3).map((c) => c.name);
+    expect(thirds.length).toBeGreaterThan(0);
+    for (const name of thirds) expect(COVERED_COMPETITIONS).not.toContain(name);
   });
 
   it("matches Belgium and Turkey by their qualified names", () => {
@@ -509,9 +527,17 @@ describe("convert (end to end)", () => {
       c.players!.map((pl) => computeOvr(pl.pos, pl.ratings!, pl.heightCm ?? 180)),
     );
     // Every one of these players is elite in EA terms, so none of them may come
-    // out at the bottom of the game's band — which is exactly where a
-    // per-competition curve would put the weakest of them.
-    expect(Math.min(...ovrs)).toBeGreaterThan(45);
+    // out at the bottom of the game's band, which is exactly where a
+    // per-competition curve would put the weakest of them (measured: min 20).
+    //
+    // The absolute number is REFERENCE-WORLD DEPENDENT and moved when every
+    // country gained a third division: rank-matching maps onto a freshly
+    // generated world's OVR distribution, and 206 third-division clubs gave
+    // that distribution a long low tail, so the same rank now lands lower
+    // (measured 45+ before, 43 after). The bar is set well clear of the failure
+    // mode it discriminates against rather than tuned to whatever the current
+    // world happens to produce, so a future world change does not move it again.
+    expect(Math.min(...ovrs)).toBeGreaterThan(35);
     expect(report.warnings.some((w) => w.includes("scaled") && w.includes("Greek Division 1"))).toBe(true);
   });
 

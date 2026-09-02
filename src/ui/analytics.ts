@@ -26,8 +26,12 @@ export interface GameEvents {
      * club at all (`spectate`). Nullable rather than defaulted, because
      * `tierForTid` answers 1 for a tid it cannot find and a default would
      * quietly file every spectator save as a top-flight start.
+     *
+     * A plain number, not a literal union: every country runs three divisions
+     * and a custom one can be built shallower, so the value is 1 to
+     * MAX_DIVISIONS. Still low-cardinality, which is the rule that matters here.
      */
-    tier: 1 | 2 | null;
+    tier: number | null;
     /** The save has no manager: every club is AI-run (see core/spectator.ts). */
     spectate?: boolean;
     roster?: boolean; difficulty?: string;

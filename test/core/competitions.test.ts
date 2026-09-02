@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  englandCompetitions, competitionOf, tierOf, partnerOf, countriesOf, worldCompetitions, tier1Pairs,
+  englandCompetitions, competitionOf, tierOf, divisionAbove, divisionBelow, countriesOf,
+  worldCompetitions, countryDivisions, promotionLinks,
   countryClubRanges, competitionPromotionSpots, buildCompetitions, worldTuningWarnings,
   worldLeagueSpecs, type Competition,
 } from "../../src/core/competitions.js";
@@ -20,8 +21,11 @@ describe("competitions", () => {
     expect(competitionOf(comps, 1).name).toBe("English Division 2");
     expect(tierOf(comps, 0)).toBe(1);
     expect(tierOf(comps, 1)).toBe(2);
-    expect(partnerOf(comps, 0).id).toBe(1);
-    expect(partnerOf(comps, 1).id).toBe(0);
+    expect(divisionBelow(comps, 0)?.id).toBe(1);
+    expect(divisionAbove(comps, 1)?.id).toBe(0);
+    // The ends of the chain have no neighbour that way.
+    expect(divisionAbove(comps, 0)).toBeNull();
+    expect(divisionBelow(comps, 1)).toBeNull();
     expect(countriesOf(comps)).toEqual(["England"]);
   });
 
@@ -33,22 +37,35 @@ describe("competitions", () => {
 describe("worldCompetitions", () => {
   const comps = worldCompetitions();
 
-  it("has 16 entries: 8 countries x 2 tiers", () => {
-    expect(comps).toHaveLength(24);
+  it("has 36 entries: twelve countries, three divisions each", () => {
+    expect(comps).toHaveLength(36);
   });
 
   it("starts with England, matching englandCompetitions() exactly", () => {
     expect(comps.slice(0, 2)).toEqual(englandCompetitions());
   });
 
-  it("has every non-England country with one tier-1 and one tier-2 competition", () => {
-    for (const country of [
-      "Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey",
-      "Netherlands", "Scotland", "Greece", "Serbia",
-    ]) {
+  it("runs EVERY country three divisions deep", () => {
+    // The symmetry is load-bearing, not cosmetic: giving a third tier to only
+    // some countries makes those countries stronger over a dynasty, because
+    // enforceDivisionCeilings pumps talent up from a deeper reservoir. Measured
+    // with only the big four three deep, BIG4->France widened from +2.74 to
+    // +7.35 against a ~+3.4 design target and the weak leagues went insolvent.
+    for (const country of countriesOf(comps)) {
       const group = comps.filter((c) => c.country === country);
-      expect(group).toHaveLength(2);
-      expect(group.map((c) => c.tier).sort()).toEqual([1, 2]);
+      expect(group.map((c) => c.tier).sort()).toEqual([1, 2, 3]);
+    }
+  });
+
+  it("keeps each country's divisions contiguous and in tier order in the table", () => {
+    // CompetitionSelect groups by country and filters the table in array order,
+    // so a division listed out of place would show out of order in every
+    // competition dropdown in the game.
+    for (const country of countriesOf(comps)) {
+      const group = comps.filter((c) => c.country === country);
+      expect(group.map((c) => c.tier)).toEqual([...group.map((c) => c.tier)].sort());
+      const ids = group.map((c) => c.id);
+      expect(ids).toEqual(Array.from({ length: ids.length }, (_, i) => ids[0] + i));
     }
   });
 
@@ -57,49 +74,86 @@ describe("worldCompetitions", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("partnerOf works across all 8 countries", () => {
+  it("neighbours stay inside the country and are adjacent by tier", () => {
     for (const comp of comps) {
-      const partner = partnerOf(comps, comp.id);
-      expect(partner.country).toBe(comp.country);
-      expect(partner.tier).not.toBe(comp.tier);
+      for (const neighbour of [divisionAbove(comps, comp.id), divisionBelow(comps, comp.id)]) {
+        if (!neighbour) continue;
+        expect(neighbour.country).toBe(comp.country);
+        expect(Math.abs(neighbour.tier - comp.tier)).toBe(1);
+      }
     }
   });
 
-  it("tier1Pairs returns one pair per country, in table order", () => {
-    const pairs = tier1Pairs(comps);
-    expect(pairs.map((p) => p.d1.country)).toEqual([
+  it("countryDivisions returns each country's chain, top flight first, in table order", () => {
+    const chains = countryDivisions(comps);
+    expect(chains.map((c) => c.country)).toEqual([
       "England", "Spain", "Italy", "Germany", "France", "Portugal", "Belgium", "Turkey",
       "Netherlands", "Scotland", "Greece", "Serbia",
     ]);
-    for (const pair of pairs) {
-      expect(pair.d1.tier).toBe(1);
-      // Every shipped country has both divisions; d2 is nullable only because a
-      // player can now build a one-division country.
-      expect(pair.d2).not.toBeNull();
-      expect(pair.d2!.tier).toBe(2);
-      expect(pair.d2!.country).toBe(pair.d1.country);
+    for (const { country, divisions } of chains) {
+      expect(divisions.map((d) => d.tier)).toEqual([1, 2, 3]);
+      expect(divisions.every((d) => d.country === country)).toBe(true);
     }
+  });
+
+  it("promotionLinks pairs each division with the one below it", () => {
+    const links = promotionLinks(comps);
+    // One link per adjacent pair, so a three-division country contributes two.
+    expect(links).toHaveLength(countriesOf(comps).length * 2);
+    for (const { upper, lower } of links) {
+      expect(upper.country).toBe(lower.country);
+      expect(lower.tier).toBe(upper.tier + 1);
+    }
+  });
+
+  it("a one-division country has no promotion link and no neighbours", () => {
+    const solo = buildCompetitions([{ country: "Solitaria", divisions: 1 }]);
+    expect(promotionLinks(solo)).toEqual([]);
+    expect(divisionAbove(solo, solo[0].id)).toBeNull();
+    expect(divisionBelow(solo, solo[0].id)).toBeNull();
+  });
+
+  it("a three-division country chains top-down and links each adjacent pair", () => {
+    const deep = buildCompetitions([{ country: "Deepland", divisions: 3 }]);
+    expect(deep.map((c) => c.tier)).toEqual([1, 2, 3]);
+    expect(divisionsOfTiers(deep, "Deepland")).toEqual([1, 2, 3]);
+
+    // The old partnerOrNull answered "the other competition in this country",
+    // which has no answer here — it returned whichever came first in the table.
+    // Adjacency is what the middle division needs, in both directions.
+    expect(divisionAbove(deep, deep[1].id)?.tier).toBe(1);
+    expect(divisionBelow(deep, deep[1].id)?.tier).toBe(3);
+    expect(divisionAbove(deep, deep[0].id)).toBeNull();
+    expect(divisionBelow(deep, deep[2].id)).toBeNull();
+
+    expect(promotionLinks(deep).map((l) => [l.upper.tier, l.lower.tier])).toEqual([[1, 2], [2, 3]]);
   });
 });
 
+function divisionsOfTiers(comps: Competition[], country: string): number[] {
+  return countryDivisions(comps).find((c) => c.country === country)!.divisions.map((d) => d.tier);
+}
+
 describe("countryClubRanges", () => {
-  it("splits the world into 8 contiguous 40-wide ranges, in table order", () => {
+  it("splits the world into 12 contiguous ranges, in table order", () => {
     const ranges = countryClubRanges(worldCompetitions());
     expect(ranges).toEqual([
-      // Blocks are sized by each country's real division sizes, so they are no
-      // longer a uniform 40 — see Competition.teamCount.
-      { country: "England", start: 0, end: 40 },
-      { country: "Spain", start: 40, end: 80 },
-      { country: "Italy", start: 80, end: 120 },
-      { country: "Germany", start: 120, end: 156 },
-      { country: "France", start: 156, end: 192 },
-      { country: "Portugal", start: 192, end: 228 },
-      { country: "Belgium", start: 228, end: 260 },
-      { country: "Turkey", start: 260, end: 298 },
-      { country: "Netherlands", start: 298, end: 336 },
-      { country: "Scotland", start: 336, end: 358 },
-      { country: "Greece", start: 358, end: 388 },
-      { country: "Serbia", start: 388, end: 420 },
+      // Blocks are sized by each country's real division sizes and by how deep
+      // its pyramid runs, so they are neither uniform nor a multiple of 40 —
+      // see Competition.teamCount and LeagueSpec.divisions. The big four carry
+      // every country a third division on top of its two.
+      { country: "England", start: 0, end: 60 },
+      { country: "Spain", start: 60, end: 120 },
+      { country: "Italy", start: 120, end: 180 },
+      { country: "Germany", start: 180, end: 236 },
+      { country: "France", start: 236, end: 290 },
+      { country: "Portugal", start: 290, end: 344 },
+      { country: "Belgium", start: 344, end: 392 },
+      { country: "Turkey", start: 392, end: 448 },
+      { country: "Netherlands", start: 448, end: 504 },
+      { country: "Scotland", start: 504, end: 536 },
+      { country: "Greece", start: 536, end: 578 },
+      { country: "Serbia", start: 578, end: 626 },
     ]);
   });
 
@@ -108,7 +162,7 @@ describe("countryClubRanges", () => {
     // layout by hand — a regression guard, same spirit as clubs.test.ts's
     // CLUBS/tid regression test.
     const ranges = countryClubRanges(worldCompetitions());
-    expect(ranges.reduce((sum, r) => sum + (r.end - r.start), 0)).toBe(420);
+    expect(ranges.reduce((sum, r) => sum + (r.end - r.start), 0)).toBe(626);
   });
 });
 

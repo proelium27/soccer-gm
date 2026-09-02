@@ -21,7 +21,7 @@ import {
   ROSTER_CAP, ROSTER_SAFETY_FLOOR, LOAN_MAX_SEASONS,
   LOAN_FEE_RATE, LOAN_DURATION_MULTIPLIER, LOAN_AI_MAX_AGE,
   LOAN_MIN_SURPLUS, LOAN_OFFERS_MAX, AI_LOAN_MAX_MOVES,
-  DIVISION_2_REFUSAL_OVR_THRESHOLD,
+  divisionRefusalOvr,
 } from "./constants.js";
 
 /** A player's loan-out choice, before any club has agreed to take him. */
@@ -348,7 +348,7 @@ export interface AILoanResult {
  * on loan — and they were **100% of all over-threshold tier-2 players**, every
  * season, i.e. the sweep handles owned players perfectly and this was the only
  * remaining hole. It is also the worst kind of hole, because
- * enforceDivision2Ceiling *cannot* clean it: it skips loaned pids deliberately
+ * enforceDivisionCeilings *cannot* clean it: it skips loaned pids deliberately
  * (sweeping one would have processLoanReturns hand a copy back to the parent,
  * putting the same pid on two rosters), so each breach sits for the loan's full
  * 1-3 seasons. Hence the explicit tier-2 guard in the buyer loop below.
@@ -440,8 +440,7 @@ export function runAILoanMarket(
         // skipping the draw for a filtered buyer would shift every subsequent
         // buyer's jitter (the documented RNG-stream-order lesson).
         if (
-          tierByTid.get(buyer.tid) === 2 &&
-          player.ovr >= DIVISION_2_REFUSAL_OVR_THRESHOLD
+          player.ovr >= divisionRefusalOvr(tierByTid.get(buyer.tid) ?? 1)
         ) continue;
         if (value < reservation * (1 + LOAN_MIN_SURPLUS)) continue;
         candidates.push({ pid, sellerTid: seller.tid, buyerTid: buyer.tid, reservation, buyerValue: value, surplus: value - reservation });

@@ -576,9 +576,19 @@ export function Manual() {
             <strong>Spain</strong>, <strong>Italy</strong>, <strong>Germany</strong>,{" "}
             <strong>France</strong>, the <strong>Netherlands</strong>, <strong>Portugal</strong>,{" "}
             <strong>Belgium</strong>, <strong>Turkey</strong>, <strong>Greece</strong>,{" "}
-            <strong>Scotland</strong> and <strong>Serbia</strong>), each with its own two-division
-            pyramid, for 24 leagues and 420 clubs total. You pick any club in any country and
+            <strong>Scotland</strong> and <strong>Serbia</strong>), each with its own league
+            pyramid, for 36 leagues and 626 clubs total. You pick any club in any country and
             division when you start.
+          </p>
+          <p>
+            <strong>Every country runs three divisions.</strong> Sizes vary — England, Spain and
+            Italy field 20 in every tier, down to Scotland's 10 in its bottom two — and the third
+            tier works like any other division: its own table, its own promotion and relegation with
+            the division above, its clubs in the domestic cup. Starting down there is the longest
+            climb the game offers. Be warned that it's a genuinely different game: third-division
+            money is a fraction of top-flight money, and a youth academy that deep produces very
+            little, so you'll be building out of the transfer market and out of whoever you can keep
+            hold of.
           </p>
           <p>
             <strong>Leagues are the size they are in real life</strong>, not all the same. England,
@@ -594,7 +604,9 @@ export function Manual() {
             <strong>Promotion and relegation scale with that.</strong> Most countries swap three
             clubs each way, but Portugal, Belgium, the Netherlands, Greece and Serbia swap two, and
             Scotland only one — three up out of a 10-club second division would turn over a third
-            of it every season.
+            of it every season. Where there's a third division the same count applies to both
+            links, and each is settled on its own final table, so you can only ever move one
+            division a season.
           </p>
           <p>
             <strong>The last promotion place is a playoff, and there are two systems.</strong>{" "}
@@ -670,7 +682,7 @@ export function Manual() {
             ones, with the last place up decided by a playoff) runs on its
             own within each country at the end of every season, so a rough season in Spain's top
             flight doesn't touch any other country's tables. Standings, Awards, and Stat Leaders each have a competition dropdown,
-            grouped by country, so you can browse any of the 24 leagues. It defaults to
+            grouped by country, so you can browse any of the 36 leagues. It defaults to
             whichever one your own club is currently in.
           </p>
           <p>

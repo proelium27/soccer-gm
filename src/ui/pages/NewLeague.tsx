@@ -112,7 +112,7 @@ export function NewLeague() {
   const world = useMemo(() => describeWorld(includedSpecs(worldEntries)), [worldEntries]);
 
   /** Competition name for a country's given tier (e.g. "English Division 1"). */
-  function divisionName(countryName: string, tier: 1 | 2): string {
+  function divisionName(countryName: string, tier: number): string {
     return (
       world.competitions.find((c) => c.country === countryName && c.tier === tier)?.name ??
       `Division ${tier}`
@@ -135,7 +135,7 @@ export function NewLeague() {
   // Which division's clubs the picker is showing. A view, not part of the save:
   // picking a club is what matters, and the tier it plays in is read off its tid
   // (tierForTid) rather than from here.
-  const [tier, setTier] = useState<1 | 2>(1);
+  const [tier, setTier] = useState(1);
   // Fixed for the save's lifetime once it's created, so it is chosen here and
   // nowhere else (see the DIFFICULTIES block in core/constants.ts).
   const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
@@ -299,7 +299,7 @@ export function NewLeague() {
   // Which tier the chosen club plays in. Read off the slot layout rather than
   // assumed from position in the country's block, because divisions can be
   // different sizes and a country can have only one of them.
-  function tierForTid(tid: number): 1 | 2 {
+  function tierForTid(tid: number): number {
     const compId = world.slotWorld.teams.find((t) => t.tid === tid)?.compId;
     return world.competitions.find((c) => c.id === compId)?.tier ?? 1;
   }
@@ -602,22 +602,30 @@ export function NewLeague() {
       squad: imported?.players?.length ?? 0,
     };
   });
-  // Split by the tier each slot actually belongs to. A country can have one
-  // division or two, and they need not be the same size.
-  const d1Clubs = countryClubs.filter((c) => tierForTid(c.tid) === 1);
-  const d2Clubs = countryClubs.filter((c) => tierForTid(c.tid) === 2);
+  // Grouped by the tier each slot actually belongs to. Derived from the clubs
+  // present rather than from a fixed pair: a country runs anywhere from one to
+  // MAX_DIVISIONS divisions, and they need not be the same size. A hardcoded
+  // d1/d2 split silently filtered every third-division club out of the picker.
+  const clubsByTier = new Map<number, typeof countryClubs>();
+  for (const c of countryClubs) {
+    const t = tierForTid(c.tid);
+    const list = clubsByTier.get(t);
+    if (list) list.push(c);
+    else clubsByTier.set(t, [c]);
+  }
+  const tiers = [...clubsByTier.keys()].sort((a, b) => a - b);
   // Shown as the League name placeholder, so the default the save would take is
   // visible rather than merely described. Safe to look up in the active
   // country's clubs alone: selecting a country clears the club (selectCountry),
   // so a selection is always one of these.
   const selectedClubName =
     selectedTid === null ? null : (countryClubs.find((c) => c.tid === selectedTid)?.name ?? null);
-  // A country can have one division or two, so the tab the picker is on has to
-  // fall back rather than show an empty list — the same shape as activeCountry
-  // falling back when a country is switched off underneath the picker.
-  const hasSecondDivision = d2Clubs.length > 0;
-  const shownTier = hasSecondDivision ? tier : 1;
-  const shownClubs = shownTier === 1 ? d1Clubs : d2Clubs;
+  // A country need not have the division the picker is currently on — it can be
+  // switched to a shallower pyramid, or switched off, underneath the tab — so
+  // the shown tier falls back rather than showing an empty list, the same shape
+  // as activeCountry falling back when a country is switched off.
+  const shownTier = clubsByTier.has(tier) ? tier : (tiers[0] ?? 1);
+  const shownClubs = clubsByTier.get(shownTier) ?? [];
 
   function selectCountry(c: string) {
     setCountry(c);
@@ -911,9 +919,9 @@ export function NewLeague() {
       */}
       {!spectate && (
       <div className="mb-3">
-        {hasSecondDivision ? (
+        {tiers.length > 1 ? (
           <div className="btn-group segmented mb-2" role="group" aria-label="Choose a division">
-            {([1, 2] as const).map((t) => (
+            {tiers.map((t) => (
               <button
                 key={t}
                 type="button"
@@ -927,7 +935,7 @@ export function NewLeague() {
           </div>
         ) : (
           <h6 className="text-muted text-uppercase small fw-semibold mb-2">
-            {divisionName(activeCountry, 1)}
+            {divisionName(activeCountry, shownTier)}
           </h6>
         )}
         <div className="list-group picker-columns">
@@ -957,7 +965,7 @@ export function NewLeague() {
         {selectedTid !== null && !shownClubs.some((c) => c.tid === selectedTid) && (
           <p className="text-muted small mt-2 mb-0">
             You've picked {selectedClubName}, over in{" "}
-            {divisionName(activeCountry, shownTier === 1 ? 2 : 1)}.
+            {divisionName(activeCountry, tierForTid(selectedTid))}.
           </p>
         )}
       </div>

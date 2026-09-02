@@ -865,7 +865,7 @@ function teamSeasonCells(r: TeamSeasonRecord): ReactNode[] {
   return [
     <ClubCell tid={r.tid} season={r.season} />,
     seasonYear(r.season),
-    r.tier === 2 ? "D2" : "D1",
+    `D${r.tier}`,
     `${r.row.won}-${r.row.drawn}-${r.row.lost}`,
     r.row.points,
     r.ppg.toFixed(2),
