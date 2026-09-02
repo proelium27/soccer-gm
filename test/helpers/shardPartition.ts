@@ -41,11 +41,11 @@
  * **That has stopped being true, and the next person to raise the shard count
  * should know it.** The 626-club world (#308) grew the sim files by roughly the
  * same 49% the world grew, and the slowest single file,
- * `test/core/offseasonRetirement.test.ts`, now runs ~1359s on CI against a
- * per-shard wall clock of ~1394s at six shards with the weights below. So the
- * one-file floor is within ~3% of the six-shard floor: a seventh shard buys
- * essentially nothing, and the lever is splitting that file (or making its
- * seven cases share a world) rather than adding runners.
+ * `test/core/offseasonRetirement.test.ts`, runs 1359-1481s on CI against a
+ * measured per-shard wall clock of 1245-1802s at six shards. So the one-file
+ * floor now sits *inside* the range the shards actually finish in: a seventh
+ * shard buys essentially nothing, and the lever is splitting that file (or
+ * making its seven cases share a world) rather than adding runners.
  *
  * Note CI runners are ~1.5x slower than a dev machine here
  * (`offseason.test.ts` was ~1276s locally against ~1933s on CI), so the weights
@@ -75,6 +75,29 @@
  * Taking every number from ONE contended run is the point: these are internally
  * consistent with each other, which is what packing needs, where the previous
  * table mixed measurements from different months and different worlds.
+ *
+ * **Measured after the refresh (run 33641959090), and the honest result is that
+ * balancing bought less than the model predicted — for a reason worth knowing
+ * before anyone tunes this again.** Re-scored on the old run's numbers the new
+ * table predicted a near-perfect split and ~24 minutes; the actual shards ran
+ * 1245/1304/1438/1531/1501/**1802**s, so the slowest went 1911s -> 1802s and CI
+ * ~32 -> ~30 minutes. The work really did even out — summed test-time per shard
+ * landed 1.13x the even share against 1.37x before — but **summed test-time is
+ * not shard wall clock, and this table can only ever balance the former.** Two
+ * things break the conversion, both visible inside that one run:
+ *
+ *   - **Runner speed varies ~44% within a single run.** Effective parallelism
+ *     (summed test-time / wall clock) came out 2.48 / 2.38 / 2.32 / 2.25 / 1.87
+ *     / **1.72** across the six. Shard 2 drew the slowest runner and finished
+ *     last on the second-*lightest* load — no packing can fix that.
+ *   - **Per-file cost itself swings run to run.** `offseasonRetirement` read
+ *     1359s then 1481s; `internationalConfederationCups` 813s then 574s. The
+ *     ordering survives, which is all packing needs, but it means a predicted
+ *     wall clock carries error bars the model does not show.
+ *
+ * So: refresh the table when the world changes, because a 1.37x imbalance is
+ * real and worth removing. Do not expect the wall clock to fall in proportion,
+ * and do not tune these numbers against a single run's wall clock.
  *
  * Treat these as an ordering, not as measurements. A machine running full-world
  * sims back to back thermally throttles — the same file measured 234s and 557s
