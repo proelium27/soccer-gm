@@ -157,7 +157,9 @@ export function Manual() {
             around 80 rather than 90, because ratings are rescaled onto the spread this game is
             tuned for and the ordering matters more than the absolute numbers; and imported clubs
             don't show a crest, since a crest belongs to a team slot rather than a club name and
-            would otherwise end up on the wrong team. Colors do carry over.
+            would otherwise end up on the wrong team. Colors do carry over. If you'd rather have a
+            file made to your own description, the "Copy AI Prompt to Customize" button beside it
+            is the other way in — see just below.
           </p>
           <p>
             Every club in it carries a real name, but not every one carries a real squad, because
@@ -192,22 +194,33 @@ export function Manual() {
           </p>
           <p>
             Writing all that JSON by hand is tedious, so the easiest route is to let an AI build it.
-            The "Copy AI Prompt to Customize" button in the top bar (once you're in a save) copies a ready-made
-            prompt to your clipboard, already filled in with your world's exact league names and sizes.
-            Paste it into ChatGPT or Claude and tell it what you want in there. Real present-day
-            leagues are the obvious use, but nothing about it is limited to that: ask for a 2004
-            throwback league, all-time national XIs, clubs from a show you like, or a world you made
-            up entirely. Then save its reply as a <code>.json</code> file and start a league with it
-            using "Import" on the Leagues screen. (If your browser blocks clipboard access, the button
-            downloads the prompt as a text file instead.)
+            The "Copy AI Prompt to Customize" button copies a ready-made prompt to your clipboard,
+            already filled in with your world's exact league names and sizes. It sits on the Leagues
+            screen next to Import, on the New League screen, and in the top bar of any save you have
+            open, so you can grab it whether or not you've started anything yet. Paste it into
+            ChatGPT or Claude and tell it what you want in there. Real present-day leagues are the
+            obvious use, but nothing about it is limited to that: ask for a 2004 throwback league,
+            all-time national XIs, clubs from a show you like, or a world you made up entirely. Then
+            save its reply as a <code>.json</code> file and start a league with it using "Import" on
+            the Leagues screen. (If your browser blocks clipboard access, the button downloads the
+            prompt as a text file instead.)
           </p>
           <p>
-            Two things the prompt now spells out for the AI, because both of them go wrong quietly.
-            It can only fill leagues your world actually has, so if you ask for one it hasn't got it
-            will say so rather than invent a name, which the importer would skip without a word. And
-            it has to keep each division inside its real size, since a division here can be anywhere
-            from ten clubs to twenty. Both are why the prompt carries your world's league names and
-            sizes rather than being the same text for everyone.
+            Press it on the New League screen rather than the Leagues screen if you've changed
+            anything about your world, since that's the one that describes the world you're actually
+            building — the leagues you added, the ones you renamed, the sizes you set. The Leagues
+            one describes the default world, which is what most saves are.
+          </p>
+          <p>
+            Three things the prompt spells out for the AI, because all three go wrong. Two go wrong
+            quietly: it can only fill leagues your world actually has, so if you ask for one it
+            hasn't got it will say so rather than invent a name, which the importer would skip
+            without a word; and it has to keep each division inside its real size, since a division
+            here can be anywhere from ten clubs to twenty. Both are why the prompt carries your
+            world's league names and sizes rather than being the same text for everyone. The third
+            goes wrong loudly: every club takes exactly two colors, and a club with three is enough
+            to make the game refuse the entire file. That one catches AIs out because plenty of real
+            clubs genuinely wear three, so being accurate is what breaks it.
           </p>
           <p>
             England's and Spain's clubs all have real crest art that shows up wherever the club's
