@@ -7,6 +7,7 @@ import { seasonYear } from "../format.js";
 import type { SuperCupTie } from "../../core/superCup/types.js";
 import { superCupChampion } from "../../core/superCup/types.js";
 import { superCupRouteLabel, superCupsPending } from "../../core/superCup/superCup.js";
+import { EmptyState } from "../components/EmptyState.js";
 
 /**
  * Every super cup the save holds a record of, newest season first.
@@ -52,10 +53,17 @@ export function ChampionsCups() {
     return (
       <div className="container-fluid p-3">
         <h4>Champions Cups{intro}</h4>
-        <p className="text-muted">
-          Nothing on file yet. The first champions cups are played at the start of next season,
-          between the clubs winning things this one.
-        </p>
+        <EmptyState headline="No champions cups have been played yet.">
+          <p>
+            They are played in the preseason, so the first ones kick off at the start of next
+            season, between the clubs winning things this one.
+          </p>
+          <p>Each country puts up two clubs, and the continent puts up two more:</p>
+          <ul>
+            <li>Its league champion against its domestic cup winner.</li>
+            <li>The Continental Cup holder against the Continental Shield holder.</li>
+          </ul>
+        </EmptyState>
       </div>
     );
   }

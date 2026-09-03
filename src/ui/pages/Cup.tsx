@@ -18,6 +18,7 @@ import type { CupCompetitionId } from "../../core/constants.js";
 import {
   CUP_FORMATS, CONTINENTAL_CUP_FORMAT, cupKnockoutPlan, largestValidCupField,
 } from "../../core/constants.js";
+import { EmptyState } from "../components/EmptyState.js";
 
 /**
  * How a field of this size splits, in a sentence — "the top four go straight to
@@ -167,30 +168,40 @@ export function Cup({ competition = "continental" }: { competition?: CupCompetit
       <div className="container-fluid p-3">
         <h4>{format.name}</h4>
         {worldHasCup(league.competitions, format) ? (
-          <p className="text-muted">
-            {isShield ? (
-              <>
-                The Continental Shield is a {format.fieldSize}-club competition played alongside the
-                league, for the clubs that just miss out on the Continental Cup. The 5th and 6th
-                placed clubs of each of the four strongest leagues get in, plus 3rd and 4th from
-                each of the weaker ones.
-              </>
-            ) : (
-              <>
-                The Continental Cup is a {format.fieldSize}-club competition played alongside the
-                league. The top four clubs of each of the four strongest leagues get in, plus the
-                top two from each of the weaker leagues.
-              </>
-            )}{" "}
-            Everyone starts together in a single league phase of six games, then the table splits:
-            {" "}{splitBlurb(format.fieldSize)}. It kicks off next season, and who gets in is decided
-            by this season&apos;s final league tables.
-          </p>
+          <EmptyState
+            headline={`The ${format.name} kicks off next season.`}
+          >
+            <p>
+              {isShield ? (
+                <>
+                  A {format.fieldSize}-club competition played alongside the league, for the clubs
+                  that just miss out on the Continental Cup. The 5th and 6th placed clubs of each of
+                  the four strongest leagues get in, plus 3rd and 4th from each of the weaker ones.
+                </>
+              ) : (
+                <>
+                  A {format.fieldSize}-club competition played alongside the league. The top four
+                  clubs of each of the four strongest leagues get in, plus the top two from each of
+                  the weaker leagues.
+                </>
+              )}
+            </p>
+            <p>
+              Everyone starts together in a single league phase of six games, then the table splits:
+              {" "}{splitBlurb(format.fieldSize)}.
+            </p>
+            <p>
+              Who gets in is decided by this season&apos;s final league tables, so the place you are
+              playing for right now is a place in this.
+            </p>
+          </EmptyState>
         ) : (
-          <p className="text-muted">
-            The {format.name} isn&apos;t contested in this league. It needs enough top-flight
-            leagues to fill its {format.fieldSize}-club field.
-          </p>
+          <EmptyState headline={`The ${format.name} isn't contested in this world.`}>
+            <p>
+              It needs enough top-flight leagues to fill its {format.fieldSize}-club field. Start a
+              save with more countries switched on and it runs.
+            </p>
+          </EmptyState>
         )}
       </div>
     );

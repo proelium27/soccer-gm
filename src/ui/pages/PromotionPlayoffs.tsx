@@ -8,6 +8,7 @@ import type { CupTie } from "../../core/cup/types.js";
 import type { PromotionPlayoff } from "../../core/promotionPlayoff.js";
 import { PLAYOFF_ROUND_FINAL } from "../../core/promotionPlayoff.js";
 import { competitionOf } from "../../core/competitions.js";
+import { EmptyState } from "../components/EmptyState.js";
 
 /**
  * Every playoff the save holds a record of, newest first.
@@ -57,9 +58,18 @@ export function PromotionPlayoffs() {
     return (
       <div className="container-fluid p-3">
         <h4>Promotion Playoffs{intro}</h4>
-        <p className="text-muted">
-          Nothing on file yet. The first playoffs are decided at the end of this season.
-        </p>
+        <EmptyState headline="No playoffs have been decided yet.">
+          <p>
+            They are played the moment the season ends, before anyone retires or moves on, and
+            they settle the last promotion place in each country.
+          </p>
+          <p>
+            Which shape a country uses is set when you start a save. Most play the English way,
+            where the four clubs below the automatic places contest two-legged semi-finals and a
+            final. Germany plays a one-off tie between the club above the line and the club below
+            it, so the incumbent can hold on.
+          </p>
+        </EmptyState>
       </div>
     );
   }

@@ -8,6 +8,7 @@ import { trophyNewsBySeason } from "../../core/trophyNews.js";
 import { promotionNewsBySeason } from "../../core/promotionNews.js";
 import { seasonContinentalNews } from "../../core/continentalNews.js";
 import { TOTS_SLOTS } from "../../core/awards.js";
+import { NEWS_FEED_SEASON_LIMIT } from "../../core/constants.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { clubDisplayName, currency, seasonYear } from "../format.js";
@@ -54,6 +55,35 @@ function awardDetail(a: AwardNews): string {
   if (a.slot !== undefined) return TOTS_SLOTS[a.slot] ?? "";
   if (a.kind === "ballonDOr") return a.placing === 1 ? "winner" : ordinal(a.placing ?? 0);
   return "";
+}
+
+/**
+ * Bound one season's rows.
+ *
+ * The feed is append-only and persisted forever, so an uncapped season grows
+ * for the life of the save — this is the same failure that froze /transfers
+ * (see NEWS_FEED_SEASON_LIMIT), arriving on a page that grows faster.
+ *
+ * Two properties matter. The user's own club's news is never dropped, whatever
+ * the season holds, which is the same guarantee the transfer list makes. And
+ * the surviving rows keep the timeline's own order rather than being re-ranked,
+ * so a capped season still reads chronologically — hence the index carried
+ * through the partition and the sort back at the end.
+ */
+export function capSeason(
+  items: FeedItem[],
+  involvesUser: (item: FeedItem) => boolean,
+): { rows: FeedItem[]; hidden: number } {
+  if (items.length <= NEWS_FEED_SEASON_LIMIT) return { rows: items, hidden: 0 };
+  const mine: { i: number; item: FeedItem }[] = [];
+  const rest: { i: number; item: FeedItem }[] = [];
+  items.forEach((item, i) => (involvesUser(item) ? mine : rest).push({ i, item }));
+  // A season can legitimately be all-yours and over the cap; the user's own
+  // news is never the thing that gets cut, so the budget can go negative and
+  // slice(0, <=0) correctly takes none of the rest.
+  const budget = NEWS_FEED_SEASON_LIMIT - mine.length;
+  const kept = [...mine, ...rest.slice(0, Math.max(0, budget))].sort((a, b) => a.i - b.i);
+  return { rows: kept.map((k) => k.item), hidden: items.length - kept.length };
 }
 
 function eventDetail(e: NewsEvent): string {
@@ -308,10 +338,11 @@ export function NewsFeed() {
         </p>
       ) : (
         [...seasonsToShow].sort((a, b) => b - a).map((season) => {
-          const timeline = (timelinesBySeason.get(season) ?? []).filter((item) =>
+          const all = (timelinesBySeason.get(season) ?? []).filter((item) =>
             passesFilters(season, item),
           );
-          if (timeline.length === 0) return null;
+          if (all.length === 0) return null;
+          const { rows: timeline, hidden } = capSeason(all, involvesUser);
 
           return (
             <div className="card mb-3" key={season}>
@@ -319,9 +350,17 @@ export function NewsFeed() {
                 <h5 className="card-title">
                   {seasonYear(season)}{" "}
                   <span className="text-muted small">
-                    ({timeline.length} {timeline.length === 1 ? "item" : "items"})
+                    ({all.length} {all.length === 1 ? "item" : "items"}
+                    {hidden > 0 && `, showing ${timeline.length}`})
                   </span>
                 </h5>
+                {hidden > 0 && (
+                  <p className="text-muted small">
+                    {hidden} more {hidden === 1 ? "story" : "stories"} from elsewhere in the world
+                    this season. Everything involving {userTeam?.name ?? "your club"} is shown;
+                    filter to a single season to narrow this down.
+                  </p>
+                )}
                 <div className="table-responsive">
                   <table className="table table-striped table-sm mb-0 align-middle">
                     <thead>

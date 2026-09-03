@@ -148,7 +148,18 @@ export function ClubSeason() {
 
       <div className="d-flex align-items-center gap-3 mb-3 flex-wrap">
         <div className="text-muted">
-          {comp ? `${comp.name} · Division ${clubSeason.tier}` : `Division ${clubSeason.tier}`}
+          {/*
+            A competition's own name already carries its tier ("English Division
+            1"), so appending "· Division 1" printed it twice. Player-named and
+            imported leagues can be called anything ("Eredivisie"), and those
+            genuinely don't say which tier they are, so the suffix is kept for
+            exactly those.
+          */}
+          {comp
+            ? comp.name.toLowerCase().includes(`division ${clubSeason.tier}`)
+              ? comp.name
+              : `${comp.name} · Division ${clubSeason.tier}`
+            : `Division ${clubSeason.tier}`}
         </div>
         <select
           className="form-select form-select-sm w-auto"

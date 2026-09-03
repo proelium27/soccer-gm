@@ -125,7 +125,11 @@ describe("Promotion Playoffs page", () => {
     const league = makeLeague(0, 1);
     const html = render({ ...league, promotionPlayoffs: [] });
     expect(html).toContain("Promotion Playoffs");
-    expect(html).toContain("Nothing on file yet");
+    // The shaped panel, not the exact wording — see championsCupsRender for why.
+    expect(html).toContain("empty-state");
+    expect(html).toContain("No playoffs have been decided yet");
+    // And it explains when they are played, rather than only that there are none.
+    expect(html).toContain("the moment the season ends");
   });
 
   it("renders the live set the season just decided, still on the league", () => {

@@ -11,6 +11,7 @@ import { groupTable } from "../../../core/international/index.js";
 import {
   INTL_TOURNAMENT_NAME, INTL_CYCLE_YEARS, INTL_FIELD_SIZE, INTL_GROUPS, INTL_GROUP_SIZE,
 } from "../../../core/constants.js";
+import { EmptyState } from "../../components/EmptyState.js";
 
 /** Knockout round names for the four-round international bracket, in playing order. */
 export const KO_ROUND_NAMES = ["Round of 16", "Quarter-finals", "Semi-finals", "Final"];
@@ -43,11 +44,21 @@ export function NationName({ nation }: { nation: string }) {
  * page's own title, then its content. Navigation between the tabs is the
  * sidebar's job — the pages carry no link strip of their own.
  */
+/**
+ * The shell all eleven National Teams pages render inside.
+ *
+ * The section name is an eyebrow above the page title, not a heading over it.
+ * It used to be `<h4>National Teams</h4>` above `<h5>{title}</h5>`, which set
+ * the one word that is identical on all eleven pages LARGER than the word that
+ * says which of the eleven you are looking at — so the loudest thing on every
+ * screen in the section carried no information. Same treatment the sidebar
+ * already gives its own group labels.
+ */
 export function NationalTeamsLayout({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="container-fluid p-3">
-      <h4>National Teams</h4>
-      <h5 className="mb-3">{title}</h5>
+      <div className="page-eyebrow">National Teams</div>
+      <h4 className="mb-3">{title}</h4>
       {children}
     </div>
   );
@@ -328,19 +339,21 @@ export function useHasInternational(): boolean {
 export function IntlEmpty() {
   return (
     <NationalTeamsLayout title="Not started yet">
-      <p className="text-muted">
-        National teams play in the summer, on a {INTL_CYCLE_YEARS}-year cycle. The first three
-        offseasons of each cycle play one round of qualifying apiece, where every nation with enough
-        players works through its confederation group for one of {INTL_FIELD_SIZE} places. The fourth
-        offseason, those {INTL_FIELD_SIZE} meet in the {INTL_TOURNAMENT_NAME}: {INTL_GROUPS} groups
-        of {INTL_GROUP_SIZE}, then a round of 16, quarter-finals, semi-finals and a final.
-      </p>
-      <p className="text-muted">
-        You can manage a country alongside your club — pick one when you start a save, or wait
-        for a federation to get in touch over the summer. Every other nation picks itself, so
-        the rest of your job is developing players worth calling up and watching how they get on.
-        The first round of qualifying runs at the end of season 1.
-      </p>
+      <EmptyState headline={`The first round of qualifying runs at the end of season 1.`}>
+        <p>
+          National teams play in the summer, on a {INTL_CYCLE_YEARS}-year cycle. The first three
+          offseasons of each cycle play one round of qualifying apiece, where every nation with
+          enough players works through its confederation group for one of {INTL_FIELD_SIZE} places.
+          The fourth offseason, those {INTL_FIELD_SIZE} meet in the {INTL_TOURNAMENT_NAME}:{" "}
+          {INTL_GROUPS} groups of {INTL_GROUP_SIZE}, then a round of 16, quarter-finals,
+          semi-finals and a final.
+        </p>
+        <p>
+          You can manage a country alongside your club — pick one when you start a save, or wait
+          for a federation to get in touch over the summer. Every other nation picks itself, so
+          the rest of your job is developing players worth calling up and watching how they get on.
+        </p>
+      </EmptyState>
     </NationalTeamsLayout>
   );
 }
