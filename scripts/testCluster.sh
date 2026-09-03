@@ -134,7 +134,18 @@ echo "==> $REMOTE_HOST is up."
 # A login shell restores the real PATH, and doing it here means neither machine
 # needs its dotfiles edited for this script to work. The command arrives on
 # stdin so nesting quotes stays sane, and the remote exit code propagates.
-rsh() { ssh "$REMOTE_HOST" 'zsh -ls' <<< "$1"; }
+#
+# `set -o pipefail` is set at the top of THIS script and does not cross the ssh
+# boundary: the remote runs a fresh login zsh, which defaults to reporting only
+# the LAST stage of a pipeline. So a remote `cmd | tail` reported success no
+# matter what cmd did, and the one place that matters is the `npm ci | tail -2`
+# below — a half-installed remote then ran the suite against a node_modules with
+# no vite in it, `npx` silently fetched a different major version of vitest, and
+# both shards died at startup roughly 20 minutes in. Measured, not hypothetical.
+# Setting it inside the remote shell is what makes `|| exit 1` mean anything
+# there.
+rsh() { ssh "$REMOTE_HOST" 'zsh -ls' <<< "set -o pipefail
+$1"; }
 
 # ------------------------------------------------------------------ sync ----
 
