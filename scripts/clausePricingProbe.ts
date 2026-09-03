@@ -43,14 +43,16 @@ import type { LeagueStore } from "../src/core/leagueState.js";
 import type { Player } from "../src/core/players/types.js";
 import type { CompletedTransfer } from "../src/core/transfers/negotiation.js";
 import { isFreeAgentTid } from "../src/core/transfers/negotiation.js";
-import { clauseValue, projectedValue, triggerProbability } from "../src/core/transfers/clauses.js";
+import {
+  clauseValue, projectedValue, triggerProbability, suggestedBonuses,
+} from "../src/core/transfers/clauses.js";
 import { deriveLeagueContexts } from "../src/core/ai/clubContext.js";
 import type { StoredTeam } from "../src/core/teams/clubs.js";
 import type { BonusTrigger } from "../src/core/transfers/clauses.js";
-import { tierOf } from "../src/core/competitions.js";
+import { tierOf, competitionTeamCount } from "../src/core/competitions.js";
 import {
   SELL_ON_CLAUSE_SEASONS, SELL_ON_RESALE_PROBABILITY, SELL_ON_PRICING_HORIZON,
-  BONUS_CLAUSE_SEASONS, BONUS_APPEARANCE_THRESHOLD, BONUS_GOAL_THRESHOLD,
+  BONUS_CLAUSE_SEASONS,
 } from "../src/core/constants.js";
 
 const SEASONS = Number(process.argv[2] ?? 12);
@@ -182,51 +184,52 @@ for (const deal of sales) {
   if (realized > 3 * priced && realized > 1_000_000) bigUnderprice++;
 }
 
-/* ── Bonus triggers: how often do they really fire? ──────────────────────── */
+/* ── Bonuses: priced against realized, AT THE THRESHOLDS ACTUALLY OFFERED ─── */
 
-let apps = 0, goals = 0, cont = 0, promo = 0, bonusN = 0;
-// A top-flight buyer can never be promoted and a lower-tier one can never reach
-// Europe, and the model scores both at exactly 0. Counting those deals in the
-// denominator would report a rate the model is not even trying to predict, so
-// each team trigger gets its own eligible count.
-let promoEligible = 0, contEligible = 0;
+/**
+ * The bonus half of the realized/priced discipline.
+ *
+ * It evaluates at the thresholds `suggestedBonuses` really produces for each
+ * deal, not at a fixed grid, because those are the only ones the game ever
+ * offers: a threshold is a suggestion here, never something a user types. That
+ * makes this the exact question that matters — is what we quote for the bonus
+ * we actually propose close to what it pays — and it is a far easier one than
+ * "is the model right at every conceivable threshold", which it is not (goal
+ * counts are over-dispersed relative to a Poisson at both tails).
+ */
 const TRIGGERS: BonusTrigger[] = ["appearances", "goals", "continental", "promotion"];
 const predicted = new Map<BonusTrigger, number>(TRIGGERS.map((t) => [t, 0]));
-const predictedN = new Map<BonusTrigger, number>(TRIGGERS.map((t) => [t, 0]));
+const realizedHits = new Map<BonusTrigger, number>(TRIGGERS.map((t) => [t, 0]));
+const offered = new Map<BonusTrigger, number>(TRIGGERS.map((t) => [t, 0]));
+const thresholdSum = new Map<BonusTrigger, number>(TRIGGERS.map((t) => [t, 0]));
+const thresholdMin = new Map<BonusTrigger, number>(TRIGGERS.map((t) => [t, Infinity]));
+const thresholdMax = new Map<BonusTrigger, number>(TRIGGERS.map((t) => [t, 0]));
+let bonusN = 0;
+
 for (const deal of sales) {
   const snap = snapAt(deal.season);
   if (!snap) continue;
-  bonusN++;
-  const buyerComp0 = snap.compIdByTid.get(deal.toTid);
-  const buyerTier = buyerComp0 === undefined ? 0 : tierOf(league.competitions, buyerComp0);
-  if (buyerTier === 1) contEligible++;
-  if (buyerTier > 1) promoEligible++;
   const obligor = snap.teams.get(deal.toTid);
   const player = snap.players.get(deal.pid);
-  if (obligor && player) {
-    const starter = snap.weakestStarter.get(deal.toTid)?.[player.pos] ?? null;
-    for (const t of TRIGGERS) {
-      // Skip the ones the model scores at a structural zero, so the average is
-      // over the same population the realized rate is measured on.
-      if (t === "continental" && buyerTier !== 1) continue;
-      if (t === "promotion" && buyerTier === 1) continue;
-      predicted.set(t, predicted.get(t)! + triggerProbability(
-        t, player, obligor, league.competitions, starter, BONUS_CLAUSE_SEASONS,
-      ));
-      predictedN.set(t, predictedN.get(t)! + 1);
-    }
-  }
-  let hitApps = false, hitGoals = false, hitCont = false, hitPromo = false;
+  if (!obligor || !player) continue;
+  bonusN++;
+
+  const starter = snap.weakestStarter.get(deal.toTid)?.[player.pos] ?? null;
+  const suggestions = suggestedBonuses(
+    player, obligor, league.competitions, starter, Math.max(1, deal.fee),
+  );
+
+  // What actually happened over the clause window, while he was still there.
+  let bestApps = 0, bestGoals = 0, hitCont = false, hitPromo = false;
+  const live = livePlayers.get(deal.pid);
   for (let k = 0; k < BONUS_CLAUSE_SEASONS; k++) {
     const season = deal.season + k;
     const later = snapAt(season + 1);
     if (!later) break;
-    // Only while he is still at the buying club — the clause dies otherwise.
     if (later.rosterOf.get(deal.pid) !== deal.toTid) break;
-    const live = livePlayers.get(deal.pid);
     const line = live?.stats.find((st) => st.season === season && st.tid === deal.toTid);
-    if ((line?.appearances ?? 0) >= BONUS_APPEARANCE_THRESHOLD) hitApps = true;
-    if ((line?.goals ?? 0) >= BONUS_GOAL_THRESHOLD) hitGoals = true;
+    bestApps = Math.max(bestApps, line?.appearances ?? 0);
+    bestGoals = Math.max(bestGoals, line?.goals ?? 0);
     if (later.qualified.has(deal.toTid)) hitCont = true;
     const before = snapAt(season)?.compIdByTid.get(deal.toTid);
     const after = later.compIdByTid.get(deal.toTid);
@@ -235,10 +238,139 @@ for (const deal of sales) {
       && tierOf(league.competitions, before) > tierOf(league.competitions, after)
     ) hitPromo = true;
   }
-  if (hitApps) apps++;
-  if (hitGoals) goals++;
-  if (hitCont) cont++;
-  if (hitPromo) promo++;
+
+  for (const sug of suggestions) {
+    const t = sug.trigger;
+    offered.set(t, offered.get(t)! + 1);
+    predicted.set(t, predicted.get(t)! + triggerProbability(
+      t, player, obligor, league.competitions, starter, BONUS_CLAUSE_SEASONS, sug.threshold,
+    ));
+    if (sug.threshold !== undefined) {
+      thresholdSum.set(t, thresholdSum.get(t)! + sug.threshold);
+      thresholdMin.set(t, Math.min(thresholdMin.get(t)!, sug.threshold));
+      thresholdMax.set(t, Math.max(thresholdMax.get(t)!, sug.threshold));
+    }
+    const hit =
+      t === "appearances" ? bestApps >= (sug.threshold ?? 0)
+      : t === "goals" ? bestGoals >= (sug.threshold ?? 0)
+      : t === "continental" ? hitCont
+      : hitPromo;
+    if (hit) realizedHits.set(t, realizedHits.get(t)! + 1);
+  }
+}
+
+/* ── Distributions: what a threshold model has to reproduce ──────────────── */
+
+/**
+ * One season a bought player spent at the club that bought him.
+ *
+ * A per-player bonus threshold is only honest if the probability responds to
+ * it, so the model needs the real SHAPE of these two distributions, not just
+ * their means: how often a player clears 15 games is a different question from
+ * how often he clears 30, and a single base rate cannot answer both.
+ */
+interface Obs {
+  edge: number;        // ovr over the incumbent starter he had to displace
+  pos: string;
+  apps: number;
+  goals: number;
+  games: number;       // league games his competition played that season
+}
+const obs: Obs[] = [];
+
+for (const deal of sales) {
+  const snap = snapAt(deal.season);
+  if (!snap) continue;
+  const player0 = snap.players.get(deal.pid);
+  if (!player0) continue;
+  const starter = snap.weakestStarter.get(deal.toTid)?.[player0.pos];
+  if (starter === undefined) continue;
+  const buyerComp = snap.compIdByTid.get(deal.toTid);
+  if (buyerComp === undefined) continue;
+  const comp = league.competitions.find((c) => c.id === buyerComp);
+  if (!comp) continue;
+  const games = 2 * (competitionTeamCount(comp) - 1);
+  const live = livePlayers.get(deal.pid);
+  for (let k = 0; k < BONUS_CLAUSE_SEASONS; k++) {
+    const season = deal.season + k;
+    const later = snapAt(season + 1);
+    if (!later) break;
+    if (later.rosterOf.get(deal.pid) !== deal.toTid) break;
+    const line = live?.stats.find((st) => st.season === season && st.tid === deal.toTid);
+    obs.push({
+      edge: player0.ovr - starter,
+      pos: player0.pos,
+      apps: line?.appearances ?? 0,
+      goals: line?.goals ?? 0,
+      games,
+    });
+  }
+}
+
+const EDGE_BUCKETS = [-99, -10, -5, 0, 5, 10, 99];
+const APP_GRID = [10, 15, 20, 25, 30];
+const GOAL_GRID = [3, 5, 8, 10, 15];
+
+function bucketLabel(i: number): string {
+  const lo = EDGE_BUCKETS[i];
+  const hi = EDGE_BUCKETS[i + 1];
+  if (lo === -99) return `<${hi}`;
+  if (hi === 99) return `${lo}+`;
+  return `${lo}..${hi}`;
+}
+
+function appLines(): string {
+  const out: string[] = [];
+  out.push(`  edge      n     mean    sd    share   ` + APP_GRID.map((t) => `P>=${t}`.padStart(7)).join(""));
+  for (let i = 0; i < EDGE_BUCKETS.length - 1; i++) {
+    const inB = obs.filter((o) => o.edge >= EDGE_BUCKETS[i] && o.edge < EDGE_BUCKETS[i + 1]);
+    if (inB.length === 0) continue;
+    const mean = inB.reduce((a, o) => a + o.apps, 0) / inB.length;
+    const sd = Math.sqrt(inB.reduce((a, o) => a + (o.apps - mean) ** 2, 0) / inB.length);
+    const share = inB.reduce((a, o) => a + o.apps / Math.max(1, o.games), 0) / inB.length;
+    const ps = APP_GRID.map((t) =>
+      pct(inB.filter((o) => o.apps >= t).length / inB.length).padStart(7)).join("");
+    out.push(
+      `  ${bucketLabel(i).padEnd(8)} ${String(inB.length).padStart(5)} ${mean.toFixed(1).padStart(6)}`
+      + ` ${sd.toFixed(1).padStart(5)} ${share.toFixed(3).padStart(7)} ${ps}`,
+    );
+  }
+  return out.join("\n");
+}
+
+function goalLines(): string {
+  const out: string[] = [];
+  out.push(`  pos       n     mean   per90*  ` + GOAL_GRID.map((t) => `P>=${t}`.padStart(7)).join(""));
+  const positions = [...new Set(obs.map((o) => o.pos))].sort();
+  for (const pos of positions) {
+    const inP = obs.filter((o) => o.pos === pos);
+    const mean = inP.reduce((a, o) => a + o.goals, 0) / inP.length;
+    const totalApps = inP.reduce((a, o) => a + o.apps, 0);
+    const perApp = totalApps > 0 ? inP.reduce((a, o) => a + o.goals, 0) / totalApps : 0;
+    const ps = GOAL_GRID.map((t) =>
+      pct(inP.filter((o) => o.goals >= t).length / inP.length).padStart(7)).join("");
+    out.push(
+      `  ${pos.padEnd(8)} ${String(inP.length).padStart(5)} ${mean.toFixed(2).padStart(6)}`
+      + ` ${perApp.toFixed(3).padStart(7)}  ${ps}`,
+    );
+  }
+  return out.join("\n");
+}
+
+/** Goals among players who actually played, which is what a bonus is about. */
+function goalLinesPlaying(): string {
+  const out: string[] = [];
+  out.push(`  pos       n     mean    ` + GOAL_GRID.map((t) => `P>=${t}`.padStart(7)).join(""));
+  const positions = [...new Set(obs.map((o) => o.pos))].sort();
+  for (const pos of positions) {
+    const inP = obs.filter((o) => o.pos === pos && o.apps >= 15);
+    if (inP.length === 0) continue;
+    const mean = inP.reduce((a, o) => a + o.goals, 0) / inP.length;
+    const ps = GOAL_GRID.map((t) =>
+      pct(inP.filter((o) => o.goals >= t).length / inP.length).padStart(7)).join("");
+    out.push(`  ${pos.padEnd(8)} ${String(inP.length).padStart(5)} ${mean.toFixed(2).padStart(6)}    ${ps}`);
+  }
+  return out.join("\n");
 }
 
 /* ── Report ─────────────────────────────────────────────────────────────── */
@@ -260,43 +392,47 @@ MODEL INPUTS  (set the constants from these, not from taste)
   ...of those, at a profit          ${pct(resoldAtProfit / Math.max(1, resold))}
   mean seasons to resale            ${(horizonSum / Math.max(1, resold)).toFixed(2)}   SELL_ON_PRICING_HORIZON = ${SELL_ON_PRICING_HORIZON}
 
-BONUS TRIGGER RATES  (within ${BONUS_CLAUSE_SEASONS} seasons, while still at the buying club; ${bonusN} deals)
 
-  ${BONUS_APPEARANCE_THRESHOLD}+ appearances in a season      ${pct(apps / Math.max(1, bonusN))}
-  ${BONUS_GOAL_THRESHOLD}+ goals in a season             ${pct(goals / Math.max(1, bonusN))}
-  buyer in a continental cup        ${pct(cont / Math.max(1, contEligible))}   (of ${contEligible} top-flight buyers)
-  buyer promoted                    ${pct(promo / Math.max(1, promoEligible))}   (of ${promoEligible} buyers below the top flight)
+BONUS PRICING at the thresholds actually SUGGESTED (${bonusN} deals; 1.0 is honest)
 
-  Per season, which is what BONUS_BASE_PROBABILITY holds:
-    appearances ${pct(perSeason(apps / Math.max(1, bonusN)))}   goals ${pct(perSeason(goals / Math.max(1, bonusN)))}
-
-BONUS PRICING  (what the model predicts against what happened; 1.0 is honest)
-
-${bonusRow("appearances", apps, bonusN)}
-${bonusRow("goals", goals, bonusN)}
-${bonusRow("continental", cont, contEligible)}
-${bonusRow("promotion", promo, promoEligible)}
+${TRIGGERS.map(bonusRow).join("\n")}
 
 Note: a projected value is what the model thinks he'll be worth; at the median
 deal that is ${money(medianProjection())}, against a median fee of ${money(medianFee())}.
+
+APPEARANCES PER SEASON at the buying club, by ovr over the incumbent starter
+(${obs.length} player-seasons). "share" is appearances / league games.
+
+${appLines()}
+
+GOALS PER SEASON, all bought players
+
+${goalLines()}
+  * per90 here is goals per APPEARANCE, not per 90 minutes.
+
+GOALS PER SEASON, only player-seasons with 15+ appearances
+
+${goalLinesPlaying()}
 `);
 
-function bonusRow(t: BonusTrigger, hits: number, n: number): string {
-  const pred = predicted.get(t)! / Math.max(1, predictedN.get(t)!);
-  const real = hits / Math.max(1, n);
+function bonusRow(t: BonusTrigger): string {
+  const n = offered.get(t)!;
+  const pred = predicted.get(t)! / Math.max(1, n);
+  const real = realizedHits.get(t)! / Math.max(1, n);
   const ratio = pred > 0 ? real / pred : Number.NaN;
   const flag = !Number.isFinite(ratio) ? ""
     : ratio > 1.25 ? "  UNDER-PRICED"
     : ratio < 0.8 ? "  OVER-PRICED"
     : "  ok";
-  return `  ${t.padEnd(13)} predicted ${pct(pred).padStart(6)}   realized ${pct(real).padStart(6)}`
-    + `   ratio ${Number.isFinite(ratio) ? ratio.toFixed(3) : "n/a"}${flag}`;
+  const span = thresholdMax.get(t)! > 0
+    ? `  threshold ${thresholdMin.get(t)}-${thresholdMax.get(t)}`
+      + ` (mean ${(thresholdSum.get(t)! / Math.max(1, n)).toFixed(1)})`
+    : "";
+  return `  ${t.padEnd(13)} offered ${String(n).padStart(6)}   predicted ${pct(pred).padStart(6)}`
+    + `   realized ${pct(real).padStart(6)}   ratio ${Number.isFinite(ratio) ? ratio.toFixed(3) : "n/a"}`
+    + `${flag}${span}`;
 }
 
-/** Undo the "at least once in BONUS_CLAUSE_SEASONS" compounding. */
-function perSeason(overWindow: number): number {
-  return 1 - (1 - Math.min(0.999, overWindow)) ** (1 / BONUS_CLAUSE_SEASONS);
-}
 
 function verdict(r: number): string {
   if (!Number.isFinite(r)) return "(no data)";

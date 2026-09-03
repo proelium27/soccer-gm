@@ -20,7 +20,7 @@ function describe(clause: TransferClause, owed: boolean): string {
       ? `${share} of any profit they make selling him on`
       : `${share} of any profit you make selling him on`;
   }
-  return `${currency.format(clause.amount)} if ${bonusLabel(clause.trigger)}`;
+  return `${currency.format(clause.amount)} if ${bonusLabel(clause.trigger, clause.threshold)}`;
 }
 
 function ClauseTable({ clauses, owed }: { clauses: TransferClause[]; owed: boolean }) {

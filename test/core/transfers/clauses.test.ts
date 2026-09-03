@@ -5,7 +5,7 @@ import type { TransferClause, ProposedClause } from "../../../src/core/transfers
 import {
   settleClausesOnSale, expireClauses, scrubClausesForPids, clausesAreValid,
   materializeClauses, projectedValue, clauseCashDiscount, bonusTriggered,
-  triggerProbability, settleBonuses, payoutDeltas,
+  triggerProbability, settleBonuses, payoutDeltas, suggestedBonuses,
 } from "../../../src/core/transfers/clauses.js";
 import {
   executeTransfer, makeTransferOffer, reservationPrice,
@@ -20,7 +20,7 @@ import {
 } from "../../../src/core/simArchive.js";
 import {
   SELL_ON_MAX_SHARE, BONUS_MAX_TOTAL_FRACTION,
-  BONUS_APPEARANCE_THRESHOLD, BONUS_GOAL_THRESHOLD,
+  BONUS_APPEARANCE_THRESHOLD, BONUS_GOAL_THRESHOLD, BONUS_SUGGESTION_MIN_GOALS,
 } from "../../../src/core/constants.js";
 
 const sellOn = (over: Partial<TransferClause> = {}): TransferClause => ({
@@ -515,6 +515,120 @@ describe("negotiating with add-ons", () => {
       league, candidate.player.pid, [{ kind: "sellOn", share: SELL_ON_MAX_SHARE + 0.2 }],
     );
     expect(out).toBe(league);
+  });
+});
+
+/**
+ * Per-player suggestions.
+ *
+ * The property that matters most here is the LAST one: probability has to fall
+ * as the threshold rises. Without it a 5-goal bonus would be priced like a
+ * 15-goal one, and picking the low threshold would be free money — the same
+ * exploit the sell-on pricing exists to close, arriving through the bonus door.
+ */
+describe("suggestedBonuses", () => {
+  const world = () => makeLeague(0, 1);
+
+  function ctx(league: LeagueStore, pos: string) {
+    const player = league.players.find((p) => p.pos === pos)!;
+    const top = league.teams.find(
+      (t) => league.competitions.find((c) => c.id === t.compId)!.tier === 1,
+    )!;
+    const lower = league.teams.find(
+      (t) => league.competitions.find((c) => c.id === t.compId)!.tier > 1,
+    )!;
+    return { player, top, lower };
+  }
+
+  it("never offers a goal bonus to a keeper", () => {
+    const league = world();
+    const { player, top } = ctx(league, "GK");
+    const out = suggestedBonuses(player, top, league.competitions, 50, 10_000_000);
+    expect(out.map((b) => b.trigger)).not.toContain("goals");
+  });
+
+  it("does offer one to a striker", () => {
+    const league = world();
+    const { player, top } = ctx(league, "ST");
+    const out = suggestedBonuses(player, top, league.competitions, 50, 10_000_000);
+    const goals = out.find((b) => b.trigger === "goals");
+    expect(goals).toBeDefined();
+    expect(goals!.threshold!).toBeGreaterThanOrEqual(BONUS_SUGGESTION_MIN_GOALS);
+  });
+
+  it("offers Europe to a top-flight buyer and promotion to anyone below", () => {
+    const league = world();
+    const { player, top, lower } = ctx(league, "CM");
+    const t = suggestedBonuses(player, top, league.competitions, 50, 10_000_000).map((b) => b.trigger);
+    const l = suggestedBonuses(player, lower, league.competitions, 50, 10_000_000).map((b) => b.trigger);
+    expect(t).toContain("continental");
+    expect(t).not.toContain("promotion");
+    expect(l).toContain("promotion");
+    expect(l).not.toContain("continental");
+  });
+
+  it("asks more of a player who walks into the team than one who won't play", () => {
+    const league = world();
+    const { player, top } = ctx(league, "CM");
+    const walksIn = suggestedBonuses(player, top, league.competitions, player.ovr - 25, 10_000_000);
+    const fringe = suggestedBonuses(player, top, league.competitions, player.ovr + 25, 10_000_000);
+    const appsOf = (l: ReturnType<typeof suggestedBonuses>) =>
+      l.find((b) => b.trigger === "appearances")!.threshold!;
+    expect(appsOf(walksIn)).toBeGreaterThan(appsOf(fringe));
+  });
+
+  it("always offers an appearance bonus, and always with a threshold", () => {
+    const league = world();
+    for (const pos of ["GK", "CB", "CM", "ST"]) {
+      const { player, top } = ctx(league, pos);
+      const apps = suggestedBonuses(player, top, league.competitions, 50, 10_000_000)
+        .find((b) => b.trigger === "appearances");
+      expect(apps).toBeDefined();
+      expect(apps!.threshold).toBeGreaterThan(0);
+    }
+  });
+
+  it("prices a harder target as less likely — the anti-exploit property", () => {
+    const league = world();
+    const { player, top } = ctx(league, "ST");
+    const at = (t: number) =>
+      triggerProbability("goals", player, top, league.competitions, 50, 3, t);
+    // Strictly decreasing across the whole plausible range.
+    for (let t = 1; t < 25; t++) expect(at(t + 1)).toBeLessThanOrEqual(at(t));
+    expect(at(3)).toBeGreaterThan(at(20));
+
+    const apps = (t: number) =>
+      triggerProbability("appearances", player, top, league.competitions, 50, 3, t);
+    for (let t = 5; t < 38; t++) expect(apps(t + 1)).toBeLessThanOrEqual(apps(t));
+  });
+
+  it("charges more for an easier bonus of the same amount", () => {
+    const league = world();
+    const pid = league.teams[6].roster[0];
+    const obligorTid = league.teams[7].tid;
+    const easy = clauseCashDiscount(league, pid, obligorTid, 10_000_000, [
+      { kind: "bonus", trigger: "appearances", amount: 1_000_000, threshold: 8 },
+    ]);
+    const hard = clauseCashDiscount(league, pid, obligorTid, 10_000_000, [
+      { kind: "bonus", trigger: "appearances", amount: 1_000_000, threshold: 36 },
+    ]);
+    expect(easy).toBeGreaterThan(hard);
+  });
+});
+
+describe("bonusTriggered honours the clause's own threshold", () => {
+  it("uses the stored number, not the shipped default", () => {
+    const low = bonus({ trigger: "appearances", threshold: 8 }) as Extract<TransferClause, { kind: "bonus" }>;
+    const high = bonus({ trigger: "appearances", threshold: 36 }) as Extract<TransferClause, { kind: "bonus" }>;
+    const line = { appearances: 12, goals: 0 };
+    expect(bonusTriggered(low, line, false)).toBe(true);
+    expect(bonusTriggered(high, line, false)).toBe(false);
+  });
+
+  it("falls back to the default when a clause carries none", () => {
+    const c = bonus({ trigger: "goals" }) as Extract<TransferClause, { kind: "bonus" }>;
+    expect(bonusTriggered(c, { appearances: 30, goals: BONUS_GOAL_THRESHOLD }, false)).toBe(true);
+    expect(bonusTriggered(c, { appearances: 30, goals: BONUS_GOAL_THRESHOLD - 1 }, false)).toBe(false);
   });
 });
 

@@ -2,23 +2,34 @@ import { useMemo, useState } from "react";
 import { useLeague } from "../context/LeagueContext.js";
 import { currency } from "../format.js";
 import type { BonusTrigger, ProposedClause } from "../../core/transfers/clauses.js";
-import { clauseCashDiscount, clausesAreValid } from "../../core/transfers/clauses.js";
+import {
+  clauseCashDiscount, clausesAreValid, clauseSuggestions,
+} from "../../core/transfers/clauses.js";
 import {
   SELL_ON_MAX_SHARE, SELL_ON_CLAUSE_SEASONS,
   BONUS_CLAUSE_SEASONS, BONUS_MAX_TOTAL_FRACTION,
   BONUS_APPEARANCE_THRESHOLD, BONUS_GOAL_THRESHOLD,
 } from "../../core/constants.js";
 
-/** Player-facing wording for each add-on, in the order they're offered. */
-export const BONUS_LABELS: { trigger: BonusTrigger; label: string }[] = [
-  { trigger: "appearances", label: `he plays ${BONUS_APPEARANCE_THRESHOLD} league games in a season` },
-  { trigger: "goals", label: `he scores ${BONUS_GOAL_THRESHOLD} league goals in a season` },
-  { trigger: "continental", label: "they qualify for Europe" },
-  { trigger: "promotion", label: "they win promotion" },
-];
-
-export function bonusLabel(trigger: BonusTrigger): string {
-  return BONUS_LABELS.find((b) => b.trigger === trigger)?.label ?? trigger;
+/**
+ * Player-facing wording for one bonus.
+ *
+ * The two counting triggers take their number from the clause rather than from
+ * a constant, because the whole point is that it differs per player: this
+ * signing is offered 18 games and that one 31. The constants survive only as a
+ * fallback for a clause that somehow carries no threshold.
+ */
+export function bonusLabel(trigger: BonusTrigger, threshold?: number): string {
+  switch (trigger) {
+    case "appearances":
+      return `he plays ${threshold ?? BONUS_APPEARANCE_THRESHOLD} league games in a season`;
+    case "goals":
+      return `he scores ${threshold ?? BONUS_GOAL_THRESHOLD} league goals in a season`;
+    case "continental":
+      return "they qualify for Europe";
+    case "promotion":
+      return "they win promotion";
+  }
 }
 
 const SHARE_STEPS = [0, 0.1, 0.2, 0.3, 0.4].filter((s) => s <= SELL_ON_MAX_SHARE);
@@ -69,9 +80,14 @@ export function ClauseEditor({
     () => (league ? clauseCashDiscount(league, pid, obligorTid, fee, value) : 0),
     [league, pid, obligorTid, fee, value],
   );
+  // What is worth offering for THIS player at THIS club. Walks every squad in
+  // the world, so only while the panel is actually open.
+  const suggestions = useMemo(
+    () => (league && open ? clauseSuggestions(league, pid, obligorTid, fee) : []),
+    [league, open, pid, obligorTid, fee],
+  );
   const valid = clausesAreValid(value, fee);
   const cash = Math.max(0, fee - discount);
-  const defaultBonus = Math.max(100_000, Math.round(fee * 0.1));
 
   const setShare = (next: number) => {
     const rest = value.filter((c) => c.kind !== "sellOn");
@@ -80,11 +96,15 @@ export function ClauseEditor({
 
   const toggleBonus = (trigger: BonusTrigger) => {
     const has = bonuses.some((b) => b.trigger === trigger);
-    onChange(
-      has
-        ? value.filter((c) => !(c.kind === "bonus" && c.trigger === trigger))
-        : [...value, { kind: "bonus", trigger, amount: defaultBonus }],
-    );
+    if (has) {
+      onChange(value.filter((c) => !(c.kind === "bonus" && c.trigger === trigger)));
+      return;
+    }
+    // Threshold comes from the suggestion, never a constant: the label promises
+    // a number and the clause has to enforce that same one.
+    const s = suggestions.find((x) => x.trigger === trigger);
+    if (!s) return;
+    onChange([...value, { kind: "bonus", trigger, amount: s.amount, threshold: s.threshold }]);
   };
 
   const setBonusAmount = (trigger: BonusTrigger, amount: number) => {
@@ -139,7 +159,10 @@ export function ClauseEditor({
                 (paid once, if it happens within {BONUS_CLAUSE_SEASONS} seasons while he's still there)
               </span>
             </div>
-            {BONUS_LABELS.map(({ trigger, label }) => {
+            {suggestions.length === 0 && (
+              <div className="text-muted small">Nothing worth offering on this one.</div>
+            )}
+            {suggestions.map(({ trigger, threshold }) => {
               const existing = bonuses.find((b) => b.trigger === trigger);
               return (
                 <div key={trigger} className="d-flex align-items-center gap-2 mb-1">
@@ -153,7 +176,7 @@ export function ClauseEditor({
                       onChange={() => toggleBonus(trigger)}
                     />
                     <label className="form-check-label small" htmlFor={`bonus-${pid}-${trigger}`}>
-                      If {label}
+                      If {bonusLabel(trigger, existing?.threshold ?? threshold)}
                     </label>
                   </div>
                   {existing && (

@@ -2035,31 +2035,84 @@ export const BONUS_APPEARANCE_THRESHOLD = 25;
 export const BONUS_GOAL_THRESHOLD = 10;
 
 /**
- * Per-season base rate for each trigger before the player/club adjustment. The
- * two performance triggers are then scaled by how he rates against the man he
- * has to displace; the two team triggers ignore these and derive their rate
- * from the league's actual slot counts.
+ * Share of his club's league games a player takes, as a saturating curve on how
+ * far his ovr sits above the incumbent starter's, plus the spread around it.
+ *
+ * **Saturating, not a plain logistic, because that is what the data does.**
+ * Measured over 25,087 player-seasons at the club that bought them, share by
+ * ovr edge runs 0.336 / 0.398 / 0.497 / 0.766 / 0.680 / 0.725 across the
+ * buckets below -10, -10..-5, -5..0, 0..5, 5..10 and 10+. Being *much* better
+ * than the man you displace buys you very little over being somewhat better —
+ * there are only so many games — so an unbounded curve badly over-predicts the
+ * top end, which is where most signings sit (64% of those observations are in
+ * the 10+ bucket).
+ *
+ * The spread is measured rather than derived from a binomial, and is very wide
+ * (sd 12.7-15 games against a ~38 game season) because appearance records are
+ * closer to bimodal than to a bell: a player either holds a place or does not.
+ * A normal still under-states the lump at zero, so it over-predicts low
+ * thresholds; that residual is measured at the thresholds actually suggested,
+ * which is the only place the model is asked a question (see
+ * BONUS_SUGGESTION_TARGET_P).
  */
-export const BONUS_BASE_PROBABILITY: Record<string, number> = {
-  // Both calibrated against 24,394 real transfers (see the probe), not guessed,
-  // and it took two passes because the obvious calibration is subtly wrong.
-  //
-  // These are the rate for a player who is an EVEN match for the incumbent
-  // starter, since `triggerProbability` multiplies by a logistic centred there.
-  // Setting them to the measured population rate instead — 15.4% and 2.9% per
-  // season — reads correct and over-prices by ~1.4x, because clubs buy players
-  // who are BETTER than the man they displace: the population mean of that
-  // quality term is 1.42, not 1.0, so the quality gets counted twice. Measured
-  // ratios at the population rate were 0.754 and 0.695.
-  //
-  // A bonus that is over-priced is one the user should rationally never take,
-  // because the cash it costs him exceeds what it is worth, so this matters
-  // more than its size suggests.
-  appearances: 0.109,
-  goals: 0.020,
-  continental: 0,
-  promotion: 0,
+export const BONUS_APPEARANCE_SHARE_FLOOR = 0.32;
+export const BONUS_APPEARANCE_SHARE_CEILING = 0.76;
+export const BONUS_APPEARANCE_EDGE_CENTRE = -1;
+export const BONUS_APPEARANCE_SD_SHARE = 0.35;
+
+/**
+ * Goals per APPEARANCE by position, measured over 25,087 player-seasons, and
+ * how much being better than a replacement-level player lifts it.
+ *
+ * Scoring is a property of the position far more than of the player: a good
+ * centre-back does not become a goalscorer, he becomes a good centre-back. The
+ * spread across positions is a factor of 24 from centre-back to striker, which
+ * dwarfs anything ovr does within a position, so the ovr slope is deliberately
+ * gentle. Together with expected appearances these give the Poisson mean a goal
+ * target is priced off, which is what lets a 5-goal bonus and a 15-goal bonus
+ * cost different money.
+ *
+ * Real goal counts are over-dispersed relative to a Poisson (the same lump at
+ * zero that widens the appearance spread), so the tail is over-predicted at low
+ * thresholds and under-predicted at high ones. That is tolerable *only* because
+ * thresholds are suggested rather than typed: every one the game offers sits
+ * near BONUS_SUGGESTION_TARGET_P, in the middle of the distribution where the
+ * fit is good, and the probe checks it there. Letting a user name an arbitrary
+ * threshold would need a negative binomial first.
+ */
+export const BONUS_GOAL_RATE_BY_POS: Record<string, number> = {
+  GK: 0, CB: 0.023, FB: 0.037, DM: 0.075, CM: 0.156, AM: 0.279, W: 0.274, ST: 0.550,
 };
+export const BONUS_GOAL_OVR_SLOPE = 0.004;
+export const BONUS_GOAL_OVR_REFERENCE = 65;
+
+/**
+ * How likely a SUGGESTED bonus should be to pay out.
+ *
+ * This is what makes a suggestion differ per player without any per-position
+ * table: rather than offering everyone the same 25 games, the panel offers each
+ * player the threshold that lands nearest this probability, so a fringe man is
+ * suggested a low target and a first-choice player a demanding one. Both
+ * suggestions are equally ambitious, and the NUMBER differs because the players
+ * do.
+ *
+ * Set below a coin flip so a bonus reads as a stretch rather than a formality,
+ * which is also what keeps its price a sensible fraction of its amount.
+ */
+export const BONUS_SUGGESTION_TARGET_P = 0.35;
+
+/**
+ * Never suggest a goal bonus below this, however the arithmetic falls.
+ *
+ * Without it a centre-back gets offered "if he scores 1 league goal", which is
+ * priceable but silly. If the threshold that hits the target probability is
+ * under this, no goal bonus is suggested for him at all — which is how keepers
+ * and defenders drop off the menu without a hardcoded list of who may score.
+ */
+export const BONUS_SUGGESTION_MIN_GOALS = 3;
+
+/** What a suggested bonus is worth, as a share of the cash fee. */
+export const BONUS_SUGGESTED_FRACTION = 0.1;
 
 /**
  * How much of a modelled TEAM-trigger rate actually materialises.
@@ -2090,7 +2143,7 @@ export const BONUS_TEAM_TRIGGER_REALIZATION = 0.4;
  * how sharply "will he play" responds to how much better than the incumbent he
  * is. Large enough that a couple of rating points is not decisive.
  */
-export const BONUS_STARTER_OVR_SWING = 8;
+export const BONUS_STARTER_OVR_SWING = 5;
 
 /**
  * Timeline multiplier: how age fits the club's ambition. Win-now clubs (high

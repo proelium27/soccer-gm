@@ -7,6 +7,7 @@ import {
   tierOf, competitionTeamCount, competitionPromotionSpots, divisionAbove,
 } from "../competitions.js";
 import { cupSlotsForCompetition } from "../cup/qualification.js";
+import { SEASON_MATCHDAYS } from "../calendar.js";
 import { deriveLeagueContexts } from "../ai/clubContext.js";
 import {
   VALUATION_POTENTIAL_WEIGHT_PEAK_AGE, CUP_FORMATS, CONTINENTAL_ORDER,
@@ -14,7 +15,11 @@ import {
   SELL_ON_PRICING_HORIZON, SELL_ON_PROFIT_REALIZATION,
   BONUS_CLAUSE_SEASONS, BONUS_MAX_TOTAL_FRACTION,
   BONUS_APPEARANCE_THRESHOLD, BONUS_GOAL_THRESHOLD,
-  BONUS_BASE_PROBABILITY, BONUS_STARTER_OVR_SWING, BONUS_TEAM_TRIGGER_REALIZATION,
+  BONUS_STARTER_OVR_SWING, BONUS_TEAM_TRIGGER_REALIZATION,
+  BONUS_APPEARANCE_SHARE_FLOOR, BONUS_APPEARANCE_SHARE_CEILING,
+  BONUS_APPEARANCE_EDGE_CENTRE, BONUS_APPEARANCE_SD_SHARE,
+  BONUS_GOAL_RATE_BY_POS, BONUS_GOAL_OVR_SLOPE, BONUS_GOAL_OVR_REFERENCE,
+  BONUS_SUGGESTION_TARGET_P, BONUS_SUGGESTION_MIN_GOALS, BONUS_SUGGESTED_FRACTION,
 } from "../constants.js";
 
 /**
@@ -100,6 +105,17 @@ export interface BonusClause extends ClauseBase {
   trigger: BonusTrigger;
   /** Flat payout, obligor → beneficiary, once. */
   amount: number;
+  /**
+   * How many games or goals it takes, for the two counting triggers. Absent on
+   * the two team triggers, which have nothing to count.
+   *
+   * Stored per clause rather than read from a global constant, because a
+   * threshold that is the same for everyone is not a suggestion: 25 games is a
+   * routine season for a first-choice player and out of reach for a squad man.
+   * The pricing model responds to it (see `triggerProbability`), which it has
+   * to — a 5-goal bonus priced like a 15-goal one would be free money.
+   */
+  threshold?: number;
 }
 
 export type TransferClause = SellOnClause | BonusClause;
@@ -107,7 +123,7 @@ export type TransferClause = SellOnClause | BonusClause;
 /** A clause the user is proposing but has not yet agreed — no tids resolved yet. */
 export type ProposedClause =
   | { kind: "sellOn"; share: number }
-  | { kind: "bonus"; trigger: BonusTrigger; amount: number };
+  | { kind: "bonus"; trigger: BonusTrigger; amount: number; threshold?: number };
 
 /**
  * Project a player's transfer value `horizon` seasons out.
@@ -147,6 +163,105 @@ export function projectedValue(player: Player, season: number, horizon: number):
 }
 
 /**
+ * P(X >= k) for a normal with this mean and sd, with a continuity correction.
+ *
+ * Used for appearances, which are a count out of a fixed number of games. A
+ * normal is the right shape here rather than a binomial: real appearance
+ * records are far more spread out than repeated coin flips, because a player
+ * either holds a place or does not, so the sd is measured rather than derived
+ * from the mean (see BONUS_APPEARANCE_SD_SHARE).
+ */
+function normalAtLeast(k: number, mean: number, sd: number): number {
+  if (sd <= 0) return mean >= k ? 1 : 0;
+  const z = (k - 0.5 - mean) / sd;
+  // Abramowitz & Stegun 7.1.26 for the error function, which is plenty for a
+  // price quote and avoids pulling in a stats dependency.
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989422804014327 * Math.exp(-z * z / 2);
+  const upper = d * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937
+    + t * (-1.821255978 + t * 1.330274429))));
+  return z >= 0 ? upper : 1 - upper;
+}
+
+/** P(X >= k) for a Poisson with this mean. Goals in a season are near enough. */
+function poissonAtLeast(k: number, lambda: number): number {
+  if (k <= 0) return 1;
+  if (lambda <= 0) return 0;
+  // Sum the lower tail term by term; k is small (a goal target), so this is
+  // cheap and avoids the precision loss of a closed form.
+  let term = Math.exp(-lambda);
+  let cdf = term;
+  for (let i = 1; i < k; i++) {
+    term *= lambda / i;
+    cdf += term;
+  }
+  return Math.min(1, Math.max(0, 1 - cdf));
+}
+
+/**
+ * How much of his league season a player at this quality edge actually plays,
+ * as a share of the club's games.
+ *
+ * The one signal both counting triggers rest on. `starterOvr` is the weakest
+ * man the buyer's shape already fields in his position, so the edge is how much
+ * better he is than the player he has to displace; an unknown incumbent falls
+ * back to an even match.
+ */
+function appearanceShare(playerOvr: number, starterOvr: number | null): number {
+  const edge = starterOvr === null ? 0 : playerOvr - starterOvr;
+  const p = 1 / (1 + Math.exp(-(edge - BONUS_APPEARANCE_EDGE_CENTRE) / BONUS_STARTER_OVR_SWING));
+  const span = BONUS_APPEARANCE_SHARE_CEILING - BONUS_APPEARANCE_SHARE_FLOOR;
+  return Math.min(1, Math.max(0, BONUS_APPEARANCE_SHARE_FLOOR + span * p));
+}
+
+/** League games the club plays in a season: a double round robin of its division. */
+function leagueGames(obligor: StoredTeam, competitions: Competition[]): number {
+  const comp = competitions.find((c) => c.id === obligor.compId);
+  return comp ? 2 * (competitionTeamCount(comp) - 1) : SEASON_MATCHDAYS;
+}
+
+/**
+ * P(he makes `threshold` league appearances) in ONE season.
+ *
+ * Exported because the suggestion logic searches over thresholds with it, and
+ * because it is the thing the probe checks across a grid of thresholds rather
+ * than at one shipped value.
+ */
+export function appearanceProbability(
+  player: Player,
+  obligor: StoredTeam,
+  competitions: Competition[],
+  starterOvr: number | null,
+  threshold: number,
+): number {
+  const games = leagueGames(obligor, competitions);
+  const mean = games * appearanceShare(player.ovr, starterOvr);
+  return Math.min(1, Math.max(0, normalAtLeast(threshold, mean, games * BONUS_APPEARANCE_SD_SHARE)));
+}
+
+/**
+ * P(he scores `threshold` league goals) in ONE season.
+ *
+ * Goals are appearances times a scoring rate, and the rate is a property of the
+ * position far more than of the player: a good centre-back does not become a
+ * goalscorer. `BONUS_GOAL_RATE_BY_POS` carries the measured per-appearance
+ * rate, nudged by how far above a replacement-level player he is.
+ */
+export function goalProbability(
+  player: Player,
+  obligor: StoredTeam,
+  competitions: Competition[],
+  starterOvr: number | null,
+  threshold: number,
+): number {
+  const games = leagueGames(obligor, competitions);
+  const apps = games * appearanceShare(player.ovr, starterOvr);
+  const rate = (BONUS_GOAL_RATE_BY_POS[player.pos] ?? 0)
+    * (1 + BONUS_GOAL_OVR_SLOPE * (player.ovr - BONUS_GOAL_OVR_REFERENCE));
+  return poissonAtLeast(threshold, Math.max(0, apps * rate));
+}
+
+/**
  * How likely a bonus trigger is to fire before the clause expires, in [0, 1].
  *
  * These are coarse by design. The point is not to predict the season — it is
@@ -164,29 +279,23 @@ export function triggerProbability(
   competitions: Competition[],
   starterOvr: number | null,
   seasons: number,
+  /** Games or goals asked for. Ignored by the two team triggers. */
+  threshold?: number,
 ): number {
-  const base = BONUS_BASE_PROBABILITY[trigger];
   switch (trigger) {
     case "appearances":
     case "goals": {
-      // Both are really one question, will he play, so both key off the same
-      // signal: how he rates against the man he has to displace. `starterOvr` is
-      // ClubContext.posWeakestStarterOvr, the weakest player the club's shape
-      // actually fields in his position, which is the buy-side counterfactual
-      // the transfer AI already reasons with.
-      //
-      // A logistic on that gap, centred so an even match scores exactly the
-      // population base rate. A position the formation fields nobody in leaves
-      // `starterOvr` null and falls back to that same centre rather than to a
-      // different formula: the first version returned the per-season rate for
-      // the null case and the compounded one below for every other, which
-      // disagreed by more than a factor of two over the window.
-      const p = starterOvr === null
-        ? 0.5
-        : 1 / (1 + Math.exp(-(player.ovr - starterOvr) / BONUS_STARTER_OVR_SWING));
-      const perSeason = Math.min(1, base * 2 * p);
-      // Over `seasons` chances, at most one payout: P(at least one).
-      return 1 - (1 - perSeason) ** seasons;
+      const perSeason = trigger === "appearances"
+        ? appearanceProbability(
+            player, obligor, competitions, starterOvr,
+            threshold ?? BONUS_APPEARANCE_THRESHOLD,
+          )
+        : goalProbability(
+            player, obligor, competitions, starterOvr,
+            threshold ?? BONUS_GOAL_THRESHOLD,
+          );
+      // At most one payout across the window: P(at least one season clears it).
+      return 1 - (1 - Math.min(1, perSeason)) ** seasons;
     }
     case "continental":
     case "promotion": {
@@ -225,6 +334,91 @@ export function triggerProbability(
   }
 }
 
+/** One bonus the panel offers for this particular player and this particular buyer. */
+export interface BonusSuggestion {
+  trigger: BonusTrigger;
+  /** Games or goals asked for; absent on the two team triggers. */
+  threshold?: number;
+  /** A starting amount the user can overwrite. */
+  amount: number;
+}
+
+/**
+ * The threshold nearest to `BONUS_SUGGESTION_TARGET_P` for this player.
+ *
+ * Searches the candidate range rather than solving, because the probability
+ * functions are not analytically invertible and the range is tiny. Returns null
+ * when nothing in range gets close, which is the honest answer for a bonus that
+ * would be either a formality or an impossibility.
+ */
+function thresholdNearestTarget(
+  candidates: number[],
+  probabilityAt: (t: number) => number,
+): number | null {
+  let best: number | null = null;
+  let bestGap = Infinity;
+  for (const t of candidates) {
+    const gap = Math.abs(probabilityAt(t) - BONUS_SUGGESTION_TARGET_P);
+    if (gap < bestGap) { bestGap = gap; best = t; }
+  }
+  return best;
+}
+
+/**
+ * What add-ons to offer for THIS player joining THIS club.
+ *
+ * The whole point is that a suggestion which is identical for everyone is not a
+ * suggestion. Two things vary, and neither needs a per-position table:
+ *
+ * - **Which bonuses appear.** A trigger that cannot fire is not offered, and
+ *   that falls out of the pricing rather than from a hardcoded list of who is
+ *   allowed to score: a keeper's chance of reaching any sensible goal tally is
+ *   nil, so no goal bonus is suggested for him. Promotion is dropped for a
+ *   top-flight buyer and a continental place for anyone below it, for the same
+ *   structural reason `triggerProbability` scores them zero.
+ * - **The threshold.** Each is set where the payout is about as likely as any
+ *   other suggestion (`BONUS_SUGGESTION_TARGET_P`), so a fringe signing is
+ *   offered a modest games target and a first-choice one a demanding target.
+ *   Equal ambition; different numbers.
+ *
+ * The amount is a flat share of the fee, because how much to stake is the one
+ * part that is genuinely the user's call rather than a property of the player.
+ */
+export function suggestedBonuses(
+  player: Player,
+  obligor: StoredTeam,
+  competitions: Competition[],
+  starterOvr: number | null,
+  baseFee: number,
+): BonusSuggestion[] {
+  const amount = Math.max(100_000, Math.round(baseFee * BONUS_SUGGESTED_FRACTION));
+  const out: BonusSuggestion[] = [];
+
+  const games = leagueGames(obligor, competitions);
+  const appTarget = thresholdNearestTarget(
+    // Whole games from a token handful up to the full season.
+    Array.from({ length: games - 4 }, (_, i) => i + 5),
+    (t) => appearanceProbability(player, obligor, competitions, starterOvr, t),
+  );
+  if (appTarget !== null) out.push({ trigger: "appearances", threshold: appTarget, amount });
+
+  const goalTarget = thresholdNearestTarget(
+    Array.from({ length: 40 }, (_, i) => i + 1),
+    (t) => goalProbability(player, obligor, competitions, starterOvr, t),
+  );
+  // Below the floor it stops being a goalscoring bonus and starts being a bet
+  // that a defender gets on the end of a corner once.
+  if (goalTarget !== null && goalTarget >= BONUS_SUGGESTION_MIN_GOALS) {
+    out.push({ trigger: "goals", threshold: goalTarget, amount });
+  }
+
+  const tier = tierOf(competitions, obligor.compId);
+  if (tier === 1) out.push({ trigger: "continental", amount });
+  else out.push({ trigger: "promotion", amount });
+
+  return out;
+}
+
 /**
  * The expected value of a proposed clause, in money.
  *
@@ -261,6 +455,7 @@ export function clauseValue(
   }
   const p = triggerProbability(
     clause.trigger, player, obligor, competitions, starterOvr, BONUS_CLAUSE_SEASONS,
+    clause.threshold,
   );
   return Math.max(0, Math.round(p * clause.amount));
 }
@@ -334,7 +529,7 @@ export function materializeClauses(
           kind: "bonus" as const,
           pid, beneficiaryTid, obligorTid, season,
           expires: season + BONUS_CLAUSE_SEASONS,
-          trigger: c.trigger, amount: c.amount,
+          trigger: c.trigger, amount: c.amount, threshold: c.threshold,
         },
   );
 }
@@ -379,6 +574,30 @@ export function clauseCashDiscount(
 }
 
 /** Money a clause has come due for, ready to be moved between two budgets. */
+/**
+ * The add-ons worth offering for this deal, from the live league.
+ *
+ * The read-side companion to `clauseCashDiscount`, and it derives the same club
+ * contexts, so a caller should ask for it only when the panel is actually open.
+ * Returns an empty list rather than throwing when the pid or tid has gone stale.
+ */
+export function clauseSuggestions(
+  league: LeagueStore,
+  pid: number,
+  obligorTid: number,
+  baseFee: number,
+): BonusSuggestion[] {
+  const player = league.players.find((p) => p.pid === pid);
+  const obligor = league.teams.find((t) => t.tid === obligorTid);
+  if (!player || !obligor || !(baseFee > 0)) return [];
+  const contexts = deriveLeagueContexts({
+    teams: league.teams, players: league.players, season: league.season,
+    played: league.played, competitions: league.competitions,
+  });
+  const starterOvr = contexts.get(obligorTid)?.posWeakestStarterOvr[player.pos] ?? null;
+  return suggestedBonuses(player, obligor, league.competitions, starterOvr, baseFee);
+}
+
 export interface ClausePayout {
   /** The club that owes it. */
   fromTid: number;
@@ -454,9 +673,9 @@ export function bonusTriggered(
 ): boolean {
   switch (clause.trigger) {
     case "appearances":
-      return (stats?.appearances ?? 0) >= BONUS_APPEARANCE_THRESHOLD;
+      return (stats?.appearances ?? 0) >= (clause.threshold ?? BONUS_APPEARANCE_THRESHOLD);
     case "goals":
-      return (stats?.goals ?? 0) >= BONUS_GOAL_THRESHOLD;
+      return (stats?.goals ?? 0) >= (clause.threshold ?? BONUS_GOAL_THRESHOLD);
     case "continental":
     case "promotion":
       return teamAchieved;
