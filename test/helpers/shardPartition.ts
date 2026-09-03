@@ -132,6 +132,14 @@
  * For a single new file, time it in a full local run and add an entry whenever
  * it runs longer than ~30s.
  */
+// Five entries were re-weighted on 2026-09-03 after a test-audit pass removed
+// repeated setup: offseason 835 -> 625 and offseasonSquads 642 -> 385 (identical
+// seeds no longer re-simmed per test), generate 149 -> 55 (seven world
+// generations -> one), ai/transferMarket 108 -> 45 (nine market passes -> four),
+// and db/leagueDb dropped out entirely (an England-only world put it under the
+// ~30s threshold for being listed). Scaled by the change in expensive
+// operations rather than pasted from a local run, per the warning above about
+// solo timings: being wrong here costs shard balance, never correctness.
 export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
   // The youth trial group and the scout directions beside it, both new on
   // this branch and both on the same basis as everything else here: taken
@@ -145,8 +153,8 @@ export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
   "test/core/offseasonRetirement.test.ts": 906,
   "test/core/scoutDirections.test.ts": 860,
   "test/core/internationalCampaign.test.ts": 845,
-  "test/core/offseason.test.ts": 835,
-  "test/core/offseasonSquads.test.ts": 642,
+  "test/core/offseason.test.ts": 625,
+  "test/core/offseasonSquads.test.ts": 385,
   "test/core/offseasonFinance.test.ts": 625,
   "test/core/internationalConfederationCups.test.ts": 542,
   "test/core/internationalEquivalence.test.ts": 530,
@@ -169,11 +177,10 @@ export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
   "test/core/simThrough.test.ts": 180,
   "test/core/positionChange.test.ts": 167,
   "test/core/transfers/inboundOffers.test.ts": 154,
-  "test/core/generate.test.ts": 149,
+  "test/core/generate.test.ts": 55,
   "test/core/autopilot.test.ts": 141,
   "test/core/nationalManager.test.ts": 114,
-  "test/core/ai/transferMarket.test.ts": 108,
-  "test/db/leagueDb.test.ts": 107,
+  "test/core/ai/transferMarket.test.ts": 45,
   "test/core/transfers/searchWorldPlayers.test.ts": 107,
   "test/core/careerSummary.test.ts": 69,
   "test/validation/m1-table-spread.test.ts": 65,

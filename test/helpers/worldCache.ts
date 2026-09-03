@@ -80,7 +80,13 @@ export function sourceHash(): string {
   return cachedSourceHash;
 }
 
-function defaultDir(): string {
+/**
+ * Where cached fixtures live, one subdirectory per source hash.
+ *
+ * Exported so `scripts/pruneWorldCache.ts` prunes the directory this actually
+ * writes to rather than recomputing the path and risking the two drifting.
+ */
+export function fixtureCacheDir(): string {
   return join(REPO_ROOT, "node_modules", ".cache", "soccer-gm-worlds");
 }
 
@@ -106,7 +112,7 @@ export function loadFixture<T>(
   const remembered = memo.get(key);
   if (remembered !== undefined) return JSON.parse(remembered) as T;
 
-  const dir = join(opts.dir ?? defaultDir(), hash);
+  const dir = join(opts.dir ?? fixtureCacheDir(), hash);
   const file = join(dir, `${name}.json`);
 
   try {

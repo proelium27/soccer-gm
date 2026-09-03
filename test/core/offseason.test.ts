@@ -16,7 +16,8 @@
 
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
-import { createLeagueState } from "../../src/core/leagueState.js";
+import { type LeagueStore } from "../../src/core/leagueState.js";
+import { makeLeague } from "../helpers/league.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { playFullSeason } from "../helpers/offseasonLeague.js";
 import { worldCompetitions, competitionTeamCount, promotionLinks } from "../../src/core/competitions.js";
@@ -26,10 +27,12 @@ import {
 
 describe("simOffseason", () => {
   it("is a no-op unless the league is in the offseason phase", () => {
-    const rng = mulberry32(1);
-    const league = createLeagueState(0, rng);
-    const result = simOffseason(league, rng);
-    expect(result).toBe(league);
+    // The cached fixture, not a fresh generation: simOffseason returns the
+    // league it was handed before drawing anything when the phase is wrong
+    // (offseason.ts's first statement), so the rng is never advanced and there
+    // is nothing here that needs a generation-advanced one.
+    const league = makeLeague(0, 1);
+    expect(simOffseason(league, mulberry32(1))).toBe(league);
   });
 
   it("advances the season, resets schedule/played, and returns to regular phase", () => {
@@ -82,10 +85,29 @@ describe("simOffseason", () => {
     );
   });
 
+  /**
+   * One seed-6 offseason, shared by the two cases that run the identical
+   * sequence -- mulberry32(6), playFullSeason, simOffseason -- and then only
+   * read the result. The sim is deterministic, so they were building the same
+   * league twice at roughly 55s each. Lazy, so running one by name still pays
+   * for one.
+   *
+   * Deliberately not extended to the other seed-6 test in this file ("swaps the
+   * number of clubs each league was set up for"): that one edits the
+   * competitions between the season and the offseason, so it is a genuinely
+   * different run and the threaded rng cannot be shared with it.
+   */
+  let seed6: LeagueStore | null = null;
+  const seed6Offseason = (): LeagueStore => {
+    if (!seed6) {
+      const rng = mulberry32(6);
+      seed6 = simOffseason(playFullSeason(rng), rng);
+    }
+    return seed6;
+  };
+
   it("swaps 3 up / 3 down between divisions and records pre-swap compsByTid", () => {
-    const rng = mulberry32(6);
-    const league = playFullSeason(rng);
-    const next = simOffseason(league, rng);
+    const next = seed6Offseason();
 
     const history = next.seasonHistory.at(-1)!;
     const d1Before = Object.values(history.compsByTid).filter((d) => d === 0).length;
@@ -157,9 +179,7 @@ describe("simOffseason", () => {
   });
 
   it("no duplicate pids exist across the player pool after offseason", () => {
-    const rng = mulberry32(6);
-    const league = playFullSeason(rng);
-    const next = simOffseason(league, rng);
+    const next = seed6Offseason();
     const pids = next.players.map((p) => p.pid);
     expect(new Set(pids).size).toBe(pids.length);
   });
