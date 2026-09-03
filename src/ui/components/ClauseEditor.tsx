@@ -56,6 +56,9 @@ export function ClauseEditor({
 }) {
   const { league } = useLeague();
   const [open, setOpen] = useState(false);
+  // Defensive: a non-finite fee would carry NaN through every figure below and
+  // render as "NaN" rather than as a disabled control.
+  const fee = Number.isFinite(baseFee) && baseFee > 0 ? baseFee : 0;
 
   const share = value.find((c) => c.kind === "sellOn")?.share ?? 0;
   const bonuses = value.filter((c): c is Extract<ProposedClause, { kind: "bonus" }> => c.kind === "bonus");
@@ -63,12 +66,12 @@ export function ClauseEditor({
   // Walks every squad in the world, so only when something is actually
   // proposed and only when the inputs move.
   const discount = useMemo(
-    () => (league ? clauseCashDiscount(league, pid, obligorTid, baseFee, value) : 0),
-    [league, pid, obligorTid, baseFee, value],
+    () => (league ? clauseCashDiscount(league, pid, obligorTid, fee, value) : 0),
+    [league, pid, obligorTid, fee, value],
   );
-  const valid = clausesAreValid(value, baseFee);
-  const cash = Math.max(0, baseFee - discount);
-  const defaultBonus = Math.max(100_000, Math.round(baseFee * 0.1));
+  const valid = clausesAreValid(value, fee);
+  const cash = Math.max(0, fee - discount);
+  const defaultBonus = Math.max(100_000, Math.round(fee * 0.1));
 
   const setShare = (next: number) => {
     const rest = value.filter((c) => c.kind !== "sellOn");
@@ -185,7 +188,7 @@ export function ClauseEditor({
                 Cash {direction === "selling" ? "you get" : "you pay"} becomes{" "}
                 <strong>{currency.format(cash)}</strong>{" "}
                 <span className="text-muted">
-                  ({currency.format(discount)} of the {currency.format(baseFee)} moved into add-ons)
+                  ({currency.format(discount)} of the {currency.format(fee)} moved into add-ons)
                 </span>
               </span>
             )}

@@ -157,7 +157,10 @@ function NegotiationControls({
       <ClauseEditor
         pid={pid}
         obligorTid={userTid}
-        baseFee={negotiation?.counter ?? draftValue}
+        // An empty box makes draftValue NaN, which would propagate through the
+        // pricing and render "NaN" in the panel. The button is already disabled
+        // in that state, so 0 just keeps the copy sane until something is typed.
+        baseFee={negotiation?.counter ?? (Number.isFinite(draftValue) ? draftValue : 0)}
         value={clauses}
         onChange={setClauses}
         disabled={disabled}
