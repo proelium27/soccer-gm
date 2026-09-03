@@ -5,25 +5,23 @@ import { POSITIONS } from "../players/types.js";
 import {
   SCOUTING_REGION_MAX, SCOUTING_REGION_SHARE, SCOUT_POSITION_MAX,
 } from "../constants.js";
-import { sanitizeScoutProfile, type ScoutProfile } from "./scoutProfile.js";
 
 /**
  * Everything the user has told his youth scouts, as one value.
  *
- * Grouped rather than passed around as three fields because they are set on one
+ * Grouped rather than passed around as two fields because they are set on one
  * panel, saved by one action and read at one point in the offseason — and
- * because the three genuinely differ in reach, which is easier to state once
- * than to rediscover at each call site. WHERE they look (`regions`) is a
- * post-hoc relabel of the whole trial group, since nationality is
- * rating-neutral and costs no draw. WHAT they look for (`positions`, `profile`)
- * can only shape the players the scouts themselves turn up, because both decide
- * how a player is generated and the rest of the group is generated on the
- * shared rng, where a different draw re-rolls every club after it.
+ * because the two genuinely differ in reach, which is easier to state once than
+ * to rediscover at each call site. WHERE they look (`regions`) is a post-hoc
+ * relabel of the whole trial group, since nationality is rating-neutral and
+ * costs no draw. WHICH POSITIONS they look for can only shape the players the
+ * scouts themselves turn up, because a position decides how a player is
+ * generated and the rest of the group is generated on the shared rng, where a
+ * different draw re-rolls every club after it.
  */
 export interface ScoutDirections {
   regions: string[];
   positions: Position[];
-  profile: ScoutProfile | null;
 }
 
 /**
@@ -126,11 +124,9 @@ export function sanitizeScoutPositions(
 export function scoutDirectionsOf(team: {
   scoutingRegions?: string[];
   scoutingPositions?: string[];
-  scoutingProfile?: string | null;
 } | undefined): ScoutDirections {
   return {
     regions: sanitizeScoutingRegions(team?.scoutingRegions),
     positions: sanitizeScoutPositions(team?.scoutingPositions),
-    profile: sanitizeScoutProfile(team?.scoutingProfile),
   };
 }

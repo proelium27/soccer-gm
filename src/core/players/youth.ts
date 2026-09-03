@@ -7,7 +7,6 @@ import {
   YOUTH_CONTRACT_LENGTH, ROSTER_COMPOSITION,
   YOUTH_BASE_FLOOR, YOUTH_BASE_SOFTNESS, SCOUT_POSITION_SHARE,
 } from "../constants.js";
-import type { ScoutProfile } from "../scouting/scoutProfile.js";
 
 /**
  * The strength base a club's youth are generated around: its academy anchor
@@ -124,27 +123,26 @@ export function generateYouthIntake(
    */
   countOverride?: number,
   /**
-   * The user's scout directions, and ONLY ever for his trial group's scouted
-   * extras. Neither changes the rng draw COUNT — a position is still one draw
-   * off a cumulative table, and the profile is arithmetic on ratings already
-   * rolled — but both change which player comes out, and a position changes
-   * which tier row his ratings are rolled from, whose draw counts differ. So
-   * passing these anywhere that runs on the shared stream re-rolls the world.
+   * The positions the user's scouts were told to look for, and ONLY ever for
+   * his trial group's scouted extras. It does not change the rng draw COUNT — a
+   * position is still one draw off a cumulative table — but it changes which
+   * player comes out, because the position decides which tier row his ratings
+   * are rolled from, and those draw counts differ. So passing this anywhere
+   * that runs on the shared stream re-rolls the world.
    */
-  directions?: { positions?: readonly Position[]; profile?: ScoutProfile | null },
+  directions?: { positions?: readonly Position[] },
 ): { players: Player[]; nextPid: number } {
   const count = countOverride ?? YOUTH_INTAKE_MIN
     + Math.floor(rng() * (YOUTH_INTAKE_MAX - YOUTH_INTAKE_MIN + 1));
   const base = youthGenerationBase(academyBase);
   const cdf = targetedPositionCdf(directions?.positions ?? []);
-  const profile = directions?.profile ?? null;
 
   const players: Player[] = [];
   let pid = nextPid;
   for (let i = 0; i < count; i++) {
     const pos = weightedPosition(rng(), cdf);
     const p = generatePlayer(
-      rng, pos, base, pid++, YOUTH_AGE, season, genSeed, homeCountry, nationalities, profile,
+      rng, pos, base, pid++, YOUTH_AGE, season, genSeed, homeCountry, nationalities,
     );
     p.contract.expiresSeason = season + YOUTH_CONTRACT_LENGTH;
     players.push(p);

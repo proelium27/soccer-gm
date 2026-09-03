@@ -20,9 +20,6 @@ import { PICKABLE_NATIONALITIES } from "../components/NationalityEditor.js";
 import { POSITIONS } from "../../core/players/types.js";
 import type { Position } from "../../core/players/types.js";
 import { scoutDirectionsOf } from "../../core/scouting/scoutDirections.js";
-import {
-  SCOUT_PROFILES, SCOUT_PROFILE_LABELS, type ScoutProfile,
-} from "../../core/scouting/scoutProfile.js";
 
 type IntakeSortKey = "name" | "pos" | "ovr" | "pot";
 
@@ -189,18 +186,18 @@ function Chip(
 }
 
 /**
- * What the user has told his youth scouts: where to look, which positions to
- * look for, and what kind of player.
+ * What the user has told his youth scouts: where to look, and which positions
+ * to look for.
  *
- * **The three deliberately do not reach equally far, and the copy says so
- * rather than glossing it.** Where they look is re-drawn over the whole trial
- * group, because nationality decides a name and an international eligibility
- * and nothing else, so it can be relabelled after the fact for free. What they
- * look for can only shape the players the scouts themselves turn up: a position
- * and a profile both change how a player is generated, and the rest of the
- * group is generated on the shared rng, where a different draw would re-roll
- * every club in the world. Saying "most of the group" is honest and costs
- * nothing; implying all of it would be a promise the numbers don't keep.
+ * **The two deliberately do not reach equally far, and the copy says so rather
+ * than glossing it.** Where they look is re-drawn over the whole trial group,
+ * because nationality decides a name and an international eligibility and
+ * nothing else, so it can be relabelled after the fact for free. Which
+ * positions they look for can only shape the players the scouts themselves turn
+ * up: a position changes how a player is generated, and the rest of the group
+ * is generated on the shared rng, where a different draw would re-roll every
+ * club in the world. Saying "most of the group" is honest and costs nothing;
+ * implying all of it would be a promise the numbers don't keep.
  */
 function ScoutDirections() {
   const { league, setScoutDirectionsAction, simming } = useLeague();
@@ -208,13 +205,12 @@ function ScoutDirections() {
   if (!league) return null;
 
   const team = league.teams.find((t) => t.tid === league.meta.userTid);
-  const { regions, positions, profile } = scoutDirectionsOf(team);
+  const { regions, positions } = scoutDirectionsOf(team);
   const countriesFull = regions.length >= SCOUTING_REGION_MAX;
   const positionsFull = positions.length >= SCOUT_POSITION_MAX;
 
   const setRegions = (next: string[]) => void setScoutDirectionsAction({ regions: next });
   const setPositions = (next: Position[]) => void setScoutDirectionsAction({ positions: next });
-  const setProfile = (next: ScoutProfile | null) => void setScoutDirectionsAction({ profile: next });
 
   return (
     <div className="card mb-3">
@@ -261,7 +257,7 @@ function ScoutDirections() {
           )}
         </div>
 
-        <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <div className="d-flex flex-wrap align-items-center gap-2">
           <span className="text-muted" style={{ minWidth: "6.5rem" }}>Positions</span>
           {positions.length === 0 && (
             <span className="text-muted fst-italic">whoever they turn up</span>
@@ -290,35 +286,6 @@ function ScoutDirections() {
           )}
         </div>
 
-        <div className="d-flex flex-wrap align-items-center gap-2">
-          <span className="text-muted" style={{ minWidth: "6.5rem" }}>Type of player</span>
-          <div className="btn-group btn-group-sm" role="group" aria-label="Scouting profile">
-            <button
-              type="button"
-              className={`btn ${profile === null ? "btn-primary" : "btn-outline-secondary"}`}
-              disabled={simming}
-              onClick={() => setProfile(null)}
-            >
-              No preference
-            </button>
-            {SCOUT_PROFILES.map((key) => (
-              <button
-                key={key}
-                type="button"
-                className={`btn ${profile === key ? "btn-primary" : "btn-outline-secondary"}`}
-                disabled={simming}
-                title={SCOUT_PROFILE_LABELS[key].blurb}
-                onClick={() => setProfile(key)}
-              >
-                {SCOUT_PROFILE_LABELS[key].name}
-              </button>
-            ))}
-          </div>
-          {profile && (
-            <span className="text-muted small">{SCOUT_PROFILE_LABELS[profile].blurb}</span>
-          )}
-        </div>
-
         {open && (
           <div className="text-muted small mt-3" style={{ maxWidth: "48rem" }}>
             <p className="mb-2">
@@ -332,17 +299,11 @@ function ScoutDirections() {
               country can pick him, and nothing else. That's the point of it, though, if you
               fancy stocking a national team with players you brought through yourself.
             </p>
-            <p className="mb-2">
-              <strong>Positions</strong> (up to {SCOUT_POSITION_MAX}) and{" "}
-              <strong>type of player</strong> shape the ones your scouts actually go out and
-              find, which is most of the group but not all of it — the handful your academy
-              turned up on its own arrive as they are. Neither is a filter: ask for strikers and
-              you'll get a lot of strikers, not eleven of them.
-            </p>
             <p className="mb-0">
-              A type of player is a trade, not an upgrade. Ask for athletes and they come in
-              quicker and stronger, and give back exactly as much everywhere else — the players
-              you get are worth the same as the ones you'd have got, they just play differently.
+              <strong>Positions</strong> (up to {SCOUT_POSITION_MAX}) shape the ones your scouts
+              actually go out and find, which is most of the group but not all of it — the handful
+              your academy turned up on its own arrive as they are. It isn't a filter: ask for
+              strikers and you'll get a lot of strikers, not eleven of them.
             </p>
           </div>
         )}

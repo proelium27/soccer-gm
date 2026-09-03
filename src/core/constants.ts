@@ -4408,21 +4408,3 @@ export const SCOUTING_REGION_SHARE = 0.6;
 export const SCOUT_POSITION_MAX = 3;
 export const SCOUT_POSITION_SHARE = 0.75;
 
-/**
- * How far a scouting profile tilts a scouted player's ratings, in raw rating
- * points added to each of the profile's own skills.
- *
- * **Zero-sum against that position's OVR weights, so it changes the KIND of
- * player and never the quality of one** (`applyProfileTilt`): whatever is added
- * to the profile's skills is taken back off the rest in exact proportion to
- * what OVR pays for them. That is the same device `POSITION_OVR_CALIBRATION`
- * uses to shift positions without moving the world mean, and it is what lets
- * this ship without a dynasty audit — a lever that cannot move OVR cannot move
- * wages, valuation, the ladder or the solvency column.
- *
- * 8 is sized to be legible on the ratings tooltip (a physical striker really is
- * visibly quicker than a technical one) while staying small enough that the
- * compensating side rarely reaches the rating floor on a weak academy, where
- * the tilt is scaled down to whatever headroom exists rather than clamping.
- */
-export const SCOUT_PROFILE_TILT = 8;

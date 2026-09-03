@@ -12,7 +12,6 @@ import {
 } from "../constants.js";
 import { seasonSalaryForOvr } from "../contracts.js";
 import { emptyCareerSummary } from "./careerSummary.js";
-import { applyProfileTilt, type ScoutProfile } from "../scouting/scoutProfile.js";
 
 const clampRating = (x: number): number =>
   Math.round(Math.max(RATING_MIN, Math.min(RATING_MAX, x)));
@@ -45,17 +44,6 @@ export function generatePlayer(
   genSeed = 0,
   homeCountry?: string,
   nationalities?: NationalityWeights | null,
-  /**
-   * What the user's scouts were told to look for, tilting the rolled ratings
-   * toward that kind of player. Consumes NO rng draw — it is arithmetic on the
-   * ratings already rolled — so passing one cannot shift the stream, and it is
-   * applied here rather than by the caller so that ovr, potential, the wage,
-   * the peak and the opening `hist` snapshot are all derived from the ratings
-   * the player actually ends up with. See applyProfileTilt: the tilt is
-   * zero-sum against this position's OVR weights, so it changes the kind of
-   * player and never how good he is.
-   */
-  profile?: ScoutProfile | null,
 ): Player {
   const tiers = GEN_OFFSETS[pos];
   const spread = POSITION_RATING_SPREAD[pos];
@@ -66,10 +54,6 @@ export function generatePlayer(
 
   const [loH, hiH] = HEIGHT_RANGES[pos];
   const heightCm = Math.round(loH + rng() * (hiH - loH));
-  // After the height draw, not before it: the tilt needs the height to balance
-  // itself against the OVR it produces, and moving the draw would shift the
-  // shared rng stream for every player in the world.
-  if (profile) applyProfileTilt(ratings, pos, heightCm, profile);
 
   const ovr = computeOvr(pos, ratings, heightCm);
   const potential = estimatePotential(rng, ratings, ovr, age, pos, heightCm, pid);

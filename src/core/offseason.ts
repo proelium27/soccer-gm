@@ -722,14 +722,14 @@ export function simOffseasonReporting(
         nextSeason, nextPid, hashInts(league.lid, nextSeason, YOUTH_TRIAL_STREAM),
         comp.country, competitionNationalities(comp),
         extras,
-        // What the scouts were told to look for reaches ONLY these extras, and
-        // only because they are drawn on the trial stream. The user's ordinary
-        // intake above came off the shared `rng`, where a position decides
-        // which tier row the ratings are rolled from and `rollRating` spends
-        // one draw for an ABS tier against two for every other — so a keeper
-        // costs 23 rating draws and an outfielder 27. Steering that draw would
-        // shift the shared stream and re-roll every club generated after his.
-        { positions: directions.positions, profile: directions.profile },
+        // The positions reach ONLY these extras, and only because they are
+        // drawn on the trial stream. The user's ordinary intake above came off
+        // the shared `rng`, where a position decides which tier row the ratings
+        // are rolled from and `rollRating` spends one draw for an ABS tier
+        // against two for every other — so a keeper costs 23 rating draws and
+        // an outfielder 27. Steering that draw would shift the shared stream
+        // and re-roll every club generated after his.
+        { positions: directions.positions },
       );
       nextPid = afterExtras;
       userYouth = [...userYouth, ...extraYouth];

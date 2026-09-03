@@ -6,14 +6,13 @@ import { makeLeague } from "../helpers/league.js";
 import {
   SCOUTING_REGION_MAX, SCOUT_POSITION_MAX,
 } from "../../src/core/constants.js";
-import { SCOUT_PROFILE_LABELS } from "../../src/core/scouting/scoutProfile.js";
 import type { LeagueStore } from "../../src/core/leagueState.js";
 
 /**
  * Render harness for the Youth Intake page's Scout directions panel.
  *
  * There is no DOM test env here, so this covers what the core tests can't: that
- * the panel renders in each of its states without throwing, and that the three
+ * the panel renders in each of its states without throwing, and that both
  * rows show what the user actually picked. Every value it draws comes off
  * persisted `StoredTeam` fields that a save can carry from an older build or a
  * hand edit, so the states worth pinning are the empty one, the filled one and
@@ -40,7 +39,6 @@ const { YouthIntake } = await import("../../src/ui/pages/YouthIntake.js");
 function withDirections(d: {
   scoutingRegions?: string[];
   scoutingPositions?: string[];
-  scoutingProfile?: string | null;
 }): LeagueStore {
   const league = makeLeague(0, 5);
   return {
@@ -59,20 +57,14 @@ function render(league: LeagueStore): string {
 }
 
 describe("Scout directions panel", () => {
-  it("renders all three rows with nothing set", () => {
+  it("renders both rows with nothing set", () => {
     const html = render(withDirections({}));
     expect(html).toContain("Scout directions");
     expect(html).toContain("Countries");
     expect(html).toContain("Positions");
-    expect(html).toContain("Type of player");
     // The empty states read as a default rather than as a missing value.
     expect(html).toContain("anywhere close to home");
     expect(html).toContain("whoever they turn up");
-    // Every profile is offered, and none is selected.
-    for (const { name } of Object.values(SCOUT_PROFILE_LABELS)) {
-      expect(html).toContain(name);
-    }
-    expect(html).toContain("No preference");
   });
 
   it("shows what has been picked, and stops offering more at the caps", () => {
@@ -84,10 +76,8 @@ describe("Scout directions panel", () => {
     const html = render(withDirections({
       scoutingRegions: regions,
       scoutingPositions: positions,
-      scoutingProfile: "physical",
     }));
     for (const c of regions) expect(html).toContain(c);
-    expect(html).toContain(SCOUT_PROFILE_LABELS.physical.blurb);
     // At the cap the "add another" pickers are gone, so the cap is visible
     // rather than enforced only on click.
     expect(html).not.toContain("Add a country...");
@@ -96,16 +86,13 @@ describe("Scout directions panel", () => {
 
   it("survives stored junk instead of rendering it", () => {
     // An unrecognised entry would otherwise take a share of the draw that went
-    // nowhere, and a bogus profile would light up no button at all.
+    // nowhere, weakening every real target beside it.
     const html = render(withDirections({
       scoutingRegions: ["Atlantis", "Brazil"],
       scoutingPositions: ["Striker", "ST"],
-      scoutingProfile: "pacey",
     }));
     expect(html).toContain("Brazil");
     expect(html).not.toContain("Atlantis");
     expect(html).not.toContain("Striker");
-    // Falls back to no preference rather than to a dead selection.
-    expect(html).toContain("No preference");
   });
 });

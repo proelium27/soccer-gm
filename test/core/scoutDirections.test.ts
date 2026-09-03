@@ -6,15 +6,8 @@ import { simOffseason } from "../../src/core/offseason.js";
 import {
   sanitizeScoutingRegions, sanitizeScoutPositions, scoutedNationalityWeights,
 } from "../../src/core/scouting/scoutDirections.js";
-import {
-  applyProfileTilt, sanitizeScoutProfile, SCOUT_PROFILES, SCOUT_PROFILE_SKILLS,
-  type ScoutProfile,
-} from "../../src/core/scouting/scoutProfile.js";
 import { pickNationality } from "../../src/core/players/nationalities.js";
-import { generatePlayer } from "../../src/core/players/generate.js";
-import { computeOvr } from "../../src/core/players/ovr.js";
-import { POSITIONS, type Position } from "../../src/core/players/types.js";
-import { OVR_WEIGHTS } from "../../src/core/players/templates.js";
+import { type Position } from "../../src/core/players/types.js";
 import {
   SCOUTING_REGION_MAX, SCOUTING_REGION_SHARE, SCOUT_POSITION_MAX,
 } from "../../src/core/constants.js";
@@ -90,7 +83,6 @@ describe("scout directions through a real offseason", () => {
   interface Directions {
     regions?: string[];
     positions?: Position[];
-    profile?: ScoutProfile | null;
   }
   interface Intake {
     nationalities: string[];
@@ -106,7 +98,7 @@ describe("scout directions through a real offseason", () => {
   const cache = new Map<string, Intake>();
 
   function intake(d: Directions): Intake {
-    const key = JSON.stringify([d.regions ?? [], d.positions ?? [], d.profile ?? null]);
+    const key = JSON.stringify([d.regions ?? [], d.positions ?? []]);
     const hit = cache.get(key);
     if (hit) return hit;
     const built = buildIntake(d);
@@ -124,7 +116,6 @@ describe("scout directions through a real offseason", () => {
           ...t,
           scoutingRegions: d.regions ?? [],
           scoutingPositions: d.positions ?? [],
-          scoutingProfile: d.profile ?? null,
         }
         : t)),
     };
@@ -187,20 +178,16 @@ describe("scout directions through a real offseason", () => {
     expect(share(scouted)).toBeLessThan(1);
   });
 
-  it("changes nobody else in the world, whatever the scouts were told", () => {
+  it("changes nobody else in the world when positions are targeted", () => {
     // The containment claim above covers countries, which are a post-hoc
-    // relabel. Positions and the profile are the harder case: both change how a
-    // player is GENERATED, and a position changes which tier row his ratings
-    // are rolled from, whose draw counts differ (a keeper costs 23 rating draws
-    // against an outfielder's 27). They are safe only because they reach the
-    // extras alone, which are drawn on the trial stream — so this is the test
-    // that would fail if that ever stopped being true.
+    // relabel. Positions are the harder case: a position changes how a player
+    // is GENERATED, and specifically which tier row his ratings are rolled
+    // from, whose draw counts differ (a keeper costs 23 rating draws against an
+    // outfielder's 27). It is safe only because it reaches the extras alone,
+    // which are drawn on the trial stream — so this is the test that would fail
+    // if that ever stopped being true.
     const plain = intake({});
-    const directed = intake({
-      regions: ["Brazil"],
-      positions: ["GK", "ST"],
-      profile: "physical",
-    });
+    const directed = intake({ regions: ["Brazil"], positions: ["GK", "ST"] });
     const trial = new Set(
       directed.league.teams.find((t) => t.tid === directed.league.meta.userTid)!.youthTrialists ?? [],
     );
@@ -241,95 +228,3 @@ describe("sanitizeScoutPositions", () => {
   });
 });
 
-describe("sanitizeScoutProfile", () => {
-  it("keeps a real profile and rejects everything else", () => {
-    expect(sanitizeScoutProfile("physical")).toBe("physical");
-    expect(sanitizeScoutProfile("pacey")).toBeNull();
-    expect(sanitizeScoutProfile(undefined)).toBeNull();
-    expect(sanitizeScoutProfile(3)).toBeNull();
-  });
-});
-
-describe("applyProfileTilt", () => {
-  /**
-   * The invariant the whole feature rests on, checked at every position for
-   * every profile across the full range of academy strengths: a scouting
-   * profile changes the KIND of player and never how good he is. If this ever
-   * fails, the profile has become a balance lever — it would move wages (cubic
-   * in ovr), valuation and team rating — and would need a dynasty audit it has
-   * deliberately not been given.
-   */
-  it("never moves OVR, at any position, profile or academy strength", () => {
-    for (const pos of POSITIONS) {
-      for (const profile of SCOUT_PROFILES) {
-        // base 1 is a third-division academy on the softplus floor, where the
-        // paying side has almost no headroom; 60 is a big-four club.
-        for (const base of [1, 5, 15, 30, 45, 60]) {
-          const rng = mulberry32(base * 100 + POSITIONS.indexOf(pos));
-          for (let i = 0; i < 12; i++) {
-            const p = generatePlayer(rng, pos, base, 1000 + i, 16, 5);
-            const tilted = { ...p.ratings };
-            applyProfileTilt(tilted, pos, p.heightCm, profile);
-            expect(computeOvr(pos, tilted, p.heightCm)).toBe(p.ovr);
-          }
-        }
-      }
-    }
-  });
-
-  it("leaves every rating a whole number", () => {
-    // clampRating rounds at generation and in progression, so fractional
-    // ratings are not a thing this codebase has — and the compensating side of
-    // the trade is fractional before it is settled.
-    const rng = mulberry32(11);
-    for (const pos of POSITIONS) {
-      const p = generatePlayer(rng, pos, 40, 2000, 16, 5);
-      const tilted = { ...p.ratings };
-      applyProfileTilt(tilted, pos, p.heightCm, "technical");
-      for (const v of Object.values(tilted)) expect(Number.isInteger(v)).toBe(true);
-    }
-  });
-
-  it("actually moves the profile's skills up, and pays for them", () => {
-    // A neutral no-op would pass the OVR invariant above perfectly, so this is
-    // what stops the whole thing quietly becoming one.
-    const rng = mulberry32(7);
-    let moved = 0;
-    for (const pos of POSITIONS) {
-      const p = generatePlayer(rng, pos, 45, 3000 + POSITIONS.indexOf(pos), 16, 5);
-      const tilted = { ...p.ratings };
-      applyProfileTilt(tilted, pos, p.heightCm, "physical");
-
-      const weighted = (k: string) => (OVR_WEIGHTS[pos] as Record<string, number>)[k] ?? 0;
-      const wantedHere = SCOUT_PROFILE_SKILLS.physical.filter((k) => weighted(k) > 0);
-      // Every position weights at least one skill of every shipped profile —
-      // that is the rule the three profiles were chosen by.
-      expect(wantedHere.length).toBeGreaterThan(0);
-
-      const up = wantedHere.filter((k) => tilted[k] > p.ratings[k]).length;
-      const paid = (Object.keys(tilted) as (keyof typeof tilted)[])
-        .filter((k) => weighted(k) > 0 && !wantedHere.includes(k))
-        .filter((k) => tilted[k] < p.ratings[k]).length;
-      if (up > 0) {
-        moved++;
-        expect(paid).toBeGreaterThan(0);
-      }
-    }
-    // Not "every position" — a rating already at the ceiling or the floor
-    // legitimately leaves nothing to trade, and reverting is the honest answer.
-    expect(moved).toBeGreaterThan(POSITIONS.length / 2);
-  });
-
-  it("takes nothing from a skill the position isn't judged on", () => {
-    // Paying out of an unweighted skill would be a free OVR rise, which is the
-    // exploit the weighting exists to prevent.
-    const rng = mulberry32(13);
-    const p = generatePlayer(rng, "ST", 45, 4000, 16, 5);
-    const tilted = { ...p.ratings };
-    applyProfileTilt(tilted, "ST", p.heightCm, "physical");
-    const unweighted = (Object.keys(tilted) as (keyof typeof tilted)[])
-      .filter((k) => ((OVR_WEIGHTS.ST as Record<string, number>)[k] ?? 0) === 0);
-    expect(unweighted.length).toBeGreaterThan(0);
-    for (const k of unweighted) expect(tilted[k]).toBe(p.ratings[k]);
-  });
-});

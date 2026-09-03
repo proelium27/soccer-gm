@@ -383,7 +383,6 @@ function migrateFields(league: LeagueStore): LeagueStore {
         // precisely what an empty set of directions still produces.
         scoutingRegions: t.scoutingRegions ?? [],
         scoutingPositions: t.scoutingPositions ?? [],
-        scoutingProfile: t.scoutingProfile ?? null,
         compId,
         divisionConvergence: t.divisionConvergence ?? null,
         transferListed: t.transferListed ?? [],

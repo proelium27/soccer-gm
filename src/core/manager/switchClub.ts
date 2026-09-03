@@ -88,15 +88,15 @@ function handToAI(team: StoredTeam, players: Player[]): StoredTeam {
     // exists directly above.
     youthTrialists: [],
     youthTrialSignings: 0,
-    // The three scout directions — scoutingRegions, scoutingPositions and
-    // scoutingProfile — are deliberately NOT cleared, though all three are just
-    // as user-only. Nothing reads them except the intake pass, and only for the
-    // club matching userTid — so on a club the AI now runs they are inert
-    // rather than zombies, which is the whole distinction: a stranded trial
-    // group makes real players invisible to every signing path, a stranded
-    // setting makes nothing happen at all. Left in place so a manager who comes
-    // back to a club finds the scouting network he set up, and all three are
-    // visible and editable on Youth Intake either way.
+    // Both scout directions — scoutingRegions and scoutingPositions — are
+    // deliberately NOT cleared, though both are just as user-only. Nothing
+    // reads them except the intake pass, and only for the club matching
+    // userTid — so on a club the AI now runs they are inert rather than
+    // zombies, which is the whole distinction: a stranded trial group makes
+    // real players invisible to every signing path, a stranded setting makes
+    // nothing happen at all. Left in place so a manager who comes back to a
+    // club finds the scouting network he set up, and both are visible and
+    // editable on Youth Intake either way.
     scoutingObserved: {},
     nextScoutingSpend: team.scoutingSpend,
     formation: roster.length > 0 ? chooseBestFormation(roster) : team.formation,

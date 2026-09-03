@@ -474,7 +474,7 @@ export function Manual() {
             <li><strong>Incoming Offers</strong>. AI clubs bidding for <em>your</em> players. Accept, reject, or counter to push the fee upward.</li>
             <li><strong>Loans</strong>. List your own players for a fixed-length loan, look over AI clubs' incoming loan offers, and keep track of who's currently out on loan.</li>
             <li><strong>Finance</strong>. Budget, the full wage-bill table, a projected (or final) season settlement, your transfer history, and a league-wide money table.</li>
-            <li><strong>Youth Intake</strong>. This year's crop from your academy, on trial. Offer a contract to a few of them; the rest leave. Also where you set your scout directions &mdash; which countries they look in, which positions they look for, and what kind of player.</li>
+            <li><strong>Youth Intake</strong>. This year's crop from your academy, on trial. Offer a contract to a few of them; the rest leave. Also where you set your scout directions &mdash; which countries your scouts look in, and which positions they look for.</li>
             <li><strong>Free Agents</strong>. Every other unsigned player, sign straight to your senior team. The default view shows the best across every position but caps how many of any one position it lists, so a spot that always has lots of free agents (defensive and attacking mids only get two roster spots per club, so their good extras spill into free agency more often) can't crowd out the rest. Pick a position from the dropdown to see that position's full list.</li>
             <li><strong>Academy</strong>. Your club's youth-academy holding pool: extend, release, or promote to the senior team.</li>
             <li><strong>Box Score</strong>. Per-match detail, in three parts. The scoreboard at the top names the competition and matchday and starts the Man of the Match, the highest-rated player among those who actually played. Under it, a head-to-head strip compares the two sides on possession, shots, shots on target, xG, corners and fouls. Then a full-width stat table per club (xG, passes completed/attempted, crosses and fouls, goals against and xG against on the goalkeeper's row, and a 0&ndash;10 match rating for everyone who appeared), grouped into attacking, keeping, defending, passing and discipline blocks. The play-by-play at the bottom runs down a timeline with one club on each side, showing goals, cards, substitutions, penalties and injuries by default; switch it to "Every event" to add every shot and corner too.</li>
@@ -2238,8 +2238,8 @@ export function Manual() {
             scouting money now buys you something beyond a clearer view of a player's ceiling.
           </p>
           <p>
-            The Youth Intake page also carries your <strong>scout directions</strong>: three things
-            you can tell your scouts before they go out. All of it takes effect at your next intake,
+            The Youth Intake page also carries your <strong>scout directions</strong>: two things
+            you can tell your scouts before they go out. Both take effect at your next intake,
             not the group already on your desk.
           </p>
           <p>
@@ -2258,20 +2258,11 @@ export function Manual() {
             year would cost you more than it gave you.
           </p>
           <p>
-            <strong>Type of player</strong> &mdash; athletes, ball players, or readers of the game.
-            This one is a trade rather than an upgrade, and it's worth understanding properly. Ask
-            for athletes and the players you get are quicker, stronger and fitter, and give back
-            exactly as much in the parts of their game you didn't ask for. They are worth the same
-            as the players you'd have got without asking; they just play differently. So it's a way
-            of building a squad with a particular character, or of feeding a formation that leans
-            on one thing, and it is not a way of getting better players.
-          </p>
-          <p>
-            One honest note on the last two. Your own academy turns up a handful of kids each summer
-            on its own, and those arrive as they are &mdash; positions and type of player shape the
-            ones your <em>scouts</em> go out and find, which is most of the group but not all of it.
-            Countries are the exception and cover everyone, because that only changes where a player
-            is from rather than what kind of player he is.
+            One honest note on positions. Your own academy turns up a handful of kids each summer
+            on its own, and those arrive as they are &mdash; positions shape the ones your{" "}
+            <em>scouts</em> go out and find, which is most of the group but not all of it.
+            Countries are the exception and cover everyone, because that only changes where a
+            player is from rather than what kind of player he is.
           </p>
           <p>
             Unsigned players of any age, youngsters included, live on the <strong>Free Agents</strong>{" "}

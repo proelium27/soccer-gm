@@ -5,7 +5,6 @@ import { generateClubIdentities } from "./clubNames.js";
 import type { FormationId } from "../lineup/formations.js";
 import { chooseBestFormation } from "../lineup/formations.js";
 import type { Player, Position } from "../players/types.js";
-import type { ScoutProfile } from "../scouting/scoutProfile.js";
 import {
   HYPE_INITIAL, SCOUTING_SPEND_DEFAULT, difficultyProfile, type Difficulty,
 } from "../constants.js";
@@ -796,19 +795,6 @@ export interface StoredTeam {
    * **User's club only.** Optional; `migrate.ts` backfills `[]`.
    */
   scoutingPositions?: Position[];
-  /**
-   * What the user has told his youth scouts to look for in a player —
-   * athletes, ball players, readers of the game — or absent for no preference.
-   *
-   * Tilts a scouted prospect's ratings toward that profile and takes the cost
-   * back out of the rest, weighted so his OVR is exactly unchanged
-   * (`applyProfileTilt`). So it decides the KIND of player the academy turns
-   * up and never how good he is, which is what keeps it clear of wages,
-   * valuation and every balance gate.
-   *
-   * **User's club only.** Optional; `migrate.ts` backfills `null`.
-   */
-  scoutingProfile?: ScoutProfile | null;
   /** Funds available to spend on wages, transfers, and scouting. */
   budget: number;
   /** Fame/popularity, 0-100; drives a damped ticket/jersey revenue channel. */
@@ -994,7 +980,6 @@ export function assignIdentities(
       youthTrialSignings: 0,
       scoutingRegions: [],
       scoutingPositions: [],
-      scoutingProfile: null,
       budget,
       hype: HYPE_INITIAL,
       scoutingSpend: clampScoutingSpend(SCOUTING_SPEND_DEFAULT, budget),

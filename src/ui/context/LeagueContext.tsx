@@ -78,9 +78,9 @@ interface LeagueContextValue {
   /** Sign one of this year's youth trialists into the academy. */
   signTrialistAction: (pid: number) => Promise<void>;
   /**
-   * Set what the youth scouts have been told — countries, positions, the kind
-   * of player — as a partial, so a panel can change one without restating the
-   * other two. See ScoutDirections.
+   * Set what the youth scouts have been told — countries and positions — as a
+   * partial, so a panel can change one without restating the other. See
+   * ScoutDirections.
    */
   setScoutDirectionsAction: (next: Partial<ScoutDirections>) => Promise<void>;
   promoteFromAcademyAction: (pid: number) => Promise<void>;
@@ -658,25 +658,16 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     const clean = scoutDirectionsOf({
       scoutingRegions: next.regions ?? current.regions,
       scoutingPositions: next.positions ?? current.positions,
-      // `profile` is nullable, so `??` would swallow a deliberate clear —
-      // "no preference" is a real choice and has to survive the merge.
-      scoutingProfile: "profile" in next ? next.profile : current.profile,
     });
     const sameList = (a: readonly string[], b: readonly string[]) =>
       a.length === b.length && a.every((x, i) => x === b[i]);
     // Every mutate writes the whole save, so a no-op change must not.
     if (sameList(current.regions, clean.regions)
-      && sameList(current.positions, clean.positions)
-      && current.profile === clean.profile) return null;
+      && sameList(current.positions, clean.positions)) return null;
     return {
       ...l,
       teams: l.teams.map((t) => (t.tid === l.meta.userTid
-        ? {
-          ...t,
-          scoutingRegions: clean.regions,
-          scoutingPositions: clean.positions,
-          scoutingProfile: clean.profile,
-        }
+        ? { ...t, scoutingRegions: clean.regions, scoutingPositions: clean.positions }
         : t)),
     };
   }), [mutate]);
