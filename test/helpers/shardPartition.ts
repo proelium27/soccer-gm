@@ -132,14 +132,18 @@
  * For a single new file, time it in a full local run and add an entry whenever
  * it runs longer than ~30s.
  */
-// Five entries were re-weighted on 2026-09-03 after a test-audit pass removed
-// repeated setup: offseason 835 -> 625 and offseasonSquads 642 -> 385 (identical
-// seeds no longer re-simmed per test), generate 149 -> 55 (seven world
-// generations -> one), ai/transferMarket 108 -> 45 (nine market passes -> four),
-// and db/leagueDb dropped out entirely (an England-only world put it under the
-// ~30s threshold for being listed). Scaled by the change in expensive
-// operations rather than pasted from a local run, per the warning above about
-// solo timings: being wrong here costs shard balance, never correctness.
+// Six entries were re-weighted on 2026-09-03, after a test-audit pass removed
+// repeated setup. offseason 835 -> 625 and offseasonSquads 642 -> 385 (identical
+// seeds are no longer re-simmed per test); generate 149 -> 55 (seven world
+// generations -> one); ai/transferMarket 108 -> 45 (nine market passes -> four);
+// internationalPlayerRecord 455 -> 60 (its four-season chain moved to
+// internationalCampaign, which already ran the identical one -- measured at 47s
+// for the file afterwards); and db/leagueDb dropped out of the table entirely,
+// an England-only world putting it under the ~30s threshold for being listed.
+//
+// Scaled by the change in expensive operations rather than pasted from a local
+// run, per the warning above about solo timings: being wrong here costs shard
+// balance, never correctness.
 export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
   // The youth trial group and the scout directions beside it, both new on
   // this branch and both on the same basis as everything else here: taken
@@ -159,7 +163,7 @@ export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
   "test/core/internationalConfederationCups.test.ts": 542,
   "test/core/internationalEquivalence.test.ts": 530,
   "test/core/cupIntegration.test.ts": 495,
-  "test/core/internationalPlayerRecord.test.ts": 455,
+  "test/core/internationalPlayerRecord.test.ts": 60,
   "test/validation/m4-multiseason-integrity.test.ts": 442,
   "test/core/worldIntegration.test.ts": 428,
   "test/validation/m3-top-scorer.test.ts": 424,
