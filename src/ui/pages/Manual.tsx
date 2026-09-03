@@ -1988,13 +1988,21 @@ export function Manual() {
             </li>
             <li>
               <strong>Bonuses</strong>, paid once each if the thing happens within{" "}
-              <strong>3 seasons</strong> while he's still at that club. You can attach one for him
-              playing <strong>25</strong> league games in a season, one for <strong>10</strong>{" "}
-              league goals in a season, one for his club qualifying for Europe, and one for his club
-              winning promotion. Together they can't come to more than <strong>half</strong> the
-              cash fee.
+              <strong>3 seasons</strong> while he's still at that club. Up to four: league
+              appearances in a season, league goals in a season, his club qualifying for Europe, and
+              his club winning promotion. Together they can't come to more than{" "}
+              <strong>half</strong> the cash fee.
             </li>
           </ul>
+          <p>
+            <strong>The bonuses on offer are picked for the player.</strong> You won't be offered a
+            goals bonus for a goalkeeper, or a promotion bonus when the club buying him is already in
+            the top flight, because neither could ever pay. And the target moves with the player: a
+            squad man might be offered a bonus at 14 league games where a first-choice signing gets
+            one at 31. They're set so every bonus you're offered is about equally likely to pay,
+            which is what makes the number itself worth reading. You can change the money, but not
+            the target.
+          </p>
           <p>
             <strong>The one thing to understand: add-ons are not extra money.</strong> The other club
             has a number in its head for the whole deal, and anything you put into add-ons comes

@@ -20,6 +20,7 @@ import {
   BONUS_APPEARANCE_EDGE_CENTRE, BONUS_APPEARANCE_SD_SHARE,
   BONUS_GOAL_RATE_BY_POS, BONUS_GOAL_OVR_SLOPE, BONUS_GOAL_OVR_REFERENCE,
   BONUS_SUGGESTION_TARGET_P, BONUS_SUGGESTION_MIN_GOALS, BONUS_SUGGESTED_FRACTION,
+  BONUS_EXPECTED_SEASONS_AT_CLUB,
 } from "../constants.js";
 
 /**
@@ -294,8 +295,12 @@ export function triggerProbability(
             player, obligor, competitions, starterOvr,
             threshold ?? BONUS_GOAL_THRESHOLD,
           );
-      // At most one payout across the window: P(at least one season clears it).
-      return 1 - (1 - Math.min(1, perSeason)) ** seasons;
+      // At most one payout, over the seasons he is REALISTICALLY still there —
+      // which is about one of the three the clause runs for, not three. A bonus
+      // dies when he leaves, so the window length is an upper bound on the
+      // number of chances rather than the number itself.
+      const chances = Math.min(seasons, BONUS_EXPECTED_SEASONS_AT_CLUB);
+      return 1 - (1 - Math.min(1, perSeason)) ** chances;
     }
     case "continental":
     case "promotion": {

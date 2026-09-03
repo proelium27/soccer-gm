@@ -2023,6 +2023,24 @@ export const SELL_ON_PROFIT_REALIZATION = 0.55;
 export const BONUS_CLAUSE_SEASONS = 3;
 
 /**
+ * How many of those seasons a bought player is actually still at the club.
+ *
+ * **Measured 1.03, against a window of 3**, over 25,087 player-seasons spread
+ * across 24,394 transfers — most players simply do not stay. A bonus dies when
+ * he leaves, so the number of chances it really gets is this, not the window
+ * length, and pricing it over three full seasons over-states every counting
+ * trigger by roughly double: measured 0.512 and 0.426 for appearances and goals
+ * before this existed.
+ *
+ * The two TEAM triggers deliberately do not use it. Their per-season rate is
+ * `slots / size`, which is crude in its own right, and
+ * `BONUS_TEAM_TRIGGER_REALIZATION` was fit on top of the full window — so it is
+ * already absorbing both effects at once and measures correctly there (0.919
+ * and 0.980). Splitting them apart would need that constant re-fit for no gain.
+ */
+export const BONUS_EXPECTED_SEASONS_AT_CLUB = 1.03;
+
+/**
  * Total bonus money as a fraction of the cash fee. Caps how far the up-front
  * price can be discounted, which keeps a deliberately coarse pricing model from
  * being leaned on harder than it deserves — and keeps a transfer a transfer
@@ -2131,10 +2149,17 @@ export const BONUS_SUGGESTED_FRACTION = 0.1;
  * number is what identifies the cause as the shared one, tenure, rather than
  * anything specific to either trigger.
  *
- * The two PERFORMANCE triggers deliberately take no such factor: their
- * `BONUS_BASE_PROBABILITY` entries were derived straight from the realized
- * window rate, so attrition is already inside them. Applying this to those as
- * well would count it twice.
+ * The two PERFORMANCE triggers take their own tenure correction instead, via
+ * `BONUS_EXPECTED_SEASONS_AT_CLUB`, because their per-season model is a good one
+ * and needs only that. This factor is doing two jobs at once for the team
+ * triggers — tenure AND the crudeness of slots-over-size — which is why it is
+ * bigger than tenure alone would explain, and why the two are not shared.
+ *
+ * Worth knowing how this went wrong once: an earlier version exempted the
+ * performance triggers on the grounds that their base rates already had
+ * attrition baked in, which was true of the model at the time and stopped being
+ * true when that model was replaced wholesale. The justification outlived its
+ * premise, and the probe caught it as a 2x over-price.
  */
 export const BONUS_TEAM_TRIGGER_REALIZATION = 0.4;
 
