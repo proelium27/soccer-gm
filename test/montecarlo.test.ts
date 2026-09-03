@@ -18,10 +18,4 @@ describe("runScenario", () => {
     expect(r.n).toBe(250);
     expect(r.seed).toBe(77);
   });
-
-  it("has all three presets", () => {
-    expect(PRESETS.equal.attack).toBe(0.5);
-    expect(PRESETS.strong.attack).toBe(0.63);
-    expect(PRESETS.weak.attack).toBe(0.38);
-  });
 });

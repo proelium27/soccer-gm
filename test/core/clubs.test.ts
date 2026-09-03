@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
-import { generateLeague, generateWorld } from "../../src/core/league/generate.js";
+import { generateLeague } from "../../src/core/league/generate.js";
+import { makeLeague } from "../helpers/league.js";
 import { CLUBS, assignIdentities } from "../../src/core/teams/clubs.js";
 import { englandCompetitions } from "../../src/core/competitions.js";
 
@@ -28,8 +29,11 @@ describe("CLUBS", () => {
     // "tids 40-79"/"tids 80-119" comments in clubs.ts) — this proves they
     // still agree, so a future reorder of either file fails loudly here
     // instead of silently zipping a mismatched name/colors onto a team.
-    const world = generateWorld(mulberry32(1));
-    const worldTids = world.teams.map((t) => t.tid).sort((a, b) => a - b);
+    // The cached fixture rather than a fresh generateWorld: makeLeague runs the
+    // same generator, and its cache key is a content hash of all of src/core, so
+    // a change to either clubs.ts or the tid layout rebuilds the world this
+    // reads. Same guard, ~15s cheaper.
+    const worldTids = makeLeague(0, 1).teams.map((t) => t.tid).sort((a, b) => a - b);
     expect(worldTids).toEqual(CLUBS.map((_, i) => i));
   });
 });

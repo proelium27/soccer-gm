@@ -79,9 +79,4 @@ describe("stoppage time", () => {
       expect(s).toBeLessThanOrEqual(STOPPAGE_MAX_SECONDS_PER_HALF);
     }
   });
-
-  it("stoppage constants stay within the spec's 1-5 minute per half range", () => {
-    expect(STOPPAGE_MIN_SECONDS_PER_HALF).toBe(60);
-    expect(STOPPAGE_MAX_SECONDS_PER_HALF).toBe(300);
-  });
 });

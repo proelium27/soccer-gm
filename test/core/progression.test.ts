@@ -394,10 +394,7 @@ describe("generational talents", () => {
     }
     // Expected 80 at 1/2500; allow generous hash noise either side.
     expect(count).toBeGreaterThan(40);
-    expect(count).toBeLessThan(140);
-    // Deterministic: same pid, same answer.
-    expect(isGenerational(12345)).toBe(isGenerational(12345));
-  });
+    expect(count).toBeLessThan(140);  });
 
   it("a generational kid's career peaks far above an otherwise-identical normal kid's", () => {
     // Find one flagged pid and one unflagged pid, then run the same

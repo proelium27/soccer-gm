@@ -178,16 +178,29 @@ describe("enforceDivisionCeilings", () => {
     expect(transfers.some((t) => t.pid === star.pid)).toBe(false);
   });
 
-  it("is deterministic for the same inputs", () => {
+  it("leaves the arrays it was handed untouched", () => {
+    // Replaces a determinism test that could not fail: enforceDivisionCeilings
+    // draws no rng at all (no rng argument, no Math.random, no hashInts), so
+    // calling it twice with identical arguments was comparing a pure function's
+    // output to itself. Non-mutation is the property actually worth guarding
+    // here — the sweep rewrites rosters, and the split-player-storage dirty
+    // diff (see test/db/playerIdentity.test.ts) detects a changed player by
+    // object identity, so an in-place edit here would be silently never saved.
     const league = makeLeague(USER_TID, 1);
     const d2Team = league.teams.find((t) => t.compId === 1 && t.tid !== USER_TID)!;
     const target = league.players.find((p) => d2Team.roster.includes(p.pid))!;
     const star = { ...target, ovr: 88 };
     const players = league.players.map((p) => (p.pid === target.pid ? star : p));
 
-    const a = enforceDivisionCeilings(league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions);
-    const b = enforceDivisionCeilings(league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions);
-    expect(a.teams).toEqual(b.teams);
+    const teamsBefore = JSON.parse(JSON.stringify(league.teams));
+    const playersBefore = JSON.parse(JSON.stringify(players));
+
+    const out = enforceDivisionCeilings(league.teams, players, league.activeLoans, league.transfers, league.season, USER_TID, league.competitions);
+
+    // The sweep did something, or the assertions below are vacuous.
+    expect(out.teams).not.toEqual(league.teams);
+    expect(league.teams).toEqual(teamsBefore);
+    expect(players).toEqual(playersBefore);
   });
 
   // A three-division world, deliberately tiny (8 clubs a division) so the whole
