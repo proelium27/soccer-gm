@@ -219,7 +219,7 @@ export function ClauseEditor({
                 {direction === "selling" ? "You get" : "You pay"}{" "}
                 <strong>{currency.format(fee)}</strong> now
                 {bonusTotal > 0 && (
-                  <> , rising to <strong>{currency.format(fee + bonusTotal)}</strong> if the bonuses hit</>
+                  <>, rising to <strong>{currency.format(fee + bonusTotal)}</strong> if the bonuses hit</>
                 )}
                 {sellOn?.kind === "sellOn" && (
                   <>
@@ -229,8 +229,21 @@ export function ClauseEditor({
                 )}
                 .{" "}
                 <span className="text-muted">
-                  They're worth about {currency.format(addedValue)} to{" "}
-                  {direction === "selling" ? "them" : "the seller"}, on top of the cash.
+                  {addedValue > 0 ? (
+                    <>
+                      Worth about {currency.format(addedValue)} to{" "}
+                      {direction === "selling" ? "them" : "the seller"} on top of the cash, so that's
+                      how much further it moves the deal.
+                    </>
+                  ) : (
+                    // A sell-on on a player nobody expects to be resold at a profit really is
+                    // worth nothing, and printing a bare "$0" reads as a bug rather than as the
+                    // answer. Say what it means instead.
+                    <>
+                      {direction === "selling" ? "They're" : "The seller is"} not counting that for
+                      anything, so it won't help close the deal.
+                    </>
+                  )}
                 </span>
               </span>
             )}
