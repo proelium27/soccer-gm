@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, beforeAll, vi } from "vitest";
 import { createLeagueState } from "../../src/core/leagueState.js";
+import { englandCompetitions } from "../../src/core/competitions.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import {
   saveLeague,
@@ -16,49 +17,58 @@ import {
 } from "../../src/db/index.js";
 import type { ArchivedPlayer } from "../../src/core/players/archive.js";
 
-// Generating a world costs ~4s, and every test here wants an identical one, so
-// build it once and hand out copies (tests mutate what they are given).
+// An England-only world (two divisions, ~1,000 players) rather than the full
+// 36-competition one (~15,650). What this file asserts is structural — that a
+// save splits across its object stores, that the dirty diff writes only what
+// changed, that a tampered row survives a reload — and none of that is a
+// function of how many players there are: every length assertion below is
+// relative to `league.players.length`, never a literal.
+//
+// It is also the fix for the recurring timeout documented below. The costs here
+// scale with the player count, so each new country pushed this file closer to
+// its limit and the answer each time was a bigger budget. A world sized to what
+// the tests actually need takes the growth out of the loop instead. Same
+// argument, and the same englandCompetitions() world, that
+// test/core/simArchive.test.ts spells out for its own aged fixture.
+//
+// Built once and handed out as copies (tests mutate what they are given).
 let base: ReturnType<typeof createLeagueState> | null = null;
 function makeLeague() {
-  base ??= createLeagueState(3, mulberry32(42));
+  base ??= createLeagueState(3, mulberry32(42), 0, "normal", englandCompetitions());
   return structuredClone(base);
 }
 
-// Same problem as the `beforeAll` below, one level down: several tests here do
-// enough IDB work on a 10,000-player world to land near vitest's 5s default, and
-// a test that is *near* a timeout is a test that fails when the machine is
-// busy. Measured on CI, "splits a v3 row that still carries its career inline"
-// took 5347ms and "falls back to a full rewrite when another writer touched the
-// record" 5286ms — both against a 5000ms limit, so both failed, on main as well
-// as on branches (main run 32961751301 failed the first of them at 5348ms while
-// a second run of the identical commit passed). They are legitimately slow, not
-// hung, so the fix is to let them take the time rather than to make them do
-// less work.
+// History, because it explains why these numbers exist at all and why they are
+// now much smaller. On the full world several tests here did enough IDB work to
+// land near vitest's 5s default, and a test that is *near* a timeout is a test
+// that fails when the machine is busy: measured on CI, "splits a v3 row that
+// still carries its career inline" took 5347ms and "falls back to a full
+// rewrite when another writer touched the record" 5286ms, both against a 5000ms
+// limit, both failing on main as well as on branches (run 32961751301 failed
+// the first at 5348ms while a second run of the identical commit passed). The
+// budget went 30s → 60s → 120s as the world grew 8,000 → 10,000 → 12,000
+// players, with a standing note that it needed re-checking on every new country.
 //
-// Raised 30s → 60s → 120s as the world went 8,000 → 10,000 → 12,000 players
-// (2026-08-28). Every cost in this file scales with the player count, so **this
-// budget needs re-checking each time a country is added** — this and
-// retireeStoreCost.test.ts are the files where growing the world shows up as a
-// timeout rather than a wrong number.
+// Raising it was treating the symptom. The world is now England-only (see
+// makeLeague above), the whole file runs in ~2.6s locally, and the budget is
+// back to something that would actually catch a hang. Growing the world no
+// longer moves it, so the standing re-check is gone with it.
 //
-// hookTimeout matters as much as testTimeout and is easy to miss: the
-// beforeEach below clears three object stores, which on a 12,000-player world
-// blew vitest's 10s hook default and cascaded — a hook that times out mid-flight
-// skips its own cleanup, so every later test in the file fails with
+// hookTimeout still matters as much as testTimeout and is easy to miss: the
+// beforeEach below clears four object stores, and a hook that times out
+// mid-flight skips its own cleanup, so every later test in the file fails with
 // InvalidStateError on a dead transaction rather than with anything that points
 // at the real cause.
-vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
-// Pay for the world up front, with a timeout that reflects what it actually
-// costs. Generation is ~5.4s on the ten-country world (scripts/managerCostProbe.ts)
-// against vitest's 5s default, so leaving it to be paid lazily inside whichever
-// test ran first left no margin at all: fine in isolation, but under a full
-// parallel run that test timed out, and because it timed out mid-flight it
-// skipped the cleanup below, cascading into "expected 1 league, got 2" failures
-// in every test after it.
+// Pay for the world up front rather than lazily inside whichever test happens
+// to run first: a generation that times out mid-test skips the cleanup below
+// and cascades into "expected 1 league, got 2" failures in every test after it.
+// The England-only world generates in well under a second, so the budget here
+// is margin for a busy machine rather than a real expectation.
 beforeAll(() => {
   makeLeague();
-}, 180_000);
+}, 60_000);
 
 // Clear all leagues between tests so each test starts with an empty store.
 beforeEach(async () => {

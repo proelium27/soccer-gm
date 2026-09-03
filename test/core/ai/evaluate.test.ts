@@ -14,12 +14,22 @@ import {
 
 const SEASON = 10;
 
+/**
+ * One real generated player, loaded once for the whole file, used as the
+ * template every case spreads over — so every field is valid without this
+ * file having to hand-maintain a complete Player literal.
+ *
+ * Hoisted rather than loaded per call: samplePlayer is used ~20 times here and
+ * each call used to load the cached 626-club / 15,650-player world just to read
+ * `players[0]`. Nothing mutates the template (every case spreads it into a
+ * fresh object), so one load serves all of them.
+ */
+const BASE_PLAYER: Player = makeLeague(0, 1).players[0];
+
 /** A real generated player we can override fields on (so every field is valid). */
 function samplePlayer(overrides: Partial<Player> = {}): Player {
-  const league = makeLeague(0, 1);
-  const base = league.players[0];
   return {
-    ...base,
+    ...BASE_PLAYER,
     pos: "ST",
     born: SEASON - 26, // age 26 by default
     ovr: 70,

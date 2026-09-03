@@ -140,22 +140,26 @@ describe("difficulty", () => {
       );
     }
 
-    it("hides the same players from the AI market whatever the save's difficulty is", () => {
-      // THE invariant. The AI callers pass no bar, so difficulty must be
-      // incapable of reaching them — a leak here means the world economy moves
-      // with the user's difficulty, which is the one outcome ruled out.
-      const baseline = protectedStarPids(
+    it("shows the AI market exactly the normal-difficulty view", () => {
+      // THE invariant, stated as something that can actually fail. The AI
+      // callers pass no bar and so get DEFAULT_BAR; the claim worth pinning is
+      // that DEFAULT_BAR is the *normal* profile, i.e. an AI club on any save
+      // sees the world a normal-difficulty user does, and the harder levels
+      // withhold more from the user alone.
+      //
+      // The previous version of this test spread `{...played, difficulty: d}`
+      // through the loop and re-read `.teams` / `.players` / `.competitions`
+      // off it. protectedStarPids takes those discretely and never sees a
+      // league, so every iteration called the same function with identical
+      // arguments and compared the result to itself — it could not fail, in
+      // either direction, and would have stayed green through exactly the leak
+      // it was written to catch.
+      const aiFacing = protectedStarPids(
         lastCompletedSeason(played), played.teams, played.players, played.competitions,
         played.meta.userTid,
       );
-      for (const d of DIFFICULTY_ORDER) {
-        const withDifficulty = { ...played, difficulty: d };
-        const set = protectedStarPids(
-          lastCompletedSeason(withDifficulty), withDifficulty.teams, withDifficulty.players,
-          withDifficulty.competitions, withDifficulty.meta.userTid,
-        );
-        expect([...set].sort()).toEqual([...baseline].sort());
-      }
+      expect([...aiFacing].sort()).toEqual([...hiddenFrom(played, "normal")].sort());
+      expect(aiFacing.size).toBeGreaterThan(0);
     });
 
     it("hides strictly more from the user as the level gets harder", () => {
