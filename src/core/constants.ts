@@ -2041,17 +2041,49 @@ export const BONUS_GOAL_THRESHOLD = 10;
  * from the league's actual slot counts.
  */
 export const BONUS_BASE_PROBABILITY: Record<string, number> = {
-  // Both measured per season over 24,394 real transfers (see the probe), not
-  // guessed. The first pass had these at 0.35 and 0.2 — an appearance bonus
-  // priced at better than even money over three seasons against a real 39.5%,
-  // and a goal bonus at seven times its true rate. A bonus that is over-priced
-  // is a bonus the user should never take, because the cash it costs him is
-  // worth more than the bonus is.
-  appearances: 0.155,
-  goals: 0.029,
+  // Both calibrated against 24,394 real transfers (see the probe), not guessed,
+  // and it took two passes because the obvious calibration is subtly wrong.
+  //
+  // These are the rate for a player who is an EVEN match for the incumbent
+  // starter, since `triggerProbability` multiplies by a logistic centred there.
+  // Setting them to the measured population rate instead — 15.4% and 2.9% per
+  // season — reads correct and over-prices by ~1.4x, because clubs buy players
+  // who are BETTER than the man they displace: the population mean of that
+  // quality term is 1.42, not 1.0, so the quality gets counted twice. Measured
+  // ratios at the population rate were 0.754 and 0.695.
+  //
+  // A bonus that is over-priced is one the user should rationally never take,
+  // because the cash it costs him exceeds what it is worth, so this matters
+  // more than its size suggests.
+  appearances: 0.109,
+  goals: 0.020,
   continental: 0,
   promotion: 0,
 };
+
+/**
+ * How much of a modelled TEAM-trigger rate actually materialises.
+ *
+ * `triggerProbability` prices "they qualify for Europe" and "they win
+ * promotion" off the league's own slot counts over its own size, which is the
+ * right shape (it varies correctly by country and division) and is
+ * systematically too high, because it assumes the player is still there for
+ * every season of the window. He usually isn't, and the bonus dies when he
+ * leaves.
+ *
+ * Measured over 24,394 transfers: a continental bonus fires for **23.8%** of
+ * top-flight buyers within the window against a modelled **60.7%** (ratio
+ * 0.392), and a promotion bonus for **14.7%** of buyers below the top flight
+ * against a modelled **36.2%** (ratio 0.406). The two landing on the same
+ * number is what identifies the cause as the shared one, tenure, rather than
+ * anything specific to either trigger.
+ *
+ * The two PERFORMANCE triggers deliberately take no such factor: their
+ * `BONUS_BASE_PROBABILITY` entries were derived straight from the realized
+ * window rate, so attrition is already inside them. Applying this to those as
+ * well would count it twice.
+ */
+export const BONUS_TEAM_TRIGGER_REALIZATION = 0.4;
 
 /**
  * Ovr points of gap over the incumbent starter worth one logistic unit — i.e.

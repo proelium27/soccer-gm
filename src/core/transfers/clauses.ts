@@ -14,7 +14,7 @@ import {
   SELL_ON_PRICING_HORIZON, SELL_ON_PROFIT_REALIZATION,
   BONUS_CLAUSE_SEASONS, BONUS_MAX_TOTAL_FRACTION,
   BONUS_APPEARANCE_THRESHOLD, BONUS_GOAL_THRESHOLD,
-  BONUS_BASE_PROBABILITY, BONUS_STARTER_OVR_SWING,
+  BONUS_BASE_PROBABILITY, BONUS_STARTER_OVR_SWING, BONUS_TEAM_TRIGGER_REALIZATION,
 } from "../constants.js";
 
 /**
@@ -216,7 +216,11 @@ export function triggerProbability(
       // the honest limit of pricing a team achievement without simulating the
       // league. The probe measures how far off it lands.
       const perSeason = Math.min(1, slots / size);
-      return 1 - (1 - perSeason) ** seasons;
+      // Scaled by what a team trigger really delivers: the raw rate assumes he
+      // is still at the club for every season of the window, and he usually is
+      // not. See BONUS_TEAM_TRIGGER_REALIZATION for the measurement, and for why
+      // the two performance triggers above take no equivalent factor.
+      return (1 - (1 - perSeason) ** seasons) * BONUS_TEAM_TRIGGER_REALIZATION;
     }
   }
 }
