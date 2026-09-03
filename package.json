@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cluster": "bash scripts/testCluster.sh",
+    "test:clean-worlds": "tsx scripts/pruneWorldCache.ts",
     "cli": "tsx scripts/cli.ts",
     "typecheck": "tsc --noEmit",
     "audit:cluster": "bash scripts/auditCluster.sh"

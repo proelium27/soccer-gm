@@ -18,25 +18,44 @@ import { mulberry32 } from "../../src/engine/rng.js";
 import { isFreeAgentTid } from "../../src/core/transfers/negotiation.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
+import type { LeagueStore } from "../../src/core/leagueState.js";
 import { playFullSeason } from "../helpers/offseasonLeague.js";
 import {
   NUM_TEAMS,
 } from "../../src/core/constants.js";
 
 describe("simOffseason — youth intake and free agency", () => {
+  /**
+   * One seed-5 offseason, shared by the three youth-intake cases below.
+   *
+   * They opened with the identical three lines — mulberry32(5),
+   * playFullSeason, simOffseason — and the sim is deterministic, so all three
+   * were building byte-identical leagues at roughly 55s each to make three
+   * different assertions about the same result. Nothing here mutates it.
+   *
+   * Lazy rather than a beforeAll so that running one test by name still pays
+   * for exactly one season. This shares a run *within* a describe block; it
+   * does not touch the file split the header above describes, which is about
+   * CI shard parallelism and stays as it is.
+   */
+  let seed5: LeagueStore | null = null;
+  const youthIntakeOffseason = (): LeagueStore => {
+    if (!seed5) {
+      const rng = mulberry32(5);
+      seed5 = simOffseason(playFullSeason(rng), rng);
+    }
+    return seed5;
+  };
+
   it("youth intake adds new 16-year-olds to every club", () => {
-    const rng = mulberry32(5);
-    const league = playFullSeason(rng);
-    const next = simOffseason(league, rng);
+    const next = youthIntakeOffseason();
 
     const sixteenYearOlds = next.players.filter((p) => next.season - p.born === 16);
     expect(sixteenYearOlds.length).toBeGreaterThanOrEqual(NUM_TEAMS * 3);
   });
 
   it("routes the user's youth intake to the academy, not straight to the roster", () => {
-    const rng = mulberry32(5);
-    const league = playFullSeason(rng);
-    const next = simOffseason(league, rng);
+    const next = youthIntakeOffseason();
 
     const userTeam = next.teams.find((t) => t.tid === next.meta.userTid)!;
     const academyYouth = userTeam.academyRoster.filter((pid) => {
@@ -47,9 +66,7 @@ describe("simOffseason — youth intake and free agency", () => {
   });
 
   it("still lands AI clubs' youth intake straight on the senior roster", () => {
-    const rng = mulberry32(5);
-    const league = playFullSeason(rng);
-    const next = simOffseason(league, rng);
+    const next = youthIntakeOffseason();
 
     const aiTeams = next.teams.filter((t) => t.tid !== next.meta.userTid);
     for (const t of aiTeams) expect(t.academyRoster).toEqual([]);
