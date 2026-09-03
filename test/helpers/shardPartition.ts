@@ -31,7 +31,10 @@
  * `international.test.ts` (25 tests, ~1082s) were each split into several
  * files, and this packing is what spreads the pieces across shards. Without it
  * two halves of a split file can land straight back on the same shard.
- * `test/validation/m4-multiseason-integrity.test.ts` was the precedent.
+ * `test/validation/m4-multiseason-integrity.test.ts` was the precedent -- and
+ * has since been folded back in, once it turned out the two gates could share
+ * one five-season chain instead of simming one each, which is the case where
+ * splitting stops being worth anything.
  *
  * With those split, no single file dominates any more and the binding
  * constraint becomes the *total*: work / shard count. If CI needs to go faster
@@ -164,7 +167,6 @@ export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
   "test/core/internationalEquivalence.test.ts": 530,
   "test/core/cupIntegration.test.ts": 495,
   "test/core/internationalPlayerRecord.test.ts": 60,
-  "test/validation/m4-multiseason-integrity.test.ts": 442,
   "test/core/worldIntegration.test.ts": 428,
   "test/validation/m3-top-scorer.test.ts": 424,
   "test/validation/m4-multiseason.test.ts": 413,

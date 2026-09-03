@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
-import { createLeagueState } from "../../src/core/leagueState.js";
+import { createLeagueState, type LeagueStore } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { computeStandings } from "../../src/core/standings.js";
@@ -17,7 +17,27 @@ import { competitionTeamCount } from "../../src/core/competitions.js";
 describe("M4 — multi-season stability", () => {
   const SEASONS = 5;
 
-  it("champion/bottom points spread stays in range across chained seasons", () => {
+  /**
+   * One five-season chain with real offseasons, shared by both gates below.
+   *
+   * The integrity gate used to live in its own file, m4-multiseason-integrity,
+   * running a second chain of the same shape on seed 99. The note that
+   * justified the split said it plainly -- "each of these gates sims the full
+   * world over 5 seasons (~2min each), so they are split into separate files"
+   * -- and that premise is what has gone: sharing one chain means there is only
+   * one sim to spread, and the file this replaces was ~440s of it.
+   *
+   * The honest trade is that seed 99's world is no longer exercised. Both
+   * integrity properties are structural rather than statistical, and the
+   * checks now run after *every* season here rather than once at the end of
+   * one chain, which is more coverage of the same invariant on one fewer world.
+   *
+   * Lazy, so running one gate by name still pays for one chain.
+   */
+  let chain: { league: LeagueStore; champPoints: number[]; bottomPoints: number[]; rosterSizes: number[] } | null = null;
+
+  const run = () => {
+    if (chain) return chain;
     const rng = mulberry32(2024);
     let league = createLeagueState(0, rng);
 
@@ -67,8 +87,25 @@ describe("M4 — multi-season stability", () => {
       }
 
       league = simOffseason(league, rng);
+
+      // Absorbed from m4-multiseason-integrity.test.ts. Checked every season
+      // rather than only at the end of the chain: a pid collision or an
+      // orphaned roster entry introduced in season 2 and cleaned up by season 5
+      // would have gone unseen before.
+      const seasonPids = league.players.map((p) => p.pid);
+      expect(new Set(seasonPids).size).toBe(seasonPids.length);
+      const pool = new Set(seasonPids);
+      for (const t of league.teams) {
+        for (const pid of t.roster) expect(pool.has(pid)).toBe(true);
+      }
     }
 
+    chain = { league, champPoints, bottomPoints, rosterSizes };
+    return chain;
+  };
+
+  it("champion/bottom points spread stays in range across chained seasons", () => {
+    const { champPoints, bottomPoints, rosterSizes } = run();
     const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
     expect(avg(champPoints)).toBeGreaterThanOrEqual(70);
@@ -85,10 +122,18 @@ describe("M4 — multi-season stability", () => {
     }
   });
 
-  // NOTE: the second multi-season gate (pid-collision / orphaned-roster
-  // integrity) lives in m4-multiseason-integrity.test.ts. Each of these
-  // gates sims the full 240-club world over 5 seasons (~2min each), so they
-  // are split into separate files: vitest runs files in parallel, and in CI
-  // vitest --shard spreads them across separate runners. Keeping both in one
-  // file made it the ~4-min long pole that pinned the whole suite.
+  it("runs 5 seasons without pid collisions or orphaned rosters", () => {
+    // The per-season assertions inside the chain above are the real gate; this
+    // states the invariant as its own named case, so a failure reports as an
+    // integrity failure rather than as a points-spread one, and re-checks the
+    // final league.
+    const { league } = run();
+    const pids = league.players.map((p) => p.pid);
+    expect(new Set(pids).size).toBe(pids.length);
+
+    const pool = new Set(pids);
+    for (const t of league.teams) {
+      for (const pid of t.roster) expect(pool.has(pid)).toBe(true);
+    }
+  });
 });
