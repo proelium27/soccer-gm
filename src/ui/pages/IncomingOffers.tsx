@@ -16,6 +16,7 @@ import { OfferAmountInput } from "../components/OfferAmountInput.js";
 import { ClauseEditor } from "../components/ClauseEditor.js";
 import type { ProposedClause } from "../../core/transfers/clauses.js";
 import { clausesAreValid } from "../../core/transfers/clauses.js";
+import { buyerAcceptsClauses } from "../../core/transfers/inboundOffers.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
@@ -54,6 +55,15 @@ function OfferRow({
 }: OfferRowProps) {
   const [draft, setDraft] = useState(() => String(Math.round(offerFee * 1.2)));
   const [clauses, setClauses] = useState<ProposedClause[]>([]);
+  const { league } = useLeague();
+  // Add-ons ride on top of the cash, so accepting with them attached asks the
+  // buyer for more than he offered. He only wears it while the whole package
+  // stays under what the player is worth to him — checked here so the button
+  // greys out rather than doing nothing when clicked.
+  const clausesAcceptable = useMemo(
+    () => (league ? buyerAcceptsClauses(league, pid, clauses) : true),
+    [league, pid, clauses],
+  );
 
   if (negotiation?.status === "accepted") {
     return <span className="text-success">Sold to {buyerName}</span>;
@@ -98,7 +108,12 @@ function OfferRow({
       <div className="d-flex gap-1 align-items-center">
         <button
           className="btn btn-sm btn-success"
-          disabled={disabled || !clausesAreValid(clauses, offerFee)}
+          disabled={disabled || !clausesAreValid(clauses, offerFee) || !clausesAcceptable}
+          title={
+            clausesAcceptable
+              ? undefined
+              : "They won't take those add-ons on top of this offer. Counter instead."
+          }
           onClick={() => onAccept(pid, clauses)}
         >
           Accept {currency.format(offerFee)}

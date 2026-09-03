@@ -540,21 +540,28 @@ export function materializeClauses(
 }
 
 /**
- * What a set of proposed clauses takes off the CASH price of a deal, from the
+ * What a set of proposed clauses is WORTH to the club receiving them, from the
  * live league.
  *
+ * Add-ons sit **on top** of the cash, exactly as a real transfer is reported
+ * ("£20m rising to £25m"): the cash you name is the cash that changes hands,
+ * and this is the extra the other club counts alongside it when deciding
+ * whether the deal clears their number. Which is what makes add-ons useful —
+ * they close a deal your budget could not reach in cash alone.
+ *
  * The single entry point both directions of the market use, and the reason the
- * feature can't be farmed: buying, this comes off the seller's cash
- * reservation; selling, it comes off the buyer's cash ceiling. Same function,
- * same number, opposite side of the table — so a clause moves money between
- * certain and contingent rather than creating any.
+ * feature can't be farmed: buying, this is added to your offer before the
+ * seller judges it; selling, it is added to your ask before the buyer judges
+ * it. Same function, same number, opposite side of the table. **Under-price it
+ * and you clear a reservation too cheaply**, which is why the calibration
+ * behind it matters as much as it ever did.
  *
  * `obligorTid` is whoever will owe the money, i.e. always the buying club.
  * Returns 0 for an empty proposal without deriving anything, which keeps the
  * ordinary no-clause path exactly as cheap as it was: `deriveLeagueContexts`
  * walks every squad in the world and this runs on a user's click.
  */
-export function clauseCashDiscount(
+export function clauseExpectedValue(
   league: LeagueStore,
   pid: number,
   obligorTid: number,

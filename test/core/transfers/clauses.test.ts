@@ -4,14 +4,14 @@ import type { LeagueStore } from "../../../src/core/leagueState.js";
 import type { TransferClause, ProposedClause } from "../../../src/core/transfers/clauses.js";
 import {
   settleClausesOnSale, expireClauses, scrubClausesForPids, clausesAreValid,
-  materializeClauses, projectedValue, clauseCashDiscount, bonusTriggered,
+  materializeClauses, projectedValue, clauseExpectedValue, bonusTriggered,
   triggerProbability, settleBonuses, payoutDeltas, suggestedBonuses,
 } from "../../../src/core/transfers/clauses.js";
 import {
   executeTransfer, makeTransferOffer, reservationPrice,
 } from "../../../src/core/transfers/negotiation.js";
 import {
-  inboundOfferCandidates, acceptInboundOffer,
+  inboundOfferCandidates, acceptInboundOffer, buyerAcceptsClauses,
 } from "../../../src/core/transfers/inboundOffers.js";
 import { transferWindowState } from "../../../src/core/transfers/window.js";
 import {
@@ -371,7 +371,7 @@ describe("pricing", () => {
     const pid = league.teams[6].roster[0];
     const obligorTid = league.teams[7].tid;
     // A base fee far above anything he could be resold for leaves no profit.
-    const value = clauseCashDiscount(
+    const value = clauseExpectedValue(
       league, pid, obligorTid, 10 * 350_000_000, [{ kind: "sellOn", share: SELL_ON_MAX_SHARE }],
     );
     expect(value).toBe(0);
@@ -381,14 +381,14 @@ describe("pricing", () => {
     const league = makeLeague(0, 1);
     const pid = league.teams[6].roster[0];
     const obligorTid = league.teams[7].tid;
-    const small = clauseCashDiscount(league, pid, obligorTid, 1_000_000, [{ kind: "sellOn", share: 0.1 }]);
-    const big = clauseCashDiscount(league, pid, obligorTid, 1_000_000, [{ kind: "sellOn", share: 0.4 }]);
+    const small = clauseExpectedValue(league, pid, obligorTid, 1_000_000, [{ kind: "sellOn", share: 0.1 }]);
+    const big = clauseExpectedValue(league, pid, obligorTid, 1_000_000, [{ kind: "sellOn", share: 0.4 }]);
     expect(big).toBeGreaterThan(small);
   });
 
   it("costs nothing and derives nothing for an empty proposal", () => {
     const league = makeLeague(0, 1);
-    expect(clauseCashDiscount(league, league.teams[6].roster[0], league.teams[7].tid, 1_000_000, []))
+    expect(clauseExpectedValue(league, league.teams[6].roster[0], league.teams[7].tid, 1_000_000, []))
       .toBe(0);
   });
 
@@ -437,7 +437,7 @@ describe("negotiating with add-ons", () => {
     return { season: ws.season, window: ws.window };
   }
 
-  it("buying: the same offer costs less cash and leaves a clause behind", () => {
+  it("buying: the cash is exactly what you offered, and a clause is attached", () => {
     const league = windowLeague();
     const userTid = league.meta.userTid;
     const user = league.teams.find((t) => t.tid === userTid)!;
@@ -459,13 +459,15 @@ describe("negotiating with add-ons", () => {
 
     expect(plain.transfers.length).toBe(league.transfers.length + 1);
     expect(withClause.transfers.length).toBe(league.transfers.length + 1);
-    expect(withClause.transfers.at(-1)!.fee).toBeLessThan(plain.transfers.at(-1)!.fee);
+    // Add-ons sit ON TOP: what changes hands now is untouched by them.
+    expect(withClause.transfers.at(-1)!.fee).toBe(plain.transfers.at(-1)!.fee);
+    expect(withClause.transfers.at(-1)!.fee).toBe(res);
     expect(withClause.transferClauses).toHaveLength(1);
     expect(withClause.transferClauses[0].obligorTid).toBe(userTid);
     expect(plain.transferClauses).toHaveLength(0);
   });
 
-  it("buying: add-ons let you reach a player the full cash price wouldn't", () => {
+  it("buying: add-ons close a deal the cash alone wouldn't — the whole point", () => {
     const league = windowLeague();
     const userTid = league.meta.userTid;
     const ws = openWindow(league);
@@ -475,37 +477,51 @@ describe("negotiating with add-ons", () => {
       return reservationPrice(league.lid, ws.season, ws.window, p) > 5_000_000;
     })!;
     const res = reservationPrice(league.lid, ws.season, ws.window, target);
-    const discount = clauseCashDiscount(
-      league, target.pid, userTid, res, [{ kind: "sellOn", share: 0.4 }],
-    );
-    if (discount <= 0) return;
-    const tight: LeagueStore = {
-      ...league,
-      teams: league.teams.map((t) =>
-        t.tid === userTid ? { ...t, budget: res - Math.round(discount / 2) } : t),
-    };
-    expect(makeTransferOffer(tight, target.pid, res).transfers.length)
+    const clauses: ProposedClause[] = [{ kind: "sellOn", share: 0.4 }];
+    const value = clauseExpectedValue(league, target.pid, userTid, res, clauses);
+    if (value <= 0) return;
+
+    // Bid under his price by less than the add-ons are worth. In cash alone the
+    // seller says no; with the add-ons on top the same cash clears his number.
+    const short = res - Math.round(value / 2);
+    expect(makeTransferOffer(league, target.pid, short).transfers.length)
       .toBe(league.transfers.length);
-    expect(
-      makeTransferOffer(tight, target.pid, res, [{ kind: "sellOn", share: 0.4 }]).transfers.length,
-    ).toBe(league.transfers.length + 1);
+    const done = makeTransferOffer(league, target.pid, short, clauses);
+    expect(done.transfers.length).toBe(league.transfers.length + 1);
+    // ...and you still pay only the cash you bid.
+    expect(done.transfers.at(-1)!.fee).toBe(short);
   });
 
-  it("selling: accepting with a sell-on trades cash for the clause", () => {
+  it("selling: you keep the full cash offer and the clause on top", () => {
     const league = windowLeague();
-    const candidate = inboundOfferCandidates(league)[0];
+    // A buyer with room under his ceiling for add-ons as well as his own bid.
+    const candidate = inboundOfferCandidates(league).find((c) =>
+      buyerAcceptsClauses(league, c.player.pid, [{ kind: "sellOn", share: 0.3 }]));
     expect(candidate).toBeDefined();
+    const pid = candidate!.player.pid;
 
-    const plain = acceptInboundOffer(league, candidate.player.pid);
-    const withClause = acceptInboundOffer(
-      league, candidate.player.pid, [{ kind: "sellOn", share: 0.3 }],
-    );
+    const plain = acceptInboundOffer(league, pid);
+    const withClause = acceptInboundOffer(league, pid, [{ kind: "sellOn", share: 0.3 }]);
     expect(plain.transfers.length).toBe(league.transfers.length + 1);
     expect(withClause.transfers.length).toBe(league.transfers.length + 1);
-    expect(withClause.transfers.at(-1)!.fee).toBeLessThanOrEqual(plain.transfers.at(-1)!.fee);
+    expect(withClause.transfers.at(-1)!.fee).toBe(plain.transfers.at(-1)!.fee);
     expect(withClause.transferClauses).toHaveLength(1);
+    // The BUYER owes it; the user is owed.
     expect(withClause.transferClauses[0].beneficiaryTid).toBe(league.meta.userTid);
-    expect(withClause.transferClauses[0].obligorTid).toBe(candidate.buyerTid);
+    expect(withClause.transferClauses[0].obligorTid).toBe(candidate!.buyerTid);
+  });
+
+  it("selling: a buyer who can't wear the add-ons refuses rather than paying up", () => {
+    const league = windowLeague();
+    // The biggest sell-on this player's buyer could be asked for on top of his
+    // own bid. Where that is over his ceiling, accepting must be a no-op —
+    // otherwise "accept, and also give me a sell-on" is free money.
+    const greedy: ProposedClause[] = [{ kind: "sellOn", share: SELL_ON_MAX_SHARE }];
+    const blocked = inboundOfferCandidates(league).find(
+      (c) => !buyerAcceptsClauses(league, c.player.pid, greedy),
+    );
+    if (!blocked) return; // no such buyer this seed; the rule is still pinned above
+    expect(acceptInboundOffer(league, blocked.player.pid, greedy)).toBe(league);
   });
 
   it("refuses a proposal that breaks the caps rather than silently trimming it", () => {
@@ -602,14 +618,14 @@ describe("suggestedBonuses", () => {
     for (let t = 5; t < 38; t++) expect(apps(t + 1)).toBeLessThanOrEqual(apps(t));
   });
 
-  it("charges more for an easier bonus of the same amount", () => {
+  it("values an easier bonus more highly than a harder one", () => {
     const league = world();
     const pid = league.teams[6].roster[0];
     const obligorTid = league.teams[7].tid;
-    const easy = clauseCashDiscount(league, pid, obligorTid, 10_000_000, [
+    const easy = clauseExpectedValue(league, pid, obligorTid, 10_000_000, [
       { kind: "bonus", trigger: "appearances", amount: 1_000_000, threshold: 8 },
     ]);
-    const hard = clauseCashDiscount(league, pid, obligorTid, 10_000_000, [
+    const hard = clauseExpectedValue(league, pid, obligorTid, 10_000_000, [
       { kind: "bonus", trigger: "appearances", amount: 1_000_000, threshold: 36 },
     ]);
     expect(easy).toBeGreaterThan(hard);

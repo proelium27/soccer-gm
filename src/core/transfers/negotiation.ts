@@ -13,7 +13,7 @@ import { isProtectedStar, lastCompletedSeason, userProtectedStarBar } from "./pr
 import { refusesMoveToClub } from "./playerWill.js";
 import type { ProposedClause } from "./clauses.js";
 import {
-  settleClausesOnSale, materializeClauses, clauseCashDiscount, clausesAreValid,
+  settleClausesOnSale, materializeClauses, clauseExpectedValue, clausesAreValid,
 } from "./clauses.js";
 import {
   difficultyProfile,
@@ -381,19 +381,11 @@ export function makeTransferOffer(
   const wageCharge = acquisitionWageCharge(league, player);
   if (!Number.isFinite(offer) || offer <= 0) return league;
   if (!clausesAreValid(clauses, offer)) return league;
-  // What the add-ons take off the cash. Computed before the affordability check
-  // rather than after, because paying part of a deal in contingency is exactly
-  // how you sign someone you can't quite afford — checking the full offer
-  // against the budget would refuse the deals this feature exists to enable.
-  // Free for the ordinary no-clause path, which returns 0 without deriving
-  // anything.
-  const discount = Math.min(
-    offer, clauseCashDiscount(league, pid, userTid, offer, clauses),
-  );
-  const cashOffer = Math.max(0, offer - discount);
-  // The cash must be affordable together with any mid-season wage charge, since
-  // an accepted offer executes immediately.
-  if (cashOffer + wageCharge > user.budget) return league;
+  // Add-ons sit ON TOP of the cash, the way a real transfer is reported. The
+  // budget only has to cover what changes hands now, which is the whole point:
+  // promising a share of a future sale is exactly how you sign someone you
+  // could not have afforded outright.
+  if (offer + wageCharge > user.budget) return league;
   if (!hasRosterRoom(user)) return league;
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
@@ -422,12 +414,16 @@ export function makeTransferOffer(
     difficultyProfile(league.difficulty).buyPriceScale,
   );
   // ONE model across all four negotiation entry points: the number you name is
-  // the deal's TOTAL, and any add-ons come out of it. So the seller judges the
-  // full `offer` as before, and what the clauses are worth is deducted from the
-  // cash he actually receives. Naming a cash figure and hanging extras off it
-  // would mean the panel that says "cash becomes X" is telling the truth on
-  // some buttons and not others.
-  const outcome = respondToOffer(reservation, offer, priorOffers);
+  // the CASH, and the add-ons are extra that the other club weighs alongside
+  // it. So the seller judges the offer plus what the clauses are worth to him,
+  // and a deal your cash alone could not reach can still clear his price.
+  //
+  // This is also what keeps the feature honest in both directions. Selling, the
+  // same sum is measured against the buyer's ceiling, so demanding a sell-on
+  // costs you the cash you could otherwise have asked for rather than being
+  // free money on top.
+  const clauseValue = clauseExpectedValue(league, pid, userTid, offer, clauses);
+  const outcome = respondToOffer(reservation, offer + clauseValue, priorOffers);
 
   const negotiation: TransferNegotiation = {
     pid,
@@ -444,10 +440,10 @@ export function makeTransferOffer(
 
   let updated: LeagueStore = { ...league, negotiations: upsertNegotiation(league, negotiation) };
   if (outcome.kind === "accepted") {
-    // `outcome.fee` is the offer, which is the deal's total; the cash is what
-    // is left of it after the add-ons the user is granting.
+    // The cash is exactly what he offered. `outcome.fee` carries the clause
+    // value the seller weighed and is not what changes hands.
     updated = executeTransfer(
-      updated, pid, seller.tid, userTid, cashOffer, wageCharge, ws.season, ws.window,
+      updated, pid, seller.tid, userTid, offer, wageCharge, ws.season, ws.window,
       clauses,
     );
   }
@@ -484,15 +480,12 @@ export function acceptCounterOffer(
   // seller's to sell (see makeTransferOffer).
   if (league.activeLoans.some((l) => l.pid === pid)) return league;
   const wageCharge = acquisitionWageCharge(league, player);
-  // The counter is the seller's TOTAL price. Meeting part of it with clauses
-  // lowers the cash, exactly as it does on a fresh offer.
+  // The counter is a CASH price the seller has already named, so meeting it in
+  // cash is all that is required. Any add-ons attached here ride on top and can
+  // only make the deal more attractive to him, never less — to pay less cash
+  // instead, make a fresh offer with the add-ons on it.
   if (!clausesAreValid(clauses, negotiation.counter)) return league;
-  const discount = Math.min(
-    negotiation.counter,
-    clauseCashDiscount(league, pid, league.meta.userTid, negotiation.counter, clauses),
-  );
-  const cashFee = Math.max(0, negotiation.counter - discount);
-  if (cashFee + wageCharge > user.budget) return league;
+  if (negotiation.counter + wageCharge > user.budget) return league;
   if (!hasRosterRoom(user)) return league;
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
@@ -513,6 +506,7 @@ export function acceptCounterOffer(
   const accepted: TransferNegotiation = { ...negotiation, status: "accepted" };
   const updated: LeagueStore = { ...league, negotiations: upsertNegotiation(league, accepted) };
   return executeTransfer(
-    updated, pid, seller.tid, user.tid, cashFee, wageCharge, ws.season, ws.window, clauses,
+    updated, pid, seller.tid, user.tid, negotiation.counter, wageCharge, ws.season, ws.window,
+    clauses,
   );
 }

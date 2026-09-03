@@ -10,7 +10,7 @@ import {
 } from "./negotiation.js";
 import { deriveLeagueContexts } from "../ai/clubContext.js";
 import type { ProposedClause } from "./clauses.js";
-import { clauseCashDiscount, clausesAreValid } from "./clauses.js";
+import { clauseExpectedValue, clausesAreValid } from "./clauses.js";
 import { keepValueToClub, valueToClub, perceivedValueToClub } from "../ai/evaluate.js";
 import { moveAppealBetween, settledMultiplier, joinedSeasons } from "./playerWill.js";
 import { mulberry32 } from "../../engine/rng.js";
@@ -254,6 +254,56 @@ function resolveOpenOffer(
   return { buyerTid: candidate.buyerTid, fee: candidate.openingOffer, offers: [candidate.openingOffer], asks: [] };
 }
 
+/**
+ * The most this buyer would pay for the player right now, all in.
+ *
+ * Pulled out of `counterInboundOffer` so accepting-with-add-ons and the button
+ * that offers it can ask the same question. Returns null when there is nothing
+ * to answer it about.
+ */
+export function inboundCeiling(league: LeagueStore, pid: number): number | null {
+  const resolved = resolveOpenOffer(league, pid);
+  const player = league.players.find((p) => p.pid === pid);
+  if (!resolved || !player) return null;
+  const buyer = league.teams.find((t) => t.tid === resolved.buyerTid);
+  if (!buyer) return null;
+  const contexts = deriveLeagueContexts({
+    teams: league.teams, players: league.players, season: league.season,
+    played: league.played, competitions: league.competitions,
+  });
+  const buyerCtx = contexts.get(resolved.buyerTid);
+  const userCtx = contexts.get(league.meta.userTid);
+  if (!buyerCtx || !userCtx) return null;
+  const wageCharge = acquisitionWageCharge(league, player);
+  const live = Math.min(
+    valueToClub(player, buyerCtx) * moveAppealBetween(player, userCtx, buyerCtx),
+    buyerSpendable(buyer, buyerCtx, wageCharge),
+  );
+  return Math.max(live, resolved.offers.at(-1) ?? 0);
+}
+
+/**
+ * Whether the buyer would still wear his own standing offer with these add-ons
+ * hung on top of it.
+ *
+ * Accepting is not a negotiation, so rather than let an accept quietly turn
+ * into a counter this answers up front — and the Incoming Offers page uses the
+ * same call to grey the button out instead of leaving it inert.
+ */
+export function buyerAcceptsClauses(
+  league: LeagueStore,
+  pid: number,
+  clauses: ProposedClause[],
+): boolean {
+  if (clauses.length === 0) return true;
+  const resolved = resolveOpenOffer(league, pid);
+  if (!resolved) return false;
+  const ceiling = inboundCeiling(league, pid);
+  if (ceiling === null) return false;
+  const value = clauseExpectedValue(league, pid, resolved.buyerTid, resolved.fee, clauses);
+  return resolved.fee + value <= ceiling;
+}
+
 export type InboundResponse =
   | { kind: "accepted"; fee: number }
   | { kind: "countered"; offer: number }
@@ -323,13 +373,13 @@ export function acceptInboundOffer(
 
   const wageCharge = acquisitionWageCharge(league, player);
   if (!clausesAreValid(clauses, resolved.fee)) return league;
-  // The buying club is the one that will owe on any clause.
-  const discount = Math.min(
-    resolved.fee,
-    clauseCashDiscount(league, pid, resolved.buyerTid, resolved.fee, clauses),
-  );
-  const cashFee = Math.max(0, resolved.fee - discount);
-  if (cashFee + wageCharge > buyer.budget) return league;
+  // Add-ons ride ON TOP of the cash offer, so accepting with them attached is
+  // asking the buyer for more than he put on the table. He wears it only while
+  // the whole package still sits under what the player is worth to him —
+  // otherwise this is a no-op and the user has to counter instead. That bound
+  // is what stops "accept, and also give me a sell-on" being free money.
+  if (!buyerAcceptsClauses(league, pid, clauses)) return league;
+  if (resolved.fee + wageCharge > buyer.budget) return league;
 
   const accepted: InboundOffer = {
     pid, buyerTid: resolved.buyerTid, season: ws.season, window: ws.window,
@@ -337,8 +387,8 @@ export function acceptInboundOffer(
   };
   const updated: LeagueStore = { ...league, inboundOffers: upsertInboundOffer(league, accepted) };
   return executeTransfer(
-    updated, pid, league.meta.userTid, resolved.buyerTid, cashFee, wageCharge, ws.season, ws.window,
-    clauses,
+    updated, pid, league.meta.userTid, resolved.buyerTid, resolved.fee, wageCharge,
+    ws.season, ws.window, clauses,
   );
 }
 
@@ -394,25 +444,20 @@ export function counterInboundOffer(
   // Re-derived live (no jitter — that's only for opening-offer variety), but
   // still carrying the same move-appeal scaling and spendable cap the candidate
   // used, so a buyer's ceiling can't silently grow between offer and counter.
-  const liveCeiling = Math.min(
-    valueToClub(player, buyerCtx) * moveAppealBetween(player, userCtx, buyerCtx),
-    buyerSpendable(buyer, buyerCtx, wageCharge),
-  );
-  // A buyer never bids *below* what it has already put on the table. The
-  // opening offer is built from a jittered valuation while this one isn't, so
-  // the live ceiling can land under the standing offer and the club would
-  // appear to haggle backwards. That was invisible while reservations were
-  // being lowballed (the opening offer sat far below the ceiling); now that a
-  // seller prices its own player properly, the opening offer sits close to the
-  // ceiling and the gap shows. Its own prior offer is a floor it has already
-  // demonstrated it can pay.
-  const ceiling = Math.max(liveCeiling, resolved.offers.at(-1) ?? 0);
+  // One definition of the buyer's ceiling, shared with `buyerAcceptsClauses` so
+  // accepting and countering cannot disagree about what he can afford.
+  const ceiling = inboundCeiling(league, pid);
+  if (ceiling === null) return league;
 
-  // Same model as every other entry point: the ask is the deal's TOTAL, so the
-  // buyer judges it whole and the add-ons come out of the cash that changes
-  // hands (see makeTransferOffer).
+  // Same model as every other entry point: the ask is the CASH you want, and
+  // the add-ons are extra the buyer weighs alongside it (see makeTransferOffer).
+  // So asking for a sell-on as well as the same cash really is asking for more,
+  // and he may push back on it — which is the whole reason it is not free.
   if (!clausesAreValid(clauses, ask)) return league;
-  const response = respondToAsk(ceiling, ask, resolved.asks, resolved.offers.at(-1) ?? 0);
+  const clauseValue = clauseExpectedValue(league, pid, resolved.buyerTid, ask, clauses);
+  const response = respondToAsk(
+    ceiling, ask + clauseValue, resolved.asks, resolved.offers.at(-1) ?? 0,
+  );
   const offers = response.kind === "countered" ? [...resolved.offers, response.offer] : resolved.offers;
   const asks = [...resolved.asks, ask];
 
@@ -426,22 +471,19 @@ export function counterInboundOffer(
   };
   let updated: LeagueStore = { ...league, inboundOffers: upsertInboundOffer(league, negotiation) };
 
-  const askDiscount = Math.min(
-    ask, clauseCashDiscount(league, pid, resolved.buyerTid, ask, clauses),
-  );
-  const askCash = Math.max(0, ask - askDiscount);
   if (response.kind === "accepted") {
     // The buyer agreed in principle, but their budget/roster may no longer
     // cover it — fall back to a collapse rather than execute an impossible deal.
-    // Measured against the CASH, which is what actually leaves their account.
-    if (!hasRosterRoom(buyer) || askCash + wageCharge > buyer.budget) {
+    // Measured against the CASH, which is what actually leaves their account
+    // now; the add-ons fall due later, if at all.
+    if (!hasRosterRoom(buyer) || ask + wageCharge > buyer.budget) {
       return {
         ...updated,
         inboundOffers: upsertInboundOffer(updated, { ...negotiation, status: "collapsed" }),
       };
     }
     updated = executeTransfer(
-      updated, pid, league.meta.userTid, resolved.buyerTid, askCash,
+      updated, pid, league.meta.userTid, resolved.buyerTid, ask,
       wageCharge, ws.season, ws.window, clauses,
     );
   }

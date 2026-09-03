@@ -3,7 +3,7 @@ import { useLeague } from "../context/LeagueContext.js";
 import { currency } from "../format.js";
 import type { BonusTrigger, ProposedClause } from "../../core/transfers/clauses.js";
 import {
-  clauseCashDiscount, clausesAreValid, clauseSuggestions,
+  clauseExpectedValue, clausesAreValid, clauseSuggestions,
 } from "../../core/transfers/clauses.js";
 import {
   SELL_ON_MAX_SHARE, SELL_ON_CLAUSE_SEASONS,
@@ -37,13 +37,14 @@ const SHARE_STEPS = [0, 0.1, 0.2, 0.3, 0.4].filter((s) => s <= SELL_ON_MAX_SHARE
 /**
  * The add-ons panel shared by both sides of the market: the user demands these
  * when selling and offers them when buying, and either way the *other* club
- * prices them the same way (see clauseCashDiscount).
+ * prices them the same way (see clauseExpectedValue).
  *
- * The panel leads with what the trade actually costs, because that is the one
- * thing about clauses that is easy to misread: an add-on is not extra money on
- * top of the fee. The other club's total budget for the deal is fixed, so every
- * pound of contingency comes straight off the cash — which the "cash becomes"
- * line spells out before you commit to it.
+ * Add-ons sit ON TOP of the cash, and the panel says so in the terms a transfer
+ * is really reported in: "you pay X now, rising to Y". An earlier version had
+ * them come *out* of the fee, which is defensible economics and nobody's mental
+ * model of a transfer — a user reading "$3.0M of the $43.0M moved into add-ons"
+ * has to reverse-engineer what it means. What they buy you now is the thing
+ * real add-ons buy: a deal your cash alone would not have closed.
  *
  * `obligorTid` is whoever will owe the money, i.e. always the buying club.
  */
@@ -74,10 +75,10 @@ export function ClauseEditor({
   const share = value.find((c) => c.kind === "sellOn")?.share ?? 0;
   const bonuses = value.filter((c): c is Extract<ProposedClause, { kind: "bonus" }> => c.kind === "bonus");
 
-  // Walks every squad in the world, so only when something is actually
-  // proposed and only when the inputs move.
-  const discount = useMemo(
-    () => (league ? clauseCashDiscount(league, pid, obligorTid, fee, value) : 0),
+  // What the other club counts the add-ons as worth. Walks every squad in the
+  // world, so only when something is actually proposed and the inputs move.
+  const addedValue = useMemo(
+    () => (league ? clauseExpectedValue(league, pid, obligorTid, fee, value) : 0),
     [league, pid, obligorTid, fee, value],
   );
   // What is worth offering for THIS player at THIS club. Walks every squad in
@@ -87,7 +88,12 @@ export function ClauseEditor({
     [league, open, pid, obligorTid, fee],
   );
   const valid = clausesAreValid(value, fee);
-  const cash = Math.max(0, fee - discount);
+  // The cash is untouched by add-ons; what they change is the ceiling of what
+  // the deal could end up costing. Quoted the way a transfer is really reported,
+  // "£20m rising to £25m", because the alternative reading — that add-ons come
+  // out of the fee — is nobody's mental model of a transfer.
+  const bonusTotal = bonuses.reduce((sum, b) => sum + (b.amount || 0), 0);
+  const sellOn = value.find((c) => c.kind === "sellOn");
 
   const setShare = (next: number) => {
     const rest = value.filter((c) => c.kind !== "sellOn");
@@ -204,14 +210,27 @@ export function ClauseEditor({
               </span>
             ) : count === 0 ? (
               <span className="text-muted">
-                Add-ons aren't extra money. Whatever you add here comes off the cash instead.
+                Add-ons sit on top of the fee. They don't change what
+                {direction === "selling" ? " you get" : " you pay"} now, but they can talk the other
+                club into a deal the cash alone wouldn't.
               </span>
             ) : (
               <span>
-                Cash {direction === "selling" ? "you get" : "you pay"} becomes{" "}
-                <strong>{currency.format(cash)}</strong>{" "}
+                {direction === "selling" ? "You get" : "You pay"}{" "}
+                <strong>{currency.format(fee)}</strong> now
+                {bonusTotal > 0 && (
+                  <> , rising to <strong>{currency.format(fee + bonusTotal)}</strong> if the bonuses hit</>
+                )}
+                {sellOn?.kind === "sellOn" && (
+                  <>
+                    , plus {Math.round(sellOn.share * 100)}% of any profit
+                    {direction === "selling" ? " they" : " you"} make selling him on
+                  </>
+                )}
+                .{" "}
                 <span className="text-muted">
-                  ({currency.format(discount)} of the {currency.format(fee)} moved into add-ons)
+                  They're worth about {currency.format(addedValue)} to{" "}
+                  {direction === "selling" ? "them" : "the seller"}, on top of the cash.
                 </span>
               </span>
             )}

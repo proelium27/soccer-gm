@@ -2004,17 +2004,22 @@ export function Manual() {
             the target.
           </p>
           <p>
-            <strong>The one thing to understand: add-ons are not extra money.</strong> The other club
-            has a number in its head for the whole deal, and anything you put into add-ons comes
-            straight off the cash. Ask for a 30% sell-on when selling and the cheque today gets
-            smaller by whatever they think that share is worth. The panel shows you the new cash
-            figure before you commit, so you can see exactly what you're trading away.
+            <strong>Add-ons sit on top of the fee</strong>, the way a real transfer gets reported:
+            "$20M rising to $25M". They don't change what you pay or receive today. What they do is
+            count toward whether the other club says yes, because the club on the other side weighs
+            your cash <em>and</em> what your add-ons are likely to be worth to them.
           </p>
           <p>
-            That makes it a real decision rather than free upside. Take the cash if you need it now
-            or you think he's already peaked. Take the sell-on if you're selling a teenager to a big
-            club and you fancy your read on him over theirs. Going the other way, add-ons are how you
-            sign someone you can't quite afford: promise the appearance bonus, pay less today.
+            That's what makes them useful. Buying, they're how you land a player you can't quite
+            afford: bid below his price, promise a share of any future sale, and the deal can clear
+            even though your cash alone wouldn't have. Selling, they work the same way in reverse.
+            Asking for a sell-on as well as the money is asking for more, so a buyer will only wear
+            it while the whole package still sits under what the player is worth to him. If he
+            won't, you'll see the Accept button greyed out and you'll have to counter instead.
+          </p>
+          <p>
+            The panel spells out both halves before you commit: what changes hands now, and what it
+            could rise to if the add-ons land.
           </p>
           <p>
             Everything still owed, in both directions, is listed under <strong>Transfer Add-ons</strong>{" "}
