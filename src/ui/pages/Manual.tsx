@@ -2337,8 +2337,10 @@ export function Manual() {
             row shows the years he was there, the appearances he made for that club and the rating
             he peaked at while he was there. An award only counts on a club's board if he won it in
             a season he was on that club's books, and a league title counts if he was in the squad
-            for it whether or not he played. International honours are left off entirely: a World
-            Cup belongs to his country. Goals and assists are left off too, but for a different
+            for it whether or not he played. The unit is a whole season, not a transfer window:
+            a player is counted at the club he finished each season with, so a January signing
+            is credited with the title his new club wins that May, and a January departure isn't.
+            International honours are left off entirely: a World Cup belongs to his country. Goals and assists are left off too, but for a different
             reason &mdash; once a player retires the game keeps his career totals rather than a
             breakdown club by club, so a per-club figure isn't something the save can still answer.
             Rather than show one thing for players who are still playing and another for the ones
