@@ -9,7 +9,7 @@ import { deriveLeagueContexts } from "./clubContext.js";
 import { keepValueToClub, perceivedValueToClub, hasPositionalGap } from "./evaluate.js";
 import { moveAppealBetween, settledMultiplier, joinedSeasons } from "../transfers/playerWill.js";
 import { trueTransferValue } from "../finance/valuation.js";
-import { clampBudget, financeScale } from "../finance/budget.js";
+import { clampBudget, financeScale, financeScaleFor } from "../finance/budget.js";
 import { tierOf } from "../competitions.js";
 import { keepsDepthFloor } from "../freeAgency.js";
 import { mulberry32 } from "../../engine/rng.js";
@@ -22,10 +22,37 @@ import {
   AI_NEED_BUY_MIN_SURPLUS, AI_NEED_BUY_RESERVE_RELIEF,
   DIVISION_2_REFUSAL_OVR_THRESHOLD,
 } from "../constants.js";
+import type { Difficulty } from "../constants.js";
+import type { TransferClause } from "../transfers/clauses.js";
+import { settleClausesOnSale } from "../transfers/clauses.js";
 
 export interface AITransferResult {
   teams: StoredTeam[];
   transfers: CompletedTransfer[];
+  /**
+   * Contingent obligations after the window, with any this market's sales
+   * triggered already settled and removed. Echoes back what was passed in when
+   * no clause context is supplied, so a caller that doesn't care is unaffected.
+   */
+  clauses: TransferClause[];
+}
+
+/**
+ * The clause state an AI↔AI window needs, passed as one optional object.
+ *
+ * Optional because this function has a dozen call sites across tests and
+ * probes and none of them should have to care — absent means no clauses exist,
+ * which is byte-identical to the market before the feature. Same reason
+ * `simOffseason` took its precomputed aggregate as an optional trailing param.
+ *
+ * `difficulty` rides along because a sell-on can pay the USER (he sold a player
+ * to an AI club, which is now selling him on), and every site where the user's
+ * budget rises must scale through `financeScaleFor` rather than `financeScale`
+ * — see the invariant stated on that function.
+ */
+export interface ClauseContext {
+  clauses: TransferClause[];
+  difficulty: Difficulty | undefined;
 }
 
 /** One evaluation-driven deal the market has decided is worth executing. */
@@ -86,7 +113,9 @@ export function runAITransferMarket(
   seed: number,
   competitions: Competition[],
   protectedPids: Set<number>,
+  clauseCtx?: ClauseContext,
 ): AITransferResult {
+  let clauses = clauseCtx?.clauses ?? [];
   const contexts = deriveLeagueContexts({ teams, players, season, played, competitions });
   const playerMap = new Map(players.map((p) => [p.pid, p]));
   const jitter = mulberry32(seed);
@@ -294,8 +323,25 @@ export function runAITransferMarket(
     roster.set(c.sellerTid, sellerRoster.filter((p) => p !== c.pid));
     buyerRoster.push(c.pid);
     const sellerCompId = teams.find((t) => t.tid === c.sellerTid)!.compId;
-    budget.set(c.sellerTid, clampBudget((budget.get(c.sellerTid) ?? 0) + fee, financeScale(competitions, sellerCompId), hypeByTid.get(c.sellerTid) ?? 0));
+    // Any sell-on the seller still owes on this player fires here, exactly as
+    // it does on a deal the user negotiates — that is the entire point of the
+    // clause, since the club that bought him will usually be an AI one and its
+    // resale is an AI↔AI deal. Same shared settlement function, so the two
+    // paths cannot disagree about who gets paid.
+    const settled = settleClausesOnSale(clauses, c.pid, c.sellerTid, fee, season);
+    clauses = settled.remaining;
+    const owed = settled.payouts.reduce((sum, p) => sum + p.amount, 0);
+    budget.set(c.sellerTid, clampBudget((budget.get(c.sellerTid) ?? 0) + fee - owed, financeScale(competitions, sellerCompId), hypeByTid.get(c.sellerTid) ?? 0));
     budget.set(c.buyerTid, (budget.get(c.buyerTid) ?? 0) - fee - wageCharge);
+    for (const p of settled.payouts) {
+      const beneficiary = teams.find((t) => t.tid === p.toTid);
+      if (!beneficiary) continue;
+      budget.set(p.toTid, clampBudget(
+        (budget.get(p.toTid) ?? 0) + p.amount,
+        financeScaleFor(competitions, beneficiary.compId, p.toTid, userTid, clauseCtx?.difficulty),
+        hypeByTid.get(p.toTid) ?? 0,
+      ));
+    }
     moved.add(c.pid);
     buys.set(c.buyerTid, (buys.get(c.buyerTid) ?? 0) + 1);
     sells.set(c.sellerTid, (sells.get(c.sellerTid) ?? 0) + 1);
@@ -305,5 +351,6 @@ export function runAITransferMarket(
   return {
     teams: teams.map((t) => ({ ...t, roster: roster.get(t.tid)!, budget: budget.get(t.tid)! })),
     transfers: [...transfers, ...executed],
+    clauses,
   };
 }

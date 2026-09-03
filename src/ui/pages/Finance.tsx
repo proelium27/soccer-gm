@@ -7,6 +7,7 @@ import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings } from "../../core/standings.js";
 import { seasonRevenue, wageBill, financeScaleFor } from "../../core/finance/budget.js";
 import { seasonPrizeIncome } from "../../core/finance/prizeIncome.js";
+import { ClauseLedger } from "../components/ClauseLedger.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { competitionOf, competitionTeamCount } from "../../core/competitions.js";
 import { SCOUTING_SPEND_MAX, difficultyProfile } from "../../core/constants.js";
@@ -354,6 +355,11 @@ export function Finance() {
           </table>
         </div>
       </div>
+
+      {/* Add-ons still hanging over the club, both directions. Money that has
+          already been paid is gone from this list — a clause is deleted the
+          moment it settles — so this is strictly what is still outstanding. */}
+      <ClauseLedger />
 
       {/* Transfer history */}
       <div className="card mb-3">

@@ -182,5 +182,10 @@ export function switchClub(
     inboundOffers: [],
     loanListings: [],
     loanRejections: [],
+    // `transferClauses` is deliberately NOT cleared, for the same reason
+    // `activeLoans` above survives: a sell-on or bonus is a contract between two
+    // CLUBS, not an instruction from the manager. The club he left keeps what it
+    // is owed and keeps owing what it owes, whoever is picking its team now, and
+    // a club he has just joined may already carry clauses of its own.
   };
 }

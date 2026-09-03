@@ -9,6 +9,8 @@ import {
   windowSeed, departsAtRollover, acquisitionWageCharge, hasRosterRoom, executeTransfer,
 } from "./negotiation.js";
 import { deriveLeagueContexts } from "../ai/clubContext.js";
+import type { ProposedClause } from "./clauses.js";
+import { clauseCashDiscount, clausesAreValid } from "./clauses.js";
 import { keepValueToClub, valueToClub, perceivedValueToClub } from "../ai/evaluate.js";
 import { moveAppealBetween, settledMultiplier, joinedSeasons } from "./playerWill.js";
 import { mulberry32 } from "../../engine/rng.js";
@@ -296,7 +298,17 @@ export function respondToAsk(
  * is actually on the table, and the buyer can still afford it (its budget or
  * roster may have moved since the offer was computed).
  */
-export function acceptInboundOffer(league: LeagueStore, pid: number): LeagueStore {
+export function acceptInboundOffer(
+  league: LeagueStore,
+  pid: number,
+  /**
+   * Contingent extras the user is holding back from the deal (see clauses.ts) —
+   * a sell-on share of the buyer's future profit, or add-ons. The buyer's total
+   * willingness to pay is unchanged, so every pound of clause comes off the
+   * cash: you are choosing upside over money now, not being handed both.
+   */
+  clauses: ProposedClause[] = [],
+): LeagueStore {
   const ws = transferWindowState(league);
   if (!ws.open) return league;
 
@@ -310,7 +322,14 @@ export function acceptInboundOffer(league: LeagueStore, pid: number): LeagueStor
   if (!hasRosterRoom(buyer)) return league;
 
   const wageCharge = acquisitionWageCharge(league, player);
-  if (resolved.fee + wageCharge > buyer.budget) return league;
+  if (!clausesAreValid(clauses, resolved.fee)) return league;
+  // The buying club is the one that will owe on any clause.
+  const discount = Math.min(
+    resolved.fee,
+    clauseCashDiscount(league, pid, resolved.buyerTid, resolved.fee, clauses),
+  );
+  const cashFee = Math.max(0, resolved.fee - discount);
+  if (cashFee + wageCharge > buyer.budget) return league;
 
   const accepted: InboundOffer = {
     pid, buyerTid: resolved.buyerTid, season: ws.season, window: ws.window,
@@ -318,7 +337,8 @@ export function acceptInboundOffer(league: LeagueStore, pid: number): LeagueStor
   };
   const updated: LeagueStore = { ...league, inboundOffers: upsertInboundOffer(league, accepted) };
   return executeTransfer(
-    updated, pid, league.meta.userTid, resolved.buyerTid, resolved.fee, wageCharge, ws.season, ws.window,
+    updated, pid, league.meta.userTid, resolved.buyerTid, cashFee, wageCharge, ws.season, ws.window,
+    clauses,
   );
 }
 
@@ -344,7 +364,12 @@ export function rejectInboundOffer(league: LeagueStore, pid: number): LeagueStor
  * offer partway, or walks — via respondToAsk, mirroring how an AI seller
  * responds to the user's outgoing offers.
  */
-export function counterInboundOffer(league: LeagueStore, pid: number, askAmount: number): LeagueStore {
+export function counterInboundOffer(
+  league: LeagueStore,
+  pid: number,
+  askAmount: number,
+  clauses: ProposedClause[] = [],
+): LeagueStore {
   const ws = transferWindowState(league);
   if (!ws.open) return league;
 
@@ -383,6 +408,10 @@ export function counterInboundOffer(league: LeagueStore, pid: number, askAmount:
   // demonstrated it can pay.
   const ceiling = Math.max(liveCeiling, resolved.offers.at(-1) ?? 0);
 
+  // Same model as every other entry point: the ask is the deal's TOTAL, so the
+  // buyer judges it whole and the add-ons come out of the cash that changes
+  // hands (see makeTransferOffer).
+  if (!clausesAreValid(clauses, ask)) return league;
   const response = respondToAsk(ceiling, ask, resolved.asks, resolved.offers.at(-1) ?? 0);
   const offers = response.kind === "countered" ? [...resolved.offers, response.offer] : resolved.offers;
   const asks = [...resolved.asks, ask];
@@ -397,17 +426,23 @@ export function counterInboundOffer(league: LeagueStore, pid: number, askAmount:
   };
   let updated: LeagueStore = { ...league, inboundOffers: upsertInboundOffer(league, negotiation) };
 
+  const askDiscount = Math.min(
+    ask, clauseCashDiscount(league, pid, resolved.buyerTid, ask, clauses),
+  );
+  const askCash = Math.max(0, ask - askDiscount);
   if (response.kind === "accepted") {
     // The buyer agreed in principle, but their budget/roster may no longer
     // cover it — fall back to a collapse rather than execute an impossible deal.
-    if (!hasRosterRoom(buyer) || ask + wageCharge > buyer.budget) {
+    // Measured against the CASH, which is what actually leaves their account.
+    if (!hasRosterRoom(buyer) || askCash + wageCharge > buyer.budget) {
       return {
         ...updated,
         inboundOffers: upsertInboundOffer(updated, { ...negotiation, status: "collapsed" }),
       };
     }
     updated = executeTransfer(
-      updated, pid, league.meta.userTid, resolved.buyerTid, ask, wageCharge, ws.season, ws.window,
+      updated, pid, league.meta.userTid, resolved.buyerTid, askCash,
+      wageCharge, ws.season, ws.window, clauses,
     );
   }
   return updated;

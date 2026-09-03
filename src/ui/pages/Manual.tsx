@@ -1975,6 +1975,48 @@ export function Manual() {
             you), just better odds of a bite.
           </p>
           <p>
+            <strong>Sell-on shares and bonuses.</strong> Any deal you negotiate, buying or selling,
+            has an <strong>Add-ons</strong> panel under the offer buttons. Two things live there:
+          </p>
+          <ul>
+            <li>
+              A <strong>sell-on share</strong> of up to <strong>40%</strong>. Sell a player with one
+              attached and you keep that share of the <em>profit</em> if his new club sells him on
+              again within <strong>5 seasons</strong>. Profit, not the fee: if they sell him for less
+              than they paid you, you get nothing. Buy a player and you can hand a share the other
+              way instead.
+            </li>
+            <li>
+              <strong>Bonuses</strong>, paid once each if the thing happens within{" "}
+              <strong>3 seasons</strong> while he's still at that club. You can attach one for him
+              playing <strong>25</strong> league games in a season, one for <strong>10</strong>{" "}
+              league goals in a season, one for his club qualifying for Europe, and one for his club
+              winning promotion. Together they can't come to more than <strong>half</strong> the
+              cash fee.
+            </li>
+          </ul>
+          <p>
+            <strong>The one thing to understand: add-ons are not extra money.</strong> The other club
+            has a number in its head for the whole deal, and anything you put into add-ons comes
+            straight off the cash. Ask for a 30% sell-on when selling and the cheque today gets
+            smaller by whatever they think that share is worth. The panel shows you the new cash
+            figure before you commit, so you can see exactly what you're trading away.
+          </p>
+          <p>
+            That makes it a real decision rather than free upside. Take the cash if you need it now
+            or you think he's already peaked. Take the sell-on if you're selling a teenager to a big
+            club and you fancy your read on him over theirs. Going the other way, add-ons are how you
+            sign someone you can't quite afford: promise the appearance bonus, pay less today.
+          </p>
+          <p>
+            Everything still owed, in both directions, is listed under <strong>Transfer Add-ons</strong>{" "}
+            on the <a href="#finance">Finance</a> page, and on each player's own page. Clauses
+            disappear from those lists the moment they pay out, run out of time, or the player leaves
+            the club that owed them. A bonus dies unpaid if he's sold before it triggers, and a
+            sell-on settles and ends the moment he's sold on. Only deals you make carry add-ons; AI
+            clubs don't attach them to each other's transfers.
+          </p>
+          <p>
             Every deal you make and every deal in your own league lands in the News Feed, along
             with the biggest moves elsewhere in the world.
           </p>

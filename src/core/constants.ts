@@ -1960,6 +1960,106 @@ export const PLAYER_WILL_RISE_BONUS = 0.35;
 export const PLAYER_SETTLED_BONUS = 0.6;
 export const PLAYER_SETTLED_SEASONS = 3;
 
+/* ---------------------------------------------------------------------------
+ * Transfer clauses — sell-on shares and bonuses (core/transfers/clauses.ts).
+ *
+ * These price CONTINGENT money on a deal the user negotiates. A clause never
+ * adds money to a transfer: the other club's total willingness to pay is
+ * unchanged and the clause converts part of it from cash into contingency, so
+ * every one of these constants moves what the up-front cash price is discounted
+ * by. That is the whole exploit surface — under-price a clause and the user
+ * keeps nearly the full cash fee AND the upside — so re-run
+ * `scripts/clausePricingProbe.ts` (priced expected value against what actually
+ * pays out) after touching any of them.
+ *
+ * User-only, so none of this reaches the AI↔AI market and no dynasty audit is
+ * involved. See the header of clauses.ts.
+ * ------------------------------------------------------------------------- */
+
+/** How many seasons a sell-on share stays live before it lapses. */
+export const SELL_ON_CLAUSE_SEASONS = 5;
+
+/**
+ * The most of a player's future profit one club may retain. Real sell-on
+ * clauses top out around 40%; past that a club has sold the player while
+ * keeping most of what he is worth, which is not a transfer.
+ */
+export const SELL_ON_MAX_SHARE = 0.4;
+
+/**
+ * P(the buying club moves him on again at all before the clause lapses), and
+ * how many seasons ahead his resale value is projected. Both are measured —
+ * see the probe — rather than guessed: they are the difference between a
+ * clause being a fair trade and being free money.
+ */
+export const SELL_ON_RESALE_PROBABILITY = 0.45;
+export const SELL_ON_PRICING_HORIZON = 2;
+
+/**
+ * How much of the modelled profit a resale actually delivers.
+ *
+ * **This is the constant the probe existed to find, and without it the clause
+ * was over-priced by nearly half.** Measured over 24,394 club-to-club sales
+ * across 10 seasons: the first two constants above landed almost exactly right
+ * (46.5% of players really are resold inside the window, at a mean 1.88 seasons)
+ * and the pricing was still `realized / priced = 0.556`, i.e. the user was
+ * handing over roughly twice the cash a sell-on was worth.
+ *
+ * The gap is not in *whether* he is resold but in **what for**: only 40.1% of
+ * resales are at a profit at all, and `projectedValue` is a straight-line march
+ * toward potential that ignores `growthDamping` throttling exactly the players
+ * a clause gets attached to. Rather than bend that projection — it is honest
+ * about what the valuation curve says he'd be worth — this scales the profit
+ * term by what the market really pays out.
+ *
+ * Re-derive it from the probe's `realized / priced` ratio, which reads 1.0 when
+ * this is right. It is a market-wide average over a large sample, so a single
+ * deal still lands anywhere: 4.2% of them pay more than three times what they
+ * were priced at, which is the point of a clause.
+ */
+export const SELL_ON_PROFIT_REALIZATION = 0.55;
+
+/** How many seasons a bonus can still be triggered before it lapses. */
+export const BONUS_CLAUSE_SEASONS = 3;
+
+/**
+ * Total bonus money as a fraction of the cash fee. Caps how far the up-front
+ * price can be discounted, which keeps a deliberately coarse pricing model from
+ * being leaned on harder than it deserves — and keeps a transfer a transfer
+ * rather than a nominal fee plus a lottery ticket.
+ */
+export const BONUS_MAX_TOTAL_FRACTION = 0.5;
+
+/** What the two player-performance bonuses ask for, in one league season. */
+export const BONUS_APPEARANCE_THRESHOLD = 25;
+export const BONUS_GOAL_THRESHOLD = 10;
+
+/**
+ * Per-season base rate for each trigger before the player/club adjustment. The
+ * two performance triggers are then scaled by how he rates against the man he
+ * has to displace; the two team triggers ignore these and derive their rate
+ * from the league's actual slot counts.
+ */
+export const BONUS_BASE_PROBABILITY: Record<string, number> = {
+  // Both measured per season over 24,394 real transfers (see the probe), not
+  // guessed. The first pass had these at 0.35 and 0.2 — an appearance bonus
+  // priced at better than even money over three seasons against a real 39.5%,
+  // and a goal bonus at seven times its true rate. A bonus that is over-priced
+  // is a bonus the user should never take, because the cash it costs him is
+  // worth more than the bonus is.
+  appearances: 0.155,
+  goals: 0.029,
+  continental: 0,
+  promotion: 0,
+};
+
+/**
+ * Ovr points of gap over the incumbent starter worth one logistic unit — i.e.
+ * how sharply "will he play" responds to how much better than the incumbent he
+ * is. Large enough that a couple of rating points is not decisive.
+ */
+export const BONUS_STARTER_OVR_SWING = 8;
+
 /**
  * Timeline multiplier: how age fits the club's ambition. Win-now clubs (high
  * ambition) pay a premium for prime-age readiness and discount teenage

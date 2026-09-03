@@ -22,6 +22,9 @@ import { clubDisplayName, currency, formatWeeklyWage, talksCollapsedMessage } fr
 import { WatchToggle } from "../components/WatchToggle.js";
 import { Flag } from "../components/Flag.js";
 import { OfferAmountInput } from "../components/OfferAmountInput.js";
+import { ClauseEditor } from "../components/ClauseEditor.js";
+import type { ProposedClause } from "../../core/transfers/clauses.js";
+import { clausesAreValid } from "../../core/transfers/clauses.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PlayerRefLink, usePlayerRefs } from "../components/PlayerRefLink.js";
 import { PotDisplay } from "../components/PotDisplay.js";
@@ -77,14 +80,17 @@ interface NegotiationControlsProps {
   /** Season wages charged on top of the fee for a mid-season buy. */
   wageCharge: number;
   disabled: boolean;
-  onOffer: (pid: number, amount: number) => void;
-  onAcceptCounter: (pid: number) => void;
+  /** The user's own club: buying, he is the one who would owe on an add-on. */
+  userTid: number;
+  onOffer: (pid: number, amount: number, clauses: ProposedClause[]) => void;
+  onAcceptCounter: (pid: number, clauses: ProposedClause[]) => void;
 }
 
 function NegotiationControls({
-  pid, negotiation, suggested, budget, wageCharge, disabled, onOffer, onAcceptCounter,
+  pid, negotiation, suggested, budget, wageCharge, disabled, userTid, onOffer, onAcceptCounter,
 }: NegotiationControlsProps) {
   const [draft, setDraft] = useState(() => String(suggested));
+  const [clauses, setClauses] = useState<ProposedClause[]>([]);
 
   if (negotiation?.status === "accepted") {
     return <span className="text-success">Transferred</span>;
@@ -102,7 +108,8 @@ function NegotiationControls({
   const notImproving = bestOffer !== null && draftValue <= bestOffer;
   const offerValid =
     draft !== "" && Number.isFinite(draftValue) && draftValue > 0
-    && draftValue + wageCharge <= budget && !notImproving;
+    && draftValue + wageCharge <= budget && !notImproving
+    && clausesAreValid(clauses, draftValue);
 
   // Quick-pick amounts anchored to whatever the next valid bid must clear.
   const floor = negotiation?.counter ?? bestOffer ?? suggested;
@@ -131,7 +138,7 @@ function NegotiationControls({
           className="btn btn-sm btn-primary"
           disabled={disabled || !offerValid}
           title={notImproving ? "Must improve on your previous offer" : undefined}
-          onClick={() => onOffer(pid, draftValue)}
+          onClick={() => onOffer(pid, draftValue, clauses)}
         >
           Offer
         </button>
@@ -139,12 +146,23 @@ function NegotiationControls({
           <button
             className="btn btn-sm btn-success text-nowrap"
             disabled={disabled || negotiation.counter + wageCharge > budget}
-            onClick={() => onAcceptCounter(pid)}
+            onClick={() => onAcceptCounter(pid, clauses)}
           >
             Accept {currency.format(negotiation.counter)}
           </button>
         )}
       </div>
+      {/* Buying, the add-ons are yours to owe — so they buy the asking price
+          down rather than up. */}
+      <ClauseEditor
+        pid={pid}
+        obligorTid={userTid}
+        baseFee={negotiation?.counter ?? draftValue}
+        value={clauses}
+        onChange={setClauses}
+        disabled={disabled}
+        direction="buying"
+      />
     </div>
   );
 }
@@ -460,6 +478,7 @@ export function Transfers() {
                           budget={userTeam.budget}
                           wageCharge={acquisitionWageCharge(league, p)}
                           disabled={simming || atCap}
+                          userTid={league.meta.userTid}
                           onOffer={makeOfferAction}
                           onAcceptCounter={acceptCounterAction}
                         />
@@ -564,6 +583,7 @@ export function Transfers() {
                             budget={userTeam.budget}
                             wageCharge={acquisitionWageCharge(league, p)}
                             disabled={simming || atCap}
+                            userTid={league.meta.userTid}
                             onOffer={makeOfferAction}
                             onAcceptCounter={acceptCounterAction}
                           />
@@ -611,6 +631,7 @@ export function Transfers() {
                           budget={userTeam.budget}
                           wageCharge={acquisitionWageCharge(league, p)}
                           disabled={simming || atCap}
+                          userTid={league.meta.userTid}
                           onOffer={makeOfferAction}
                           onAcceptCounter={acceptCounterAction}
                         />

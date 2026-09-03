@@ -34,7 +34,7 @@ import { computeWorldAwards } from "./worldAwards.js";
 import { snapshotAwardWinners } from "./awardWinners.js";
 import { buildCupState } from "./cup/cup.js";
 import type { QualificationContext } from "./cup/qualification.js";
-import { domesticCupWinners } from "./cup/qualification.js";
+import { domesticCupWinners, qualificationByTid } from "./cup/qualification.js";
 import { coefficientSlots } from "./cup/coefficients.js";
 import { buildDomesticCups } from "./domesticCup/cup.js";
 import { archiveDomesticCup } from "./domesticCup/archive.js";
@@ -45,10 +45,14 @@ import {
 } from "./promotionPlayoff.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
-import { settleSeasonEnd, chargeSeasonStart, wageBill, financeScaleFor } from "./finance/budget.js";
+import { settleSeasonEnd, chargeSeasonStart, wageBill, financeScaleFor, clampBudget } from "./finance/budget.js";
 import { academyContractTerms } from "./contracts.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
-import { competitionOf, competitionTeamCount, competitionNationalities } from "./competitions.js";
+import { competitionOf, competitionTeamCount, competitionNationalities, tierOf } from "./competitions.js";
+import type { TransferClause } from "./transfers/clauses.js";
+import {
+  settleBonuses, payoutDeltas, expireClauses, scrubClausesForPids,
+} from "./transfers/clauses.js";
 import { simThroughInternational, confederationCupChampions } from "./international/index.js";
 import { reviewNationalCampaign } from "./nationalManager/index.js";
 import { carryIntlInjuries } from "./injuries.js";
@@ -404,8 +408,16 @@ export function simOffseasonReporting(
     // stopped being one. Dropping him is also the only way he *can* leave it:
     // his profile page goes with him, and that is where the star lives.
     watchlist: league.watchlist.filter((pid) => !retiredPids.has(pid)),
+    // A clause about a player who no longer exists can never fire and can never
+    // be read, so it would sit in the save forever. Same reasoning as the
+    // watchlist above, and the same pair of scrub sites (here and the cull).
+    transferClauses: scrubClausesForPids(league.transferClauses ?? [], retiredPids),
   };
   league = { ...league, ...liveRefsScrubbed };
+  // Live contingent money from here on: the summer market settles any sell-on
+  // it triggers (6.4), step 6.7 pays the season's bonuses, and what survives
+  // rolls over. Read after the retirement scrub above, never before it.
+  let clauses = league.transferClauses;
 
   // 3.05. Carry any injuries picked up at the summer's internationals into the
   //       new club season — a World Cup injury genuinely sidelines a player for
@@ -561,6 +573,10 @@ export function simOffseasonReporting(
   //      Where a country held a promotion playoff, its last promotion place
   //      goes to the playoff winner instead of to the club that finished there
   //      — same number up, decided on the pitch.
+  // Which division each club was in BEFORE the swap, so step 6.7 can answer
+  // "was this club promoted" by comparing tiers. Nothing records a promotion
+  // as an event, and after the swap a club's compId is simply its new one.
+  const compIdBeforeSwaps = new Map(teams.map((t) => [t.tid, t.compId]));
   const swaps = computeCountrySwaps(
     league.competitions, tablesByCompId, playoffOutcomes(promotionPlayoffs),
   );
@@ -693,8 +709,12 @@ export function simOffseasonReporting(
     teams, players, activeLoans, ceilingTransfers, nextSeason, league.played,
     "summer", "offseason", league.meta.userTid, marketSeed, league.competitions,
     summerProtectedPids,
+    { clauses, difficulty: league.difficulty },
   );
   teams = summerMarket.teams;
+  // A sell-on fires when the club that bought the player moves him on — which,
+  // the user's own club aside, is always a deal made right here.
+  clauses = summerMarket.clauses;
 
   // 6.45. Guaranteed ceiling on Division 2 quality, run *after* the market
   //      above (not before) — a Division 1 club can still sell a genuinely
@@ -823,9 +843,82 @@ export function simOffseasonReporting(
     ) ?? undefined,
   };
 
+  // 6.7. Settle transfer bonuses earned by the season just played, then expire
+  //      or release anything that has run out of road.
+  //
+  //      Placed here rather than beside the other finance work at step 6.5
+  //      because two of the four triggers are only answerable this late:
+  //      promotion is decided at 3.6, and continental qualification needs
+  //      `cupRoutes` just above. The consequence is that bonus money lands
+  //      *after* the new season's wages are charged, which is the right way
+  //      round anyway — an add-on for last season's achievements is banked
+  //      going into the next one, not retrospectively spent on it.
+  //
+  //      This step's job is to ANSWER the four questions; who then gets paid is
+  //      `settleBonuses`, which is pure and tested on its own.
+  //
+  //      Pure and rng-free either way: it reads stats and tables that already
+  //      exist and moves money between two budgets. No shared-`rng` draw, so no
+  //      scoreline anywhere moves.
+  const rosterOf = new Map<number, number>();
+  for (const t of teams) for (const pid of t.roster) rosterOf.set(pid, t.tid);
+  const promotedTids = new Set(
+    teams
+      .filter((t) => {
+        const before = compIdBeforeSwaps.get(t.tid);
+        return before !== undefined
+          && tierOf(league.competitions, before) > tierOf(league.competitions, t.compId);
+      })
+      .map((t) => t.tid),
+  );
+  const bonusSettlement = settleBonuses(clauses, {
+    rosterOf,
+    statsByPid: new Map(
+      players.map((p) => [p.pid, p.stats.find((st) => st.season === league.season)]),
+    ),
+    qualifiedTids: new Set(
+      qualificationByTid(league.competitions, tablesByCompId, cupRoutes).keys(),
+    ),
+    promotedTids,
+  });
+  const bonusDeltas = payoutDeltas(bonusSettlement.payouts);
+  if (bonusDeltas.size > 0) {
+    teams = teams.map((t) => {
+      const d = bonusDeltas.get(t.tid);
+      if (d === undefined || d === 0) return t;
+      // Clamp only a club that ends up better off, matching every other credit
+      // in the game (see clampBudget).
+      const budget = d > 0
+        ? clampBudget(
+            t.budget + d,
+            financeScaleFor(league.competitions, t.compId, t.tid, league.meta.userTid, league.difficulty),
+            t.hype,
+          )
+        : t.budget + d;
+      return { ...t, budget };
+    });
+  }
+
+  //      Then drop anything whose player is no longer OWNED by the club that
+  //      owes it. A sale settles and removes its own clauses on the spot; this
+  //      is the catch-all for every other way he can leave — released, contract
+  //      expired, swept up by the division ceiling — so those sites need no
+  //      clause code of their own. Once a season is enough because a departed
+  //      player's clause is inert in the meantime: a sell-on only fires on a
+  //      sale BY the obligor, and he has none to make.
+  //
+  //      A player out on loan sits on the loanee's roster while still belonging
+  //      to his parent, so roster membership alone would wrongly kill every
+  //      clause on a loaned-out player.
+  const loanedFrom = new Map(activeLoans.map((l) => [l.pid, l.parentTid]));
+  const stillOwned = (c: TransferClause) =>
+    rosterOf.get(c.pid) === c.obligorTid || loanedFrom.get(c.pid) === c.obligorTid;
+  clauses = expireClauses(bonusSettlement.remaining.filter(stillOwned), nextSeason);
+
   const rolled: LeagueStore = {
     ...league,
     teams,
+    transferClauses: clauses,
     players,
     season: nextSeason,
     phase: "regular",

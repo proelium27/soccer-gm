@@ -1,4 +1,5 @@
 import type { LeagueStore } from "../leagueState.js";
+import { scrubClausesForPids } from "../transfers/clauses.js";
 import type { Player } from "./types.js";
 import type { DomesticCupState } from "../domesticCup/types.js";
 import {
@@ -189,6 +190,9 @@ export function cullFreeAgentPoolReporting(
     // A starred player nobody can open, list or un-star is worse than one the
     // shortlist forgets, so the watchlist is scrubbed with everything else.
     watchlist: league.watchlist.filter((pid) => !cull.has(pid)),
+    // Same argument as the watchlist: a clause about a player who no longer
+    // exists can never fire and can never be read, so it would just sit there.
+    transferClauses: scrubClausesForPids(league.transferClauses ?? [], cull),
     teams: league.teams.map((t) => {
       // Fog-of-war bookkeeping is a pid-keyed map, so it needs the same scrub.
       const observed = t.scoutingObserved;

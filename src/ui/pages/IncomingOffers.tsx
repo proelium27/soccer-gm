@@ -13,6 +13,9 @@ import { WINTER_WINDOW_OPEN_MATCHDAY } from "../../core/calendar.js";
 import { currency, formatWeeklyWage, talksCollapsedMessage } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { OfferAmountInput } from "../components/OfferAmountInput.js";
+import { ClauseEditor } from "../components/ClauseEditor.js";
+import type { ProposedClause } from "../../core/transfers/clauses.js";
+import { clausesAreValid } from "../../core/transfers/clauses.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
@@ -40,15 +43,17 @@ interface OfferRowProps {
   negotiation: InboundOffer | undefined;
   disabled: boolean;
   commentary: ScoutCommentary | null;
-  onAccept: (pid: number) => void;
+  onAccept: (pid: number, clauses: ProposedClause[]) => void;
   onReject: (pid: number) => void;
-  onCounter: (pid: number, amount: number) => void;
+  onCounter: (pid: number, amount: number, clauses: ProposedClause[]) => void;
 }
 
 function OfferRow({
-  pid, buyerName, playerName, offerFee, negotiation, disabled, commentary, onAccept, onReject, onCounter,
+  pid, buyerTid, buyerName, playerName, offerFee, negotiation, disabled, commentary,
+  onAccept, onReject, onCounter,
 }: OfferRowProps) {
   const [draft, setDraft] = useState(() => String(Math.round(offerFee * 1.2)));
+  const [clauses, setClauses] = useState<ProposedClause[]>([]);
 
   if (negotiation?.status === "accepted") {
     return <span className="text-success">Sold to {buyerName}</span>;
@@ -93,8 +98,8 @@ function OfferRow({
       <div className="d-flex gap-1 align-items-center">
         <button
           className="btn btn-sm btn-success"
-          disabled={disabled}
-          onClick={() => onAccept(pid)}
+          disabled={disabled || !clausesAreValid(clauses, offerFee)}
+          onClick={() => onAccept(pid, clauses)}
         >
           Accept {currency.format(offerFee)}
         </button>
@@ -108,7 +113,7 @@ function OfferRow({
           className="btn btn-sm btn-primary"
           disabled={disabled || !askValid}
           title={notImproving ? "Must ask less than your previous ask" : undefined}
-          onClick={() => onCounter(pid, draftValue)}
+          onClick={() => onCounter(pid, draftValue, clauses)}
         >
           Counter
         </button>
@@ -120,6 +125,16 @@ function OfferRow({
           Reject
         </button>
       </div>
+      {/* The buying club is the one that would owe on anything agreed here. */}
+      <ClauseEditor
+        pid={pid}
+        obligorTid={buyerTid}
+        baseFee={offerFee}
+        value={clauses}
+        onChange={setClauses}
+        disabled={disabled}
+        direction="selling"
+      />
     </div>
   );
 }
