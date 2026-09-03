@@ -12,8 +12,10 @@ import { ClubCrest } from "../components/ClubCrest.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { PlayerRefLink } from "../components/PlayerRefLink.js";
 import { PlayerCell, RankTable } from "../components/boards.js";
-import { GoatBreakdown } from "../components/GoatBreakdown.js";
-import { clubGoatRanking, type ClubGoatRow } from "../../core/frivolities/clubGoat.js";
+import { GoatBreakdown, partLabel } from "../components/GoatBreakdown.js";
+import {
+  clubGoatRanking, CLUB_GOAT_PARTS, type ClubGoatRow,
+} from "../../core/frivolities/clubGoat.js";
 import { seasonYear, ordinal } from "../format.js";
 import { isSpectator } from "../../core/spectator.js";
 
@@ -98,6 +100,11 @@ function HonourList({
  * and a man's spell elsewhere counts for nothing. Showing the span and the
  * games is not decoration: without them the board reads as a filtered world
  * ranking, and the whole point of scoring the stint is invisible.
+ *
+ * A column per part of the score, the same as the world board, so a part can
+ * never count toward a total without appearing in the table. Which parts those
+ * are is `CLUB_GOAT_PARTS`, decided in core beside the code that zeroes the
+ * missing one, rather than inferred here from what happens to be non-zero.
  */
 function GreatestPlayers({ rows, seasons }: { rows: ClubGoatRow[]; seasons: number }) {
   return (
@@ -107,12 +114,20 @@ function GreatestPlayers({ rows, seasons }: { rows: ClubGoatRow[]; seasons: numb
             card title repeating it reads as a mistake. */}
         <p className="text-secondary small mb-2">
           Ranked on what each of them did at this club: the rating he peaked at here, the years
-          he held it, and the awards and trophies he won while he was here. Click a row for the
-          full working.
+          he held it, and the awards and trophies he won while he was here. The columns are what
+          each part of that is worth. Click a row for the full working.
         </p>
         <RankTable
           rows={rows}
-          headers={["Player", "Years", "Apps", "Peak", "Score"]}
+          headers={[
+            "Player", "Years", "Apps",
+            // "Best OVR", never "Peak": the Peak column beside it is the score
+            // that rating earns, and calling both peak makes the row unreadable.
+            // Same wording the world board settled on for the same clash.
+            "Best OVR",
+            ...CLUB_GOAT_PARTS.map((key) => partLabel(key)),
+            "Score",
+          ]}
           render={(r: ClubGoatRow) => [
             <PlayerCell
               pid={r.career.pid}
@@ -125,6 +140,11 @@ function GreatestPlayers({ rows, seasons }: { rows: ClubGoatRow[]; seasons: numb
               : `${seasonYear(r.stint.firstSeason)}-${seasonYear(r.stint.lastSeason)}`,
             r.stint.totals.appearances,
             r.stint.peakOvr,
+            ...CLUB_GOAT_PARTS.map((key) => (
+              <span className="text-muted">
+                {r.components.find((c) => c.key === key)?.points ?? 0}
+              </span>
+            )),
             <strong>{r.score}</strong>,
           ]}
           expand={(r: ClubGoatRow) => <GoatBreakdown components={r.components} score={r.score} />}

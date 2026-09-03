@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { clubGoatRanking, clubStint } from "../../src/core/frivolities/clubGoat.js";
+import {
+  clubGoatRanking, clubStint, CLUB_GOAT_PARTS,
+} from "../../src/core/frivolities/clubGoat.js";
 import { playerGoatRanking, pointsOf } from "../../src/core/frivolities/goat.js";
 import { allCareers } from "../../src/core/frivolities/careers.js";
 import { emptyTotals, emptyBestSeasons } from "../../src/core/frivolities/stats.js";
@@ -237,6 +239,56 @@ describe("clubGoatRanking", () => {
     for (const r of clubGoatRanking(store, 1)) {
       expect(r.score).toBe(r.components.reduce((sum, c) => sum + c.points, 0));
     }
+  });
+
+  describe("CLUB_GOAT_PARTS", () => {
+    // A player with something in every scorable part: a long stint, a title and
+    // an award. If the list is honest he scores in all five and in nothing else.
+    const decorated = () => makeStore({
+      players: [makePlayer({
+        pid: 1,
+        lines: Array.from({ length: 6 }, (_, i): [number, number, number] => [2021 + i, 1, 38]),
+        ovrBySeason: Object.fromEntries(Array.from({ length: 6 }, (_, i) => [2021 + i, 82])),
+      })],
+      seasonHistory: [
+        makeHistory({
+          season: 2022,
+          championTidByCompId: { 0: 1 },
+          awards: { 0: { playerOfSeasonPid: 1, goldenBootPid: 1, teamOfSeason: [1] } },
+        }),
+      ],
+    });
+
+    it("lists every part a club board can actually award", () => {
+      const [row] = clubGoatRanking(decorated(), 1);
+      for (const key of CLUB_GOAT_PARTS) {
+        const c = row.components.find((x) => x.key === key);
+        expect(c, `${key} is listed but not scored`).toBeDefined();
+        expect(c!.points, `${key} is listed but scored nothing`).toBeGreaterThan(0);
+      }
+    });
+
+    it("omits only parts a club board structurally cannot award", () => {
+      // The omitted part is "production", and it is omitted because `clubStint`
+      // zeroes goals, assists and caps rather than because this player happens
+      // to have none. If that ever becomes sliceable, this fails and forces the
+      // list to be updated instead of quietly dropping a real column.
+      const [row] = clubGoatRanking(decorated(), 1);
+      const omitted = row.components.filter((c) => !CLUB_GOAT_PARTS.includes(c.key));
+      expect(omitted.map((c) => c.key)).toEqual(["production"]);
+      for (const c of omitted) {
+        expect(c.points, `${c.key} is omitted from the columns but scores`).toBe(0);
+      }
+    });
+
+    it("keeps the listed columns adding up to the score", () => {
+      // The omitted part scores nothing, so the visible columns must reconcile
+      // with the total on their own or the board reads as an unsorted list.
+      const [row] = clubGoatRanking(decorated(), 1);
+      const shown = CLUB_GOAT_PARTS.reduce(
+        (sum, key) => sum + (row.components.find((c) => c.key === key)?.points ?? 0), 0);
+      expect(shown).toBe(row.score);
+    });
   });
 
   it("honours the limit", () => {

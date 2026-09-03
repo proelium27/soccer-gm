@@ -154,6 +154,22 @@ describe("Club History page render", () => {
       expect(yours).not.toContain(`/player/${ourPid}`);
     });
 
+    it("gives each part of the score its own column, and drops the empty one", () => {
+      // The world board generates its columns from `row.components` so a part
+      // can't count toward a total without appearing. This does the same, with
+      // one difference worth pinning: "Extras" (goals, assists, caps) is zeroed
+      // for everyone on a club board by construction, and a column of nothing
+      // but zeroes reads as a bug rather than as a fact.
+      const html = render(leagueWith(true));
+      for (const part of ["Peak", "Prime", "Career", "Awards", "Trophies"]) {
+        expect(html).toContain(`<th class="text-end">${part}</th>`);
+      }
+      expect(html).not.toContain('<th class="text-end">Extras</th>');
+      // The raw rating keeps a name of its own, or it and the Peak score column
+      // both read as "peak" and the row stops making sense.
+      expect(html).toContain('<th class="text-end">Best OVR</th>');
+    });
+
     it("says the board is empty rather than rendering a headerless table", () => {
       // A club whose players have no recorded appearances. Legitimate on a save
       // that has only just started, and it has to read as such.
