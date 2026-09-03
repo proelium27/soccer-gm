@@ -265,7 +265,7 @@ describe("orphaned-loan duplication (trim / free-agency / user buy)", () => {
 
   it("trimRosterSurplus never prunes a loaned-in player off the loanee roster", () => {
     const { league, pid, loaneeTid } = loanOutSurplusPlayer(windowLeague());
-    const trimmed = trimRosterSurplus(league.teams, league.players, league.meta.userTid, league.activeLoans);
+    const trimmed = trimRosterSurplus(league.teams, league.players, league.meta.userTid, league.season, league.activeLoans);
     expect(trimmed.find((t) => t.tid === loaneeTid)!.roster).toContain(pid);
   });
 
