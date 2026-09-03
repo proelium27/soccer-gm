@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { ClubLink } from "../components/ClubLink.js";
@@ -11,6 +11,9 @@ import type { Player } from "../../core/players/types.js";
 import { ClubCrest } from "../components/ClubCrest.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
 import { PlayerRefLink } from "../components/PlayerRefLink.js";
+import { PlayerCell, RankTable } from "../components/boards.js";
+import { GoatBreakdown } from "../components/GoatBreakdown.js";
+import { clubGoatRanking, type ClubGoatRow } from "../../core/frivolities/clubGoat.js";
 import { seasonYear, ordinal } from "../format.js";
 import { isSpectator } from "../../core/spectator.js";
 
@@ -87,6 +90,61 @@ function HonourList({
   );
 }
 
+/**
+ * The club's greatest players, scored on their time *here*.
+ *
+ * Every number in a row comes from `row.stint` — the career narrowed to this
+ * club — so the years, the appearances and the peak rating are all "with us",
+ * and a man's spell elsewhere counts for nothing. Showing the span and the
+ * games is not decoration: without them the board reads as a filtered world
+ * ranking, and the whole point of scoring the stint is invisible.
+ */
+function GreatestPlayers({ rows, seasons }: { rows: ClubGoatRow[]; seasons: number }) {
+  return (
+    <div className="card mb-4">
+      <div className="card-body">
+        {/* No heading of its own: the section's own h5 already names it, and a
+            card title repeating it reads as a mistake. */}
+        <p className="text-secondary small mb-2">
+          Ranked on what each of them did at this club: the rating he peaked at here, the years
+          he held it, and the awards and trophies he won while he was here. Click a row for the
+          full working.
+        </p>
+        <RankTable
+          rows={rows}
+          headers={["Player", "Years", "Apps", "Peak", "Score"]}
+          render={(r: ClubGoatRow) => [
+            <PlayerCell
+              pid={r.career.pid}
+              name={r.career.name}
+              nationality={r.career.nationality}
+              active={r.career.active}
+            />,
+            r.stint.firstSeason === r.stint.lastSeason
+              ? seasonYear(r.stint.firstSeason)
+              : `${seasonYear(r.stint.firstSeason)}-${seasonYear(r.stint.lastSeason)}`,
+            r.stint.totals.appearances,
+            r.stint.peakOvr,
+            <strong>{r.score}</strong>,
+          ]}
+          expand={(r: ClubGoatRow) => <GoatBreakdown components={r.components} score={r.score} />}
+          empty="players with a game for this club"
+        />
+        {rows.length > 0 && seasons > 20 && (
+          /* The archive keeps only the best careers and prunes the rest, so the
+             further back a save reaches the thinner its record of who played
+             here gets. Saying so beats a board that quietly looks like the
+             club has no history before the current squad. */
+          <p className="text-muted small mb-0 mt-2">
+            Players from the distant past may be missing. The game keeps a full record of the
+            most notable careers only.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ClubHistory() {
   const { league } = useLeague();
   const playersByPid = usePlayerMap(league?.players);
@@ -102,18 +160,27 @@ export function ClubHistory() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tidParam = Number(searchParams.get("tid"));
 
-  if (!league) {
-    return <p className="p-3">Loading...</p>;
-  }
-
   // Your own club is the sensible landing spot — unless nobody manages one, in
   // which case it is a tid no club owns and would land the page on nothing.
   // First club in the world instead, which is at least a real page you can then
   // navigate away from with the picker.
-  const userTid = isSpectator(league) ? league.teams[0]?.tid ?? -1 : league.meta.userTid;
+  // Resolved above the loading guard, not below it, because the board underneath
+  // needs a memo and a hook cannot sit after an early return.
+  const userTid = league
+    ? (isSpectator(league) ? league.teams[0]?.tid ?? -1 : league.meta.userTid)
+    : -1;
   // A tid the save doesn't know (a hand-edited URL, or a link from a save that
   // has since changed) falls back to that rather than an empty page.
-  const tid = league.teams.some((t) => t.tid === tidParam) ? tidParam : userTid;
+  const tid = league?.teams.some((t) => t.tid === tidParam) ? tidParam : userTid;
+  // Held rather than recomputed: `clubGoatRanking` walks every career in the
+  // world (~150 ms on a century-long save), and this render body runs again on
+  // every club the picker switches to.
+  const goat = useMemo(() => (league ? clubGoatRanking(league, tid) : []), [league, tid]);
+
+  if (!league) {
+    return <p className="p-3">Loading...</p>;
+  }
+
   const team = league.teams.find((t) => t.tid === tid);
   const currentComp = team ? competitionOf(league.competitions, team.compId) : undefined;
 
@@ -313,6 +380,9 @@ export function ClubHistory() {
               />
             </div>
           </div>
+
+          <h5>Greatest Players</h5>
+          <GreatestPlayers rows={goat} seasons={history.seasonsPlayed} />
 
           <h5>Franchise Records</h5>
           <div className="row g-3 mb-4">

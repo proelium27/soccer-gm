@@ -27,7 +27,7 @@ vi.mock("../../src/ui/context/LeagueContext.js", () => ({
   useLeague: () => ({ league: leagueRef.current, simming: false }),
 }));
 
-const { GoatBreakdown } = await import("../../src/ui/pages/Frivolities.js");
+const { GoatBreakdown } = await import("../../src/ui/components/GoatBreakdown.js");
 
 function row(tid: number, points: number): StandingsRow {
   return { tid, played: 38, won: 0, drawn: 0, lost: 0, gf: 60, ga: 30, gd: 30, points };
