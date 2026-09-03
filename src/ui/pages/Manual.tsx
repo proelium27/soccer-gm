@@ -2211,23 +2211,33 @@ export function Manual() {
           <p>
             <strong>Cup prize money is separate, and it doesn't wait for the settlement.</strong>{" "}
             Continental and domestic cup money is paid as you go, landing in your budget the day you
-            play the tie. The Finance page has its own Cup Prize Money card breaking down what
-            you've banked so far this season and which round it came from, across all three cups you
-            can be in at once. It's money you already have, not a projection.
+            play the tie, across all three cups you can be in at once. It's money you already have,
+            not a projection.
           </p>
           <p>
-            The Finance page shows all of it: current budget, hype, the wage-bill table, a
-            settlement projection (final numbers once the season ends), your full transfer history,
-            and a league-wide money table for comparison. A competition dropdown (grouped by country)
-            scopes that table, defaulting to whichever competition your own club is currently in,
-            with an "All Competitions" option to see every club in the world at once. AI clubs are
-            tuned to never go broke. <em>You</em> can overspend, though: hoard a full roster of elite
-            wages and the projection will happily show you the shortfall coming. Budget is a running
-            balance that carries over between seasons instead of resetting. The savings cap scales
-            with a club's fame: a top-flight club can bank up to <strong>$400M</strong> at full hype,
-            down to <strong>$200M</strong> for a club with no fame (Division 2 clubs are capped lower
-            on top of that, reflecting the money gap between divisions). Spending below your cap is
-            unrestricted, but you can't bank cash past it.
+            <strong>The Finance page is built around when money moves, not just how much.</strong>{" "}
+            Four figures across the top say where you stand: your balance (and how close it is to
+            your savings ceiling), your wage bill as a share of what the club earns in a year, what
+            you're projected to start next season with, and your hype. Under that, "Your money year"
+            walks through the four moments money actually changes hands, marking the one you're
+            sitting in: during the season (cup prizes and transfer fees), at season end (league prize
+            money, hype revenue, your scouting bill), in the offseason (any add-ons settling), and
+            when next season starts (the new allocation arrives and the whole wage bill comes
+            straight back out of it). Below that sit your scouting budget, where the wage bill goes
+            player by player, any outstanding add-ons, your full transfer history and a league-wide
+            money table for comparison, scoped by a competition dropdown that defaults to your own
+            division and has an "All Competitions" option.
+          </p>
+          <p>
+            AI clubs are tuned to never go broke. <em>You</em> can overspend, though: hoard a full
+            roster of elite wages and the projection will happily show you the shortfall coming.
+            Budget is a running balance that carries over between seasons instead of resetting. The
+            savings cap scales with a club's fame: a top-flight club can bank up to{" "}
+            <strong>$400M</strong> at full hype, down to <strong>$200M</strong> for a club with no
+            fame (lower divisions are capped lower still, reflecting the money gap between them).
+            Spending below your cap is unrestricted, but you can't bank cash past it &mdash; money
+            you would have saved above the line is never paid at all rather than carried over, so if
+            you're near the ceiling the page warns you before the next cheque disappears.
           </p>
         </Section>
 

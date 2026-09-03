@@ -3407,3 +3407,188 @@ body.nav-drawer-open {
   opacity: 1;
   color: var(--sg-green);
 }
+
+/* =========================================================================
+   Finance page — the summary strip and the money-year timeline.
+
+   Two bespoke surfaces, both there for the same reason: the finance model is
+   almost entirely about WHEN money moves (wages up front at season start,
+   league prize at season end, cup prize the day you play the tie), and a page
+   of equal-weight cards states none of that. The strip answers "where do I
+   stand" at a glance; the timeline answers "how did I get here and what
+   happens next" in the order it actually happens.
+
+   Deliberately dense rather than airy — this follows the box score's
+   scoreboard idiom (tonal layering, mono numerals, xs uppercase labels), not
+   the hero-metric card DESIGN.md rules out. Every amount carries an explicit
+   +/- sign as well as its colour, per the Signal Rule.
+   ========================================================================= */
+.fin-strip {
+  display: grid;
+  /* auto-fit rather than a breakpoint: the strip has four figures on a desktop,
+     two on a tablet and one on a phone, with no media query to keep in sync. */
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px;
+  background: var(--sg-border);
+  border: 1px solid var(--sg-border);
+  border-radius: var(--sg-radius);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+.fin-stat {
+  background: var(--sg-surface);
+  padding: 0.7rem 0.85rem 0.75rem;
+  min-width: 0;
+}
+.fin-stat-label {
+  font-size: var(--sg-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sg-text-faint);
+  margin-bottom: 0.3rem;
+}
+.fin-stat-value {
+  font-family: var(--sg-font-mono);
+  font-size: var(--sg-text-lg);
+  font-weight: var(--sg-weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  color: var(--sg-text);
+}
+.fin-stat-value--neg {
+  color: var(--sg-loss);
+}
+.fin-stat-sub {
+  font-size: var(--sg-text-xs);
+  color: var(--sg-text-muted);
+  margin-top: 0.3rem;
+  line-height: 1.35;
+}
+
+/* A thin proportion bar — how full the savings ceiling is, how much of income
+   the wage bill eats. Not a progress bar: it can legitimately read over 100%,
+   which is exactly when it matters, so the fill is clamped and the overflow
+   state is carried by colour AND by the label beside it. */
+.fin-meter {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--sg-surface-2);
+  overflow: hidden;
+  margin: 0.35rem 0 0.3rem;
+}
+.fin-meter-fill {
+  height: 100%;
+  background: var(--sg-green);
+  border-radius: 2px;
+}
+.fin-meter-fill--warn { background: var(--sg-warn); }
+.fin-meter-fill--over { background: var(--sg-loss); }
+
+/* ---- The money year ------------------------------------------------------
+   A vertical timeline: one stage per moment money actually moves, in order,
+   with a marker showing which one the save is sitting in. The rule runs down
+   the left through every stage; the dot is drawn over it.
+   ------------------------------------------------------------------------- */
+.fin-year {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.fin-stage {
+  position: relative;
+  padding: 0 0 1.05rem 1.15rem;
+  border-left: 1px solid var(--sg-border);
+}
+.fin-stage:last-child {
+  padding-bottom: 0;
+  /* The rule should stop at the last dot rather than hang below it. */
+  border-left-color: transparent;
+}
+.fin-stage::before {
+  content: "";
+  position: absolute;
+  left: -4.5px;
+  top: 0.28rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sg-bg);
+  border: 2px solid var(--sg-border-strong);
+}
+.fin-stage--done::before {
+  background: var(--sg-border-strong);
+}
+.fin-stage--now::before {
+  background: var(--sg-green);
+  border-color: var(--sg-green);
+}
+.fin-stage-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.fin-stage-when {
+  font-size: var(--sg-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: var(--sg-weight-semibold);
+  color: var(--sg-text-muted);
+}
+.fin-stage--now .fin-stage-when {
+  color: var(--sg-green-bright);
+}
+.fin-stage-tag {
+  font-size: var(--sg-text-xs);
+  font-weight: var(--sg-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--sg-green-wash);
+  color: var(--sg-green-bright);
+}
+.fin-stage-note {
+  font-size: var(--sg-text-sm);
+  color: var(--sg-text-muted);
+  margin: 0.2rem 0 0.45rem;
+  max-width: 62ch;
+}
+
+/* One money line: label left, amount right, on a fixed two-column grid so
+   every amount in every stage lines up down one edge. */
+.fin-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.12rem 0;
+  max-width: 34rem;
+}
+.fin-line-label {
+  min-width: 0;
+}
+.fin-line--sub .fin-line-label {
+  padding-left: 0.9rem;
+  color: var(--sg-text-muted);
+  font-size: var(--sg-text-sm);
+}
+.fin-line--total {
+  margin-top: 0.3rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--sg-border);
+  font-weight: var(--sg-weight-semibold);
+}
+.fin-amt {
+  font-family: var(--sg-font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fin-amt--in { color: var(--sg-win); }
+.fin-amt--out { color: var(--sg-loss); }
+.fin-amt--none { color: var(--sg-text-faint); }
+.fin-line-why {
+  display: block;
+  font-size: var(--sg-text-xs);
+  color: var(--sg-text-faint);
+}
