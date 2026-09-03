@@ -43,7 +43,10 @@ import type { LeagueStore } from "../src/core/leagueState.js";
 import type { Player } from "../src/core/players/types.js";
 import type { CompletedTransfer } from "../src/core/transfers/negotiation.js";
 import { isFreeAgentTid } from "../src/core/transfers/negotiation.js";
-import { clauseValue, projectedValue } from "../src/core/transfers/clauses.js";
+import { clauseValue, projectedValue, triggerProbability } from "../src/core/transfers/clauses.js";
+import { deriveLeagueContexts } from "../src/core/ai/clubContext.js";
+import type { StoredTeam } from "../src/core/teams/clubs.js";
+import type { BonusTrigger } from "../src/core/transfers/clauses.js";
 import { tierOf } from "../src/core/competitions.js";
 import {
   SELL_ON_CLAUSE_SEASONS, SELL_ON_RESALE_PROBABILITY, SELL_ON_PRICING_HORIZON,
@@ -70,6 +73,9 @@ let league = createLeagueState(0, rng);
 interface Snapshot {
   season: number;
   players: Map<number, Player>;
+  /** posWeakestStarterOvr per club, for the model's "will he play" terms. */
+  weakestStarter: Map<number, Record<string, number> | undefined>;
+  teams: Map<number, StoredTeam>;
   compIdByTid: Map<number, number>;
   qualified: Set<number>;
   rosterOf: Map<number, number>;
@@ -77,6 +83,7 @@ interface Snapshot {
 const snaps: Snapshot[] = [];
 
 function snapshot(l: LeagueStore): Snapshot {
+  const contexts = deriveLeagueContexts(l);
   const rosterOf = new Map<number, number>();
   for (const t of l.teams) for (const pid of t.roster) rosterOf.set(pid, t.tid);
   // Who is actually IN a continental competition this season.
@@ -94,6 +101,10 @@ function snapshot(l: LeagueStore): Snapshot {
     // Shallow copies are enough: nothing here mutates a player, and the sim
     // replaces them wholesale each offseason rather than editing in place.
     players: new Map(l.players.map((p) => [p.pid, p])),
+    weakestStarter: new Map(
+      l.teams.map((t) => [t.tid, contexts.get(t.tid)?.posWeakestStarterOvr]),
+    ),
+    teams: new Map(l.teams.map((t) => [t.tid, t])),
     compIdByTid: new Map(l.teams.map((t) => [t.tid, t.compId])),
     qualified,
     rosterOf,
@@ -179,6 +190,9 @@ let apps = 0, goals = 0, cont = 0, promo = 0, bonusN = 0;
 // denominator would report a rate the model is not even trying to predict, so
 // each team trigger gets its own eligible count.
 let promoEligible = 0, contEligible = 0;
+const TRIGGERS: BonusTrigger[] = ["appearances", "goals", "continental", "promotion"];
+const predicted = new Map<BonusTrigger, number>(TRIGGERS.map((t) => [t, 0]));
+const predictedN = new Map<BonusTrigger, number>(TRIGGERS.map((t) => [t, 0]));
 for (const deal of sales) {
   const snap = snapAt(deal.season);
   if (!snap) continue;
@@ -187,6 +201,21 @@ for (const deal of sales) {
   const buyerTier = buyerComp0 === undefined ? 0 : tierOf(league.competitions, buyerComp0);
   if (buyerTier === 1) contEligible++;
   if (buyerTier > 1) promoEligible++;
+  const obligor = snap.teams.get(deal.toTid);
+  const player = snap.players.get(deal.pid);
+  if (obligor && player) {
+    const starter = snap.weakestStarter.get(deal.toTid)?.[player.pos] ?? null;
+    for (const t of TRIGGERS) {
+      // Skip the ones the model scores at a structural zero, so the average is
+      // over the same population the realized rate is measured on.
+      if (t === "continental" && buyerTier !== 1) continue;
+      if (t === "promotion" && buyerTier === 1) continue;
+      predicted.set(t, predicted.get(t)! + triggerProbability(
+        t, player, obligor, league.competitions, starter, BONUS_CLAUSE_SEASONS,
+      ));
+      predictedN.set(t, predictedN.get(t)! + 1);
+    }
+  }
   let hitApps = false, hitGoals = false, hitCont = false, hitPromo = false;
   for (let k = 0; k < BONUS_CLAUSE_SEASONS; k++) {
     const season = deal.season + k;
@@ -241,9 +270,28 @@ BONUS TRIGGER RATES  (within ${BONUS_CLAUSE_SEASONS} seasons, while still at the
   Per season, which is what BONUS_BASE_PROBABILITY holds:
     appearances ${pct(perSeason(apps / Math.max(1, bonusN)))}   goals ${pct(perSeason(goals / Math.max(1, bonusN)))}
 
+BONUS PRICING  (what the model predicts against what happened; 1.0 is honest)
+
+${bonusRow("appearances", apps, bonusN)}
+${bonusRow("goals", goals, bonusN)}
+${bonusRow("continental", cont, contEligible)}
+${bonusRow("promotion", promo, promoEligible)}
+
 Note: a projected value is what the model thinks he'll be worth; at the median
 deal that is ${money(medianProjection())}, against a median fee of ${money(medianFee())}.
 `);
+
+function bonusRow(t: BonusTrigger, hits: number, n: number): string {
+  const pred = predicted.get(t)! / Math.max(1, predictedN.get(t)!);
+  const real = hits / Math.max(1, n);
+  const ratio = pred > 0 ? real / pred : Number.NaN;
+  const flag = !Number.isFinite(ratio) ? ""
+    : ratio > 1.25 ? "  UNDER-PRICED"
+    : ratio < 0.8 ? "  OVER-PRICED"
+    : "  ok";
+  return `  ${t.padEnd(13)} predicted ${pct(pred).padStart(6)}   realized ${pct(real).padStart(6)}`
+    + `   ratio ${Number.isFinite(ratio) ? ratio.toFixed(3) : "n/a"}${flag}`;
+}
 
 /** Undo the "at least once in BONUS_CLAUSE_SEASONS" compounding. */
 function perSeason(overWindow: number): number {

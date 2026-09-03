@@ -169,19 +169,18 @@ export function triggerProbability(
   switch (trigger) {
     case "appearances":
     case "goals": {
-      // Both are really one question — will he play? — so both key off the same
-      // signal: how he rates against the man he has to displace. `starterOvr`
-      // is ClubContext.posWeakestStarterOvr, i.e. the weakest player the club's
-      // shape actually fields in his position, which is the buy-side
-      // counterfactual the transfer AI already uses (see posWeakestStarterOvr).
-      // A position the formation fields nobody in leaves it null, and the base
-      // rate stands alone.
-      // A logistic on how far he is above the man he has to displace, centred so
-      // an even match scores exactly the population base rate. Unknown incumbent
-      // (a position the formation fields nobody in) falls back to that same base
-      // rather than to a different formula — the first version returned the
-      // per-season rate here and the compounded one below, which disagreed by
-      // more than a factor of two over the window.
+      // Both are really one question, will he play, so both key off the same
+      // signal: how he rates against the man he has to displace. `starterOvr` is
+      // ClubContext.posWeakestStarterOvr, the weakest player the club's shape
+      // actually fields in his position, which is the buy-side counterfactual
+      // the transfer AI already reasons with.
+      //
+      // A logistic on that gap, centred so an even match scores exactly the
+      // population base rate. A position the formation fields nobody in leaves
+      // `starterOvr` null and falls back to that same centre rather than to a
+      // different formula: the first version returned the per-season rate for
+      // the null case and the compounded one below for every other, which
+      // disagreed by more than a factor of two over the window.
       const p = starterOvr === null
         ? 0.5
         : 1 / (1 + Math.exp(-(player.ovr - starterOvr) / BONUS_STARTER_OVR_SWING));
