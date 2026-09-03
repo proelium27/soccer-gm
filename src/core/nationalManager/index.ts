@@ -23,6 +23,7 @@ import { nationExpectations, fieldExpectation } from "./expectation.js";
 import { judgeCampaign, type CampaignVerdict } from "./confidence.js";
 import { concludedCampaigns, tournamentPlacement, qualifyingPlacement } from "./outcome.js";
 import { generateNationOffers, nationalReputation } from "./offers.js";
+import { managerReputation } from "../manager/jobOffers.js";
 import { leaveNationalJob } from "./switchNation.js";
 import { currentNationalStint, type NationalManagerState, type NationalStint } from "./types.js";
 
@@ -158,6 +159,12 @@ export function reviewNationalCampaign(league: LeagueStore): LeagueStore {
     expectations,
     sacked: sackedNow,
     reputation: nationalReputation(after.stints),
+    // Federations see a discounted slice of the club career. Read here rather
+    // than folded into `nationalReputation`, which is displayed to the player as
+    // their international standing and must keep saying what it means — and
+    // which also feeds nothing else, so the confidence and sacking model stays
+    // strictly on the national record.
+    clubReputation: managerReputation(league.manager.stints),
     lastOverperformance: after.lastVerdict?.overperformance ?? 0,
   });
 

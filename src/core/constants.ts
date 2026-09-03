@@ -3465,21 +3465,120 @@ export const DOMESTIC_CUP_MATCHDAYS = [5, 9, 13, 21, 26, 36] as const;
  *
  * At zero the cup pays nothing, `creditPrizes` is never called, no club's budget
  * is touched, and a dynasty is therefore **bit-identical** to one without
- * domestic cups at all — which is what makes shipping the competition itself
- * provably safe. Re-enabling is this one table plus the runner-up below, and
- * needs its own tuning pass measured the same way.
+ * domestic cups at all — which is what made shipping the competition itself
+ * provably safe.
+ *
+ * ── Re-enabled 2026-08-31, at roughly a FIFTH of the numbers above ──────────
+ *
+ * **A real domestic cup is small money, and the rejected attempt was not.** The
+ * whole FA Cup prize fund is ~£16M and winning the thing pays ~£3.9M, against a
+ * Premier League title's merit payment of ~£60M — so a cup win is ~6% of a
+ * league title, not the ~30% the old table's £12M implied against PRIZE_CHAMPION.
+ * Sized on that ratio instead: a winner's run is **~£3.3M** and a country's whole
+ * pot is **~£11.7M** before scaling, against the old ~£62M. The shape roughly
+ * doubles per round, which is also the FA Cup's (£41k → £67.5k → £105k → £120k →
+ * £225k → £450k → £1M → £2M).
+ *
+ * **What actually makes a cup run valuable here is NOT this table**, and that is
+ * true to life: the winner takes a Continental Shield place (see
+ * `allocateContinentalPlaces`), which is worth `SHIELD_PRIZE_PARTICIPATION` plus
+ * a run at more — comfortably more than the trophy's own cheque. The prize money
+ * is a supporting detail, so it is sized like one; anyone re-tuning it upward
+ * should ask whether they actually want the *place* to be worth less by
+ * comparison.
+ *
+ * **Scaled by COUNTRY but deliberately flat across TIERS** — see
+ * `domesticCupScaleFor`, which is why this needs its own scale function rather
+ * than `financeScaleFor`. A domestic cup is sold by domestic broadcasters, so
+ * England's paying more than Serbia's is both realistic and the direction that
+ * keeps the strength ladder safe (it is what the old attempt already got right).
+ * But the FA Cup pays a fourth-tier club exactly what it pays Manchester City
+ * for the same round, and that flatness is the entire financial romance of the
+ * competition: this cup fields both divisions, so a second-division run is the
+ * real-world case, and taxing it by `DIVISION_2_BUDGET_SCALE` would delete the
+ * one thing worth modelling. Safe because `clampBudget` still caps a tier-2
+ * club's savings at the full tier-scaled ceiling, so the money can be spent but
+ * not hoarded, and `enforceDivision2Ceiling` sweeps a strong tier-2 squad
+ * regardless of how it was paid for.
  */
 export const DOMESTIC_CUP_PRIZE_BY_ROUNDS_FROM_FINAL: readonly number[] = [
-  0, // lift the trophy
-  0, // win a semi-final
-  0, // win a quarter-final
-  0, // win a round-of-16 tie
-  0, // win a round-of-32 tie
-  0, // win a preliminary tie
+  1_500_000, // lift the trophy
+  800_000, // win a semi-final
+  500_000, // win a quarter-final
+  300_000, // win a round-of-16 tie
+  175_000, // win a round-of-32 tie
+  90_000, // win a preliminary tie
 ];
 
-/** Runner-up cheque, zero for the same measured reason as the table above. */
-export const DOMESTIC_CUP_PRIZE_RUNNER_UP = 0;
+/**
+ * **Paid to the SMALLER club in any tie between the two divisions, win or lose
+ * (2026-08-31, user call).** The prize table above is what a cup pays; this is
+ * what a cup run is actually *worth* to a second-division club, and without it
+ * the competition is a lottery — measured before it existed, the median tier-2
+ * club that won anything took **0.3% of its season**, while the one or two who
+ * won their cup outright took 20-27% via the Continental Shield place it earns.
+ * One jackpot a year is not the same thing as lower-division clubs being able to
+ * make money, which is what this competition is for.
+ *
+ * Modelled on the one real mechanism that does it: **gate receipts from a
+ * glamour tie.** A lower-league club's cup payday in real football is not the
+ * prize, it is drawing a giant — a full house, the television cameras, and it
+ * pays whether they win or lose, which is why this is credited to both sides of
+ * the result rather than to the winner.
+ *
+ * **Only the smaller club is paid, and that is deliberate rather than a
+ * simplification.** A cup gate is a rounding error to a top-flight club, so
+ * paying both sides would double the money entering the world to buy no
+ * gameplay at all — and this world already runs its poorest leagues within
+ * ~£0.01M of zero (see `DOMESTIC_CUP_PRIZE_BY_ROUNDS_FROM_FINAL`'s audit note).
+ * Targeting the payment is what lets it be large enough to matter.
+ *
+ * **Multiplied by how many divisions separate the two clubs**, which is the
+ * whole reason it is a per-gap constant rather than a flat cheque (2026-09-01,
+ * when the world gained a third division). A third-tier club drawing a top-flight
+ * giant is the single most romantic tie the competition can produce, and paying
+ * it the same as a second-tier club drawing the division immediately above would
+ * price those two identically. A gap of one pays this; a gap of two pays double.
+ * It also lands the money where it is worth most: `tierScale` is
+ * `DIVISION_2_BUDGET_SCALE ** (tier - 1)`, so a third-tier club earns 36% of a
+ * top-flight one, and the same cheque is proportionally about twice the season
+ * to it that it is to a second-tier club.
+ *
+ * Country-scaled and tier-flat like every other domestic cup payment (see
+ * `domesticCupScaleFor`). **A caveat worth keeping:** this game's lower divisions
+ * earn 60% and 36% of their top flight where real football's third tier earns
+ * ~1%, so a realistic cup cheque can never mean to these clubs what it means to a
+ * real one. This lifts a decent run from ~0.3% of a season into the low single
+ * digits — a signing, not a revolution — and going much beyond that starts
+ * pricing the cup above the league places it sits beside.
+ *
+ * **Halved 600k -> 300k on 2026-09-02 because the first version FAILED the
+ * ladder audit**: `Turkey→Greece` inverted on the 4-seed mean (-1.71 against a
+ * -1 gate) where the baseline passes, negative on all four seeds, i.e. the
+ * weaker-but-richer tripwire tripped by this feature's own money. Two candidate
+ * mechanisms were measured and neither held (see CLAUDE.md), so magnitude is the
+ * only lever established by evidence rather than by story. If a retune ever
+ * wants this number back up, the thing to measure first is *why* one weak league
+ * climbs and not another — not whether a bigger cheque still passes.
+ *
+ * **The halving cost the feature its headline result, which is the trade to know
+ * before touching this again.** At 600k the money per earning club ran tier 1
+ * 0.54M / tier 2 0.60M / tier 3 0.66M — the third division genuinely out-earned
+ * the top flight. At 300k it reverses to roughly 0.50M / 0.39M / 0.37M. The
+ * prize table rewards going deep (top-flight clubs) and this bonus rewards being
+ * small; halving it handed the balance back to the prize table. So the shipped
+ * state buys breadth — ~300 lower-division clubs earning something instead of one
+ * lottery winner — but not tilt. Recovering the tilt means a *smaller prize
+ * table at this glamour*, which is untested and needs its own 4-seed audit.
+ */
+export const DOMESTIC_CUP_GLAMOUR_TIE_BONUS = 300_000;
+
+/**
+ * The beaten finalist's cheque — the only losing side that is paid, matching the
+ * Continental Cup. Below the trophy but above a semi-final win, so reaching the
+ * final and losing it still beats going out one round earlier.
+ */
+export const DOMESTIC_CUP_PRIZE_RUNNER_UP = 700_000;
 
 /**
  * Country -> the adjective its cup is named with ("England" -> "English Cup").
@@ -3996,6 +4095,19 @@ export const MANAGER_MAX_OFFERS = 4;
  * doesn't ring an unproven manager.
  */
 export const MANAGER_OFFER_BAND = 0.2;
+/**
+ * How far *below* your current club a job can be and still count as a step
+ * worth hearing about, on the same [0,1] prestige scale.
+ *
+ * Without it the step-up filter is `prestige >= currentPrestige`, which exactly
+ * one club in the world can never satisfy — prestige is min-max normalized, so
+ * the biggest club sits at 1.000 and its manager is offered nothing, forever,
+ * however decorated they are. A small allowance turns that into "your peers can
+ * come calling", which is how the top of real football works. Sized to reach
+ * roughly the top dozen clubs from the summit; wider and a superclub manager
+ * starts being offered mid-table jobs.
+ */
+export const MANAGER_OFFER_LATERAL_BAND = 0.05;
 /** Chance a matching club comes calling after an ordinary season. */
 export const MANAGER_OFFER_BASE_CHANCE = 0.22;
 /** How much a season spent beating expectation raises that chance. */
@@ -4078,6 +4190,54 @@ export const NATIONAL_SACK_THRESHOLD = 0;
 export const NATIONAL_MAX_OFFERS = 4;
 /** How far from your reputation a nation can sit and still come calling, [0,1]. */
 export const NATIONAL_OFFER_BAND = 0.25;
+/**
+ * How far below your current nation a job can sit and still be worth hearing
+ * about, [0,1]. The club side's `MANAGER_OFFER_LATERAL_BAND` word for word, and
+ * for the same reason: the strongest nation in the world sits at prestige 1.000
+ * and a strict step-up filter leaves its manager permanently unapproached.
+ *
+ * Wider than the club value because national prestige is read off *rank* rather
+ * than rating, so it is spread evenly over ~44 nations — a step of one place is
+ * about 0.023, and 0.05 would reach barely two of them.
+ */
+export const NATIONAL_OFFER_LATERAL_BAND = 0.08;
+/**
+ * How much of a manager's CLUB reputation federations can see, as a fraction.
+ *
+ * International reputation starts at `NATIONAL_REP_BASE` and the only way to
+ * raise it is to hold a national job, so without this a manager who has never
+ * held one is pinned at 30 forever — and on a real 70-nation world the best
+ * country the band could then reach was **rank 33**. The top five were
+ * structurally unreachable no matter how decorated the club career, which is
+ * not how the crossover works in real football.
+ *
+ * Swept against what is ACTUALLY OFFERED on the real 70-nation world rather
+ * than against the band arithmetic, because the two disagree and the arithmetic
+ * is the optimistic one: the band's ceiling at a target of `t` is `t + BAND`,
+ * but `pool.slice(0, NATIONAL_MAX_OFFERS * 4)` then keeps only the 16 nations
+ * *closest to the target*, so the top of the band is truncated away. At weight
+ * 0.5 the band reaches rank 18 and the best country ever offered over 20
+ * seasons is **rank 28**. Quote the offered number, not the reachable one.
+ *
+ * Best nation offered at club reputation 100, by weight, measured:
+ * 0.50 -> #28, 0.55 -> #25, 0.60 -> #21, **0.65 -> #18 (Wales)**, 0.70 -> #14,
+ * 0.75 -> #11 (Brazil). 0.65 is a good country and not an elite one; the top
+ * five are all still out of reach, and getting Spain still needs a national
+ * reputation near 75 earned in the job. The discount is what keeps the
+ * international ladder a ladder rather than something a domestic treble skips.
+ *
+ * It only bites above club reputation 47, because below that it lands under
+ * `NATIONAL_REP_BASE` and the `max` ignores it: an unproven manager is
+ * unaffected (base club reputation is 30), and roughly one league title is what
+ * starts opening it. A reward for a real club career rather than a freebie.
+ *
+ * Deliberately feeds the OFFER TARGET ONLY, never `nationalReputation` itself —
+ * that number is displayed to the player as their international standing and
+ * must keep meaning what it says, and it also drives nothing else. Confidence
+ * and sackings stay strictly on the national record, so a club-side retune can
+ * never change who a federation dismisses.
+ */
+export const NATIONAL_OFFER_CLUB_REP_WEIGHT = 0.65;
 /**
  * Per-nation chance of an approach in any given offseason while you already
  * hold a national job. Deliberately low: international jobs turn over slowly,

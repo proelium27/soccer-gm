@@ -173,7 +173,8 @@ export function SeasonPreview() {
         <>
           <p className="text-muted small">
             {retirements.total} {retirements.total === 1 ? "player" : "players"} retired, {retirements.rostered} of
-            them on a club's books. Here are the biggest names to go.
+            them on a club's books. Here are the biggest names to go, ranked by the career each of
+            them had rather than the rating he finished on.
           </p>
           <table className="table table-striped table-sm">
             <thead>
@@ -188,6 +189,12 @@ export function SeasonPreview() {
                 <th className="text-end">G</th>
                 <th className="text-end">A</th>
                 <th className="text-end">Caps</th>
+                {/* The number the list is ordered on, so the ranking can be read
+                    rather than taken on trust. Last, matching where the GOAT
+                    board itself puts its score. */}
+                <th className="text-end" title="Career score, the same one the GOAT rankings use">
+                  GOAT
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -222,6 +229,14 @@ export function SeasonPreview() {
                   <td className="text-end">{r.goals}</td>
                   <td className="text-end">{r.assists}</td>
                   <td className="text-end">{r.caps}</td>
+                  {/* Absent on a farewell list written before the score was
+                      recorded: the player is long deleted, so there is no
+                      career left to score him from. */}
+                  <td className="text-end">
+                    {r.goat === undefined
+                      ? <span className="text-muted">—</span>
+                      : <strong>{r.goat}</strong>}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -89,10 +89,61 @@ describe("buildImportPromptText", () => {
     }
   });
 
-  it("ends with a checklist covering both silent failures", () => {
+  it("ends with a checklist covering both silent failures and the fatal one", () => {
     const checklist = prompt.slice(prompt.indexOf("== Check these before you answer =="));
     expect(checklist).toContain("character for character");
     expect(checklist).toContain("more clubs than its slot count");
+    expect(checklist).toMatch(/`colors` is an array of exactly two/);
+  });
+
+  // The reported failure (2026-09-02): a 232-club, 5,873-player file was
+  // rejected outright because two clubs listed their real three colours.
+  // Unlike the name and count rules above, this one costs the author
+  // EVERYTHING, so the prompt has to say both that the field takes exactly two
+  // and that a shape error is fatal — an AI told that mistakes degrade
+  // gracefully will not stop to re-read a field shape.
+  it("says colors is exactly two, and warns that shape errors reject the whole file", () => {
+    expect(prompt).toMatch(/`colors` is EXACTLY TWO hex strings/);
+    expect(prompt).toMatch(/never one, never three/);
+    expect(prompt).toMatch(/HARD error/);
+    expect(prompt).toMatch(/not one club of the hundreds you wrote is imported/i);
+  });
+
+  // The prompt's claim that the three list rules "fail QUIETLY" is true of
+  // those three and false of every field shape below them. Stating it
+  // unqualified is what teaches an AI the wrong lesson, so pin the scope.
+  it("scopes the fails-quietly warning to the three list rules", () => {
+    expect(prompt).toMatch(/getting any of THESE THREE wrong fails QUIETLY/);
+  });
+
+  // Pins the BEHAVIOUR the colors rule describes, not merely its wording. If
+  // the parser is ever made lenient about a third colour, this fails and says
+  // to soften the prompt to match, rather than leaving it warning about
+  // something that no longer happens.
+  it("is warning about a real rejection: a third colour throws, and takes the file with it", () => {
+    const comp = league.competitions[0];
+    const file = {
+      format: "world-soccer-sim-roster",
+      formatVersion: 1,
+      competitions: [
+        {
+          match: comp.name,
+          country: comp.country,
+          tier: comp.tier,
+          clubs: [
+            { name: "Two Colour FC", abbrev: "TWO", colors: ["#111111", "#222222"] },
+            { name: "Three Colour FC", abbrev: "THR", colors: ["#111111", "#222222", "#333333"] },
+          ],
+        },
+      ],
+    };
+    expect(() => parseRosterFile(JSON.stringify(file))).toThrow(/colors must be an array of two/);
+
+    // And the rejection really is total rather than per-club: drop the single
+    // bad entry and the very same file is accepted, so one club out of any
+    // number is the whole cost.
+    file.competitions[0].clubs.pop();
+    expect(parseRosterFile(JSON.stringify(file)).competitions[0].clubs).toHaveLength(1);
   });
 
   it("embeds an example that itself parses as a valid roster file", () => {

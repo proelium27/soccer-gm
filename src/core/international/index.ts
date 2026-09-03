@@ -18,8 +18,8 @@ export {
 export { formatFor, knockoutRounds, type TournamentFormat } from "./format.js";
 export { qualifyingPlan, placesByPosition, type ConfederationQualifyingPlan } from "./qualifying.js";
 export {
-  buildSquads, selectSquad, isEligibleNation, nationPools, buildPowerSnapshot,
-  squadRating, nationMatchData,
+  buildSquads, selectSquad, isEligibleNation, manageableNations, nationPools,
+  buildPowerSnapshot, squadRating, nationMatchData,
 } from "./squads.js";
 export {
   editableSquad, displaySquad, writeSquad, isValidNationSquad,

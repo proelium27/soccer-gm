@@ -6,7 +6,7 @@ import { TOTS_SLOTS } from "../awards.js";
 import { allCareers, type CareerRow } from "./careers.js";
 import { totalsOf, bestSeasonsOf } from "./stats.js";
 import type { ArchivedSeason } from "../players/archive.js";
-import { computeHonours, emptyHonours, type PlayerHonours } from "./goat.js";
+import { computeHonours, emptyHonours, honourSourcesOf, type PlayerHonours } from "./goat.js";
 import { type AwardWinner } from "../awardWinners.js";
 import { farewellIndex } from "../players/retirements.js";
 import { playerNameIndex } from "../players/playerNames.js";
@@ -244,7 +244,7 @@ function addToTally(t: AwardTally, key: typeof INDIVIDUAL_KEYS[number]): void {
  */
 export function computeAwardTrivia(league: LeagueStore): AwardTrivia {
   const careers = allCareers(league);
-  const honours = computeHonours(league, careers);
+  const honours = computeHonours(honourSourcesOf(league), careers);
   const careerByPid = new Map(careers.map((c) => [c.pid, c]));
 
   // Who won what, copied onto the season it was won in. This is the only record
