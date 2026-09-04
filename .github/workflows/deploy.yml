@@ -1,0 +1,141 @@
+# Publishes the game to worldsoccersim.org on every push to main.
+#
+# This workflow exists because the domain used to be the ONE deploy target
+# nothing automated, and that is a failure you cannot see from the outside.
+# There are three targets: Vercel previews and GitHub Pages (pages.yml) both
+# rebuild themselves on every push, while the live domain moved to Cloudflare
+# on 2026-08-15 as an assets-only `wrangler deploy` run by hand. So the two
+# mirrors nobody plays on stayed current and the real site quietly fell behind
+# — measured 2026-09-03, worldsoccersim.org was serving a bundle from around
+# #326 while Pages had #329, and the first anyone noticed was a merged feature
+# not appearing in the game. It is the same shape as the five-day PostHog
+# outage .env.production describes: preview looked healthy, production didn't,
+# and the gap read as a different bug entirely.
+#
+# Deliberately does NOT wait for ci.yml. The commit being deployed is a merge
+# of a PR that already went green, CI on main takes ~30 minutes across six
+# shards, and chaining on `workflow_run` fails open in ways that are worse than
+# what it guards. Rolling back is `git revert` plus a push, or a re-run of an
+# older commit via workflow_dispatch.
+#
+# Setup, once: add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as repository
+# secrets (Settings -> Secrets and variables -> Actions). The token needs the
+# "Edit Cloudflare Workers" template. Full runbook: docs/cloudflare.md.
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches: [main]
+  # So a failed deploy can be retried, and so an older commit can be
+  # redeployed as a rollback without reverting anything.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never let two deploys race. Queue rather than cancel: an assets deploy that
+# is cancelled halfway can leave the live site on a half-uploaded bundle, where
+# index.html asks for an asset that was never written. Same reasoning as
+# pages.yml, and the stakes are higher here because this one is the real site.
+concurrency:
+  group: cloudflare-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://worldsoccersim.org
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Checked before the build rather than after the failure: an absent
+      # secret otherwise surfaces as a wrangler authentication error at the
+      # very end, which reads like a Cloudflare outage rather than a repo that
+      # was never configured.
+      - name: Check the Cloudflare secrets are set
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=""
+          [ -n "$TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "$ACCOUNT" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$missing" ]; then
+            echo "Missing repository secret(s):$missing" >&2
+            echo "Add them under Settings -> Secrets and variables -> Actions." >&2
+            echo "See docs/cloudflare.md." >&2
+            exit 1
+          fi
+
+      - run: npm ci
+      # Default mode, so this reads the committed .env.production — the file
+      # that carries the analytics keys. Do not switch this to another mode
+      # without reading that file's header; Vite loads only `.env` and
+      # `.env.<mode>`, so `--mode anything-else` silently drops the keys.
+      - run: npm run build
+
+      # Guards the failure .env.production was written to prevent, at the one
+      # moment it is still cheap to catch. A bundle built without the PostHog
+      # key throws nothing and logs nothing — the site just reports no
+      # pageviews, no gameplay events and no crashes while looking perfectly
+      # healthy, which is exactly why it went unnoticed for five days.
+      - name: Check the build carries the analytics key
+        run: |
+          if ! grep -rq 'phc_' dist/assets; then
+            echo "Built bundle contains no PostHog key." >&2
+            echo "VITE_POSTHOG_KEY did not reach the build — see .env.production." >&2
+            exit 1
+          fi
+
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Config, including the assets directory and the SPA fallback, lives
+          # in wrangler.jsonc so a manual deploy from a laptop is the same
+          # deploy this workflow runs.
+          command: deploy
+
+      # The deploy reporting success is not the same as the domain serving the
+      # new bundle, and telling those apart by hand is what nobody did for
+      # several PRs. Asserts the live index.html now points at an asset this
+      # build actually produced.
+      - name: Check the domain is serving this build
+        run: |
+          built=$(ls dist/assets | grep -E '^index-.*\.js$' | head -1)
+          # Without this the check can pass by comparing "" to "": a curl
+          # failure also yields an empty string, so an unrecognised build
+          # layout plus an unreachable site would report success.
+          if [ -z "$built" ]; then
+            echo "No dist/assets/index-*.js in this build — nothing to compare." >&2
+            echo "The bundle layout changed; update this check." >&2
+            exit 1
+          fi
+          echo "built asset: $built"
+          for attempt in 1 2 3 4 5; do
+            # Cache-busting query and header, or a stale edge HIT reads as a
+            # failed deploy. index.html is served with max-age=0 and
+            # must-revalidate, so this is belt and braces rather than the
+            # mechanism — but a false red on a deploy that worked is the
+            # fastest way to teach everyone to ignore this check.
+            live=$(curl -sf -H 'Cache-Control: no-cache' \
+              "https://worldsoccersim.org/?deploycheck=${GITHUB_RUN_ID:-0}-$attempt" \
+              | grep -oE 'index-[A-Za-z0-9._-]+\.js' | head -1)
+            echo "attempt $attempt, live asset: ${live:-<none>}"
+            if [ "$live" = "$built" ]; then
+              echo "worldsoccersim.org is serving this build."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Domain is still serving '${live:-<none>}' after the deploy." >&2
+          echo "The deploy succeeded but the domain did not pick it up — check" >&2
+          echo "that worldsoccersim.org is attached to this Worker in the" >&2
+          echo "Cloudflare dashboard. See docs/cloudflare.md." >&2
+          exit 1
