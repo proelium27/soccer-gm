@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../../context/LeagueContext.js";
 import { seasonYear } from "../../format.js";
+import { EmptyState } from "../../components/EmptyState.js";
 import type {
   IntlConfederationCup, IntlTournamentSummary,
 } from "../../../core/international/index.js";
@@ -194,11 +195,16 @@ export function NTConfederationCups() {
         labelFor={(s) => `${seasonYear(s)}`}
       />
       {liveThisSeason.length === 0 && archivedOnly.length === 0 ? (
-        <p className="text-muted">
-          No confederation cup has been played yet. They come round every{" "}
-          {INTL_CYCLE_YEARS} seasons, two years either side of the World Cup, and a
-          confederation needs enough nations with real player pools to hold one.
-        </p>
+        <EmptyState headline="No confederation cup has been played yet.">
+          <p>
+            They come round every {INTL_CYCLE_YEARS} seasons, two years either side of the World
+            Cup, so they fall in the offseasons the World Cup doesn&apos;t.
+          </p>
+          <p>
+            A confederation needs enough nations with real player pools to hold one, so which of
+            them run depends on where the world&apos;s players actually come from.
+          </p>
+        </EmptyState>
       ) : (
         <>
           {liveThisSeason.map((t) => <LiveChampionship key={t.confederation} tournament={t} />)}

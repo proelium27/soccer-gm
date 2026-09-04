@@ -768,6 +768,25 @@ export const FREE_AGENT_CULL_LOAD_THRESHOLD = 7000;
  */
 export const WINDOW_TRANSFER_LIMIT = 50;
 
+/**
+ * Cap on the rows one season renders on /news, for exactly the reason above.
+ *
+ * The News Feed inherited the uncapped-list problem the moment the transfer
+ * list lost it, and it is the worse of the two because `newsEvents` is
+ * append-only and persisted, so a season's feed never shrinks and the page
+ * grows for the life of the save. Measured on a real 3-season save: **956 rows,
+ * 15,903 DOM elements, 1,932 flag images and a 34,345px page** — already half
+ * again past the element count that froze /transfers, three seasons in.
+ *
+ * Deliberately higher than WINDOW_TRANSFER_LIMIT: this is the page you go to in
+ * order to read a season, where /transfers' list is a footnote under the thing
+ * you actually came for. 150 rows keeps a season readable while holding the
+ * element count near where a single-window transfer list sits.
+ *
+ * The user's own club's news always shows; this bounds the rest.
+ */
+export const NEWS_FEED_SEASON_LIMIT = 150;
+
 /** In-match injuries (M5): games missed once hurt, uniform between these inclusive bounds. */
 export const INJURY_GAMES_MIN = 1;
 export const INJURY_GAMES_MAX = 6;

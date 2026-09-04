@@ -58,7 +58,16 @@ describe("Champions Cups page render", () => {
   it("says so when the save has none yet", () => {
     const html = render({ ...base, superCups: [] });
     expect(html).toContain("Champions Cups");
-    expect(html).toContain("Nothing on file yet");
+    // Asserted on the shaped panel rather than on the exact sentence, so the
+    // copy can be reworded without breaking this. The container is the part
+    // that matters: an empty state used to be a bare <p> floating on the page
+    // background, which read as a page that had failed to load.
+    expect(html).toContain("empty-state");
+    expect(html).toContain("have been played yet");
+    // It must also say WHEN it fills up, not just that it is empty — that is
+    // the difference the audit found between an empty page that reads as
+    // deliberate and one that reads as broken.
+    expect(html).toContain("next season");
   });
 
   it("renders a pending tie with both clubs and how each got there", () => {

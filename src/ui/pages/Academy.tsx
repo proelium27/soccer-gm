@@ -12,6 +12,7 @@ import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 import { ROSTER_CAP } from "../../core/constants.js";
+import { EmptyState } from "../components/EmptyState.js";
 
 type AcademySortKey = "name" | "pos" | "ovr" | "pot" | "age" | "wage" | "contract";
 
@@ -100,7 +101,30 @@ export function Academy() {
         );
       })()}
       {academyPlayers.length === 0 ? (
-        <p>No players in the academy yet. Check back after your next offseason.</p>
+        <EmptyState
+          headline="Nobody in the academy yet."
+          action={
+            <>
+              You don&apos;t have to wait, though.{" "}
+              <Link to="/incoming-talent">Sign a prospect straight to the academy</Link> from
+              Incoming Talent whenever the market is open.
+            </>
+          }
+        >
+          <p>
+            Your own youth intake arrives at the end of each offseason, so the first names normally
+            show up here after your next one.
+          </p>
+          <p>What the academy is for:</p>
+          <ul>
+            <li>Prospects here draw a cheap flat stipend instead of a real wage.</li>
+            <li>
+              They don&apos;t count against your {ROSTER_CAP}-man senior roster, so you can hold
+              more of them than you could keep in the first team.
+            </li>
+            <li>Promote one to the senior squad the season he&apos;s ready, or let him go.</li>
+          </ul>
+        </EmptyState>
       ) : (
         <table className="table table-striped table-sm">
           <thead>

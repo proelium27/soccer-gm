@@ -10,6 +10,7 @@ import {
   domesticRoundName, domesticFinalists, clubDomesticRunLabel, pendingRound,
   clubsInPendingRound,
 } from "../../core/domesticCup/cup.js";
+import { EmptyState } from "../components/EmptyState.js";
 
 /** A round's ties if it has been played, otherwise the draw waiting to be played. */
 type Slot =
@@ -42,10 +43,17 @@ export function DomesticCup() {
     return (
       <div className="container-fluid p-3">
         <h4>Domestic Cup</h4>
-        <p className="text-muted">
-          Domestic cups start next season in this save. Every country runs one: a straight knockout
-          across both of its divisions, drawn out of the hat round by round.
-        </p>
+        <EmptyState headline="Domestic cups start next season in this save.">
+          <p>
+            Every country runs one, and every club in the country is in it: a straight knockout
+            across all of its divisions, drawn out of the hat round by round rather than seeded
+            into a fixed bracket.
+          </p>
+          <p>
+            That is where the upsets come from. A lower-division club really can draw a top-flight
+            one at home, and win.
+          </p>
+        </EmptyState>
       </div>
     );
   }

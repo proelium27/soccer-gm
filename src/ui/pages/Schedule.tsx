@@ -213,7 +213,7 @@ export function Schedule() {
                 outcome === "win" ? "row-win" : outcome === "loss" ? "row-loss" : undefined;
               const rowClassName = [
                 outcomeClass,
-                isLastPlayed ? "border-start border-3 border-info" : undefined,
+                isLastPlayed ? "row-current" : undefined,
               ]
                 .filter(Boolean)
                 .join(" ") || undefined;
