@@ -12,6 +12,7 @@ import type { CupCompetitionId } from "../../core/constants.js";
 import { SHIELD_FORMAT } from "../../core/constants.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { ClubLink } from "../components/ClubLink.js";
+import { TrophyIcon } from "../components/TrophyIcon.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
 import { seasonYear, ordinal } from "../format.js";
 
@@ -113,8 +114,13 @@ export function Standings() {
       return home?.compId === compId;
     }));
     // A "champion" only means something once the season has actually been
-    // decided by played matches, not an arbitrary tid=0 tie at kickoff.
-    championTid = league.played.length > 0 ? (standings[0]?.tid ?? -1) : -1;
+    // DECIDED, which is the offseason phase — not merely once a ball has been
+    // kicked. Testing `played.length > 0` (as this did) crowned whoever led the
+    // table from matchday 1 onwards, so a club one game into the season was
+    // labelled champion. `phase === "offseason"` is the same "the football is
+    // over, the table is final" test core/clubSeason.ts uses for its
+    // `awaitingRollover` flag.
+    championTid = league.phase === "offseason" ? (standings[0]?.tid ?? -1) : -1;
   } else {
     const entry = league.seasonHistory.find((h) => h.season === season)!;
     const compTids = new Set(
@@ -247,7 +253,16 @@ export function Standings() {
                         className="d-inline-flex align-items-center gap-1 text-decoration-none"
                       />
                       {isChampion && (
-                        <span className="text-muted small"> {isTier1 ? "🏆 (Champion)" : "(1st)"}</span>
+                        <span className="text-muted small d-inline-flex align-items-center gap-1">
+                          {isTier1 ? (
+                            <>
+                              <TrophyIcon />
+                              (Champion)
+                            </>
+                          ) : (
+                            "(1st)"
+                          )}
+                        </span>
                       )}
                     </span>
                   </td>

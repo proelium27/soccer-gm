@@ -14,6 +14,7 @@ import { PotDisplay } from "../components/PotDisplay.js";
 import { SuspensionBadge } from "../components/SuspensionBadge.js";
 import { WatchToggle } from "../components/WatchToggle.js";
 import { SortableTh, sortRows, useTableSort } from "../components/SortableTable.js";
+import { EmptyState } from "../components/EmptyState.js";
 
 type SortKey =
   | "name" | "pos" | "age" | "ovr" | "pot" | "club" | "wage" | "contract" | "value" | "apps";
@@ -78,10 +79,27 @@ export function Watchlist() {
       </h4>
 
       {rows.length === 0 ? (
-        <p className="text-muted">
-          Nobody on your watchlist yet. Star a player from his profile, or from the search on the{" "}
-          <Link to="/transfers">Transfers</Link> page, and he'll show up here.
-        </p>
+        <EmptyState
+          headline="Nobody on your watchlist yet."
+          action={
+            <>
+              Star anyone from his profile, from the search on{" "}
+              <Link to="/transfers">Transfers</Link>, or from{" "}
+              <Link to="/free-agents">Free Agents</Link> and{" "}
+              <Link to="/incoming-talent">Incoming Talent</Link>.
+            </>
+          }
+        >
+          <p>
+            It&apos;s a shortlist that keeps itself current. Nothing is frozen at the moment you
+            starred someone, so once there are names here each row tells you:
+          </p>
+          <ul>
+            <li>Where he plays today, and what he&apos;s rated today.</li>
+            <li>What he&apos;d cost today, and what he&apos;s earning.</li>
+            <li>How long his contract has left, and whether his club would sell.</li>
+          </ul>
+        </EmptyState>
       ) : (
         <>
           <p className="text-muted">
