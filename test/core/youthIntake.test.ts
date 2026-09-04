@@ -1,0 +1,310 @@
+import { describe, it, expect } from "vitest";
+import { mulberry32 } from "../../src/engine/rng.js";
+import { createLeagueState } from "../../src/core/leagueState.js";
+import { playSeason } from "../helpers/offseasonLeague.js";
+import { simOffseason } from "../../src/core/offseason.js";
+import {
+  freeAgentPids, signTrialist, trialSigningsLeft, ensureUserRosterSafety,
+} from "../../src/core/freeAgency.js";
+import { academyFacilitiesBonus } from "../../src/core/players/academyFacilities.js";
+import { switchClub } from "../../src/core/manager/switchClub.js";
+import { beginAutopilot } from "../../src/core/autopilot.js";
+import {
+  YOUTH_TRIAL_GROUP_MIN, YOUTH_TRIAL_GROUP_MAX, YOUTH_TRIAL_SIGN_LIMIT,
+  SCOUTING_SPEND_MAX, HYPE_MAX, YOUTH_AGE, ROSTER_SAFETY_FLOOR,
+} from "../../src/core/constants.js";
+import type { LeagueStore } from "../../src/core/leagueState.js";
+
+/**
+ * One season plus its offseason, which is what lays out a trial group.
+ *
+ * Goes through `playSeason` rather than calling `simThrough` once: it HALTS
+ * before the user's own cup final, so a single call finishes a season only when
+ * his club happens not to reach one. Handed a league still in the regular
+ * phase, `simOffseason` silently does nothing and there is no trial group to
+ * assert on — a failure that reads as "the feature is broken" rather than "the
+ * season never ended". Third divisions made that reachable on these seeds.
+ */
+function advance(league: LeagueStore, rng: () => number): LeagueStore {
+  return simOffseason(playSeason(league, rng), rng);
+}
+
+describe("youth trial group", () => {
+  it("hands the user a group to choose from instead of signing his intake for him", () => {
+    const rng = mulberry32(4);
+    const league = advance(createLeagueState(0, rng), rng);
+    const user = league.teams.find((t) => t.tid === league.meta.userTid)!;
+
+    expect(user.youthTrialists?.length ?? 0).toBeGreaterThanOrEqual(YOUTH_TRIAL_GROUP_MIN);
+    expect(user.youthTrialists!.length).toBeLessThanOrEqual(YOUTH_TRIAL_GROUP_MAX);
+    // Nobody is signed: the academy is still empty and no trialist is rostered.
+    expect(user.academyRoster).toHaveLength(0);
+    expect(user.youthTrialSignings).toBe(0);
+
+    const byPid = new Map(league.players.map((p) => [p.pid, p]));
+    for (const pid of user.youthTrialists!) {
+      expect(byPid.get(pid)!.born).toBe(league.season - YOUTH_AGE);
+    }
+  });
+
+  it("holds trialists out of the free-agent pool while the decision is pending", () => {
+    // Or an AI club would sign one out from under the user mid-decision, and
+    // the free-agent cull would be free to delete him.
+    const rng = mulberry32(4);
+    const league = advance(createLeagueState(0, rng), rng);
+    const user = league.teams.find((t) => t.tid === league.meta.userTid)!;
+    const fa = freeAgentPids(league.teams, league.players, league.activeLoans);
+    for (const pid of user.youthTrialists!) expect(fa.has(pid)).toBe(false);
+  });
+
+  it("signs a trialist into the academy and stops at the limit", () => {
+    const rng = mulberry32(4);
+    let league = advance(createLeagueState(0, rng), rng);
+    const tid = league.meta.userTid;
+
+    const group = [...league.teams.find((t) => t.tid === tid)!.youthTrialists!];
+    // One more than allowed, so the cap is exercised rather than assumed.
+    for (const pid of group.slice(0, YOUTH_TRIAL_SIGN_LIMIT + 1)) {
+      const { teams, players } = signTrialist(league.teams, league.players, tid, pid, league.season);
+      league = { ...league, teams, players };
+    }
+
+    const user = league.teams.find((t) => t.tid === tid)!;
+    expect(user.academyRoster).toHaveLength(YOUTH_TRIAL_SIGN_LIMIT);
+    expect(trialSigningsLeft(user)).toBe(0);
+    // The one over the limit is still on trial, not silently dropped.
+    expect(user.youthTrialists).toContain(group[YOUTH_TRIAL_SIGN_LIMIT]);
+
+    // A signed trialist carries academy terms and an academy-stamped history,
+    // so his OVR chart starts in the academy rather than with a senior point.
+    const signed = league.players.find((p) => p.pid === group[0])!;
+    expect(signed.contract.expiresSeason).toBeGreaterThan(league.season);
+    expect(signed.hist.every((h) => h.academy)).toBe(true);
+  });
+
+  it("keeps an undecided trialist out of the free-agent pool, so the sign limit holds", () => {
+    // There is deliberately no "release" action. One existed and was the way
+    // round the limit: a declined trialist became a free agent immediately and
+    // Free Agents no longer filters by age, so you could sign five to the
+    // academy and the other seven straight to the senior roster the same day.
+    // Undecided trialists simply stay held until the next rollover.
+    const rng = mulberry32(4);
+    const league = advance(createLeagueState(0, rng), rng);
+    const tid = league.meta.userTid;
+    const group = league.teams.find((t) => t.tid === tid)!.youthTrialists!;
+    const fa = freeAgentPids(league.teams, league.players, league.activeLoans);
+    for (const pid of group) expect(fa.has(pid)).toBe(false);
+  });
+
+  it("replaces an undecided group at the next offseason rather than accumulating", () => {
+    const rng = mulberry32(4);
+    let league = advance(createLeagueState(0, rng), rng);
+    const tid = league.meta.userTid;
+    const first = [...league.teams.find((t) => t.tid === tid)!.youthTrialists!];
+
+    league = advance(league, rng);
+    const user = league.teams.find((t) => t.tid === tid)!;
+    // The old group is gone rather than appended to — otherwise a user who
+    // never opens the screen accumulates a permanent unsignable holding pool.
+    expect(user.youthTrialists!.length).toBeLessThanOrEqual(YOUTH_TRIAL_GROUP_MAX);
+    for (const pid of first) expect(user.youthTrialists).not.toContain(pid);
+    expect(user.youthTrialSignings).toBe(0);
+    // And last year's undecided trialists are signable by anyone now.
+    const fa = freeAgentPids(league.teams, league.players, league.activeLoans);
+    expect(first.some((pid) => fa.has(pid))).toBe(true);
+  });
+});
+
+describe("the trial group's containment", () => {
+  it("allocates every extra trialist a pid above every other player generated", () => {
+    // The property that keeps the rest of the world identical, and it is not
+    // cosmetic: developmentBias and isGenerational are hashed off the pid, so
+    // an academy taking pids mid-sequence would change which players are
+    // wonderkids at all 420 clubs. Verified end-to-end by fingerprinting every
+    // non-user rostered player with and without this feature (identical on
+    // seeds 4 and 11, 10,375 and 10,326 players); pinned structurally here so
+    // a regression shows up without a two-branch measurement.
+    const rng = mulberry32(4);
+    const before = createLeagueState(0, rng);
+    const league = advance(before, rng);
+
+    const known = new Set(before.players.map((p) => p.pid));
+    const fresh = league.players.filter((p) => !known.has(p.pid));
+    const trialists = new Set(
+      league.teams.find((t) => t.tid === league.meta.userTid)!.youthTrialists!,
+    );
+
+    // The user's ordinary intake is drawn inside the main loop and keeps its
+    // place in the sequence, so only the top-up sits above everyone else.
+    const othersMax = Math.max(
+      ...fresh.filter((p) => !trialists.has(p.pid)).map((p) => p.pid),
+    );
+    const extras = [...trialists].filter((pid) => pid > othersMax);
+    expect(extras.length).toBeGreaterThan(0);
+    const lowestExtra = Math.min(...extras);
+    for (const p of fresh) {
+      if (trialists.has(p.pid)) continue;
+      expect(p.pid).toBeLessThan(lowestExtra);
+    }
+  });
+});
+
+describe("the roster safety net, once the academy stopped filling itself", () => {
+  // Both cases here are crashes in disguise, not cosmetic shortfalls: a roster
+  // short of eleven fit players leaves selectXI with empty slots, and the
+  // engine then dereferences an undefined player and takes the sim down.
+  const stripSquad = (league: LeagueStore, keep: number): LeagueStore => {
+    const tid = league.meta.userTid;
+    return {
+      ...league,
+      teams: league.teams.map((t) =>
+        t.tid === tid ? { ...t, roster: t.roster.slice(0, keep), academyRoster: [] } : t,
+      ),
+    };
+  };
+
+  it("calls up trialists when the academy is empty", () => {
+    const rng = mulberry32(4);
+    const league = stripSquad(advance(createLeagueState(0, rng), rng), 5);
+    const tid = league.meta.userTid;
+    const before = league.teams.find((t) => t.tid === tid)!.youthTrialists!.length;
+
+    const { teams } = ensureUserRosterSafety(
+      league.teams, league.players, tid, league.season, league.activeLoans,
+    );
+    const after = teams.find((t) => t.tid === tid)!;
+    expect(after.roster.length).toBeGreaterThanOrEqual(ROSTER_SAFETY_FLOOR);
+    expect(after.youthTrialists!.length).toBeLessThan(before);
+  });
+
+  it("never calls the same player up twice", () => {
+    // freeAgentPids reads the caller's teams, which the promotion loop doesn't
+    // write back, so an already-promoted player still looks unsigned on the
+    // next pass. Duplicating a pid leaves selectXI unable to fill a slot.
+    const rng = mulberry32(4);
+    let league = stripSquad(advance(createLeagueState(0, rng), rng), 3);
+    league = {
+      ...league,
+      teams: league.teams.map((t) =>
+        t.tid === league.meta.userTid ? { ...t, youthTrialists: [] } : t,
+      ),
+    };
+
+    const { teams } = ensureUserRosterSafety(
+      league.teams, league.players, league.meta.userTid, league.season, league.activeLoans,
+    );
+    const roster = teams.find((t) => t.tid === league.meta.userTid)!.roster;
+    expect(roster.length).toBeGreaterThanOrEqual(ROSTER_SAFETY_FLOOR);
+    expect(new Set(roster).size).toBe(roster.length);
+  });
+});
+
+describe("academyFacilitiesBonus", () => {
+  const team = (scoutingSpend: number, hype: number) =>
+    ({ scoutingSpend, hype, academyRoster: [], roster: [] }) as never;
+
+  it("pays nothing at no spend and no hype, and the full swing at both maxed", () => {
+    expect(academyFacilitiesBonus(team(0, 0))).toBe(0);
+    expect(academyFacilitiesBonus(team(SCOUTING_SPEND_MAX, HYPE_MAX))).toBeCloseTo(6, 5);
+  });
+
+  it("is a bonus only — never negative, however badly the club is run", () => {
+    // Deliberately out of range on both axes: the anchor and academy form
+    // already push downward, and a third penalty would stack on a struggling
+    // club's cheapest route back.
+    expect(academyFacilitiesBonus(team(-1, -50))).toBe(0);
+    expect(academyFacilitiesBonus(team(NaN, NaN))).toBe(0);
+  });
+
+  it("caps rather than extrapolating past the top of each range", () => {
+    expect(academyFacilitiesBonus(team(SCOUTING_SPEND_MAX * 10, HYPE_MAX * 10)))
+      .toBeCloseTo(6, 5);
+  });
+});
+
+describe("a trial group is never stranded on a club the user leaves", () => {
+  // The failure this guards is silent and permanent: freeAgentPids counts
+  // trialists as rostered, and the offseason only resets the group belonging to
+  // the CURRENT userTid. A group left behind is invisible to every signing path
+  // for the life of the save, never plays again, and (being high-potential)
+  // escapes the free-agent cull too.
+  it("clears them when the club is handed to the AI", () => {
+    const rng = mulberry32(4);
+    const league = advance(createLeagueState(0, rng), rng);
+    const oldTid = league.meta.userTid;
+    const newTid = league.teams.find((t) => t.tid !== oldTid)!.tid;
+    const stranded = league.teams.find((t) => t.tid === oldTid)!.youthTrialists!;
+    expect(stranded.length).toBeGreaterThan(0);
+
+    const after = switchClub(league, newTid, "left");
+    const left = after.teams.find((t) => t.tid === oldTid)!;
+    expect(left.youthTrialists ?? []).toEqual([]);
+    expect(left.youthTrialSignings ?? 0).toBe(0);
+    // ...and they are signable again rather than locked away forever.
+    const fa = freeAgentPids(after.teams, after.players, after.activeLoans);
+    expect(stranded.some((pid) => fa.has(pid))).toBe(true);
+  });
+
+  it("clears them when the club goes on autopilot", () => {
+    // During a jump meta.userTid is AUTOPILOT_TID, so the offseason's reset
+    // matches no team and the group would survive the whole jump — the user
+    // coming back to a page offering 26-year-old "16-year-olds on trial".
+    const rng = mulberry32(4);
+    const league = advance(createLeagueState(0, rng), rng);
+    const tid = league.meta.userTid;
+    expect(league.teams.find((t) => t.tid === tid)!.youthTrialists!.length).toBeGreaterThan(0);
+
+    const club = beginAutopilot(league).teams.find((t) => t.tid === tid)!;
+    expect(club.youthTrialists ?? []).toEqual([]);
+    expect(club.youthTrialSignings ?? 0).toBe(0);
+  });
+});
+
+describe("an emergency call-up off the market is recorded like any other signing", () => {
+  it("reports the market arrivals and puts them under the transfer hold", () => {
+    // Club-by-season history is rebuilt from league.transfers alone, so an
+    // unrecorded free arrival keeps displaying whichever club last had a record
+    // for him — the bug the FREE_AGENT_TID sentinel record exists to prevent.
+    const rng = mulberry32(4);
+    let league = advance(createLeagueState(0, rng), rng);
+    const tid = league.meta.userTid;
+    league = {
+      ...league,
+      teams: league.teams.map((t) =>
+        t.tid === tid
+          ? { ...t, roster: t.roster.slice(0, 3), academyRoster: [], youthTrialists: [] }
+          : t,
+      ),
+    };
+
+    const { teams, players, marketSignings } = ensureUserRosterSafety(
+      league.teams, league.players, tid, league.season, league.activeLoans,
+    );
+    expect(marketSignings.length).toBeGreaterThan(0);
+    expect(teams.find((t) => t.tid === tid)!.roster.length)
+      .toBeGreaterThanOrEqual(ROSTER_SAFETY_FLOOR);
+    for (const pid of marketSignings) {
+      expect(players.find((p) => p.pid === pid)!.faSignedSeason).toBe(league.season);
+    }
+  });
+
+  it("does not report a player called up from inside the club", () => {
+    const rng = mulberry32(4);
+    const league = advance(createLeagueState(0, rng), rng);
+    const tid = league.meta.userTid;
+    const trial = league.teams.find((t) => t.tid === tid)!.youthTrialists!;
+    const thin = {
+      ...league,
+      teams: league.teams.map((t) =>
+        t.tid === tid ? { ...t, roster: t.roster.slice(0, 16) } : t,
+      ),
+    };
+
+    const { marketSignings } = ensureUserRosterSafety(
+      thin.teams, thin.players, tid, thin.season, thin.activeLoans,
+    );
+    // Own players go first, and they need no transfer record: same club, so the
+    // owner such a record would establish is already correct.
+    for (const pid of marketSignings) expect(trial).not.toContain(pid);
+  });
+});

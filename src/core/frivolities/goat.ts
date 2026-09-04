@@ -96,6 +96,23 @@ export function honourSourcesOf(league: LeagueStore): HonourSources {
 }
 
 /**
+ * Whether an individual award won in a given season belongs on the board being
+ * built.
+ *
+ * Optional, and absent means "every award counts" — which is the world board's
+ * rule and keeps it byte-identical. A *club* board needs the other answer: a
+ * Ballon d'Or is stored by pid alone, so without this a man who won one
+ * somewhere else would carry it onto every club he ever played for. The team
+ * trophies below need no equivalent because they are already credited off the
+ * club-per-season line.
+ *
+ * Deliberately not "which club" — the caller holds careers it has already
+ * narrowed, so the only question left is whether he was there that season, and
+ * asking it this way keeps this function ignorant of clubs entirely.
+ */
+export type AwardScope = (pid: number, season: number) => boolean;
+
+/**
  * Count every player's honours in one pass over `seasonHistory` and the cups.
  *
  * Works identically for active players and archived retirees, which is the
@@ -110,6 +127,7 @@ export function honourSourcesOf(league: LeagueStore): HonourSources {
 export function computeHonours(
   sources: HonourSources,
   careers: readonly CareerRow[],
+  awardScope?: AwardScope,
 ): Map<number, PlayerHonours> {
   const out = new Map<number, PlayerHonours>();
   const honoursFor = (pid: number): PlayerHonours => {
@@ -117,24 +135,35 @@ export function computeHonours(
     if (!h) { h = emptyHonours(); out.set(pid, h); }
     return h;
   };
+  // Individual awards only. Team trophies below are already scoped by the
+  // club-per-season line they are credited on, so they need no filter.
+  const award = (pid: number | null | undefined, season: number): PlayerHonours | null => {
+    if (pid == null) return null;
+    if (awardScope && !awardScope(pid, season)) return null;
+    return honoursFor(pid);
+  };
 
   for (const h of sources.seasonHistory) {
-    const winner = h.world?.ballonDOr?.[0]?.pid;
-    if (winner != null) honoursFor(winner).ballonDOr += 1;
+    const ballon = award(h.world?.ballonDOr?.[0]?.pid, h.season);
+    if (ballon) ballon.ballonDOr += 1;
     for (const pid of h.world?.worldTeamOfYear ?? []) {
-      if (pid != null) honoursFor(pid).worldXI += 1;
+      const xi = award(pid, h.season);
+      if (xi) xi.worldXI += 1;
     }
     // Winners only, matching how the Ballon d'Or is counted just above: a
     // shortlist place is a near-miss and the awards component counts trophies.
-    const bestKeeper = h.world?.goalkeeperOfYear?.[0]?.pid;
-    if (bestKeeper != null) honoursFor(bestKeeper).goalkeeperOfYear += 1;
-    const bestDefender = h.world?.defenderOfYear?.[0]?.pid;
-    if (bestDefender != null) honoursFor(bestDefender).defenderOfYear += 1;
+    const bestKeeper = award(h.world?.goalkeeperOfYear?.[0]?.pid, h.season);
+    if (bestKeeper) bestKeeper.goalkeeperOfYear += 1;
+    const bestDefender = award(h.world?.defenderOfYear?.[0]?.pid, h.season);
+    if (bestDefender) bestDefender.defenderOfYear += 1;
     for (const awards of Object.values(h.awards ?? {})) {
-      if (awards.playerOfSeasonPid != null) honoursFor(awards.playerOfSeasonPid).playerOfSeason += 1;
-      if (awards.goldenBootPid != null) honoursFor(awards.goldenBootPid).goldenBoot += 1;
+      const poty = award(awards.playerOfSeasonPid, h.season);
+      if (poty) poty.playerOfSeason += 1;
+      const boot = award(awards.goldenBootPid, h.season);
+      if (boot) boot.goldenBoot += 1;
       for (const pid of awards.teamOfSeason ?? []) {
-        if (pid != null) honoursFor(pid).teamOfSeason += 1;
+        const tots = award(pid, h.season);
+        if (tots) tots.teamOfSeason += 1;
       }
     }
   }

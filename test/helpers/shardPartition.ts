@@ -133,7 +133,17 @@
  * it runs longer than ~30s.
  */
 export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
+  // The youth trial group and the scout directions beside it, both new on
+  // this branch and both on the same basis as everything else here: taken
+  // from one green CI run (33688034353) and divided by the ~1.5x CI-to-dev
+  // factor. Worth knowing that the solo timings these were first entered at
+  // (664s and 192s, scaled by the old 1.57x rule) put scoutDirections at 301
+  // against a real 860 — under by 2.9x, and exactly the mixed-basis error the
+  // note above warns about. youthIntake is now the suite's slowest single
+  // file, which is the number CI's wall-clock floor is set by.
+  "test/core/youthIntake.test.ts": 1217,
   "test/core/offseasonRetirement.test.ts": 906,
+  "test/core/scoutDirections.test.ts": 860,
   "test/core/internationalCampaign.test.ts": 845,
   "test/core/offseason.test.ts": 835,
   "test/core/offseasonSquads.test.ts": 642,

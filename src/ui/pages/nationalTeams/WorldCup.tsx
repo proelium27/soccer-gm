@@ -7,7 +7,8 @@ import type {
 } from "../../../core/international/index.js";
 import { tournamentGoals } from "../../../core/international/index.js";
 import { PlayerRefLink } from "../../components/PlayerRefLink.js";
-import { INTL_TOURNAMENT_NAME, INTL_QUALIFY_PER_GROUP } from "../../../core/constants.js";
+import { INTL_TOURNAMENT_NAME, INTL_QUALIFY_PER_GROUP, INTL_CYCLE_YEARS } from "../../../core/constants.js";
+import { EmptyState } from "../../components/EmptyState.js";
 import {
   NationalTeamsLayout, NationName, GroupCards, liveGroupRows, KnockoutColumns, SeasonSelect,
   useHasInternational, IntlEmpty, type StandingRow, type KnockoutResultView,
@@ -165,7 +166,18 @@ export function NTWorldCup() {
         ? <LiveTournament tournament={current} />
         : archived
           ? <ArchivedTournament summary={archived} />
-          : <p className="text-muted">No tournament has been played yet.</p>}
+          : (
+            <EmptyState headline={`No ${INTL_TOURNAMENT_NAME} has been played yet.`}>
+              <p>
+                It comes round every {INTL_CYCLE_YEARS} seasons. The three offseasons in between
+                play a round of qualifying each, and the fourth is the tournament itself.
+              </p>
+              <p>
+                Qualifying is running now, so who ends up here is being decided on the{" "}
+                <Link to="/national-teams/qualifying">Qualifying</Link> page.
+              </p>
+            </EmptyState>
+          )}
     </NationalTeamsLayout>
   );
 }

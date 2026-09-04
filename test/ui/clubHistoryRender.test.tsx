@@ -71,25 +71,27 @@ describe("Club History page render", () => {
     expect(shownTid(render(base, "?tid=banana"))).toBe(userTid);
   });
 
-  describe("season rows", () => {
-    // A club with at least one completed season, so there is a row to inspect.
-    const played: LeagueStore = {
-      ...base,
-      season: base.season + 1,
-      seasonHistory: [{
-        season: base.season,
-        table: base.teams.map((t, i) => ({
-          tid: t.tid, played: 38, won: 38 - i, drawn: 0, lost: i,
-          gf: 60, ga: 30, gd: 30, points: (38 - i) * 3,
-        })),
-        teamStats: [],
-        awards: {},
-        compsByTid: Object.fromEntries(base.teams.map((t) => [t.tid, t.compId])),
-        championTidByCompId: {},
-        world: { ballonDOr: [], worldTeamOfYear: [] },
-      }],
-    } as unknown as LeagueStore;
+  // A club with at least one completed season. Hoisted to the outer scope
+  // because the greatest-players board needs one too: the whole page is a
+  // placeholder until a season is on record.
+  const played: LeagueStore = {
+    ...base,
+    season: base.season + 1,
+    seasonHistory: [{
+      season: base.season,
+      table: base.teams.map((t, i) => ({
+        tid: t.tid, played: 38, won: 38 - i, drawn: 0, lost: i,
+        gf: 60, ga: 30, gd: 30, points: (38 - i) * 3,
+      })),
+      teamStats: [],
+      awards: {},
+      compsByTid: Object.fromEntries(base.teams.map((t) => [t.tid, t.compId])),
+      championTidByCompId: {},
+      world: { ballonDOr: [], worldTeamOfYear: [] },
+    }],
+  } as unknown as LeagueStore;
 
+  describe("season rows", () => {
     it("marks each season row clickable and gives it a chevron", () => {
       const html = render(played);
       // Matched loosely on purpose: a title-winning season also carries
@@ -108,6 +110,71 @@ describe("Club History page render", () => {
       // silently break all four.
       const html = render(played);
       expect(html).toMatch(new RegExp(`<a[^>]*href="/club/${userTid}/${base.season}"`));
+    });
+  });
+
+  describe("greatest players board", () => {
+    // A completed season (the page shows nothing without one) plus a season
+    // line per club naming who played for it. That line is the whole input to
+    // the board, so this pins what a filter-by-club board gets wrong: showing
+    // the world's best rather than this club's.
+    const other = base.teams.find((t) => t.tid !== userTid)!;
+    const ourPid = base.teams.find((t) => t.tid === userTid)!.roster[0];
+    const theirPid = other.roster[0];
+
+    const line = (tid: number) => ({
+      season: base.season, tid, appearances: 30, goals: 10, assists: 5,
+      ratingSum: 210, avgRating: 7, minutesPlayed: 2700,
+    });
+
+    const leagueWith = (stats: boolean): LeagueStore => ({
+      ...played,
+      players: stats
+        ? played.players.map((p) =>
+          p.pid === ourPid ? { ...p, stats: [line(userTid)] }
+            : p.pid === theirPid ? { ...p, stats: [line(other.tid)] }
+              : { ...p, stats: [] })
+        : played.players.map((p) => ({ ...p, stats: [] })),
+    } as unknown as LeagueStore);
+
+    it("names the club's own alumni and nobody else's", () => {
+      const league = leagueWith(true);
+      const ourName = league.players.find((p) => p.pid === ourPid)!.name;
+      const theirName = league.players.find((p) => p.pid === theirPid)!.name;
+
+      const mine = render(league);
+      expect(mine).toContain("Greatest Players");
+      expect(mine).toContain(`/player/${ourPid}`);
+      expect(mine).toContain(ourName);
+      expect(mine).not.toContain(`/player/${theirPid}`);
+
+      const yours = render(league, `?tid=${other.tid}`);
+      expect(yours).toContain(`/player/${theirPid}`);
+      expect(yours).toContain(theirName);
+      expect(yours).not.toContain(`/player/${ourPid}`);
+    });
+
+    it("gives each part of the score its own column, and drops the empty one", () => {
+      // The world board generates its columns from `row.components` so a part
+      // can't count toward a total without appearing. This does the same, with
+      // one difference worth pinning: "Extras" (goals, assists, caps) is zeroed
+      // for everyone on a club board by construction, and a column of nothing
+      // but zeroes reads as a bug rather than as a fact.
+      const html = render(leagueWith(true));
+      for (const part of ["Peak", "Prime", "Career", "Awards", "Trophies"]) {
+        expect(html).toContain(`<th class="text-end">${part}</th>`);
+      }
+      expect(html).not.toContain('<th class="text-end">Extras</th>');
+      // The raw rating keeps a name of its own, or it and the Peak score column
+      // both read as "peak" and the row stops making sense.
+      expect(html).toContain('<th class="text-end">Best OVR</th>');
+    });
+
+    it("says the board is empty rather than rendering a headerless table", () => {
+      // A club whose players have no recorded appearances. Legitimate on a save
+      // that has only just started, and it has to read as such.
+      expect(render(leagueWith(false)))
+        .toContain("No players with a game for this club yet.");
     });
   });
 });

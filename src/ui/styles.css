@@ -106,6 +106,15 @@
   --bs-success: var(--sg-win);
   --bs-danger: var(--sg-loss);
   --bs-warning: var(--sg-warn);
+  /* --bs-info was the one semantic colour left unmapped, so every .bg-info,
+     .text-bg-info and .border-info in the game rendered in stock Bootstrap
+     cyan (#0dcaf0) — the board-confidence meter's "settled" step, the
+     club-season "In progress" badge, and the international "settled" bar.
+     Pointed at the cup teal because that is already this system's cool,
+     non-result accent: it is deliberately outside the win/loss pair (see the
+     token block above), which is exactly the property an "info" colour needs. */
+  --bs-info: var(--sg-cup);
+  --bs-info-rgb: 108, 187, 205;
 
   --bs-emphasis-color-rgb: 240, 245, 242;
   --bs-heading-color: var(--sg-text);
@@ -514,6 +523,26 @@ a:hover {
   box-shadow: inset 0 0 0 9999px var(--sg-loss-wash);
 }
 
+/* "You are here" on the Schedule — the most recently played matchday.
+
+   This was `border-start border-3 border-info`, which had two faults at once.
+   The colour was stock Bootstrap cyan (see --bs-info up top), and `border-info`
+   sets the border COLOUR on all four sides, so it repainted the row's existing
+   cell borders and the marker read as a box drawn around the row rather than an
+   edge on it. Same inset-box-shadow marker the standings use for a
+   qualification zone, in the accent that already means "current" in this app
+   (active nav, active tab). Combined with the result washes explicitly, because
+   a later box-shadow rule replaces an earlier one rather than stacking. */
+.row-current > td:first-child {
+  box-shadow: inset 2px 0 0 var(--sg-green);
+}
+.row-current.row-win > td:first-child {
+  box-shadow: inset 0 0 0 9999px var(--sg-win-wash), inset 2px 0 0 var(--sg-green);
+}
+.row-current.row-loss > td:first-child {
+  box-shadow: inset 0 0 0 9999px var(--sg-loss-wash), inset 2px 0 0 var(--sg-green);
+}
+
 /* Rows that are "in": a nation through from its group, a player in the eleven
    his country would field. Same inset box-shadow as the highlights above (a
    per-cell background-color leaves a seam at every column boundary) plus the
@@ -814,6 +843,35 @@ a:hover {
 }
 .form-check-input:disabled { opacity: 0.45; }
 .form-check-label { color: var(--sg-text); }
+
+/* Pill tab strips (Player Profile's Value/OVR and League/Cup, Frivolities'
+   Players/Clubs).
+
+   Exactly the same trap the checkbox block above documents, one selector along:
+   Bootstrap compiles .nav-pills .nav-link.active against its own
+   --bs-nav-pills-link-active-bg, which resolves to a literal #0d6efd rather
+   than to --bs-primary, so these rendered in stock Bootstrap blue while the
+   btn-primary sitting inches away on the same page was pitch green. Two
+   different toggle vocabularies in two different palettes, doing the same job.
+
+   Themed here rather than at the call sites so a new pill strip is green
+   without anyone having to know this. */
+.nav-pills {
+  --bs-nav-pills-link-active-bg: var(--sg-green);
+  --bs-nav-pills-link-active-color: var(--sg-on-green);
+  --bs-nav-link-color: var(--sg-text-muted);
+  --bs-nav-link-hover-color: var(--sg-text);
+}
+.nav-pills .nav-link {
+  border: 1px solid transparent;
+}
+.nav-pills .nav-link:hover:not(.active) {
+  background: var(--sg-surface-2);
+  border-color: var(--sg-border);
+}
+.nav-pills .nav-link.active {
+  font-weight: var(--sg-weight-semibold);
+}
 
 /* The Simulation card's in-season layout.
 
@@ -3591,4 +3649,83 @@ body.nav-drawer-open {
   display: block;
   font-size: var(--sg-text-xs);
   color: var(--sg-text-faint);
+}
+
+/* Empty states — the panel a page shows when it has nothing to list yet.
+
+   These were bare <p class="text-muted"> floating on the raw page background,
+   which made them the only content in the app not sitting on a surface. A UI
+   audit found readers took them for a page that had failed to load rather than
+   one that is correctly empty, and it was the single most common complaint
+   across the whole app: nine of the eleven worst-graded pages were this and
+   nothing else.
+
+   Deliberately capped in width and NOT stretched to fill the viewport. A panel
+   that spans a 2000px window to hold two sentences reads as emptier than one
+   sized to its own content — the void is the problem, so the fix cannot be a
+   bigger box. Left-aligned with the page's other content rather than centred,
+   because the pages these sit on are otherwise tables and this should read as
+   the first thing on the page, not as a modal. */
+.empty-state {
+  max-width: 62ch;
+  margin: 0.25rem 0 0;
+  padding: 1.15rem 1.35rem;
+  background: var(--sg-surface);
+  border: 1px solid var(--sg-border);
+  border-radius: var(--sg-radius);
+}
+.empty-state-headline {
+  margin: 0;
+  color: var(--sg-text);
+  font-weight: var(--sg-weight-semibold);
+  font-size: var(--sg-text-md);
+  line-height: 1.35;
+  text-wrap: balance;
+}
+.empty-state-body {
+  margin-top: 0.5rem;
+  color: var(--sg-text-muted);
+  font-size: var(--sg-text-sm);
+  line-height: 1.55;
+}
+.empty-state-body > p {
+  margin: 0 0 0.5rem;
+}
+.empty-state-body > p:last-child {
+  margin-bottom: 0;
+}
+/* A list of what the page will hold once it fills. Set as a compact rule-
+   separated stack rather than bullets, so it reads as a preview of the table
+   that is coming rather than as prose. */
+.empty-state-body ul {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.empty-state-body li {
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--sg-border);
+}
+.empty-state-action {
+  margin-top: 0.9rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--sg-border);
+  font-size: var(--sg-text-sm);
+}
+
+/* The section label above a page title, where a page belongs to a group in the
+   sidebar. Same treatment the sidebar gives its own group headings, so the two
+   read as the same label in two places rather than as two different things.
+
+   It exists because the National Teams pages had it the other way up: the group
+   name was an <h4> above an <h5> page title, which set the word that is
+   identical on all eleven of those pages larger than the word that says which
+   one you are on. */
+.page-eyebrow {
+  font-size: var(--sg-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--sg-text-faint);
+  font-weight: var(--sg-weight-semibold);
+  margin-bottom: 0.15rem;
 }

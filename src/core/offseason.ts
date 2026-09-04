@@ -7,6 +7,10 @@ import { progressPlayer, rollRetirement } from "./players/progression.js";
 import { packPositionChange, type NewsEvent } from "./newsEvents.js";
 import { generateYouthIntake } from "./players/youth.js";
 import { computeAcademyFormModifiers } from "./players/academyForm.js";
+import { academyFacilitiesBonus } from "./players/academyFacilities.js";
+import { scoutDirectionsOf, scoutedNationalityWeights } from "./scouting/scoutDirections.js";
+import { pickNationality, LEAGUE_NATIONALITY_WEIGHTS } from "./players/nationalities.js";
+import { generateName } from "./players/names.js";
 import { cullFreeAgentPoolReporting } from "./players/freeAgentCull.js";
 import { summarizeRetirements } from "./players/retirements.js";
 import { honourSourcesOf, type HonourSources } from "./frivolities/goat.js";
@@ -45,8 +49,9 @@ import {
 } from "./promotionPlayoff.js";
 import { generateSchedule } from "./schedule.js";
 import { updateHype } from "./finance/hype.js";
-import { settleSeasonEnd, chargeSeasonStart, wageBill, financeScaleFor, clampBudget } from "./finance/budget.js";
-import { academyContractTerms } from "./contracts.js";
+import {
+  settleSeasonEnd, chargeSeasonStart, wageBill, financeScaleFor, clampBudget,
+} from "./finance/budget.js";
 import { clampScoutingSpend } from "./finance/scouting.js";
 import { competitionOf, competitionTeamCount, competitionNationalities, tierOf } from "./competitions.js";
 import type { TransferClause } from "./transfers/clauses.js";
@@ -57,7 +62,10 @@ import { simThroughInternational, confederationCupChampions } from "./internatio
 import { reviewNationalCampaign } from "./nationalManager/index.js";
 import { carryIntlInjuries } from "./injuries.js";
 import { hashInts, mulberry32 } from "../engine/rng.js";
-import { NEWS_POSITION_CHANGE_OVR, CONTINENTAL_CUP_FORMAT, SHIELD_FORMAT, difficultyProfile } from "./constants.js";
+import {
+  NEWS_POSITION_CHANGE_OVR, CONTINENTAL_CUP_FORMAT, SHIELD_FORMAT, difficultyProfile,
+  YOUTH_TRIAL_GROUP_MIN, YOUTH_TRIAL_GROUP_MAX, YOUTH_TRIAL_STREAM,
+} from "./constants.js";
 
 /** rng-stream tag for rolling carried-over international injury durations. */
 const INTL_INJURY_STREAM = 840;
@@ -635,6 +643,12 @@ export function simOffseasonReporting(
     tablesByCompId.values(), league.seasonHistory,
   );
   const academyOffset = difficultyProfile(league.difficulty).academyOffset;
+  // The user's intake is held back from the loop below and assembled into a
+  // trial group afterwards (step 5.2), so it can't shift any other club's pids.
+  // Not `Player[] | null`: the assignment happens inside the teams.map callback
+  // below, which TS's control-flow analysis can't see, so it would narrow this
+  // to `never` at the point of use.
+  let userYouth: Player[] = [];
   // Monotonic, read from the store rather than derived from max(pid): players
   // get removed (retirement above, the free-agent cull below), and a derived
   // cursor would hand a removed player's pid to a new player, who'd inherit his
@@ -664,7 +678,11 @@ export function simOffseasonReporting(
         // offset toward the competition centre) and by roster-import
         // realignment (which permutes anchors between clubs), so storing it
         // would leak difficulty into two unrelated systems.
-        + (t.tid === league.meta.userTid ? academyOffset : 0),
+        // Difficulty's academy lever plus the club's own scouting/hype bonus,
+        // both user's club only and both applied the same way and for the same
+        // reason: as intake-time modifiers, never written back into
+        // academyBase (see academyFacilities.ts).
+        + (t.tid === league.meta.userTid ? academyOffset + academyFacilitiesBonus(t) : 0),
       nextSeason, nextPid, genSeed, homeCountry, nationalities,
     );
     nextPid = updatedNextPid;
@@ -673,28 +691,134 @@ export function simOffseasonReporting(
     // high potential estimate, which is the only intended tell. See the
     // generational-talent entry in CLAUDE.md.
     if (t.tid === league.meta.userTid) {
-      const academyTerms = academyContractTerms(nextSeason);
-      for (const p of youth) {
-        p.contract = { salary: academyTerms.salary, expiresSeason: academyTerms.expiresSeason };
-        // Stamp the pre-career baseline snapshot as academy too, so a youth
-        // product's OVR history starts in the academy (blue) instead of with a
-        // stray senior point before his first real academy season.
-        for (const h of p.hist) h.academy = true;
-      }
-      players.push(...youth);
-      return { ...t, academyRoster: [...t.academyRoster, ...youth.map((p) => p.pid)] };
+      // The user's intake is a trial group he chooses from, not a squad handed
+      // to him — it is held on the team unsigned until the Youth Intake screen
+      // resolves it (see StoredTeam.youthTrialists). The contract and the
+      // academy stamp are applied at signing, not here, because a trialist who
+      // is never signed was never an academy player.
+      userYouth = youth;
+      // Held back: pids are attached below, once the extra trialists have been
+      // generated. Nothing is pushed to `players` here for the same reason.
+      return t;
     }
     players.push(...youth);
     return { ...t, roster: [...t.roster, ...youth.map((p) => p.pid)] };
   });
 
-  // 5.5. Emergency call-up for the user's own roster.
-  ({ teams, players } = ensureUserRosterSafety(teams, players, league.meta.userTid, nextSeason, activeLoans));
+  // 5.2. Top the user's intake up into a trial group he actually chooses from.
+  //
+  // THREE THINGS KEEP THIS OUT OF THE WORLD'S GENERATION, and all three are
+  // required — any one of them missing and one club's academy silently
+  // re-rolls all 420 clubs' youth:
+  //   (a) it runs AFTER the loop above, so every other club's players keep the
+  //       pids they would have had. Pids are not just labels — developmentBias
+  //       and isGenerational are hashed off them, so shifting pid assignment
+  //       changes who is a wonderkid world-wide.
+  //   (b) the extras are drawn on their own seeded stream, never the shared
+  //       `rng`, so the shared draw count is identical either way.
+  //   (c) the user's ordinary intake was drawn inside the loop exactly as
+  //       before, so even his own club's first few prospects are unchanged.
+  // The result is a world bit-identical to one without this feature, apart
+  // from the extra players on the user's own trial list.
+  if (userYouth.length > 0) {
+    const userTeam = teams.find((t) => t.tid === league.meta.userTid);
+    const trialRng = mulberry32(
+      hashInts(league.lid, nextSeason, league.meta.userTid, YOUTH_TRIAL_STREAM),
+    );
+    const groupSize = YOUTH_TRIAL_GROUP_MIN
+      + Math.floor(trialRng() * (YOUTH_TRIAL_GROUP_MAX - YOUTH_TRIAL_GROUP_MIN + 1));
+    const extras = Math.max(0, groupSize - userYouth.length);
+    const directions = scoutDirectionsOf(userTeam);
+    if (userTeam && extras > 0) {
+      const comp = competitionOf(league.competitions, userTeam.compId);
+      const { players: extraYouth, nextPid: afterExtras } = generateYouthIntake(
+        trialRng,
+        userTeam.academyBase
+          + (academyFormModifiers.get(userTeam.tid) ?? 0)
+          + academyOffset
+          + academyFacilitiesBonus(userTeam),
+        nextSeason, nextPid, hashInts(league.lid, nextSeason, YOUTH_TRIAL_STREAM),
+        comp.country, competitionNationalities(comp),
+        extras,
+        // The positions reach ONLY these extras, and only because they are
+        // drawn on the trial stream. The user's ordinary intake above came off
+        // the shared `rng`, where a position decides which tier row the ratings
+        // are rolled from and `rollRating` spends one draw for an ABS tier
+        // against two for every other — so a keeper costs 23 rating draws and
+        // an outfielder 27. Steering that draw would shift the shared stream
+        // and re-roll every club generated after his.
+        { positions: directions.positions },
+      );
+      nextPid = afterExtras;
+      userYouth = [...userYouth, ...extraYouth];
+    }
+
+    // 5.3. Send the scouts where the user told them to look.
+    //
+    // Applied POST-HOC, re-drawing each trialist's nationality and name on the
+    // trial stream rather than handing a different table to generateYouthIntake,
+    // and that is a requirement rather than a style choice. The user's ordinary
+    // intake is generated inside the loop above on the SHARED rng, and
+    // `drawFrom` spends one draw normally but two when the roll lands in the
+    // rest-of-world bucket — so a different table there would change the shared
+    // draw count and shift every club's generation after it. Re-drawing
+    // afterwards on our own stream cannot.
+    //
+    // Sound because nationality is rating-neutral: it feeds the name and
+    // international eligibility and nothing else, so a player re-nationalised
+    // here is the same footballer with a different passport. It covers the
+    // whole group, ordinary intake included, because "my scouts are in Brazil"
+    // should describe everyone they turned up, not just the last few.
+    const regions = directions.regions;
+    if (userTeam && regions.length > 0) {
+      const comp = competitionOf(league.competitions, userTeam.compId);
+      const table = scoutedNationalityWeights(
+        competitionNationalities(comp) ?? LEAGUE_NATIONALITY_WEIGHTS[comp.country]
+          ?? LEAGUE_NATIONALITY_WEIGHTS.England,
+        regions,
+      );
+      userYouth = userYouth.map((p) => {
+        const nationality = pickNationality(trialRng, comp.country, table);
+        return { ...p, nationality, name: generateName(trialRng, nationality) };
+      });
+    }
+
+    players.push(...userYouth);
+  }
+  // Assigned unconditionally, and it REPLACES rather than appends: last year's
+  // group is resolved by this line whether or not the user ever opened the
+  // screen, and the ones he didn't sign simply stop being held — they own no
+  // contract and sit on no roster, so dropping the pid makes them free agents
+  // and nothing has to release them. That is what stops a trial group becoming
+  // the kind of permanent zombie an unmanaged academyRoster would.
+  const trialPids = userYouth.map((p) => p.pid);
+  teams = teams.map((t) =>
+    t.tid === league.meta.userTid
+      ? { ...t, youthTrialists: trialPids, youthTrialSignings: 0 }
+      : t,
+  );
+
+  // 5.5. Emergency call-up for the user's own roster. Anyone taken off the open
+  //      market is logged as a fee-0 arrival from the sentinel, exactly as an AI
+  //      free signing is at step 4 — club-by-season history is rebuilt from the
+  //      transfer log alone, so an unrecorded arrival keeps showing his old club.
+  let safetySignings: number[];
+  ({ teams, players, marketSignings: safetySignings } = ensureUserRosterSafety(
+    teams, players, league.meta.userTid, nextSeason, activeLoans,
+  ));
+  ceilingTransfers = [
+    ...ceilingTransfers,
+    ...safetySignings.map((pid) => ({
+      pid, fromTid: FREE_AGENT_TID, toTid: league.meta.userTid, fee: 0,
+      season: faWindow.season ?? nextSeason,
+      window: faWindow.window ?? ("summer" as const),
+    })),
+  ];
 
   // 6. Trim AI squads back down to target composition. Loaned-in players are
   //    left in place (owned by their parent — see trimRosterSurplus) so
   //    trimming can't orphan a live loan into a duplicate.
-  teams = trimRosterSurplus(teams, players, league.meta.userTid, activeLoans);
+  teams = trimRosterSurplus(teams, players, league.meta.userTid, nextSeason, activeLoans);
 
   // 6.4. AI<->AI transfer market (summer window, cross-division by design —
   //      no division filtering here, see design doc).

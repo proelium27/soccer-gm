@@ -768,6 +768,25 @@ export const FREE_AGENT_CULL_LOAD_THRESHOLD = 7000;
  */
 export const WINDOW_TRANSFER_LIMIT = 50;
 
+/**
+ * Cap on the rows one season renders on /news, for exactly the reason above.
+ *
+ * The News Feed inherited the uncapped-list problem the moment the transfer
+ * list lost it, and it is the worse of the two because `newsEvents` is
+ * append-only and persisted, so a season's feed never shrinks and the page
+ * grows for the life of the save. Measured on a real 3-season save: **956 rows,
+ * 15,903 DOM elements, 1,932 flag images and a 34,345px page** — already half
+ * again past the element count that froze /transfers, three seasons in.
+ *
+ * Deliberately higher than WINDOW_TRANSFER_LIMIT: this is the page you go to in
+ * order to read a season, where /transfers' list is a footnote under the thing
+ * you actually came for. 150 rows keeps a season readable while holding the
+ * element count near where a single-window transfer list sits.
+ *
+ * The user's own club's news always shows; this bounds the rest.
+ */
+export const NEWS_FEED_SEASON_LIMIT = 150;
+
 /** In-match injuries (M5): games missed once hurt, uniform between these inclusive bounds. */
 export const INJURY_GAMES_MIN = 1;
 export const INJURY_GAMES_MAX = 6;
@@ -4476,3 +4495,145 @@ export const NATIONAL_REP_CAMPAIGN_WEIGHT = 1.2;
 /** Campaigns past this stop adding experience credit. */
 export const NATIONAL_REP_CAMPAIGN_CAP = 12;
 export const NATIONAL_REP_SACKING_PENALTY = 9;
+
+/**
+ * How many young high-potential players an AI club retains beyond its
+ * ROSTER_COMPOSITION depth chart — its academy, in effect.
+ *
+ * **This exists because AI clubs used to throw away their entire youth intake.**
+ * `trimRosterSurplus` cuts each position to ROSTER_COMPOSITION ranked on
+ * *current* ovr, and a 16-year-old is always bottom of his depth chart, so
+ * measured on a fresh world **84-86% of every AI club's youth intake was
+ * released into free agency in the same offseason it arrived** — 220 of the 275
+ * POT>=70 prospects among them, every year. Neither pass of `runAIFreeAgency`
+ * ranked on potential either (the word appeared nowhere in the file), so nobody
+ * picked them back up: the unsigned under-22 pool grew 1,485 -> 3,072 between
+ * seasons 2 and 7 and the user was the only actor in the world that valued
+ * youth. Ten free prospects taken in season 2 read 84/83/82/79/79/79/71/71 by
+ * season 11, against a tier-1 XI mean of 66.
+ *
+ * **Retention is ADDITIVE to the depth chart, never a reweighting of it, and
+ * that is the load-bearing part.** Blending potential into the trim ranking is
+ * the obvious implementation and it trades starters for prospects: a club that
+ * keeps a 30-ovr 16-year-old *instead of* a 55-ovr squad player fields a worse
+ * XI, which moves match quality, the M1 benchmark gates and the country ladder
+ * all at once. Protecting prospects in slots of their own leaves `selectXI`'s
+ * input untouched — who plays is decided on the same depth chart as before —
+ * so the change is a squad-size and wage-bill question rather than a football
+ * one. Wages are cubic in ovr, so the marginal prospect is close to free.
+ *
+ * Sized against ACADEMY_ROSTER_CAP (10), which is the equivalent allowance the
+ * user's club gets, discounted because an AI club carries its prospects on the
+ * senior roster (they count toward ROSTER_CAP and can be picked in an injury
+ * crisis) rather than in a separate pool. Raising it costs roster slots and a
+ * little wage bill; the thing to watch is weak-league solvency, which is the
+ * column that fails first here (see docs/transfer-mobility.md).
+ */
+export const AI_PROSPECT_SLOTS = 5;
+
+/**
+ * Bars a young player must clear to take one of an AI club's AI_PROSPECT_SLOTS.
+ *
+ * The age bar is PROSPECT_AGE_MAX by reference rather than a copy: it is the
+ * same "still a prospect" line Incoming Talent draws, and the two drifting
+ * apart would mean the AI stops protecting players the user is still shown as
+ * prospects. The potential bar is deliberately well above the ~62 median intake
+ * potential — this protects genuine wonderkids, not every teenager, or a club
+ * would spend all five slots on filler and still bin the player worth keeping.
+ */
+export const AI_PROSPECT_MAX_AGE = PROSPECT_AGE_MAX;
+export const AI_PROSPECT_MIN_POT = 70;
+
+/**
+ * The user's youth intake is a TRIAL GROUP he chooses from, not a squad handed
+ * to him — the Youth Intake screen (formerly Incoming Talent).
+ *
+ * Sized against the decision it is meant to be. A club's ordinary intake is
+ * YOUTH_INTAKE_MIN..MAX (3-5) against an ACADEMY_ROSTER_CAP of 10, so "pick
+ * from your intake" over that group is a confirmation dialog rather than a
+ * choice — you would keep nearly all of them nearly every year. A group of
+ * ~10-12 against YOUTH_TRIAL_SIGN_LIMIT is a real call with a real cost to
+ * getting it wrong, and the potential fog is what stops it being obvious.
+ *
+ * **USER'S CLUB ONLY, and that keeps it out of the equilibrium entirely.** AI
+ * clubs keep their existing 3-5 intake straight onto the senior roster. The
+ * extra trialists are generated on their own seeded stream and their pids are
+ * allocated after every club's ordinary intake, so the shared rng draw count
+ * and every other club's pid assignment are untouched — one club's academy
+ * cannot shift the world's generation. Same containment principle the
+ * difficulty levers rest on.
+ */
+export const YOUTH_TRIAL_GROUP_MIN = 10;
+export const YOUTH_TRIAL_GROUP_MAX = 12;
+/** How many of the trial group can be signed to the academy. The rest leave. */
+export const YOUTH_TRIAL_SIGN_LIMIT = 5;
+/** Seeded-stream tag for the extra trialists (never the shared rng). */
+export const YOUTH_TRIAL_STREAM = 88;
+
+/**
+ * How far a well-run academy moves the quality of the user's trial group,
+ * in ovr points added to his academy anchor at intake time.
+ *
+ * Two inputs, both things the manager actually controls and neither of which
+ * fed youth intake before: **scouting spend** (a scouting network is what finds
+ * young players, and the spend was otherwise purely a fog-of-war lever) and
+ * **hype** (a club people are excited about attracts them). Each is normalized
+ * to 0..1 over its own range and contributes half the swing, so a club at full
+ * spend and maximum hype gets the whole of it and one at neither gets nothing.
+ *
+ * **A BONUS ONLY, never a penalty, and that asymmetry is deliberate.** The
+ * anchor already carries the club's standing and ACADEMY_FORM_SWING already
+ * pushes both ways on results; making a third lever subtract as well would
+ * stack three penalties on a struggling club's one route out. It is also what
+ * lets this ship without a dynasty audit: a bonus reaching one club in a world
+ * of 420 cannot drag a league's mean, and nothing here touches an AI academy.
+ *
+ * NEVER written back into StoredTeam.academyBase — that field is the
+ * anti-inflation anchor and is also read by promotion convergence and
+ * roster-import realignment, so a baked-in offset would leak into both. Applied
+ * as an intake-time modifier beside academyFormModifiers, exactly as the
+ * difficulty academy lever is.
+ */
+export const YOUTH_TRIAL_SCOUTING_SWING = 3;
+export const YOUTH_TRIAL_HYPE_SWING = 3;
+
+/**
+ * "Send your scouts here": how many countries the user can point his youth
+ * scouting at, and how much of the trial group they supply between them.
+ *
+ * **Rating-neutral by construction**, so this is flavour and a national-team
+ * hook rather than a balance lever: nationality feeds `generateName` and
+ * international eligibility and nothing else, and ratings are drawn
+ * independently of it (CLAUDE.md verifies this by regenerating a world after
+ * changing the nationality tables — every country's starter mean OVR identical
+ * to the decimal). The hook is that a player's nationality decides who can cap
+ * him, so scouting a country deepens that nation's pool.
+ *
+ * 0.6 is a blend, not an override: the home mix keeps a real share, so the
+ * group still reads as the club's own and no setting can manufacture a
+ * single-nationality academy. Three targets is enough to express a plan
+ * ("South America") without the share per country thinning to nothing.
+ */
+export const SCOUTING_REGION_MAX = 3;
+export const SCOUTING_REGION_SHARE = 0.6;
+
+/**
+ * How many positions the user can tell his scouts to look for, and how much of
+ * the SCOUTED part of the trial group they take between them.
+ *
+ * **The share is higher than SCOUTING_REGION_SHARE on purpose, and the reason
+ * is a hard constraint rather than a taste call.** A country is re-drawn
+ * post-hoc over the whole group, because nationality is rating-neutral and the
+ * relabel costs no rng draw. A position cannot be: ratings are rolled from that
+ * position's own tier row, so changing it means generating a different player —
+ * and the user's ORDINARY intake is generated on the shared `rng`, where
+ * `rollRating` spends one draw for an `ABS` tier and two for every other, so a
+ * keeper costs 23 rating draws against an outfielder's 27. Re-weighting that
+ * draw would shift the shared stream by four and re-roll every club generated
+ * after his. So positions reach only the extras, which are drawn on the trial
+ * stream — and the share is raised so the skew the user actually SEES across
+ * the whole group lands in the same place a country's does.
+ */
+export const SCOUT_POSITION_MAX = 3;
+export const SCOUT_POSITION_SHARE = 0.75;
+

@@ -463,7 +463,7 @@ export function Manual() {
             <li><strong>Schedule</strong>. Every matchday's fixtures and results. Click a played match for its box score.</li>
             <li><strong>Stat Leaders</strong>. A Players tab (league-wide leaderboards for one season at a time: goals, assists, shots, shots on target, xG, tackles, interceptions, passes, crosses, fouls, yellow cards, red cards, saves, minutes, and average match rating, with a season dropdown covering the current season and every completed one) and a Teams tab (the same stats plus possession, goals against, and xG against, totaled per club, with its own season dropdown). Match rating is an average rather than a running total, so to keep a one-off cameo from topping the chart a player needs to have appeared in at least half of the games played so far before he shows up on the match-rating board (a threshold that scales as the season goes, so it works ten games in as well as at the end). A <strong>Totals / Per 90</strong> switch sits next to the stat dropdown: Per 90 divides each stat by the number of full matches the player's minutes add up to, which is how you find the squad player outproducing a starter rather than just the one who played most. Per-90 mode has a playing-time floor of its own &mdash; 30% of the minutes available so far, quoted above the table &mdash; because a rate is far easier to fluke than a total: score in a twelve-minute cameo and you've "scored" 7.5 per 90. It's counted in minutes rather than appearances, since twenty run-outs off the bench is exactly the case an appearance count would wave through. Appearances, minutes and match rating stay as totals either way (the first two are what the rate divides by, and a match rating is already an average). For career totals and all-time bests across every season at once, see <a href="#frivolities">Frivolities</a>' All-Time Leaders.</li>
             <li><strong>Awards</strong>. Two tabs. World gives the Ballon d'Or for the best player in the world that season (with a top-10 shortlist and a breakdown of where his points came from), a Goalkeeper and a Defender of the Year judged on the defensive work the Ballon d'Or can't see, and a World Team of the Year pitch view. By league gives Player of the Season, the Golden Boot, and a Team of the Season pitch view for one competition. Both have a dropdown to browse past years.</li>
-            <li><strong>Club History</strong>. A per-club honours page (yours by default, with a dropdown for any club in the world): a trophy case (league titles, second-tier titles, Continental Cups, domestic cups, any trebles, promotions and relegations), individual honours won by the club's players (Player of the Season, Golden Boot, Team of the Season selections), franchise records (best finish, most points and wins in a season, all-time record), and a season-by-season table of every completed season (each season's note also shows how far the club got in that year's Continental Cup and domestic cup).</li>
+            <li><strong>Club History</strong>. A per-club honours page (yours by default, with a dropdown for any club in the world): a trophy case (league titles, second-tier titles, Continental Cups, domestic cups, any trebles, promotions and relegations), individual honours won by the club's players (Player of the Season, Golden Boot, Team of the Season selections), franchise records (best finish, most points and wins in a season, all-time record), and a season-by-season table of every completed season (each season's note also shows how far the club got in that year's Continental Cup and domestic cup). It also ranks the club's greatest players &mdash; see <a href="#frivolities">Frivolities</a> for how that score is worked out.</li>
             <li><strong>A club in one season</strong>. Click any club anywhere in the game &mdash; a table, a transfer, the club beside a season on a player's profile &mdash; and you land on what that club did that year: the squad, where it finished and its record, how far it got in the domestic cup, the Continental Cup and the Continental Shield, and where the Power Rankings had it at the end. A dropdown walks you through the club's other seasons. Two things to know about an old squad. It's who <em>finished</em> the season there, so a player sold in January shows up at his new club and not his old one. And players who retired long ago may be missing altogether, because the game only keeps a permanent career record for the ones worth remembering &mdash; the rest are gone for good. Retirees who are still on record show their appearances and the rating they played at, but not their goals and assists for that year, which aren't kept.</li>
             <li><strong>Frivolities</strong>. All-time lists that don't affect play: GOAT rankings for players and clubs, an awards record book (most Ballon d'Ors, World Team of the Year places, Players of the Season, Golden Boots and Team of the Season places, the highest-scoring individual seasons ever, and awards by club and country), all-time records (most dominant and worst team seasons, highest rating ever reached, longest careers, biggest transfer fees), All-Time Leaders (the top 10 in every stat at a glance, click through for the full board, career totals or best single seasons, world-wide and including retired players), an international record book (most caps, international goals and World Cups won, laid out the same way and filterable by country), player bios (oldest, youngest, where players come from, one-club men, name oddities), and club records (trophy cabinet, longest title droughts, biggest spenders and best traders). More in <a href="#frivolities">Frivolities</a>.</li>
             <li><strong>Season Preview</strong>. A snapshot of how the offseason shook out: the league's top 10 highest-rated players, top 10 highest-rated teams (both by OVR), the top 10 biggest transfers from the summer window ranked by fee, and who <a href="#development">retired</a>. It opens automatically the moment you advance past a season, with a link through to Awards.</li>
@@ -474,7 +474,7 @@ export function Manual() {
             <li><strong>Incoming Offers</strong>. AI clubs bidding for <em>your</em> players. Accept, reject, or counter to push the fee upward.</li>
             <li><strong>Loans</strong>. List your own players for a fixed-length loan, look over AI clubs' incoming loan offers, and keep track of who's currently out on loan.</li>
             <li><strong>Finance</strong>. Budget, the full wage-bill table, a projected (or final) season settlement, your transfer history, and a league-wide money table.</li>
-            <li><strong>Incoming Talent</strong>. Unsigned prospects age 21 or younger. Sign them to your senior team or into your academy.</li>
+            <li><strong>Youth Intake</strong>. This year's crop from your academy, on trial. Offer a contract to a few of them; the rest leave. Also where you set your scout directions &mdash; which countries your scouts look in, and which positions they look for.</li>
             <li><strong>Free Agents</strong>. Every other unsigned player, sign straight to your senior team. The default view shows the best across every position but caps how many of any one position it lists, so a spot that always has lots of free agents (defensive and attacking mids only get two roster spots per club, so their good extras spill into free agency more often) can't crowd out the rest. Pick a position from the dropdown to see that position's full list.</li>
             <li><strong>Academy</strong>. Your club's youth-academy holding pool: extend, release, or promote to the senior team.</li>
             <li><strong>Box Score</strong>. Per-match detail, in three parts. The scoreboard at the top names the competition and matchday and starts the Man of the Match, the highest-rated player among those who actually played. Under it, a head-to-head strip compares the two sides on possession, shots, shots on target, xG, corners and fouls. Then a full-width stat table per club (xG, passes completed/attempted, crosses and fouls, goals against and xG against on the goalkeeper's row, and a 0&ndash;10 match rating for everyone who appeared), grouped into attacking, keeping, defending, passing and discipline blocks. The play-by-play at the bottom runs down a timeline with one club on each side, showing goals, cards, substitutions, penalties and injuries by default; switch it to "Every event" to add every shot and corner too.</li>
@@ -1860,7 +1860,7 @@ export function Manual() {
           </p>
           <p>
             <strong>Roster cap: 30 players.</strong> Signings, transfer buys, and academy promotions
-            are blocked once you're full (the Roster, Transfers, and Incoming Talent pages all show
+            are blocked once you're full (the Roster, Transfers, and Free Agents pages all show
             an x/30 count). Your academy has its own separate 10-player cap, covered in{" "}
             <a href="#youth">The Youth Academy</a>.
           </p>
@@ -2272,8 +2272,13 @@ export function Manual() {
             its own cap, separate from your senior roster's, at 10 prospects.
           </p>
           <p>
-            AI clubs don't keep a real academy pool. Their youth intake still lands straight on their
-            senior roster and gets trimmed back to target depth like any other offseason surplus. If
+            AI clubs don't keep a real academy pool. Their youth intake lands straight on their
+            senior roster and gets trimmed back to target depth like any other offseason surplus,
+            with one exception: each club hangs on to a handful of its most promising youngsters
+            beyond that, whatever their current rating. They're carried on top of the squad rather
+            than in place of anyone, so it doesn't change who a club picks. It does mean rival clubs
+            no longer throw away every wonderkid they produce, and the ones who do reach the free
+            market are the ones nobody rated. If
             you leave your own academy alone for several seasons while your senior roster shrinks
             (retirements, expiring contracts you don't re-sign), the game will automatically call up
             your best academy prospects, goalkeeper first if you have none at all, to keep your squad
@@ -2281,10 +2286,54 @@ export function Manual() {
             on the Academy page regularly instead.
           </p>
           <p>
-            Prospects age 21 or younger who were never on any club's academy or roster show up on the{" "}
-            <strong>Incoming Talent</strong> page instead, where you can sign them straight to your
-            senior team or into your academy. Older free agents live on the separate{" "}
-            <strong>Free Agents</strong> page.
+            Every summer your academy turns up a group of 16-year-olds on trial, and they land on
+            the <strong>Youth Intake</strong> page. Nobody's signed until you say so. You can offer
+            a contract to five of them, and whoever's left when you start the next season has gone,
+            free for anyone else to sign, so passing on the right one can come back to bite you.
+            Their ceilings are estimates like everywhere else, which is the whole difficulty of it:
+            you're choosing on a guess.
+          </p>
+          <p>
+            How good that group is comes down to four things. Your academy's standing, fixed when
+            the league was created. How you've been finishing lately. And two you control directly:{" "}
+            <strong>what you spend on scouting</strong>, which is what finds young players in the
+            first place, and <strong>your hype</strong>, because kids want to join a club people are
+            excited about. Those last two are worth a few rating points on the whole group at full
+            tilt. Not transformative on their own, but they compound over a decade of intakes, and
+            scouting money now buys you something beyond a clearer view of a player's ceiling.
+          </p>
+          <p>
+            The Youth Intake page also carries your <strong>scout directions</strong>: two things
+            you can tell your scouts before they go out. Both take effect at your next intake,
+            not the group already on your desk.
+          </p>
+          <p>
+            <strong>Countries</strong> &mdash; up to three, and they'll turn up most of next
+            summer's group between them, with the rest still coming from around your own league.
+            Be clear about what this one does: your scouts find you <em>different</em> players, not
+            better ones. Where a player is from decides his name and which country is allowed to
+            pick him, and nothing else. That eligibility part is the reason to bother with it, if
+            you'd like to build a national team out of players you developed yourself.
+          </p>
+          <p>
+            <strong>Positions</strong> &mdash; up to three, if you can see a hole coming in a few
+            years and would rather start filling it now. It's a strong lean and not a filter: ask
+            for centre-backs and you'll get a lot of centre-backs, never a group of nothing else,
+            because an academy that stopped producing everything you weren't thinking about this
+            year would cost you more than it gave you.
+          </p>
+          <p>
+            One honest note on positions. Your own academy turns up a handful of kids each summer
+            on its own, and those arrive as they are &mdash; positions shape the ones your{" "}
+            <em>scouts</em> go out and find, which is most of the group but not all of it.
+            Countries are the exception and cover everyone, because that only changes where a
+            player is from rather than what kind of player he is.
+          </p>
+          <p>
+            Unsigned players of any age, youngsters included, live on the <strong>Free Agents</strong>{" "}
+            page. Don't expect to find a future star there: clubs keep their best young players now,
+            so what reaches it is genuinely what nobody wanted. Your own academy is the reliable
+            route to a homegrown star.
           </p>
         </Section>
 
@@ -2393,6 +2442,26 @@ export function Manual() {
             full correction and isn't meant to be: a forward can win the Ballon d'Or on top of
             everything a defender can win, so the ceiling is still higher for attackers. The formula
             is a first draft.
+          </p>
+          <p>
+            The same score ranks each club's own greatest players, on{" "}
+            <strong>Club History</strong>. That board is scored on a player's time at that club
+            rather than on his whole career, so a man who spent one season with you and a decade
+            winning things elsewhere doesn't outrank a player who gave you four hundred games. His
+            row shows the years he was there, the appearances he made for that club and the rating
+            he peaked at while he was there. An award only counts on a club's board if he won it in
+            a season he was on that club's books, and a league title counts if he was in the squad
+            for it whether or not he played. The unit is a whole season, not a transfer window:
+            a player is counted at the club he finished each season with, so a January signing
+            is credited with the title his new club wins that May, and a January departure isn't.
+            International honours are left off entirely: a World Cup belongs to his country. Goals and assists are left off too, but for a different
+            reason &mdash; once a player retires the game keeps his career totals rather than a
+            breakdown club by club, so a per-club figure isn't something the save can still answer.
+            Rather than show one thing for players who are still playing and another for the ones
+            who have retired, the board leaves production out for everybody and ranks on quality,
+            longevity and honours. Because the record of retired players keeps only the most
+            notable careers, the further back a save runs the fewer old names survive to be ranked;
+            once a club has more than twenty seasons behind it the board says so.
           </p>
           <p>
             <strong>Awards</strong> collects every individual honour the game has handed out. The
@@ -2574,7 +2643,7 @@ export function Manual() {
           <p><strong>Do AI clubs cheat?</strong> Nope. They play by the exact same rules you do: same wages, same budgets, same roster limits, same transfer machinery, no hidden income. The whole league's finances are on the Finance page if you want to check.</p>
           <p><strong>How does a player earn a "League Champion" trophy?</strong> He has to have been in the squad that won it. The credit comes from his own season record at the club, so signing for a club with a trophy cabinet doesn't hand him anything he wasn't there for. The one rough edge is mid-season movers: a title counts for whoever's squad he finished the season in, so a January arrival at the champions gets it and a January departure doesn't.</p>
           <p><strong>Why does the transfers page only show some of the completed deals?</strong> Because drawing all of them is what used to freeze the page. A full world moves thousands of players in a summer window, and rendering every one (each with a flag) was over 10,000 elements and about a megabyte of flag art. You now get all of your own club's business plus the 50 biggest deals elsewhere. The News Feed goes wider &mdash; everything in your own league, and the big moves from the rest of the world &mdash; but it isn't a complete record either, and nothing in the game shows you literally every deal any more. That's deliberate: a full world's transfer log is thousands of rows a season, nearly all of it clubs swapping squad players in countries you don't play in.</p>
-          <p><strong>My News Feed got a lot shorter.</strong> On purpose. It used to report all sixteen leagues equally, which came to thousands of rows a season with only about one in ten having anything to do with your club or your league &mdash; the rest was a second-division striker in another country reaching ten career goals. Now your own club is always in, your league is fully covered, and everywhere else has to clear a much higher bar to reach you. Goal milestones moved with it: they used to fire every ten goals, which meant almost everyone hit one constantly, and now a career milestone starts at 50 and a season milestone at 25. Old saves get the same treatment, so a feed that was already buried clears out too. Nothing was deleted &mdash; the milestones you'd already earned just aren't headlines any more.</p>
+          <p><strong>My News Feed got a lot shorter.</strong> On purpose. It used to report all sixteen leagues equally, which came to thousands of rows a season with only about one in ten having anything to do with your club or your league &mdash; the rest was a second-division striker in another country reaching ten career goals. Now your own club is always in, your league is fully covered, and everywhere else has to clear a much higher bar to reach you. Goal milestones moved with it: they used to fire every ten goals, which meant almost everyone hit one constantly, and now a career milestone starts at 50 and a season milestone at 25. Old saves get the same treatment, so a feed that was already buried clears out too. Nothing was deleted &mdash; the milestones you'd already earned just aren't headlines any more. There's also a ceiling per season now: a season shows its 150 biggest stories and says how many it held back, for the same reason the transfers page has one. The feed is kept forever and only ever grows, so on a long save it was heading for the same freeze. Anything involving your own club is always shown, however deep into the season it falls.</p>
           <p><strong>My player's cup stats suddenly went up a lot.</strong> They were wrong before, and now they're right. The Continental Cup has three stages, and cup stats used to count only the knockout ties, so league-phase and playoff games never showed up on anyone's profile at all. They all count now, including for past seasons, so appearances and goals jump for anyone who played group games. Nothing was inflated, it was under-counted.</p>
           <p><strong>Where did all the free agents go?</strong> Once a free agent turns 24, has never been any good in his career, and isn't projected to become good, he's permanently removed from the game. Nothing ever cleared these players out before, so a long save built up thousands of them, which bloated saves badly. Anyone under 24 is kept, so your incoming talent list is unaffected, as is anyone with real potential left and any former star who's since declined.</p>
           <p><strong>Why does the game get slower the longer I play?</strong> It used to be because the entire save was rewritten every time anything happened, so the more history you'd built up, the more every single click cost. Players are now stored individually and only the ones that actually changed get written, so signing someone or setting your lineup no longer depends on how long you've been playing. What's left is the running history a save keeps (power rankings, transfers, news, past seasons), which is still rewritten in full, so there's still some growth. Simming is a separate cost. Advancing hands your save to a background worker and takes it back again, so it scales with the whole save rather than with what changed. The heaviest thing in there was match reports: every game played this season keeps its full box score and event timeline, which on a big world is most of your save by the end of a season, and it was enough to run a phone out of memory and crash the tab. The worker no longer gets them, along with the retiree archive and the power rankings history, none of which it read. On a real 60-season save that took the end of a season from 222 MB to 99 MB, and the copy from 4.8 seconds to 1.2. Note this was never about how long you'd been playing: match reports clear every offseason, so it depended on how big your world is and how far into the season you were. A very old save is still large, so this makes the crash much less likely rather than impossible.</p>

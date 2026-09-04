@@ -469,6 +469,21 @@ function DashboardBody({ league, userTeam }: { league: LeagueStore; userTeam: St
         </div>
       </div>
 
+      {/* Youth trialists waiting on a decision. Load-bearing rather than a
+          nicety: the group is replaced at the next offseason whether or not it
+          was ever looked at, so a user who never finds the page silently loses
+          a dozen prospects a year and never learns the screen exists. */}
+      {(userTeam.youthTrialists?.length ?? 0) > 0 && (
+        <div className="alert alert-info d-flex justify-content-between align-items-center mb-3">
+          <span>
+            {userTeam.youthTrialists!.length} youngster
+            {userTeam.youthTrialists!.length === 1 ? " is" : "s are"} on trial at your academy.
+            Offer contracts before the season starts or they'll leave.
+          </span>
+          <Link to="/youth-intake" className="btn btn-sm btn-outline-primary">Youth intake</Link>
+        </div>
+      )}
+
       {/* A continental final: the season sim halts before it, so flag why. The
           user's club can only be in one of the two competitions. */}
       {([["cup", league.cup], ["shield", league.shield]] as const).map(([kind, comp]) =>

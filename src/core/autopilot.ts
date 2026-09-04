@@ -22,6 +22,7 @@ import { simThrough } from "./simThrough.js";
 import { simOffseason } from "./offseason.js";
 import { ensureUserRosterSafety } from "./freeAgency.js";
 import { reconcileScoutingObserved } from "./scouting/potentialFog.js";
+import { FREE_AGENT_TID } from "./transfers/negotiation.js";
 import { mulberry32 } from "../engine/rng.js";
 
 /**
@@ -77,7 +78,17 @@ export function beginAutopilot(league: LeagueStore): LeagueStore {
     ...league,
     meta: { ...league.meta, userTid: AUTOPILOT_TID },
     teams: league.teams.map((t): StoredTeam =>
-      t.tid === userTid ? { ...t, starters: null, transferListed: [], moreMinutes: [] } : t,
+      t.tid === userTid
+        // Trialists go with the rest of the standing instructions the user
+        // can't be around to give. Load-bearing rather than tidy: during the
+        // jump meta.userTid is AUTOPILOT_TID, so the offseason's trial-group
+        // reset (which keys off userTid) matches no team at all — left here,
+        // the group survives the whole jump with its pids locked out of the
+        // free-agent pool, and the user comes back to a Youth Intake page
+        // offering 26-year-old "16-year-olds on trial".
+        ? { ...t, starters: null, transferListed: [], moreMinutes: [],
+            youthTrialists: [], youthTrialSignings: 0 }
+        : t,
     ),
     negotiations: [],
     inboundOffers: [],
@@ -111,12 +122,22 @@ export function beginAutopilot(league: LeagueStore): LeagueStore {
  */
 export function endAutopilot(league: LeagueStore, userTid: number): LeagueStore {
   const restored: LeagueStore = { ...league, meta: { ...league.meta, userTid } };
-  const { teams, players } = ensureUserRosterSafety(
+  const { teams, players, marketSignings } = ensureUserRosterSafety(
     restored.teams, restored.players, userTid, restored.season, restored.activeLoans,
   );
   return {
     ...restored,
     players,
+    // A call-up off the open market is a real arrival and needs the same fee-0
+    // sentinel record an ordinary free signing gets, or club-by-season history
+    // (rebuilt from the transfer log alone) keeps naming his previous club.
+    transfers: [
+      ...restored.transfers,
+      ...marketSignings.map((pid) => ({
+        pid, fromTid: FREE_AGENT_TID, toTid: userTid, fee: 0,
+        season: restored.season, window: "summer" as const,
+      })),
+    ],
     teams: teams.map((t): StoredTeam =>
       t.tid === userTid
         ? { ...t, scoutingObserved: reconcileScoutingObserved(t.scoutingObserved, t.roster, restored.season) }

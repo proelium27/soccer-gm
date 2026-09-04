@@ -5,6 +5,7 @@ import { computeArchivedHonors } from "../../core/playerHonors.js";
 import { ALL_TIME_STAT_KEYS } from "../../core/frivolities/stats.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
 import { OvrHistoryChart } from "../components/OvrHistoryChart.js";
+import { TrophyIcon } from "../components/TrophyIcon.js";
 import { Flag } from "../components/Flag.js";
 import { BackLink } from "../components/BackLink.js";
 import { GoldenBootIcon } from "../components/GoldenBootIcon.js";
@@ -130,7 +131,7 @@ export function RetiredPlayerProfile({
                   <AwardPill label="Player of the Season" seasons={honors.playerOfSeason} />
                   <AwardPill label="Golden Boot" seasons={honors.goldenBoot} icon={<GoldenBootIcon />} />
                   <AwardPill label="Team of the Season" seasons={honors.teamOfSeason} />
-                  <AwardPill label="League Champion" seasons={honors.leagueTitles} icon="🏆" />
+                  <AwardPill label="League Champion" seasons={honors.leagueTitles} icon={<TrophyIcon />} />
                   <AwardPill label="Continental Cup" seasons={honors.continentalCups} />
                   <AwardPill label="Continental Shield" seasons={honors.shields} />
                   <AwardPill label="Domestic Cup" seasons={honors.domesticCups} />

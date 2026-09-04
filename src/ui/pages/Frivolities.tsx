@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { computeRecordBook, type TeamSeasonRecord, type TransferRecord } from "../../core/frivolities/records.js";
@@ -17,7 +17,7 @@ import {
 } from "../../core/frivolities/international.js";
 import {
   playerGoatRanking, teamGoatRanking,
-  type GoatComponent, type PlayerGoatRow, type TeamGoatRow,
+  type PlayerGoatRow, type TeamGoatRow,
 } from "../../core/frivolities/goat.js";
 import {
   computeAwardTrivia, sortAwardRows, awardXIForClub, AWARD_KEYS,
@@ -27,9 +27,10 @@ import {
 import { layoutSlots } from "../pitchLayout.js";
 import { ALL_TIME_STAT_KEYS, type AllTimeStatKey } from "../../core/frivolities/stats.js";
 import { STAT_LABELS, formatStat } from "../statLabels.js";
-import { usePlayerRefs } from "../components/PlayerRefLink.js";
 import { ClubLink } from "../components/ClubLink.js";
 import { Flag } from "../components/Flag.js";
+import { Panel, Empty, ClubCell, PlayerCell, RankTable } from "../components/boards.js";
+import { GoatBreakdown, partLabel } from "../components/GoatBreakdown.js";
 import { currency, seasonYear } from "../format.js";
 import { isSpectator } from "../../core/spectator.js";
 
@@ -45,139 +46,6 @@ const TAB_LABELS: Record<Tab, string> = {
   clubs: "Club Records",
 };
 
-/** A titled card wrapping one list, with an optional line of explanation under the heading. */
-function Panel({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
-  return (
-    <div className="card h-100">
-      <div className="card-body">
-        <h6 className="card-title text-muted text-uppercase small mb-1">{title}</h6>
-        {note && <p className="text-secondary small mb-2">{note}</p>}
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function Empty({ what }: { what: string }) {
-  return <p className="text-muted small mb-0">No {what} yet.</p>;
-}
-
-/**
- * A club name with its crest, linked to what that club did in the row's season.
- * A club the save can't find reads "Unknown" and isn't linked, which can only
- * happen for a save whose team list has changed under a historical record.
- */
-function ClubCell({ tid, season }: { tid: number | null; season?: number }) {
-  if (tid == null) return <span className="text-muted">Unattached</span>;
-  /* A row that is about one season links to that season; an all-time board has
-     no season to name, so its clubs open at the one being played. The anchor IS
-     the flex wrapper rather than sitting inside one, so a board of hundreds of
-     rows costs no more elements than it did unlinked. */
-  return (
-    <ClubLink
-      tid={tid}
-      season={season}
-      crest
-      crestSize={20}
-      className="d-inline-flex align-items-center gap-1 text-decoration-none"
-    />
-  );
-}
-
-/**
- * A player's name, linked to his profile.
- *
- * A retiree is deleted from the pool, but his archived career record still has
- * a page of its own (`RetiredPlayerProfile`, reached through the same
- * `/player/:pid` route), so these link too — the badge just says which kind of
- * page you're about to get.
- */
-function PlayerCell({ pid, name, nationality, active }: {
-  pid: number;
-  name: string;
-  nationality?: string;
-  active?: boolean;
-}) {
-  // Some rows (the biggest-fees board) carry a pid the save has no record of at
-  // all — neither pool nor archive — and their `name` is already a "Player 4821"
-  // placeholder. Those stay unlinked; there's no page to send them to. Same for
-  // a player known only from an award he won: the name survives, the career
-  // doesn't (see core/awardWinners.ts).
-  const known = usePlayerRefs()(pid)?.linkable === true;
-  return (
-    <span className="d-inline-flex align-items-center gap-1">
-      {/* Falsy for a player the save no longer knows (see TransferRecord.nationality) —
-          the Flag fallback swatch would imply a country we don't actually have. */}
-      {nationality ? <Flag nationality={nationality} tip={false} /> : null}
-      {known ? <Link to={`/player/${pid}`}>{name}</Link> : <span>{name}</span>}
-      {active === false && <span className="badge text-bg-secondary">Retired</span>}
-    </span>
-  );
-}
-
-/**
- * A compact ranked table: rank, a label cell, and one or more value columns.
- *
- * `expand` opts a table into click-to-reveal detail rows, the same interaction
- * Power Rankings uses for rosters. Only one row is open at a time — these
- * details are wide, and several open at once turns the board into a wall.
- *
- * `highlight` marks a row as the user's, drawn with the same wash and leading
- * edge Standings and Power Rankings give his club.
- */
-function RankTable<T>({ rows, headers, render, empty, expand, highlight }: {
-  rows: T[];
-  headers: string[];
-  render: (row: T) => ReactNode[];
-  empty: string;
-  expand?: (row: T) => ReactNode;
-  highlight?: (row: T) => boolean;
-}) {
-  const [open, setOpen] = useState<number | null>(null);
-  if (rows.length === 0) return <Empty what={empty} />;
-  return (
-    <div className="table-responsive">
-      <table className="table table-sm align-middle mb-0">
-        <thead>
-          <tr>
-            <th className="text-muted" style={{ width: "2.5rem" }}>#</th>
-            {headers.map((h, i) => (
-              <th key={h} className={i === 0 ? "" : "text-end"}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => {
-            const cells = render(row);
-            const isOpen = open === i;
-            return (
-              <Fragment key={i}>
-                <tr
-                  onClick={expand ? () => setOpen(isOpen ? null : i) : undefined}
-                  style={expand ? { cursor: "pointer" } : undefined}
-                  className={[isOpen && "table-active", highlight?.(row) && "team-highlight"]
-                    .filter(Boolean).join(" ") || undefined}
-                >
-                  <td className="text-muted">{i + 1}</td>
-                  {cells.map((c, j) => (
-                    <td key={j} className={j === 0 ? "" : "text-end"}>{c}</td>
-                  ))}
-                </tr>
-                {isOpen && expand && (
-                  <tr className="table-active">
-                    <td colSpan={headers.length + 1} className="pt-0">
-                      {expand(row)}
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 /** Two panels side by side on wide screens, stacked on mobile. */
 function Row({ children }: { children: ReactNode }) {
@@ -189,108 +57,6 @@ function Col({ children, wide = false }: { children: ReactNode; wide?: boolean }
 
 // --- GOAT ------------------------------------------------------------------
 
-/**
- * The parts a GOAT score is made of, in the order they're shown.
- *
- * Order and membership come from the data (`row.components`), not this table —
- * this only supplies wording. A component with no entry here still shows, under
- * its key, rather than silently vanishing from a total it contributes to.
- */
-const PART_LABELS: Record<string, { label: string; help: string }> = {
-  peak: { label: "Peak", help: "highest rating reached" },
-  prime: { label: "Prime", help: "years spent near that peak" },
-  longevity: { label: "Career", help: "seasons played and sustained match rating" },
-  awards: { label: "Awards", help: "individual honours" },
-  trophies: { label: "Trophies", help: "titles won with club and country" },
-  production: { label: "Extras", help: "goals, assists and caps" },
-};
-
-/** Wording for each line of arithmetic inside a component. */
-const TERM_LABELS: Record<string, string> = {
-  peakOvr: "rating above 70 at his peak",
-  primeOvr: "rating above 70, added up across every season",
-  seasons: "seasons played",
-  rating: "match rating above 6.0, scaled by how much he played",
-  ballonDOr: "Ballon d'Or",
-  playerOfSeason: "Player of the Season",
-  worldXI: "World Team of the Year",
-  goalkeeperOfYear: "Goalkeeper of the Year",
-  defenderOfYear: "Defender of the Year",
-  goldenBoot: "Golden Boot",
-  teamOfSeason: "Team of the Season",
-  worldCups: "World Cup",
-  cupTitles: "Continental Cup",
-  shieldTitles: "Continental Shield",
-  domesticCupTitles: "domestic cup",
-  leagueTitles: "league title",
-  goals: "goals",
-  assists: "assists",
-  caps: "caps",
-  topFinishes: "top-four finishes",
-  topFlightSeasons: "seasons in the top flight",
-  ppgSurplus: "points per game above 1.40, added up across every season",
-  secondTierTitles: "second-tier title",
-  trebles: "treble (league, Continental Cup and domestic cup in one season)",
-};
-
-function partLabel(key: string): string {
-  return PART_LABELS[key]?.label ?? key;
-}
-
-/** A number that reads cleanly whether it's a count of trophies or a rating surplus. */
-function termCount(count: number): string {
-  return Number.isInteger(count) ? String(count) : count.toFixed(2);
-}
-
-/** Term points are exact, so show the decimal rather than a figure that won't multiply out. */
-function termPoints(points: number): string {
-  return Number.isInteger(points) ? String(points) : points.toFixed(1);
-}
-
-/**
- * The full working behind one row's score: every component, every term, and the
- * `count x weight = points` that produced it.
- */
-/**
- * The expanded score breakdown, exported for `test/ui/goatBreakdown.test.tsx`.
- *
- * Worth testing directly because a term reaching the UI with no entry in
- * TERM_LABELS falls back to its raw key, which renders as a plausible-looking
- * label rather than an error. That is invisible to a typecheck: the map is a
- * Record<string, string> and any key type-checks against it.
- */
-export function GoatBreakdown({ components, score }: { components: GoatComponent[]; score: number }) {
-  return (
-    <div className="small">
-      <div className="text-muted mb-2">
-        How this score was worked out. Every line is how many, times what each one is worth.
-        Each part is rounded to a whole number, so its lines can add up a fraction off.
-      </div>
-      <div className="row g-3">
-        {components.filter((c) => c.terms.length > 0).map((c) => (
-          <div key={c.key} className="col-12 col-md-6 col-lg-4">
-            <div className="d-flex justify-content-between border-bottom mb-1">
-              <strong>{partLabel(c.key)}</strong>
-              <strong>{c.points}</strong>
-            </div>
-            {c.terms.map((t) => (
-              <div key={t.key} className="d-flex justify-content-between gap-2 text-muted">
-                <span>
-                  {TERM_LABELS[t.key] ?? t.key}: {termCount(t.count)} x {t.weight}
-                </span>
-                <span className="text-nowrap">{termPoints(t.points)}</span>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-      <div className="d-flex justify-content-between border-top mt-2 pt-1">
-        <strong>Total</strong>
-        <strong>{score}</strong>
-      </div>
-    </div>
-  );
-}
 
 function GoatTab() {
   const { league } = useLeague();

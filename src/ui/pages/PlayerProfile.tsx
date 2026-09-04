@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { useLeague } from "../context/LeagueContext.js";
 import { WatchToggle } from "../components/WatchToggle.js";
+import { TrophyIcon } from "../components/TrophyIcon.js";
 import { SKILL_KEYS } from "../../core/players/types.js";
 import type { CompletedTransfer } from "../../core/transfers/negotiation.js";
 import { isFreeAgentTid } from "../../core/transfers/negotiation.js";
@@ -364,7 +365,7 @@ export function PlayerProfile() {
                   <AwardPill label="Player of the Season" seasons={honors.playerOfSeason} />
                   <AwardPill label="Golden Boot" seasons={honors.goldenBoot} icon={<GoldenBootIcon />} />
                   <AwardPill label="Team of the Season" seasons={honors.teamOfSeason} />
-                  <AwardPill label="League Champion" seasons={honors.leagueTitles} icon="🏆" />
+                  <AwardPill label="League Champion" seasons={honors.leagueTitles} icon={<TrophyIcon />} />
                   <AwardPill label="Continental Cup" seasons={honors.continentalCups} />
                   <AwardPill label="Continental Shield" seasons={honors.shields} />
                   <AwardPill label="Domestic Cup" seasons={honors.domesticCups} />

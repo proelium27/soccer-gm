@@ -1,7 +1,10 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useLeague } from "../../context/LeagueContext.js";
 import { seasonYear } from "../../format.js";
 import { nationRecords } from "../../../core/international/index.js";
+import { INTL_CYCLE_YEARS, INTL_TOURNAMENT_NAME } from "../../../core/constants.js";
+import { EmptyState } from "../../components/EmptyState.js";
 import { NationalTeamsLayout, NationName, useHasInternational, IntlEmpty } from "./shared.js";
 
 export function NTHistory() {
@@ -15,7 +18,17 @@ export function NTHistory() {
   if (history.length === 0) {
     return (
       <NationalTeamsLayout title="History">
-        <p className="text-muted">No tournament has been completed yet.</p>
+        <EmptyState headline="No tournament has been completed yet.">
+          <p>
+            The {INTL_TOURNAMENT_NAME} is played every {INTL_CYCLE_YEARS} seasons, so the first one
+            finishes in the offseason after season {INTL_CYCLE_YEARS}. Until then there is nothing
+            to put on the roll of honour.
+          </p>
+          <p>
+            Qualifying for it is already under way, though — the standings are on the{" "}
+            <Link to="/national-teams/qualifying">Qualifying</Link> page.
+          </p>
+        </EmptyState>
       </NationalTeamsLayout>
     );
   }
