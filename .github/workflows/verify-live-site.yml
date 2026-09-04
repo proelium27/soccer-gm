@@ -1,0 +1,97 @@
+# Checks worldsoccersim.org right after Cloudflare finishes deploying it.
+#
+# This does NOT deploy. Cloudflare Workers Builds is connected to this repo and
+# builds and publishes on every push to main by itself — measured, ~6 to ~20
+# minutes from merge to live, depending on how warm its dependency cache is.
+# Adding a second deployer here would mean two pipelines racing to publish the
+# same Worker on every push, for no gain.
+#
+# What was actually missing is a signal. The deploy happens somewhere the repo
+# cannot see, so the only ways to know the site was current were to watch a
+# check run nobody watches, or to check by hand. Two consequences, both real:
+# a merged feature not appearing in the game reads as a bug in the feature (it
+# cost an hour of looking in the wrong place on 2026-09-04), and a *failed*
+# Workers Build is a grey check on a commit that scrolls away.
+#
+# So this fires on Cloudflare's own check run and turns it into something you
+# cannot miss: a red workflow when the deploy failed, and an assertion that the
+# domain is really serving a healthy bundle when it succeeded.
+#
+# Note it will not run on the pull request that adds it. GitHub only dispatches
+# `check_run` against workflow files already on the default branch, so this
+# starts working on the first push to main after it merges.
+name: Verify the live site
+
+on:
+  check_run:
+    types: [completed]
+  # For checking the site on demand without waiting for a deploy.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-live-site
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    # Only Cloudflare's build, and only for main. Every other check run on
+    # every commit also fires this event, so without the filter this would run
+    # a few dozen times a push.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.check_run.app.slug == 'cloudflare-workers-and-pages' &&
+       github.event.check_run.check_suite.head_branch == 'main')
+    runs-on: ubuntu-latest
+    steps:
+      # A failed Workers Build means the live site is silently stuck on the
+      # previous commit. Surfaced as a failed workflow because a grey check on
+      # a commit is exactly the signal that gets missed.
+      - name: Fail if the Cloudflare deploy did not succeed
+        if: github.event_name == 'check_run' && github.event.check_run.conclusion != 'success'
+        run: |
+          echo "::error::Cloudflare Workers Build concluded '${{ github.event.check_run.conclusion }}' for ${{ github.event.check_run.head_sha }} — worldsoccersim.org is still on the previous build. See ${{ github.event.check_run.html_url }}"
+          exit 1
+
+      - name: Check the live site
+        env:
+          SITE: https://worldsoccersim.org
+        run: |
+          set -o pipefail
+          fail() { echo "::error::$1"; exit 1; }
+
+          # Cache-busted: a stale edge HIT would make a healthy site look
+          # broken, and a false red here teaches everyone to ignore the check.
+          html=$(curl -fsS -H 'Cache-Control: no-cache' "$SITE/?verify=$GITHUB_RUN_ID") \
+            || fail "$SITE did not return a successful response."
+
+          asset=$(printf '%s' "$html" | grep -oE '/assets/index-[A-Za-z0-9._-]+\.js' | head -1)
+          [ -n "$asset" ] \
+            || fail "Live index.html references no /assets/index-*.js — the deploy may be half-published."
+
+          # The failure .env.production exists to prevent, checked against what
+          # is actually being served rather than what was built. Silent in
+          # every other way: no error, no log, just no analytics.
+          curl -fsS "$SITE$asset" | grep -q 'phc_' \
+            || fail "The bundle live at $asset carries no PostHog key — production is analytics-dark. See .env.production."
+
+          # Deep links have no file behind them; they work only because
+          # wrangler.jsonc sets not_found_handling to single-page-application.
+          # Invisible from the entry page, which is the one URL that still
+          # works when the fallback is broken.
+          curl -fsS "$SITE/manual" | grep -q '/assets/index-' \
+            || fail "$SITE/manual did not serve the app shell — the SPA fallback is broken."
+
+          {
+            echo "### worldsoccersim.org is healthy"
+            echo
+            echo "| check | result |"
+            echo "| --- | --- |"
+            echo "| live bundle | \`$asset\` |"
+            echo "| analytics key | present |"
+            echo "| SPA fallback | serving the app shell |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "OK — live bundle is $asset"

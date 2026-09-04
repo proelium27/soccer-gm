@@ -67,8 +67,14 @@ describe("generateTwoDivisionLeague", () => {
 });
 
 describe("generateWorld", () => {
+  // One world, shared by every seed-42 case below. Generating the full 626-club
+  // world costs ~15s, and this block used to pay that six times over for tests
+  // that only ever read the result -- nothing here mutates `world`, so a single
+  // generation serves all of them. The byte-identical-to-England case keeps its
+  // own generation because it is a different seed.
+  const world = generateWorld(mulberry32(42));
+
   it("produces 626 teams across 36 competitions, each its own size", () => {
-    const world = generateWorld(mulberry32(42));
     expect(world.teams).toHaveLength(626);
     for (const comp of worldCompetitions()) {
       expect(world.teams.filter((t) => t.compId === comp.id))
@@ -81,7 +87,6 @@ describe("generateWorld", () => {
     // literal per competition: the two derive the layout independently, so this
     // catches them drifting apart, and a country changing size or pyramid depth
     // no longer means editing two dozen hardcoded tids.
-    const world = generateWorld(mulberry32(42));
     const comps = worldCompetitions();
     const compById = new Map(comps.map((c) => [c.id, c]));
 
@@ -109,12 +114,10 @@ describe("generateWorld", () => {
   });
 
   it("has 15650 players (626 teams x 25)", () => {
-    const world = generateWorld(mulberry32(42));
     expect(world.players).toHaveLength(15650);
   });
 
   it("generates the weak leagues in coefficient order: England > France > Netherlands > Portugal > Belgium > Turkey > Greece > Scotland > Serbia", () => {
-    const world = generateWorld(mulberry32(42));
     const d1Avg = (country: string) => {
       const comp = worldCompetitions().find((c) => c.country === country && c.tier === 1)!;
       const teams = world.teams.filter((t) => t.compId === comp.id);
@@ -130,7 +133,6 @@ describe("generateWorld", () => {
   });
 
   it("has unique pids across the whole world", () => {
-    const world = generateWorld(mulberry32(42));
     const pids = world.players.map((p) => p.pid);
     expect(new Set(pids).size).toBe(pids.length);
   });
@@ -143,7 +145,6 @@ describe("generateWorld", () => {
   });
 
   it("each country's tier-2 strongest team is no stronger than its own tier-1 average (equal-sibling generation)", () => {
-    const world = generateWorld(mulberry32(42));
     for (const country of ["England", "Spain", "Italy", "Germany"]) {
       const comps = worldCompetitions().filter((c) => c.country === country);
       const d1 = world.teams.filter((t) => t.compId === comps.find((c) => c.tier === 1)!.id);
@@ -155,7 +156,6 @@ describe("generateWorld", () => {
   });
 
   it("majority nationality among Spain's players is Spain more often than among England's players", () => {
-    const world = generateWorld(mulberry32(42));
     const spainComp = worldCompetitions().find((c) => c.country === "Spain" && c.tier === 1)!;
     const englandComp = worldCompetitions().find((c) => c.country === "England" && c.tier === 1)!;
     const spainTids = new Set(world.teams.filter((t) => t.compId === spainComp.id).map((t) => t.tid));

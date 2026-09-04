@@ -146,6 +146,52 @@ describe("buildImportPromptText", () => {
     expect(parseRosterFile(JSON.stringify(file)).competitions[0].clubs).toHaveLength(1);
   });
 
+  it("tells the AI there is no logo field, and points at where badges really come from", () => {
+    expect(prompt).toMatch(/NO logo, crest or badge field/);
+    // The pointer matters as much as the prohibition: an AI told only "don't"
+    // has nothing to tell the reader instead, and the reader is exactly the
+    // person who wants badges.
+    expect(prompt).toMatch(/image files/);
+    // And it must never read as a request to produce one. A language model
+    // asked for a picture emits hallucinated base64, which the pack parser
+    // rejects outright — a fatal error in place of a missing feature.
+    expect(prompt).not.toMatch(/data:image/);
+  });
+
+  // Pins the BEHAVIOUR that line describes. The claim is specifically that an
+  // invented logo key is dropped in SILENCE — if the parser is ever made strict
+  // about unknown fields this fails, and the prompt has to start saying the
+  // opposite, because the mistake would then cost the author the whole file
+  // rather than nothing.
+  it("is right that an invented logo key is silently discarded rather than refused", () => {
+    const comp = league.competitions[0];
+    const file = {
+      format: "world-soccer-sim-roster",
+      formatVersion: 1,
+      competitions: [
+        {
+          match: comp.name,
+          country: comp.country,
+          tier: comp.tier,
+          clubs: [
+            {
+              name: "Badged FC",
+              abbrev: "BAD",
+              colors: ["#111111", "#222222"],
+              logo: "https://example.com/badge.png",
+              crest: "badge.png",
+            },
+          ],
+        },
+      ],
+    };
+    const parsed = parseRosterFile(JSON.stringify(file));
+    const club = parsed.competitions[0].clubs[0] as unknown as Record<string, unknown>;
+    expect(club.name).toBe("Badged FC");
+    expect(club.logo).toBeUndefined();
+    expect(club.crest).toBeUndefined();
+  });
+
   it("embeds an example that itself parses as a valid roster file", () => {
     const start = prompt.indexOf("== Example ==");
     expect(start).toBeGreaterThan(-1);

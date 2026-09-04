@@ -14,14 +14,29 @@ import { createLeagueState } from "../../src/core/leagueState.js";
 import { simThrough } from "../../src/core/simThrough.js";
 import { simOffseason } from "../../src/core/offseason.js";
 import { isIntlStagePending } from "../../src/core/international/index.js";
+import { isConfederationCupSeason } from "../../src/core/constants.js";
 import {
   INTL_FIELD_SIZE, INTL_KO_SIZE, INTL_GROUPS,
 } from "../../src/core/constants.js";
 import { playInternational, advance } from "../helpers/intlLeague.js";
 
+/**
+ * One completed four-year cycle — seasons 1-3 qualify, season 4 is the
+ * tournament — shared by every case that needs a finished campaign.
+ *
+ * `advance(7, 4)` is the most expensive single call in the suite: four full
+ * season-cycles with their offseasons, ~450s. It used to be made twice, once
+ * here and once in `internationalPlayerRecord.test.ts`, from the same seed for
+ * the same number of seasons, by two tests that only read what came back. Both
+ * consumers now live in this file so one chain serves them; lazy, so running
+ * one of them by name still pays for exactly one.
+ */
+let cycle: ReturnType<typeof advance> | null = null;
+const completedCycle = () => (cycle ??= advance(7, 4));
+
 describe("international — qualifying cadence", () => {
   it("qualifies a full field over three offseasons then plays the World Cup, on the four-year cadence", () => {
-    const league = advance(7, 4); // seasons 1-3 qualify, season 4 is the tournament
+    const league = completedCycle();
     const intl = league.international;
     expect(intl.qualifying?.qualified).toHaveLength(INTL_FIELD_SIZE);
     expect(intl.tournament).not.toBeNull();
@@ -66,5 +81,44 @@ describe("international — qualifying cadence", () => {
     expect(league.season).toBe(4);
     expect(league.international.qualifying!.qualified).toHaveLength(INTL_FIELD_SIZE);
     expect(league.international.qualifyingHistory).toHaveLength(1);
+  });
+});
+
+describe("international — what a completed cycle leaves on players", () => {
+  // Lives here rather than in internationalPlayerRecord.test.ts so that it and
+  // the cadence test above share one advance(7, 4) — see completedCycle.
+  it("records caps and titles on players who feature", () => {
+    const league = completedCycle();
+    const capped = league.players.filter((p) => p.intl && p.intl.caps > 0);
+    expect(capped.length).toBeGreaterThan(0);
+    const champions = league.players.filter((p) => p.intl && p.intl.titles > 0);
+    expect(champions.length).toBeGreaterThan(0);
+    // A titled player was necessarily named in a tournament squad.
+    for (const p of champions) expect(p.intl!.tournaments).toBeGreaterThanOrEqual(1);
+
+    // The per-campaign breakdown must account for the career totals exactly —
+    // every appearance is written to a line as it's earned.
+    for (const p of capped) {
+      const lines = p.intl!.seasons;
+      expect(lines.length).toBeGreaterThan(0);
+      const sum = (key: "caps" | "goals" | "assists") =>
+        lines.reduce((total, l) => total + l[key], 0);
+      expect(sum("caps")).toBe(p.intl!.caps);
+      expect(sum("goals")).toBe(p.intl!.goals);
+      expect(sum("assists")).toBe(p.intl!.assists);
+      // One line per campaign played, labelled by the cadence: seasons 1-3
+      // qualifying, season 4 the tournament — plus a confederation cup line in the
+      // offseason that also stages the championships (season 2 of the cycle).
+      for (const l of lines) {
+        const allowed = l.season % 4 === 0
+          ? ["tournament"]
+          : isConfederationCupSeason(l.season) ? ["qualifying", "confederation"] : ["qualifying"];
+        expect(allowed).toContain(l.kind);
+      }
+      expect(new Set(lines.map((l) => `${l.season}-${l.kind}`)).size).toBe(lines.length);
+    }
+    // Four seasons in, somebody has played both qualifying and the tournament.
+    expect(capped.some((p) => p.intl!.seasons.some((l) => l.kind === "tournament"))).toBe(true);
+    expect(capped.some((p) => p.intl!.seasons.some((l) => l.kind === "qualifying"))).toBe(true);
   });
 });

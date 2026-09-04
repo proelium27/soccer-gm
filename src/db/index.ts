@@ -12,4 +12,6 @@ export {
   storedRetireeRows,
 } from "./leagueDb.js";
 
+export { loadCrests, saveCrests, deleteCrests } from "./crestDb.js";
+
 export { exportLeagueJSON, importLeagueJSON } from "./exportImport.js";

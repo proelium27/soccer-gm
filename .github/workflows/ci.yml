@@ -40,6 +40,11 @@ concurrency:
 jobs:
   # Typecheck runs in its own job so it starts in parallel with the tests
   # instead of gating them.
+  #
+  # It also carries the production-build check, rather than that being a job of
+  # its own. Both are cheap next to `npm ci`, and the header above is about a
+  # 20-job account ceiling that a seventh job per run would eat into for no
+  # gain. The name is kept as-is because branch protection may require it.
   typecheck:
     runs-on: ubuntu-latest
     steps:
@@ -50,6 +55,31 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+
+      # Two things nothing else catches, because the deploy does not check them
+      # and neither does any test.
+      #
+      # The build itself: Cloudflare Workers Builds runs `npm run build` on
+      # every push to main, so a bundle that fails to build fails *after* merge,
+      # in a pipeline nobody is watching, and main is then undeployable until
+      # someone notices. Building here moves that to the PR.
+      #
+      # And the analytics key. Vite inlines `import.meta.env.VITE_*` at build
+      # time, so a build that cannot see VITE_POSTHOG_KEY hands
+      # `posthog.init(undefined)` to production: nothing throws, nothing logs,
+      # and the site reports no pageviews, no gameplay events and no crashes
+      # while looking perfectly healthy. That is not hypothetical — it is the
+      # five days production ran analytics-dark after the 2026-08-15 host move,
+      # and .env.production exists to prevent it. This is the check that would
+      # have caught it in minutes instead of days.
+      - run: npm run build
+      - name: Check the build carries the analytics key
+        run: |
+          if ! grep -rq 'phc_' dist/assets; then
+            echo "::error::Built bundle contains no PostHog key — VITE_POSTHOG_KEY did not reach the build. See .env.production."
+            exit 1
+          fi
+          echo "Bundle carries the analytics key."
 
   # The suite is dominated by a few full-world multi-season sim files, so
   # wall-clock is bounded by the slowest single file, not the total. GitHub

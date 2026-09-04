@@ -5,15 +5,27 @@ import { fileURLToPath } from "node:url";
 
 /**
  * A disk-backed cache for expensive, deterministic test fixtures — in practice
- * generated worlds, which cost ~4.1s each while a JSON round-trip costs ~12ms.
+ * generated worlds. Measured 2026-09-03 on the 626-club / 15,650-player world:
+ * generation 6.8s, a cached load 110ms, the fixture 25.7 MB on disk. (These
+ * read 4.1s and 12ms until then, from a 240-club world three expansions ago —
+ * the fuller table is on `league.ts`.)
  *
  * Why this exists: vitest runs every test file in its own worker process, so a
  * plain in-process memo dies at each file boundary and the same world is
- * regenerated in all 36 files that ask for it. Persisting to disk makes each
- * distinct world cost one generation *ever* rather than one per file per run.
+ * regenerated in every one of the ~69 files that ask for it. Persisting to disk
+ * makes each distinct world cost one generation *ever* rather than one per file
+ * per run.
  *
  * Safety rests entirely on the cache key (see `sourceHash`): a stale fixture
  * would mean tests silently validating against an outdated sim.
+ *
+ * Nothing here deletes the directory belonging to a hash that is no longer
+ * current, so the cache grows by one directory per source state the machine has
+ * ever tested (measured: 3.6 GB across 20 of them). `npm run test:clean-worlds`
+ * prunes it. That is deliberately an opt-in script rather than something this
+ * file does on its own — several worktrees share one cache directory and each
+ * may sit on a different hash, so self-pruning would have them destroying each
+ * other's fixtures.
  */
 
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
@@ -80,7 +92,13 @@ export function sourceHash(): string {
   return cachedSourceHash;
 }
 
-function defaultDir(): string {
+/**
+ * Where cached fixtures live, one subdirectory per source hash.
+ *
+ * Exported so `scripts/pruneWorldCache.ts` prunes the directory this actually
+ * writes to rather than recomputing the path and risking the two drifting.
+ */
+export function fixtureCacheDir(): string {
   return join(REPO_ROOT, "node_modules", ".cache", "soccer-gm-worlds");
 }
 
@@ -106,7 +124,7 @@ export function loadFixture<T>(
   const remembered = memo.get(key);
   if (remembered !== undefined) return JSON.parse(remembered) as T;
 
-  const dir = join(opts.dir ?? defaultDir(), hash);
+  const dir = join(opts.dir ?? fixtureCacheDir(), hash);
   const file = join(dir, `${name}.json`);
 
   try {

@@ -30,9 +30,17 @@ import {
   type RosterFileClub,
 } from "../../core/teams/rosterFile.js";
 import { applyRosterFileToNewLeague } from "../../core/teams/rosterImport.js";
+import {
+  combineLogoPacks,
+  resolveLogoPack,
+  type LogoTargetClub,
+  type NamedLogoPack,
+} from "../../core/teams/logoPack.js";
+import { loadLogoFiles } from "../logoImages.js";
+import { LogoSetup } from "../components/LogoSetup.js";
 import { takePendingRoster } from "../pendingRoster.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
-import { ClubCrest, CrestArtProvider } from "../components/ClubCrest.js";
+import { ClubCrest, CrestArtProvider, CustomCrestProvider } from "../components/ClubCrest.js";
 import { CountryFlag } from "../components/CountryFlag.js";
 import { HelpHint } from "../components/HelpHint.js";
 import { trackEvent } from "../analytics.js";
@@ -66,6 +74,12 @@ function describeWorld(specs: ReturnType<typeof includedSpecs>) {
     },
   };
 }
+
+/**
+ * The empty badge map, shared. A fresh Map per render would hand every
+ * ClubCrest on the picker a new context value on every keystroke.
+ */
+const NO_CRESTS: ReadonlyMap<number, string> = new Map();
 
 interface LoadedRoster {
   /** Every file loaded so far, in load order, so more can be added to them. */
@@ -193,6 +207,12 @@ export function NewLeague() {
     () => takePendingRoster()?.files ?? [],
   );
   const [rosterError, setRosterError] = useState<string | null>(null);
+  // Held beside the roster sources rather than inside a component, for the same
+  // reason those are: the club picker previews them, the Start handlers apply
+  // them, and a second copy of "what has the user loaded" is how those two end
+  // up disagreeing about what the save will look like.
+  const [logoSources, setLogoSources] = useState<NamedLogoPack[]>([]);
+  const [logoError, setLogoError] = useState<string | null>(null);
   // Failures from "Import League" (a whole exported save), kept separate from
   // rosterError: they surface on different screens and mean different things.
   const [importError, setImportError] = useState<string | null>(null);
@@ -234,6 +254,61 @@ export function NewLeague() {
     const described = describeRoster(sources, world.slotWorld);
     return { ...described, warnings: [...warnings, ...described.warnings] };
   }, [rosterSources, worldEntries, world]);
+
+  /** Every pack and picture batch loaded so far, folded into the one that gets applied. */
+  const logoPack = useMemo(
+    () => (logoSources.length > 0 ? combineLogoPacks(logoSources) : null),
+    [logoSources],
+  );
+
+  /**
+   * Every club this world is about to contain, by the name it will actually
+   * carry — the imported one where a roster file replaced the slot, the
+   * fictional one everywhere else.
+   *
+   * Needed because a logo pack matches on NAME and the names only exist once
+   * the world is generated, which is several seconds of work the picker must
+   * not do. This is the same reconstruction the club picker already performs
+   * for one country (`countryClubs`), widened to all of them, and it is exact
+   * for the same reason: `clubIdentitiesFor` is what generation itself uses.
+   */
+  const prospectiveClubs = useMemo((): LogoTargetClub[] => {
+    const out: LogoTargetClub[] = [];
+    for (const r of world.ranges) {
+      const ids = clubIdentitiesFor(r.country, r.end - r.start);
+      ids.forEach((club, i) => {
+        const tid = r.start + i;
+        const imported = activeRoster?.byTid.get(tid);
+        out.push({
+          tid,
+          name: imported?.name ?? club.name,
+          abbrev: imported?.abbrev ?? club.abbrev,
+        });
+      });
+    }
+    return out;
+  }, [world, activeRoster]);
+
+  /**
+   * Which clubs the loaded packs will badge, resolved against the world as it
+   * currently stands. Recomputed as the world and the roster move under it, so
+   * the picker never shows a badge the save wouldn't.
+   */
+  const logoMatch = useMemo(
+    () => (logoPack ? resolveLogoPack(prospectiveClubs, logoPack.pack) : null),
+    [logoPack, prospectiveClubs],
+  );
+
+  /** The matched badges with the club names they landed on, for the card's preview strip. */
+  const logoPreview = useMemo(() => {
+    if (!logoMatch) return [];
+    const nameByTid = new Map(prospectiveClubs.map((c) => [c.tid, c.name]));
+    return [...logoMatch.byTid].map(([tid, image]) => ({
+      tid,
+      name: nameByTid.get(tid) ?? `Club ${tid}`,
+      image,
+    }));
+  }, [logoMatch, prospectiveClubs]);
 
   /**
    * Reshaping the world can move, remove or re-letter the slot the chosen club
@@ -350,6 +425,22 @@ export function NewLeague() {
   }
 
   /**
+   * The badges to store with a save, resolved against its FINAL club names.
+   *
+   * Deliberately not `logoMatch.byTid`, which is resolved against the picker's
+   * reconstruction of what the clubs will be called. That reconstruction is
+   * right at the moment it is made and can still be overtaken: the Customize
+   * Teams editor sits between the Start button and the save and exists to
+   * rename clubs. Resolving once more against the league actually being written
+   * costs one pass and means a club renamed on that screen keeps the badge you
+   * gave the name you gave it.
+   */
+  function crestsFor(league: LeagueStore): ReadonlyMap<number, string> | undefined {
+    if (!logoPack) return undefined;
+    return resolveLogoPack(league.teams, logoPack.pack).byTid;
+  }
+
+  /**
    * The tid this save will be built with, or null when it isn't ready to build.
    *
    * A spectator save needs no pick and can't have one, so it is always ready;
@@ -390,7 +481,7 @@ export function NewLeague() {
           return;
         }
         trackEvent("league_created", { country, tier: startTier, spectate, roster: !!activeRoster, difficulty, rollingCoefficients });
-        await setLeague(league);
+        await setLeague(league, crestsFor(league));
         navigate("/dashboard");
       } finally {
         setSaving(false);
@@ -404,7 +495,10 @@ export function NewLeague() {
       setSaving(true);
       try {
         trackEvent("league_created", { country, tier: startTier, spectate, roster: !!activeRoster, difficulty, rollingCoefficients });
-        await setLeague(applyTeamIdentities(pending, teams));
+        const customized = applyTeamIdentities(pending, teams);
+        // Resolved after the rename, not before: this screen is where a club
+        // gets the name a badge was picked for.
+        await setLeague(customized, crestsFor(customized));
         navigate("/dashboard");
       } finally {
         setSaving(false);
@@ -452,6 +546,22 @@ export function NewLeague() {
       setSelectedTid(null);
     }
     setRosterError(errors.length > 0 ? errors.join(" ") : null);
+  }
+
+  /**
+   * Load club badges — a pack file, loose picture files, or both at once.
+   *
+   * Added to what is already loaded rather than replacing it, the same rule the
+   * roster picker follows and for the same reason: a world's badges arrive a
+   * league at a time. Unlike a roster file this never clears the club
+   * selection, because a badge cannot move a club between slots — it is
+   * matched by name to whatever is already there.
+   */
+  async function handleLogoFiles(picked: File[]) {
+    setLogoError(null);
+    const { packs, errors } = await loadLogoFiles(picked);
+    if (packs.length > 0) setLogoSources((prev) => [...prev, ...packs]);
+    setLogoError(errors.length > 0 ? errors.join(" ") : null);
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -642,6 +752,11 @@ export function NewLeague() {
     // The picker previews the world the import will produce, so it has to hide
     // the same crests the league itself will — otherwise a club shows a badge
     // here and a colour swatch the moment the save opens.
+    // Same two providers, in the same order, as the in-league shell: the picker
+    // is a preview of the save, so anything it shows a badge for has to be
+    // something the save will too — including a custom badge outranking the
+    // suppression an import turns on.
+    <CustomCrestProvider crests={logoMatch?.byTid ?? NO_CRESTS}>
     <CrestArtProvider tids={activeRoster ? [...activeRoster.byTid.keys()] : []}>
     {/* Wider than the prose screens either side of it: this one is a stack of
         controls and a club list, not something you read left to right, and at
@@ -750,6 +865,22 @@ export function NewLeague() {
         multiple
         className="d-none"
         onChange={handleRosterFiles}
+      />
+
+      {/* Under the roster loader, in both modes, because that is the order the
+          two are used in: a pack matches clubs by name, so the names a roster
+          file installs have to be in place before it can find them. */}
+      <LogoSetup
+        sources={logoSources.map((s) => s.name)}
+        matched={logoMatch?.byTid.size ?? 0}
+        unmatched={logoMatch?.unmatched ?? []}
+        preview={logoPreview}
+        error={logoError}
+        onPick={handleLogoFiles}
+        onClear={() => {
+          setLogoSources([]);
+          setLogoError(null);
+        }}
       />
 
       {/*
@@ -1170,5 +1301,6 @@ export function NewLeague() {
       )}
     </div>
     </CrestArtProvider>
+    </CustomCrestProvider>
   );
 }

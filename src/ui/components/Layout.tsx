@@ -5,7 +5,7 @@ import { useSportName } from "../sportName.js";
 import { TopBar } from "./TopBar.js";
 import { Sidebar } from "./Sidebar.js";
 import { ErrorBoundary } from "./ErrorBoundary.js";
-import { CrestArtProvider } from "./ClubCrest.js";
+import { CrestArtProvider, CustomCrestProvider } from "./ClubCrest.js";
 import { gameplayStart, gameplayStop } from "../crazygames.js";
 import { LOGO_URL } from "../publicAsset.js";
 
@@ -20,7 +20,7 @@ interface LayoutProps {
 }
 
 export function Layout({ allowNoLeague = false }: LayoutProps) {
-  const { league, loadingActiveLeague } = useLeague();
+  const { league, loadingActiveLeague, crests } = useLeague();
   const [navOpen, setNavOpen] = useState(false);
   const location = useLocation();
 
@@ -78,6 +78,12 @@ export function Layout({ allowNoLeague = false }: LayoutProps) {
   const importedTids = league.teams.filter((t) => t.importedIdentity).map((t) => t.tid);
 
   return (
+    // Custom badges sit OUTSIDE the suppression provider on purpose: a badge the
+    // player supplied outranks the flag, which exists precisely to stop an
+    // imported club wearing the crest of the slot it took. ClubCrest reads both
+    // and orders them; nesting them this way just keeps the two decisions in one
+    // place rather than fourteen.
+    <CustomCrestProvider crests={crests}>
     <CrestArtProvider tids={importedTids}>
       <TopBar onToggleNav={() => setNavOpen((o) => !o)} />
       <div className="app-layout">
@@ -97,6 +103,7 @@ export function Layout({ allowNoLeague = false }: LayoutProps) {
         </main>
       </div>
     </CrestArtProvider>
+    </CustomCrestProvider>
   );
 }
 

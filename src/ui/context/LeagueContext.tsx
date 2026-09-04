@@ -3,6 +3,7 @@ import type { LeagueStore } from "../../core/leagueState.js";
 import type { SimThrough, IntlMode } from "../../worker/protocol.js";
 import { useSimWorker, type SimProgress, type JumpProgressUpdate } from "../useSimWorker.js";
 import { saveLeague, loadLeague } from "../../db/leagueDb.js";
+import { loadCrests, saveCrests } from "../../db/crestDb.js";
 import { getActiveLid, setActiveLid, clearActiveLid } from "../../db/activeLeague.js";
 import { setSeasonStartYear } from "../format.js";
 import { exportLeagueJSON, importLeagueJSON } from "../../db/exportImport.js";
@@ -55,7 +56,16 @@ import { trackEvent } from "../analytics.js";
 interface LeagueContextValue {
   league: LeagueStore | null;
   loadingActiveLeague: boolean;
-  setLeague: (l: LeagueStore) => void;
+  /**
+   * Custom club badges for the active save, as tid -> data URL.
+   *
+   * Not part of `league`, and that is deliberate rather than incidental: crest
+   * art is megabytes and the league record is rewritten in full on every
+   * mutation and cloned to the worker on every sim (see src/db/database.ts).
+   * It lives in its own store and is loaded alongside the league instead.
+   */
+  crests: ReadonlyMap<number, string>;
+  setLeague: (l: LeagueStore, crests?: ReadonlyMap<number, string>) => void;
   loadLeagueAction: (lid: number) => Promise<void>;
   switchLeagueAction: () => void;
   customizeTeamsAction: (lid: number, edits: TeamIdentityEdit[]) => Promise<void>;
@@ -149,6 +159,16 @@ interface LeagueContextValue {
   importJSON: (file: File) => Promise<void>;
 }
 
+/**
+ * The empty badge set, as one shared object.
+ *
+ * A fresh `new Map()` per commit would be a new context value on every
+ * mutation, which would re-render every `ClubCrest` on the page — on the news
+ * feed that is thousands of them — for a save that has no custom badges at all,
+ * which is nearly every save.
+ */
+const NO_CRESTS: ReadonlyMap<number, string> = new Map();
+
 const Ctx = createContext<LeagueContextValue | null>(null);
 
 export function useLeague(): LeagueContextValue {
@@ -159,6 +179,7 @@ export function useLeague(): LeagueContextValue {
 
 export function LeagueProvider({ children }: { children: ReactNode }) {
   const [league, setLeagueState] = useState<LeagueStore | null>(null);
+  const [crests, setCrests] = useState<ReadonlyMap<number, string>>(NO_CRESTS);
   const [loadingActiveLeague, setLoadingActiveLeague] = useState(
     () => getActiveLid() !== null,
   );
@@ -208,14 +229,53 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const pendingOpsRef = useRef(0);
   const [busy, setBusy] = useState(false);
 
-  const commitLeague = useCallback((l: LeagueStore | null) => {
+  /**
+   * Which save's badges `crests` currently holds, so a commit that isn't a
+   * change of save doesn't re-read them. `commitLeague` runs on every mutation
+   * — a lineup drag, a signing, every matchday — and the badges only ever
+   * change when a pack is imported, so keying the load on the lid is the
+   * difference between one read per save and one per action.
+   *
+   * Doubles as the guard against a slow read landing after the user has moved
+   * on: the resolved map is only adopted while the lid it was read for is still
+   * the one on screen.
+   */
+  const crestLidRef = useRef<number | null>(null);
+
+  const adoptCrests = useCallback(
+    (lid: number | null, known?: ReadonlyMap<number, string>) => {
+      if (lid === null || !lid) {
+        crestLidRef.current = null;
+        setCrests(NO_CRESTS);
+        return;
+      }
+      // The caller already has them — a pack just imported, or a save just
+      // brought in from a file — so there is nothing to read back.
+      if (known) {
+        crestLidRef.current = lid;
+        setCrests(known);
+        return;
+      }
+      if (crestLidRef.current === lid) return;
+      crestLidRef.current = lid;
+      setCrests(NO_CRESTS);
+      loadCrests(lid).then((m) => {
+        if (crestLidRef.current === lid) setCrests(m);
+      });
+    },
+    [],
+  );
+
+  const commitLeague = useCallback((l: LeagueStore | null, knownCrests?: ReadonlyMap<number, string>) => {
     leagueRef.current = l;
     // Every league — loaded, created, imported, or switched away from — passes
     // through here, which is why the season→year display offset is set here
-    // rather than at the ~90 places that format a season (see format.ts).
+    // rather than at the ~90 places that format a season (see format.ts). The
+    // badges follow for the same reason: one funnel, so no action can forget.
     setSeasonStartYear(l?.meta.startYear);
+    adoptCrests(l?.lid ?? null, knownCrests);
     setLeagueState(l);
-  }, []);
+  }, [adoptCrests]);
 
   const runExclusive = useCallback(<T,>(fn: () => Promise<T>): Promise<T> => {
     pendingOpsRef.current++;
@@ -252,11 +312,22 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     });
   }, [commitLeague]);
 
-  const setLeague = useCallback(async (l: LeagueStore) => {
+  /**
+   * Persist a league and make it the active one, optionally with the custom
+   * badges it was created with.
+   *
+   * The badges are a second argument rather than a separate action because they
+   * cannot be written before the league is: a fresh save has no lid until
+   * IndexedDB assigns one, and the crest rows are keyed by it. Passing them here
+   * means the only caller that has any (the new-league screen) hands them over
+   * once and never has to think about the ordering.
+   */
+  const setLeague = useCallback(async (l: LeagueStore, crests?: ReadonlyMap<number, string>) => {
     const lid = await saveLeague(l);
     const saved = { ...l, lid };
+    if (crests && crests.size > 0) await saveCrests(lid, crests);
     setActiveLid(lid);
-    commitLeague(saved);
+    commitLeague(saved, crests);
   }, [commitLeague]);
 
   const loadLeagueAction = useCallback(async (lid: number) => {
@@ -1035,11 +1106,11 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const doExport = useCallback(async () => {
-    if (league) await exportLeagueJSON(league);
-  }, [league]);
+    if (league) await exportLeagueJSON(league, crests);
+  }, [league, crests]);
 
   const doImport = useCallback(async (file: File) => {
-    const imported = await importLeagueJSON(file);
+    const { league: imported, crests: importedCrests } = await importLeagueJSON(file);
     // An import always lands as a NEW save. The file still carries the lid it
     // held in whatever browser exported it, and saveLeague keys off that lid —
     // so keeping it silently overwrote whatever league already sat at that key
@@ -1047,8 +1118,11 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     // with no warning and no way back. lid 0 makes saveLeague autoIncrement a
     // fresh key instead, leaving every existing league untouched.
     const lid = await saveLeague({ ...imported, lid: 0 });
+    // After the league, because the crest rows are keyed by the lid IndexedDB
+    // has only just handed out — the same ordering setLeague documents.
+    if (importedCrests.size > 0) await saveCrests(lid, importedCrests);
     setActiveLid(lid);
-    commitLeague({ ...imported, lid });
+    commitLeague({ ...imported, lid }, importedCrests);
   }, [commitLeague]);
 
   // Memoize the context value so its identity only changes when something a
@@ -1061,6 +1135,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   // so progress ticks no longer touch this value's identity.
   const value = useMemo<LeagueContextValue>(() => ({
     league,
+    crests,
     loadingActiveLeague,
     setLeague,
     loadLeagueAction,
@@ -1118,7 +1193,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     exportJSON: doExport,
     importJSON: doImport,
   }), [
-    league, loadingActiveLeague, setLeague, loadLeagueAction, switchLeagueAction,
+    league, crests, loadingActiveLeague, setLeague, loadLeagueAction, switchLeagueAction,
     customizeTeamsAction, simAction, simLiveAction, jumpSeasonsAction, offseasonAction,
     intlStageAction, signFreeAgentAction,
     releasePlayerAction, signToAcademyAction, signTrialistAction,

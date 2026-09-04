@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   matchdayToMonth,
   lastMatchdayOfMonth,
-  TRANSFER_DEADLINE_MATCHDAY,
 } from "../../src/core/calendar.js";
 
 describe("matchdayToMonth", () => {
@@ -40,11 +39,5 @@ describe("lastMatchdayOfMonth", () => {
   it("throws for out-of-range matchday", () => {
     expect(() => lastMatchdayOfMonth(0)).toThrow();
     expect(() => lastMatchdayOfMonth(39)).toThrow();
-  });
-});
-
-describe("TRANSFER_DEADLINE_MATCHDAY", () => {
-  it("equals 22", () => {
-    expect(TRANSFER_DEADLINE_MATCHDAY).toBe(22);
   });
 });

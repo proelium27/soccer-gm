@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, beforeAll, vi } from "vitest";
 import { createLeagueState } from "../../src/core/leagueState.js";
+import { englandCompetitions } from "../../src/core/competitions.js";
 import { mulberry32 } from "../../src/engine/rng.js";
 import {
   saveLeague, getDb, resetDb, resetWriteCache, storedRetireeRows,
@@ -18,9 +19,14 @@ import type { LeagueStore } from "../../src/core/leagueState.js";
  * every action again, which is the regression PR #210 exists to have fixed.
  */
 
+// An England-only world (two divisions, ~1,000 players) rather than the full
+// 36-competition one. Nothing here is a function of the pool size — the
+// retirees these tests measure are hand-built, and the league is only present
+// so there is a valid save to write — while every cost in this file scales with
+// it. Same reasoning as test/db/leagueDb.test.ts and test/core/simArchive.ts.
 let base: LeagueStore | null = null;
 function makeLeague(): LeagueStore {
-  base ??= createLeagueState(3, mulberry32(42));
+  base ??= createLeagueState(3, mulberry32(42), 0, "normal", englandCompetitions());
   return structuredClone(base);
 }
 
@@ -40,11 +46,11 @@ const retiree = (pid: number): ArchivedPlayer => ({
 // cleanup, so the rest fail on a dead transaction). Same fix as its sibling:
 // pay for the world up front, and give the tests and hooks budgets that reflect
 // what IDB work on a full world actually costs. Re-check when a country is added.
-vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
 beforeAll(() => {
   makeLeague();
-}, 180_000);
+}, 60_000);
 
 beforeEach(async () => {
   const db = await getDb();

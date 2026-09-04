@@ -65,6 +65,20 @@ const CREST_BY_TID: Record<number, string> = {};
  */
 const SuppressedCrests = createContext<ReadonlySet<number>>(new Set());
 
+/**
+ * Badges the player brought in themselves, as tid -> data URL.
+ *
+ * A second context beside the suppression set rather than folded into it, for
+ * the same reason that one is a context at all: `ClubCrest` is rendered from
+ * fourteen places holding nothing but a tid, and any of them forgetting to
+ * thread a badge through would leave one surface showing the wrong club's crest
+ * — which is precisely the bug that hides.
+ *
+ * These are loaded from their own IndexedDB store (src/db/crestDb.ts), never
+ * from the league, so they cost nothing on a save that has none.
+ */
+const CustomCrests = createContext<ReadonlyMap<number, string>>(new Map());
+
 /** Suppress built-in crest art for `tids` within this subtree. */
 export function CrestArtProvider({
   tids,
@@ -80,6 +94,23 @@ export function CrestArtProvider({
   return <SuppressedCrests.Provider value={value}>{children}</SuppressedCrests.Provider>;
 }
 
+/**
+ * Supply custom club badges within this subtree.
+ *
+ * Takes the map by reference and does not copy it: it is built once when the
+ * league loads and again only when a pack is imported, so a memo here would
+ * guard against nothing while a copy would duplicate every image in it.
+ */
+export function CustomCrestProvider({
+  crests,
+  children,
+}: {
+  crests: ReadonlyMap<number, string>;
+  children: ReactNode;
+}) {
+  return <CustomCrests.Provider value={crests}>{children}</CustomCrests.Provider>;
+}
+
 export interface ClubCrestProps {
   tid: number;
   colors: [string, string];
@@ -89,14 +120,25 @@ export interface ClubCrestProps {
 
 export function ClubCrest({ tid, colors, size = 20, className }: ClubCrestProps) {
   const suppressed = useContext(SuppressedCrests);
-  const src = suppressed.has(tid) ? undefined : CREST_BY_TID[tid];
+  const custom = useContext(CustomCrests);
+  /*
+   * A badge the player supplied outranks everything, suppression included —
+   * suppression exists to stop a real club wearing the fictional badge of the
+   * slot it displaced, and a custom badge is the answer to exactly that, so
+   * hiding it behind the flag would refuse the one thing the feature is for.
+   */
+  const src = custom.get(tid) ?? (suppressed.has(tid) ? undefined : CREST_BY_TID[tid]);
   if (src) {
     return (
       <img
         src={src}
         alt=""
         className={`club-crest${className ? ` ${className}` : ""}`}
-        style={{ width: size, height: size }}
+        // `contain` because a custom badge is whatever shape the file was and
+        // the box has to stay square — every caller sizes its layout on `size`,
+        // so a wide badge stretching the box would shift the row around it. The
+        // shipped art is square, so this is a no-op for it.
+        style={{ width: size, height: size, objectFit: "contain" }}
       />
     );
   }
