@@ -23,12 +23,22 @@ the single most confusing thing about this setup, so it is worth saying twice.
 A Vercel preview URL showing a feature tells you the code is on `main`. It tells
 you nothing whatsoever about worldsoccersim.org.
 
-This doc exists because that gap went unnoticed. Until 2026-09-03 the Cloudflare
-deploy was the only one nobody automated: it ran by hand, from a laptop, when
-someone remembered. The two mirrors nobody plays on stayed current and the real
-site fell several PRs behind — measured, worldsoccersim.org was serving a bundle
-from around #326 while Pages had #329 — and it surfaced as "I merged this
-feature and I can't see it in the game", which reads like a bug in the feature.
+This doc exists because of what that costs, and it is worth being precise about
+what the problem actually was, because the obvious guess is wrong.
+
+**It was not drift.** Until 2026-09-04 the Cloudflare deploy was the only one
+nobody automated — it ran by hand, from a laptop — and it was being run, and run
+promptly. Measured: the domain was serving a byte-identical build of #316,
+published within about two hours of that merge.
+
+**It was the window.** #318 merged at 00:11 and the site was checked at 00:27,
+so the domain was **~16 minutes** behind. That was enough to read as *"I merged
+this feature and I can't see it in the game"* — which looks like a bug in the
+feature, and cost an hour of looking in the wrong place. The window had always
+been there; nobody had happened to look inside it before, which is exactly why
+"this configuration has been fine for weeks" was both true and beside the point.
+A manual step is not unreliable because people forget. It is unreliable because
+nothing tells you it is outstanding.
 
 It is the same shape as the analytics outage `.env.production` describes: the
 preview deploys kept reporting normally for five days while production reported

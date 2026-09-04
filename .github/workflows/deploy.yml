@@ -1,16 +1,21 @@
 # Publishes the game to worldsoccersim.org on every push to main.
 #
-# This workflow exists because the domain used to be the ONE deploy target
-# nothing automated, and that is a failure you cannot see from the outside.
-# There are three targets: Vercel previews and GitHub Pages (pages.yml) both
-# rebuild themselves on every push, while the live domain moved to Cloudflare
-# on 2026-08-15 as an assets-only `wrangler deploy` run by hand. So the two
-# mirrors nobody plays on stayed current and the real site quietly fell behind
-# — measured 2026-09-03, worldsoccersim.org was serving a bundle from around
-# #326 while Pages had #329, and the first anyone noticed was a merged feature
-# not appearing in the game. It is the same shape as the five-day PostHog
-# outage .env.production describes: preview looked healthy, production didn't,
-# and the gap read as a different bug entirely.
+# This workflow exists because the domain was the ONE deploy target nothing
+# automated. Vercel and GitHub Pages (pages.yml) both rebuild themselves on
+# every push; the live domain moved to Cloudflare on 2026-08-15 as an
+# assets-only `wrangler deploy` run by hand.
+#
+# The failure that is NOT what this fixes: long-term drift. Measured
+# 2026-09-04, the domain was serving a byte-identical build of #316, deployed
+# within ~2 hours of that merge — the manual deploy was being run, and being
+# run promptly.
+#
+# What it fixes is the WINDOW. #318 merged at 00:11 and the site was checked at
+# 00:27, so the domain was ~16 minutes behind, and that was enough to read as
+# "I merged this feature and it isn't in the game" — which looks like a bug in
+# the feature. The window had always been there; nobody had happened to look
+# inside it before. Nothing closes it automatically and nothing announces that
+# it is open, which is what makes minutes of lag cost an hour of debugging.
 #
 # Deliberately does NOT wait for ci.yml. The commit being deployed is a merge
 # of a PR that already went green, CI on main takes ~30 minutes across six
