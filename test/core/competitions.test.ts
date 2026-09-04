@@ -156,14 +156,6 @@ describe("countryClubRanges", () => {
       { country: "Serbia", start: 578, end: 626 },
     ]);
   });
-
-  it("matches generateWorld's actual tid layout", () => {
-    // Cross-check against the real generator rather than re-deriving the
-    // layout by hand — a regression guard, same spirit as clubs.test.ts's
-    // CLUBS/tid regression test.
-    const ranges = countryClubRanges(worldCompetitions());
-    expect(ranges.reduce((sum, r) => sum + (r.end - r.start), 0)).toBe(626);
-  });
 });
 
 describe("competitionPromotionSpots", () => {

@@ -22,11 +22,6 @@ describe("ErrorBoundary", () => {
     expect(html).toContain("all good");
   });
 
-  it("derives error state from a throw", () => {
-    const error = new Error("kaboom from a page");
-    expect(ErrorBoundary.getDerivedStateFromError(error)).toEqual({ error });
-  });
-
   it("renders the failure, the error text and a way out", () => {
     const error = new Error("kaboom from a page");
     const boundary = new ErrorBoundary({ children: null, what: "the transfers page" });

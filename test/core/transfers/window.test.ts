@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { makeLeague } from "../../helpers/league.js";
 import {
   transferWindowState, nextMatchday, freeAgentSigningWindow,
 } from "../../../src/core/transfers/window.js";
@@ -8,57 +7,76 @@ import {
   SUMMER_WINDOW_CLOSE_MATCHDAY, TRANSFER_DEADLINE_MATCHDAY, WINTER_WINDOW_OPEN_MATCHDAY,
 } from "../../../src/core/calendar.js";
 
-/** A league whose next unplayed matchday is `md` (games before it removed). */
-function leagueAtMatchday(md: number): LeagueStore {
-  const league = makeLeague(0, 1);
+/**
+ * All three functions under test are typed
+ * `Pick<LeagueStore, "phase" | "schedule" | "season">` and read nothing beyond
+ * `schedule[].matchday`, so a synthetic three-field league is the whole fixture
+ * they need.
+ *
+ * This file used to build its leagues with `makeLeague`, which loads the cached
+ * 626-club / 15,650-player world and then discards everything except the
+ * fixture list — about thirty times over, counting the loops below. Nothing was
+ * gained by it: a calendar function cannot see a player.
+ */
+type CalendarLeague = Pick<LeagueStore, "phase" | "schedule" | "season">;
+
+const SEASON = 1;
+
+/** A league in regular play whose next unplayed matchday is `md`. */
+function at(md: number): CalendarLeague {
+  return { phase: "regular", season: SEASON, schedule: [{ matchday: md, home: 0, away: 1 }] };
+}
+
+/** A full fixture list, matchday 1 to 38 — the shape a fresh season starts in. */
+function fullSeason(): CalendarLeague {
   return {
-    ...league,
-    schedule: league.schedule.filter((g) => g.matchday >= md),
+    phase: "regular",
+    season: SEASON,
+    schedule: Array.from({ length: 38 }, (_, i) => ({ matchday: i + 1, home: 0, away: 1 })),
   };
 }
 
 describe("transferWindowState", () => {
   it("opens the summer window for the whole offseason phase", () => {
-    const league = { ...makeLeague(0, 1), phase: "offseason" as const };
-    const ws = transferWindowState(league);
+    const ws = transferWindowState({ ...fullSeason(), phase: "offseason" });
     expect(ws).toMatchObject({ open: true, window: "summer" });
   });
 
   it("keeps the summer window open through August and closes it after", () => {
     for (let md = 1; md <= SUMMER_WINDOW_CLOSE_MATCHDAY; md++) {
-      expect(transferWindowState(leagueAtMatchday(md))).toMatchObject({
+      expect(transferWindowState(at(md))).toMatchObject({
         open: true,
         window: "summer",
         closesAfterMatchday: SUMMER_WINDOW_CLOSE_MATCHDAY,
       });
     }
-    expect(transferWindowState(leagueAtMatchday(SUMMER_WINDOW_CLOSE_MATCHDAY + 1)).open).toBe(false);
+    expect(transferWindowState(at(SUMMER_WINDOW_CLOSE_MATCHDAY + 1)).open).toBe(false);
   });
 
   it("opens the winter window from mid-December through deadline day only", () => {
-    expect(transferWindowState(leagueAtMatchday(WINTER_WINDOW_OPEN_MATCHDAY - 1)).open).toBe(false);
+    expect(transferWindowState(at(WINTER_WINDOW_OPEN_MATCHDAY - 1)).open).toBe(false);
     for (let md = WINTER_WINDOW_OPEN_MATCHDAY; md <= TRANSFER_DEADLINE_MATCHDAY; md++) {
-      expect(transferWindowState(leagueAtMatchday(md))).toMatchObject({
+      expect(transferWindowState(at(md))).toMatchObject({
         open: true,
         window: "winter",
         closesAfterMatchday: TRANSFER_DEADLINE_MATCHDAY,
       });
     }
-    expect(transferWindowState(leagueAtMatchday(TRANSFER_DEADLINE_MATCHDAY + 1)).open).toBe(false);
+    expect(transferWindowState(at(TRANSFER_DEADLINE_MATCHDAY + 1)).open).toBe(false);
   });
 
   it("is closed mid-autumn and in the spring run-in", () => {
     for (const md of [5, 10, 17, 23, 30, 38]) {
-      expect(transferWindowState(leagueAtMatchday(md)).open).toBe(false);
+      expect(transferWindowState(at(md)).open).toBe(false);
     }
   });
 
   it("gives the summer window one identity across the season rollover", () => {
-    const league = makeLeague(0, 1);
-    const offseason = { ...league, phase: "offseason" as const };
+    const league = fullSeason();
+    const offseason: CalendarLeague = { ...league, phase: "offseason" };
     // What Advance does to the calendar: bump the season, back to regular
     // play with matchday 1 up next — still the same summer window.
-    const advanced = { ...league, season: league.season + 1 };
+    const advanced: CalendarLeague = { ...league, season: league.season + 1 };
 
     expect(transferWindowState(offseason)).toMatchObject({
       open: true, window: "summer", season: league.season + 1,
@@ -67,7 +85,10 @@ describe("transferWindowState", () => {
       open: true, window: "summer", season: league.season + 1,
     });
     // The winter window simply belongs to the season in progress.
-    const winter = { ...league, schedule: league.schedule.filter((g) => g.matchday >= 20) };
+    const winter: CalendarLeague = {
+      ...league,
+      schedule: league.schedule.filter((g) => g.matchday >= 20),
+    };
     expect(transferWindowState(winter)).toMatchObject({
       open: true, window: "winter", season: league.season,
     });
@@ -76,12 +97,11 @@ describe("transferWindowState", () => {
 
 describe("freeAgentSigningWindow", () => {
   it("follows the open window when there is one", () => {
-    const league = makeLeague(0, 1);
-    expect(freeAgentSigningWindow({ ...league, phase: "offseason" })).toEqual({
-      season: league.season + 1, window: "summer",
+    expect(freeAgentSigningWindow({ ...fullSeason(), phase: "offseason" })).toEqual({
+      season: SEASON + 1, window: "summer",
     });
-    expect(freeAgentSigningWindow(leagueAtMatchday(WINTER_WINDOW_OPEN_MATCHDAY))).toEqual({
-      season: league.season, window: "winter",
+    expect(freeAgentSigningWindow(at(WINTER_WINDOW_OPEN_MATCHDAY))).toEqual({
+      season: SEASON, window: "winter",
     });
   });
 
@@ -90,26 +110,26 @@ describe("freeAgentSigningWindow", () => {
     // regardless. The record's window is what places it on the news-feed
     // timeline and in the "this window" lists, so an autumn deal filed as
     // winter would surface as January business weeks after it happened.
-    const season = makeLeague(0, 1).season;
     for (const md of [SUMMER_WINDOW_CLOSE_MATCHDAY + 1, 10, WINTER_WINDOW_OPEN_MATCHDAY - 1]) {
-      expect(freeAgentSigningWindow(leagueAtMatchday(md))).toEqual({ season, window: "summer" });
+      expect(freeAgentSigningWindow(at(md))).toEqual({ season: SEASON, window: "summer" });
     }
     for (const md of [TRANSFER_DEADLINE_MATCHDAY + 1, 30, 38]) {
-      expect(freeAgentSigningWindow(leagueAtMatchday(md))).toEqual({ season, window: "winter" });
+      expect(freeAgentSigningWindow(at(md))).toEqual({ season: SEASON, window: "winter" });
     }
   });
 
   it("treats a fully simmed season as after the winter window", () => {
-    const league = makeLeague(0, 1);
-    expect(freeAgentSigningWindow({ ...league, schedule: [] })).toEqual({
-      season: league.season, window: "winter",
+    expect(freeAgentSigningWindow({ ...fullSeason(), schedule: [] })).toEqual({
+      season: SEASON, window: "winter",
     });
   });
 });
 
 describe("nextMatchday", () => {
   it("returns the lowest unplayed matchday", () => {
-    expect(nextMatchday(leagueAtMatchday(7))).toBe(7);
+    expect(nextMatchday(at(7))).toBe(7);
+    // A real schedule carries every remaining matchday, not just the next one.
+    expect(nextMatchday(fullSeason())).toBe(1);
   });
 
   it("returns null once the schedule is empty", () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { makeLeague } from "../../helpers/league.js";
+import type { LeagueStore } from "../../../src/core/leagueState.js";
 import { runAITransferMarket } from "../../../src/core/ai/transferMarket.js";
 import { keepsDepthFloor } from "../../../src/core/freeAgency.js";
 import { ROSTER_CAP, DIVISION_2_REFUSAL_OVR_THRESHOLD } from "../../../src/core/constants.js";
@@ -9,15 +10,30 @@ import type { Player } from "../../../src/core/players/types.js";
 
 const USER_TID = 0;
 
-/** Run the offseason-phase market on a fresh league (no wage charge, so money is conserved). */
+/**
+ * Run the offseason-phase market on a fresh league (no wage charge, so money is
+ * conserved).
+ *
+ * Memoised per seed. Every case below runs seed 7 and only reads what comes
+ * back, but a market pass walks all 626 clubs and prices candidates against
+ * each of them -- the most expensive single call in this directory -- so nine
+ * cases were paying for nine identical passes. Lazy rather than a beforeAll so
+ * that running one test by name still pays for exactly one.
+ */
+const marketRuns = new Map<number, { league: LeagueStore; result: ReturnType<typeof runAITransferMarket> }>();
 function runOnFresh(seed: number) {
-  const league = makeLeague(USER_TID, seed);
-  const result = runAITransferMarket(
-    league.teams, league.players, league.activeLoans, league.transfers,
-    league.season + 1, league.played, "summer", "offseason", USER_TID, 12345,
-    league.competitions, new Set(),
-  );
-  return { league, result };
+  let run = marketRuns.get(seed);
+  if (!run) {
+    const league = makeLeague(USER_TID, seed);
+    const result = runAITransferMarket(
+      league.teams, league.players, league.activeLoans, league.transfers,
+      league.season + 1, league.played, "summer", "offseason", USER_TID, 12345,
+      league.competitions, new Set(),
+    );
+    run = { league, result };
+    marketRuns.set(seed, run);
+  }
+  return run;
 }
 
 /** Multiset of every rostered pid across all teams, sorted. */
@@ -118,12 +134,10 @@ describe("runAITransferMarket", () => {
     // A loaned player sits on the loanee's roster but is owned by his parent.
     // If the loanee could sell him, processLoanReturns would later hand a copy
     // back to the parent and the same pid would be on two rosters at once.
-    const { league } = runOnFresh(7);
-    const control = runAITransferMarket(
-      league.teams, league.players, league.activeLoans, league.transfers,
-      league.season + 1, league.played, "summer", "offseason", USER_TID, 12345,
-      league.competitions, new Set(),
-    );
+    // The unguarded run is exactly what runOnFresh already computed -- same
+    // league, same 12345 seed, same empty protected set -- so this reads it
+    // rather than paying for a second identical market pass.
+    const { league, result: control } = runOnFresh(7);
     // The fresh-league market moves players, so there's a real deal to guard.
     expect(control.transfers.length).toBeGreaterThan(0);
     const victim = control.transfers[0];

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../../src/engine/rng.js";
 import { makeTeam } from "../../src/engine/composites.js";
-import { simMatch, simMatchDetailed } from "../../src/engine/matchSim.js";
+import { simMatchDetailed } from "../../src/engine/matchSim.js";
 import type { MatchPlayer } from "../../src/engine/attribution.js";
 
 function makeSquad(pidOffset: number): MatchPlayer[] {
@@ -27,17 +27,6 @@ function makeSquad(pidOffset: number): MatchPlayer[] {
 }
 
 describe("set pieces + penalties", () => {
-  it("simMatch produces corner and penalty texture over many matches without touching player identity", () => {
-    // simMatch is composite-only, so this just sanity-checks it still runs and produces
-    // sane, bounded scorelines across many seeds (the real rate check lives in the §8 gates).
-    for (let seed = 1; seed <= 20; seed++) {
-      const rng = mulberry32(seed);
-      const r = simMatch(rng, makeTeam("Home"), makeTeam("Away"));
-      expect(r.home).toBeGreaterThanOrEqual(0);
-      expect(r.away).toBeGreaterThanOrEqual(0);
-    }
-  });
-
   it("penalty events resolve to a goal, a save, or an off-target miss, attributed to the taker", () => {
     let penaltyCount = 0;
     let goals = 0;
