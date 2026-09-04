@@ -5,16 +5,90 @@ import { ClubLink } from "../components/ClubLink.js";
 import { usePlayerMap } from "../usePlayerMap.js";
 import { HelpHint } from "../components/HelpHint.js";
 import { computeStandings } from "../../core/standings.js";
-import { seasonRevenue, wageBill, financeScaleFor } from "../../core/finance/budget.js";
+import {
+  seasonRevenue, wageBill, financeScaleFor, budgetCap, settleSeasonEnd, chargeSeasonStart,
+} from "../../core/finance/budget.js";
 import { seasonPrizeIncome } from "../../core/finance/prizeIncome.js";
+import { ClauseLedger } from "../components/ClauseLedger.js";
 import { CompetitionSelect } from "../components/CompetitionSelect.js";
 import { competitionOf, competitionTeamCount } from "../../core/competitions.js";
+import { clausesOwedBy, clausesOwedTo } from "../../core/transfers/clauses.js";
 import { SCOUTING_SPEND_MAX, difficultyProfile } from "../../core/constants.js";
 import { currency, formatWeeklyWage, ordinal, seasonYear, transferFeeLabel } from "../format.js";
 import { Flag } from "../components/Flag.js";
 import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { PlayerRefLink, usePlayerRefs } from "../components/PlayerRefLink.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
+
+/**
+ * A signed money amount on the money-year timeline.
+ *
+ * The sign is always rendered, never implied by the colour alone (the Signal
+ * Rule), and zero reads as a muted plain figure rather than a green "+$0" —
+ * nothing arrived, so nothing should look like income.
+ */
+function Amount({ value }: { value: number }) {
+  const cls = value === 0 ? "fin-amt--none" : value > 0 ? "fin-amt--in" : "fin-amt--out";
+  const sign = value === 0 ? "" : value > 0 ? "+" : "−";
+  return <span className={`fin-amt ${cls}`}>{sign}{currency.format(Math.abs(value))}</span>;
+}
+
+/**
+ * One label/amount row on the timeline. `why` is a quiet second line under the
+ * label, for the timing rule or caveat that makes the number mean what it says.
+ * `plain` is for a running balance, which is a position rather than a movement
+ * and so must not carry a +/- sign.
+ */
+function Line(
+  { label, why, amount, sub = false, total = false, plain = false, unknown = false }: {
+    label: React.ReactNode;
+    why?: React.ReactNode;
+    amount?: number;
+    sub?: boolean;
+    total?: boolean;
+    plain?: boolean;
+    /** No figure exists yet — distinct from a figure that is zero. */
+    unknown?: boolean;
+  },
+) {
+  return (
+    <div className={`fin-line${sub ? " fin-line--sub" : ""}${total ? " fin-line--total" : ""}`}>
+      <div className="fin-line-label">
+        {label}
+        {why && <span className="fin-line-why">{why}</span>}
+      </div>
+      {/* "$0" would claim the line is worth nothing, which for a sell-on on a
+          player nobody has bid for yet is a different statement from "we can't
+          say". An em dash says the second thing. */}
+      {unknown
+        ? <span className="fin-amt fin-amt--none">&mdash;</span>
+        : plain
+          ? <span className="fin-amt">{currency.format(amount ?? 0)}</span>
+          : <Amount value={amount ?? 0} />}
+    </div>
+  );
+}
+
+/** One moment in the year when money actually moves. */
+function Stage(
+  { when, state, note, children }: {
+    when: string;
+    state: "done" | "now" | "ahead";
+    note: React.ReactNode;
+    children: React.ReactNode;
+  },
+) {
+  return (
+    <li className={`fin-stage fin-stage--${state}`}>
+      <div className="fin-stage-head">
+        <span className="fin-stage-when">{when}</span>
+        {state === "now" && <span className="fin-stage-tag">You are here</span>}
+      </div>
+      <p className="fin-stage-note">{note}</p>
+      {children}
+    </li>
+  );
+}
 
 export function Finance() {
   const { league, setScoutingSpendAction, simming } = useLeague();
@@ -48,7 +122,12 @@ export function Finance() {
     [league],
   );
   // The user's league position, which sets the prize tier in the estimate below.
-  const rank = useMemo(() => {
+  //
+  // Also reports whether the division has played anything yet, because before a
+  // ball is kicked every club is level on nothing and the "position" is just
+  // array order — quoting a prize tier off that reads as a promise rather than
+  // the placeholder it is.
+  const table = useMemo(() => {
     const userTeam = league?.teams.find((t) => t.tid === league.meta.userTid);
     if (!league || !userTeam) return null;
     const divisionTeamIds = league.teams
@@ -57,11 +136,12 @@ export function Finance() {
     // Set membership, not Array.includes — this filter runs once per played
     // match and the old form scanned the whole division for each one.
     const divisionTids = new Set(divisionTeamIds);
-    const standings = computeStandings(
-      divisionTeamIds,
-      league.played.filter((m) => divisionTids.has(m.home)),
-    );
-    return standings.findIndex((r) => r.tid === league.meta.userTid) + 1;
+    const matches = league.played.filter((m) => divisionTids.has(m.home));
+    const standings = computeStandings(divisionTeamIds, matches);
+    return {
+      rank: standings.findIndex((r) => r.tid === league.meta.userTid) + 1,
+      started: matches.length > 0,
+    };
   }, [league]);
 
   if (!league) {
@@ -69,9 +149,10 @@ export function Finance() {
   }
 
   const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
-  if (!userTeam || rank === null) {
+  if (!userTeam || table === null) {
     return <p className="p-3">Team not found.</p>;
   }
+  const { rank, started } = table;
 
   const compFilter = compFilterOverride ?? userTeam.compId;
 
@@ -81,30 +162,75 @@ export function Finance() {
     setScoutingDraft(null);
   };
 
-  // Mirror of the offseason cash flow in runOffseason: season-end settlement
-  // (prize by rank + hype revenue − scouting) followed by the new season's
-  // start charge (base allocation in, wages out). During the regular season
-  // the rank (and thus prize tier) is provisional; in the offseason it's
-  // final. The wage line is an estimate either way — the actual charge uses
-  // the new season's finalized roster (after retirements, expiries, youth).
   const difficulty = difficultyProfile(league.difficulty);
   const inTheRed = userTeam.budget < 0;
+  const seasonOver = league.phase === "offseason";
+
   // The user's own projection, so it takes the difficulty-aware scale — the
   // plain competition scale would promise income the offseason won't pay.
-  const revenue = seasonRevenue(
-    rank,
-    userTeam.hype,
-    financeScaleFor(
-      league.competitions, userTeam.compId, userTeam.tid, league.meta.userTid, league.difficulty,
-    ),
-    // Prize cutoffs are a fraction of the division, so the projection has to
-    // pass the club's own division size or it promises a smaller league's clubs
-    // money the offseason won't pay.
-    competitionTeamCount(competitionOf(league.competitions, userTeam.compId)),
+  const scale = financeScaleFor(
+    league.competitions, userTeam.compId, userTeam.tid, league.meta.userTid, league.difficulty,
   );
+  // Prize cutoffs are a fraction of the division, so the projection has to pass
+  // the club's own division size or it promises a smaller league's clubs money
+  // the offseason won't pay.
+  const divisionSize = competitionTeamCount(competitionOf(league.competitions, userTeam.compId));
+  const revenue = seasonRevenue(rank, userTeam.hype, scale, divisionSize);
   const wages = wageBill([...userTeam.roster, ...userTeam.academyRoster], salaryMap);
-  const net = revenue.total - wages - userTeam.scoutingSpend;
-  const seasonOver = league.phase === "offseason";
+
+  // The savings ceiling, surfaced because it is the one mechanic on this page
+  // that DESTROYS money silently: clampBudget caps every credit, so a club
+  // banking past its cap simply never receives the excess and nothing says so.
+  const cap = budgetCap(scale, userTeam.hype);
+  const capUsed = cap > 0 ? Math.max(0, userTeam.budget) / cap : 0;
+
+  // Mirror of the offseason's own two money events, in the order runOffseason
+  // applies them: settleSeasonEnd (prize + hype − scouting), then — after a
+  // great deal else — chargeSeasonStart (base allocation in, the new season's
+  // whole wage bill straight back out).
+  //
+  // Running them through the real functions rather than summing the rows is
+  // what makes the CEILING apply. The old projection added the rows up raw and
+  // so over-promised for any club near its cap: it quoted money the offseason
+  // was going to destroy on arrival.
+  //
+  // Both remain estimates. The rank is provisional until the table is final,
+  // hype moves between the two steps (so the second clamp really uses a
+  // ceiling we can't know yet), and the wage line is next season's roster,
+  // after retirements, expiries and youth intake.
+  const afterSettlement = settleSeasonEnd(
+    userTeam.budget, rank, userTeam.hype, userTeam.scoutingSpend, scale, divisionSize,
+  );
+  const startNext = chargeSeasonStart(afterSettlement, wages, scale, userTeam.hype);
+  const rawSettlement =
+    userTeam.budget + revenue.successPayout + revenue.hypeRevenue - userTeam.scoutingSpend;
+  const rawStart = afterSettlement + revenue.base - wages;
+  // What the ceiling refuses to let the club bank. Both steps clamp, so both
+  // can lose money.
+  const lostToCeiling = (rawSettlement - afterSettlement) + (rawStart - startNext);
+
+  // Exactly-derivable in-season cash. FEES ONLY, and the label has to say so: a
+  // mid-season signing also charges that player's season wages up front (see
+  // executeTransfer) and nothing records that charge, so calling this "spent"
+  // would be a number the save cannot stand behind.
+  const thisSeason = league.transfers.filter((t) => t.season === league.season);
+  const feesIn = thisSeason
+    .filter((t) => t.fromTid === league.meta.userTid)
+    .reduce((sum, t) => sum + t.fee, 0);
+  const feesOut = thisSeason
+    .filter((t) => t.toTid === league.meta.userTid)
+    .reduce((sum, t) => sum + t.fee, 0);
+
+  // Add-ons still hanging over the club. A bonus names its own amount; a
+  // sell-on's payout depends on a fee nobody has agreed yet, so it is counted
+  // rather than valued.
+  const owedBy = clausesOwedBy(league, league.meta.userTid);
+  const owedTo = clausesOwedTo(league, league.meta.userTid);
+  const bonusOwed = owedBy.reduce((s, c) => s + (c.kind === "bonus" ? c.amount : 0), 0);
+  const bonusDue = owedTo.reduce((s, c) => s + (c.kind === "bonus" ? c.amount : 0), 0);
+  const sellOnCount =
+    owedBy.filter((c) => c.kind === "sellOn").length
+    + owedTo.filter((c) => c.kind === "sellOn").length;
 
   const rosterPlayers = userTeam.roster
     .map((pid) => playerMap.get(pid))
@@ -136,47 +262,247 @@ export function Finance() {
     squad: (r) => r.team.roster.length,
   });
 
+  const wageShare = revenue.total > 0 ? wages / revenue.total : 0;
+  const netProjected = startNext - userTeam.budget;
+
   return (
     <div className="container-fluid p-3">
-      <h4>Finance</h4>
+      <h4>Finance: {userTeam.name}</h4>
 
-      {/* Overview + scouting control */}
+      {inTheRed && (
+        <div className="alert alert-danger py-2" role="alert">
+          <div className="fw-semibold">You&apos;re in the red.</div>
+          <div className="small mb-0">
+            You can&apos;t sign anyone until the balance is positive again, and your scouting is
+            stuck at zero while you&apos;re overdrawn, so potential estimates will get vaguer.
+            Nothing forces a sale and there&apos;s no interest to pay. You simply stay
+            overdrawn until income digs you out. Sell someone, or get your wage bill under what
+            the club earns.
+          </div>
+        </div>
+      )}
+
+      {/* Where the club stands, in four figures. Deliberately a dense strip
+          rather than four cards: this is the scoreboard idiom, and the page
+          below it is where the detail lives. */}
+      <div className="fin-strip">
+        <div className="fin-stat">
+          <div className="fin-stat-label">Balance</div>
+          <div className={`fin-stat-value${inTheRed ? " fin-stat-value--neg" : ""}`}>
+            {currency.format(userTeam.budget)}
+          </div>
+          <div className="fin-meter">
+            <div
+              className={
+                "fin-meter-fill"
+                + (capUsed >= 1 ? " fin-meter-fill--over" : capUsed >= 0.85 ? " fin-meter-fill--warn" : "")
+              }
+              style={{ width: `${Math.min(100, Math.max(0, capUsed * 100))}%` }}
+            />
+          </div>
+          <div className="fin-stat-sub">
+            {Math.round(capUsed * 100)}% of a {currency.format(cap)} ceiling
+            <HelpHint>
+              Your club can only bank so much. The ceiling rises with your hype and with how rich
+              your league is, and anything you would have saved above it is never paid at all.
+              It&apos;s destroyed, not carried over. Spending below the line is
+              unrestricted; only hoarding is capped. So if you&apos;re near it, spend the money
+              rather than watch the next prize cheque disappear.
+            </HelpHint>
+          </div>
+        </div>
+
+        <div className="fin-stat">
+          <div className="fin-stat-label">Season wage bill</div>
+          <div className="fin-stat-value">{currency.format(wages)}</div>
+          <div className="fin-meter">
+            <div
+              className={
+                "fin-meter-fill"
+                + (wageShare >= 1 ? " fin-meter-fill--over" : wageShare >= 0.8 ? " fin-meter-fill--warn" : "")
+              }
+              style={{ width: `${Math.min(100, Math.max(0, wageShare * 100))}%` }}
+            />
+          </div>
+          <div className="fin-stat-sub">
+            {Math.round(wageShare * 100)}% of what the club earns in a year &middot;{" "}
+            {formatWeeklyWage(wages)}
+          </div>
+        </div>
+
+        <div className="fin-stat">
+          <div className="fin-stat-label">Next season starts with</div>
+          <div className={`fin-stat-value${startNext < 0 ? " fin-stat-value--neg" : ""}`}>
+            {currency.format(startNext)}
+          </div>
+          <div className="fin-stat-sub">
+            {netProjected < 0
+              ? <>&minus;{currency.format(-netProjected)} from here</>
+              : <>+{currency.format(netProjected)} from here</>}
+            {" "}&middot; estimate
+          </div>
+        </div>
+
+        <div className="fin-stat">
+          <div className="fin-stat-label">Hype</div>
+          <div className="fin-stat-value">{Math.round(userTeam.hype)}</div>
+          <div className="fin-meter">
+            <div className="fin-meter-fill" style={{ width: `${Math.round(userTeam.hype)}%` }} />
+          </div>
+          <div className="fin-stat-sub">
+            Out of 100, earned by winning. Sets both your season income and your ceiling.
+          </div>
+        </div>
+      </div>
+
+      {/* The whole finance model, in the order it actually happens. This is
+          the page's answer to "where did my money go" — every other card here
+          is a detail hanging off one of these four moments. */}
       <div className="card mb-3">
         <div className="card-body">
-          <h5 className="card-title">{userTeam.name}</h5>
-          {inTheRed && (
-            <div className="alert alert-danger py-2" role="alert">
-              <div className="fw-semibold">You're in the red.</div>
-              <div className="small mb-0">
-                You can't sign anyone until the balance is positive again, and your scouting
-                is stuck at zero while you're overdrawn, so potential estimates will get
-                vaguer. Sell someone, or get your wage bill under what the club earns.
-              </div>
+          <h5 className="card-title">Your money year</h5>
+          <p className="text-secondary small">
+            This season&apos;s wages were charged in full on day one, so they aren&apos;t still
+            to come.
+          </p>
+
+          <ol className="fin-year">
+            <Stage
+              when="During the season"
+              state={seasonOver ? "done" : "now"}
+              note="Cup money lands the day you play the tie, fees when a deal closes. All of it is already in your balance."
+            >
+              {prizeIncome.total === 0 ? (
+                <Line label="Cup prize money" why="No ties played yet." amount={0} />
+              ) : (
+                <>
+                  <Line label="Cup prize money banked" amount={prizeIncome.total} />
+                  {prizeIncome.sources.map((source) => (
+                    <Fragment key={source.competition}>
+                      {source.lines.map((line) => (
+                        <Line
+                          key={`${source.competition}-${line.label}`}
+                          label={`${source.competition} — ${line.label}`}
+                          amount={line.amount}
+                          sub
+                        />
+                      ))}
+                    </Fragment>
+                  ))}
+                </>
+              )}
+              <Line label="Transfer fees received" amount={feesIn} />
+              <Line
+                label="Transfer fees paid"
+                why="A mid-season signing costs his wages for the season too."
+                amount={-feesOut}
+              />
+              {/* "Net", not "banked": the summer window is stamped with the
+                  season it opens, so this line is routinely negative and
+                  "banked -$74M" reads as a bug. */}
+              <Line
+                label="Net so far this season"
+                amount={prizeIncome.total + feesIn - feesOut}
+                total
+              />
+            </Stage>
+
+            <Stage
+              when="At season end"
+              state={seasonOver ? "now" : "ahead"}
+              note={
+                seasonOver
+                  ? "Real numbers now the table is final. They settle when you advance."
+                  : "Provisional: you can still move up or down the table."
+              }
+            >
+              <Line
+                label={
+                  started
+                    ? `League prize money (${ordinal(rank)} of ${divisionSize})`
+                    : "League prize money"
+                }
+                // Before a ball is kicked every club is level on nothing, so there is
+                // no position to base a tier on and quoting "1st" reads as a prediction.
+                // Once there is a table the label carries the rank and needs no gloss.
+                why={started ? undefined : "Nothing played yet, so this is a standing start."}
+                amount={revenue.successPayout}
+              />
+              <Line label="Hype revenue" amount={revenue.hypeRevenue} />
+              <Line
+                label="Scouting bill"
+                why="Paid at the end, not up front."
+                amount={-userTeam.scoutingSpend}
+              />
+              <Line label="Balance after settlement" amount={afterSettlement} total plain />
+            </Stage>
+
+            <Stage
+              when="In the offseason"
+              state="ahead"
+              note="Add-ons on past deals settle once the season's totals are known."
+            >
+              {owedBy.length === 0 && owedTo.length === 0 ? (
+                <Line label="Add-ons outstanding" amount={0} />
+              ) : (
+                <>
+                  {bonusDue > 0 && (
+                    <Line label="Bonuses you could be paid" amount={bonusDue} />
+                  )}
+                  {bonusOwed > 0 && (
+                    <Line
+                      label="Bonuses you could owe"
+                      why="Charged even if you can't cover it; you go overdrawn."
+                      amount={-bonusOwed}
+                    />
+                  )}
+                  {sellOnCount > 0 && (
+                    <Line
+                      label={`Sell-on shares outstanding: ${sellOnCount}`}
+                      why="No figure until he's sold. Paid out of the fee, not your balance."
+                      unknown
+                    />
+                  )}
+                </>
+              )}
+            </Stage>
+
+            <Stage
+              when="When next season starts"
+              state="ahead"
+              note="The allocation arrives and the whole wage bill comes straight back out of it, at once."
+            >
+              <Line label="Base allocation" amount={revenue.base} />
+              <Line
+                label="Wage bill for the whole season"
+                why="Today's squad. The real charge uses next season's."
+                amount={-wages}
+              />
+              <Line label="Budget you start next season with" amount={startNext} total plain />
+            </Stage>
+          </ol>
+
+          {lostToCeiling > 0 && (
+            <div className="alert alert-warning py-2 mt-3 mb-0" role="alert">
+              <span className="fw-semibold">
+                {currency.format(lostToCeiling)} of this won&apos;t reach you.
+              </span>{" "}
+              It would take you over your {currency.format(cap)} savings ceiling, and money above
+              the line is destroyed rather than banked. Spend it before then, or raise the ceiling
+              by raising your hype.
             </div>
           )}
-          <p className="card-text mb-2">
-            Budget:{" "}
-            <strong className={inTheRed ? "text-danger" : undefined}>
-              {currency.format(userTeam.budget)}
-            </strong> &middot;{" "}
-            Season wage bill: <strong>{currency.format(wages)}</strong>{" "}
-            ({formatWeeklyWage(wages)}, paid up front each season) &middot;{" "}
-            Hype: {Math.round(userTeam.hype)}/100 &middot;{" "}
-            Difficulty: {difficulty.label}
-          </p>
-          {difficulty.budgetScale !== 1 && (
-            <p className="card-text text-muted small mb-2">
-              On {difficulty.label.toLowerCase()}, your club earns{" "}
-              {Math.round(Math.abs(1 - difficulty.budgetScale) * 100)}%{" "}
-              {difficulty.budgetScale < 1 ? "less" : "more"} than it otherwise would, and can
-              bank that much {difficulty.budgetScale < 1 ? "less" : "more"} too. Wages cost the
-              same as they do for everyone else.
-            </p>
-          )}
+        </div>
+      </div>
+
+      {/* Scouting */}
+      <div className="card mb-3">
+        <div className="card-body">
+          <h5 className="card-title">Scouting</h5>
           <label className="form-label mb-1" htmlFor="finance-scouting-spend">
             {seasonOver
-              ? <>Scouting budget for next season: {currency.format(scoutingDraft ?? userTeam.nextScoutingSpend)}</>
-              : <>Scouting spend this season: {currency.format(userTeam.scoutingSpend)} (locked)</>}
+              ? <>Budget for next season: <strong>{currency.format(scoutingDraft ?? userTeam.nextScoutingSpend)}</strong></>
+              : <>This season: <strong>{currency.format(userTeam.scoutingSpend)}</strong>, locked until the offseason</>}
           </label>
           <input
             id="finance-scouting-spend"
@@ -191,129 +517,43 @@ export function Finance() {
             onPointerUp={commitScoutingDraft}
             onBlur={commitScoutingDraft}
           />
-          <p className="card-text text-muted mb-0">
-            Set once per year, in the offseason, and locked for the whole season it covers,
-            deducted at that season's end. That's why you can only change it here between seasons:
-            you commit (and pay) before you get the sharper view, so you can't crank it up to peek
-            and turn it straight back down. It does two things. First, every value you see on a
-            transfer target (Recommended Transfers, negotiation offers, offers for your own players)
-            is a perceived value, not the real one: noisy (&plusmn;35%) at $0 spend, nearly exact
-            (&plusmn;5%) at the $20M max. Second, potential (POT) shows as an estimate band rather
-            than an exact number, and more scouting tightens the band and reveals a player's true
-            ceiling sooner. Players on your senior roster also sharpen on their own over 2&ndash;3
-            seasons, while prospects, free agents, and rival clubs' players stay fogged until you
-            scout or sign them. Starts at $5M each season.
+          <p className="card-text text-secondary small mb-0">
+            Buys two things: sharper transfer valuations (&plusmn;35% guesswork at $0, down to
+            &plusmn;5% at the {currency.format(SCOUTING_SPEND_MAX)} maximum), and tighter potential
+            estimates on players you don&apos;t own.
+            <HelpHint>
+              You set it once a year, in the offseason, and it&apos;s locked for the whole season it
+              covers. You commit and pay before you get the sharper view, so you can&apos;t
+              crank it up to peek and turn it straight back down. Every value you see on a transfer
+              target (Recommended Transfers, negotiation offers, offers for your own players) is a
+              perceived value, not the real one. Potential shows as an estimate band rather than an
+              exact number, and more scouting tightens the band and reveals a player&apos;s true
+              ceiling sooner. Players on your senior roster also sharpen on their own over 2&ndash;3
+              seasons, while prospects, free agents and rival clubs&apos; players stay fogged until
+              you scout or sign them. Starts at $5M each season.
+            </HelpHint>
           </p>
-        </div>
-      </div>
-
-      {/* Season settlement projection */}
-      <div className="card mb-3">
-        <div className="card-body">
-          <h5 className="card-title">
-            {seasonOver ? "Offseason Cash Flow" : "Projected Offseason Cash Flow"}
-          </h5>
-          <table className="table table-sm w-auto align-middle mb-0">
-            <tbody>
-              <tr>
-                <td>Prize money ({ordinal(rank)})</td>
-                <td className="text-end">
-                  {currency.format(revenue.successPayout)}
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  Hype revenue
-                  <HelpHint>
-                    Hype is your club's fame (0&ndash;100), earned by winning and by big results.
-                    It drives a ticket-and-merchandise revenue stream paid at season end, so the
-                    more hype you carry, the more money it brings in.
-                  </HelpHint>
-                </td>
-                <td className="text-end">
-                  {currency.format(revenue.hypeRevenue)}
-                </td>
-              </tr>
-              <tr>
-                <td>Scouting spend</td>
-                <td className="text-end text-danger">
-                  &minus;{currency.format(userTeam.scoutingSpend)}
-                </td>
-              </tr>
-              <tr>
-                <td>Next season&apos;s base allocation</td>
-                <td className="text-end">{currency.format(revenue.base)}</td>
-              </tr>
-              <tr>
-                <td>Next season&apos;s wage bill (est.)</td>
-                <td className="text-end text-danger">
-                  &minus;{currency.format(wages)}
-                </td>
-              </tr>
-              <tr className="fw-bold">
-                <td>Net change</td>
-                <td className="text-end">
-                  {net < 0 ? <>&minus;{currency.format(-net)}</> : `+${currency.format(net)}`}
-                </td>
-              </tr>
-              <tr className="fw-bold">
-                <td>Budget at season start (est.)</td>
-                <td className="text-end">
-                  {currency.format(userTeam.budget + net)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Cup prize money banked so far this season */}
-      <div className="card mb-3">
-        <div className="card-body">
-          <h5 className="card-title">Cup Prize Money</h5>
-          {prizeIncome.total === 0 ? (
-            <p className="text-secondary mb-0">
-              Nothing yet this season. Cup prize money is paid as you go, so it lands in your
-              budget the day you play the tie rather than at season end.
+          {difficulty.budgetScale !== 1 && (
+            <p className="card-text text-secondary small mb-0 mt-2">
+              On {difficulty.label.toLowerCase()}, your club earns{" "}
+              {Math.round(Math.abs(1 - difficulty.budgetScale) * 100)}%{" "}
+              {difficulty.budgetScale < 1 ? "less" : "more"} than it otherwise would, and can bank
+              that much {difficulty.budgetScale < 1 ? "less" : "more"} too. Wages cost the same as
+              they do for everyone else.
             </p>
-          ) : (
-            <>
-              <table className="table table-sm w-auto align-middle mb-2">
-                <tbody>
-                  {prizeIncome.sources.map((source) => (
-                    <Fragment key={source.competition}>
-                      <tr>
-                        <td className="fw-bold" colSpan={2}>
-                          {source.competition}
-                        </td>
-                      </tr>
-                      {source.lines.map((line) => (
-                        <tr key={`${source.competition}-${line.label}`}>
-                          <td className="ps-4">{line.label}</td>
-                          <td className="text-end">{currency.format(line.amount)}</td>
-                        </tr>
-                      ))}
-                    </Fragment>
-                  ))}
-                  <tr className="fw-bold">
-                    <td>Total banked this season</td>
-                    <td className="text-end">{currency.format(prizeIncome.total)}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p className="text-secondary small mb-0">
-                Already in your budget. This is paid during the season, unlike league prize money,
-                which settles in the offseason above.
-              </p>
-            </>
           )}
         </div>
       </div>
-
       {/* Wage bill */}
       <div className="card mb-3">
         <div className="card-body">
-          <h5 className="card-title">Wage Bill</h5>
+          <h5 className="card-title">Where the wage bill goes</h5>
+          <p className="text-secondary small">
+            {currency.format(wages)} a season across {rosterPlayers.length} senior players
+            {userTeam.academyRoster.length > 0 && <> plus {userTeam.academyRoster.length} on academy stipends</>}
+            , or {Math.round(wageShare * 100)}% of what the club earns in a year. Charged in full
+            the day the season starts, not spread across it.
+          </p>
           <table className="table table-striped table-sm align-middle mb-0">
             <thead>
               <tr>
@@ -324,6 +564,7 @@ export function Finance() {
                 <th className="text-end">Expires</th>
                 <th className="text-end">Wage</th>
                 <th className="text-end">Season salary</th>
+                <th className="text-end">Share</th>
               </tr>
             </thead>
             <tbody>
@@ -341,19 +582,31 @@ export function Finance() {
                   <td className="text-end">{seasonYear(p.contract.expiresSeason)}</td>
                   <td className="text-end">{formatWeeklyWage(p.contract.salary)}</td>
                   <td className="text-end">{currency.format(p.contract.salary)}</td>
+                  <td className="text-end">
+                    {wages > 0 ? `${Math.round((p.contract.salary / wages) * 100)}%` : "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="fw-bold">
-                <td colSpan={5}>Total ({rosterPlayers.length} players)</td>
+                {/* The bill includes academy stipends, which have no row here —
+                    hence "whole bill" rather than a total of the rows above, and
+                    no share figure (the rows would sum to just under 100%). */}
+                <td colSpan={5}>Whole wage bill</td>
                 <td className="text-end">{formatWeeklyWage(wages)}</td>
                 <td className="text-end">{currency.format(wages)}</td>
+                <td className="text-end"></td>
               </tr>
             </tfoot>
           </table>
         </div>
       </div>
+
+      {/* Add-ons still hanging over the club, both directions. Money that has
+          already been paid is gone from this list — a clause is deleted the
+          moment it settles — so this is strictly what is still outstanding. */}
+      <ClauseLedger />
 
       {/* Transfer history */}
       <div className="card mb-3">

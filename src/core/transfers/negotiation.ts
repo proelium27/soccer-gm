@@ -11,6 +11,10 @@ import { keepsDepthFloor } from "../freeAgency.js";
 import { wouldRefuseExtension } from "../ai/breakoutRefusal.js";
 import { isProtectedStar, lastCompletedSeason, userProtectedStarBar } from "./protectedStars.js";
 import { refusesMoveToClub } from "./playerWill.js";
+import type { ProposedClause } from "./clauses.js";
+import {
+  settleClausesOnSale, materializeClauses, clauseExpectedValue, clausesAreValid,
+} from "./clauses.js";
 import {
   difficultyProfile,
   ROSTER_CAP, MAX_TRANSFER_VALUE,
@@ -256,28 +260,60 @@ export function executeTransfer(
   wageCharge: number,
   season: number,
   window: TransferWindowKind,
+  /** Clauses the buyer is agreeing to as part of this deal (see clauses.ts). */
+  newClauses: ProposedClause[] = [],
 ): LeagueStore {
+  // Any sell-on the SELLER still owes on this player fires now, and every
+  // clause naming him at this club dies either way. Settled before the new
+  // deal's own clauses are attached, so a club cannot pay itself out of a
+  // clause it is agreeing to in the same breath.
+  const { payouts, remaining } = settleClausesOnSale(
+    league.transferClauses ?? [], pid, fromTid, fee, season,
+  );
+  const owed = payouts.reduce((sum, p) => sum + p.amount, 0);
+
+  // A delta map rather than a chain of tid tests, because the same club can
+  // legitimately be two parties at once: sell a player on with a sell-on and
+  // buy him back later and the buyer is also the beneficiary. Two separate
+  // branches would apply one and silently drop the other.
+  const delta = new Map<number, number>();
+  const add = (tid: number, amount: number) =>
+    delta.set(tid, (delta.get(tid) ?? 0) + amount);
+  // Money is conserved: the buyer pays the whole fee, the seller keeps what is
+  // left after any sell-on, and the beneficiaries take the rest.
+  add(fromTid, fee - owed);
+  add(toTid, -fee - wageCharge);
+  for (const p of payouts) add(p.toTid, p.amount);
+
   return {
     ...league,
     teams: league.teams.map((t) => {
-      if (t.tid === fromTid) {
-        return {
-          ...t,
-          roster: t.roster.filter((p) => p !== pid),
-          // The seller here is an AI club when the user buys, and the user
-          // himself when he sells — so this takes the difficulty-aware scale.
-          budget: clampBudget(
-            t.budget + fee,
+      const d = delta.get(t.tid);
+      const roster =
+        t.tid === fromTid ? t.roster.filter((p) => p !== pid)
+        : t.tid === toTid ? [...t.roster, pid]
+        : t.roster;
+      if (d === undefined) return roster === t.roster ? t : { ...t, roster };
+      // Clamp a club whose balance rises, which is where the ceiling has always
+      // been applied (see clampBudget) — clamping a club that just spent would
+      // be a new rule, not this one. The seller is clamped unconditionally
+      // rather than only on a positive delta, because that is exactly what this
+      // function did before clauses existed and a zero-fee move must not
+      // quietly change. The scale is difficulty-aware because the seller is the
+      // user himself when he sells.
+      const budget = (t.tid === fromTid || d > 0)
+        ? clampBudget(
+            t.budget + d,
             financeScaleFor(league.competitions, t.compId, t.tid, league.meta.userTid, league.difficulty),
             t.hype,
-          ),
-        };
-      }
-      if (t.tid === toTid) {
-        return { ...t, roster: [...t.roster, pid], budget: t.budget - fee - wageCharge };
-      }
-      return t;
+          )
+        : t.budget + d;
+      return { ...t, roster, budget };
     }),
+    transferClauses: [
+      ...remaining,
+      ...materializeClauses(newClauses, pid, fromTid, toTid, season, fee),
+    ],
     transfers: [
       ...league.transfers,
       { pid, fromTid, toTid, fee, season, window },
@@ -319,6 +355,13 @@ export function makeTransferOffer(
   league: LeagueStore,
   pid: number,
   amount: number,
+  /**
+   * Contingent extras the user is offering on top of the cash (see clauses.ts).
+   * They do NOT sweeten the deal: the seller's cash reservation drops by exactly
+   * what they are worth, so this trades certain money for uncertain money and
+   * the total price is unchanged.
+   */
+  clauses: ProposedClause[] = [],
 ): LeagueStore {
   const ws = transferWindowState(league);
   if (!ws.open) return league;
@@ -335,10 +378,14 @@ export function makeTransferOffer(
   if (league.activeLoans.some((l) => l.pid === pid)) return league;
 
   const offer = Math.round(amount);
-  // The offer must be affordable together with any mid-season wage charge,
-  // since an accepted offer executes immediately.
   const wageCharge = acquisitionWageCharge(league, player);
-  if (!Number.isFinite(offer) || offer <= 0 || offer + wageCharge > user.budget) return league;
+  if (!Number.isFinite(offer) || offer <= 0) return league;
+  if (!clausesAreValid(clauses, offer)) return league;
+  // Add-ons sit ON TOP of the cash, the way a real transfer is reported. The
+  // budget only has to cover what changes hands now, which is the whole point:
+  // promising a share of a future sale is exactly how you sign someone you
+  // could not have afforded outright.
+  if (offer + wageCharge > user.budget) return league;
   if (!hasRosterRoom(user)) return league;
 
   const playerMap = new Map(league.players.map((p) => [p.pid, p]));
@@ -366,7 +413,17 @@ export function makeTransferOffer(
     league.lid, ws.season, ws.window, player,
     difficultyProfile(league.difficulty).buyPriceScale,
   );
-  const outcome = respondToOffer(reservation, offer, priorOffers);
+  // ONE model across all four negotiation entry points: the number you name is
+  // the CASH, and the add-ons are extra that the other club weighs alongside
+  // it. So the seller judges the offer plus what the clauses are worth to him,
+  // and a deal your cash alone could not reach can still clear his price.
+  //
+  // This is also what keeps the feature honest in both directions. Selling, the
+  // same sum is measured against the buyer's ceiling, so demanding a sell-on
+  // costs you the cash you could otherwise have asked for rather than being
+  // free money on top.
+  const clauseValue = clauseExpectedValue(league, pid, userTid, offer, clauses);
+  const outcome = respondToOffer(reservation, offer + clauseValue, priorOffers);
 
   const negotiation: TransferNegotiation = {
     pid,
@@ -383,8 +440,11 @@ export function makeTransferOffer(
 
   let updated: LeagueStore = { ...league, negotiations: upsertNegotiation(league, negotiation) };
   if (outcome.kind === "accepted") {
+    // The cash is exactly what he offered. `outcome.fee` carries the clause
+    // value the seller weighed and is not what changes hands.
     updated = executeTransfer(
-      updated, pid, seller.tid, userTid, outcome.fee, wageCharge, ws.season, ws.window,
+      updated, pid, seller.tid, userTid, offer, wageCharge, ws.season, ws.window,
+      clauses,
     );
   }
   return updated;
@@ -397,7 +457,11 @@ export function makeTransferOffer(
  * are re-checked here, since the roster may have changed since the counter
  * was made (e.g. a parallel negotiation already sold a teammate).
  */
-export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStore {
+export function acceptCounterOffer(
+  league: LeagueStore,
+  pid: number,
+  clauses: ProposedClause[] = [],
+): LeagueStore {
   const ws = transferWindowState(league);
   if (!ws.open) return league;
 
@@ -416,6 +480,11 @@ export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStor
   // seller's to sell (see makeTransferOffer).
   if (league.activeLoans.some((l) => l.pid === pid)) return league;
   const wageCharge = acquisitionWageCharge(league, player);
+  // The counter is a CASH price the seller has already named, so meeting it in
+  // cash is all that is required. Any add-ons attached here ride on top and can
+  // only make the deal more attractive to him, never less — to pay less cash
+  // instead, make a fresh offer with the add-ons on it.
+  if (!clausesAreValid(clauses, negotiation.counter)) return league;
   if (negotiation.counter + wageCharge > user.budget) return league;
   if (!hasRosterRoom(user)) return league;
 
@@ -438,5 +507,6 @@ export function acceptCounterOffer(league: LeagueStore, pid: number): LeagueStor
   const updated: LeagueStore = { ...league, negotiations: upsertNegotiation(league, accepted) };
   return executeTransfer(
     updated, pid, seller.tid, user.tid, negotiation.counter, wageCharge, ws.season, ws.window,
+    clauses,
   );
 }

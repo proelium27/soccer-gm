@@ -32,6 +32,7 @@ function buildWorldLeague(seed: number): LeagueStore {
     negotiations: [],
     inboundOffers: [],
     transfers: [],
+    transferClauses: [],
     winterMarketRunSeason: null,
     seasonHistory: [],
     newsEvents: [],

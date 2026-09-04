@@ -3,6 +3,7 @@ import type { PlayedMatch, SeasonHistoryEntry } from "./standings.js";
 import type { StoredTeam } from "./teams/clubs.js";
 import type { ScheduleGame } from "./schedule.js";
 import type { CompletedTransfer, TransferNegotiation } from "./transfers/negotiation.js";
+import type { TransferClause } from "./transfers/clauses.js";
 import type { InboundOffer } from "./transfers/inboundOffers.js";
 import type { NewsEvent } from "./newsEvents.js";
 import type { ArchivedPlayer } from "./players/archive.js";
@@ -103,6 +104,23 @@ export interface LeagueStore {
   inboundOffers: InboundOffer[];
   /** Completed transfers, all seasons (newest last). */
   transfers: CompletedTransfer[];
+  /**
+   * Live contingent money attached to deals the user negotiated: sell-on shares
+   * and bonuses (see transfers/clauses.ts).
+   *
+   * Its own field rather than a column on `CompletedTransfer`, and that is a
+   * correctness requirement rather than tidiness. `detachTransfers` windows the
+   * transfer log to the last PLAYER_SETTLED_SEASONS seasons before it crosses to
+   * the worker — and a bonus settles, and a resale triggers a sell-on, *inside*
+   * that worker. A clause older than the window would be read as absent and
+   * silently pay nobody. It is also live state that gets deleted when it
+   * resolves, where the log is append-only history.
+   *
+   * Bounded without a cap: a clause dies on payout, on expiry, when the player
+   * leaves the club that owes it, and when he leaves the world (scrubbed
+   * alongside the watchlist at both retirement and the free-agent cull).
+   */
+  transferClauses: TransferClause[];
   /**
    * The season whose winter AI transfer market has already run, so it fires
    * exactly once per season no matter how the user batches matchdays. null =
@@ -389,6 +407,7 @@ export function createLeagueState(
     negotiations: [],
     inboundOffers: [],
     transfers: [],
+    transferClauses: [],
     winterMarketRunSeason: null,
     seasonHistory: [],
     newsEvents: [],

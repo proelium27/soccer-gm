@@ -223,6 +223,7 @@ export function simThrough(
   // snapshotted once up front.
   let currentTeams: StoredTeam[] = league.teams;
   let transfers = league.transfers;
+  let clauses = league.transferClauses ?? [];
   let activeLoans = league.activeLoans;
   let winterMarketRunSeason = league.winterMarketRunSeason;
   // Continental Cup for this season (null before season 2, and always set for
@@ -317,9 +318,13 @@ export function simThrough(
           lastCompletedSeason(league), currentTeams, currentPlayers,
           league.competitions, league.meta.userTid,
         ),
+        { clauses, difficulty: league.difficulty },
       );
       currentTeams = market.teams;
       transfers = market.transfers;
+      // A sell-on the user is owed fires when the AI club he sold to moves the
+      // player on again, which is exactly what this window does.
+      clauses = market.clauses;
 
       const loanMarket = runAILoanMarket(
         currentTeams, currentPlayers, activeLoans, transfers, league.season,
@@ -670,6 +675,7 @@ export function simThrough(
     manager,
     played: allPlayed,
     transfers,
+    transferClauses: clauses,
     activeLoans,
     winterMarketRunSeason,
     newsEvents: [...league.newsEvents, ...newEvents],

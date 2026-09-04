@@ -1979,6 +1979,216 @@ export const PLAYER_WILL_RISE_BONUS = 0.35;
 export const PLAYER_SETTLED_BONUS = 0.6;
 export const PLAYER_SETTLED_SEASONS = 3;
 
+/* ---------------------------------------------------------------------------
+ * Transfer clauses — sell-on shares and bonuses (core/transfers/clauses.ts).
+ *
+ * These price CONTINGENT money on a deal the user negotiates. A clause never
+ * adds money to a transfer: the other club's total willingness to pay is
+ * unchanged and the clause converts part of it from cash into contingency, so
+ * every one of these constants moves what the up-front cash price is discounted
+ * by. That is the whole exploit surface — under-price a clause and the user
+ * keeps nearly the full cash fee AND the upside — so re-run
+ * `scripts/clausePricingProbe.ts` (priced expected value against what actually
+ * pays out) after touching any of them.
+ *
+ * User-only, so none of this reaches the AI↔AI market and no dynasty audit is
+ * involved. See the header of clauses.ts.
+ * ------------------------------------------------------------------------- */
+
+/** How many seasons a sell-on share stays live before it lapses. */
+export const SELL_ON_CLAUSE_SEASONS = 5;
+
+/**
+ * The most of a player's future profit one club may retain. Real sell-on
+ * clauses top out around 40%; past that a club has sold the player while
+ * keeping most of what he is worth, which is not a transfer.
+ */
+export const SELL_ON_MAX_SHARE = 0.4;
+
+/**
+ * P(the buying club moves him on again at all before the clause lapses), and
+ * how many seasons ahead his resale value is projected. Both are measured —
+ * see the probe — rather than guessed: they are the difference between a
+ * clause being a fair trade and being free money.
+ */
+export const SELL_ON_RESALE_PROBABILITY = 0.45;
+export const SELL_ON_PRICING_HORIZON = 2;
+
+/**
+ * How much of the modelled profit a resale actually delivers.
+ *
+ * **This is the constant the probe existed to find, and without it the clause
+ * was over-priced by nearly half.** Measured over 24,394 club-to-club sales
+ * across 10 seasons: the first two constants above landed almost exactly right
+ * (46.5% of players really are resold inside the window, at a mean 1.88 seasons)
+ * and the pricing was still `realized / priced = 0.556`, i.e. the user was
+ * handing over roughly twice the cash a sell-on was worth.
+ *
+ * The gap is not in *whether* he is resold but in **what for**: only 40.1% of
+ * resales are at a profit at all, and `projectedValue` is a straight-line march
+ * toward potential that ignores `growthDamping` throttling exactly the players
+ * a clause gets attached to. Rather than bend that projection — it is honest
+ * about what the valuation curve says he'd be worth — this scales the profit
+ * term by what the market really pays out.
+ *
+ * Re-derive it from the probe's `realized / priced` ratio, which reads 1.0 when
+ * this is right. It is a market-wide average over a large sample, so a single
+ * deal still lands anywhere: 4.2% of them pay more than three times what they
+ * were priced at, which is the point of a clause.
+ */
+export const SELL_ON_PROFIT_REALIZATION = 0.55;
+
+/** How many seasons a bonus can still be triggered before it lapses. */
+export const BONUS_CLAUSE_SEASONS = 3;
+
+/**
+ * How many of those seasons a bought player is actually still at the club.
+ *
+ * **Measured 1.03, against a window of 3**, over 25,087 player-seasons spread
+ * across 24,394 transfers — most players simply do not stay. A bonus dies when
+ * he leaves, so the number of chances it really gets is this, not the window
+ * length, and pricing it over three full seasons over-states every counting
+ * trigger by roughly double: measured 0.512 and 0.426 for appearances and goals
+ * before this existed.
+ *
+ * The two TEAM triggers deliberately do not use it. Their per-season rate is
+ * `slots / size`, which is crude in its own right, and
+ * `BONUS_TEAM_TRIGGER_REALIZATION` was fit on top of the full window — so it is
+ * already absorbing both effects at once and measures correctly there (0.919
+ * and 0.980). Splitting them apart would need that constant re-fit for no gain.
+ */
+export const BONUS_EXPECTED_SEASONS_AT_CLUB = 1.03;
+
+/**
+ * Total bonus money as a fraction of the cash fee. Caps how far the up-front
+ * price can be discounted, which keeps a deliberately coarse pricing model from
+ * being leaned on harder than it deserves — and keeps a transfer a transfer
+ * rather than a nominal fee plus a lottery ticket.
+ */
+export const BONUS_MAX_TOTAL_FRACTION = 0.5;
+
+/** What the two player-performance bonuses ask for, in one league season. */
+export const BONUS_APPEARANCE_THRESHOLD = 25;
+export const BONUS_GOAL_THRESHOLD = 10;
+
+/**
+ * Share of his club's league games a player takes, as a saturating curve on how
+ * far his ovr sits above the incumbent starter's, plus the spread around it.
+ *
+ * **Saturating, not a plain logistic, because that is what the data does.**
+ * Measured over 25,087 player-seasons at the club that bought them, share by
+ * ovr edge runs 0.336 / 0.398 / 0.497 / 0.766 / 0.680 / 0.725 across the
+ * buckets below -10, -10..-5, -5..0, 0..5, 5..10 and 10+. Being *much* better
+ * than the man you displace buys you very little over being somewhat better —
+ * there are only so many games — so an unbounded curve badly over-predicts the
+ * top end, which is where most signings sit (64% of those observations are in
+ * the 10+ bucket).
+ *
+ * The spread is measured rather than derived from a binomial, and is very wide
+ * (sd 12.7-15 games against a ~38 game season) because appearance records are
+ * closer to bimodal than to a bell: a player either holds a place or does not.
+ * A normal still under-states the lump at zero, so it over-predicts low
+ * thresholds; that residual is measured at the thresholds actually suggested,
+ * which is the only place the model is asked a question (see
+ * BONUS_SUGGESTION_TARGET_P).
+ */
+export const BONUS_APPEARANCE_SHARE_FLOOR = 0.32;
+export const BONUS_APPEARANCE_SHARE_CEILING = 0.76;
+export const BONUS_APPEARANCE_EDGE_CENTRE = -1;
+export const BONUS_APPEARANCE_SD_SHARE = 0.35;
+
+/**
+ * Goals per APPEARANCE by position, measured over 25,087 player-seasons, and
+ * how much being better than a replacement-level player lifts it.
+ *
+ * Scoring is a property of the position far more than of the player: a good
+ * centre-back does not become a goalscorer, he becomes a good centre-back. The
+ * spread across positions is a factor of 24 from centre-back to striker, which
+ * dwarfs anything ovr does within a position, so the ovr slope is deliberately
+ * gentle. Together with expected appearances these give the Poisson mean a goal
+ * target is priced off, which is what lets a 5-goal bonus and a 15-goal bonus
+ * cost different money.
+ *
+ * Real goal counts are over-dispersed relative to a Poisson (the same lump at
+ * zero that widens the appearance spread), so the tail is over-predicted at low
+ * thresholds and under-predicted at high ones. That is tolerable *only* because
+ * thresholds are suggested rather than typed: every one the game offers sits
+ * near BONUS_SUGGESTION_TARGET_P, in the middle of the distribution where the
+ * fit is good, and the probe checks it there. Letting a user name an arbitrary
+ * threshold would need a negative binomial first.
+ */
+export const BONUS_GOAL_RATE_BY_POS: Record<string, number> = {
+  GK: 0, CB: 0.023, FB: 0.037, DM: 0.075, CM: 0.156, AM: 0.279, W: 0.274, ST: 0.550,
+};
+export const BONUS_GOAL_OVR_SLOPE = 0.004;
+export const BONUS_GOAL_OVR_REFERENCE = 65;
+
+/**
+ * How likely a SUGGESTED bonus should be to pay out.
+ *
+ * This is what makes a suggestion differ per player without any per-position
+ * table: rather than offering everyone the same 25 games, the panel offers each
+ * player the threshold that lands nearest this probability, so a fringe man is
+ * suggested a low target and a first-choice player a demanding one. Both
+ * suggestions are equally ambitious, and the NUMBER differs because the players
+ * do.
+ *
+ * Set below a coin flip so a bonus reads as a stretch rather than a formality,
+ * which is also what keeps its price a sensible fraction of its amount.
+ */
+export const BONUS_SUGGESTION_TARGET_P = 0.35;
+
+/**
+ * Never suggest a goal bonus below this, however the arithmetic falls.
+ *
+ * Without it a centre-back gets offered "if he scores 1 league goal", which is
+ * priceable but silly. If the threshold that hits the target probability is
+ * under this, no goal bonus is suggested for him at all — which is how keepers
+ * and defenders drop off the menu without a hardcoded list of who may score.
+ */
+export const BONUS_SUGGESTION_MIN_GOALS = 3;
+
+/** What a suggested bonus is worth, as a share of the cash fee. */
+export const BONUS_SUGGESTED_FRACTION = 0.1;
+
+/**
+ * How much of a modelled TEAM-trigger rate actually materialises.
+ *
+ * `triggerProbability` prices "they qualify for Europe" and "they win
+ * promotion" off the league's own slot counts over its own size, which is the
+ * right shape (it varies correctly by country and division) and is
+ * systematically too high, because it assumes the player is still there for
+ * every season of the window. He usually isn't, and the bonus dies when he
+ * leaves.
+ *
+ * Measured over 24,394 transfers: a continental bonus fires for **23.8%** of
+ * top-flight buyers within the window against a modelled **60.7%** (ratio
+ * 0.392), and a promotion bonus for **14.7%** of buyers below the top flight
+ * against a modelled **36.2%** (ratio 0.406). The two landing on the same
+ * number is what identifies the cause as the shared one, tenure, rather than
+ * anything specific to either trigger.
+ *
+ * The two PERFORMANCE triggers take their own tenure correction instead, via
+ * `BONUS_EXPECTED_SEASONS_AT_CLUB`, because their per-season model is a good one
+ * and needs only that. This factor is doing two jobs at once for the team
+ * triggers — tenure AND the crudeness of slots-over-size — which is why it is
+ * bigger than tenure alone would explain, and why the two are not shared.
+ *
+ * Worth knowing how this went wrong once: an earlier version exempted the
+ * performance triggers on the grounds that their base rates already had
+ * attrition baked in, which was true of the model at the time and stopped being
+ * true when that model was replaced wholesale. The justification outlived its
+ * premise, and the probe caught it as a 2x over-price.
+ */
+export const BONUS_TEAM_TRIGGER_REALIZATION = 0.4;
+
+/**
+ * Ovr points of gap over the incumbent starter worth one logistic unit — i.e.
+ * how sharply "will he play" responds to how much better than the incumbent he
+ * is. Large enough that a couple of rating points is not decisive.
+ */
+export const BONUS_STARTER_OVR_SWING = 5;
+
 /**
  * Timeline multiplier: how age fits the club's ambition. Win-now clubs (high
  * ambition) pay a premium for prime-age readiness and discount teenage

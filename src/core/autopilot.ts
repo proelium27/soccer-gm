@@ -94,6 +94,11 @@ export function beginAutopilot(league: LeagueStore): LeagueStore {
     inboundOffers: [],
     loanListings: [],
     loanRejections: [],
+    // `transferClauses` is deliberately NOT cleared. A sell-on or bonus is a
+    // contract between two CLUBS rather than an instruction from the manager, so
+    // it survives the handover exactly as `activeLoans` does — and it has to,
+    // since the AI running the club during the jump can both trigger one and
+    // collect one. Same call `switchClub` makes, for the same reason.
   };
 }
 

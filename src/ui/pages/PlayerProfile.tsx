@@ -23,6 +23,7 @@ import { confederationOf, confederationCupSpec } from "../../core/international/
 import { cupStatsBySeasonForPlayer } from "../../core/cup/cupStats.js";
 import { domesticStatsBySeasonForPlayer } from "../../core/domesticCup/stats.js";
 import { formatWeeklyWage, seasonYear, transferFeeLabel } from "../format.js";
+import { PlayerClauseNote } from "../components/ClauseLedger.js";
 import { ClubLink } from "../components/ClubLink.js";
 import {
   cupStatColumns, leagueStatColumns, statCellText, statColumnScope, statHeader, sumStatRows,
@@ -376,6 +377,10 @@ export function PlayerProfile() {
           <div className="card">
             <div className="card-body">
               <h6 className="card-title">Transfer History</h6>
+              {/* Anything contingent still riding on this player. Sits with his
+                  transfer record because that is where it came from, and it is
+                  the one place a reader is already asking about his fees. */}
+              <PlayerClauseNote pid={player.pid} />
               {playerTransfers.length === 0 ? (
                 <p className="text-muted mb-0">No transfers on record.</p>
               ) : (

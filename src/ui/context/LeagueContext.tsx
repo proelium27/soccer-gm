@@ -13,6 +13,7 @@ import {
 } from "../../core/freeAgency.js";
 import { scoutDirectionsOf, type ScoutDirections } from "../../core/scouting/scoutDirections.js";
 import { clampScoutingSpend } from "../../core/finance/scouting.js";
+import type { ProposedClause } from "../../core/transfers/clauses.js";
 import { makeTransferOffer, acceptCounterOffer, FREE_AGENT_TID } from "../../core/transfers/negotiation.js";
 import { freeAgentSigningWindow } from "../../core/transfers/window.js";
 import {
@@ -97,11 +98,11 @@ interface LeagueContextValue {
   releaseAcademyPlayerAction: (pid: number) => Promise<void>;
   extendAcademyContractAction: (pid: number) => Promise<void>;
   setScoutingSpendAction: (spend: number) => Promise<void>;
-  makeOfferAction: (pid: number, amount: number) => Promise<void>;
-  acceptCounterAction: (pid: number) => Promise<void>;
-  acceptInboundOfferAction: (pid: number) => Promise<void>;
+  makeOfferAction: (pid: number, amount: number, clauses?: ProposedClause[]) => Promise<void>;
+  acceptCounterAction: (pid: number, clauses?: ProposedClause[]) => Promise<void>;
+  acceptInboundOfferAction: (pid: number, clauses?: ProposedClause[]) => Promise<void>;
   rejectInboundOfferAction: (pid: number) => Promise<void>;
-  counterInboundOfferAction: (pid: number, amount: number) => Promise<void>;
+  counterInboundOfferAction: (pid: number, amount: number, clauses?: ProposedClause[]) => Promise<void>;
   extendContractAction: (pid: number, lengthSeasons?: number) => Promise<void>;
   extendAllContractsAction: (group: RenewalGroup) => Promise<void>;
   listPlayerForLoanAction: (pid: number, seasons: 1 | 2 | 3) => Promise<void>;
@@ -598,21 +599,21 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     };
   }), [mutate]);
 
-  const makeOfferAction = useCallback((pid: number, amount: number) => mutate(
+  const makeOfferAction = useCallback((pid: number, amount: number, clauses: ProposedClause[] = []) => mutate(
     (l) => {
-      const updated = makeTransferOffer(l, pid, amount);
+      const updated = makeTransferOffer(l, pid, amount, clauses);
       if (updated && updated !== l) trackEvent("transfer_offer_made");
       return updated;
     },
   ), [mutate]);
 
-  const acceptCounterAction = useCallback((pid: number) => mutate(
-    (l) => acceptCounterOffer(l, pid),
+  const acceptCounterAction = useCallback((pid: number, clauses: ProposedClause[] = []) => mutate(
+    (l) => acceptCounterOffer(l, pid, clauses),
   ), [mutate]);
 
-  const acceptInboundOfferAction = useCallback((pid: number) => mutate(
+  const acceptInboundOfferAction = useCallback((pid: number, clauses: ProposedClause[] = []) => mutate(
     (l) => {
-      const updated = acceptInboundOffer(l, pid);
+      const updated = acceptInboundOffer(l, pid, clauses);
       if (updated && updated !== l) trackEvent("inbound_offer_accepted");
       return updated;
     },
@@ -622,8 +623,8 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     (l) => rejectInboundOffer(l, pid),
   ), [mutate]);
 
-  const counterInboundOfferAction = useCallback((pid: number, amount: number) => mutate(
-    (l) => counterInboundOffer(l, pid, amount),
+  const counterInboundOfferAction = useCallback((pid: number, amount: number, clauses: ProposedClause[] = []) => mutate(
+    (l) => counterInboundOffer(l, pid, amount, clauses),
   ), [mutate]);
 
   const extendContractAction = useCallback((pid: number, lengthSeasons?: number) => mutate((l) => {

@@ -182,6 +182,7 @@ export const FILE_WEIGHTS_SECONDS: Readonly<Record<string, number>> = {
   "test/core/simArchive.test.ts": 189,
   "test/core/simThrough.test.ts": 180,
   "test/core/positionChange.test.ts": 167,
+  "test/core/transfers/clauseOffseason.test.ts": 167,
   "test/core/transfers/inboundOffers.test.ts": 154,
   "test/core/generate.test.ts": 55,
   "test/core/autopilot.test.ts": 141,

@@ -1994,6 +1994,61 @@ export function Manual() {
             you), just better odds of a bite.
           </p>
           <p>
+            <strong>Sell-on shares and bonuses.</strong> Any deal you negotiate, buying or selling,
+            has an <strong>Add-ons</strong> panel under the offer buttons. Two things live there:
+          </p>
+          <ul>
+            <li>
+              A <strong>sell-on share</strong> of up to <strong>40%</strong>. Sell a player with one
+              attached and you keep that share of the <em>profit</em> if his new club sells him on
+              again within <strong>5 seasons</strong>. Profit, not the fee: if they sell him for less
+              than they paid you, you get nothing. Buy a player and you can hand a share the other
+              way instead.
+            </li>
+            <li>
+              <strong>Bonuses</strong>, paid once each if the thing happens within{" "}
+              <strong>3 seasons</strong> while he's still at that club. Up to four: league
+              appearances in a season, league goals in a season, his club qualifying for Europe, and
+              his club winning promotion. Together they can't come to more than{" "}
+              <strong>half</strong> the cash fee.
+            </li>
+          </ul>
+          <p>
+            <strong>The bonuses on offer are picked for the player.</strong> You won't be offered a
+            goals bonus for a goalkeeper, or a promotion bonus when the club buying him is already in
+            the top flight, because neither could ever pay. And the target moves with the player: a
+            squad man might be offered a bonus at 14 league games where a first-choice signing gets
+            one at 31. They're set so every bonus you're offered is about equally likely to pay,
+            which is what makes the number itself worth reading. You can change the money, but not
+            the target.
+          </p>
+          <p>
+            <strong>Add-ons sit on top of the fee</strong>, the way a real transfer gets reported:
+            "$20M rising to $25M". They don't change what you pay or receive today. What they do is
+            count toward whether the other club says yes, because the club on the other side weighs
+            your cash <em>and</em> what your add-ons are likely to be worth to them.
+          </p>
+          <p>
+            That's what makes them useful. Buying, they're how you land a player you can't quite
+            afford: bid below his price, promise a share of any future sale, and the deal can clear
+            even though your cash alone wouldn't have. Selling, they work the same way in reverse.
+            Asking for a sell-on as well as the money is asking for more, so a buyer will only wear
+            it while the whole package still sits under what the player is worth to him. If he
+            won't, you'll see the Accept button greyed out and you'll have to counter instead.
+          </p>
+          <p>
+            The panel spells out both halves before you commit: what changes hands now, and what it
+            could rise to if the add-ons land.
+          </p>
+          <p>
+            Everything still owed, in both directions, is listed under <strong>Transfer Add-ons</strong>{" "}
+            on the <a href="#finance">Finance</a> page, and on each player's own page. Clauses
+            disappear from those lists the moment they pay out, run out of time, or the player leaves
+            the club that owed them. A bonus dies unpaid if he's sold before it triggers, and a
+            sell-on settles and ends the moment he's sold on. Only deals you make carry add-ons; AI
+            clubs don't attach them to each other's transfers.
+          </p>
+          <p>
             Every deal you make and every deal in your own league lands in the News Feed, along
             with the biggest moves elsewhere in the world.
           </p>
@@ -2175,23 +2230,33 @@ export function Manual() {
           <p>
             <strong>Cup prize money is separate, and it doesn't wait for the settlement.</strong>{" "}
             Continental and domestic cup money is paid as you go, landing in your budget the day you
-            play the tie. The Finance page has its own Cup Prize Money card breaking down what
-            you've banked so far this season and which round it came from, across all three cups you
-            can be in at once. It's money you already have, not a projection.
+            play the tie, across all three cups you can be in at once. It's money you already have,
+            not a projection.
           </p>
           <p>
-            The Finance page shows all of it: current budget, hype, the wage-bill table, a
-            settlement projection (final numbers once the season ends), your full transfer history,
-            and a league-wide money table for comparison. A competition dropdown (grouped by country)
-            scopes that table, defaulting to whichever competition your own club is currently in,
-            with an "All Competitions" option to see every club in the world at once. AI clubs are
-            tuned to never go broke. <em>You</em> can overspend, though: hoard a full roster of elite
-            wages and the projection will happily show you the shortfall coming. Budget is a running
-            balance that carries over between seasons instead of resetting. The savings cap scales
-            with a club's fame: a top-flight club can bank up to <strong>$400M</strong> at full hype,
-            down to <strong>$200M</strong> for a club with no fame (Division 2 clubs are capped lower
-            on top of that, reflecting the money gap between divisions). Spending below your cap is
-            unrestricted, but you can't bank cash past it.
+            <strong>The Finance page is built around when money moves, not just how much.</strong>{" "}
+            Four figures across the top say where you stand: your balance (and how close it is to
+            your savings ceiling), your wage bill as a share of what the club earns in a year, what
+            you're projected to start next season with, and your hype. Under that, "Your money year"
+            walks through the four moments money actually changes hands, marking the one you're
+            sitting in: during the season (cup prizes and transfer fees), at season end (league prize
+            money, hype revenue, your scouting bill), in the offseason (any add-ons settling), and
+            when next season starts (the new allocation arrives and the whole wage bill comes
+            straight back out of it). Below that sit your scouting budget, where the wage bill goes
+            player by player, any outstanding add-ons, your full transfer history and a league-wide
+            money table for comparison, scoped by a competition dropdown that defaults to your own
+            division and has an "All Competitions" option.
+          </p>
+          <p>
+            AI clubs are tuned to never go broke. <em>You</em> can overspend, though: hoard a full
+            roster of elite wages and the projection will happily show you the shortfall coming.
+            Budget is a running balance that carries over between seasons instead of resetting. The
+            savings cap scales with a club's fame: a top-flight club can bank up to{" "}
+            <strong>$400M</strong> at full hype, down to <strong>$200M</strong> for a club with no
+            fame (lower divisions are capped lower still, reflecting the money gap between them).
+            Spending below your cap is unrestricted, but you can't bank cash past it &mdash; money
+            you would have saved above the line is never paid at all rather than carried over, so if
+            you're near the ceiling the page warns you before the next cheque disappears.
           </p>
         </Section>
 
