@@ -245,11 +245,41 @@ echo
 
 # `run` is required: without it vitest defaults to watch mode, and merging is
 # rejected outright ("Cannot merge reports with --watch enabled").
-npx vitest run --merge-reports 2>/dev/null || {
+MERGE_LOG="$RUNDIR/merged.log"
+npx vitest run --merge-reports 2>/dev/null | tee "$MERGE_LOG" || {
   echo "(merge failed; per-machine logs below)"
   tail -30 "$RUNDIR/local.log"
   tail -30 "$RUNDIR/remote.log"
 }
+
+# Say plainly when the two signals disagree.
+#
+# The verdict at the bottom is the two SHARD EXIT CODES, and it has to be: a
+# shard that dies halfway writes a partial blob, and the merge would then report
+# only the files it managed to run and call that green. So a non-zero exit can
+# never be ignored.
+#
+# But the reverse happens too. A shard has exited 1 with every test in its own
+# blob passing, no unhandled errors in it, and the same shard exiting 0 on an
+# immediate re-run -- i.e. a transient runner failure, reported identically to a
+# real one. That cost half an hour of hunting a phantom, so when the merged
+# report shows no failures and a shard still exited non-zero, the run says which
+# of the two situations you are in rather than leaving you to diff blobs.
+if [ "$LOCAL_RC" != "0" ] || [ "$REMOTE_RC" != "0" ]; then
+  if [ -s "$MERGE_LOG" ] && ! grep -qE "[0-9]+ failed" "$MERGE_LOG"; then
+    echo
+    echo "NOTE: a shard exited non-zero but the merged report shows no failing"
+    echo "      test (local exit $LOCAL_RC, $REMOTE_HOST exit $REMOTE_RC)."
+    echo "      Either a shard died before finishing -- in which case the merge"
+    echo "      above is missing its files and the counts are short -- or the"
+    echo "      runner itself failed after the tests passed. Check the file"
+    echo "      count above against a known-good run before treating this as a"
+    echo "      code failure, and re-run the failing shard alone to tell them"
+    echo "      apart:"
+    echo "        npx vitest run --shard=1/2   # this machine"
+    echo "        ssh $REMOTE_HOST 'zsh -ls' <<< 'cd $REMOTE_DIR && npx vitest run --shard=2/2'"
+  fi
+fi
 
 # Rebalance for next time. Throughput is work over time, and each machine got
 # work in proportion to its capacity, so the corrected capacity goes as
