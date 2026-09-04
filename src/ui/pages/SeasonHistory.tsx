@@ -119,8 +119,14 @@ export function SeasonHistory() {
     );
   };
 
-  /** Header for one country column: its flag, its three-letter code. */
-  const countryHead = (comp: Competition) => {
+  /**
+   * Header for one country column: its flag, its three-letter code.
+   *
+   * The first one carries `sh-divide`, a rule separating the world's trophies
+   * from the countries' own. Without it the dozen three-letter codes read as
+   * one undifferentiated wall running off the right of the table.
+   */
+  const countryHead = (comp: Competition, i: number) => {
     const label = view === "leagues"
       ? comp.name
       : cupNameByCountry.get(comp.country) ?? `${comp.country} Cup`;
@@ -129,7 +135,7 @@ export function SeasonHistory() {
       // room reads fine for the twelve shipped countries, whose flags are all
       // distinct art, and leaves an anonymous grey swatch as the only heading
       // for a country the flag set doesn't cover. The table scrolls either way.
-      <th key={comp.id} className="text-center sh-country" title={label}>
+      <th key={comp.id} className={`text-center sh-country${i === 0 ? " sh-divide" : ""}`} title={label}>
         <Flag nationality={comp.country} tip={false} /> {competitionAbbrev(comp)}
       </th>
     );
@@ -159,7 +165,7 @@ export function SeasonHistory() {
 
   return (
     <div className="container-fluid p-3">
-      <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+      <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
         <h4 className="mb-0">Season History{intro}</h4>
         <ul className="nav nav-pills nav-sm">
           <li className="nav-item">
@@ -186,14 +192,14 @@ export function SeasonHistory() {
       <div className="card">
         <div className="card-body p-0">
           <div className="sh-scroll">
-            <table className="table table-sm mb-0 sh-table">
+            <table className="table table-sm table-striped mb-0 sh-table">
               <thead>
                 <tr>
                   <th className="sh-season">Season</th>
                   <th>Continental Cup</th>
                   <th>Continental Shield</th>
                   <th className="sh-intl-col">International</th>
-                  {topFlights.map(countryHead)}
+                  {topFlights.map((comp, i) => countryHead(comp, i))}
                 </tr>
               </thead>
               <tbody>
@@ -202,7 +208,7 @@ export function SeasonHistory() {
                     <th scope="row" className="sh-season">
                       {seasonYear(row.season)}
                       {!row.complete && (
-                        <span className="text-muted small ms-1" title="Still being played — the league champions are settled when the season rolls over.">
+                        <span className="text-muted small ms-1" title="Still being played. The league champions are settled when the season rolls over.">
                           (now)
                         </span>
                       )}
@@ -227,12 +233,13 @@ export function SeasonHistory() {
                         </span>
                       )}
                     </td>
-                    {topFlights.map((comp) => {
+                    {topFlights.map((comp, i) => {
                       const tid = countryWinner(row, comp);
+                      const own = tid !== undefined && tid === userTid;
                       return (
                         <td
                           key={comp.id}
-                          className={`text-center${tid !== undefined && tid === userTid ? " sh-own" : ""}`}
+                          className={`text-center${i === 0 ? " sh-divide" : ""}${own ? " sh-own" : ""}`}
                         >
                           {clubCell(tid, row.season)}
                         </td>
@@ -246,7 +253,7 @@ export function SeasonHistory() {
         </div>
       </div>
 
-      <p className="text-muted small mt-2 mb-0">
+      <p className="text-muted small mt-3 mb-0">
         Country columns are three-letter club codes. Hover one for the full name, or click through
         to that club&apos;s season. In the International column <strong>WC</strong> is the World Cup
         and the other codes are confederations (EUR, SAM, AFR, ASI, NAM, OCE); those championships
