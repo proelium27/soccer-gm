@@ -55,6 +55,18 @@ import { ROSTER_FILE_FORMAT, ROSTER_FILE_VERSION, type RosterSlotWorld } from ".
  * broken file. Hence both a rule and a checklist line, and hence the note that
  * the three rules above fail quietly while the field shapes below do not: an AI
  * told everything degrades gracefully will not re-read a field shape.
+ *
+ * It also spends a line saying there is no `logo` field, which is the one thing
+ * here written to head off a mistake rather than in response to one. `colors`
+ * sits in the club shape as the club's visual identity, so a badge is the
+ * natural next key for an AI to invent — and parseRosterFile builds its output
+ * from named fields, so an invented one is DROPPED IN SILENCE. That is this
+ * game's custom-badge failure arriving from a new direction: the author would
+ * believe the badges were in the file, get none, and have nothing to tell them
+ * why. The line is deliberately a "don't" plus a pointer at the real route
+ * (image files, same screen) rather than an instruction to produce anything —
+ * asking a language model for a picture gets hallucinated base64, which WOULD
+ * be fatal, since the pack parser rejects a data URL it cannot read.
  */
 export function buildImportPromptText(world: RosterSlotWorld): string {
   const slotsOf = (id: number) => world.teams.filter((t) => t.compId === id).length;
@@ -138,6 +150,7 @@ export function buildImportPromptText(world: RosterSlotWorld): string {
     "A <club> is:",
     '  { "name": string, "abbrev": string (2-4 letters), "colors": [primaryHex, secondaryHex], "players"?: [ <player>, ... ] }',
     "- `colors` is EXACTLY TWO hex strings, a primary and a secondary — never one, never three. Plenty of real clubs wear three — Fluminense and Bahia both do — so pick the two that identify them best and drop the rest. This is the single most common way a roster file is rejected, precisely because listing all three feels more accurate.",
+    "- There is NO logo, crest or badge field, and you shouldn't add one. A badge is a picture, and pictures aren't something you can write into a JSON file — I load those myself, as image files, on the same screen I got this prompt from. An invented `logo` key is thrown away without an error, so adding one wouldn't fail, it would just quietly do nothing.",
     "- Omit `players` to change only the club's name/abbrev/colors and keep its existing squad.",
     "- Include `players` to give it a squad of your own. That REPLACES the club's current players, so do this on a fresh save.",
     "- You don't have to list a full squad — whatever positions you leave short are auto-filled with lower-rated reserves so the team is always playable. A first XI plus a few subs is plenty.",
@@ -162,6 +175,7 @@ export function buildImportPromptText(world: RosterSlotWorld): string {
     "- Every `match` string appears, character for character, in the competition list above.",
     "- No competition lists more clubs than its slot count.",
     "- Every club's `colors` is an array of exactly two hex strings.",
+    "- No club has a `logo`, `crest` or `badge` field.",
     "- The answer is one JSON object and nothing else — no markdown fences, no commentary around it.",
     "",
     "== What I want ==",
