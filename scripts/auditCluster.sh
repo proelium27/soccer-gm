@@ -67,7 +67,7 @@ fi
 # Audits that compute something across seeds and gate on it. Splitting these
 # silently produces two partial aggregates. Keep this list honest: it is
 # derived from scripts that reference SEEDS.length or average across seeds.
-AGGREGATING="weakLeaguesAudit leagueVolumeProbe positionAwardAudit midVsMidProbe totsSlotProbe totsWeightProbe"
+AGGREGATING="weakLeaguesAudit leagueVolumeProbe positionAwardAudit midVsMidProbe totsSlotProbe totsWeightProbe academyOnlyProbe"
 
 # Env knobs the audits actually read (grep for process.env across scripts/).
 # SEEDS is deliberately absent -- it is what gets split. Add to this list when a

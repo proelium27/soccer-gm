@@ -4314,3 +4314,97 @@ export const AI_PROSPECT_SLOTS = 5;
  */
 export const AI_PROSPECT_MAX_AGE = PROSPECT_AGE_MAX;
 export const AI_PROSPECT_MIN_POT = 70;
+
+/**
+ * The user's youth intake is a TRIAL GROUP he chooses from, not a squad handed
+ * to him — the Youth Intake screen (formerly Incoming Talent).
+ *
+ * Sized against the decision it is meant to be. A club's ordinary intake is
+ * YOUTH_INTAKE_MIN..MAX (3-5) against an ACADEMY_ROSTER_CAP of 10, so "pick
+ * from your intake" over that group is a confirmation dialog rather than a
+ * choice — you would keep nearly all of them nearly every year. A group of
+ * ~10-12 against YOUTH_TRIAL_SIGN_LIMIT is a real call with a real cost to
+ * getting it wrong, and the potential fog is what stops it being obvious.
+ *
+ * **USER'S CLUB ONLY, and that keeps it out of the equilibrium entirely.** AI
+ * clubs keep their existing 3-5 intake straight onto the senior roster. The
+ * extra trialists are generated on their own seeded stream and their pids are
+ * allocated after every club's ordinary intake, so the shared rng draw count
+ * and every other club's pid assignment are untouched — one club's academy
+ * cannot shift the world's generation. Same containment principle the
+ * difficulty levers rest on.
+ */
+export const YOUTH_TRIAL_GROUP_MIN = 10;
+export const YOUTH_TRIAL_GROUP_MAX = 12;
+/** How many of the trial group can be signed to the academy. The rest leave. */
+export const YOUTH_TRIAL_SIGN_LIMIT = 5;
+/** Seeded-stream tag for the extra trialists (never the shared rng). */
+export const YOUTH_TRIAL_STREAM = 88;
+
+/**
+ * How far a well-run academy moves the quality of the user's trial group,
+ * in ovr points added to his academy anchor at intake time.
+ *
+ * Two inputs, both things the manager actually controls and neither of which
+ * fed youth intake before: **scouting spend** (a scouting network is what finds
+ * young players, and the spend was otherwise purely a fog-of-war lever) and
+ * **hype** (a club people are excited about attracts them). Each is normalized
+ * to 0..1 over its own range and contributes half the swing, so a club at full
+ * spend and maximum hype gets the whole of it and one at neither gets nothing.
+ *
+ * **A BONUS ONLY, never a penalty, and that asymmetry is deliberate.** The
+ * anchor already carries the club's standing and ACADEMY_FORM_SWING already
+ * pushes both ways on results; making a third lever subtract as well would
+ * stack three penalties on a struggling club's one route out. It is also what
+ * lets this ship without a dynasty audit: a bonus reaching one club in a world
+ * of 420 cannot drag a league's mean, and nothing here touches an AI academy.
+ *
+ * NEVER written back into StoredTeam.academyBase — that field is the
+ * anti-inflation anchor and is also read by promotion convergence and
+ * roster-import realignment, so a baked-in offset would leak into both. Applied
+ * as an intake-time modifier beside academyFormModifiers, exactly as the
+ * difficulty academy lever is.
+ */
+export const YOUTH_TRIAL_SCOUTING_SWING = 3;
+export const YOUTH_TRIAL_HYPE_SWING = 3;
+
+/**
+ * "Send your scouts here": how many countries the user can point his youth
+ * scouting at, and how much of the trial group they supply between them.
+ *
+ * **Rating-neutral by construction**, so this is flavour and a national-team
+ * hook rather than a balance lever: nationality feeds `generateName` and
+ * international eligibility and nothing else, and ratings are drawn
+ * independently of it (CLAUDE.md verifies this by regenerating a world after
+ * changing the nationality tables — every country's starter mean OVR identical
+ * to the decimal). The hook is that a player's nationality decides who can cap
+ * him, so scouting a country deepens that nation's pool.
+ *
+ * 0.6 is a blend, not an override: the home mix keeps a real share, so the
+ * group still reads as the club's own and no setting can manufacture a
+ * single-nationality academy. Three targets is enough to express a plan
+ * ("South America") without the share per country thinning to nothing.
+ */
+export const SCOUTING_REGION_MAX = 3;
+export const SCOUTING_REGION_SHARE = 0.6;
+
+/**
+ * How many positions the user can tell his scouts to look for, and how much of
+ * the SCOUTED part of the trial group they take between them.
+ *
+ * **The share is higher than SCOUTING_REGION_SHARE on purpose, and the reason
+ * is a hard constraint rather than a taste call.** A country is re-drawn
+ * post-hoc over the whole group, because nationality is rating-neutral and the
+ * relabel costs no rng draw. A position cannot be: ratings are rolled from that
+ * position's own tier row, so changing it means generating a different player —
+ * and the user's ORDINARY intake is generated on the shared `rng`, where
+ * `rollRating` spends one draw for an `ABS` tier and two for every other, so a
+ * keeper costs 23 rating draws against an outfielder's 27. Re-weighting that
+ * draw would shift the shared stream by four and re-roll every club generated
+ * after his. So positions reach only the extras, which are drawn on the trial
+ * stream — and the share is raised so the skew the user actually SEES across
+ * the whole group lands in the same place a country's does.
+ */
+export const SCOUT_POSITION_MAX = 3;
+export const SCOUT_POSITION_SHARE = 0.75;
+

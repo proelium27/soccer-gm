@@ -4,7 +4,7 @@ import type { StoredTeam } from "./teams/clubs.js";
 import type { ActiveLoan } from "./loans.js";
 import {
   ROSTER_COMPOSITION, ROSTER_CAP, CONTRACT_LENGTH_MIN, CONTRACT_LENGTH_MAX,
-  ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR, PROSPECT_AGE_MAX,
+  ACADEMY_ROSTER_CAP, ROSTER_SAFETY_FLOOR, PROSPECT_AGE_MAX, YOUTH_TRIAL_SIGN_LIMIT,
   AI_PROSPECT_SLOTS, AI_PROSPECT_MAX_AGE, AI_PROSPECT_MIN_POT,
 } from "./constants.js";
 import {
@@ -38,7 +38,13 @@ export function freeAgentPids(
   players: Player[],
   activeLoans: ActiveLoan[] = [],
 ): Set<number> {
-  const rostered = new Set(teams.flatMap((t) => [...t.roster, ...t.academyRoster]));
+  // Trialists count as rostered: a youth trial group awaiting the user's
+  // decision must not be signable by an AI club, nor culled out from under it.
+  // Read off the team rather than taken as a parameter so every caller gets it
+  // without a signature change (see StoredTeam.youthTrialists).
+  const rostered = new Set(
+    teams.flatMap((t) => [...t.roster, ...t.academyRoster, ...(t.youthTrialists ?? [])]),
+  );
   const onLoan = new Set(activeLoans.map((l) => l.pid));
   return new Set(
     players.map((p) => p.pid).filter((pid) => !rostered.has(pid) && !onLoan.has(pid)),
@@ -356,6 +362,26 @@ export function trimRosterSurplus(
     // (then ovr, then pid — a total order, so the choice can't depend on
     // roster array order) among the young players the chart didn't already
     // keep. Rng-free, like the rest of this function.
+    // The allowance is AI_PROSPECT_SLOTS prospects **beyond** the depth chart.
+    // A prospect good enough for the chart is kept on merit and does not spend
+    // a slot, so a club rich in them can carry more than the bare constant.
+    //
+    // **That is deliberate, and counting the chart's own prospects against the
+    // allowance was tried and reverted (2026-09-01).** It makes this agree
+    // arithmetically with the free-agency pass, which counts every young
+    // high-potential player on the roster when deciding whether a club is full
+    // — but it also retains fewer prospects, and prospects are the cheapest
+    // players in the game (wages are cubic in ovr). Releasing them means
+    // refilling the squad from the market with older, dearer players, and the
+    // dynasty audit measured the cost: deficits went **1 of 4 seeds (worst
+    // −£0.2M) to 2 of 4 (worst −£2.0M)** with nothing else in the sim changed.
+    // The finance column is the one that fails first here, so a real deficit is
+    // not worth paying to make a comment tidy.
+    //
+    // The two passes therefore differ on purpose, and the difference is
+    // conservative in the safe direction: free agency's count is an
+    // over-estimate, so a prospect-rich club stops shopping early rather than
+    // over-signing.
     const prospects = [...byPos.values()]
       .flat()
       .filter(
@@ -582,52 +608,193 @@ export function ensureUserRosterSafety(
   userTid: number,
   season: number,
   activeLoans: ActiveLoan[] = [],
-): { teams: StoredTeam[]; players: Player[] } {
+): { teams: StoredTeam[]; players: Player[]; marketSignings: number[] } {
   const team = teams.find((t) => t.tid === userTid);
-  if (!team) return { teams, players };
+  if (!team) return { teams, players, marketSignings: [] };
 
   const playerMap = new Map(players.map((p) => [p.pid, p]));
   const roster = [...team.roster];
   let academy = [...team.academyRoster];
+  let trialists = [...(team.youthTrialists ?? [])];
   const promoted = new Map<number, Player>();
+
+  // Who came from the open market rather than from inside the club. The caller
+  // logs these as fee-0 arrivals from FREE_AGENT_TID: club-by-season history is
+  // reconstructed from `league.transfers` alone (teamForSeason, the OVR chart's
+  // club colours), so an unrecorded free arrival is attributed to whichever club
+  // last had a record for him — the exact bug that sentinel record exists to
+  // prevent. A promotion from the academy or the trial list needs no record: it
+  // is the same club, so the owner the record would establish is already right.
+  const marketSignings: number[] = [];
 
   function promote(pid: number): void {
     const p = playerMap.get(pid)!;
     const terms = contractTerms(p, season);
-    promoted.set(pid, { ...p, contract: { salary: terms.salary, expiresSeason: terms.expiresSeason } });
+    const fromMarket = !academy.includes(pid) && !trialists.includes(pid);
+    promoted.set(pid, {
+      ...p,
+      contract: { salary: terms.salary, expiresSeason: terms.expiresSeason },
+      // Signed off the market, so he takes the same one-season transfer hold any
+      // free-agent signing does — otherwise an emergency call-up could be listed
+      // and sold in the same window.
+      ...(fromMarket ? { faSignedSeason: season } : {}),
+    });
+    if (fromMarket) marketSignings.push(pid);
     roster.push(pid);
     academy = academy.filter((q) => q !== pid);
+    trialists = trialists.filter((q) => q !== pid);
   }
 
+  /**
+   * Everyone the club could call up, best first: its own academy, then this
+   * year's trial group, then the open market.
+   *
+   * **The trial group is here because the academy stopped being guaranteed to
+   * hold anyone.** Youth intake used to sign itself straight into the academy,
+   * so there was always somebody to promote; now the user chooses, and a user
+   * who ignores the Youth Intake screen has an empty academy forever. Left
+   * unfixed that is fatal rather than cosmetic: the roster starves, `selectXI`
+   * silently leaves slots empty, and `pickInterceptor` then dereferences an
+   * undefined tackler and takes the whole sim down. Found by the dynasty audit,
+   * which never signs anybody.
+   *
+   * **Free agents make the floor a guarantee instead of best-effort.** The GK
+   * branch below already reached for the market as a last resort for exactly
+   * this reason; the general floor had no such fallback and so quietly did
+   * nothing whenever the academy was empty, which was reachable before this
+   * change too (release your whole academy). Only ever fires below
+   * ROSTER_SAFETY_FLOOR, i.e. when a squad has been neglected into being
+   * unfieldable, and only ever for the user's club.
+   */
+  function callUpPool(): Player[] {
+    const own = [...academy, ...trialists];
+    // `freeAgentPids` reads the CALLER's teams, which this function does not
+    // update as it promotes — so anyone already called up still looks unsigned
+    // here. Excluding them is a correctness requirement, not a tidy-up: without
+    // it the loop below re-promotes the same man every pass, the roster ends up
+    // holding a duplicate pid, `selectXI` cannot then fill one slot (a player
+    // may hold only one), and `improve` dereferences the resulting null and
+    // takes the sim down. Found by the dynasty audit.
+    const market = [...freeAgentPids(teams, players, activeLoans)].filter(
+      (pid) => !promoted.has(pid) && !own.includes(pid),
+    );
+    const rank = (pids: number[]): Player[] =>
+      pids
+        .map((pid) => playerMap.get(pid))
+        .filter((p): p is Player => p != null)
+        .sort((a, b) => b.ovr - a.ovr);
+    // TIERED, not one sorted list. A single ovr sort collapses the tiers: free
+    // agents are grown men and a trialist is 16, so the market would always win
+    // and the club would sign strangers while its own kids sat on the trial
+    // list. A call-up promotes from within first; the market is the last resort
+    // it always was.
+    return [...rank(own), ...rank(market)];
+  }
+
+  // A keeper first and separately: an outfielder forced into goal corrupts the
+  // keeping composite, so "enough bodies" is not the same as "fieldable".
   if (!roster.some((pid) => playerMap.get(pid)?.pos === "GK")) {
-    const academyGk = academy
-      .map((pid) => playerMap.get(pid)!)
-      .filter((p) => p.pos === "GK")
-      .sort((a, b) => b.ovr - a.ovr)[0];
-    if (academyGk) {
-      promote(academyGk.pid);
-    } else {
-      // The academy has no GK either — last resort, sign the best available
-      // free-agent GK so the team can't end up call-up-"safe" but GK-less.
-      const faGk = [...freeAgentPids(teams, players, activeLoans)]
-        .map((fpid) => playerMap.get(fpid))
-        .filter((p): p is Player => p != null && p.pos === "GK")
-        .sort((a, b) => b.ovr - a.ovr)[0];
-      if (faGk) promote(faGk.pid);
-    }
+    const gk = callUpPool().find((p) => p.pos === "GK");
+    if (gk) promote(gk.pid);
   }
 
-  while (roster.length < ROSTER_SAFETY_FLOOR && academy.length > 0) {
-    const best = academy
-      .map((pid) => playerMap.get(pid)!)
-      .sort((a, b) => b.ovr - a.ovr)[0];
+  while (roster.length < ROSTER_SAFETY_FLOOR) {
+    const best = callUpPool()[0];
+    if (!best) break;
     promote(best.pid);
   }
 
-  if (promoted.size === 0) return { teams, players };
+  if (promoted.size === 0) return { teams, players, marketSignings: [] };
 
   return {
-    teams: teams.map((t) => (t.tid === userTid ? { ...t, roster, academyRoster: academy } : t)),
+    teams: teams.map((t) =>
+      t.tid === userTid
+        ? { ...t, roster, academyRoster: academy, youthTrialists: trialists }
+        : t,
+    ),
     players: players.map((p) => promoted.get(p.pid) ?? p),
+    marketSignings,
   };
 }
+
+/**
+ * How many of this year's trial group can still be signed.
+ *
+ * Both bounds are real and the tighter one wins: YOUTH_TRIAL_SIGN_LIMIT is the
+ * decision the intake is meant to be, and ACADEMY_ROSTER_CAP is the pool's hard
+ * ceiling — a club arriving with a full academy signs nobody however good the
+ * group is. The per-intake count is a counter on the team, reset when the
+ * offseason lays out the new group, rather than something derived from ages or
+ * contract dates: those are ambiguous the moment a 16-year-old can reach the
+ * academy by any other route.
+ */
+export function trialSigningsLeft(team: StoredTeam, _players?: Player[]): number {
+  return Math.max(
+    0,
+    Math.min(
+      YOUTH_TRIAL_SIGN_LIMIT - (team.youthTrialSignings ?? 0),
+      ACADEMY_ROSTER_CAP - team.academyRoster.length,
+    ),
+  );
+}
+
+/**
+ * Sign one of this year's trialists into the academy.
+ *
+ * The trialist leaves `youthTrialists` and joins `academyRoster` on ordinary
+ * academy stipend terms. **The academy stamp on his ratings history happens
+ * here, not at generation**, because a trialist who is never signed was never
+ * an academy player and his OVR chart should not claim he was.
+ *
+ * No budget check and no mid-season charge, unlike `signToAcademy`: the intake
+ * is resolved in the offseason, where the season-start charge has not yet run
+ * and will pick up his stipend along with everyone else's.
+ */
+export function signTrialist(
+  teams: StoredTeam[],
+  players: Player[],
+  tid: number,
+  pid: number,
+  season: number,
+  phase: "regular" | "offseason" = "offseason",
+): { teams: StoredTeam[]; players: Player[] } {
+  const team = teams.find((t) => t.tid === tid);
+  if (!team || !(team.youthTrialists ?? []).includes(pid)) return { teams, players };
+  if (trialSigningsLeft(team) <= 0) return { teams, players };
+
+  const terms = academyContractTerms(season);
+  // Wages are charged up front at season start, so a signing made mid-season
+  // has to pay this season's stipend on the spot — exactly as signToAcademy
+  // does for the same player by the other route. The group is normally
+  // resolved in the offseason, where the season-start charge is still to come
+  // and picks him up with everyone else, but nothing stops the page being
+  // opened in March: the trial list survives until the next rollover.
+  const wageCharge = phase === "regular" ? terms.salary : 0;
+  if (wageCharge > team.budget) return { teams, players };
+
+  return {
+    teams: teams.map((t) =>
+      t.tid === tid
+        ? {
+            ...t,
+            youthTrialists: (t.youthTrialists ?? []).filter((x) => x !== pid),
+            academyRoster: [...t.academyRoster, pid],
+            youthTrialSignings: (t.youthTrialSignings ?? 0) + 1,
+            budget: t.budget - wageCharge,
+          }
+        : t,
+    ),
+    players: players.map((p) =>
+      p.pid === pid
+        ? {
+            ...p,
+            contract: { salary: terms.salary, expiresSeason: terms.expiresSeason },
+            // Start his OVR history in the academy (blue) rather than with a
+            // stray senior point before his first real academy season.
+            hist: p.hist.map((h) => ({ ...h, academy: true })),
+          }
+        : p,
+    ),
+  };
+}
+

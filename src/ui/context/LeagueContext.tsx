@@ -8,7 +8,9 @@ import { setSeasonStartYear } from "../format.js";
 import { exportLeagueJSON, importLeagueJSON } from "../../db/exportImport.js";
 import {
   signFreeAgent, releasePlayer, signToAcademy, promoteFromAcademy, releaseAcademyPlayer,
+  signTrialist,
 } from "../../core/freeAgency.js";
+import { scoutDirectionsOf, type ScoutDirections } from "../../core/scouting/scoutDirections.js";
 import { clampScoutingSpend } from "../../core/finance/scouting.js";
 import { makeTransferOffer, acceptCounterOffer, FREE_AGENT_TID } from "../../core/transfers/negotiation.js";
 import { freeAgentSigningWindow } from "../../core/transfers/window.js";
@@ -73,6 +75,14 @@ interface LeagueContextValue {
   signFreeAgentAction: (pid: number) => Promise<void>;
   releasePlayerAction: (pid: number) => Promise<void>;
   signToAcademyAction: (pid: number) => Promise<void>;
+  /** Sign one of this year's youth trialists into the academy. */
+  signTrialistAction: (pid: number) => Promise<void>;
+  /**
+   * Set what the youth scouts have been told — countries and positions — as a
+   * partial, so a panel can change one without restating the other. See
+   * ScoutDirections.
+   */
+  setScoutDirectionsAction: (next: Partial<ScoutDirections>) => Promise<void>;
   promoteFromAcademyAction: (pid: number) => Promise<void>;
   releaseAcademyPlayerAction: (pid: number) => Promise<void>;
   extendAcademyContractAction: (pid: number) => Promise<void>;
@@ -616,6 +626,52 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     };
   }), [mutate]);
 
+  const signTrialistAction = useCallback((pid: number) => mutate((l) => {
+    const { teams, players } = signTrialist(
+      l.teams, l.players, l.meta.userTid, pid, l.season, l.phase,
+    );
+    if (teams === l.teams && players === l.players) return null;
+    // Reuses the academy event rather than adding one: the analytics set is
+    // deliberately "a handful of meaningful moments, not one event per click"
+    // (see analytics.ts), and this is an academy signing by another route.
+    trackEvent("player_signed_to_academy");
+    // Same fee-0 sentinel record an academy signing gets: he arrives at the
+    // club from nowhere, and without it his club-by-season history would name
+    // whichever club last had a record for him (none, for a youth product).
+    const { season, window } = freeAgentSigningWindow(l);
+    return {
+      ...l, teams, players,
+      transfers: [
+        ...l.transfers,
+        { pid, fromTid: FREE_AGENT_TID, toTid: l.meta.userTid, fee: 0, season, window },
+      ],
+    };
+  }), [mutate]);
+
+  const setScoutDirectionsAction = useCallback((next: Partial<ScoutDirections>) => mutate((l) => {
+    const team = l.teams.find((t) => t.tid === l.meta.userTid);
+    if (!team) return null;
+    // Sanitized here rather than trusted from the panel, for the same reason
+    // the offseason sanitizes on the way out: this is persisted state, and a
+    // save can reach it from an older build or a hand edit.
+    const current = scoutDirectionsOf(team);
+    const clean = scoutDirectionsOf({
+      scoutingRegions: next.regions ?? current.regions,
+      scoutingPositions: next.positions ?? current.positions,
+    });
+    const sameList = (a: readonly string[], b: readonly string[]) =>
+      a.length === b.length && a.every((x, i) => x === b[i]);
+    // Every mutate writes the whole save, so a no-op change must not.
+    if (sameList(current.regions, clean.regions)
+      && sameList(current.positions, clean.positions)) return null;
+    return {
+      ...l,
+      teams: l.teams.map((t) => (t.tid === l.meta.userTid
+        ? { ...t, scoutingRegions: clean.regions, scoutingPositions: clean.positions }
+        : t)),
+    };
+  }), [mutate]);
+
   const promoteFromAcademyAction = useCallback((pid: number) => mutate((l) => {
     const { teams, players } = promoteFromAcademy(
       l.teams, l.players, l.meta.userTid, pid, l.season, l.phase,
@@ -1017,6 +1073,8 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     signFreeAgentAction,
     releasePlayerAction,
     signToAcademyAction,
+    signTrialistAction,
+    setScoutDirectionsAction,
     promoteFromAcademyAction,
     releaseAcademyPlayerAction,
     extendAcademyContractAction,
@@ -1062,7 +1120,9 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     league, loadingActiveLeague, setLeague, loadLeagueAction, switchLeagueAction,
     customizeTeamsAction, simAction, simLiveAction, jumpSeasonsAction, offseasonAction,
     intlStageAction, signFreeAgentAction,
-    releasePlayerAction, signToAcademyAction, promoteFromAcademyAction,
+    releasePlayerAction, signToAcademyAction, signTrialistAction,
+    setScoutDirectionsAction,
+    promoteFromAcademyAction,
     releaseAcademyPlayerAction, extendAcademyContractAction, setScoutingSpendAction,
     makeOfferAction, acceptCounterAction, acceptInboundOfferAction,
     rejectInboundOfferAction, counterInboundOfferAction, extendContractAction,

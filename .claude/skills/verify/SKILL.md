@@ -29,8 +29,14 @@ and `left_click_drag` as "the built-in drag helper".
 - **Don't mutate a save you didn't create.** The origin may hold a real save
   (auto-loaded on visit). Go to `/leagues` → "Start New League" → pick a club →
   scroll down → **"Start League"** (clicking a club row only selects it; the
-  submit button is below the fold). When done, `/leagues` → Enter on the
-  original league to restore `localStorage["soccer-gm:activeLid"]`.
+  submit button is below the fold). Restore
+  `localStorage["soccer-gm:activeLid"]` only once you are **completely finished
+  with the browser** — restoring it reloads the user's save, so any later click
+  writes to *their* league. That has actually happened: activeLid was put back
+  at the end of one round of verification, work resumed in the same tab the
+  next round, and a new setting was written to the user's save. **Re-read
+  `activeLid` and the club name in the header before every mutating click**, not
+  just at the start of a session.
 - **Never click the Delete button on `/leagues`** — dialog risk, and it's user data.
 - **HTML5 drag-and-drop (Roster page) cannot be driven by `left_click_drag`** —
   it silently no-ops. Dispatch real DragEvents from `javascript_tool` instead:
@@ -44,8 +50,11 @@ and `left_click_drag` as "the built-in drag helper".
   your league. The sim overlay auto-closes when its animation ends — wait ~5-8s
   after "Sim One Game" before asserting. Sim-to-end-of-season takes ~15-20s; afterwards
   the Dashboard shows an "Advance to Season N+1" button (offseason phase).
-- The roster fills to 30/30 after the first offseason (youth intake), which
-  disables transfer Offer buttons until you Release someone on the Roster page.
+- A full roster (30/30) disables transfer Offer buttons until you Release
+  someone on the Roster page.
+- Your youth intake no longer lands on the roster or in the academy by itself.
+  It arrives unsigned on `/youth-intake` and the Dashboard flags it; nothing
+  reaches your academy until you offer a contract there.
 - At $0 scouting spend, offering the suggested "scout value" usually collapses
   talks instantly as a lowball (valuation noise is ±35% at zero spend). To
   complete a transfer quickly, offer well above scout value and accept the
@@ -57,9 +66,9 @@ and `left_click_drag` as "the built-in drag helper".
 `/dashboard` (sim buttons, budget, wage bill, scouting slider), `/roster`
 (release/extend/drag-swap; header shows "x/30"), `/transfers`, `/finance`
 (offseason cash flow, wage table, transfer history, league finances),
-`/incoming-talent` (youth prospects) and `/free-agents` (older free agents —
-two different pages), `/schedule` → played rows link to `/box-score/<i>`,
-`/leagues`.
+`/youth-intake` (this year's trial group; only populated after an offseason)
+and `/free-agents` (every unsigned player, any age), `/schedule` → played rows
+link to `/box-score/<i>`, `/leagues`.
 
 ## Fast assertions
 

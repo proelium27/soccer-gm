@@ -65,16 +65,25 @@ describe("autopilot sentinel", () => {
     };
 
     const back = endAutopilot(midJump, userTid);
-    const observed = back.teams.find((t) => t.tid === userTid)!.scoutingObserved;
+    const returned = back.teams.find((t) => t.tid === userTid)!;
+    const observed = returned.scoutingObserved;
 
     expect(back.meta.userTid).toBe(userTid);
     // A long-serving player is not suddenly a stranger; one signed while the
     // user was away is, so his potential comes back fogged.
     expect(observed[kept]).toBe(league.season);
     expect(observed[arrival]).toBe(midJump.season);
-    // Players the club no longer has drop out of the record.
+    // The record covers exactly the roster: nobody the club no longer has, and
+    // nobody it does have left unstamped. Asserted against the roster rather
+    // than against [kept, arrival], because endAutopilot runs the safety net
+    // first and a two-man squad is well under ROSTER_SAFETY_FLOOR — it is
+    // topped up here, and those arrivals are correctly stamped at the return
+    // season (i.e. they come back fogged, like any other signing made while
+    // the user was away).
     expect(Object.keys(observed).map(Number).sort((a, b) => a - b))
-      .toEqual([kept, arrival].sort((a, b) => a - b));
+      .toEqual([...returned.roster].sort((a, b) => a - b));
+    expect(returned.roster).toContain(kept);
+    expect(returned.roster).toContain(arrival);
   });
 });
 

@@ -371,6 +371,18 @@ function migrateFields(league: LeagueStore): LeagueStore {
         // every team fielded before formations were selectable.
         formation: t.formation ?? "4-3-3",
         academyRoster: t.academyRoster ?? [],
+        // Youth trial group (added 2026-08-31). Empty on every old save, which
+        // is exact rather than a guess: the intake those saves already ran
+        // signed itself straight into the academy, so there is no pending
+        // decision to reconstruct. The next offseason lays out a real group.
+        youthTrialists: t.youthTrialists ?? [],
+        youthTrialSignings: t.youthTrialSignings ?? 0,
+        // Scout directions (added 2026-09-01). Empty is exact rather than a
+        // guess: an old save's scouts had nothing to go on, so they looked
+        // close to home for whoever the academy happened to turn up — which is
+        // precisely what an empty set of directions still produces.
+        scoutingRegions: t.scoutingRegions ?? [],
+        scoutingPositions: t.scoutingPositions ?? [],
         compId,
         divisionConvergence: t.divisionConvergence ?? null,
         transferListed: t.transferListed ?? [],

@@ -12,7 +12,7 @@ import { PlayerRatingsTooltip } from "../components/PlayerRatingsTooltip.js";
 import { WatchToggle } from "../components/WatchToggle.js";
 import { PotDisplay } from "../components/PotDisplay.js";
 import { SortableTh, useTableSort, sortRows } from "../components/SortableTable.js";
-import { ROSTER_CAP, PROSPECT_AGE_MAX } from "../../core/constants.js";
+import { ROSTER_CAP } from "../../core/constants.js";
 
 const MAX_LISTED = 25;
 // On the unfiltered "all positions" view, cap how many of any one position can
@@ -26,9 +26,15 @@ const PER_POSITION_CAP = 5;
 type FaSortKey = "name" | "pos" | "ovr" | "pot" | "age";
 
 /**
- * General free-agent signing: unsigned players over PROSPECT_AGE_MAX. Young
- * unsigned players (prospects) live on the Incoming Talent page instead,
- * with the option to sign them to the academy.
+ * General free-agent signing: every unsigned player, any age.
+ *
+ * Used to exclude anyone at or under PROSPECT_AGE_MAX, who had their own
+ * Incoming Talent page. That page existed because AI clubs released ~85% of
+ * their youth intake every year and nothing signed it back, so the under-22
+ * pool was a standing supply of other clubs' wonderkids worth browsing on its
+ * own (see AI_PROSPECT_SLOTS). Clubs keep their own now, so what is left is
+ * ordinary scrap-heap material and belongs on one list with everyone else
+ * nobody wanted — the user's own youth comes from Youth Intake instead.
  */
 export function FreeAgents() {
   const { league, signFreeAgentAction, simming } = useLeague();
@@ -40,9 +46,7 @@ export function FreeAgents() {
   }
 
   const faPids = freeAgentPids(league.teams, league.players, league.activeLoans);
-  const availablePlayers: Player[] = league.players.filter(
-    (p) => faPids.has(p.pid) && league.season - p.born > PROSPECT_AGE_MAX,
-  );
+  const availablePlayers: Player[] = league.players.filter((p) => faPids.has(p.pid));
 
   const userTeam = league.teams.find((t) => t.tid === league.meta.userTid);
   const atCap = (userTeam?.roster.length ?? 0) >= ROSTER_CAP;
@@ -90,8 +94,8 @@ export function FreeAgents() {
         Free Agents
         <HelpHint>
           Unsigned players you can add on a free transfer (no fee), at a wage based on their
-          rating. Released veterans end up here. Younger prospects live on the Incoming Talent
-          page.
+          rating. Released veterans and youngsters nobody kept both end up here. Your own academy's
+          crop is on the Youth Intake page.
         </HelpHint>
       </h4>
       {atCap && (
