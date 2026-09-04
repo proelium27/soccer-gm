@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listLeagues, deleteLeague, loadLeague } from "../../db/leagueDb.js";
 import { exportLeagueJSON, readLeagueFileText } from "../../db/exportImport.js";
+import { loadCrests } from "../../db/crestDb.js";
 import { useLeague } from "../context/LeagueContext.js";
 import { useSportName } from "../sportName.js";
 import { TeamIdentityEditor, type EditableTeam } from "../components/TeamIdentityEditor.js";
@@ -122,7 +123,10 @@ export function Leagues() {
   async function handleExportSave(lid: number) {
     const league = await loadLeague(lid);
     if (!league) return;
-    await exportLeagueJSON(league);
+    // Read for this lid rather than taken from the context: this button exports
+    // ANY save on the page, not the active one, so the badges in memory belong
+    // to a different league as often as not.
+    await exportLeagueJSON(league, await loadCrests(lid));
   }
 
   /**

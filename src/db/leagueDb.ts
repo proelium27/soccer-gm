@@ -26,6 +26,15 @@ function careerRange(lid: number): IDBKeyRange {
   return IDBKeyRange.bound([lid], [lid, []]);
 }
 
+/**
+ * Every custom-crest row for one league. Same key shape once more — see
+ * src/db/crestDb.ts, which owns reading and writing them; this is here only so
+ * `deleteLeague` can clear them inside the same transaction as everything else.
+ */
+function crestRange(lid: number): IDBKeyRange {
+  return IDBKeyRange.bound([lid], [lid, []]);
+}
+
 /** Identity and career, as they are stored: two rows from one in-memory player. */
 function splitPlayer(p: Player): { identity: StoredPlayer; career: PlayerCareer } {
   const { stats, hist, ...identity } = p;
@@ -375,15 +384,22 @@ export async function listLeagues(): Promise<
   }));
 }
 
-/** Delete a league by lid, along with all of its player, career and retiree rows. */
+/** Delete a league by lid, along with all of its player, career, retiree and crest rows. */
 export async function deleteLeague(lid: number): Promise<void> {
   const db = await getDb();
-  const tx = db.transaction(["leagues", "players", "careers", "retirees"], "readwrite");
+  const tx = db.transaction(
+    ["leagues", "players", "careers", "retirees", "crests"],
+    "readwrite",
+  );
   await Promise.all([
     tx.objectStore("leagues").delete(lid),
     tx.objectStore("players").delete(playerRange(lid)),
     tx.objectStore("careers").delete(careerRange(lid)),
     tx.objectStore("retirees").delete(retireeRange(lid)),
+    // In this transaction rather than through crestDb's own, so a deleted
+    // league can never leave its badges behind for a later save to inherit by
+    // reusing the lid.
+    tx.objectStore("crests").delete(crestRange(lid)),
   ]);
   await tx.done;
   // Drop the pool we were holding for it, rather than pinning a deleted

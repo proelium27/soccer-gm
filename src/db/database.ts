@@ -26,8 +26,15 @@ const DB_NAME = "soccer-gm";
  * version is the storage half; `docs/lazy-career-plan.md` phase 3 is what
  * stops loading them. It buys one thing immediately — a contract change or a
  * transfer rewrites identity without re-serialising a career.
+ *
+ * 5 added `crests`, for the custom club badges a player brings in with a logo
+ * pack. Same argument as 2 and 3 rather than a new one: a world of badges is a
+ * few megabytes, the league record is rewritten in full on every mutation and
+ * cloned to the worker on every sim, so putting them on `LeagueStore` would pay
+ * for them on every lineup change and every matchday. In their own store they
+ * are written once at import and read once at load, which is what they are.
  */
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 /**
  * A league as it sits on disk.
@@ -48,6 +55,20 @@ export type StoredPlayer = Omit<Player, "stats" | "hist"> & {
   stats?: Player["stats"];
   hist?: Player["hist"];
 };
+
+/**
+ * One club's custom badge: a row in `crests`, keyed `[lid, tid]`.
+ *
+ * Carries its own `tid` even though the key already holds it, so a `getAll`
+ * over one league's range answers "which club" without a parallel
+ * `getAllKeys` — the same convenience `retirees` gets for free from
+ * `ArchivedPlayer.pid`.
+ */
+export interface StoredCrest {
+  tid: number;
+  /** A `data:image/...` URL. Validated on the way in; see core/teams/logoPack.ts. */
+  image: string;
+}
 
 /** The half of a player that grows without bound: one row in `careers`. */
 export interface PlayerCareer {
@@ -115,6 +136,21 @@ export interface SoccerGMDB extends DBSchema {
     key: [number, number];
     value: ArchivedPlayer;
   };
+  /**
+   * One custom club badge, keyed `[lid, tid]` — the same out-of-line compound
+   * key the other three use, so a league's whole set is one range query.
+   *
+   * Deliberately NOT a field on the league record. Crest art is a few megabytes
+   * for a full world and the league record is rewritten in its entirety on every
+   * save, so parking it there would re-serialise every badge each time the user
+   * changed a lineup — the exact bug versions 2, 3 and 4 exist to undo. It is
+   * also why nothing in `src/core` knows these exist: they are never read by the
+   * sim, never cross the worker boundary and never touch an rng stream.
+   */
+  crests: {
+    key: [number, number];
+    value: StoredCrest;
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<SoccerGMDB>> | null = null;
@@ -141,6 +177,13 @@ export function getDb(): Promise<IDBPDatabase<SoccerGMDB>> {
           // Same out-of-line `[lid, pid]` key as `players`, and split from the
           // league record lazily in loadLeague for the same reasons.
           db.createObjectStore("retirees");
+        }
+        if (!db.objectStoreNames.contains("crests")) {
+          // Out-of-line `[lid, tid]`, like the rest. Nothing to migrate lazily
+          // here, unlike the three above: a save written before this had no
+          // custom badges at all, so an empty set is the truth rather than a
+          // shape waiting to be split.
+          db.createObjectStore("crests");
         }
         if (!db.objectStoreNames.contains("careers")) {
           // Same out-of-line `[lid, pid]` key again, and split out of the
