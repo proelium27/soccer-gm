@@ -362,20 +362,18 @@ export function Finance() {
         <div className="card-body">
           <h5 className="card-title">Your money year</h5>
           <p className="text-secondary small">
-            Money doesn&apos;t all move at once, and most of the confusion is about timing rather
-            than amounts. Here&apos;s the year in order, starting from where you are now. Note
-            this season&apos;s wages were already charged in full on the day it started, so
-            they&apos;re not still waiting to come out.
+            This season&apos;s wages were charged in full on day one, so they aren&apos;t still
+            to come.
           </p>
 
           <ol className="fin-year">
             <Stage
               when="During the season"
               state={seasonOver ? "done" : "now"}
-              note="Cup prize money is paid the day you play the tie, and transfer fees move the moment a deal closes. Everything here is already in your balance."
+              note="Cup money lands the day you play the tie, fees when a deal closes. All of it is already in your balance."
             >
               {prizeIncome.total === 0 ? (
-                <Line label="Cup prize money" why="No ties played yet this season." amount={0} />
+                <Line label="Cup prize money" why="No ties played yet." amount={0} />
               ) : (
                 <>
                   <Line label="Cup prize money banked" amount={prizeIncome.total} />
@@ -396,7 +394,7 @@ export function Finance() {
               <Line label="Transfer fees received" amount={feesIn} />
               <Line
                 label="Transfer fees paid"
-                why="A mid-season signing also costs you his wages for the season, charged on the day he arrives."
+                why="A mid-season signing costs his wages for the season too."
                 amount={-feesOut}
               />
               {/* "Net", not "banked": the summer window is stamped with the
@@ -414,8 +412,8 @@ export function Finance() {
               state={seasonOver ? "now" : "ahead"}
               note={
                 seasonOver
-                  ? "The table is final, so these are the real numbers. They settle the moment you advance."
-                  : "Settles once the table is final. You can still move up or down, so the prize tier is provisional."
+                  ? "Real numbers now the table is final. They settle when you advance."
+                  : "Provisional: you can still move up or down the table."
               }
             >
               <Line
@@ -424,24 +422,16 @@ export function Finance() {
                     ? `League prize money (${ordinal(rank)} of ${divisionSize})`
                     : "League prize money"
                 }
-                why={
-                  seasonOver ? undefined
-                    : started ? "Based on where you sit today."
-                    // Before a ball is kicked every club is level on nothing, so
-                    // there is no position to base a tier on and saying "1st"
-                    // would read as a prediction.
-                    : "Depends where you finish. Nothing has been played yet, so this is only the tier you'd get from a standing start."
-                }
+                // Before a ball is kicked every club is level on nothing, so there is
+                // no position to base a tier on and quoting "1st" reads as a prediction.
+                // Once there is a table the label carries the rank and needs no gloss.
+                why={started ? undefined : "Nothing played yet, so this is a standing start."}
                 amount={revenue.successPayout}
               />
-              <Line
-                label="Hype revenue"
-                why={`Tickets and merchandise, from ${Math.round(userTeam.hype)} hype.`}
-                amount={revenue.hypeRevenue}
-              />
+              <Line label="Hype revenue" amount={revenue.hypeRevenue} />
               <Line
                 label="Scouting bill"
-                why="What you locked in last offseason. You pay for it at the end, not up front."
+                why="Paid at the end, not up front."
                 amount={-userTeam.scoutingSpend}
               />
               <Line label="Balance after settlement" amount={afterSettlement} total plain />
@@ -450,30 +440,26 @@ export function Finance() {
             <Stage
               when="In the offseason"
               state="ahead"
-              note="Add-ons on past deals settle here, once the season's appearances, goals, qualification and promotion are all known."
+              note="Add-ons on past deals settle once the season's totals are known."
             >
               {owedBy.length === 0 && owedTo.length === 0 ? (
-                <Line label="Add-ons outstanding" why="Nothing owed either way." amount={0} />
+                <Line label="Add-ons outstanding" amount={0} />
               ) : (
                 <>
                   {bonusDue > 0 && (
-                    <Line
-                      label="Bonuses you could be paid"
-                      why="Only if the triggers actually hit."
-                      amount={bonusDue}
-                    />
+                    <Line label="Bonuses you could be paid" amount={bonusDue} />
                   )}
                   {bonusOwed > 0 && (
                     <Line
                       label="Bonuses you could owe"
-                      why="Charged whether or not you can cover it — you go overdrawn rather than dodge it."
+                      why="Charged even if you can't cover it; you go overdrawn."
                       amount={-bonusOwed}
                     />
                   )}
                   {sellOnCount > 0 && (
                     <Line
                       label={`Sell-on shares outstanding: ${sellOnCount}`}
-                      why="Worth a share of whatever a future sale is worth, so there's no figure to quote yet. Always paid out of the fee, never out of your balance."
+                      why="No figure until he's sold. Paid out of the fee, not your balance."
                       unknown
                     />
                   )}
@@ -484,12 +470,12 @@ export function Finance() {
             <Stage
               when="When next season starts"
               state="ahead"
-              note="The new season's allocation arrives and the entire wage bill comes straight back out of it in one go. This is the moment an expensive squad bites."
+              note="The allocation arrives and the whole wage bill comes straight back out of it, at once."
             >
               <Line label="Base allocation" amount={revenue.base} />
               <Line
                 label="Wage bill for the whole season"
-                why="Estimated from today's squad. The real charge uses next season's roster, after retirements, expiries and youth intake."
+                why="Today's squad. The real charge uses next season's."
                 amount={-wages}
               />
               <Line label="Budget you start next season with" amount={startNext} total plain />

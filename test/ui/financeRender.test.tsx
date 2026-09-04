@@ -91,13 +91,13 @@ describe("Finance page", () => {
 
   it("says nothing has been earned in the cups before a tie is played", () => {
     const html = render(makeLeague(0, 1));
-    expect(html).toContain("No ties played yet this season");
+    expect(html).toContain("No ties played yet");
   });
 
   it("lists what the club banked once its cup ties are played", () => {
     const league = playUserCupRounds(makeLeague(0, 1), 3);
     const html = render(league);
-    expect(html).not.toContain("No ties played yet this season");
+    expect(html).not.toContain("No ties played yet");
     expect(html).toContain("Cup prize money banked");
     // The league-prize projection is a separate stage and must survive.
     expect(html).toContain("League prize money");
@@ -110,7 +110,7 @@ describe("Finance page", () => {
    */
   it("does not quote a league position before any league game is played", () => {
     const html = render(makeLeague(0, 1));
-    expect(html).toContain("Nothing has been played yet");
+    expect(html).toContain("standing start");
     expect(html).not.toMatch(/League prize money \(\d/);
   });
 
