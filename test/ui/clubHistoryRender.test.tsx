@@ -47,13 +47,32 @@ function shownTid(html: string): number | null {
 }
 
 describe("Club History page render", () => {
-  const base = makeLeague(0, 1);
-  const userTid = base.meta.userTid;
+  // The fixture's own userTid is 0, and 0 is a real club — the first English
+  // one. `Number(null)` is 0 too, so a page that reads the missing `tid` param
+  // straight to a number lands on that club and is indistinguishable from one
+  // that correctly fell back to yours. Every default-case assertion below is
+  // therefore made against a league whose manager is somebody else, which is
+  // the only way this can fail. Overridden rather than generated with a second
+  // `makeLeague(tid, ...)`: each distinct (userTid, seed) is another cached
+  // world fixture, and nothing here reads the squad.
+  const world = makeLeague(0, 1);
+  const userTid = world.teams[7].tid;
+  const base = { ...world, meta: { ...world.meta, userTid } } as LeagueStore;
   const otherTid = base.teams.find((t) => t.tid !== userTid)!.tid;
 
   it("shows your own club when no club is named", () => {
     const html = render(base);
     expect(shownTid(html)).toBe(userTid);
+  });
+
+  it("shows your own club for an empty tid param", () => {
+    // `Number("")` is 0, the same trap as the missing param one line up.
+    expect(shownTid(render(base, "?tid="))).toBe(userTid);
+  });
+
+  it("still shows club 0 when that is the club named", () => {
+    // The flip side of the fix: 0 is a legitimate tid and must stay reachable.
+    expect(shownTid(render(base, "?tid=0"))).toBe(0);
   });
 
   it("shows the club named in the URL, not your own", () => {
