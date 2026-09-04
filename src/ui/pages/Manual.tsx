@@ -229,6 +229,25 @@ export function Manual() {
             in from a roster file always show their colors rather than a crest: the artwork belongs
             to the club that shipped in that slot, not to the one you imported over it.
           </p>
+          <p>
+            You can bring your own badges, though. On the New League screen there's a{" "}
+            <strong>Load club logos</strong> button underneath the roster loader. Point it at a
+            folder of picture files named after the clubs &mdash; <code>Liverpool.png</code>,{" "}
+            <code>real-sociedad.webp</code> &mdash; and each one gets matched to the club of that
+            name and shows up everywhere that club does. PNG, JPG, WebP, GIF and SVG all work.
+            Capitals, accents and punctuation don't matter, so <code>bayern-munchen.png</code> finds
+            Bayern M&uuml;nchen; if a name doesn't match anything the screen tells you which ones
+            were skipped rather than leaving you to notice a missing badge later.
+          </p>
+          <p>
+            Two things worth knowing. <strong>Load your roster file first</strong> &mdash; badges
+            are matched by club name, so the clubs have to be called what you think they're called
+            before the badges can find them. And the game <strong>shrinks every picture</strong> as
+            it loads it, down to 160 pixels square, which is why a whole world's worth of badges
+            doesn't turn your save into something that takes ten seconds to write. A logo pack
+            somebody sends you (a <code>.json</code> file) works in the same picker, and your badges
+            travel with the save when you export it.
+          </p>
         </Section>
 
         <Section id="difficulty" title="Difficulty">

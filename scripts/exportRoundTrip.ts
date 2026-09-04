@@ -52,13 +52,13 @@ if (decoded !== before) {
   process.exit(1);
 }
 
-const reloaded = await importLeagueJSON(file);
+const { league: reloaded } = await importLeagueJSON(file);
 console.log(`players                 ${reloaded.players.length}`);
 console.log(`transfers               ${reloaded.transfers.length}`);
 console.log(`seasonHistory           ${reloaded.seasonHistory.length}`);
 
 // And an old plain-JSON export must still import (back-compat).
-const fromLegacy = await importLeagueJSON(new File([before], "old-save.json"));
+const { league: fromLegacy } = await importLeagueJSON(new File([before], "old-save.json"));
 console.log(
   `legacy .json import     ${fromLegacy.players.length === reloaded.players.length ? "YES" : "NO"}`,
 );

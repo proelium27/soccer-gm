@@ -59,7 +59,7 @@ describe("readLeagueFileText", () => {
 describe("importLeagueJSON", () => {
   it("round-trips a gzipped save export", async () => {
     const league = makeLeague(0, 1);
-    const imported = await importLeagueJSON(await exportedFile(league));
+    const { league: imported } = await importLeagueJSON(await exportedFile(league));
     expect(imported.meta.name).toBe(league.meta.name);
     expect(imported.season).toBe(league.season);
     expect(imported.players).toHaveLength(league.players.length);
@@ -68,7 +68,7 @@ describe("importLeagueJSON", () => {
 
   it("still reads an uncompressed save exported by an older build", async () => {
     const league = makeLeague(0, 1);
-    const imported = await importLeagueJSON(jsonFile("save.json", league));
+    const { league: imported } = await importLeagueJSON(jsonFile("save.json", league));
     expect(imported.meta.name).toBe(league.meta.name);
     expect(imported.meta.userTid).toBe(league.meta.userTid);
     expect(imported.season).toBe(league.season);
@@ -110,5 +110,65 @@ describe("importLeagueJSON", () => {
     await expect(
       importLeagueJSON(jsonFile("my-save.json", { nope: true })),
     ).rejects.toThrow(/my-save\.json/);
+  });
+});
+
+describe("custom club badges in an exported save", () => {
+  const PNG = "data:image/png;base64,AAAA";
+
+  it("survives the round trip, so a save doesn't silently lose its badges", async () => {
+    const league = makeLeague(0, 1);
+    const bytes = await encodeLeagueFile(league, new Map([[0, PNG], [4, PNG]]));
+    const { crests } = await importLeagueJSON(
+      new File([bytes], "save.json.gz", { type: "application/gzip" }),
+    );
+    expect(crests.get(0)).toBe(PNG);
+    expect(crests.size).toBe(2);
+  });
+
+  it("never reaches the league record", async () => {
+    // The whole reason badges have their own store: on the league record they
+    // would be re-serialised on every mutation. Riding in through a file is the
+    // one route by which they could get there by accident.
+    const league = makeLeague(0, 1);
+    const bytes = await encodeLeagueFile(league, new Map([[0, PNG]]));
+    const { league: imported } = await importLeagueJSON(new File([bytes], "s.json.gz"));
+    expect("crests" in (imported as unknown as Record<string, unknown>)).toBe(false);
+  });
+
+  it("writes nothing at all for a save with none", async () => {
+    // So a file from a save without badges is byte-identical to one this game
+    // wrote before the feature existed.
+    const league = makeLeague(0, 1);
+    const withNone = await readLeagueFileText(
+      new File([await encodeLeagueFile(league, new Map())], "a.gz"),
+    );
+    expect(withNone).toBe(
+      await readLeagueFileText(new File([await encodeLeagueFile(league)], "b.gz")),
+    );
+  });
+
+  it("opens a save whose badge block is malformed rather than refusing it", async () => {
+    // A bad badge must never cost someone a 60-season dynasty, so this is
+    // lenient where the pack parser is strict.
+    const league = makeLeague(0, 1);
+    const withJunk = {
+      ...(league as unknown as Record<string, unknown>),
+      crests: [
+        { tid: 0, image: PNG },
+        { tid: "nope", image: PNG },
+        { tid: 1, image: "https://example.com/badge.png" },
+        { tid: 2, image: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=" },
+        "garbage",
+      ],
+    };
+    const { league: imported, crests } = await importLeagueJSON(jsonFile("s.json", withJunk));
+    expect(imported.players.length).toBe(league.players.length);
+    expect([...crests.keys()]).toEqual([0]);
+  });
+
+  it("gives an empty set for a file exported before badges existed", async () => {
+    const { crests } = await importLeagueJSON(jsonFile("old.json", makeLeague(0, 1)));
+    expect(crests.size).toBe(0);
   });
 });

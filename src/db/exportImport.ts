@@ -1,5 +1,8 @@
 import type { LeagueStore } from "../core/leagueState.js";
 import { isRosterFileFormat } from "../core/teams/rosterFile.js";
+import {
+  isImageDataUrl, MAX_LOGO_DATA_URL, MAX_LOGO_ENTRIES,
+} from "../core/teams/logoPack.js";
 import { migrateLeague } from "./migrate.js";
 
 /**
@@ -22,8 +25,18 @@ const GZIP_MAGIC = [0x1f, 0x8b];
  */
 export async function encodeLeagueFile(
   league: LeagueStore,
+  crests?: ReadonlyMap<number, string>,
 ): Promise<Uint8Array<ArrayBuffer>> {
-  const json = JSON.stringify(league);
+  // Custom badges ride along as a sibling key rather than on the league itself.
+  // They are stored in their own IndexedDB store precisely so they never join
+  // `LeagueStore` (see src/db/database.ts) — but an export is a one-off write of
+  // a file somebody carries to another browser, and a save that silently lost
+  // its badges on the way would be worse than the bytes. Absent when there are
+  // none, so a file from a save without them is byte-identical to before.
+  const payload = crests && crests.size > 0
+    ? { ...league, crests: [...crests].map(([tid, image]) => ({ tid, image })) }
+    : league;
+  const json = JSON.stringify(payload);
   const gzipped = new Blob([json])
     .stream()
     .pipeThrough(new CompressionStream("gzip"));
@@ -53,8 +66,11 @@ export async function readLeagueFileText(file: Blob): Promise<string> {
 /**
  * Serialize a league and trigger a browser file download.
  */
-export async function exportLeagueJSON(league: LeagueStore): Promise<void> {
-  const bytes = await encodeLeagueFile(league);
+export async function exportLeagueJSON(
+  league: LeagueStore,
+  crests?: ReadonlyMap<number, string>,
+): Promise<void> {
+  const bytes = await encodeLeagueFile(league, crests);
   const blob = new Blob([bytes], { type: "application/gzip" });
   const url = URL.createObjectURL(blob);
 
@@ -71,11 +87,23 @@ export async function exportLeagueJSON(league: LeagueStore): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
+/** A save read back off disk: the league, plus any custom badges it carried. */
+export interface ImportedLeague {
+  league: LeagueStore;
+  /** tid -> data URL. Empty for a file exported before badges existed, or from a save without them. */
+  crests: Map<number, string>;
+}
+
 /**
- * Read a File, parse it as JSON, validate the shape, and return a LeagueStore.
- * Throws a descriptive error if validation fails.
+ * Read a File, parse it as JSON, validate the shape, and return the league it
+ * holds. Throws a descriptive error if validation fails.
+ *
+ * Returns the badges alongside rather than folding them in, because they are
+ * not part of a `LeagueStore` and must not become part of one on the way
+ * through — writing them onto the league record is the exact cost their own
+ * store exists to avoid, and it would happen silently.
  */
-export async function importLeagueJSON(file: File): Promise<LeagueStore> {
+export async function importLeagueJSON(file: File): Promise<ImportedLeague> {
   const text = await readLeagueFileText(file);
 
   let parsed: unknown;
@@ -156,5 +184,38 @@ export async function importLeagueJSON(file: File): Promise<LeagueStore> {
     );
   }
 
-  return migrateLeague(parsed as LeagueStore);
+  // Pulled off BEFORE migrating, not after: `migrateLeague` hands back the
+  // object it was given, so a `crests` key left on it would ride into the league
+  // record on the next save and be re-serialised on every mutation from then on
+  // — silently, and only for saves that had been through a file.
+  const { crests: rawCrests, ...rest } = obj;
+  return {
+    league: migrateLeague(rest as unknown as LeagueStore),
+    crests: parseExportedCrests(rawCrests),
+  };
+}
+
+/**
+ * Read the badge block off an exported save.
+ *
+ * Lenient where the pack parser is strict, and deliberately so: this is not a
+ * file someone hand-wrote, it is a block this game emitted, and the failure it
+ * has to survive is a *save* that is otherwise perfectly good. Refusing to load
+ * a 60-season dynasty over a malformed badge would be the wrong trade, so a bad
+ * entry is dropped and the league still opens.
+ */
+function parseExportedCrests(raw: unknown): Map<number, string> {
+  const out = new Map<number, string>();
+  if (!Array.isArray(raw)) return out;
+  for (const entry of raw.slice(0, MAX_LOGO_ENTRIES)) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const { tid, image } = entry as Record<string, unknown>;
+    if (typeof tid !== "number" || !Number.isFinite(tid)) continue;
+    if (typeof image !== "string" || image.length > MAX_LOGO_DATA_URL) continue;
+    // Checked here as well as at import, because a save file is a thing people
+    // send each other and this string goes straight into an `<img src>`.
+    if (!isImageDataUrl(image)) continue;
+    out.set(tid, image);
+  }
+  return out;
 }
