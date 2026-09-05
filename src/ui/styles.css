@@ -29,6 +29,13 @@
   --sg-bg: oklch(0.165 0.012 155);
   --sg-surface: oklch(0.205 0.014 155);
   --sg-surface-2: oklch(0.245 0.016 155);
+  /* --sg-surface-2 with the table stripe already mixed in, as an opaque tone
+     rather than an overlay. A sticky column has to paint an opaque background
+     or the columns it scrolls over show through it, which rules out the
+     translucent stripe every other row uses — so the two row states of a
+     pinned column are these two solid tones. See "Wide data tables" in
+     DESIGN.md. */
+  --sg-surface-2-striped: oklch(0.268 0.016 155);
   --sg-border: oklch(0.305 0.013 155);
   --sg-border-strong: oklch(0.38 0.015 155);
   --sg-text: oklch(0.94 0.007 155);
@@ -3620,7 +3627,7 @@ body.nav-drawer-open {
    the same surface rather than Bootstrap's translucent overlay, since a
    translucent stripe over a sticky cell is exactly the bleed-through above. */
 .sh-table > tbody > tr:nth-of-type(odd) > .sh-season {
-  background-color: oklch(0.268 0.016 155);
+  background-color: var(--sg-surface-2-striped);
 }
 /* Country columns are one code wide; keep them tight so more of the world fits
    before the table needs scrolling. */
