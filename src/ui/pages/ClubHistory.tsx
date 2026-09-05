@@ -178,7 +178,13 @@ export function ClubHistory() {
    */
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const tidParam = Number(searchParams.get("tid"));
+  // Read as a *string* first, and only then as a number. Tids start at 0, so
+  // tid 0 is a real club (the first English one) — and `Number(null)` is 0, so
+  // parsing the param straight to a number turns "no club named" into "club 0"
+  // and every visit lands there instead of on yours. An empty `?tid=` is the
+  // same trap: `Number("")` is 0 too.
+  const tidParam = searchParams.get("tid");
+  const requestedTid = tidParam ? Number(tidParam) : null;
 
   // Your own club is the sensible landing spot — unless nobody manages one, in
   // which case it is a tid no club owns and would land the page on nothing.
@@ -191,7 +197,9 @@ export function ClubHistory() {
     : -1;
   // A tid the save doesn't know (a hand-edited URL, or a link from a save that
   // has since changed) falls back to that rather than an empty page.
-  const tid = league?.teams.some((t) => t.tid === tidParam) ? tidParam : userTid;
+  const tid = requestedTid !== null && league?.teams.some((t) => t.tid === requestedTid)
+    ? requestedTid
+    : userTid;
   // Held rather than recomputed: `clubGoatRanking` walks every career in the
   // world (~150 ms on a century-long save), and this render body runs again on
   // every club the picker switches to.
