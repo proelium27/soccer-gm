@@ -244,6 +244,32 @@ describe("WorldSetup renders", () => {
     expect(html).toContain('placeholder="Neverland Division 2"');
   });
 
+  it("gives a three-division league a box for every tier", () => {
+    // The shipped world runs three divisions in every country, so a control
+    // that only ever drew two left the third unnameable — and mislabelled the
+    // first as "League name", the wording meant for a country with one.
+    const entries = withAddedLeague();
+    const last = entries.length - 1;
+    entries[last] = { ...entries[last], spec: { ...entries[last].spec, divisions: 3 } };
+    const html = render(entries);
+    expect(html).toContain('aria-label="Top division name"');
+    expect(html).toContain('aria-label="Second division name"');
+    expect(html).toContain('aria-label="Third division name"');
+    expect(html).toContain('placeholder="Neverland Division 3"');
+    expect(html).not.toContain('aria-label="League name"');
+  });
+
+  it("still asks how a three-division league settles its top promotion place", () => {
+    // promotionPlayoffFields seats a playoff at the TOP link whatever the
+    // pyramid's depth, so hiding the picker past two divisions hid a control
+    // for a mechanic that runs regardless.
+    const entries = withAddedLeague();
+    const last = entries.length - 1;
+    entries[last] = { ...entries[last], spec: { ...entries[last].spec, divisions: 3 } };
+    const html = render(entries);
+    expect(html).toContain('aria-label="How the last promotion place is decided"');
+  });
+
   it("shows a name the player set", () => {
     const entries = withAddedLeague();
     entries[entries.length - 1] = {

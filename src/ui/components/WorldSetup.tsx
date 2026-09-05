@@ -385,6 +385,18 @@ export function WorldSetup({ entries, onChange, defaultOpen = false }: Props) {
 }
 
 /**
+ * The per-tier name field on a LeagueSpec, in pyramid order. A table rather
+ * than a `d${tier}Name` string build so the keys stay real, typed fields:
+ * `divisions` is 1-3, and a fourth tier would have to add its field here
+ * before the UI could offer it.
+ */
+const DIVISION_NAME_FIELDS = [
+  { key: "d1Name", label: "Top division name" },
+  { key: "d2Name", label: "Second division name" },
+  { key: "d3Name", label: "Third division name" },
+] as const;
+
+/**
  * What a league's divisions are called. Worth a control of its own rather than
  * being left to derive from the country, for two reasons: real leagues are not
  * called "<Country> Division 1", and a world-wide roster file written for
@@ -405,36 +417,30 @@ function DivisionNames({
   spec: LeagueSpec;
   onChange: (next: Partial<LeagueSpec>) => void;
 }) {
-  const twoDivisions = (spec.divisions ?? 2) === 2;
+  const divisions = spec.divisions ?? 2;
+  // One box per division the league actually HAS, rather than a hardcoded pair:
+  // a country can run three, and gating on `=== 2` silently left the third
+  // unnameable (and mislabelled the first as though it were a lone league).
+  const fields = DIVISION_NAME_FIELDS.slice(0, divisions);
   return (
     <>
       <div className="row g-2 mb-1">
-        <div className="col">
-          <label className="form-label small mb-1">
-            {twoDivisions ? "Top division name" : "League name"}
-          </label>
-          <input
-            type="text"
-            className="form-control form-control-sm"
-            value={spec.d1Name ?? ""}
-            placeholder={`${spec.country} Division 1`}
-            aria-label={twoDivisions ? "Top division name" : "League name"}
-            onChange={(e) => onChange({ d1Name: e.target.value || undefined })}
-          />
-        </div>
-        {twoDivisions && (
-          <div className="col">
-            <label className="form-label small mb-1">Second division name</label>
-            <input
-              type="text"
-              className="form-control form-control-sm"
-              value={spec.d2Name ?? ""}
-              placeholder={`${spec.country} Division 2`}
-              aria-label="Second division name"
-              onChange={(e) => onChange({ d2Name: e.target.value || undefined })}
-            />
-          </div>
-        )}
+        {fields.map(({ key, label }, i) => {
+          const text = divisions === 1 ? "League name" : label;
+          return (
+            <div className="col-12 col-sm" key={key}>
+              <label className="form-label small mb-1">{text}</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                value={spec[key] ?? ""}
+                placeholder={`${spec.country} Division ${i + 1}`}
+                aria-label={text}
+                onChange={(e) => onChange({ [key]: e.target.value || undefined })}
+              />
+            </div>
+          );
+        })}
       </div>
       <p className="text-muted small mb-2">
         Renaming is safe for roster files: one written for this country's old
@@ -781,8 +787,11 @@ export function LeagueSettings({
         )}
         {/* How the last of those places is settled. Only worth asking about
             where there are places to settle: a country swapping nobody has
-            nothing to play for. */}
-        {resolved.divisions === 2 && promoSpotsOf(resolved) > 0 && (
+            nothing to play for. A depth test like the control above it, not an
+            equality one — promotionPlayoffFields seats a playoff at the TOP
+            link whatever the pyramid's depth, so `=== 2` hid the control for a
+            mechanic that was running anyway. */}
+        {resolved.divisions >= 2 && promoSpotsOf(resolved) > 0 && (
           <div className="col">
             <label className="form-label small mb-1">Playoff</label>
             <select

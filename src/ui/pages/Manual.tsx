@@ -757,8 +757,9 @@ export function Manual() {
           </p>
           <p>
             <strong>Naming the leagues.</strong> Every league has a name of its own, and you can
-            change it. The two name boxes are the first thing in the panel, on shipped countries and
-            added ones alike. Leave one empty and it goes back to following the country's name.
+            change it. There's a box per division — three of them for the countries that ship with
+            three — and they're the first thing in the panel, on shipped countries and added ones
+            alike. Leave one empty and it goes back to following the country's name.
           </p>
           <p>
             <strong>Renaming won't break a roster file.</strong> A world-wide roster file names the
